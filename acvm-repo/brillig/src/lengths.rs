@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Represents the length of an array or vector as seen from a user's perspective.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]`, the semantic length is 8.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct SemanticLength(pub usize);
+pub struct SemanticLength(pub u32);
 
 impl Mul<ElementsLength> for SemanticLength {
     type Output = SemiFlattenedLength;
@@ -33,7 +33,7 @@ impl std::fmt::Display for SemanticLength {
 /// 2. u16
 /// 3. [u32; 4]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct ElementsLength(pub usize);
+pub struct ElementsLength(pub u32);
 
 impl Mul<SemanticLength> for ElementsLength {
     type Output = SemiFlattenedLength;
@@ -73,7 +73,7 @@ impl std::fmt::Display for ElementsLength {
 /// Note that this is different from the fully flattened length, which would be 8 * (1 + 1 + 4) = 48.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-pub struct SemiFlattenedLength(pub usize);
+pub struct SemiFlattenedLength(pub u32);
 
 impl std::fmt::Display for SemiFlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -87,7 +87,7 @@ impl std::fmt::Display for SemiFlattenedLength {
 /// 2. u16 (1)
 /// 3. [u32; 4] (4)
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct ElementsFlattenedLength(pub usize);
+pub struct ElementsFlattenedLength(pub u32);
 
 impl std::fmt::Display for ElementsFlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -108,7 +108,7 @@ impl Mul<SemanticLength> for ElementsFlattenedLength {
 /// Represents the total number of fields required to represent the entirety of an array or vector.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened length is 48: 8 * (1 + 1 + 4).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct FlattenedLength(pub usize);
+pub struct FlattenedLength(pub u32);
 
 impl FlattenedLength {
     /// Assumes this flattened length represents a single entry in an array or vector,

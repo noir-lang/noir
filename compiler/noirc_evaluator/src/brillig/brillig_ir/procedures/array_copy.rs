@@ -13,7 +13,7 @@ use super::ProcedureId;
 use crate::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BrilligContext, ReservedRegisters,
+        BrilligContext, ReservedRegisters, assert_u32,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -103,7 +103,8 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     data: &str,
     brillig_context: &mut BrilligContext<F, Registers>,
 ) -> Allocated<ValueOrArray, Registers> {
-    let brillig_array = brillig_context.allocate_brillig_array(SemiFlattenedLength(data.len()));
+    let brillig_array =
+        brillig_context.allocate_brillig_array(SemiFlattenedLength(assert_u32(data.len())));
 
     // Allocate space on the heap.
     brillig_context.codegen_initialize_array(*brillig_array);
@@ -115,7 +116,7 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     initialize_constant_string(brillig_context, data, *items_pointer);
 
     // Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    let size = SemiFlattenedLength(data.len());
+    let size = SemiFlattenedLength(assert_u32(data.len()));
     items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size }))
 }
 
@@ -173,11 +174,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         let newline_type = u1_type.clone();
-        let size = SemanticLength(message_with_func_name.len());
+        let size = SemanticLength(assert_u32(message_with_func_name.len()));
         let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
-        let size = SemanticLength(PRINT_U32_TYPE_STRING.len());
+        let size = SemanticLength(assert_u32(PRINT_U32_TYPE_STRING.len()));
         let metadata_type = HeapValueType::Array { value_types: vec![u8_type], size };
         let is_fmt_string_type = u1_type;
 

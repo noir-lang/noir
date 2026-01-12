@@ -18,7 +18,7 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{
-        BrilligContext,
+        BrilligContext, assert_u32,
         brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
         registers::{Allocated, RegisterAllocator},
     },
@@ -171,7 +171,7 @@ pub(crate) fn compute_array_length(
     item_typ: &CompositeType,
     elem_count: SemanticLength,
 ) -> SemiFlattenedLength {
-    ElementsLength(item_typ.len()) * elem_count
+    ElementsLength(assert_u32(item_typ.len())) * elem_count
 }
 
 /// For a given [ValueId], allocates the necessary registers to hold it.
@@ -195,10 +195,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context
-            .allocate_brillig_array(compute_array_length(
-                &item_typ,
-                SemanticLength(elem_count as usize),
-            ))
+            .allocate_brillig_array(compute_array_length(&item_typ, SemanticLength(elem_count)))
             .map(BrilligVariable::BrilligArray),
         Type::Vector(_) => {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)

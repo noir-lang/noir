@@ -1,5 +1,8 @@
 use crate::{
-    brillig::{BrilligOptions, brillig_ir::registers::Allocated},
+    brillig::{
+        BrilligOptions,
+        brillig_ir::{assert_u32, assert_usize, registers::Allocated},
+    },
     ssa::ir::function::FunctionId,
 };
 
@@ -156,7 +159,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(items, size) => {
                     let semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength(items.len()) * *size;
+                        ElementsLength(assert_u32(items.len())) * *size;
 
                     self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
@@ -212,7 +215,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         flattened_array_pointer: MemoryAddress,
         is_vector: bool,
     ) -> Allocated<MemoryAddress, Stack> {
-        let semi_flattened_size: SemiFlattenedLength = item_count * ElementsLength(item_type.len());
+        let semi_flattened_size: SemiFlattenedLength =
+            item_count * ElementsLength(assert_u32(item_type.len()));
 
         let deflattened_array_pointer = self.allocate_register();
         let deflattened_size_variable =
@@ -236,8 +240,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             let source_item_size = Self::flattened_tuple_size(item_type);
 
             for item_index in 0..item_count.0 {
-                let source_item_base_index = item_index * source_item_size;
-                let target_item_base_index = item_index * target_item_size;
+                let source_item_base_index = assert_usize(item_index) * source_item_size;
+                let target_item_base_index = assert_usize(item_index) * target_item_size;
 
                 let mut source_offset = 0;
 
@@ -325,7 +329,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(item_types, item_count) => {
                     let semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength(item_types.len()) * *item_count;
+                        ElementsLength(assert_u32(item_types.len())) * *item_count;
                     self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(..) => unreachable!("ICE: Cannot return vectors"),

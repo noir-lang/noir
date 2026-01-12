@@ -48,6 +48,16 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// memory has 2^32 memory slots.
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
+/// Converts a u32 value to usize, panicking if the conversion fails.
+pub(crate) fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+pub(crate) fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
+}
+
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
 
@@ -125,7 +135,7 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::Direct(GlobalSpace::start_with_layout(&self.layout()))
+        MemoryAddress::direct(GlobalSpace::start_with_layout(&self.layout()))
     }
 
     /// If this flag is set, compile the array copy counter as a global.
@@ -349,7 +359,7 @@ pub(crate) mod tests {
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
     use super::procedures::compile_procedure;
     use super::registers::Stack;
-    use super::{BrilligOpcode, ReservedRegisters};
+    use super::{BrilligOpcode, ReservedRegisters, assert_usize};
 
     pub(crate) struct DummyBlackBoxSolver;
 
@@ -443,7 +453,7 @@ pub(crate) mod tests {
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
-            (vm, return_data_offset, return_data_size)
+            (vm, assert_usize(return_data_offset), assert_usize(return_data_size))
         } else {
             panic!("VM did not finish")
         }
@@ -488,7 +498,7 @@ pub(crate) mod tests {
         // The output pointer points at the heap.
         context.usize_const_instruction(
             r_output_ptr,
-            FieldElement::from(r_free_value + offsets::VECTOR_ITEMS),
+            FieldElement::from(r_free_value + assert_usize(offsets::VECTOR_ITEMS)),
         );
         context.foreign_call_instruction(
             "make_number_sequence".into(),

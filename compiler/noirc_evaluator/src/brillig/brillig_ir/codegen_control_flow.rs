@@ -9,7 +9,10 @@ use acvm::{
     },
 };
 
-use crate::{brillig::brillig_ir::registers::Allocated, ssa::ir::instruction::ErrorType};
+use crate::{
+    brillig::brillig_ir::{assert_u32, assert_usize, registers::Allocated},
+    ssa::ir::instruction::ErrorType,
+};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -318,7 +321,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligParameter::Array(item_types, item_count)
             | BrilligParameter::Vector(item_types, item_count) => {
                 let item_size: usize = item_types.iter().map(Self::flattened_size).sum();
-                item_count.0 * item_size
+                assert_usize(item_count.0) * item_size
             }
         }
     }
@@ -348,8 +351,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let target_item_size = Self::flattened_tuple_size(item_type);
 
             for item_index in 0..item_count.0 {
-                let source_item_base_index = item_index * source_item_size;
-                let target_item_base_index = item_index * target_item_size;
+                let source_item_base_index = assert_usize(item_index) * source_item_size;
+                let target_item_base_index = assert_usize(item_index) * target_item_size;
 
                 let mut target_offset = 0;
 
@@ -415,7 +418,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 }
             }
         } else {
-            let size: SemiFlattenedLength = item_count * ElementsLength(item_type.len());
+            let size: SemiFlattenedLength =
+                item_count * ElementsLength(assert_u32(item_type.len()));
             let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }

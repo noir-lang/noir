@@ -105,7 +105,7 @@ impl FunctionContext {
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
                 vecmap(item_type.iter(), Self::ssa_type_to_parameter),
-                SemanticLength(*size as usize),
+                SemanticLength(*size),
             ),
             Type::Vector(_) => {
                 panic!("ICE: Vector parameters cannot be derived from type information")

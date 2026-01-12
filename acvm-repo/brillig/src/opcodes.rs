@@ -14,25 +14,25 @@ pub type Label = usize;
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum MemoryAddress {
     /// Specifies an exact index in the VM's memory.
-    Direct(usize),
+    Direct(u32),
     /// Specifies an index relative to the stack pointer.
     ///
     /// It is resolved as the current stack pointer plus the offset stored here.
     ///
     /// The stack pointer is stored in memory slot 0, so this address is resolved
     /// by reading that slot and adding the offset to get the final memory address.
-    Relative(usize),
+    Relative(u32),
 }
 
 impl MemoryAddress {
     /// Create a `Direct` address.
     pub fn direct(address: usize) -> Self {
-        MemoryAddress::Direct(address)
+        MemoryAddress::Direct(address.try_into().expect("exceeded max brillig vm address"))
     }
 
     /// Create a `Relative` address.
     pub fn relative(offset: usize) -> Self {
-        MemoryAddress::Relative(offset)
+        MemoryAddress::Relative(offset.try_into().expect("exceeded max brillig vm address"))
     }
 
     /// Return the index in a `Direct` address.
@@ -40,7 +40,9 @@ impl MemoryAddress {
     /// Panics if it's `Relative`.
     pub fn unwrap_direct(self) -> usize {
         match self {
-            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Direct(address) => {
+                address.try_into().expect("failed conversion from u32 to usize")
+            }
             MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
         }
     }
@@ -51,15 +53,21 @@ impl MemoryAddress {
     pub fn unwrap_relative(self) -> usize {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
-            MemoryAddress::Relative(offset) => offset,
+            MemoryAddress::Relative(offset) => {
+                offset.try_into().expect("Failed conversion from u32 to usize")
+            }
         }
     }
 
     /// Return the index in the address.
     pub fn to_usize(self) -> usize {
         match self {
-            MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => offset,
+            MemoryAddress::Direct(address) => {
+                address.try_into().expect("failed conversion from u32 to usize")
+            }
+            MemoryAddress::Relative(offset) => {
+                offset.try_into().expect("failed conversion from u32 to usize")
+            }
         }
     }
 
@@ -80,7 +88,7 @@ impl MemoryAddress {
     pub fn offset(&self, amount: usize) -> Self {
         // We disallow offsetting relatively addresses as this is not expected to be meaningful.
         let address = self.unwrap_direct();
-        MemoryAddress::Direct(address + amount)
+        MemoryAddress::direct(address + amount)
     }
 }
 
@@ -798,7 +806,7 @@ mod prop_tests {
             let leaf = any::<BitSize>().prop_map(HeapValueType::Simple);
             leaf.prop_recursive(2, 3, 2, |inner| {
                 prop_oneof![
-                    (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
+                    (prop::collection::vec(inner.clone(), 1..3), any::<u32>()).prop_map(
                         |(value_types, size)| {
                             HeapValueType::Array { value_types, size: SemanticLength(size) }
                         }

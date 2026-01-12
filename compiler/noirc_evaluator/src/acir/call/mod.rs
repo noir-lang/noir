@@ -8,6 +8,7 @@ use crate::acir::AcirVar;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
+use crate::brillig::brillig_ir::assert_u32;
 use crate::errors::RuntimeError;
 use crate::ssa::ir::value::Value;
 use crate::ssa::ir::{
@@ -210,7 +211,7 @@ impl Context<'_> {
 
                     BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
-                        SemanticLength(len),
+                        SemanticLength(assert_u32(len)),
                     )
                 } else {
                     FunctionContext::ssa_type_to_parameter(&typ)

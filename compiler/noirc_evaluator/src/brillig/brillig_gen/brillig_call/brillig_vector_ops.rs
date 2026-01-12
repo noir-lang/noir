@@ -247,7 +247,7 @@ mod tests {
                 // The input vector of the array items, with a known size/capacity.
                 BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    SemanticLength(source.len()),
+                    SemanticLength(source.len() as u32),
                 ),
                 // The item to push.
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -266,7 +266,7 @@ mod tests {
             // With the metadata at the start.
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                SemanticLength(result_length_with_metadata),
+                SemanticLength(result_length_with_metadata as u32),
             )];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -434,7 +434,7 @@ mod tests {
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    SemanticLength(source.len()),
+                    SemanticLength(source.len() as u32),
                 ),
             ];
             let result_length = source_len - 1;
@@ -451,7 +451,7 @@ mod tests {
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Array(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    SemanticLength(result_length_with_metadata),
+                    SemanticLength(result_length_with_metadata as u32),
                 ),
             ];
 
@@ -589,7 +589,7 @@ mod tests {
             let arguments = vec![
                 BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    SemanticLength(array.len()),
+                    SemanticLength(array.len() as u32),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -602,7 +602,7 @@ mod tests {
             // With the metadata at the start.
             let returns = vec![BrilligParameter::Array(
                 vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                SemanticLength(result_length_with_metadata),
+                SemanticLength(result_length_with_metadata as u32),
             )];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -730,7 +730,7 @@ mod tests {
             let arguments = vec![
                 BrilligParameter::Vector(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    SemanticLength(array.len()),
+                    SemanticLength(array.len() as u32),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
@@ -742,7 +742,7 @@ mod tests {
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Array(
                     vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    SemanticLength(result_length_with_metadata),
+                    SemanticLength(result_length_with_metadata as u32),
                 ),
             ];
 

@@ -4,6 +4,8 @@ use acir::{
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
+use crate::assert_usize;
+
 /// The bit size used for addressing memory within the Brillig VM.
 ///
 /// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
@@ -27,14 +29,14 @@ pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
 /// * Vectors are `[ref-count, size, capacity, ...items]`
 pub mod offsets {
     /// Number of prefix fields in an array: RC.
-    pub const ARRAY_META_COUNT: usize = 1;
-    pub const ARRAY_ITEMS: usize = 1;
+    pub const ARRAY_META_COUNT: u32 = 1;
+    pub const ARRAY_ITEMS: u32 = 1;
 
     /// Number of prefix fields in a vector: RC, size, capacity.
-    pub const VECTOR_META_COUNT: usize = 3;
-    pub const VECTOR_SIZE: usize = 1;
-    pub const VECTOR_CAPACITY: usize = 2;
-    pub const VECTOR_ITEMS: usize = 3;
+    pub const VECTOR_META_COUNT: u32 = 3;
+    pub const VECTOR_SIZE: u32 = 1;
+    pub const VECTOR_CAPACITY: u32 = 2;
+    pub const VECTOR_ITEMS: u32 = 3;
 }
 
 /// Wrapper for array addresses, with convenience methods for various offsets.
@@ -46,7 +48,7 @@ pub(crate) struct ArrayAddress(MemoryAddress);
 impl ArrayAddress {
     /// The start of the items, after the meta-data.
     pub(crate) fn items_start(&self) -> MemoryAddress {
-        self.0.offset(offsets::ARRAY_ITEMS)
+        self.0.offset(assert_usize(offsets::ARRAY_ITEMS))
     }
 }
 
@@ -129,7 +131,7 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
     pub fn to_usize(&self) -> usize {
         match self {
-            MemoryValue::U32(value) => (*value).try_into().unwrap(),
+            MemoryValue::U32(value) => assert_usize(*value),
             other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
@@ -382,8 +384,8 @@ impl<F: AcirField> Memory<F> {
     /// Returns a memory slot index.
     fn resolve(&self, address: MemoryAddress) -> usize {
         match address {
-            MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Direct(address) => assert_usize(address),
+            MemoryAddress::Relative(offset) => self.get_stack_pointer() + assert_usize(offset),
         }
     }
 

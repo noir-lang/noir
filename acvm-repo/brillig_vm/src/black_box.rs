@@ -1,5 +1,5 @@
 //! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
+use acir::brillig::{BlackBoxOp, HeapArray};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
     BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2s, blake3,
@@ -9,30 +9,8 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 
 use crate::Memory;
+use crate::assert_usize;
 use crate::memory::MemoryValue;
-
-/// Reads a dynamically-sized [vector][HeapVector] from memory.
-///
-/// The data is not expected to contain pointers to nested arrays or vector.
-fn read_heap_vector<'a, F: AcirField>(
-    memory: &'a Memory<F>,
-    vector: &HeapVector,
-) -> &'a [MemoryValue<F>] {
-    let items_start = memory.read_ref(vector.pointer);
-    let size = memory.read(vector.size);
-    memory.read_slice(items_start, size.to_usize())
-}
-
-/// Write values to a [vector][HeapVector] in memory.
-fn write_heap_vector<F: AcirField>(
-    memory: &mut Memory<F>,
-    vector: &HeapVector,
-    values: &[MemoryValue<F>],
-) {
-    let items_start = memory.read_ref(vector.pointer);
-    memory.write(vector.size, values.len().into());
-    memory.write_slice(items_start, values);
-}
 
 /// Reads a fixed-size [array][HeapArray] from memory.
 ///
@@ -42,7 +20,7 @@ fn read_heap_array<'a, F: AcirField>(
     array: &HeapArray,
 ) -> &'a [MemoryValue<F>] {
     let items_start = memory.read_ref(array.pointer);
-    memory.read_slice(items_start, array.size.0)
+    memory.read_slice(items_start, assert_usize(array.size.0))
 }
 
 /// Write values to a [array][HeapArray] in memory.
@@ -98,7 +76,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
             let bb_func = black_box_function_from_op(op);
 
-            let inputs = to_u8_vec(read_heap_vector(memory, inputs));
+            let inputs = to_u8_vec(read_heap_array(memory, inputs));
 
             let iv: [u8; 16] = to_u8_vec(read_heap_array(memory, iv)).try_into().map_err(|_| {
                 BlackBoxResolutionError::Failed(bb_func, "Invalid iv length".to_string())
@@ -109,18 +87,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 
-            write_heap_vector(memory, outputs, &to_value_vec(&ciphertext));
+            write_heap_array(memory, outputs, &to_value_vec(&ciphertext));
 
             Ok(())
         }
         BlackBoxOp::Blake2s { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, message));
+            let message = to_u8_vec(read_heap_array(memory, message));
             let bytes = blake2s(message.as_slice())?;
             write_heap_array(memory, output, &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Blake3 { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, message));
+            let message = to_u8_vec(read_heap_array(memory, message));
             let bytes = blake3(message.as_slice())?;
             write_heap_array(memory, output, &to_value_vec(&bytes));
             Ok(())
@@ -173,7 +151,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     BlackBoxResolutionError::Failed(bb_func, "Invalid signature length".to_string())
                 })?;
 
-            let hashed_msg = to_u8_vec(read_heap_vector(memory, hashed_msg));
+            let hashed_msg = to_u8_vec(read_heap_array(memory, hashed_msg));
 
             let result = match op {
                 BlackBoxOp::EcdsaSecp256k1 { .. } => ecdsa_secp256k1_verify(
@@ -195,7 +173,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
-            let points: Vec<F> = read_heap_vector(memory, points)
+            let points: Vec<F> = read_heap_array(memory, points)
                 .iter()
                 .enumerate()
                 .map(|(i, x)| {
@@ -207,7 +185,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     }
                 })
                 .collect();
-            let scalars: Vec<F> = read_heap_vector(memory, scalars)
+            let scalars: Vec<F> = read_heap_array(memory, scalars)
                 .iter()
                 .map(|x| x.expect_field().unwrap())
                 .collect();
@@ -274,7 +252,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::Poseidon2Permutation { message, output } => {
-            let input = read_heap_vector(memory, message);
+            let input = read_heap_array(memory, message);
             let input: Vec<F> = input.iter().map(|x| x.expect_field().unwrap()).collect();
             let result = solver.poseidon2_permutation(&input)?;
             let mut values = Vec::new();
