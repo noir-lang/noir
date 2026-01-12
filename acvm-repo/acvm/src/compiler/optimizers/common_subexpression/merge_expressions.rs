@@ -205,11 +205,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 }
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op } => {
-                //index and value
-                let witnesses = CircuitSimulator::expr_witness(&op.index);
-                witnesses.chain(CircuitSimulator::expr_witness(&op.value)).collect()
-            }
+            Opcode::MemoryOp { block_id: _, op } => CircuitSimulator::expr_witness(&op.operation)
+                .chain(CircuitSimulator::expr_witness(&op.index))
+                .chain(CircuitSimulator::expr_witness(&op.value))
+                .collect(),
 
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 init.iter().cloned().collect()

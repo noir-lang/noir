@@ -453,6 +453,7 @@ impl Elaborator<'_> {
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });

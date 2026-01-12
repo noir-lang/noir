@@ -74,6 +74,8 @@ pub enum ResolverError {
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
+    #[error("Oracle functions cannot return references")]
+    OracleReturnsReference { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -269,6 +271,7 @@ impl ResolverError {
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
+            | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -487,6 +490,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             },
             ResolverError::OracleReturnsMultipleVectors { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleReturnsReference { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
