@@ -1139,7 +1139,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}], outputs: []
+        BRILLIG CALL func: 0, predicate 1, inputs: [{w_x}], outputs: []
         "
         );
         let circuit = Circuit::from_str(&src).unwrap();
@@ -1294,7 +1294,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
+        BRILLIG CALL func: 0, predicate 1, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
         ASSERT {w_z} = {w_x} + {w_y}
         "
         );
@@ -1372,7 +1372,7 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = []
-        BRILLIG CALL func: 0, inputs: [], outputs: []
+        BRILLIG CALL func: 0, predicate 1, inputs: [], outputs: []
         CALL func: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
@@ -1382,7 +1382,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 1, predicate 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
         let circuit_two = Circuit::from_str(src_two).unwrap();

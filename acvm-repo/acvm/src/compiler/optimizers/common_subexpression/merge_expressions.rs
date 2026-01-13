@@ -340,7 +340,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [], outputs: [w1]
+        BRILLIG CALL func: 0, predicate 1, inputs: [], outputs: [w1]
         ASSERT 2*w0 + 3*w1 + w2 + 1 = 0
         ASSERT 2*w0 + 2*w1 + w5 + 1 = 0
         ";
@@ -398,7 +398,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]
-        BRILLIG CALL func: 0, inputs: [], outputs: [w3]
+        BRILLIG CALL func: 0, predicate 1, inputs: [], outputs: [w3]
         BLACKBOX::AND lhs: w0, rhs: w1, output: w4, bits: 8
         ASSERT w3 - w4 = 0
         ASSERT -w2 + w4 = 0
@@ -438,7 +438,7 @@ mod tests {
         BLACKBOX::RANGE input: w2, bits: 1
         ASSERT w4 = w0*w1
         ASSERT w5 = -w2 + 1
-        BRILLIG CALL func: 0, predicate: w4*w5, inputs: [w2], outputs: [w6]
+        BRILLIG CALL func: 0, predicate: w4*w5, predicate 1, inputs: [w2], outputs: [w6]
         ASSERT w3 = -w5 + 1
         ";
         let circuit = Circuit::from_str(src).unwrap();

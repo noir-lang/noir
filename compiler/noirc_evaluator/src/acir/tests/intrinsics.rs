@@ -429,11 +429,11 @@ fn vector_insert_no_predicate() {
     WRITE b1[w0] = w5
     ASSERT w6 = 0
     INIT b2 = [w6, w6, w6, w6]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w7, w8]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w7, w8]
     BLACKBOX::RANGE input: w7, bits: 1
     BLACKBOX::RANGE input: w8, bits: 64
     ASSERT w8 = -w1 - 18446744073709551616*w7 + 18446744073709551616
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551615, 18446744073709551616], outputs: [w9, w10]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551615, 18446744073709551616], outputs: [w9, w10]
     BLACKBOX::RANGE input: w9, bits: 1
     BLACKBOX::RANGE input: w10, bits: 64
     ASSERT w10 = -w1 - 18446744073709551616*w9 + 18446744073709551615
@@ -441,7 +441,7 @@ fn vector_insert_no_predicate() {
     ASSERT w12 = w7*w9 - w7 + 1
     ASSERT w13 = -10*w7*w9 + w11*w12 + 10*w7
     WRITE b2[w6] = w13
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w14, w15]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w14, w15]
     BLACKBOX::RANGE input: w14, bits: 1
     BLACKBOX::RANGE input: w15, bits: 64
     ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551617
@@ -451,7 +451,7 @@ fn vector_insert_no_predicate() {
     ASSERT w19 = 1
     ASSERT w20 = -10*w7*w14 + w17*w18 + 10*w14
     WRITE b2[w19] = w20
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w21, w22]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w21, w22]
     BLACKBOX::RANGE input: w21, bits: 1
     BLACKBOX::RANGE input: w22, bits: 64
     ASSERT w22 = -w1 - 18446744073709551616*w21 + 18446744073709551618
@@ -460,7 +460,7 @@ fn vector_insert_no_predicate() {
     ASSERT w25 = w14*w21 - w21 + 1
     ASSERT w26 = -10*w14*w21 + w24*w25 + 10*w21
     WRITE b2[w2] = w26
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w27, w28]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w27, w28]
     BLACKBOX::RANGE input: w27, bits: 1
     BLACKBOX::RANGE input: w28, bits: 64
     ASSERT w28 = -w1 - 18446744073709551616*w27 + 18446744073709551619
@@ -531,14 +531,14 @@ fn vector_remove() {
     READ w12 = b1[w1]
     INIT b2 = [w7, w7]
     READ w13 = b1[w9]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w14, w15]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w14, w15]
     BLACKBOX::RANGE input: w14, bits: 1
     BLACKBOX::RANGE input: w15, bits: 64
     ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551616
     ASSERT w16 = -w8*w14 + w13*w14 + w8
     WRITE b2[w7] = w16
     READ w17 = b1[w3]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w18, w19]
+    BRILLIG CALL func: 0, predicate 1, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w18, w19]
     BLACKBOX::RANGE input: w18, bits: 1
     BLACKBOX::RANGE input: w19, bits: 64
     ASSERT w19 = -w1 - 18446744073709551616*w18 + 18446744073709551617
@@ -738,7 +738,7 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
     INIT b1 = [w0]
-    BRILLIG CALL func: 0, inputs: [w1 - 3], outputs: [w3]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w1 - 3], outputs: [w3]
     ASSERT w4 = -w1*w3 + 3*w3 + 1
     ASSERT 0 = w1*w4 - 3*w4
     ASSERT w5 = 0

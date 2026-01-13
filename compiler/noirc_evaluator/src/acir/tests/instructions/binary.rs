@@ -80,7 +80,7 @@ fn div_field() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w1], outputs: [w3]
     ASSERT 0 = w1*w3 - 1
     ASSERT w2 = w0*w3
 
@@ -116,7 +116,7 @@ fn eq_field() {
     public parameters: []
     return values: [w2]
     ASSERT w3 = w0 - w1
-    BRILLIG CALL func: 0, inputs: [w3], outputs: [w4]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w3], outputs: [w4]
     ASSERT w5 = -w3*w4 + 1
     ASSERT 0 = w3*w5
     ASSERT w2 = w5
@@ -259,9 +259,9 @@ fn div_u8_no_predicate_by_witness() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w1], outputs: [w3]
     ASSERT 0 = w1*w3 - 1
-    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
+    BRILLIG CALL func: 1, predicate 1, inputs: [w0, w1], outputs: [w4, w5]
     BLACKBOX::RANGE input: w4, bits: 8
     BLACKBOX::RANGE input: w5, bits: 8
     ASSERT w6 = w1 - w5 - 1
@@ -312,7 +312,7 @@ fn div_u8_no_predicate_by_constant() {
     public parameters: []
     return values: [w1]
     BLACKBOX::RANGE input: w0, bits: 8
-    BRILLIG CALL func: 0, inputs: [w0, 7], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w0, 7], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 6
     BLACKBOX::RANGE input: w3, bits: 3
     ASSERT w4 = w3 + 1
@@ -361,11 +361,11 @@ fn div_u8_with_predicate() {
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
     BLACKBOX::RANGE input: w2, bits: 1
-    BRILLIG CALL func: 0, inputs: [w1], outputs: [w4]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w1], outputs: [w4]
     ASSERT w5 = -w1*w4 + 1
     ASSERT 0 = w1*w5
     ASSERT 0 = w2*w5
-    BRILLIG CALL func: 1, predicate: w2, inputs: [w0, w1], outputs: [w6, w7]
+    BRILLIG CALL func: 1, predicate: w2, predicate 1, inputs: [w0, w1], outputs: [w6, w7]
     BLACKBOX::RANGE input: w6, bits: 8
     BLACKBOX::RANGE input: w7, bits: 8
     ASSERT w8 = w1 - w2 - w7
@@ -416,9 +416,9 @@ fn mod_u8_no_predicate() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w1], outputs: [w3]
     ASSERT 0 = w1*w3 - 1
-    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
+    BRILLIG CALL func: 1, predicate 1, inputs: [w0, w1], outputs: [w4, w5]
     BLACKBOX::RANGE input: w4, bits: 8
     BLACKBOX::RANGE input: w5, bits: 8
     ASSERT w6 = w1 - w5 - 1
@@ -468,7 +468,7 @@ fn eq_u8() {
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
     ASSERT w3 = w0 - w1
-    BRILLIG CALL func: 0, inputs: [w3], outputs: [w4]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w3], outputs: [w4]
     ASSERT w5 = -w3*w4 + 1
     ASSERT 0 = w3*w5
     ASSERT w2 = w5
@@ -515,7 +515,7 @@ fn lt_u8() {
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
-    BRILLIG CALL func: 0, inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
+    BRILLIG CALL func: 0, predicate 1, inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
     BLACKBOX::RANGE input: w3, bits: 1
     BLACKBOX::RANGE input: w4, bits: 8
     ASSERT w4 = w0 - w1 - 256*w3 + 256
