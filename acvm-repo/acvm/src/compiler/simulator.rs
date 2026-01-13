@@ -122,10 +122,8 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
+                if !self.can_solve_expression(predicate) {
+                    return false;
                 }
                 for output in outputs {
                     match output {
@@ -145,10 +143,8 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
+                if !self.can_solve_expression(predicate) {
+                    return false;
                 }
                 for w in outputs {
                     self.mark_solvable(*w);

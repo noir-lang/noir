@@ -61,8 +61,6 @@ impl<F: AcirField> AcirContext<F> {
 
             return Ok(outputs_var);
         }
-        // Remove "always true" predicates.
-        let predicate = if predicate == Expression::one() { None } else { Some(predicate) };
 
         let brillig_inputs: Vec<BrilligInputs<F>> =
             try_vecmap(inputs, |i| -> Result<_, InternalError> {

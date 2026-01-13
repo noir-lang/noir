@@ -608,7 +608,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         id: &BrilligFunctionId,
         inputs: &'a [BrilligInputs<F>],
         outputs: &[BrilligOutputs],
-        predicate: &Option<Expression<F>>,
+        predicate: &Expression<F>,
     ) -> Result<Option<ForeignCallWaitInfo<F>>, OpcodeResolutionError<F>> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
@@ -746,7 +746,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         id: &AcirFunctionId,
         inputs: &[Witness],
         outputs: &[Witness],
-        predicate: &Option<Expression<F>>,
+        predicate: &Expression<F>,
     ) -> Result<Option<AcirCallWaitInfo<F>>, OpcodeResolutionError<F>> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
@@ -895,33 +895,25 @@ fn any_witness_from_expression<F>(expr: &Expression<F>) -> Option<Witness> {
 /// Returns `Ok(true)` if the predicate is zero
 /// A predicate is used to indicate whether we should skip a certain operation.
 /// If we have a zero predicate it means the operation should be skipped.
-///
-/// Returns `Ok(false)` when the `predicate` is `None`.
 pub(crate) fn is_predicate_false<F: AcirField>(
     witness: &WitnessMap<F>,
-    predicate: &Option<Expression<F>>,
+    predicate: &Expression<F>,
     pedantic_solving: bool,
     opcode_location: &ErrorLocation,
 ) -> Result<bool, OpcodeResolutionError<F>> {
-    match predicate {
-        Some(pred) => {
-            let pred_value = get_value(pred, witness)?;
-            let predicate_is_false = pred_value.is_zero();
-            if pedantic_solving {
-                // We expect that the predicate should resolve to either 0 or 1.
-                if !predicate_is_false && !pred_value.is_one() {
-                    let opcode_location = *opcode_location;
-                    return Err(OpcodeResolutionError::PredicateLargerThanOne {
-                        opcode_location,
-                        pred_value,
-                    });
-                }
-            }
-            Ok(predicate_is_false)
+    let pred_value = get_value(predicate, witness)?;
+    let predicate_is_false = pred_value.is_zero();
+    if pedantic_solving {
+        // We expect that the predicate should resolve to either 0 or 1.
+        if !predicate_is_false && !pred_value.is_one() {
+            let opcode_location = *opcode_location;
+            return Err(OpcodeResolutionError::PredicateLargerThanOne {
+                opcode_location,
+                pred_value,
+            });
         }
-        // If the predicate is `None`, then we treat it as an unconditional `true`
-        None => Ok(false),
     }
+    Ok(predicate_is_false)
 }
 
 /// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]

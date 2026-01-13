@@ -115,7 +115,7 @@ mod tests {
 
     use crate::{
         circuit::{Opcode, brillig::BrilligFunctionId},
-        native_types::Witness,
+        native_types::{Expression, Witness},
         serialization::{Format, msgpack_deserialize, msgpack_serialize},
     };
 
@@ -323,7 +323,7 @@ mod tests {
             id: BrilligFunctionId(1),
             inputs: Vec::new(),
             outputs: Vec::new(),
-            predicate: None,
+            predicate: Expression::one(),
         };
         let bz = msgpack_serialize(&value, false).unwrap();
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
@@ -332,9 +332,10 @@ mod tests {
         let fields = &fields.first().expect("enum is non-empty").1;
         let fields = fields.as_map().expect("fields are map");
 
-        let (k, v) = fields.last().expect("fields are not empty");
-        assert_eq!(k.as_str().expect("names are str"), "predicate");
-        assert!(matches!(v, Value::Nil));
+        // When the predicate is Expression::one(), it should be skipped during serialization
+        // and not appear in the fields at all
+        let has_predicate = fields.iter().any(|(k, _)| k.as_str() == Some("predicate"));
+        assert!(!has_predicate, "predicate field should be skipped when it's Expression::one()");
     }
 
     #[test]

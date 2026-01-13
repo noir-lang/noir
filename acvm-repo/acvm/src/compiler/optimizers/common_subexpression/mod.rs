@@ -329,16 +329,12 @@ where
             // We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
             Opcode::BrilligCall { id: _, inputs, outputs, predicate } => {
-                if let Some(pred) = predicate {
-                    self.fold_expr(pred);
-                }
+                self.fold_expr(predicate);
                 self.fold_brillig_inputs(inputs);
                 self.fold_brillig_outputs(outputs);
             }
             Opcode::Call { id: _, inputs, outputs, predicate } => {
-                if let Some(pred) = predicate {
-                    self.fold_expr(pred);
-                }
+                self.fold_expr(predicate);
                 self.fold_many(inputs.iter());
                 self.fold_many(outputs.iter());
             }

@@ -220,9 +220,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                         witnesses.insert(witness);
                     });
                 }
-                if let Some(predicate) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_witness(predicate));
-                }
+                witnesses.extend(CircuitSimulator::expr_witness(predicate));
                 for i in outputs {
                     self.for_each_brillig_output_witness(i, |witness| {
                         witnesses.insert(witness);
@@ -233,10 +231,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             Opcode::Call { id: _, inputs, outputs, predicate } => {
                 let mut witnesses: BTreeSet<Witness> = inputs.iter().copied().collect();
                 witnesses.extend(outputs);
-
-                if let Some(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_witness(p));
-                }
+                witnesses.extend(CircuitSimulator::expr_witness(predicate));
                 witnesses
             }
         }

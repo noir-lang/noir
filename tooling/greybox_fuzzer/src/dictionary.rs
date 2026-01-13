@@ -61,7 +61,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
 
     for opcode in &circuit.opcodes {
         match opcode {
-            Opcode::AssertZero(expr) | Opcode::Call { predicate: Some(expr), .. } => {
+            Opcode::AssertZero(expr) | Opcode::Call { predicate: expr, .. } => {
                 insert_expr(&mut constants, expr);
             }
 
@@ -78,9 +78,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                         BrilligInputs::MemoryArray(_) => (),
                     }
                 }
-                if let Some(predicate) = predicate {
-                    insert_expr(&mut constants, predicate);
-                }
+                insert_expr(&mut constants, predicate);
             }
 
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits })
