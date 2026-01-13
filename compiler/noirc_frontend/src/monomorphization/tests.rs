@@ -1054,3 +1054,70 @@ fn match_guard_becomes_if_then_else() {
 
     insta::assert_snapshot!(program, @r"???");
 }
+
+#[test]
+fn pass_ref_from_constrained_to_unconstrained_via_closure() {
+    // The code below is invalid: it would result in passing a captured reference
+    // as part of the environment from constrained to unconstrained environment.
+    // However, it is not caught by monomorphization, but rather later by SSA validation.
+    let src = r#"
+    fn main()  {
+        let mut x = 0;
+        let f = foo(&mut x);
+        f(1_u32);
+        // safety: test
+        unsafe { bar(f, 2_u32) }
+    }
+
+    fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
+        |y| { *x = y; }
+    }
+
+    unconstrained fn bar<Env>(f: fn[Env](u32) -> (), x: u32) {
+        f(x);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let mut x$l0 = 0;
+        let f$l1 = foo$f1((&mut x$l0));
+        {
+            let tmp$l2 = f$l1.0;
+            tmp$l2.1(tmp$l2.0, 1)
+        };;
+        {
+            bar$f2(f$l1, 2)
+        }
+    }
+    fn foo$f1(x$l3: &mut u32) -> (((&mut u32,), fn(u32) -> () with closure environment (&mut u32,)), ((&mut u32,), unconstrained fn(u32) -> () with closure environment (&mut u32,))) {
+        ({
+            let closure_variable$l6 = {
+                let env$l5 = (x$l3);
+                (env$l5, lambda$f3)
+            };
+            closure_variable$l6
+        }, {
+            let closure_variable$l9 = {
+                let env$l8 = (x$l3);
+                (env$l8, lambda$f4)
+            };
+            closure_variable$l9
+        })
+    }
+    unconstrained fn bar$f2(f$l10: (((&mut u32,), fn(u32) -> () with closure environment (&mut u32,)), ((&mut u32,), unconstrained fn(u32) -> () with closure environment (&mut u32,))), x$l11: u32) -> () {
+        {
+            let tmp$l12 = f$l10.1;
+            tmp$l12.1(tmp$l12.0, x$l11)
+        };
+    }
+    fn lambda$f3(mut env$l5: (&mut u32,), y$l4: u32) -> () {
+        *env$l5.0 = y$l4
+    }
+    unconstrained fn lambda$f4(mut env$l8: (&mut u32,), y$l7: u32) -> () {
+        *env$l8.0 = y$l7
+    }
+    ");
+}
