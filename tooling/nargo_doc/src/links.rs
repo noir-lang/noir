@@ -16,7 +16,8 @@ use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 /// - `[name](path)`
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
-    pub target: LinkTarget,
+    /// The link target. If None it means this is a broken link.
+    pub target: Option<LinkTarget>,
     pub name: String,
     pub path: String,
     /// The line number in the comments where this link occurs (0-based).
@@ -121,6 +122,9 @@ impl LinkFinder {
             let path = &link.link;
             let path = path.strip_prefix('`').unwrap_or(path);
             let path = path.strip_suffix('`').unwrap_or(path);
+            if path.is_empty() || path.contains(' ') {
+                return None;
+            }
 
             let target = path_to_link_target(
                 path,
@@ -129,7 +133,7 @@ impl LinkFinder {
                 interner,
                 def_maps,
                 crate_graph,
-            )?;
+            );
             Some(Link {
                 target,
                 line: line_number,
@@ -204,10 +208,6 @@ pub(crate) fn path_to_link_target(
     def_maps: &DefMaps,
     crate_graph: &CrateGraph,
 ) -> Option<LinkTarget> {
-    if path.is_empty() || path.contains(' ') {
-        return None;
-    }
-
     let segments: Vec<&str> = path.split("::").collect();
 
     if let Some(current_type) = current_type {

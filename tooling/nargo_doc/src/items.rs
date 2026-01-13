@@ -42,7 +42,8 @@ pub enum ItemKind {
 pub struct Link {
     pub name: String,
     pub path: String,
-    pub target: LinkTarget,
+    /// The link target. If None it means this is a broken link.
+    pub target: Option<LinkTarget>,
     /// The line number in the comments where this link occurs (0-based).
     pub line: usize,
     /// The start byte in the line where the link occurs.

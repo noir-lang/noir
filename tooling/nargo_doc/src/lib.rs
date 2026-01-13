@@ -677,7 +677,7 @@ impl DocItemBuilder<'_> {
             self.crate_graph,
         );
         vecmap(links, |link| {
-            let target = match link.target {
+            let target = link.target.map(|target| match target {
                 links::LinkTarget::TopLevelItem(module_def_id) => {
                     LinkTarget::TopLevelItem(get_module_def_id(module_def_id, self.interner))
                 }
@@ -697,7 +697,7 @@ impl DocItemBuilder<'_> {
                     let name = self.interner.function_name(&func_id).to_string();
                     LinkTarget::PrimitiveTypeFunction(primitive_type_kind, name)
                 }
-            };
+            });
             Link {
                 name: link.name,
                 path: link.path,
