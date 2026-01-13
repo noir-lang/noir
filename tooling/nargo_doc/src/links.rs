@@ -122,10 +122,6 @@ impl LinkFinder {
             let path = &link.link;
             let path = path.strip_prefix('`').unwrap_or(path);
             let path = path.strip_suffix('`').unwrap_or(path);
-            if path.is_empty() || path.contains(' ') {
-                return None;
-            }
-
             let target = path_to_link_target(
                 path,
                 current_module_id,
@@ -166,6 +162,8 @@ struct PlainLink {
     pub end: usize,
 }
 
+/// Finds links in a markdown line. Only links that look like Noir paths are returned.
+/// For example, `[1 + 2]` will not be returned as a link, while `[foo::Bar]` will.
 fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item = PlainLink> {
     regex.captures_iter(line).filter_map(|captures| {
         let first_capture = captures.get(0).unwrap();
@@ -177,8 +175,30 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
             .or(captures.get(3))
             .map(|capture| capture.as_str().to_string())
             .unwrap_or_else(|| word.clone());
-        Some(PlainLink { name: word, link, start, end })
+        if link_looks_like_a_path(&link) {
+            Some(PlainLink { name: word, link, start, end })
+        } else {
+            None
+        }
     })
+}
+
+/// Returns true if this link looks likes a valid Noir path.
+fn link_looks_like_a_path(link: &str) -> bool {
+    let link = link.trim();
+    if link.is_empty() {
+        return false;
+    }
+    for (index, char) in link.chars().enumerate() {
+        if index == 0 {
+            if !char.is_ascii_alphabetic() {
+                return false;
+            }
+        } else if !(char.is_ascii_alphanumeric() || char == '_' || char == ':') {
+            return false;
+        }
+    }
+    true
 }
 
 /// A regex that captures markdown links as either `[reference]`, `[reference][link]` or
@@ -536,5 +556,26 @@ mod tests {
         assert_eq!(&link.link, "world");
         assert_eq!(link.start, 47);
         assert_eq!(link.end, 54);
+    }
+
+    #[test]
+    fn does_not_find_if_empty() {
+        let line = "Hello []!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_all_spaces() {
+        let line = "Hello [  ]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_not_a_valid_path() {
+        let line = "Hello [ 1 + 2 ]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
     }
 }
