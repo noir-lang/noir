@@ -18,6 +18,8 @@ use super::{
     value::{Value, ValueId, ValueMapping},
 };
 
+use std::collections::HashMap as StdHashMap;
+
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
@@ -108,6 +110,9 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) function_purities: Arc<FunctionPurities>,
+
+    #[serde(skip)]
+    pub(crate) function_runtimes: Arc<StdHashMap<FunctionId, RuntimeType>>,
 
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
@@ -824,6 +829,14 @@ impl DataFlowGraph {
 
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
         self.function_purities.get(&function).copied()
+    }
+
+    pub(crate) fn set_function_runtimes(&mut self, runtimes: Arc<StdHashMap<FunctionId, RuntimeType>>) {
+        self.function_runtimes = runtimes;
+    }
+
+    pub(crate) fn runtime_of(&self, function: FunctionId) -> Option<RuntimeType> {
+        self.function_runtimes.get(&function).copied()
     }
 
     /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.

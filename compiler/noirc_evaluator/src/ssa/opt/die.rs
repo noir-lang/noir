@@ -86,6 +86,17 @@ impl Ssa {
         #[cfg(debug_assertions)]
         self.functions.values().for_each(|func| die_pre_check(func, flattened));
 
+        // Collect all function runtimes and distribute them to all DFGs
+        let runtimes: std::collections::HashMap<FunctionId, _> = self
+            .functions
+            .iter()
+            .map(|(id, func)| (*id, func.runtime()))
+            .collect();
+        let runtimes = std::sync::Arc::new(runtimes);
+        for func in self.functions.values_mut() {
+            func.dfg.set_function_runtimes(runtimes.clone());
+        }
+
         let mut previous_unused_params = None;
         loop {
             let (new_ssa, result) = self.dead_instruction_elimination_inner(flattened);
@@ -505,11 +516,21 @@ fn can_be_eliminated_if_unused(
 
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.
-            Value::Function(function_id) => match function.dfg.purity_of(function_id) {
-                Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => false,
-                Some(Purity::Impure) => false,
-                None => false,
+            Value::Function(function_id) => {
+                let caller_runtime = function.runtime();
+                let callee_runtime = function.dfg.runtime_of(function_id);
+
+                if caller_runtime.is_brillig()
+                    && matches!(callee_runtime, Some(runtime) if runtime.is_brillig())
+                {
+                    // Brillig to Brillig: can eliminate PureWithPredicate
+                    matches!(
+                        function.dfg.purity_of(function_id),
+                        Some(Purity::Pure | Purity::PureWithPredicate)
+                    )
+                } else {
+                    matches!(function.dfg.purity_of(function_id), Some(Purity::Pure))
+                }
             },
 
             _ => false,
