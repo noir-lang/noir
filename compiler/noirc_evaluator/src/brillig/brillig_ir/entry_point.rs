@@ -1,5 +1,8 @@
 use crate::{
-    brillig::{BrilligOptions, brillig_ir::registers::Allocated},
+    brillig::{
+        BrilligOptions,
+        brillig_ir::{assert_u32, registers::Allocated},
+    },
     ssa::ir::function::FunctionId,
 };
 
@@ -110,7 +113,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
                         single_address.address,
-                        MemoryAddress::direct(current_calldata_pointer),
+                        MemoryAddress::direct(assert_u32(current_calldata_pointer)),
                     );
                     current_calldata_pointer += 1;
                 }
@@ -173,7 +176,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     fn copy_and_cast_calldata(&mut self, arguments: &[BrilligParameter]) {
         let calldata_size = Self::flattened_tuple_size(arguments);
         self.calldata_copy_instruction(
-            MemoryAddress::direct(self.calldata_start_offset()),
+            MemoryAddress::direct(assert_u32(self.calldata_start_offset())),
             calldata_size,
             0,
         );
@@ -194,12 +197,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             if bit_size < F::max_num_bits() {
                 self.cast_instruction(
                     SingleAddrVariable::new(
-                        MemoryAddress::direct(self.calldata_start_offset() + i),
+                        MemoryAddress::direct(assert_u32(self.calldata_start_offset() + i)),
                         bit_size,
                     ),
-                    SingleAddrVariable::new_field(MemoryAddress::direct(
+                    SingleAddrVariable::new_field(MemoryAddress::direct(assert_u32(
                         self.calldata_start_offset() + i,
-                    )),
+                    ))),
                 );
             }
         }
@@ -345,7 +348,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             match return_param {
                 BrilligParameter::SingleAddr(_) => {
                     self.mov_instruction(
-                        MemoryAddress::direct(return_data_index),
+                        MemoryAddress::direct(assert_u32(return_data_index)),
                         returned_variable.extract_single_addr().address,
                     );
                     return_data_index += 1;

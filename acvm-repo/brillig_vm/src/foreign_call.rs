@@ -149,8 +149,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Vector { value_types },
             ) => {
                 let start = self.memory.read_ref(pointer);
-                let size = self.memory.read(size_addr).to_usize();
-                self.read_slice_of_values_from_memory(start, size, value_types)
+                let size = self.memory.read(size_addr).to_u32();
+                self.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
@@ -181,7 +181,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 "array/vector does not contain a whole number of elements"
             );
 
-            (0..size)
+            (0..crate::assert_u32(size))
                 .zip(value_types.iter().cycle())
                 .flat_map(|(i, value_type)| {
                     let value_address = start.offset(i);

@@ -10,9 +10,9 @@ use acvm::{
 
 use super::ProcedureId;
 use crate::brillig::{
-    BrilligVariable,
+    BrilligVariable, assert_u32, assert_usize,
     brillig_ir::{
-        BrilligContext, ReservedRegisters, assert_u32, assert_usize,
+        BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},

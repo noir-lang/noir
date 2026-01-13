@@ -37,6 +37,16 @@ use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
 
+/// Converts a u32 value to usize, panicking if the conversion fails.
+fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
+}
+
 /// Options that affect Brillig code generation.
 #[derive(Clone, Debug, Default)]
 pub struct BrilligOptions {

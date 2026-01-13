@@ -4,10 +4,13 @@ use acvm::{
     brillig_vm::offsets,
 };
 
-use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{BrilligBinaryOp, registers::Allocated},
+};
 
 use super::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters, assert_usize,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,

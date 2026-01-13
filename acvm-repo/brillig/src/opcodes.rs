@@ -23,23 +23,21 @@ pub enum MemoryAddress {
 
 impl MemoryAddress {
     /// Create a `Direct` address.
-    pub fn direct(address: usize) -> Self {
-        MemoryAddress::Direct(address.try_into().expect("exceeded max brillig vm address"))
+    pub fn direct(address: u32) -> Self {
+        MemoryAddress::Direct(address)
     }
 
     /// Create a `Relative` address.
-    pub fn relative(offset: usize) -> Self {
-        MemoryAddress::Relative(offset.try_into().expect("exceeded max brillig vm address"))
+    pub fn relative(offset: u32) -> Self {
+        MemoryAddress::Relative(offset)
     }
 
     /// Return the index in a `Direct` address.
     ///
     /// Panics if it's `Relative`.
-    pub fn unwrap_direct(self) -> usize {
+    pub fn unwrap_direct(self) -> u32 {
         match self {
-            MemoryAddress::Direct(address) => {
-                address.try_into().expect("failed conversion from u32 to usize")
-            }
+            MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
         }
     }
@@ -47,24 +45,18 @@ impl MemoryAddress {
     /// Return the index in a `Relative` address.
     ///
     /// Panics if it's `Direct`.
-    pub fn unwrap_relative(self) -> usize {
+    pub fn unwrap_relative(self) -> u32 {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
-            MemoryAddress::Relative(offset) => {
-                offset.try_into().expect("Failed conversion from u32 to usize")
-            }
+            MemoryAddress::Relative(offset) => offset,
         }
     }
 
     /// Return the index in the address.
-    pub fn to_usize(self) -> usize {
+    pub fn to_u32(self) -> u32 {
         match self {
-            MemoryAddress::Direct(address) => {
-                address.try_into().expect("failed conversion from u32 to usize")
-            }
-            MemoryAddress::Relative(offset) => {
-                offset.try_into().expect("failed conversion from u32 to usize")
-            }
+            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Relative(offset) => offset,
         }
     }
 
@@ -82,7 +74,7 @@ impl MemoryAddress {
     /// Offset a `Direct` address by `amount`.
     ///
     /// Panics if called on a `Relative` address.
-    pub fn offset(&self, amount: usize) -> Self {
+    pub fn offset(&self, amount: u32) -> Self {
         // We disallow offsetting relatively addresses as this is not expected to be meaningful.
         let address = self.unwrap_direct();
         MemoryAddress::direct(address + amount)

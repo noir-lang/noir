@@ -188,7 +188,7 @@ fn foreign_call_opcode_vector_input_and_output() {
     output_string.reverse();
 
     // The free memory starts where the input data ends.
-    let free_memory_start = r_input_addr.to_usize() + input_string.len();
+    let free_memory_start = r_input_addr.to_u32() + input_string.len() as u32;
     let free_memory_start_addr = MemoryAddress::direct(free_memory_start);
 
     let string_double_program = vec![
@@ -213,7 +213,7 @@ fn foreign_call_opcode_vector_input_and_output() {
         // input_pointer = input_addr
         Opcode::Const {
             destination: r_input_pointer,
-            value: r_input_addr.to_usize().into(),
+            value: r_input_addr.to_u32().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         // input_size = input_string.len() (constant here, rather than a pointer into a vector structure)
@@ -231,22 +231,12 @@ fn foreign_call_opcode_vector_input_and_output() {
         // output_pointer = free_memory_pointer + 3
         Opcode::Const {
             destination: r_output_pointer,
-            value: free_memory_start_addr
-                .offset(
-                    offsets::VECTOR_ITEMS.try_into().expect("Failed conversion from u32 to usize"),
-                )
-                .to_usize()
-                .into(),
+            value: free_memory_start_addr.offset(offsets::VECTOR_ITEMS).to_u32().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         Opcode::Const {
             destination: r_output_size,
-            value: free_memory_start_addr
-                .offset(
-                    offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize"),
-                )
-                .to_usize()
-                .into(),
+            value: free_memory_start_addr.offset(offsets::VECTOR_SIZE).to_u32().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
@@ -283,11 +273,7 @@ fn foreign_call_opcode_vector_input_and_output() {
     // Check result in memory: it should have been written to the free memory.
     let result_values: Vec<_> = memory
         .read_slice(
-            MemoryAddress::direct(
-                free_memory_start
-                    + usize::try_from(offsets::VECTOR_ITEMS)
-                        .expect("Failed conversion from u32 to usize"),
-            ),
+            MemoryAddress::direct(free_memory_start + offsets::VECTOR_ITEMS),
             output_string.len(),
         )
         .iter()
@@ -300,7 +286,7 @@ fn foreign_call_opcode_vector_input_and_output() {
 
     // Check that the vector size is written onto the stack.
     let vector_size = memory.read(r_output_size);
-    assert_eq!(vector_size.to_usize(), output_string.len());
+    assert_eq!(vector_size.to_u32(), output_string.len() as u32);
 
     // The test above does not contain the opcodes that would copy the data from the stack to the heap.
     // Note that the VM did not write the size to the heap, because `codegen_brillig_vector_to_heap_vector`
@@ -311,10 +297,7 @@ fn foreign_call_opcode_vector_input_and_output() {
     // `codegen_initialize_vector_metadata`. We *could* give the heap address in `size`, but it would be
     // an exception to how `HeapVector`s generally look like. We could also use `write_ref` in the VM,
     // but that's not what the AVM does.
-    let unset_size = memory.read(
-        vector_addr
-            .offset(offsets::VECTOR_SIZE.try_into().expect("Failed conversion from u32 to usize")),
-    );
+    let unset_size = memory.read(vector_addr.offset(offsets::VECTOR_SIZE));
     assert_eq!(unset_size, MemoryValue::Field(FieldElement::zero()));
 
     // Ensure the foreign call counter has been incremented
@@ -570,8 +553,8 @@ fn foreign_call_opcode_nested_arrays_input() {
     ];
 
     // memory addresses for input and output
-    let r_input = MemoryAddress::direct(memory.len());
-    let r_output = MemoryAddress::direct(memory.len() + 1);
+    let r_input = MemoryAddress::direct(memory.len() as u32);
+    let r_output = MemoryAddress::direct(memory.len() as u32 + 1);
 
     let program: Vec<_> = vec![
         Opcode::Const {
@@ -592,8 +575,8 @@ fn foreign_call_opcode_nested_arrays_input() {
     ]
     .into_iter()
     .chain(memory.iter().enumerate().map(|(index, mem_value)| Opcode::Cast {
-        destination: MemoryAddress::direct(index),
-        source: MemoryAddress::direct(index),
+        destination: MemoryAddress::direct(index as u32),
+        source: MemoryAddress::direct(index as u32),
         bit_size: mem_value.bit_size(),
     }))
     .chain(vec![
