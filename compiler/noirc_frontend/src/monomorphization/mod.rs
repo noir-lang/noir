@@ -3249,6 +3249,9 @@ pub(crate) enum TraitItem {
 }
 
 impl TraitItem {
+    /// Get the function ID from a [TraitItem::Method].
+    ///
+    /// Panics if called on a [TraitItem::Constant].
     pub(crate) fn unwrap_method(&self) -> node_interner::FuncId {
         match self {
             TraitItem::Method(func_id) => *func_id,
@@ -3259,15 +3262,16 @@ impl TraitItem {
     }
 }
 
-/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
-/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
-/// value, and another `bool` to show if the print is using a format string, or a raw
-/// value.
+/// Extend the arguments to `print` (which so far is a `bool` to show if newline is needed and
+/// value to be printed itself) with further metadata:
+/// * if we print a raw value, then append a JSON serialized `PrintableType` to describe it
+/// * if we are using a format string with multiple interpolations, append a separate JSON for each value in it
+/// * finally another `bool` to show if the print is using a format string, or a raw value
 pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::Expression>) {
     let typ: Type = typ.follow_bindings();
     let is_fmt_str = match typ {
         // A format string has many different possible types that need to be handled.
-        // Loop over each element in the format string to fetch each type's relevant metadata
+        // Loop over each element in the format string to fetch each type's relevant metadata.
         Type::FmtString(_, elements) => {
             match *elements {
                 Type::Tuple(element_types) => {
