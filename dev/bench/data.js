@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768326704920,
+  "lastUpdate": 1768327956369,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d4e50bc2cff127e6d536e5142588fe48c27a0f2",
-          "message": "fix(ownership): Clone array last used in while condition (#11113)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-01-07T16:55:27Z",
-          "tree_id": "a0ed3127a681058c69ca592fe039577bec7218b8",
-          "url": "https://github.com/noir-lang/noir/commit/8d4e50bc2cff127e6d536e5142588fe48c27a0f2"
-        },
-        "date": 1767806151039,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253156,
-            "range": "± 1500",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223462,
-            "range": "± 2530",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789798,
-            "range": "± 12855",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784802,
             "range": "± 2032",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b2855beb520d25ebe784506b95496cd8bb27a6cd",
+          "message": "chore: improve error message when value is expected (#11187)",
+          "timestamp": "2026-01-13T17:51:09Z",
+          "tree_id": "4d02e1137e650d62fae4d7674b7c0c6b48113cef",
+          "url": "https://github.com/noir-lang/noir/commit/b2855beb520d25ebe784506b95496cd8bb27a6cd"
+        },
+        "date": 1768327921451,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256312,
+            "range": "± 650",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221620,
+            "range": "± 2822",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782304,
+            "range": "± 7842",
             "unit": "ns/iter"
           }
         ]
