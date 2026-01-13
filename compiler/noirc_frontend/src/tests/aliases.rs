@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
@@ -432,4 +432,195 @@ fn regression_10429_with_trait() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn regression_10352_parameter() {
+    let src = r#"
+    type Alias = Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_tuple() {
+    let src = r#"
+    type Alias = (Alias,);
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_struct() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    type Alias = Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_enum() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    type Alias = Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_array() {
+    let src = r#"
+    type Alias = [Alias; 3];
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_slice() {
+    let src = r#"
+    type Alias = [Alias];
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_trait_as_type() {
+    let src = r#"
+    trait Foo<T> {}
+
+    type Alias = impl Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10352_string() {
+    let src = r#"
+    type Alias = str<Alias>;
+    
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_format_string_len() {
+    let src = r#"
+    type Alias = fmtstr<Alias, ()>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_format_string_env() {
+    let src = r#"
+    type Alias = fmtstr<0, (Alias,)>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_parameter() {
+    let src = r#"
+    type Alias = fn(Alias);
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_return() {
+    let src = r#"
+    type Alias = fn() -> Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_env() {
+    let src = r#"
+    type Alias = fn[(Alias,)]();
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_immutable_reference() {
+    let src = r#"
+    type Alias = &Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn regression_10352_mutable_reference() {
+    let src = r#"
+    type Alias = &mut Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
 }
