@@ -78,7 +78,8 @@ unused_qualifications = "warn"
 unreachable_pub = "warn"
 unsafe_code = "deny"
 unused_must_use = "warn"
-mismatched_lifetime_syntaxes = "allow"
+# TODO: WIP
+# mismatched_lifetime_syntaxes = "allow"
 
 [workspace.lints.clippy]
 cast_lossless = "warn"

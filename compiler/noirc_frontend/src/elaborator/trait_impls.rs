@@ -816,6 +816,8 @@ impl Elaborator<'_> {
                 let mut trait_generics = trait_generics.clone();
                 let location = trait_path.location;
                 let trait_path = self.validate_path(trait_path.clone());
+                // TODO: WIP
+                dbg!("resolve_trait_impl_trait_path");
                 let trait_id = self.resolve_trait_by_path(trait_path);
 
                 // Check and remove and any generic that is specifying an associated item

@@ -48,17 +48,36 @@ impl Elaborator<'_> {
     /// Helper function containing the elaboration logic for a variable.
     /// Returns the expression ID, type, whether it's a comptime local, and location.
     fn elaborate_variable_inner(&mut self, variable: Path) -> (ExprId, Type, bool, Location) {
-        let variable = self.validate_path(variable);
+        // TODO: WIP
+        // let variable = self.validate_path(variable);
+        let mut variable = self.validate_path(variable);
+        // TODO: WIP
+        // dbg!("elaborate_variable_inner", &variable);
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
         {
             return (expr_id, typ, false, variable.location);
         }
 
+        // TODO: WIP
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
+        // let resolved_turbofish = variable.segments.pop().unwrap().generics.clone();
+        // // TODO: WIP
+        // let any_non_empty_non_last_generics = variable.segments.iter().any(|segment| {
+        //     if let Some(generics) = &segment.generics {
+        //         generics.is_empty()
+        //     } else {
+        //         false
+        //     }
+        // });
+        // dbg!("elaborate_variable_inner (after resolved_turbofish)", &variable, any_non_empty_non_last_generics, &resolved_turbofish);
+        // // TODO: WIP
+        // assert!(!any_non_empty_non_last_generics);
 
         let location = variable.location;
-        let (expr, item) = self.resolve_variable(variable);
+        // TODO: WIP (remove clone?)
+        // let (expr, item) = self.resolve_variable(variable);
+        let (expr, item) = self.resolve_variable(variable.clone());
         let definition_id = expr.id;
 
         if let Some(PathResolutionItem::TypeAlias(alias)) = item {
@@ -75,18 +94,26 @@ impl Elaborator<'_> {
         }
 
         let (type_generics, self_generic) = if let Some(item) = item {
+            // TODO: WIP
+            dbg!("elaborate_variable_inner (resolve_item_turbofish_and_self_type)");
             self.resolve_item_turbofish_and_self_type(item)
         } else {
+            // TODO: WIP
+            dbg!("elaborate_variable_inner (no resolve_item_turbofish_and_self_type)");
             (Vec::new(), None)
         };
 
         let definition = self.interner.try_definition(definition_id);
+        // TODO: WIP
+        dbg!("elaborate_variable_inner (definition)", &definition);
         let is_comptime_local = !self.in_comptime_context()
             && definition.is_some_and(DefinitionInfo::is_comptime_local);
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::default();
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            // TODO: WIP
+            dbg!("elaborate_variable_inner (function case)");
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -114,8 +141,15 @@ impl Elaborator<'_> {
             // and if the turbofish operator was used.
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
+            // TODO: WIP
+            dbg!("elaborate_variable_inner (no function case)");
+            assert!(resolved_turbofish.is_none(), "unused resolved_turbofish: {}", &variable);
+
             None
         };
+
+        // TODO: WIP
+        dbg!("elaborate_variable_inner (after generics)", &generics);
 
         let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
 
@@ -233,6 +267,8 @@ impl Elaborator<'_> {
         &mut self,
         item: PathResolutionItem,
     ) -> (Vec<Type>, Option<Type>) {
+        // TODO: WIP
+        dbg!("resolve_item_turbofish_and_self_type", &item);
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
                 let generics = self.resolve_struct_id_turbofish_generics(struct_id, Some(generics));
@@ -308,6 +344,8 @@ impl Elaborator<'_> {
 
     /// Elaborates a type path used in an expression, e.g. `Type::method::<Args>`
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
+        // TODO: WIP
+        dbg!("elaborate_type_path", &path);
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
         let wildcard_allowed = WildcardAllowed::Yes;
@@ -322,6 +360,8 @@ impl Elaborator<'_> {
         turbofish: Option<GenericTypeArgs>,
         typ_location: Location,
     ) -> (ExprId, Type) {
+        // TODO: WIP
+        dbg!("elaborate_type_path_impl", &turbofish);
         let ident_location = ident.location();
         let check_self_param = false;
 

@@ -2199,6 +2199,8 @@ impl Type {
         interner: &NodeInterner,
         implicit_generic_count: usize,
     ) -> (Type, TypeBindings) {
+        // TODO: WIP
+        dbg!("instantiate_with_bindings_and_turbofish", &turbofish_types);
         match self {
             Type::Forall(typevars, typ) => {
                 assert_eq!(

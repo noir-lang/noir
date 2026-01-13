@@ -476,6 +476,8 @@ impl Elaborator<'_> {
     ///
     /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
     fn use_variable(&mut self, name: &Ident) -> Result<(HirIdent, usize), ResolverError> {
+        // TODO: WIP
+        dbg!("use_variable", &name);
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(name.as_str());
@@ -504,6 +506,8 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Option<Vec<Type>> {
+        // TODO: WIP
+        // dbg!("resolve_function_turbofish_generics", &resolved_turbofish, &self.interner.function_meta(func_id).name);
         resolved_turbofish.map(|resolved_turbofish| {
             let direct_generic_kinds =
                 vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
@@ -575,6 +579,8 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
+        // TODO: WIP
+        dbg!("resolve_alias_turbofish_generics", &resolved_turbofish);
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
             "alias",
@@ -599,6 +605,8 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
+        // TODO: WIP
+        dbg!("resolve_item_turbofish_generics", &resolved_turbofish);
         debug_assert_eq!(
             generics.len(),
             item_generic_kinds.len(),
@@ -630,6 +638,8 @@ impl Elaborator<'_> {
         kinds: Vec<Kind>,
         turbofish_generics: Vec<Located<Type>>,
     ) -> Vec<Type> {
+        // TODO: WIP
+        dbg!("resolve_turbofish_generics", &turbofish_generics);
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
 
         vecmap(kinds_with_types, |(kind, located_type)| {
@@ -644,7 +654,13 @@ impl Elaborator<'_> {
     ///
     /// Pushes an error if the first segment is `Self` and it has turbofish generics.
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
-        let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
+        // // TODO: WIP
+        // dbg!("validate_path", &path);
+        // // TODO: WIP
+        // let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
+        let mut segments: Vec<_> = path.segments.into_iter().enumerate().map(|(index, segment)| {
+            self.validate_path_segment(index, segment)
+        }).collect();
 
         if let Some(first_segment) = segments.first_mut() {
             if first_segment.generics.is_some() && first_segment.ident.is_self_type_name() {
@@ -666,7 +682,11 @@ impl Elaborator<'_> {
 
     /// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
     /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
-    fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
+    // TODO: WIP
+    // fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
+    fn validate_path_segment(&mut self, index: usize, segment: PathSegment) -> TypedPathSegment {
+        // TODO: WIP
+        // dbg!("validate_path_segment", (index, &segment));
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
@@ -730,6 +750,8 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
+        // TODO: WIP
+        // dbg!("get_ident_from_path", &path);
         let location = Location::new(path.last_ident().span(), path.location.file);
 
         self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
@@ -744,6 +766,8 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
     ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
+        // TODO: WIP
+        // dbg!("get_ident_from_path_or_error", &path);
         let location = Location::new(path.last_ident().span(), path.location.file);
         let use_variable_result = path.as_single_segment().map(|segment| {
             let result = self.use_variable(&segment.ident);

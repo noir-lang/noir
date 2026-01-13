@@ -359,6 +359,8 @@ impl Elaborator<'_> {
         bound: &mut TraitBound,
     ) -> Vec<(ResolvedGeneric, Vec<ResolvedTraitBound>)> {
         let mut added_generics = Vec::new();
+        // TODO: WIP
+        dbg!("add_missing_named_generics");
         let trait_path = self.validate_path(bound.trait_path.clone());
 
         let Ok(PathResolutionItem::Trait(trait_id)) =
@@ -462,6 +464,8 @@ impl Elaborator<'_> {
         bound: &TraitBound,
         mode: PathResolutionMode,
     ) -> Option<ResolvedTraitBound> {
+        // TODO: WIP
+        dbg!("resolve_trait_bound_inner");
         let trait_path = self.validate_path(bound.trait_path.clone());
         let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;

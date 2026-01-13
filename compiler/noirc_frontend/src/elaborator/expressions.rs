@@ -984,6 +984,8 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        // TODO: WIP
+        dbg!("elaborate_constructor");
         let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
