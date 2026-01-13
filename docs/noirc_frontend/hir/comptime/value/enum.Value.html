@@ -50,7 +50,7 @@ in cases where it would be ambiguous, Values store the type directly.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.into_expression" class="method"><a class="src rightside" href="../../../../src/noirc_frontend/hir/comptime/value.rs.html#210-475">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.into_expression" class="fn">into_expression</a>(
     self,
     elaborator: &amp;mut <a class="struct" href="../../../elaborator/struct.Elaborator.html" title="struct noirc_frontend::elaborator::Elaborator">Elaborator</a>&lt;'_&gt;,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../../../ast/struct.Expression.html" title="struct noirc_frontend::ast::Expression">Expression</a>, <a class="enum" href="../enum.InterpreterError.html" title="enum noirc_frontend::hir::comptime::InterpreterError">InterpreterError</a>&gt;</h4></section></summary><div class="docblock"><p>Lowers this value into a runtime expression.</p>
 <p>For literals this is often simple, e.g. <code>Value::I8(3)</code> translates to <code>3</code>, but not
 all values are valid to lower. Lowering quoted code will simply return the quoted code (after
@@ -58,7 +58,7 @@ parsing), this is how macros are implemented.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.into_runtime_hir_expression" class="method"><a class="src rightside" href="../../../../src/noirc_frontend/hir/comptime/value.rs.html#481-630">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.into_runtime_hir_expression" class="fn">into_runtime_hir_expression</a>(
     self,
     interner: &amp;mut <a class="struct" href="../../../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../../../node_interner/struct.ExprId.html" title="struct noirc_frontend::node_interner::ExprId">ExprId</a>, <a class="enum" href="../enum.InterpreterError.html" title="enum noirc_frontend::hir::comptime::InterpreterError">InterpreterError</a>&gt;</h4></section></summary><div class="docblock"><p>Lowers this compile-time value into a HIR expression to be used at runtime.
 This means that comptime-only types will panic.
 This is similar to <a href="../enum.Value.html#method.into_expression" title="method noirc_frontend::hir::comptime::Value::into_expression">Self::into_expression</a> but is used in some cases in the monomorphizer
@@ -66,7 +66,7 @@ where code must already be in HIR.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.into_tokens" class="method"><a class="src rightside" href="../../../../src/noirc_frontend/hir/comptime/value.rs.html#636-765">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.into_tokens" class="fn">into_tokens</a>(
     self,
     interner: &amp;mut <a class="struct" href="../../../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../../lexer/token/struct.LocatedToken.html" title="struct noirc_frontend::lexer::token::LocatedToken">LocatedToken</a>&gt;, <a class="enum" href="../enum.InterpreterError.html" title="enum noirc_frontend::hir::comptime::InterpreterError">InterpreterError</a>&gt;</h4></section></summary><div class="docblock"><p>Attempt to convert this value into a Vec of tokens representing this value if it appeared
 in source code. For example, <code>Value::Unit</code> is <code>vec!['(', ')']</code>. This is used for splicing
 values into quoted values when <code>$</code> is used within a <code>quote {  }</code> expression. Since <code>Quoted</code>
@@ -78,7 +78,7 @@ Returns <code>None</code> for non-integral <code>Value</code>s and negative numb
 Returns <code>None</code> for non-integral <code>Value</code>s</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.into_top_level_items" class="method"><a class="src rightside" href="../../../../src/noirc_frontend/hir/comptime/value.rs.html#886-902">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.into_top_level_items" class="fn">into_top_level_items</a>(
     self,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
     elaborator: &amp;mut <a class="struct" href="../../../elaborator/struct.Elaborator.html" title="struct noirc_frontend::elaborator::Elaborator">Elaborator</a>&lt;'_&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../../parser/struct.Item.html" title="struct noirc_frontend::parser::Item">Item</a>&gt;, <a class="enum" href="../enum.InterpreterError.html" title="enum noirc_frontend::hir::comptime::InterpreterError">InterpreterError</a>&gt;</h4></section></summary><div class="docblock"><p>Similar to <a href="../enum.Value.html#method.into_expression" title="method noirc_frontend::hir::comptime::Value::into_expression">Self::into_expression</a> or <a href="../enum.Value.html#method.into_runtime_hir_expression" title="method noirc_frontend::hir::comptime::Value::into_runtime_hir_expression">Self::into_runtime_hir_expression</a> but for converting
 into top-level item(s). Unlike those other methods, most expressions are invalid
