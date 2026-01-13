@@ -774,3 +774,136 @@ fn fail_to_call_enum_member_without_panic() {
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features, true);
 }
+
+#[test]
+fn lambda_pairs() {
+    let src = r#"
+    fn main() {
+        constrained_context();
+        // safety: test
+        unsafe { unconstrained_context(); }
+    }
+
+    fn foo() {}
+    unconstrained fn bar() {}
+
+    fn baz(f: fn () -> ()) {
+        f();
+    }
+    fn qux(f: unconstrained fn () -> ()) {
+        // safety: test
+        unsafe { f(); }
+    }
+    unconstrained fn quy(f: fn () -> ()) {
+        f();
+    }
+    unconstrained fn quz(f: unconstrained fn () -> ()) {
+        f();
+    }
+
+    fn constrained_context() {
+        let f = foo; // should be (constrained, unconstrained), because we could call the constrained, or pass on the unconstrained
+        let b = bar; // should be (unconstrained, unconstrained), because we only have unconstrained
+        f();
+        // safety: test
+        unsafe {
+            b();
+        }
+        baz(f);
+        // baz(b);   // cannot pass unconstrained where constrained is expected
+        qux(f);
+        qux(b);
+        // safety: test
+        unsafe {
+            quy(f);
+            quy(b);
+            quz(f);
+            quz(b);
+        }
+    }
+
+    unconstrained fn unconstrained_context() {
+        let f = foo; // should be (unconstrained, unconstrained), because we can only call unconstrained
+        let b = bar; // should be (unconstrained, unconstrained), because we only have unconstrained
+        f();
+        b();
+        baz(f);
+        // baz(b);   // cannot pass unconstrained where constrained is expected
+        qux(f);
+        qux(b);
+        quy(f);
+        quy(b);
+        quz(f);
+        quz(b);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        constrained_context$f1();;
+        {
+            unconstrained_context$f2();
+        }
+    }
+    fn constrained_context$f1() -> () {
+        let f$l0 = (foo$f3, foo$f4);
+        let b$l1 = (bar$f5, bar$f5);
+        f$l0.0();;
+        {
+            b$l1.0();
+        };
+        baz$f6(f$l0);;
+        qux$f7(f$l0);;
+        qux$f7(b$l1);;
+        {
+            quy$f8(f$l0);;
+            quy$f8(b$l1);;
+            quz$f9(f$l0);;
+            quz$f9(b$l1);
+        }
+    }
+    unconstrained fn unconstrained_context$f2() -> () {
+        let f$l2 = (foo$f4, foo$f4);
+        let b$l3 = (bar$f5, bar$f5);
+        f$l2.1();;
+        b$l3.1();;
+        baz$f10(f$l2);;
+        qux$f11(f$l2);;
+        qux$f11(b$l3);;
+        quy$f8(f$l2);;
+        quy$f8(b$l3);;
+        quz$f9(f$l2);;
+        quz$f9(b$l3);
+    }
+    fn foo$f3() -> () {
+    }
+    unconstrained fn foo$f4() -> () {
+    }
+    unconstrained fn bar$f5() -> () {
+    }
+    fn baz$f6(f$l4: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l4.0();
+    }
+    fn qux$f7(f$l5: (fn() -> (), unconstrained fn() -> ())) -> () {
+        {
+            f$l5.0();
+        }
+    }
+    unconstrained fn quy$f8(f$l6: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l6.1();
+    }
+    unconstrained fn quz$f9(f$l7: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l7.1();
+    }
+    unconstrained fn baz$f10(f$l8: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l8.1();
+    }
+    unconstrained fn qux$f11(f$l9: (fn() -> (), unconstrained fn() -> ())) -> () {
+        {
+            f$l9.1();
+        }
+    }
+    ");
+}
