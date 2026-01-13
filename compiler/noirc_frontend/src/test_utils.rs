@@ -59,10 +59,13 @@ pub fn get_monomorphized_with_options(
 ) -> Result<Program, MonomorphizationError> {
     let (_parsed_module, mut context, errors) = get_program_with_options(src, options);
 
-    assert!(
-        errors.iter().all(|err| !err.is_error()),
-        "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
-    );
+    let only_warnings = errors.iter().all(|err| !err.is_error());
+    let has_defs = !context.def_maps.is_empty();
+    if !only_warnings || !has_defs && !errors.is_empty() {
+        panic!(
+            "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
+        )
+    }
 
     let main = context
         .get_main_function(context.root_crate_id())
