@@ -70,14 +70,20 @@
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, brillig_vm::offsets};
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, brillig_vm::offsets};
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, assert_usize,
-    brillig_variable::BrilligVector,
-    debug_show::DebugToString,
-    registers::{RegisterAllocator, ScratchSpace},
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{
+    assert_usize,
+    brillig_ir::{
+        BrilligBinaryOp, BrilligContext,
+        brillig_variable::BrilligVector,
+        debug_show::DebugToString,
+        registers::{RegisterAllocator, ScratchSpace},
+    },
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {

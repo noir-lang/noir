@@ -485,14 +485,8 @@
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
-    brillig::{
-        BrilligOptions,
-        brillig_ir::{assert_usize, registers::Allocated},
-    },
+<a href="#487" id="487">487</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
 
@@ -606,7 +600,7 @@
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(<span class="kw">_</span>)) =&gt; {
                     <span class="self">self</span>.mov_instruction(
                         single_address.address,
-                        MemoryAddress::direct(current_calldata_pointer),
+                        MemoryAddress::direct(assert_u32(current_calldata_pointer)),
                     );
                 }
                 (
@@ -664,7 +658,7 @@
         <span class="kw">let </span>calldata_size = <span class="self">Self</span>::flattened_tuple_size(arguments);
 
         <span class="self">self</span>.calldata_copy_instruction(
-            MemoryAddress::direct(<span class="self">self</span>.calldata_start_offset()),
+            MemoryAddress::direct(assert_u32(<span class="self">self</span>.calldata_start_offset())),
             calldata_size,
             <span class="number">0</span>,
         );
@@ -685,12 +679,12 @@
             </span><span class="kw">if </span>bit_size &lt; F::max_num_bits() {
                 <span class="self">self</span>.cast_instruction(
                     SingleAddrVariable::new(
-                        MemoryAddress::direct(<span class="self">self</span>.calldata_start_offset() + i),
+                        MemoryAddress::direct(assert_u32(<span class="self">self</span>.calldata_start_offset() + i)),
                         bit_size,
                     ),
-                    SingleAddrVariable::new_field(MemoryAddress::direct(
+                    SingleAddrVariable::new_field(MemoryAddress::direct(assert_u32(
                         <span class="self">self</span>.calldata_start_offset() + i,
-                    )),
+                    ))),
                 );
             }
         }
@@ -837,7 +831,7 @@
             <span class="kw">match </span>return_param {
                 BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
                     <span class="self">self</span>.mov_instruction(
-                        MemoryAddress::direct(return_data_index),
+                        MemoryAddress::direct(assert_u32(return_data_index)),
                         returned_variable.extract_single_addr().address,
                     );
                 }

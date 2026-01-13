@@ -735,12 +735,12 @@
             <span class="kw">let </span>MemoryValue::U32(radix) = memory.read(<span class="kw-2">*</span>radix) <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"ToRadix opcode's radix bit size does not match expected bit size 32"</span>)
             };
-            <span class="kw">let </span>num_limbs = memory.read(<span class="kw-2">*</span>num_limbs).to_usize();
+            <span class="kw">let </span>num_limbs = memory.read(<span class="kw-2">*</span>num_limbs).to_u32();
             <span class="kw">let </span>MemoryValue::U1(output_bits) = memory.read(<span class="kw-2">*</span>output_bits) <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"ToRadix opcode's output_bits size does not match expected bit size 1"</span>)
             };
 
-            <span class="kw">let </span>output = to_be_radix(input, radix, num_limbs, output_bits)<span class="question-mark">?</span>;
+            <span class="kw">let </span>output = to_be_radix(input, radix, assert_usize(num_limbs), output_bits)<span class="question-mark">?</span>;
 
             memory.write_slice(memory.read_ref(<span class="kw-2">*</span>output_pointer), <span class="kw-2">&amp;</span>output);
 

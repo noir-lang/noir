@@ -377,13 +377,18 @@
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
 <a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Stack;
-
-<span class="kw">use super</span>::{
-    BrilligContext, assert_usize, debug_show::DebugToString, registers::RegisterAllocator,
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{
+    assert_usize,
+    brillig_ir::{assert_u32, registers::Stack},
 };
+
+<span class="kw">use super</span>::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
     <span class="doccomment">/// Map sources to potentially multiple destinations.
@@ -539,7 +544,7 @@
 <span class="doccomment">/// Construct the register corresponding to the given mapped 'index'
 </span><span class="kw">fn </span>from_index(idx: usize) -&gt; MemoryAddress {
     <span class="macro">assert!</span>(idx != usize::MAX, <span class="string">"invalid index"</span>);
-    MemoryAddress::relative(idx + Stack::start())
+    MemoryAddress::relative(assert_u32(idx + Stack::start()))
 }
 
 <span class="attr">#[cfg(test)]
@@ -553,7 +558,7 @@
 
     <span class="kw">use crate</span>::{
         brillig::{
-            BrilligOptions,
+            BrilligOptions, assert_u32, assert_usize,
             brillig_ir::{
                 BrilligContext, LayoutConfig,
                 artifact::Label,
@@ -570,8 +575,8 @@
         movements
             .into_iter()
             .map(|(src, dst)| Opcode::Mov {
-                destination: MemoryAddress::relative(dst),
-                source: MemoryAddress::relative(src),
+                destination: MemoryAddress::relative(assert_u32(dst)),
+                source: MemoryAddress::relative(assert_u32(src)),
             })
             .collect()
     }
@@ -580,11 +585,13 @@
     </span><span class="kw">fn </span>movements_to_source_and_destinations(
         movements: Vec&lt;(usize, usize)&gt;,
     ) -&gt; (Vec&lt;MemoryAddress&gt;, Vec&lt;MemoryAddress&gt;) {
-        <span class="kw">let </span>sources =
-            movements.iter().map(|(source, <span class="kw">_</span>)| MemoryAddress::relative(<span class="kw-2">*</span>source)).collect();
+        <span class="kw">let </span>sources = movements
+            .iter()
+            .map(|(source, <span class="kw">_</span>)| MemoryAddress::relative(assert_u32(<span class="kw-2">*</span>source)))
+            .collect();
         <span class="kw">let </span>destinations = movements
             .iter()
-            .map(|(<span class="kw">_</span>, destination)| MemoryAddress::relative(<span class="kw-2">*</span>destination))
+            .map(|(<span class="kw">_</span>, destination)| MemoryAddress::relative(assert_u32(<span class="kw-2">*</span>destination)))
             .collect();
         (sources, destinations)
     }
@@ -724,13 +731,14 @@
             <span class="comment">// Generate the opcodes.
             </span><span class="kw">let </span>opcodes = {
                 <span class="comment">// Convert to MemoryAddress
-                </span><span class="kw">let </span>sources = vecmap(<span class="kw-2">&amp;</span>sources, |i| MemoryAddress::relative(<span class="kw-2">*</span>i));
-                <span class="kw">let </span>destinations = vecmap(<span class="kw-2">&amp;</span>destinations, |i| MemoryAddress::relative(<span class="kw-2">*</span>i));
+                </span><span class="kw">let </span>sources = vecmap(<span class="kw-2">&amp;</span>sources, |i| MemoryAddress::relative(assert_u32(<span class="kw-2">*</span>i)));
+                <span class="kw">let </span>destinations =
+                    vecmap(<span class="kw-2">&amp;</span>destinations, |i| MemoryAddress::relative(assert_u32(<span class="kw-2">*</span>i)));
 
                 <span class="kw">let </span><span class="kw-2">mut </span>context = create_context();
 
                 <span class="comment">// Treat the memory we care about as pre-allocated, so temporary variables are created after them.
-                </span><span class="kw">let </span>all_registers = vecmap(all_indexes, MemoryAddress::relative);
+                </span><span class="kw">let </span>all_registers = vecmap(all_indexes, |i| MemoryAddress::relative(assert_u32(i)));
                 context.set_allocated_registers(all_registers);
 
                 context.codegen_mov_registers_to_registers(<span class="kw-2">&amp;</span>sources, <span class="kw-2">&amp;</span>destinations);
@@ -742,7 +750,7 @@
                 <span class="kw">let </span>Opcode::Mov { destination, source } = opcode <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"only Mov expected"</span>);
                 };
-                memory[destination.to_usize()] = memory[source.to_usize()];
+                memory[assert_usize(destination.to_u32())] = memory[assert_usize(source.to_u32())];
             }
 
             <span class="comment">// Get the final values at the destination slots.

@@ -94,9 +94,10 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::FunctionId;
+<span class="kw">use crate</span>::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -181,7 +182,8 @@
 
         <span class="kw">for </span>(destination_index, return_variable) <span class="kw">in </span>return_variables.iter().enumerate() {
             <span class="comment">// In case we have fewer return registers than indices to write to, ensure we've allocated this register.
-            </span><span class="kw">let </span>destination_register = MemoryAddress::relative(Stack::start() + destination_index);
+            </span><span class="kw">let </span>destination_register =
+                MemoryAddress::relative(assert_u32(Stack::start() + destination_index));
             <span class="self">self</span>.registers_mut().ensure_register_is_allocated(destination_register);
             destinations.push(destination_register);
             sources.push(return_variable.extract_register());

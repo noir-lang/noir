@@ -641,7 +641,7 @@
 <span class="kw">impl </span>ArrayAddress {
     <span class="doccomment">/// The start of the items, after the meta-data.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>items_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress {
-        <span class="self">self</span>.<span class="number">0</span>.offset(assert_usize(offsets::ARRAY_ITEMS))
+        <span class="self">self</span>.<span class="number">0</span>.offset(offsets::ARRAY_ITEMS)
     }
 }
 
@@ -722,9 +722,9 @@
     <span class="doccomment">/// Expects a `U32` value and converts it into `usize`, otherwise panics.
     ///
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
-    </span><span class="kw">pub fn </span>to_usize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    </span><span class="kw">pub fn </span>to_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
-            MemoryValue::U32(value) =&gt; assert_usize(<span class="kw-2">*</span>value),
+            MemoryValue::U32(value) =&gt; <span class="kw-2">*</span>value,
             other =&gt; <span class="macro">panic!</span>(<span class="string">"value is not typed as Brillig usize: {other}"</span>),
         }
     }
@@ -966,8 +966,8 @@
     <span class="doccomment">/// Read the value from slot 0.
     ///
     /// Panics if it's not a `U32`.
-    </span><span class="kw">fn </span>get_stack_pointer(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="self">self</span>.read(STACK_POINTER_ADDRESS).to_usize()
+    </span><span class="kw">fn </span>get_stack_pointer(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="self">self</span>.read(STACK_POINTER_ADDRESS).to_u32()
     }
 
     <span class="doccomment">/// Resolve an address to either:
@@ -975,10 +975,10 @@
     /// * the current stack pointer plus the offset, if it's relative.
     ///
     /// Returns a memory slot index.
-    </span><span class="kw">fn </span>resolve(<span class="kw-2">&amp;</span><span class="self">self</span>, address: MemoryAddress) -&gt; usize {
+    </span><span class="kw">fn </span>resolve(<span class="kw-2">&amp;</span><span class="self">self</span>, address: MemoryAddress) -&gt; u32 {
         <span class="kw">match </span>address {
-            MemoryAddress::Direct(address) =&gt; assert_usize(address),
-            MemoryAddress::Relative(offset) =&gt; <span class="self">self</span>.get_stack_pointer() + assert_usize(offset),
+            MemoryAddress::Direct(address) =&gt; address,
+            MemoryAddress::Relative(offset) =&gt; <span class="self">self</span>.get_stack_pointer() + offset,
         }
     }
 
@@ -986,19 +986,19 @@
     ///
     /// If the address is beyond the size of memory, a default value is returned.
     </span><span class="kw">pub fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, address: MemoryAddress) -&gt; MemoryValue&lt;F&gt; {
-        <span class="kw">let </span>resolved_addr = <span class="self">self</span>.resolve(address);
+        <span class="kw">let </span>resolved_addr = assert_usize(<span class="self">self</span>.resolve(address));
         <span class="self">self</span>.inner.get(resolved_addr).copied().unwrap_or_default()
     }
 
     <span class="doccomment">/// Reads the value at the address and returns it as a direct memory address,
     /// without dereferencing the pointer itself to a numeric value.
     </span><span class="kw">pub fn </span>read_ref(<span class="kw-2">&amp;</span><span class="self">self</span>, ptr: MemoryAddress) -&gt; MemoryAddress {
-        MemoryAddress::direct(<span class="self">self</span>.read(ptr).to_usize())
+        MemoryAddress::direct(<span class="self">self</span>.read(ptr).to_u32())
     }
 
     <span class="doccomment">/// Sets `ptr` to point at `address`.
     </span><span class="kw">pub fn </span>write_ref(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: MemoryAddress, address: MemoryAddress) {
-        <span class="self">self</span>.write(ptr, MemoryValue::from(address.to_usize()));
+        <span class="self">self</span>.write(ptr, MemoryValue::from(address.to_u32()));
     }
 
     <span class="doccomment">/// Read a contiguous vector of memory starting at `address`, up to `len` slots.
@@ -1011,13 +1011,13 @@
         </span><span class="kw">if </span>len == <span class="number">0 </span>{
             <span class="kw">return </span><span class="kw-2">&amp;</span>[];
         }
-        <span class="kw">let </span>resolved_addr = <span class="self">self</span>.resolve(address);
+        <span class="kw">let </span>resolved_addr = assert_usize(<span class="self">self</span>.resolve(address));
         <span class="kw-2">&amp;</span><span class="self">self</span>.inner[resolved_addr..(resolved_addr + len)]
     }
 
     <span class="doccomment">/// Sets the value at `address` to `value`
     </span><span class="kw">pub fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: MemoryAddress, value: MemoryValue&lt;F&gt;) {
-        <span class="kw">let </span>resolved_addr = <span class="self">self</span>.resolve(address);
+        <span class="kw">let </span>resolved_addr = assert_usize(<span class="self">self</span>.resolve(address));
         <span class="self">self</span>.resize_to_fit(resolved_addr + <span class="number">1</span>);
         <span class="self">self</span>.inner[resolved_addr] = value;
     }
@@ -1032,7 +1032,7 @@
 
     <span class="doccomment">/// Sets the values after `address` to `values`
     </span><span class="kw">pub fn </span>write_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: MemoryAddress, values: <span class="kw-2">&amp;</span>[MemoryValue&lt;F&gt;]) {
-        <span class="kw">let </span>resolved_addr = <span class="self">self</span>.resolve(address);
+        <span class="kw">let </span>resolved_addr = assert_usize(<span class="self">self</span>.resolve(address));
         <span class="kw">let </span>end_addr = resolved_addr + values.len();
         <span class="self">self</span>.resize_to_fit(end_addr);
         <span class="self">self</span>.inner[resolved_addr..end_addr].copy_from_slice(values);
@@ -1072,7 +1072,7 @@
         <span class="comment">// Stack pointer + offset
         // 10 + 5 = 15
         </span><span class="macro">assert_eq!</span>(resolved_addr, <span class="number">15</span>);
-        <span class="macro">assert_eq!</span>(memory.values()[resolved_addr].to_u128().unwrap(), <span class="number">42</span>);
+        <span class="macro">assert_eq!</span>(memory.values()[assert_usize(resolved_addr)].to_u128().unwrap(), <span class="number">42</span>);
     }
 
     <span class="attr">#[test]

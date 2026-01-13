@@ -807,15 +807,7 @@
 <a href="#806" id="806">806</a>
 <a href="#807" id="807">807</a>
 <a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a>
-<a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a>
-<a href="#812" id="812">812</a>
-<a href="#813" id="813">813</a>
-<a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a>
-<a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#809" id="809">809</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     black_box::BlackBoxOp,
     lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
 };
@@ -843,23 +835,21 @@
 
 <span class="kw">impl </span>MemoryAddress {
     <span class="doccomment">/// Create a `Direct` address.
-    </span><span class="kw">pub fn </span>direct(address: usize) -&gt; <span class="self">Self </span>{
-        MemoryAddress::Direct(address.try_into().expect(<span class="string">"exceeded max brillig vm address"</span>))
+    </span><span class="kw">pub fn </span>direct(address: u32) -&gt; <span class="self">Self </span>{
+        MemoryAddress::Direct(address)
     }
 
     <span class="doccomment">/// Create a `Relative` address.
-    </span><span class="kw">pub fn </span>relative(offset: usize) -&gt; <span class="self">Self </span>{
-        MemoryAddress::Relative(offset.try_into().expect(<span class="string">"exceeded max brillig vm address"</span>))
+    </span><span class="kw">pub fn </span>relative(offset: u32) -&gt; <span class="self">Self </span>{
+        MemoryAddress::Relative(offset)
     }
 
     <span class="doccomment">/// Return the index in a `Direct` address.
     ///
     /// Panics if it's `Relative`.
-    </span><span class="kw">pub fn </span>unwrap_direct(<span class="self">self</span>) -&gt; usize {
+    </span><span class="kw">pub fn </span>unwrap_direct(<span class="self">self</span>) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
-            MemoryAddress::Direct(address) =&gt; {
-                address.try_into().expect(<span class="string">"failed conversion from u32 to usize"</span>)
-            }
+            MemoryAddress::Direct(address) =&gt; address,
             MemoryAddress::Relative(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected direct memory address"</span>),
         }
     }
@@ -867,24 +857,18 @@
     <span class="doccomment">/// Return the index in a `Relative` address.
     ///
     /// Panics if it's `Direct`.
-    </span><span class="kw">pub fn </span>unwrap_relative(<span class="self">self</span>) -&gt; usize {
+    </span><span class="kw">pub fn </span>unwrap_relative(<span class="self">self</span>) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
             MemoryAddress::Direct(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected relative memory address"</span>),
-            MemoryAddress::Relative(offset) =&gt; {
-                offset.try_into().expect(<span class="string">"Failed conversion from u32 to usize"</span>)
-            }
+            MemoryAddress::Relative(offset) =&gt; offset,
         }
     }
 
     <span class="doccomment">/// Return the index in the address.
-    </span><span class="kw">pub fn </span>to_usize(<span class="self">self</span>) -&gt; usize {
+    </span><span class="kw">pub fn </span>to_u32(<span class="self">self</span>) -&gt; u32 {
         <span class="kw">match </span><span class="self">self </span>{
-            MemoryAddress::Direct(address) =&gt; {
-                address.try_into().expect(<span class="string">"failed conversion from u32 to usize"</span>)
-            }
-            MemoryAddress::Relative(offset) =&gt; {
-                offset.try_into().expect(<span class="string">"failed conversion from u32 to usize"</span>)
-            }
+            MemoryAddress::Direct(address) =&gt; address,
+            MemoryAddress::Relative(offset) =&gt; offset,
         }
     }
 
@@ -902,7 +886,7 @@
     <span class="doccomment">/// Offset a `Direct` address by `amount`.
     ///
     /// Panics if called on a `Relative` address.
-    </span><span class="kw">pub fn </span>offset(<span class="kw-2">&amp;</span><span class="self">self</span>, amount: usize) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>offset(<span class="kw-2">&amp;</span><span class="self">self</span>, amount: u32) -&gt; <span class="self">Self </span>{
         <span class="comment">// We disallow offsetting relatively addresses as this is not expected to be meaningful.
         </span><span class="kw">let </span>address = <span class="self">self</span>.unwrap_direct();
         MemoryAddress::direct(address + amount)

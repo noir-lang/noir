@@ -1108,7 +1108,7 @@
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
-    <span class="kw">use </span><span class="kw">crate</span>::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa};
+    <span class="kw">use </span><span class="kw">crate</span>::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa, assert_u32};
 
     <span class="kw">use </span><span class="kw">super</span>::ConstantAllocation;
 
@@ -1174,7 +1174,7 @@
                 };
                 <span class="macro">assert_eq!</span>(
                     destination.unwrap_direct(),
-                    GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout)
+                    assert_u32(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout))
                 );
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Field));
                 <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">2u128</span>));
@@ -1287,7 +1287,7 @@
                 };
                 <span class="macro">assert_eq!</span>(
                     destination.unwrap_direct(),
-                    GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout)
+                    assert_u32(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout))
                 );
                 <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Field));
                 <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">1u128</span>));
@@ -1388,7 +1388,7 @@
             };
             <span class="macro">assert_eq!</span>(
                 destination.unwrap_direct(),
-                GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout)
+                assert_u32(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout))
             );
             <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Integer(IntegerBitSize::U1)));
             <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">0u128</span>));
@@ -1398,8 +1398,8 @@
             };
             <span class="macro">assert_eq!</span>(
                 destination.unwrap_direct(),
-                GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout) + <span class="number">1
-            </span>);
+                assert_u32(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span>options.layout) + <span class="number">1</span>)
+            );
             <span class="macro">assert!</span>(<span class="macro">matches!</span>(bit_size, BitSize::Field));
             <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>value, FieldElement::from(<span class="number">1u128</span>));
 

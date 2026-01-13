@@ -918,7 +918,7 @@
     <span class="doccomment">/// Write a numeric value to direct memory slot.
     ///
     /// Used by the debugger to alter memory.
-    </span><span class="kw">pub fn </span>write_memory_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: usize, value: MemoryValue&lt;F&gt;) {
+    </span><span class="kw">pub fn </span>write_memory_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: u32, value: MemoryValue&lt;F&gt;) {
         <span class="self">self</span>.memory.write(MemoryAddress::direct(ptr), value);
     }
 
@@ -1020,8 +1020,8 @@
                 }
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } =&gt; {
-                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>size_address).to_usize();
-                <span class="kw">let </span>offset = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>offset_address).to_usize();
+                <span class="kw">let </span>size = assert_usize(<span class="self">self</span>.memory.read(<span class="kw-2">*</span>size_address).to_u32());
+                <span class="kw">let </span>offset = assert_usize(<span class="self">self</span>.memory.read(<span class="kw-2">*</span>offset_address).to_u32());
                 <span class="kw">let </span>values: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self</span>.calldata[offset..(offset + size)]
                     .iter()
                     .map(|value| MemoryValue::new_field(<span class="kw-2">*</span>value))
@@ -1072,22 +1072,22 @@
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::Trap { revert_data } =&gt; {
-                <span class="kw">let </span>revert_data_size = <span class="self">self</span>.memory.read(revert_data.size).to_usize();
+                <span class="kw">let </span>revert_data_size = <span class="self">self</span>.memory.read(revert_data.size).to_u32();
                 <span class="kw">if </span>revert_data_size &gt; <span class="number">0 </span>{
                     <span class="self">self</span>.trap(
-                        assert_u32(<span class="self">self</span>.memory.read_ref(revert_data.pointer).unwrap_direct()),
-                        assert_u32(revert_data_size),
+                        <span class="self">self</span>.memory.read_ref(revert_data.pointer).unwrap_direct(),
+                        revert_data_size,
                     )
                 } <span class="kw">else </span>{
                     <span class="self">self</span>.trap(<span class="number">0</span>, <span class="number">0</span>)
                 }
             }
             Opcode::Stop { return_data } =&gt; {
-                <span class="kw">let </span>return_data_size = <span class="self">self</span>.memory.read(return_data.size).to_usize();
+                <span class="kw">let </span>return_data_size = <span class="self">self</span>.memory.read(return_data.size).to_u32();
                 <span class="kw">if </span>return_data_size &gt; <span class="number">0 </span>{
                     <span class="self">self</span>.finish(
-                        assert_u32(<span class="self">self</span>.memory.read_ref(return_data.pointer).unwrap_direct()),
-                        assert_u32(return_data_size),
+                        <span class="self">self</span>.memory.read_ref(return_data.pointer).unwrap_direct(),
+                        return_data_size,
                     )
                 } <span class="kw">else </span>{
                     <span class="self">self</span>.finish(<span class="number">0</span>, <span class="number">0</span>)

@@ -679,8 +679,8 @@
                 HeapValueType::Vector { value_types },
             ) =&gt; {
                 <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
-                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_addr).to_usize();
-                <span class="kw">let </span>size = SemiFlattenedLength(assert_u32(size));
+                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_addr).to_u32();
+                <span class="kw">let </span>size = SemiFlattenedLength(size);
                 <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -704,16 +704,16 @@
         size: SemiFlattenedLength,
         value_types: <span class="kw-2">&amp;</span>[HeapValueType],
     ) -&gt; Vec&lt;MemoryValue&lt;F&gt;&gt; {
-        <span class="kw">let </span>size = assert_usize(size.<span class="number">0</span>);
+        <span class="kw">let </span>size = size.<span class="number">0</span>;
 
         <span class="macro">assert!</span>(start.is_direct(), <span class="string">"read_slice_of_values_from_memory requires direct addresses"</span>);
         <span class="kw">if </span>HeapValueType::all_simple(value_types) {
-            <span class="self">self</span>.memory.read_slice(start, size).to_vec()
+            <span class="self">self</span>.memory.read_slice(start, assert_usize(size)).to_vec()
         } <span class="kw">else </span>{
             <span class="comment">// Check that the sequence of value types fit an integer number of
             // times inside the given size.
             </span><span class="macro">assert!</span>(
-                <span class="number">0 </span>== size % value_types.len(),
+                <span class="number">0 </span>== size % assert_u32(value_types.len()),
                 <span class="string">"array/vector does not contain a whole number of elements"
             </span>);
 

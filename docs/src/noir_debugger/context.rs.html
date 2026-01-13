@@ -2380,7 +2380,7 @@
     ) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(solver) = <span class="self">self</span>.brillig_solver.as_mut() {
             solver.write_memory_at(
-                ptr,
+                ptr.try_into().expect(<span class="string">"Pointer is too large"</span>),
                 MemoryValue::new_checked(value, bit_size)
                     .expect(<span class="string">"Invalid value for the given bit size"</span>),
             );

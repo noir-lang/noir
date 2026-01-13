@@ -207,9 +207,9 @@
 
 <span class="kw">use </span><span class="kw">super</span>::ProcedureId;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::{
-    BrilligVariable,
+    BrilligVariable, assert_u32,
     brillig_ir::{
-        BrilligContext, ReservedRegisters, assert_u32,
+        BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},

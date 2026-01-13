@@ -599,7 +599,7 @@
         <span class="self">self</span>.vm.get_memory()
     }
 
-    <span class="kw">pub fn </span>write_memory_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: usize, value: MemoryValue&lt;F&gt;) {
+    <span class="kw">pub fn </span>write_memory_at(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ptr: u32, value: MemoryValue&lt;F&gt;) {
         <span class="self">self</span>.vm.write_memory_at(ptr, value);
     }
 

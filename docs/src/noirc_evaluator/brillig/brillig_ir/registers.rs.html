@@ -758,7 +758,10 @@
 <a href="#757" id="757">757</a>
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -798,9 +801,12 @@
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>smallvec::{SmallVec, smallvec};
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-    brillig_variable::{BrilligArray, BrilligVector},
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{
+    assert_u32, assert_usize,
+    brillig_ir::{
+        BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        brillig_variable::{BrilligArray, BrilligVector},
+    },
 };
 
 <span class="kw">use super</span>::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVariable};
@@ -908,7 +914,7 @@
     ///
     /// Panics if the address is `Direct`.
     </span><span class="kw">fn </span>is_within_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>, register: MemoryAddress) -&gt; bool {
-        <span class="kw">let </span>offset = register.unwrap_relative();
+        <span class="kw">let </span>offset = assert_usize(register.unwrap_relative());
         offset &gt;= <span class="self">self</span>.start() &amp;&amp; offset &lt; <span class="self">self</span>.end()
     }
 
@@ -931,17 +937,17 @@
 
     <span class="kw">fn </span>ensure_register_is_allocated(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
         <span class="macro">assert!</span>(<span class="self">self</span>.is_within_bounds(register), <span class="string">"Register out of stack bounds"</span>);
-        <span class="self">self</span>.storage.ensure_register_is_allocated(register.unwrap_relative());
+        <span class="self">self</span>.storage.ensure_register_is_allocated(assert_usize(register.unwrap_relative()));
     }
 
     <span class="kw">fn </span>allocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; MemoryAddress {
-        <span class="kw">let </span>allocated = MemoryAddress::relative(<span class="self">self</span>.storage.allocate_register());
+        <span class="kw">let </span>allocated = MemoryAddress::relative(assert_u32(<span class="self">self</span>.storage.allocate_register()));
         <span class="macro">assert!</span>(<span class="self">self</span>.is_within_bounds(allocated), <span class="string">"Stack frame too deep"</span>);
         allocated
     }
 
     <span class="kw">fn </span>deallocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
-        <span class="self">self</span>.storage.deallocate_register(register.unwrap_relative());
+        <span class="self">self</span>.storage.deallocate_register(assert_usize(register.unwrap_relative()));
     }
 
     <span class="kw">fn </span>from_preallocated_registers(
@@ -956,14 +962,14 @@
         <span class="self">Self </span>{
             storage: DeallocationListAllocator::from_preallocated_registers(
                 empty.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_relative()),
+                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
             ),
             layout,
         }
     }
 
     <span class="kw">fn </span>empty_registers_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress {
-        MemoryAddress::relative(<span class="self">self</span>.storage.empty_registers_start())
+        MemoryAddress::relative(assert_u32(<span class="self">self</span>.storage.empty_registers_start()))
     }
 
     <span class="kw">fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LayoutConfig {
@@ -988,7 +994,7 @@
     ///
     /// Panics if the address is `Relative`.
     </span><span class="kw">fn </span>is_within_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>, register: MemoryAddress) -&gt; bool {
-        <span class="kw">let </span>index = register.unwrap_direct();
+        <span class="kw">let </span>index = assert_usize(register.unwrap_direct());
         index &gt;= <span class="self">self</span>.start() &amp;&amp; index &lt; <span class="self">self</span>.end()
     }
 
@@ -1014,17 +1020,17 @@
 
     <span class="kw">fn </span>ensure_register_is_allocated(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
         <span class="macro">assert!</span>(<span class="self">self</span>.is_within_bounds(register), <span class="string">"Register out of scratch space bounds"</span>);
-        <span class="self">self</span>.storage.ensure_register_is_allocated(register.unwrap_direct());
+        <span class="self">self</span>.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
     <span class="kw">fn </span>allocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; MemoryAddress {
-        <span class="kw">let </span>allocated = MemoryAddress::direct(<span class="self">self</span>.storage.allocate_register());
+        <span class="kw">let </span>allocated = MemoryAddress::direct(assert_u32(<span class="self">self</span>.storage.allocate_register()));
         <span class="macro">assert!</span>(<span class="self">self</span>.is_within_bounds(allocated), <span class="string">"Scratch space too deep"</span>);
         allocated
     }
 
     <span class="kw">fn </span>deallocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
-        <span class="self">self</span>.storage.deallocate_register(register.unwrap_direct());
+        <span class="self">self</span>.storage.deallocate_register(assert_usize(register.unwrap_direct()));
     }
 
     <span class="kw">fn </span>from_preallocated_registers(
@@ -1039,14 +1045,14 @@
         <span class="self">Self </span>{
             storage: DeallocationListAllocator::from_preallocated_registers(
                 empty.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_direct())),
             ),
             layout,
         }
     }
 
     <span class="kw">fn </span>empty_registers_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress {
-        MemoryAddress::direct(<span class="self">self</span>.storage.empty_registers_start())
+        MemoryAddress::direct(assert_u32(<span class="self">self</span>.storage.empty_registers_start()))
     }
 
     <span class="kw">fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LayoutConfig {
@@ -1072,7 +1078,7 @@
 
     <span class="doccomment">/// Expand the global space to fit a new register if necessary.
     </span><span class="kw">fn </span>update_max_address(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
-        <span class="kw">let </span>index = register.unwrap_direct();
+        <span class="kw">let </span>index = assert_usize(register.unwrap_direct());
         <span class="macro">assert!</span>(index &gt;= <span class="self">self</span>.start(), <span class="string">"Global space malformed"</span>);
         <span class="kw">if </span>index &gt; <span class="self">self</span>.max_memory_address {
             <span class="self">self</span>.max_memory_address = index;
@@ -1101,18 +1107,18 @@
     }
 
     <span class="kw">fn </span>allocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; MemoryAddress {
-        <span class="kw">let </span>allocated = MemoryAddress::direct(<span class="self">self</span>.storage.allocate_register());
+        <span class="kw">let </span>allocated = MemoryAddress::direct(assert_u32(<span class="self">self</span>.storage.allocate_register()));
         <span class="self">self</span>.update_max_address(allocated);
         allocated
     }
 
     <span class="kw">fn </span>deallocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
-        <span class="self">self</span>.storage.deallocate_register(register.unwrap_direct());
+        <span class="self">self</span>.storage.deallocate_register(assert_usize(register.unwrap_direct()));
     }
 
     <span class="kw">fn </span>ensure_register_is_allocated(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
         <span class="self">self</span>.update_max_address(register);
-        <span class="self">self</span>.storage.ensure_register_is_allocated(register.unwrap_direct());
+        <span class="self">self</span>.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
     <span class="kw">fn </span>from_preallocated_registers(
@@ -1123,7 +1129,7 @@
     }
 
     <span class="kw">fn </span>empty_registers_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress {
-        MemoryAddress::direct(<span class="self">self</span>.storage.empty_registers_start())
+        MemoryAddress::direct(assert_u32(<span class="self">self</span>.storage.empty_registers_start()))
     }
 
     <span class="kw">fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LayoutConfig {
@@ -1327,7 +1333,7 @@
     <span class="doccomment">/// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>make_scratch_registers&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [MemoryAddress; N] {
         <span class="kw">let </span>scratch_start = ScratchSpace::start();
-        std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
+        std::array::from_fn(|i| MemoryAddress::direct(assert_u32(scratch_start + i)))
     }
 }
 

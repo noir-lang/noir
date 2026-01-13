@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ProcedureId"],"mod":["brillig_check","brillig_gen","brillig_ir"],"struct":["Brillig","BrilligOptions"]};
+window.SIDEBAR_ITEMS = {"enum":["ProcedureId"],"fn":["assert_u32","assert_usize"],"mod":["brillig_check","brillig_gen","brillig_ir"],"struct":["Brillig","BrilligOptions"]};
