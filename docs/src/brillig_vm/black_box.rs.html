@@ -458,7 +458,7 @@
     array: <span class="kw-2">&amp;</span>HeapArray,
 ) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[MemoryValue&lt;F&gt;] {
     <span class="kw">let </span>items_start = memory.read_ref(array.pointer);
-    memory.read_slice(items_start, assert_usize(array.size))
+    memory.read_slice(items_start, assert_usize(array.size.<span class="number">0</span>))
 }
 
 <span class="doccomment">/// Write values to a [array][HeapArray] in memory.

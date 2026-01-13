@@ -755,7 +755,10 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -791,12 +794,12 @@
     rc::Rc,
 };
 
-<span class="kw">use </span>acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
+<span class="kw">use </span>acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress, lengths::SemiFlattenedLength};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>smallvec::{SmallVec, smallvec};
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, assert_u32,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     brillig_variable::{BrilligArray, BrilligVector},
 };
 
@@ -1301,7 +1304,7 @@
     /// That is done by [BrilligContext::codegen_initialize_array].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_brillig_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        size: usize,
+        size: SemiFlattenedLength,
     ) -&gt; Allocated&lt;BrilligArray, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
@@ -1314,8 +1317,11 @@
     }
 
     <span class="doccomment">/// Allocate a [HeapArray].
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, size: usize) -&gt; Allocated&lt;HeapArray, Registers&gt; {
-        <span class="self">self</span>.allocate_register().map(|pointer| HeapArray { pointer, size: assert_u32(size) })
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_array(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        size: SemiFlattenedLength,
+    ) -&gt; Allocated&lt;HeapArray, Registers&gt; {
+        <span class="self">self</span>.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
 
     <span class="doccomment">/// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].

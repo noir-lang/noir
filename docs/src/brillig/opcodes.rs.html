@@ -809,7 +809,16 @@
 <a href="#808" id="808">808</a>
 <a href="#809" id="809">809</a>
 <a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    black_box::BlackBoxOp,
+    lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
+};
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -917,7 +926,7 @@
     <span class="doccomment">/// The value read should be interpreted as a pointer to a [HeapArray], which
     /// consists of a pointer to a slice of memory of size elements, and a
     /// reference count, to avoid cloning arrays that are not shared.
-    </span>Array { value_types: Vec&lt;HeapValueType&gt;, size: u32 },
+    </span>Array { value_types: Vec&lt;HeapValueType&gt;, size: SemanticLength },
     <span class="doccomment">/// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
@@ -938,17 +947,16 @@
     <span class="doccomment">/// Returns the total number of field elements required to represent this type in memory.
     ///
     /// Returns `None` for `Vector`, as their size is not statically known.
-    </span><span class="kw">pub fn </span>flattened_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+    </span><span class="kw">pub fn </span>flattened_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FlattenedLength&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            HeapValueType::Simple(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="number">1</span>),
+            HeapValueType::Simple(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(FlattenedLength(<span class="number">1</span>)),
             HeapValueType::Array { value_types, size } =&gt; {
-                <span class="kw">let </span>element_size =
-                    value_types.iter().map(|t| t.flattened_size()).sum::&lt;<span class="prelude-ty">Option</span>&lt;usize&gt;&gt;();
-
-                <span class="comment">// Multiply element size by number of elements.
-                </span>element_size.map(|element_size| {
-                    element_size
-                        * usize::try_from(<span class="kw-2">*</span>size).expect(<span class="string">"Failed conversion from u32 to usize"</span>)
+                <span class="comment">// This is the flattened length of a single entry in the array (all of `value_types`)
+                </span><span class="kw">let </span>elements_flattened_size =
+                    value_types.iter().map(|t| t.flattened_size()).sum::&lt;<span class="prelude-ty">Option</span>&lt;FlattenedLength&gt;&gt;();
+                <span class="comment">// Next we multiply it by the size of the array
+                </span>elements_flattened_size.map(|elements_flattened_size| {
+                    ElementsFlattenedLength::from(elements_flattened_size) * <span class="kw-2">*</span>size
                 })
             }
             HeapValueType::Vector { .. } =&gt; {
@@ -1006,12 +1014,12 @@
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
     </span><span class="kw">pub </span>pointer: MemoryAddress,
     <span class="doccomment">/// Statically known size of the array.
-    </span><span class="kw">pub </span>size: u32,
+    </span><span class="kw">pub </span>size: SemiFlattenedLength,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>HeapArray {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ pointer: MemoryAddress::direct(<span class="number">0</span>), size: <span class="number">0 </span>}
+        <span class="self">Self </span>{ pointer: MemoryAddress::direct(<span class="number">0</span>), size: SemiFlattenedLength(<span class="number">0</span>) }
     }
 }
 
@@ -1523,7 +1531,7 @@
         <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">256</span>).is_err());
     }
 
-    <span class="doccomment">/// Test that BitSize roundtrips correctly through to_u32/try_from_u32
+    <span class="doccomment">/// Test that BitSize round-trips correctly through to_u32/try_from_u32
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>test_bitsize_roundtrip() {
         <span class="comment">// Test all integer bit sizes
@@ -1598,6 +1606,8 @@
     <span class="kw">use </span>proptest::arbitrary::Arbitrary;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
+    <span class="kw">use </span><span class="kw">crate</span>::lengths::SemanticLength;
+
     <span class="kw">use super</span>::{BitSize, HeapValueType};
 
     <span class="comment">// Need to define recursive strategy for `HeapValueType`
@@ -1610,7 +1620,9 @@
             leaf.prop_recursive(<span class="number">2</span>, <span class="number">3</span>, <span class="number">2</span>, |inner| {
                 <span class="macro">prop_oneof!</span>[
                     (prop::collection::vec(inner.clone(), <span class="number">1</span>..<span class="number">3</span>), any::&lt;u32&gt;()).prop_map(
-                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                        |(value_types, size)| {
+                            HeapValueType::Array { value_types, size: SemanticLength(size) }
+                        }
                     ),
                     (prop::collection::vec(inner.clone(), <span class="number">1</span>..<span class="number">3</span>))
                         .prop_map(|value_types| { HeapValueType::Vector { value_types } }),

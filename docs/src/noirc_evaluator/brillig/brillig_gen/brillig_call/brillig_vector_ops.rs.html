@@ -836,7 +836,8 @@
 <a href="#835" id="835">835</a>
 <a href="#836" id="836">836</a>
 <a href="#837" id="837">837</a>
-<a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA vector intrinsic functions to Brillig bytecode.
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA vector intrinsic functions to Brillig bytecode.
 </span><span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -1017,6 +1018,7 @@
     <span class="kw">use </span>std::vec;
 
     <span class="kw">use </span>acvm::FieldElement;
+    <span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
     <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -1084,7 +1086,7 @@
                 <span class="comment">// The input vector of the array items, with a known size/capacity.
                 </span>BrilligParameter::Vector(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    source.len(),
+                    SemanticLength(source.len() <span class="kw">as </span>u32),
                 ),
                 <span class="comment">// The item to push.
                 </span>BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -1103,7 +1105,7 @@
             // With the metadata at the start.
             </span><span class="kw">let </span>returns = <span class="macro">vec!</span>[BrilligParameter::Array(
                 <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                result_length_with_metadata,
+                SemanticLength(result_length_with_metadata <span class="kw">as </span>u32),
             )];
 
             <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>function_context, <span class="kw-2">mut </span>context) = create_test_environment();
@@ -1271,7 +1273,7 @@
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Vector(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    source.len(),
+                    SemanticLength(source.len() <span class="kw">as </span>u32),
                 ),
             ];
             <span class="kw">let </span>result_length = source_len - <span class="number">1</span>;
@@ -1288,7 +1290,7 @@
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Array(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    result_length_with_metadata,
+                    SemanticLength(result_length_with_metadata <span class="kw">as </span>u32),
                 ),
             ];
 
@@ -1426,7 +1428,7 @@
             <span class="kw">let </span>arguments = <span class="macro">vec!</span>[
                 BrilligParameter::Vector(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    array.len(),
+                    SemanticLength(array.len() <span class="kw">as </span>u32),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -1439,7 +1441,7 @@
             // With the metadata at the start.
             </span><span class="kw">let </span>returns = <span class="macro">vec!</span>[BrilligParameter::Array(
                 <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                result_length_with_metadata,
+                SemanticLength(result_length_with_metadata <span class="kw">as </span>u32),
             )];
 
             <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>function_context, <span class="kw-2">mut </span>context) = create_test_environment();
@@ -1567,7 +1569,7 @@
             <span class="kw">let </span>arguments = <span class="macro">vec!</span>[
                 BrilligParameter::Vector(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    array.len(),
+                    SemanticLength(array.len() <span class="kw">as </span>u32),
                 ),
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
@@ -1579,7 +1581,7 @@
                 BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
                 BrilligParameter::Array(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    result_length_with_metadata,
+                    SemanticLength(result_length_with_metadata <span class="kw">as </span>u32),
                 ),
             ];
 

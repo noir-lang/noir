@@ -200,6 +200,7 @@
     AcirField,
     acir::brillig::{
         BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
+        lengths::{SemanticLength, SemiFlattenedLength},
     },
     brillig_vm::offsets,
 };
@@ -208,7 +209,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BrilligContext, ReservedRegisters, assert_u32, assert_usize,
+        BrilligContext, ReservedRegisters, assert_u32,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -235,7 +236,7 @@
         <span class="self">self</span>.mov_instruction(source_array_pointer_arg, source_array.pointer);
         <span class="self">self</span>.usize_const_instruction(
             source_array_memory_size_arg,
-            (source_array.size + assert_usize(offsets::ARRAY_META_COUNT)).into(),
+            (source_array.size.<span class="number">0 </span>+ offsets::ARRAY_META_COUNT).into(),
         );
 
         <span class="self">self</span>.add_procedure_call_instruction(ProcedureId::ArrayCopy);
@@ -298,7 +299,8 @@
     data: <span class="kw-2">&amp;</span>str,
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
 ) -&gt; Allocated&lt;ValueOrArray, Registers&gt; {
-    <span class="kw">let </span>brillig_array = brillig_context.allocate_brillig_array(data.len());
+    <span class="kw">let </span>brillig_array =
+        brillig_context.allocate_brillig_array(SemiFlattenedLength(assert_u32(data.len())));
 
     <span class="comment">// Allocate space on the heap.
     </span>brillig_context.codegen_initialize_array(<span class="kw-2">*</span>brillig_array);
@@ -310,8 +312,8 @@
     </span>initialize_constant_string(brillig_context, data, <span class="kw-2">*</span>items_pointer);
 
     <span class="comment">// Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    </span>items_pointer
-        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: assert_u32(data.len()) }))
+    </span><span class="kw">let </span>size = SemiFlattenedLength(assert_u32(data.len()));
+    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size }))
 }
 
 <span class="doccomment">/// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
@@ -368,14 +370,12 @@
         <span class="kw">let </span>u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         <span class="kw">let </span>newline_type = u1_type.clone();
-        <span class="kw">let </span>size = message_with_func_name.len();
-        <span class="kw">let </span>msg_type =
-            HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size: assert_u32(size) };
+        <span class="kw">let </span>size = SemanticLength(assert_u32(message_with_func_name.len()));
+        <span class="kw">let </span>msg_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size };
         <span class="kw">let </span>item_count_type = HeapValueType::field();
         <span class="kw">let </span>value_to_print_type = u32_type;
-        <span class="kw">let </span>size = PRINT_U32_TYPE_STRING.len();
-        <span class="kw">let </span>metadata_type =
-            HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type], size: assert_u32(size) };
+        <span class="kw">let </span>size = SemanticLength(assert_u32(PRINT_U32_TYPE_STRING.len()));
+        <span class="kw">let </span>metadata_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type], size };
         <span class="kw">let </span>is_fmt_string_type = u1_type;
 
         <span class="kw">let </span>input_types = [

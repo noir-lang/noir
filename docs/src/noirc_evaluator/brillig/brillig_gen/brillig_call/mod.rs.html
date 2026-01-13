@@ -416,10 +416,13 @@
 <a href="#415" id="415">415</a>
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_black_box;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_vector_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
+<span class="kw">use </span>acvm::acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength};
 <span class="kw">use </span>acvm::brillig_vm::offsets;
 <span class="kw">use </span>iter_extended::vecmap;
 
@@ -548,10 +551,11 @@
         <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>size {
             <span class="kw">for </span>element_type <span class="kw">in </span>types.iter() {
                 <span class="kw">match </span>element_type {
-                    Type::Array(<span class="kw">_</span>, nested_size) =&gt; {
+                    Type::Array(items, nested_size) =&gt; {
                         <span class="comment">// Allocate a pointer for an array on the stack.
-                        </span><span class="kw">let </span>inner_array =
-                            <span class="self">self</span>.brillig_context.allocate_brillig_array(<span class="kw-2">*</span>nested_size <span class="kw">as </span>usize);
+                        </span><span class="kw">let </span>size: SemiFlattenedLength =
+                            ElementsLength::from(items.as_ref()) * SemanticLength(<span class="kw-2">*</span>nested_size);
+                        <span class="kw">let </span>inner_array = <span class="self">self</span>.brillig_context.allocate_brillig_array(size);
 
                         <span class="comment">// Recursively allocate memory for the inner array on the heap.
                         // This sets the pointer on the stack to point at the heap.

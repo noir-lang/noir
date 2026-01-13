@@ -488,13 +488,17 @@
 <a href="#487" id="487">487</a>
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
+<span class="kw">use </span>acvm::acir::brillig::lengths::SemiFlattenedLength;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>im::Vector;
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_block::BrilligBlock;
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::assert_u32;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Allocated;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -928,7 +932,7 @@
         <span class="comment">// Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         </span><span class="kw">match </span>new_variable {
             BrilligVariable::BrilligArray(brillig_array) =&gt; {
-                <span class="macro">debug_assert_eq!</span>(array.len(), brillig_array.size);
+                <span class="macro">debug_assert_eq!</span>(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
                 <span class="self">self</span>.brillig_context.codegen_initialize_array(brillig_array);
             }
             BrilligVariable::BrilligVector(vector) =&gt; {

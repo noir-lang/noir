@@ -621,9 +621,7 @@
 <a href="#620" id="620">620</a>
 <a href="#621" id="621">621</a>
 <a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#623" id="623">623</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     brillig_vm::offsets,
@@ -1106,10 +1104,8 @@
     <span class="doccomment">/// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: BrilligArray) {
         <span class="comment">// Allocate memory for the ref counter and `size` items.
-        </span><span class="self">self</span>.codegen_allocate_immediate_mem(
-            array.pointer,
-            array.size + assert_usize(offsets::ARRAY_META_COUNT),
-        );
+        </span><span class="kw">let </span>size = array.size.<span class="number">0 </span>+ offsets::ARRAY_META_COUNT;
+        <span class="self">self</span>.codegen_allocate_immediate_mem(array.pointer, assert_usize(size));
         <span class="self">self</span>.codegen_initialize_rc(array.pointer, <span class="number">1</span>);
     }
 

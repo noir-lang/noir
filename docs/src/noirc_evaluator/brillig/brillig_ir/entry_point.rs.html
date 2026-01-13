@@ -480,8 +480,19 @@
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
-    brillig::{BrilligOptions, brillig_ir::registers::Allocated},
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    brillig::{
+        BrilligOptions,
+        brillig_ir::{assert_usize, registers::Allocated},
+    },
     ssa::ir::function::FunctionId,
 };
 
@@ -494,7 +505,10 @@
 };
 <span class="kw">use </span>acvm::acir::{
     AcirField,
-    brillig::{HeapVector, MemoryAddress},
+    brillig::{
+        HeapVector, MemoryAddress,
+        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+    },
 };
 
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString&gt; BrilligContext&lt;F, Stack&gt; {
@@ -553,7 +567,7 @@
         return_parameters: <span class="kw-2">&amp;</span>[BrilligParameter],
     ) -&gt; usize {
         <span class="comment">// We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>argument_variables = <span class="self">self</span>.allocate_function_arguments(arguments);
+        </span><span class="kw">let </span>argument_variables = <span class="self">self</span>.allocate_function_arguments(arguments);
 
         <span class="kw">let </span>calldata_size = <span class="self">Self</span>::flattened_tuple_size(arguments);
         <span class="kw">let </span>return_data_size = <span class="self">Self</span>::flattened_tuple_size(return_parameters);
@@ -587,45 +601,37 @@
         <span class="kw">let </span><span class="kw-2">mut </span>current_calldata_pointer = <span class="self">self</span>.calldata_start_offset();
 
         <span class="comment">// Initialize the variables with the calldata
-        </span><span class="kw">for </span>(argument_variable, argument) <span class="kw">in </span>argument_variables.iter_mut().zip(arguments) {
+        </span><span class="kw">for </span>(argument_variable, argument) <span class="kw">in </span>argument_variables.iter().zip(arguments) {
             <span class="kw">match </span>(<span class="kw-2">**</span>argument_variable, argument) {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(<span class="kw">_</span>)) =&gt; {
                     <span class="self">self</span>.mov_instruction(
                         single_address.address,
                         MemoryAddress::direct(current_calldata_pointer),
                     );
-                    current_calldata_pointer += <span class="number">1</span>;
                 }
                 (
-                    BrilligVariable::BrilligArray(<span class="kw-2">mut </span>array),
+                    BrilligVariable::BrilligArray(array),
                     BrilligParameter::Array(item_type, item_count),
                 ) =&gt; {
-                    <span class="kw">let </span>flattened_size = array.size;
                     <span class="self">self</span>.usize_const_instruction(array.pointer, current_calldata_pointer.into());
 
                     <span class="kw">let </span>deflattened_address =
                         <span class="self">self</span>.deflatten_array(item_type, <span class="kw-2">*</span>item_count, array.pointer, <span class="bool-val">false</span>);
                     <span class="self">self</span>.mov_instruction(array.pointer, <span class="kw-2">*</span>deflattened_address);
-
-                    <span class="comment">// After deflattening, we have to adjust the size of the array.
-                    </span>array.size = item_type.len() * item_count;
-
-                    current_calldata_pointer += flattened_size;
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
                     BrilligParameter::Vector(item_type, item_count),
                 ) =&gt; {
-                    <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(argument);
                     <span class="self">self</span>.usize_const_instruction(vector.pointer, current_calldata_pointer.into());
                     <span class="kw">let </span>deflattened_address =
                         <span class="self">self</span>.deflatten_array(item_type, <span class="kw-2">*</span>item_count, vector.pointer, <span class="bool-val">true</span>);
                     <span class="self">self</span>.mov_instruction(vector.pointer, <span class="kw-2">*</span>deflattened_address);
-
-                    current_calldata_pointer += flattened_size;
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: cannot match variables against arguments"</span>),
             }
+
+            current_calldata_pointer += <span class="self">Self</span>::flattened_size(argument);
         }
 
         stack_start
@@ -641,9 +647,11 @@
                 BrilligParameter::SingleAddr(bit_size) =&gt; {
                     <span class="self">self</span>.allocate_single_addr(<span class="kw-2">*</span>bit_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                    <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(argument);
-                    <span class="self">self</span>.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
+                BrilligParameter::Array(items, size) =&gt; {
+                    <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength =
+                        ElementsLength::from(items) * <span class="kw-2">*</span>size;
+
+                    <span class="self">self</span>.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                     <span class="self">self</span>.allocate_brillig_vector().map(BrilligVariable::from)
@@ -654,6 +662,7 @@
 
     <span class="kw">fn </span>copy_and_cast_calldata(<span class="kw-2">&amp;mut </span><span class="self">self</span>, arguments: <span class="kw-2">&amp;</span>[BrilligParameter]) {
         <span class="kw">let </span>calldata_size = <span class="self">Self</span>::flattened_tuple_size(arguments);
+
         <span class="self">self</span>.calldata_copy_instruction(
             MemoryAddress::direct(<span class="self">self</span>.calldata_start_offset()),
             calldata_size,
@@ -665,7 +674,7 @@
                 BrilligParameter::SingleAddr(bit_size) =&gt; Box::new(std::iter::once(<span class="kw-2">*</span>bit_size)),
                 BrilligParameter::Array(item_types, item_count)
                 | BrilligParameter::Vector(item_types, item_count) =&gt; Box::new(
-                    (<span class="number">0</span>..<span class="kw-2">*</span>item_count).flat_map(<span class="kw">move </span>|<span class="kw">_</span>| item_types.iter().flat_map(flat_bit_sizes)),
+                    (<span class="number">0</span>..item_count.<span class="number">0</span>).flat_map(<span class="kw">move </span>|<span class="kw">_</span>| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
             }
         }
@@ -692,23 +701,23 @@
     </span><span class="kw">fn </span>deflatten_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         item_type: <span class="kw-2">&amp;</span>[BrilligParameter],
-        item_count: usize,
+        item_count: SemanticLength,
         flattened_array_pointer: MemoryAddress,
         is_vector: bool,
     ) -&gt; Allocated&lt;MemoryAddress, Stack&gt; {
+        <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+
         <span class="kw">let </span>deflattened_array_pointer = <span class="self">self</span>.allocate_register();
         <span class="kw">let </span>deflattened_size_variable =
-            <span class="self">self</span>.make_usize_constant_instruction((item_count * item_type.len()).into());
+            <span class="self">self</span>.make_usize_constant_instruction(semi_flattened_size.<span class="number">0</span>.into());
 
         <span class="kw">let </span>deflattened_items_pointer = <span class="kw">if </span>is_vector {
             <span class="kw">let </span>vector = BrilligVector { pointer: <span class="kw-2">*</span>deflattened_array_pointer };
             <span class="self">self</span>.codegen_initialize_vector(vector, <span class="kw-2">*</span>deflattened_size_variable, <span class="prelude-val">None</span>);
             <span class="self">self</span>.codegen_make_vector_items_pointer(vector)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>arr = BrilligArray {
-                pointer: <span class="kw-2">*</span>deflattened_array_pointer,
-                size: item_count * item_type.len(),
-            };
+            <span class="kw">let </span>arr =
+                BrilligArray { pointer: <span class="kw-2">*</span>deflattened_array_pointer, size: semi_flattened_size };
             <span class="self">self</span>.codegen_initialize_array(arr);
             <span class="self">self</span>.codegen_make_array_items_pointer(arr)
         };
@@ -719,9 +728,9 @@
             <span class="kw">let </span>target_item_size = item_type.len();
             <span class="kw">let </span>source_item_size = <span class="self">Self</span>::flattened_tuple_size(item_type);
 
-            <span class="kw">for </span>item_index <span class="kw">in </span><span class="number">0</span>..item_count {
-                <span class="kw">let </span>source_item_base_index = item_index * source_item_size;
-                <span class="kw">let </span>target_item_base_index = item_index * target_item_size;
+            <span class="kw">for </span>item_index <span class="kw">in </span><span class="number">0</span>..item_count.<span class="number">0 </span>{
+                <span class="kw">let </span>source_item_base_index = assert_usize(item_index) * source_item_size;
+                <span class="kw">let </span>target_item_base_index = assert_usize(item_index) * target_item_size;
 
                 <span class="kw">let </span><span class="kw-2">mut </span>source_offset = <span class="number">0</span>;
 
@@ -746,7 +755,6 @@
                                 <span class="kw-2">*</span>target_index,
                                 <span class="kw-2">*</span>movement_register,
                             );
-                            source_offset += <span class="number">1</span>;
                         }
                         BrilligParameter::Array(
                             nested_array_item_type,
@@ -770,13 +778,13 @@
                                 <span class="kw-2">*</span>target_index,
                                 <span class="kw-2">*</span>deflattened_nested_array_pointer,
                             );
-
-                            source_offset += <span class="self">Self</span>::flattened_size(subitem);
                         }
                         BrilligParameter::Vector(..) =&gt; {
                             <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot deflatten vectors"</span>)
                         }
                     }
+
+                    source_offset += <span class="self">Self</span>::flattened_size(subitem);
                 }
             }
         } <span class="kw">else </span>{
@@ -808,9 +816,11 @@
                 BrilligParameter::SingleAddr(bit_size) =&gt; {
                     <span class="self">self</span>.allocate_single_addr(<span class="kw-2">*</span>bit_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Array(item_types, item_count) =&gt; <span class="self">self
-                    </span>.allocate_brillig_array(item_types.len() * item_count)
-                    .map(BrilligVariable::from),
+                BrilligParameter::Array(item_types, item_count) =&gt; {
+                    <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength =
+                        ElementsLength::from(item_types) * <span class="kw-2">*</span>item_count;
+                    <span class="self">self</span>.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
+                }
                 BrilligParameter::Vector(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return vectors"</span>),
             })
             .collect();
@@ -830,7 +840,6 @@
                         MemoryAddress::direct(return_data_index),
                         returned_variable.extract_single_addr().address,
                     );
-                    return_data_index += <span class="number">1</span>;
                 }
                 BrilligParameter::Array(item_type, item_count) =&gt; {
                     <span class="kw">let </span>deflattened_items_pointer =
@@ -844,13 +853,13 @@
                         pointer_to_return_data.address,
                         <span class="kw-2">*</span>deflattened_items_pointer,
                     );
-
-                    return_data_index += <span class="self">Self</span>::flattened_size(return_param);
                 }
                 BrilligParameter::Vector(..) =&gt; {
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return vectors from brillig entrypoints"</span>)
                 }
             }
+
+            return_data_index += <span class="self">Self</span>::flattened_size(return_param);
         }
 
         <span class="kw">let </span>return_pointer = <span class="self">self</span>.make_usize_constant_instruction(return_data_offset.into());
@@ -864,7 +873,10 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
 
-    <span class="kw">use </span>acvm::FieldElement;
+    <span class="kw">use </span>acvm::{
+        FieldElement,
+        acir::brillig::lengths::{SemanticLength, SemiFlattenedLength},
+    };
 
     <span class="kw">use crate</span>::{
         brillig::brillig_ir::{
@@ -887,10 +899,10 @@
         ];
         <span class="kw">let </span>arguments = <span class="macro">vec!</span>[BrilligParameter::Array(
             <span class="macro">vec!</span>[
-                BrilligParameter::Array(<span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">8</span>)], <span class="number">2</span>),
+                BrilligParameter::Array(<span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">8</span>)], SemanticLength(<span class="number">2</span>)),
                 BrilligParameter::SingleAddr(<span class="number">8</span>),
             ],
-            <span class="number">2</span>,
+            SemanticLength(<span class="number">2</span>),
         )];
         <span class="kw">let </span>returns = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">8</span>)];
 
@@ -900,13 +912,17 @@
         </span><span class="kw">let </span>array_pointer = context.allocate_register();
         <span class="kw">let </span>array_value = context.allocate_register();
 
-        <span class="kw">let </span>items_pointer = context
-            .codegen_make_array_items_pointer(BrilligArray { pointer: <span class="kw-2">*</span>array_pointer, size: <span class="number">2 </span>});
+        <span class="kw">let </span>items_pointer = context.codegen_make_array_items_pointer(BrilligArray {
+            pointer: <span class="kw-2">*</span>array_pointer,
+            size: SemiFlattenedLength(<span class="number">2</span>),
+        });
 
         <span class="comment">// Load the nested array
         </span>context.load_instruction(<span class="kw-2">*</span>array_pointer, <span class="kw-2">*</span>items_pointer);
-        <span class="kw">let </span>items_pointer = context
-            .codegen_make_array_items_pointer(BrilligArray { pointer: <span class="kw-2">*</span>array_pointer, size: <span class="number">2 </span>});
+        <span class="kw">let </span>items_pointer = context.codegen_make_array_items_pointer(BrilligArray {
+            pointer: <span class="kw-2">*</span>array_pointer,
+            size: SemiFlattenedLength(<span class="number">2</span>),
+        });
         <span class="comment">// Load the first item of the nested array.
         </span>context.load_instruction(<span class="kw-2">*</span>array_value, <span class="kw-2">*</span>items_pointer);
 
@@ -932,10 +948,10 @@
         ];
         <span class="kw">let </span>array_param = BrilligParameter::Array(
             <span class="macro">vec!</span>[
-                BrilligParameter::Array(<span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">8</span>)], <span class="number">2</span>),
+                BrilligParameter::Array(<span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">8</span>)], SemanticLength(<span class="number">2</span>)),
                 BrilligParameter::SingleAddr(<span class="number">8</span>),
             ],
-            <span class="number">2</span>,
+            SemanticLength(<span class="number">2</span>),
         );
         <span class="kw">let </span>arguments = <span class="macro">vec!</span>[array_param.clone()];
         <span class="kw">let </span>returns = <span class="macro">vec!</span>[array_param];
@@ -943,7 +959,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>context = create_context(FunctionId::test_new(<span class="number">0</span>));
 
         <span class="comment">// Allocate the parameter
-        </span><span class="kw">let </span>return_register = context.allocate_brillig_array(<span class="number">2</span>);
+        </span><span class="kw">let </span>return_register = context.allocate_brillig_array(SemiFlattenedLength(<span class="number">2</span>));
 
         context.codegen_return(<span class="kw-2">&amp;</span>[return_register.to_var()]);
 

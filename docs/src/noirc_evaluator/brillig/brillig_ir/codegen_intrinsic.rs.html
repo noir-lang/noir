@@ -182,7 +182,7 @@
         <span class="kw">let </span>bits_register = <span class="self">self</span>.make_constant_instruction(output_bits.into(), <span class="number">1</span>);
         <span class="self">self</span>.codegen_initialize_array(target_array);
         <span class="kw">let </span>pointer = <span class="self">self</span>.codegen_make_array_items_pointer(target_array);
-        <span class="kw">let </span>num_limbs = <span class="self">self</span>.make_usize_constant_instruction(target_array.size.into());
+        <span class="kw">let </span>num_limbs = <span class="self">self</span>.make_usize_constant_instruction(target_array.size.<span class="number">0</span>.into());
 
         <span class="comment">// Perform big-endian ToRadix
         </span><span class="self">self</span>.black_box_op_instruction(BlackBoxOp::ToRadix {

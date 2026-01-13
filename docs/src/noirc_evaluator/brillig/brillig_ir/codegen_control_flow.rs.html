@@ -415,15 +415,30 @@
 <a href="#414" id="414">414</a>
 <a href="#415" id="415">415</a>
 <a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::{
-        brillig::{HeapVector, MemoryAddress},
+        brillig::{
+            HeapVector, MemoryAddress,
+            lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+        },
         circuit::ErrorSelector,
     },
 };
 
-<span class="kw">use crate</span>::{brillig::brillig_ir::registers::Allocated, ssa::ir::instruction::ErrorType};
+<span class="kw">use crate</span>::{
+    brillig::brillig_ir::{assert_usize, registers::Allocated},
+    ssa::ir::instruction::ErrorType,
+};
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -732,7 +747,7 @@
             BrilligParameter::Array(item_types, item_count)
             | BrilligParameter::Vector(item_types, item_count) =&gt; {
                 <span class="kw">let </span>item_size: usize = item_types.iter().map(<span class="self">Self</span>::flattened_size).sum();
-                item_count * item_size
+                assert_usize(item_count.<span class="number">0</span>) * item_size
             }
         }
     }
@@ -751,7 +766,7 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         item_type: <span class="kw-2">&amp;</span>[BrilligParameter],
-        item_count: usize,
+        item_count: SemanticLength,
         flattened_array_pointer: MemoryAddress,
         deflattened_items_pointer: MemoryAddress,
     ) {
@@ -759,11 +774,11 @@
             <span class="kw">let </span>movement_register = <span class="self">self</span>.allocate_register();
 
             <span class="kw">let </span>source_item_size = item_type.len();
-            <span class="kw">let </span>target_item_size: usize = item_type.iter().map(<span class="self">Self</span>::flattened_size).sum();
+            <span class="kw">let </span>target_item_size = <span class="self">Self</span>::flattened_tuple_size(item_type);
 
-            <span class="kw">for </span>item_index <span class="kw">in </span><span class="number">0</span>..item_count {
-                <span class="kw">let </span>source_item_base_index = item_index * source_item_size;
-                <span class="kw">let </span>target_item_base_index = item_index * target_item_size;
+            <span class="kw">for </span>item_index <span class="kw">in </span><span class="number">0</span>..item_count.<span class="number">0 </span>{
+                <span class="kw">let </span>source_item_base_index = assert_usize(item_index) * source_item_size;
+                <span class="kw">let </span>target_item_base_index = assert_usize(item_index) * target_item_size;
 
                 <span class="kw">let </span><span class="kw-2">mut </span>target_offset = <span class="number">0</span>;
 
@@ -787,14 +802,17 @@
                                 <span class="kw-2">*</span>target_index,
                                 <span class="kw-2">*</span>movement_register,
                             );
-                            target_offset += <span class="number">1</span>;
                         }
                         BrilligParameter::Array(
                             nested_array_item_type,
                             nested_array_item_count,
                         ) =&gt; {
-                            <span class="kw">let </span>deflattened_nested_array =
-                                <span class="self">self</span>.allocate_brillig_array(<span class="kw-2">*</span>nested_array_item_count);
+                            <span class="comment">// Usually we need to pass a semi-flattened length to `allocate_brillig_array`.
+                            // However, since we are deflattening arrays, we need to allocate as many elements
+                            // as there are in this particular nested array, which is its semantic length.
+                            </span><span class="kw">let </span>deflattened_nested_array = <span class="self">self</span>.allocate_brillig_array(
+                                SemiFlattenedLength(nested_array_item_count.<span class="number">0</span>),
+                            );
 
                             <span class="self">self</span>.codegen_load_with_offset(
                                 deflattened_items_pointer,
@@ -818,16 +836,16 @@
                                 <span class="kw-2">*</span>flattened_nested_array_pointer,
                                 <span class="kw-2">*</span>deflattened_nested_array_items,
                             );
-
-                            target_offset += <span class="self">Self</span>::flattened_size(subitem);
                         }
                         BrilligParameter::Vector(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot flatten vectors"</span>),
                     }
+
+                    target_offset += <span class="self">Self</span>::flattened_size(subitem);
                 }
             }
         } <span class="kw">else </span>{
-            <span class="kw">let </span>item_count =
-                <span class="self">self</span>.make_usize_constant_instruction((item_count * item_type.len()).into());
+            <span class="kw">let </span>size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+            <span class="kw">let </span>item_count = <span class="self">self</span>.make_usize_constant_instruction(size.<span class="number">0</span>.into());
             <span class="self">self</span>.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, <span class="kw-2">*</span>item_count);
         }
     }

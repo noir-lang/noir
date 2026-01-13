@@ -196,7 +196,13 @@
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
 <a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
 //! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
@@ -208,7 +214,10 @@
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-</span><span class="kw">use </span>acvm::FieldElement;
+</span><span class="kw">use </span>acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
@@ -362,8 +371,11 @@
 }
 
 <span class="doccomment">/// Computes the length of an array. This will match with the indexes that SSA will issue
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compute_array_length(item_typ: <span class="kw-2">&amp;</span>CompositeType, elem_count: usize) -&gt; usize {
-    item_typ.len() * elem_count
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compute_array_length(
+    item_typ: <span class="kw-2">&amp;</span>CompositeType,
+    elem_count: SemanticLength,
+) -&gt; SemiFlattenedLength {
+    ElementsLength::from(item_typ) * elem_count
 }
 
 <span class="doccomment">/// For a given [ValueId], allocates the necessary registers to hold it.
@@ -387,7 +399,7 @@
             .allocate_single_addr(get_bit_size_from_ssa_type(<span class="kw-2">&amp;</span>typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) =&gt; brillig_context
-            .allocate_brillig_array(compute_array_length(<span class="kw-2">&amp;</span>item_typ, elem_count <span class="kw">as </span>usize))
+            .allocate_brillig_array(compute_array_length(<span class="kw-2">&amp;</span>item_typ, SemanticLength(elem_count)))
             .map(BrilligVariable::BrilligArray),
         Type::Vector(<span class="kw">_</span>) =&gt; {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)

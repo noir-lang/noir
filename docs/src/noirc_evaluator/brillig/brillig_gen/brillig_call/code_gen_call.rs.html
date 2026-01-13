@@ -612,7 +612,7 @@
         <span class="kw">let </span>element_size = dfg.type_of_value(source_id).element_size();
 
         <span class="kw">let </span>source_size_register =
-            <span class="self">self</span>.brillig_context.make_usize_constant_instruction(source_array.size.into());
+            <span class="self">self</span>.brillig_context.make_usize_constant_instruction(source_array.size.<span class="number">0</span>.into());
 
         <span class="comment">// We need to explicitly set the destination_len_variable to be the semantic length, which is not flattened.
         </span><span class="self">self</span>.brillig_context.codegen_usize_op(

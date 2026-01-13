@@ -515,17 +515,25 @@
 <a href="#514" id="514">514</a>
 <a href="#515" id="515">515</a>
 <a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
+        lengths::{
+            ElementsFlattenedLength, ElementsLength, FlattenedLength, SemanticLength,
+            SemiFlattenedLength,
+        },
     },
 };
 <span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-<span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, assert_usize, memory::ArrayAddress};
+<span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 
 <span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
     <span class="doccomment">/// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -586,7 +594,7 @@
             // from the shorter. There are ways to deal with this on the receiver side,
             // but it is cumbersome, and the cleanest solution is not to send the extra empty
             // items at all. To do this, however, we need infer which input is the vector length.
-            </span><span class="kw">let </span><span class="kw-2">mut </span>vector_length: <span class="prelude-ty">Option</span>&lt;usize&gt; = <span class="prelude-val">None</span>;
+            </span><span class="kw">let </span><span class="kw-2">mut </span>vector_length: <span class="prelude-ty">Option</span>&lt;u32&gt; = <span class="prelude-val">None</span>;
 
             <span class="kw">let </span>resolved_inputs = inputs
                 .iter()
@@ -602,13 +610,14 @@
                             </span><span class="kw">let </span>ForeignCallParam::Single(length) = input <span class="kw">else </span>{
                                 <span class="macro">unreachable!</span>(<span class="string">"expected u32; got {input:?}"</span>);
                             };
-                            vector_length = <span class="prelude-val">Some</span>(length.to_u128() <span class="kw">as </span>usize);
+                            vector_length = <span class="prelude-val">Some</span>(length.to_u128() <span class="kw">as </span>u32);
                         }
                         HeapValueType::Vector { value_types } =&gt; {
                             <span class="kw">if let </span><span class="prelude-val">Some</span>(length) = vector_length {
-                                <span class="kw">let </span>type_size = vector_element_size(value_types);
+                                <span class="kw">let </span>flattened_length =
+                                    vector_flattened_length(value_types, SemanticLength(length));
                                 <span class="kw">let </span><span class="kw-2">mut </span>fields = input.fields();
-                                fields.truncate(length * type_size);
+                                fields.truncate(assert_usize(flattened_length.<span class="number">0</span>));
                                 input = ForeignCallParam::Array(fields);
                             }
                             vector_length = <span class="prelude-val">None</span>;
@@ -653,9 +662,13 @@
             (
                 ValueOrArray::HeapArray(HeapArray { pointer, size }),
                 HeapValueType::Array { value_types, size: type_size },
-            ) <span class="kw">if </span><span class="kw-2">*</span>type_size == size =&gt; {
+            ) =&gt; {
+                <span class="comment">// The array's semi-flattened size must match the expected size
+                </span><span class="kw">let </span>semi_flattened_size = <span class="kw-2">*</span>type_size * ElementsLength::from(value_types);
+                <span class="macro">assert_eq!</span>(semi_flattened_size, size);
+
                 <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
-                <span class="self">self</span>.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
+                <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
@@ -667,6 +680,7 @@
             ) =&gt; {
                 <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
                 <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_addr).to_usize();
+                <span class="kw">let </span>size = SemiFlattenedLength(assert_u32(size));
                 <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -681,13 +695,18 @@
 
     <span class="doccomment">/// Reads an array/vector from memory but recursively reads pointers to
     /// nested arrays/vectors according to the sequence of value types.
+    ///
+    /// The given `size` is the total number of `HeapValueType`s to read, which must
+    /// be a multiple of the length of `value_types` (unless `value_types.len()` is 0).
     </span><span class="kw">fn </span>read_slice_of_values_from_memory(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         start: MemoryAddress,
-        size: usize,
+        size: SemiFlattenedLength,
         value_types: <span class="kw-2">&amp;</span>[HeapValueType],
     ) -&gt; Vec&lt;MemoryValue&lt;F&gt;&gt; {
-        <span class="macro">assert!</span>(start.is_direct(), <span class="string">"read_vector_of_values_from_memory requires direct addresses"</span>);
+        <span class="kw">let </span>size = assert_usize(size.<span class="number">0</span>);
+
+        <span class="macro">assert!</span>(start.is_direct(), <span class="string">"read_slice_of_values_from_memory requires direct addresses"</span>);
         <span class="kw">if </span>HeapValueType::all_simple(value_types) {
             <span class="self">self</span>.memory.read_slice(start, size).to_vec()
         } <span class="kw">else </span>{
@@ -706,13 +725,15 @@
                         HeapValueType::Simple(<span class="kw">_</span>) =&gt; {
                             <span class="macro">vec!</span>[<span class="self">self</span>.memory.read(value_address)]
                         }
-                        HeapValueType::Array { value_types, size } =&gt; {
+                        HeapValueType::Array { value_types, size: type_size } =&gt; {
                             <span class="kw">let </span>array_address =
                                 ArrayAddress::from(<span class="self">self</span>.memory.read_ref(value_address));
+                            <span class="kw">let </span>semi_flattened_size =
+                                <span class="kw-2">*</span>type_size * ElementsLength::from(value_types);
 
                             <span class="self">self</span>.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                assert_usize(<span class="kw-2">*</span>size),
+                                semi_flattened_size,
                                 value_types,
                             )
                         }
@@ -772,10 +793,9 @@
             <span class="kw">match </span>(destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) =&gt; {
                     <span class="kw">let </span>output_fields = output.fields();
-                    <span class="kw">if </span>value_type
-                        .flattened_size()
-                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
-                    {
+                    <span class="kw">if </span>value_type.flattened_size().is_some_and(|flattened_size| {
+                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+                    }) {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
                             <span class="string">"Foreign call return value does not match expected size. Expected {} but got {}"</span>,
                             value_type.flattened_size().unwrap(),
@@ -798,16 +818,15 @@
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) =&gt; {
-                    <span class="kw">if </span>size != type_size {
+                    <span class="kw">if </span><span class="kw-2">*</span>type_size * ElementsLength::from(value_types) != <span class="kw-2">*</span>size {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
                             <span class="string">"Destination array size of {size} does not match the type size of {type_size}"
                         </span>));
                     }
                     <span class="kw">let </span>output_fields = output.fields();
-                    <span class="kw">if </span>value_type
-                        .flattened_size()
-                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
-                    {
+                    <span class="kw">if </span>value_type.flattened_size().is_some_and(|flattened_size| {
+                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+                    }) {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
                             <span class="string">"Foreign call return value does not match expected size. Expected {} but got {}"</span>,
                             value_type.flattened_size().unwrap(),
@@ -820,28 +839,12 @@
                             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an array type"
                                 </span>.to_string());
                         };
-                        <span class="kw">if </span>values.len()
-                            != usize::try_from(<span class="kw-2">*</span>size).expect(<span class="string">"Failed conversion from u32 to usize"</span>)
-                        {
-                            <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
-                            </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
-
-                            <span class="kw">let </span><span class="kw-2">mut </span>flatten_values_idx = <span class="number">0</span>; <span class="comment">//index of values read from flatten_values
-                            </span><span class="self">self</span>.write_flattened_values_to_memory(
-                                destination,
-                                <span class="kw-2">&amp;</span>output_fields,
-                                <span class="kw-2">&amp;mut </span>flatten_values_idx,
-                                value_type,
-                            )<span class="question-mark">?</span>;
-                            <span class="comment">// Should be caught earlier but we want to be explicit.
-                            </span><span class="macro">debug_assert_eq!</span>(
-                                flatten_values_idx,
-                                output_fields.len(),
-                                <span class="string">"Not all values were written to memory"
-                            </span>);
-                        } <span class="kw">else </span>{
-                            <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
-                        }
+                        <span class="macro">assert_eq!</span>(
+                            values.len(),
+                            size.<span class="number">0 </span><span class="kw">as </span>usize,
+                            <span class="string">"Expected values length to be equal to heap array size"</span>,
+                        );
+                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                     } <span class="kw">else </span>{
                         <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
                         </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
@@ -976,7 +979,8 @@
             }
             HeapValueType::Array { value_types, size } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>current_pointer = destination;
-                <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>size {
+                <span class="kw">let </span>size = size.<span class="number">0</span>;
+                <span class="kw">for _ in </span><span class="number">0</span>..size {
                     <span class="kw">for </span>typ <span class="kw">in </span>value_types {
                         <span class="kw">match </span>typ {
                             HeapValueType::Simple(bit_size) =&gt; {
@@ -1023,13 +1027,17 @@
 <span class="doccomment">/// Returns the total number of field elements required to represent the elements in the vector in memory.
 ///
 /// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
-</span><span class="kw">fn </span>vector_element_size(value_types: <span class="kw-2">&amp;</span>[HeapValueType]) -&gt; usize {
-    value_types
+</span><span class="kw">fn </span>vector_flattened_length(
+    value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+    length: SemanticLength,
+) -&gt; FlattenedLength {
+    <span class="kw">let </span>elements_flattened_length: FlattenedLength = value_types
         .iter()
         .map(|typ| {
             typ.flattened_size()
                 .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"unexpected nested dynamic element type: {typ:?}"</span>))
         })
-        .sum()
+        .sum();
+    ElementsFlattenedLength::from(elements_flattened_length) * length
 }
 </code></pre></div></section></main></body></html>

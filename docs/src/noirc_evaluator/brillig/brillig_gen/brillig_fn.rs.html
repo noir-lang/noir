@@ -126,8 +126,10 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
-</span><span class="kw">use </span>iter_extended::vecmap;
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
+</span><span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
+<span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
     brillig::brillig_ir::{
@@ -232,7 +234,7 @@
             }
             Type::Array(item_type, size) =&gt; BrilligParameter::Array(
                 vecmap(item_type.iter(), <span class="self">Self</span>::ssa_type_to_parameter),
-                <span class="kw-2">*</span>size <span class="kw">as </span>usize,
+                SemanticLength(<span class="kw-2">*</span>size),
             ),
             Type::Vector(<span class="kw">_</span>) =&gt; {
                 <span class="macro">panic!</span>(<span class="string">"ICE: Vector parameters cannot be derived from type information"</span>)

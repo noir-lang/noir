@@ -454,7 +454,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acir_field::FieldElement;
-    <span class="kw">use </span>brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray};
+    <span class="kw">use </span>brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray, lengths::SemiFlattenedLength};
     <span class="kw">use </span>std::str::FromStr;
 
     <span class="kw">use crate</span>::{
@@ -609,7 +609,7 @@
 
         </span><span class="kw">let </span>value = ValueOrArray::HeapArray(HeapArray {
             pointer: brillig::MemoryAddress::Relative(<span class="number">0</span>),
-            size: <span class="number">3</span>,
+            size: SemiFlattenedLength(<span class="number">3</span>),
         });
         <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
         <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line

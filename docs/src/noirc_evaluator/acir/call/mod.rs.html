@@ -307,7 +307,10 @@
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::ssa::SsaReport;
@@ -316,6 +319,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_fn::FunctionContext;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::gen_brillig_for;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::BrilligParameter;
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::assert_u32;
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::Value;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -518,7 +522,7 @@
 
                     BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
-                        len,
+                        SemanticLength(assert_u32(len)),
                     )
                 } <span class="kw">else </span>{
                     FunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>typ)
