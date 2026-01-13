@@ -1112,12 +1112,13 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// For an enum like:
+    /// ```text
     /// enum Foo {
     ///    A(i32, u32),
     ///    B(Field),
     ///    C
     /// }
-    ///
+    /// ```
     /// this will translate the call `Foo::A(1, 2)` into `(0, (1, 2), (0,), ())` where
     /// the first field `0` is the tag value, the second is `A`, third is `B`, and fourth is `C`.
     /// Each variant that isn't the desired variant has zeroed values filled in for its data.
@@ -1130,11 +1131,16 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(id);
         let variants = unwrap_enum_type(&typ, location)?;
 
+        let tag_value = FieldElement::from(constructor.variant_index);
+        let tag_value = SignedField::positive(tag_value);
+        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
+        let mut fields = vec![ast::Expression::Literal(tag)];
+
         // Fill in each field of the translated enum tuple.
         // For most fields this will be simply `std::mem::zeroed::<T>()`,
         // but for the given variant we just pack all the arguments into a tuple for that field.
-        let mut fields = try_vecmap(variants.into_iter().enumerate(), |(i, (_, arg_types))| {
-            let fields = if i == constructor.variant_index {
+        for (i, (_, arg_types)) in variants.into_iter().enumerate() {
+            let args = if i == constructor.variant_index {
                 try_vecmap(&constructor.arguments, |arg| self.expr(*arg))
             } else {
                 try_vecmap(arg_types, |typ| {
@@ -1142,13 +1148,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(self.zeroed_value_of_type(&typ, location))
                 })
             }?;
-            Ok(ast::Expression::Tuple(fields))
-        })?;
-
-        let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
-        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
-        fields.insert(0, ast::Expression::Literal(tag));
+            fields.push(ast::Expression::Tuple(args));
+        }
 
         Ok(ast::Expression::Tuple(fields))
     }
