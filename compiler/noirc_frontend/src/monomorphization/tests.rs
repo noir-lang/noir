@@ -25,7 +25,7 @@ fn bounded_recursive_type_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features(src, &features, false);
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn recursive_type_with_alias_errors() {
         }
         ";
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features(src, &features, false);
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn mutually_recursive_types_error() {
         ";
     // cSpell:enable
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features(src, &features, false);
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn mutually_recursive_types_with_structs_error() {
 
     // cSpell:enable
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features);
+    check_monomorphization_error_using_features(src, &features, false);
 }
 
 #[test]
@@ -746,4 +746,31 @@ fn prefix_trait_method() {
         }
     }
     ");
+}
+
+#[test]
+
+fn fail_to_call_enum_member_without_panic() {
+    // The 'Unexpected Type::Error found during monomorphization' error doesn't occur
+    // when running this code as a real source file because in actual Noir code we don't
+    // run the monomorphizer if there were previous errors. Here we do want to do that to
+    // ensure this panic does not re-emerge.
+    let src = "
+        enum Foo {
+            A
+        }
+
+        fn main() {
+            let foo: Foo = Foo::A;
+            foo(foo);
+            ^^^^^^^^ Expected a function, but found a(n) Foo
+            ^^^^^^^^ Unexpected Type::Error found during monomorphization
+        }
+
+        fn foo(f: Foo) {
+            let _ = f;
+        }
+    ";
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features, true);
 }

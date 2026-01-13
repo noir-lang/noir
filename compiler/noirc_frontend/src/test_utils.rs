@@ -26,8 +26,10 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
+#[derive(Copy, Clone, Debug)]
 pub struct GetProgramOptions<'a> {
     pub allow_parser_errors: bool,
+    pub allow_elaborator_errors: bool,
     /// Treats the program snippet as if it was stdlib, which allows the definition of
     /// low-level (builtin) functions, and standard traits used by prefix/infix operators.
     pub root_and_stdlib: bool,
@@ -38,6 +40,7 @@ impl Default for GetProgramOptions<'_> {
     fn default() -> Self {
         Self {
             allow_parser_errors: false,
+            allow_elaborator_errors: false,
             root_and_stdlib: false,
             frontend_options: FrontendOptions::test_default(),
         }

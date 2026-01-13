@@ -106,7 +106,11 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let monomorphize = false;
-    check_errors_with_options(src, monomorphize, GetProgramOptions::default());
+    check_errors_with_options(
+        src,
+        monomorphize,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    );
 }
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
@@ -115,6 +119,7 @@ fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
         src,
         monomorphize,
         GetProgramOptions {
+            allow_elaborator_errors: true,
             frontend_options: FrontendOptions {
                 enabled_unstable_features: features,
                 ..FrontendOptions::test_default()
@@ -125,15 +130,20 @@ fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
 }
 
 pub(super) fn check_monomorphization_error(src: &str) {
-    check_monomorphization_error_using_features(src, &[]);
+    check_monomorphization_error_using_features(src, &[], false);
 }
 
-pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
+pub(super) fn check_monomorphization_error_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+    allow_elaborator_errors: bool,
+) {
     let monomorphize = true;
     check_errors_with_options(
         src,
         monomorphize,
         GetProgramOptions {
+            allow_elaborator_errors,
             frontend_options: FrontendOptions {
                 enabled_unstable_features: features,
                 ..FrontendOptions::test_default()
@@ -204,12 +214,12 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
     let (_, mut context, errors) = get_program_with_options(&src, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
-    if monomorphize {
-        if !errors.is_empty() {
-            report_all(context.file_manager.as_file_map(), &errors, false, false);
-            panic!("Expected no errors before monomorphization");
-        }
+    if !options.allow_elaborator_errors && !errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        panic!("Expected no elaborator errors");
+    }
 
+    if monomorphize {
         let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
             panic!("get_monomorphized: test program contains no 'main' function")
         });

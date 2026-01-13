@@ -1466,7 +1466,7 @@ impl<'interner> Monomorphizer<'interner> {
             {
                 let contains_function = value.contains_function_or_closure();
                 let expr = value
-                    .into_hir_expression(self.interner, global.location)
+                    .into_runtime_hir_expression(self.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, contains_function)
             } else {
