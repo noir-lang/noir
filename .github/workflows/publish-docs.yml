@@ -18,19 +18,24 @@ jobs:
       - name: Checkout release branch
         uses: actions/checkout@v6
 
-      - uses: taiki-e/install-action@just
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.15.0'
+          cache: 'yarn'
+          cache-dependency-path: 'docs/yarn.lock'
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Install deps
-        run: just install-js-tools
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
 
       - name: Query active docs versions
-        run: yarn workspace docs version::stables
+        working-directory: docs
+        run: yarn version::stables
 
       - name: Build docs for deploying
-        run: yarn workspaces foreach -Rpt --from docs run build
+        working-directory: docs
+        run: yarn build
 
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v3.0

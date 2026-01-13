@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
+    UnknownArrayLength { err: TypeCheckError, location: Location },
     UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
@@ -59,8 +59,10 @@ impl MonomorphizationError {
 impl From<MonomorphizationError> for CustomDiagnostic {
     fn from(error: MonomorphizationError) -> CustomDiagnostic {
         let message = match &error {
-            MonomorphizationError::UnknownArrayLength { length, err, .. } => {
-                format!("Could not determine array length `{length}`, encountered error: `{err}`")
+            MonomorphizationError::UnknownArrayLength { err, location } => {
+                let message = "Invalid array length".into();
+                let secondary = err.to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()

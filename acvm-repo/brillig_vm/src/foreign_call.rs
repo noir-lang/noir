@@ -8,7 +8,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{MemoryValue, VM, VMStatus, memory::ArrayAddress};
+use crate::{MemoryValue, VM, VMStatus, assert_usize, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -138,7 +138,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) if *type_size == size => {
                 let start = self.memory.read_ref(pointer);
-                self.read_slice_of_values_from_memory(start, size, value_types)
+                self.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
@@ -195,7 +195,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                *size,
+                                assert_usize(*size),
                                 value_types,
                             )
                         }
@@ -303,7 +303,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an array type"
                                 .to_string());
                         };
-                        if values.len() != *size {
+                        if values.len()
+                            != usize::try_from(*size).expect("Failed conversion from u32 to usize")
+                        {
                             // foreign call returning flattened values into a nested type, so the sizes do not match
                             let destination = self.memory.read_ref(*pointer);
 

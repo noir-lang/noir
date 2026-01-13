@@ -542,13 +542,13 @@ trait OpcodeAddressVisitor {
     fn visit_black_box_op(&mut self, op: &BlackBoxOp, location: OpcodeLocation) {
         match op {
             BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
-                self.read_heap_vector(inputs, location);
+                self.read_heap_array(inputs, location);
                 self.read_heap_array(iv, location);
                 self.read_heap_array(key, location);
-                self.write_heap_vector(outputs, location);
+                self.write_heap_array(outputs, location);
             }
             BlackBoxOp::Blake2s { message, output } | BlackBoxOp::Blake3 { message, output } => {
-                self.read_heap_vector(message, location);
+                self.read_heap_array(message, location);
                 self.write_heap_array(output, location);
             }
             BlackBoxOp::Keccakf1600 { input, output } => {
@@ -569,15 +569,15 @@ trait OpcodeAddressVisitor {
                 signature,
                 result,
             } => {
-                self.read_heap_vector(hashed_msg, location);
+                self.read_heap_array(hashed_msg, location);
                 self.read_heap_array(public_key_x, location);
                 self.read_heap_array(public_key_y, location);
                 self.read_heap_array(signature, location);
                 self.write(result, location);
             }
             BlackBoxOp::MultiScalarMul { points, scalars, outputs } => {
-                self.read_heap_vector(points, location);
-                self.read_heap_vector(scalars, location);
+                self.read_heap_array(points, location);
+                self.read_heap_array(scalars, location);
                 self.write_heap_array(outputs, location);
             }
             BlackBoxOp::EmbeddedCurveAdd {
@@ -598,7 +598,7 @@ trait OpcodeAddressVisitor {
                 self.write_heap_array(result, location);
             }
             BlackBoxOp::Poseidon2Permutation { message, output } => {
-                self.read_heap_vector(message, location);
+                self.read_heap_array(message, location);
                 self.write_heap_array(output, location);
             }
             BlackBoxOp::Sha256Compression { input, hash_values, output } => {
