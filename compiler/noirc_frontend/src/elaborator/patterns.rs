@@ -758,13 +758,23 @@ impl Elaborator<'_> {
         let error = match use_variable_result {
             Some(Ok(found)) => return Ok((found, None)),
             // Try to look it up as a global, but still issue the first error if we fail
-            Some(Err(error)) => match self.lookup_global(path) {
+            Some(Err(error)) => match self.lookup_item_as_value(path) {
                 Ok((id, item)) => {
                     return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
-                Err(_) => error,
+                Err(ResolverError::PathResolutionError(..)) => {
+                    return Err(error);
+                }
+                Err(global_error) => match error {
+                    ResolverError::VariableNotDeclared { name, .. } if name != "_" => {
+                        return Err(global_error);
+                    }
+                    _ => {
+                        return Err(error);
+                    }
+                },
             },
-            None => match self.lookup_global(path) {
+            None => match self.lookup_item_as_value(path) {
                 Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
                     if dummy_id == DefinitionId::dummy_id() =>
                 {
