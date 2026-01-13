@@ -1130,7 +1130,7 @@
                             <span class="self">self</span>.push_err(ResolverError::Expected {
                                 location,
                                 expected: <span class="string">"value"</span>,
-                                got: result.item.description(),
+                                found: result.item.description(<span class="self">self</span>.interner),
                             });
                         } <span class="kw">else </span>{
                             <span class="self">self</span>.push_err(error);

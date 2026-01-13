@@ -784,7 +784,21 @@
 <a href="#783" id="783">783</a>
 <a href="#784" id="784">784</a>
 <a href="#785" id="785">785</a>
-<a href="#786" id="786">786</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pattern elaboration, variable binding, and turbofish generic resolution.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -1544,13 +1558,27 @@
         <span class="kw">let </span>error = <span class="kw">match </span>use_variable_result {
             <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(found)) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>((found, <span class="prelude-val">None</span>)),
             <span class="comment">// Try to look it up as a global, but still issue the first error if we fail
-            </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">match </span><span class="self">self</span>.lookup_global(path) {
+            </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">match </span><span class="self">self</span>.lookup_item_as_value(path) {
                 <span class="prelude-val">Ok</span>((id, item)) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(((HirIdent::non_trait_method(id, location), <span class="number">0</span>), <span class="prelude-val">Some</span>(item)));
                 }
-                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; error,
+                <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(..)) =&gt; {
+                    <span class="comment">// A path resolution error is more specific than a "variable not found"
+                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(error);
+                }
+                <span class="prelude-val">Err</span>(global_error) =&gt; <span class="kw">match </span>error {
+                    <span class="comment">// If the path was "_" then we want to preseve that error as it's clearer
+                    // than the error of an item not being found (it will mention that "_" is
+                    // not valid as an expression).
+                    </span>ResolverError::VariableNotDeclared { name, .. } <span class="kw">if </span>name != <span class="string">"_" </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(global_error);
+                    }
+                    <span class="kw">_ </span>=&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(error);
+                    }
+                },
             },
-            <span class="prelude-val">None </span>=&gt; <span class="kw">match </span><span class="self">self</span>.lookup_global(path) {
+            <span class="prelude-val">None </span>=&gt; <span class="kw">match </span><span class="self">self</span>.lookup_item_as_value(path) {
                 <span class="prelude-val">Ok</span>((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
                     <span class="kw">if </span>dummy_id == DefinitionId::dummy_id() =&gt;
                 {

@@ -3168,7 +3168,7 @@
             <span class="prelude-val">Ok</span>(item) =&gt; {
                 <span class="self">self</span>.push_err(ResolverError::Expected {
                     expected: <span class="string">"type"</span>,
-                    got: item.description(),
+                    found: item.description(<span class="self">self</span>.interner),
                     location,
                 });
 

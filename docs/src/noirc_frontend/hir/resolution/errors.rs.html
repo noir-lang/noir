@@ -998,7 +998,7 @@
     <span class="attr">#[error(<span class="string">"could not resolve path"</span>)]
     </span>PathResolutionError(<span class="attr">#[from] </span>PathResolutionError),
     <span class="attr">#[error(<span class="string">"Expected"</span>)]
-    </span>Expected { location: Location, expected: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, got: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
+    </span>Expected { location: Location, expected: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, found: String },
     <span class="attr">#[error(<span class="string">"Duplicate field in constructor"</span>)]
     </span>DuplicateField { field: Ident },
     <span class="attr">#[error(<span class="string">"No such field in struct"</span>)]
@@ -1133,8 +1133,8 @@
     </span>NonIntegerGlobalUsedInPattern { location: Location },
     <span class="attr">#[error(<span class="string">"Cannot match on values of type `{typ}`"</span>)]
     </span>TypeUnsupportedInMatch { typ: Type, location: Location },
-    <span class="attr">#[error(<span class="string">"Expected a struct, enum, or literal value in pattern, but found a {item}"</span>)]
-    </span>UnexpectedItemInPattern { location: Location, item: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
+    <span class="attr">#[error(<span class="string">"Expected a struct, enum, or literal value in pattern, but found {item}"</span>)]
+    </span>UnexpectedItemInPattern { location: Location, item: String },
     <span class="attr">#[error(<span class="string">"Trait `{trait_name}` doesn't have a method named `{method_name}`"</span>)]
     </span>NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
     <span class="attr">#[error(<span class="string">"Cannot use a type alias inside a type alias"</span>)]
@@ -1339,8 +1339,8 @@
                 }
             }
             ResolverError::PathResolutionError(error) =&gt; error.into(),
-            ResolverError::Expected { location, expected, got } =&gt; Diagnostic::simple_error(
-                <span class="macro">format!</span>(<span class="string">"expected {expected} got {got}"</span>),
+            ResolverError::Expected { location, expected, found: got } =&gt; Diagnostic::simple_error(
+                <span class="macro">format!</span>(<span class="string">"expected {expected}, found {got}"</span>),
                 String::new(),
                 <span class="kw-2">*</span>location,
             ),
@@ -1764,7 +1764,7 @@
             },
             ResolverError::UnexpectedItemInPattern { item, location } =&gt; {
                 Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found a {item}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found {item}"</span>),
                     String::new(),
                     <span class="kw-2">*</span>location,
                 )

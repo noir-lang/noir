@@ -240,7 +240,15 @@
 <a href="#239" id="239">239</a>
 <a href="#240" id="240">240</a>
 <a href="#241" id="241">241</a>
-<a href="#242" id="242">242</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a></pre></div><pre class="rust"><code><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::path_resolution::PathResolution;
@@ -328,10 +336,11 @@
         }
     }
 
-    <span class="doccomment">/// Try to look up a [TypedPath] in the globals.
-    ///
-    /// If the item is a type alias to some as-of-yet unknown numeric generic, it returns a [DefinitionId::dummy_id].
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_global(
+    <span class="doccomment">/// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+    /// If the path resolves to an item that is not a value (for example a struct, an enum,
+    /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
+    /// when no item is found.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_item_as_value(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(DefinitionId, PathResolutionItem), ResolverError&gt; {
@@ -342,8 +351,7 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>((<span class="self">self</span>.interner.function_definition_id(function), item));
         }
 
-        <span class="kw">let </span>expected = <span class="string">"global variable"</span>;
-        <span class="kw">let </span>got = <span class="string">"local variable"</span>;
+        <span class="kw">let </span>expected = <span class="string">"value"</span>;
         <span class="kw">match </span>item {
             PathResolutionItem::Global(global) =&gt; {
                 <span class="kw">let </span>global = <span class="self">self</span>.interner.get_global(global);
@@ -363,9 +371,17 @@
                     <span class="comment">// Type alias to a type alias is not supported, but the error is handled in define_type_alias()
                     </span><span class="kw">return </span><span class="prelude-val">Ok</span>((DefinitionId::dummy_id(), item));
                 }
-                <span class="prelude-val">Err</span>(ResolverError::Expected { location, expected, got })
+                <span class="prelude-val">Err</span>(ResolverError::Expected {
+                    location,
+                    expected,
+                    found: item.description(<span class="self">self</span>.interner),
+                })
             }
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::Expected { location, expected, got }),
+            item =&gt; <span class="prelude-val">Err</span>(ResolverError::Expected {
+                location,
+                expected,
+                found: item.description(<span class="self">self</span>.interner),
+            }),
         }
     }
 
@@ -415,7 +431,7 @@
                 } <span class="kw">else </span>{
                     <span class="self">self</span>.push_err(ResolverError::Expected {
                         expected: <span class="string">"trait"</span>,
-                        got: item.description(),
+                        found: item.description(<span class="self">self</span>.interner),
                         location,
                     });
                     <span class="prelude-val">None
@@ -456,7 +472,7 @@
             <span class="prelude-val">Ok</span>(other) =&gt; {
                 <span class="self">self</span>.push_err(ResolverError::Expected {
                     expected: <span class="string">"type"</span>,
-                    got: other.description(),
+                    found: other.description(<span class="self">self</span>.interner),
                     location,
                 });
                 <span class="prelude-val">None

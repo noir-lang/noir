@@ -927,7 +927,41 @@
 <a href="#926" id="926">926</a>
 <a href="#927" id="927">927</a>
 <a href="#928" id="928">928</a>
-<a href="#929" id="929">929</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
@@ -942,7 +976,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::visibility::item_in_module_is_visible;
 
 <span class="kw">use </span><span class="kw">crate</span>::locations::ReferencesTracker;
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{
+    FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
+};
 <span class="kw">use crate</span>::{Shared, Type, TypeAlias};
 
 <span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -1009,22 +1045,54 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>description(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>description(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; String {
         <span class="kw">match </span><span class="self">self </span>{
-            PathResolutionItem::Module(..) =&gt; <span class="string">"module"</span>,
-            PathResolutionItem::Type(..) =&gt; <span class="string">"type"</span>,
-            PathResolutionItem::TypeAlias(..) =&gt; <span class="string">"type alias"</span>,
-            PathResolutionItem::PrimitiveType(..) =&gt; <span class="string">"primitive type"</span>,
-            PathResolutionItem::Trait(..) =&gt; <span class="string">"trait"</span>,
-            PathResolutionItem::TraitAssociatedType(..) =&gt; <span class="string">"associated type"</span>,
-            PathResolutionItem::Global(..) =&gt; <span class="string">"global"</span>,
-            PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::Method(..)
-            | PathResolutionItem::SelfMethod(..)
-            | PathResolutionItem::TypeAliasFunction(..)
-            | PathResolutionItem::TraitFunction(..)
-            | PathResolutionItem::TypeTraitFunction(..)
-            | PathResolutionItem::PrimitiveFunction(..) =&gt; <span class="string">"function"</span>,
+            PathResolutionItem::Module(module) =&gt; {
+                <span class="kw">let </span>module_data = interner.try_module_attributes(<span class="kw-2">*</span>module);
+                module_data
+                    .map(|data| <span class="macro">format!</span>(<span class="string">"module `{}`"</span>, data.name))
+                    .unwrap_or_else(|| <span class="string">"module"</span>.to_string())
+            }
+            PathResolutionItem::Type(type_id) =&gt; {
+                <span class="kw">let </span>datatype = interner.get_type(<span class="kw-2">*</span>type_id);
+                <span class="kw">let </span>datatype = datatype.borrow();
+                <span class="kw">if </span>datatype.is_enum() {
+                    <span class="macro">format!</span>(<span class="string">"enum `{}`"</span>, datatype.name)
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(<span class="string">"struct `{}`"</span>, datatype.name)
+                }
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) =&gt; {
+                <span class="kw">let </span>type_alias = interner.get_type_alias(<span class="kw-2">*</span>type_alias_id);
+                <span class="kw">let </span>type_alias = type_alias.borrow();
+                <span class="macro">format!</span>(<span class="string">"type alias `{}`"</span>, type_alias.name)
+            }
+            PathResolutionItem::PrimitiveType(kind) =&gt; {
+                <span class="macro">format!</span>(<span class="string">"primitive type `{}`"</span>, kind.name())
+            }
+            PathResolutionItem::Trait(trait_id) =&gt; {
+                <span class="kw">let </span>trait_ = interner.get_trait(<span class="kw-2">*</span>trait_id);
+                <span class="macro">format!</span>(<span class="string">"trait `{}`"</span>, trait_.name)
+            }
+            PathResolutionItem::TraitAssociatedType(id) =&gt; {
+                <span class="kw">let </span>associated_type = interner.get_trait_associated_type(<span class="kw-2">*</span>id);
+                <span class="kw">let </span>trait_ = interner.get_trait(associated_type.trait_id);
+                <span class="macro">format!</span>(<span class="string">"associated type `{}::{}`"</span>, trait_.name, associated_type.name)
+            }
+            PathResolutionItem::Global(id) =&gt; {
+                <span class="kw">let </span>global = interner.get_global_definition(<span class="kw-2">*</span>id);
+                <span class="macro">format!</span>(<span class="string">"global `{}`"</span>, global.name)
+            }
+            PathResolutionItem::ModuleFunction(func_id)
+            | PathResolutionItem::Method(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
+            | PathResolutionItem::SelfMethod(func_id)
+            | PathResolutionItem::TypeAliasFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
+            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
+            | PathResolutionItem::TypeTraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
+            | PathResolutionItem::PrimitiveFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id) =&gt; {
+                <span class="kw">let </span>name = interner.function_name(func_id);
+                <span class="macro">format!</span>(<span class="string">"function `{name}`"</span>)
+            }
         }
     }
 }

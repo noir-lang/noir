@@ -2244,7 +2244,7 @@
                 <span class="comment">// TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 </span><span class="kw">let </span>meta = <span class="self">self</span>.interner.function_meta(func_id);
                 <span class="kw">let </span><span class="prelude-val">Some</span>(variant_index) = meta.enum_variant_index <span class="kw">else </span>{
-                    <span class="kw">let </span>item = resolution.description();
+                    <span class="kw">let </span>item = resolution.description(<span class="self">self</span>.interner);
                     <span class="self">self</span>.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     <span class="kw">return </span>Pattern::Error;
                 };
@@ -2283,7 +2283,7 @@
                         variables_defined,
                     );
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>item = resolution.description();
+                    <span class="kw">let </span>item = resolution.description(<span class="self">self</span>.interner);
                     <span class="self">self</span>.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     <span class="kw">return </span>Pattern::Error;
                 }
