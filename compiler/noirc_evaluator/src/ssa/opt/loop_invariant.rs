@@ -694,13 +694,12 @@ impl<'f> LoopInvariantContext<'f> {
         let returns_array = if dfg.runtime().is_brillig() {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
-                Instruction::MakeArray { .. } | Instruction::ArraySet { .. } => true,
+                Instruction::MakeArray { .. } => true,
                 Instruction::Call { .. } => {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
-                // ArrayGet can return an array but it does not create it
-                // In that case, the refcount is managed by the ownership analysis.
+                // RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
                 _ => false,
             }
         } else {
