@@ -288,7 +288,6 @@ impl Kind {
         matches!(self, Kind::Normal | Kind::Any)
     }
 
-    // TODO: WIP
     /// See [`Type::has_cyclic_alias`] for more detail
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match self {
@@ -1047,7 +1046,6 @@ impl TypeVariable {
         Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
     }
 
-    // TODO: WIP
     /// See [`Type::has_cyclic_alias`] for more detail
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match &*self.borrow() {
@@ -1505,21 +1503,20 @@ impl Type {
     ///
     /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
     /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    ///
+    /// Note: cloning the `aliases` parameter when calling this function recursively in multiple
+    /// branches, e.g. as done with [`Type::InfixExpr`], can prevent tests like
+    /// `ensure_repeated_aliases_in_tuples_arent_detected_as_cyclic_aliases` and
+    /// `ensure_repeated_aliases_in_arrays_arent_detected_as_cyclic_aliases` from failing
+    /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match self {
-            // TODO: WIP
-            // Type::CheckedCast { to, .. } => to.has_cyclic_alias(aliases),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
             }
-            // TODO: WIP
-            // Type::TypeVariable(var) => match &*var.borrow() {
-            //     TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
-            //     TypeBinding::Unbound(_, _) => false,
-            // },
             Type::TypeVariable(var) => var.has_cyclic_alias(aliases),
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+                lhs.has_cyclic_alias(&mut aliases.clone()) || rhs.has_cyclic_alias(aliases)
             }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
@@ -1530,62 +1527,63 @@ impl Type {
                     def.borrow().get_type(generics).has_cyclic_alias(aliases)
                 }
             }
-            // TODO: WIP
+            Type::TraitAsType(_id, _name, generics) => {
+                generics
+                    .ordered
+                    .iter()
+                    .any(|generic| generic.has_cyclic_alias(&mut aliases.clone()))
+                    || generics
+                        .named
+                        .iter()
+                        .any(|generic| generic.typ.has_cyclic_alias(&mut aliases.clone()))
+            }
+            Type::String(len) => len.has_cyclic_alias(aliases),
+            Type::Array(len, typ) => {
+                len.has_cyclic_alias(&mut aliases.clone()) || typ.has_cyclic_alias(aliases)
+            }
+            Type::Vector(typ) => typ.has_cyclic_alias(aliases),
+            Type::DataType(s, args) => {
+                let data_type = s.borrow();
+                data_type
+                    .get_fields(args)
+                    .unwrap_or_else(Vec::new)
+                    .iter()
+                    .any(|(_name, field, _visibility)| field.has_cyclic_alias(&mut aliases.clone()))
+                    || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
+                        |(_name, variant)| {
+                            variant.iter().any(|variant_field| {
+                                variant_field.has_cyclic_alias(&mut aliases.clone())
+                            })
+                        },
+                    )
+            }
+            Type::Tuple(elements) => {
+                elements.iter().any(|element| element.has_cyclic_alias(&mut aliases.clone()))
+            }
+            Type::FmtString(len, elements) => {
+                len.has_cyclic_alias(&mut aliases.clone()) || (*elements).has_cyclic_alias(aliases)
+            }
+            Type::CheckedCast { to, from } => {
+                to.has_cyclic_alias(&mut aliases.clone()) || from.has_cyclic_alias(aliases)
+            }
+            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases),
+            Type::Forall(typevars, typ) => {
+                typevars.iter().any(|typevar| typevar.has_cyclic_alias(&mut aliases.clone()))
+                    || typ.has_cyclic_alias(aliases)
+            }
+            Type::Function(args, ret, env, _unconstrained) => {
+                args.iter().any(|arg| arg.has_cyclic_alias(&mut aliases.clone()))
+                    || ret.has_cyclic_alias(&mut aliases.clone())
+                    || env.has_cyclic_alias(aliases)
+            }
+            Type::Reference(element, _mutable) => element.has_cyclic_alias(aliases),
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
             | Type::Error
             | Type::Quoted(_) => false,
-
-            // TODO: WIP
-            Type::TraitAsType(_id, _name, generics) => {
-                generics.ordered.iter().any(|generic| generic.has_cyclic_alias(aliases))
-                    || generics.named.iter().any(|generic| generic.typ.has_cyclic_alias(aliases))
-            }
-            Type::String(len) => len.has_cyclic_alias(aliases),
-            Type::Array(len, typ) => len.has_cyclic_alias(aliases) || typ.has_cyclic_alias(aliases),
-            Type::Vector(typ) => typ.has_cyclic_alias(aliases),
-            Type::DataType(s, args) => {
-                let data_type = s.borrow();
-                data_type
-                    .get_fields(args)
-                    .unwrap_or_else(|| vec![])
-                    .iter()
-                    .any(|(_name, field, _visibility)| field.has_cyclic_alias(aliases))
-                    || data_type.get_variants(args).unwrap_or_else(|| vec![]).iter().any(
-                        |(_name, variant)| {
-                            variant
-                                .iter()
-                                .any(|variant_field| variant_field.has_cyclic_alias(aliases))
-                        },
-                    )
-            }
-            Type::Tuple(elements) => {
-                elements.iter().any(|element| element.has_cyclic_alias(aliases))
-            }
-            Type::FmtString(len, elements) => {
-                len.has_cyclic_alias(aliases) || (*elements).has_cyclic_alias(aliases)
-            }
-            Type::CheckedCast { to, from } => {
-                // TODO: WIP (do both need to be checked?)
-                to.has_cyclic_alias(aliases) || from.has_cyclic_alias(aliases)
-            }
-            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases),
-            Type::Forall(typevars, typ) => {
-                // TODO: move definition for TypeVariable case to impl TypeVariable method?
-                typevars.iter().any(|typevar| typevar.has_cyclic_alias(aliases))
-                    || typ.has_cyclic_alias(aliases)
-            }
-            Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(|arg| arg.has_cyclic_alias(aliases))
-                    || ret.has_cyclic_alias(aliases)
-                    || env.has_cyclic_alias(aliases)
-            }
-            Type::Reference(element, _mutable) => element.has_cyclic_alias(aliases),
         }
-        // TODO: WIP
-        // _ => false,
     }
 
     /// Unifies self and other kinds or fails with a Kind error

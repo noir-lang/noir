@@ -624,3 +624,63 @@ fn regression_10352_mutable_reference() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn ensure_repeated_aliases_in_tuples_arent_detected_as_cyclic_aliases() {
+    let src = r#"
+    type K = Field;
+    type V = Field;
+
+    fn field_lt(_x: Field, _y: Field) -> bool { true }
+
+    pub global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| field_lt(a.0, b.0);
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn ensure_repeated_aliases_in_arrays_arent_detected_as_cyclic_aliases() {
+    let src = r#"
+    pub type TReturnElem = [Field; 3];
+    pub type TReturn = [TReturnElem; 2];
+
+    pub fn t_return_elem() -> TReturnElem {
+        [0; 3]
+    }
+
+    pub fn t_return() -> TReturn {
+        [t_return_elem(); 2]
+    }
+
+    pub unconstrained fn two_nested_return_unconstrained() -> (Field, TReturn, Field, TReturn) {
+        (0, t_return(), 0, t_return())
+    }
+
+    pub unconstrained fn foo_return_unconstrained() -> (Field, TReturn, TestTypeFoo) {
+        (0, t_return(), test_type_foo())
+    }
+
+    pub struct TestTypeFoo {
+        a: Field,
+        b: [[[Field; 3]; 4]; 2],
+        c: [TReturnElem; 2],
+        d: TReturnElem,
+    }
+
+    pub fn test_type_foo() -> TestTypeFoo {
+        TestTypeFoo {
+            a: 0,
+            b: [[[0; 3]; 4]; 2],
+            c: [t_return_elem(); 2],
+            d: t_return_elem(),
+        }
+    }
+
+    pub unconstrained fn complex_struct_return() {
+        let _: (Field, [[Field; 3]; 2], TestTypeFoo) = foo_return_unconstrained();
+    }
+    "#;
+    assert_no_errors(src);
+}
