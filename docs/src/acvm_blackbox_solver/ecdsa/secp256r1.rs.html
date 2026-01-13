@@ -163,19 +163,7 @@
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
+<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 <span class="kw">use </span>p256::elliptic_curve::PrimeField;
 <span class="kw">use </span>p256::elliptic_curve::sec1::FromEncodedPoint;
 
@@ -215,7 +203,7 @@
 /// According to ECDSA specification, the message hash leftmost bits should be truncated
 /// up to the curve order length, and then reduced modulo the curve order.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>verify_signature(
-    hashed_msg: <span class="kw-2">&amp;</span>[u8],
+    hashed_msg: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_x_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     public_key_y_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>],
     signature: <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>],
@@ -338,18 +326,6 @@
         <span class="kw">let </span>invalid_pub_key_y: [u8; <span class="number">32</span>] = [<span class="number">0xff</span>; <span class="number">32</span>];
         verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>invalid_pub_key_x, <span class="kw-2">&amp;</span>invalid_pub_key_y, <span class="kw-2">&amp;</span>SIGNATURE)
             .unwrap();
-    }
-
-    <span class="attr">#[test]
-    #[ignore = <span class="string">"ECDSA verification does not currently handle long hashes correctly"</span>]
-    </span><span class="kw">fn </span>trims_overly_long_hashes_to_correct_length() {
-        <span class="kw">let </span><span class="kw-2">mut </span>long_hashed_message = HASHED_MESSAGE.to_vec();
-        long_hashed_message.push(<span class="number">0xff</span>);
-
-        <span class="kw">let </span>valid =
-            verify_signature(<span class="kw-2">&amp;</span>long_hashed_message, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>PUB_KEY_Y, <span class="kw-2">&amp;</span>SIGNATURE).unwrap();
-
-        <span class="macro">assert!</span>(valid);
     }
 }
 </code></pre></div></section></main></body></html>
