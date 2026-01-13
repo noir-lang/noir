@@ -3148,7 +3148,7 @@ fn resolve_trait_item_impl(
 ///
 /// During monomorphization, on the specific call to `foo::<Field>()`,
 /// the compiler will know that `K` refers to `Field`, and that `K::baz::<2>`
-/// refers to the `baz` method on the `Field` impl for `Bar`. In that method
+/// refers to the `baz` method on the `Bar` impl for `Field`. In that method
 /// the type variable `M` is unbound. Looking up its value will fail.
 /// However, we can bind `M` to `N`, so it eventually resolves to `2`,
 /// which is what this method does.
