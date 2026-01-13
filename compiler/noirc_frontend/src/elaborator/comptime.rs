@@ -40,6 +40,14 @@ use crate::{
 
 use super::{ElaborateReason, Elaborator, ResolverMeta};
 
+// TODO: WIP
+/// Maximum depth of evaluation, limiting recursion of comptime/interpeter contexts.
+/// The goal is to be able to provide Noir stack traces if
+/// we run out
+// const MAX_RECURSION_DEPTH: usize = 77;
+const MAX_RECURSION_DEPTH: usize = 78;
+// const MAX_RECURSION_DEPTH: usize = 79;
+
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
 #[derive(Debug, Copy, Clone)]
@@ -118,6 +126,20 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
+        // TODO: WIP
+        if *self.recursion_depth >= MAX_RECURSION_DEPTH {
+            // TODO: WIP
+            // assert!(self.current_item.is_some());
+            let location = Location::dummy();
+            // TODO: return error?
+            self.push_err(InterpreterError::EvaluationDepthOverflow {
+                location,
+                call_stack: self.interpreter_call_stack().clone(),
+            });
+            self.comptime_evaluation_halted = true;
+        }
+        // TODO: WIP
+        *self.recursion_depth += 1;
         let mut elaborator = Elaborator::new(
             self.interner,
             self.def_maps,
@@ -129,6 +151,8 @@ impl<'context> Elaborator<'context> {
             self.interpreter_call_stack.clone(),
             self.options,
             self.elaborate_reasons.clone(),
+            // TODO: WIP
+            self.recursion_depth,
         );
 
         elaborator.push_function_context();
@@ -152,6 +176,10 @@ impl<'context> Elaborator<'context> {
 
         self.errors.extend(errors);
         self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
+
+        // TODO: WIP
+        *elaborator.recursion_depth -= 1;
+
         result
     }
 
@@ -687,6 +715,19 @@ impl<'context> Elaborator<'context> {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
+        // TODO: WIP
+        if *self.recursion_depth >= MAX_RECURSION_DEPTH {
+            // TODO: WIP
+            // assert!(self.current_item.is_some());
+            let location = Location::dummy();
+            // TODO: return error?
+            self.push_err(InterpreterError::EvaluationDepthOverflow {
+                location,
+                call_stack: self.interpreter_call_stack().clone(),
+            });
+            self.comptime_evaluation_halted = true;
+        }
+        *self.recursion_depth += 1;
         Interpreter::new(self, current_function)
     }
 

@@ -416,7 +416,9 @@ fn regression_10863() {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
         assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
-        assert_eq!(errors.len(), 1, "Expected exactly one error");
+        // TODO: WIP
+        // assert_eq!(errors.len(), 1, "Expected exactly one error");
+        assert_eq!(errors.len(), 1, "Expected exactly one error, but found:\n{errors:?}");
     });
 }
 
@@ -440,6 +442,8 @@ fn regression_10861() {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
         assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
-        assert_eq!(errors.len(), 1, "Expected exactly one error");
+        // TODO: WIP
+        // assert_eq!(errors.len(), 1, "Expected exactly one error");
+        assert_eq!(errors.len(), 1, "Expected exactly one error, but found:\n{errors:?}");
     });
 }

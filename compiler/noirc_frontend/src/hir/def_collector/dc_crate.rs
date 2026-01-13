@@ -220,6 +220,11 @@ impl CompilationError {
         matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
     }
 
+    // TODO: WIP
+    pub(crate) fn is_error_node_reached(&self) -> bool {
+        matches!(self, CompilationError::ResolverError(ResolverError::ErrorNodeReached { .. }))
+    }
+
     pub(crate) fn should_be_filtered(&self) -> bool {
         let CompilationError::InterpreterError(error) = self else {
             return false;
@@ -517,8 +522,12 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
+        // TODO: WIP
+        // if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+        //     errors.retain(|error| !error.is_expecting_other_error_error());
+        // }
+        if errors.iter().any(|error| !error.is_expecting_other_error_error() && !error.is_error_node_reached()) {
+            errors.retain(|error| !error.is_expecting_other_error_error() && !error.is_error_node_reached());
         }
         errors
     }

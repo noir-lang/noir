@@ -276,6 +276,9 @@ pub struct Elaborator<'context> {
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     pub(crate) comptime_evaluation_halted: bool,
+
+    // TODO: WIP
+    pub(crate) recursion_depth: &'context mut usize,
 }
 
 #[derive(Copy, Clone)]
@@ -313,6 +316,8 @@ impl<'context> Elaborator<'context> {
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
         elaborate_reasons: im::Vector<ElaborateReason>,
+        // TODO: WIP
+        recursion_depth: &'context mut usize,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -344,6 +349,8 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
+            // TODO: WIP
+            recursion_depth,
         }
     }
 
@@ -365,6 +372,11 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         options: ElaboratorOptions<'context>,
     ) -> Self {
+        // TODO: update comment to include "besides recursion_depth"?
+        // Create a fresh elaborator to ensure no state is changed from
+        // this elaborator
+        // TODO: WIP
+        context.recursion_depth += 1;
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
@@ -376,6 +388,8 @@ impl<'context> Elaborator<'context> {
             im::Vector::new(),
             options,
             im::Vector::new(),
+            // TODO: WIP
+            &mut context.recursion_depth,
         )
     }
 

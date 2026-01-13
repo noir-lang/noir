@@ -392,7 +392,9 @@ impl InterpreterError {
             InterpreterError::Break
             | InterpreterError::Continue
             | InterpreterError::SkippedDueToEarlierErrors => {
-                panic!("Tried to get the location of Break/Continue/SkippedDueToTypeErrors error!")
+                // TODO: WIP
+                Location::dummy()
+                // panic!("Tried to get the location of Break/Continue/SkippedDueToTypeErrors error!")
             }
         }
     }
@@ -792,9 +794,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
             }
             InterpreterError::SkippedDueToEarlierErrors => {
-                unreachable!(
-                    "SkippedDueToTypeErrors should be handled internally like Break/Continue"
-                )
+                // TODO: WIP
+                // unreachable!(
+                //     "SkippedDueToTypeErrors should be handled internally like Break/Continue"
+                // )
+                let msg = "SkippedDueToTypeErrors should be handled internally like Break/Continue".to_string();
+                let secondary = String::new();
+                let location = Location::dummy();
+                CustomDiagnostic::simple_warning(msg, secondary, location)
             }
             InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
                 let msg = "Duplicate field name in call to `set_fields`".to_string();

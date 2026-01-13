@@ -62,6 +62,9 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
+
+    // TODO: WIP (also needed here?)
+    pub recursion_depth: usize,
 }
 
 #[derive(Debug)]
@@ -85,6 +88,8 @@ impl Context<'_, '_> {
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
+            // TODO: WIP
+            recursion_depth: 0,
         }
     }
 
@@ -92,6 +97,7 @@ impl Context<'_, '_> {
         file_manager: &'file_manager FileManager,
         parsed_files: &'parsed_files ParsedFiles,
     ) -> Context<'file_manager, 'parsed_files> {
+        // TODO: deduplicate with Context::new ?
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
@@ -104,6 +110,8 @@ impl Context<'_, '_> {
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
+            // TODO: WIP
+            recursion_depth: 0,
         }
     }
 
