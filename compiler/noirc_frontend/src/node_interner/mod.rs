@@ -1080,7 +1080,7 @@ impl NodeInterner {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Retrieves the impl selected for a given ExprId during name resolution.
+    /// Retrieves the impl selected for a given [ExprId] during name resolution.
     pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
