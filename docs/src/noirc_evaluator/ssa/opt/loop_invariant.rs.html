@@ -3613,7 +3613,94 @@
 <a href="#3612" id="3612">3612</a>
 <a href="#3613" id="3613">3613</a>
 <a href="#3614" id="3614">3614</a>
-<a href="#3615" id="3615">3615</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3615" id="3615">3615</a>
+<a href="#3616" id="3616">3616</a>
+<a href="#3617" id="3617">3617</a>
+<a href="#3618" id="3618">3618</a>
+<a href="#3619" id="3619">3619</a>
+<a href="#3620" id="3620">3620</a>
+<a href="#3621" id="3621">3621</a>
+<a href="#3622" id="3622">3622</a>
+<a href="#3623" id="3623">3623</a>
+<a href="#3624" id="3624">3624</a>
+<a href="#3625" id="3625">3625</a>
+<a href="#3626" id="3626">3626</a>
+<a href="#3627" id="3627">3627</a>
+<a href="#3628" id="3628">3628</a>
+<a href="#3629" id="3629">3629</a>
+<a href="#3630" id="3630">3630</a>
+<a href="#3631" id="3631">3631</a>
+<a href="#3632" id="3632">3632</a>
+<a href="#3633" id="3633">3633</a>
+<a href="#3634" id="3634">3634</a>
+<a href="#3635" id="3635">3635</a>
+<a href="#3636" id="3636">3636</a>
+<a href="#3637" id="3637">3637</a>
+<a href="#3638" id="3638">3638</a>
+<a href="#3639" id="3639">3639</a>
+<a href="#3640" id="3640">3640</a>
+<a href="#3641" id="3641">3641</a>
+<a href="#3642" id="3642">3642</a>
+<a href="#3643" id="3643">3643</a>
+<a href="#3644" id="3644">3644</a>
+<a href="#3645" id="3645">3645</a>
+<a href="#3646" id="3646">3646</a>
+<a href="#3647" id="3647">3647</a>
+<a href="#3648" id="3648">3648</a>
+<a href="#3649" id="3649">3649</a>
+<a href="#3650" id="3650">3650</a>
+<a href="#3651" id="3651">3651</a>
+<a href="#3652" id="3652">3652</a>
+<a href="#3653" id="3653">3653</a>
+<a href="#3654" id="3654">3654</a>
+<a href="#3655" id="3655">3655</a>
+<a href="#3656" id="3656">3656</a>
+<a href="#3657" id="3657">3657</a>
+<a href="#3658" id="3658">3658</a>
+<a href="#3659" id="3659">3659</a>
+<a href="#3660" id="3660">3660</a>
+<a href="#3661" id="3661">3661</a>
+<a href="#3662" id="3662">3662</a>
+<a href="#3663" id="3663">3663</a>
+<a href="#3664" id="3664">3664</a>
+<a href="#3665" id="3665">3665</a>
+<a href="#3666" id="3666">3666</a>
+<a href="#3667" id="3667">3667</a>
+<a href="#3668" id="3668">3668</a>
+<a href="#3669" id="3669">3669</a>
+<a href="#3670" id="3670">3670</a>
+<a href="#3671" id="3671">3671</a>
+<a href="#3672" id="3672">3672</a>
+<a href="#3673" id="3673">3673</a>
+<a href="#3674" id="3674">3674</a>
+<a href="#3675" id="3675">3675</a>
+<a href="#3676" id="3676">3676</a>
+<a href="#3677" id="3677">3677</a>
+<a href="#3678" id="3678">3678</a>
+<a href="#3679" id="3679">3679</a>
+<a href="#3680" id="3680">3680</a>
+<a href="#3681" id="3681">3681</a>
+<a href="#3682" id="3682">3682</a>
+<a href="#3683" id="3683">3683</a>
+<a href="#3684" id="3684">3684</a>
+<a href="#3685" id="3685">3685</a>
+<a href="#3686" id="3686">3686</a>
+<a href="#3687" id="3687">3687</a>
+<a href="#3688" id="3688">3688</a>
+<a href="#3689" id="3689">3689</a>
+<a href="#3690" id="3690">3690</a>
+<a href="#3691" id="3691">3691</a>
+<a href="#3692" id="3692">3692</a>
+<a href="#3693" id="3693">3693</a>
+<a href="#3694" id="3694">3694</a>
+<a href="#3695" id="3695">3695</a>
+<a href="#3696" id="3696">3696</a>
+<a href="#3697" id="3697">3697</a>
+<a href="#3698" id="3698">3698</a>
+<a href="#3699" id="3699">3699</a>
+<a href="#3700" id="3700">3700</a>
+<a href="#3701" id="3701">3701</a>
+<a href="#3702" id="3702">3702</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -4043,21 +4130,24 @@
                 <span class="kw">if </span>hoist_invariant {
                     <span class="self">self</span>.inserter.push_instruction(instruction_id, pre_header, <span class="bool-val">false</span>);
 
-                    <span class="comment">// If we are hoisting a MakeArray instruction,
-                    // we need to issue an extra inc_rc in case they are mutated afterward.
+                    <span class="comment">// If we are hoisting an instruction which returns a new array,
+                    // we need to issue an extra inc_rc in case it is mutated afterward.
                     </span><span class="kw">if </span>insert_rc {
-                        <span class="kw">let </span>[result] =
-                            <span class="self">self</span>.inserter.function.dfg.instruction_result(instruction_id);
-                        <span class="kw">let </span>inc_rc = Instruction::IncrementRc { value: result };
-                        <span class="kw">let </span>call_stack = <span class="self">self
-                            </span>.inserter
-                            .function
-                            .dfg
-                            .get_instruction_call_stack_id(instruction_id);
-                        <span class="self">self</span>.inserter
-                            .function
-                            .dfg
-                            .insert_instruction_and_results(inc_rc, <span class="kw-2">*</span>block, <span class="prelude-val">None</span>, call_stack);
+                        <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
+                        <span class="kw">let </span>results: Vec&lt;<span class="kw">_</span>&gt; = dfg
+                            .instruction_results(instruction_id)
+                            .iter()
+                            .filter(|result| dfg.type_of_value(<span class="kw-2">**</span>result).is_array())
+                            .copied()
+                            .collect();
+                        <span class="kw">let </span>call_stack = dfg.get_instruction_call_stack_id(instruction_id);
+                        <span class="kw">for </span>result <span class="kw">in </span>results {
+                            <span class="kw">let </span>inc_rc = Instruction::IncrementRc { value: result };
+                            <span class="self">self</span>.inserter
+                                .function
+                                .dfg
+                                .insert_instruction_and_results(inc_rc, <span class="kw-2">*</span>block, <span class="prelude-val">None</span>, call_stack);
+                        }
                     }
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
@@ -4300,17 +4390,36 @@
             <span class="kw">return </span>(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
         }
 
+        <span class="comment">// In Brillig, if the instruction creates a new array, we need to insert an inc_rc
+        // to handle potential mutations.
+        </span><span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
+        <span class="kw">let </span>returns_array = <span class="kw">if </span>dfg.runtime().is_brillig() {
+            <span class="comment">// Add inc_rc for instructions that create new arrays
+            </span><span class="kw">match </span><span class="kw-2">&amp;</span>instruction {
+                Instruction::MakeArray { .. } =&gt; <span class="bool-val">true</span>,
+                Instruction::Call { .. } =&gt; {
+                    <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
+                    results.iter().any(|r| dfg.type_of_value(<span class="kw-2">*</span>r).is_array())
+                }
+                <span class="comment">// RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
+                </span><span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            }
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>};
+
         <span class="comment">// Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         </span><span class="kw">if </span><span class="self">self</span>.can_be_hoisted_from_loop_bounds(loop_context, <span class="kw-2">&amp;</span>instruction) {
-            <span class="kw">return </span>(<span class="bool-val">true</span>, <span class="bool-val">false</span>);
+            <span class="kw">return </span>(<span class="bool-val">true</span>, returns_array);
         }
 
-        <span class="kw">match </span>can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg) {
-            Yes =&gt; (<span class="bool-val">true</span>, <span class="bool-val">false</span>),
+        <span class="kw">match </span>can_be_hoisted(<span class="kw-2">&amp;</span>instruction, dfg) {
+            Yes =&gt; (<span class="bool-val">true</span>, returns_array),
             No =&gt; (<span class="bool-val">false</span>, <span class="bool-val">false</span>),
-            WithRefCount =&gt; (<span class="bool-val">true</span>, <span class="bool-val">true</span>),
-            WithPredicate =&gt; (block_context.can_hoist_control_dependent_instruction(), <span class="bool-val">false</span>),
+            WithPredicate =&gt; {
+                (block_context.can_hoist_control_dependent_instruction(), returns_array)
+            }
         }
     }
 
@@ -4406,7 +4515,6 @@
     Yes,
     No,
     WithPredicate,
-    WithRefCount,
 }
 
 <span class="kw">impl </span>From&lt;bool&gt; <span class="kw">for </span>CanBeHoistedResult {
@@ -4482,13 +4590,7 @@
         <span class="comment">// Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before hoisted.
         // An ACIR it is always safe to hoist MakeArray.
-        </span>MakeArray { .. } =&gt; {
-            <span class="kw">if </span>dfg.runtime().is_acir() {
-                Yes
-            } <span class="kw">else </span>{
-                WithRefCount
-            }
-        }
+        </span>MakeArray { .. } =&gt; Yes,
 
         <span class="comment">// These can have different behavior depending on the predicate.
         </span>Binary(<span class="kw">_</span>) | ArraySet { .. } | ArrayGet { .. } =&gt; {
@@ -6026,8 +6128,8 @@
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
-    <span class="doccomment">/// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    </span><span class="attr">#[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
+    <span class="doccomment">/// Test that `MakeArray` can be hoisted in both ACIR and Brillig.
+    </span><span class="attr">#[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::Yes)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     </span><span class="kw">fn </span>make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         <span class="comment">// This is just a stub to create a function with the expected runtime.
@@ -7226,6 +7328,78 @@
           "#
         </span>);
         assert_ssa_does_not_change(<span class="kw-2">&amp;</span>src, Ssa::loop_invariant_code_motion);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="doccomment">/// Checks that hoisting a function call returning an array adds an inc_rc operation
+    </span><span class="kw">fn </span>call_func_call_inc_rc() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v2 = make_array [u8 0, u8 0, u8 0, u8 0] : [u8; 4]
+            v3 = allocate -&gt; &amp;mut [u8; 4]
+            store v2 at v3
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v6 = lt v0, u32 10
+            jmpif v6 then: b2, else: b3
+          b2():
+            v10, v11 = call f1() -&gt; (u8, [u8; 4])
+            store v11 at v3
+            v13 = unchecked_add v0, u32 1
+            jmp b1(v13)
+          b3():
+            v7 = load v3 -&gt; [u8; 4]
+            v9 = call black_box(v7) -&gt; [u8; 4]
+            return
+        }
+        brillig(inline) predicate_pure fn ret_arr f1 {
+          b0():
+            v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
+            return u8 7, v4
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="kw">let </span>ssa_string = ssa.to_string();
+        <span class="macro">assert!</span>(ssa_string.contains(<span class="string">"inc_rc"</span>), <span class="string">"failed on call f1() -&gt; (u8, [u8; 4])"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="doccomment">/// Validates that the pass does not add an inc_rc operation for ArrayGet
+    </span><span class="kw">fn </span>array_get_does_not_add_inc_rc() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        g0 = make_array [Field 1, Field 2] : [Field; 2]
+        g1 = make_array [Field 3, Field 4] : [Field; 2]
+        g2 = make_array [g0, g1] : [[Field; 2]; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            v3 = allocate -&gt; &amp;mut Field
+            store Field 0 at v3
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v6 = lt v0, u32 2
+            jmpif v6 then: b2, else: b3
+          b2():
+            v8 = array_get g2, index v0 -&gt; [Field; 2]
+            v9 = array_get v8, index u32 0 -&gt; Field
+            v10 = load v3 -&gt; Field
+            v11 = add v10, v9
+            store v11 at v3
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b3():
+            v7 = load v3 -&gt; Field
+            return v7
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="kw">let </span>ssa_string = ssa.to_string();
+        <span class="comment">// ArrayGet should not add inc_rc since it extracts from an existing array
+        // rather than creating a new one
+        </span><span class="macro">assert!</span>(!ssa_string.contains(<span class="string">"inc_rc"</span>), <span class="string">"ArrayGet should not add inc_rc"</span>);
     }
 }
 </code></pre></div></section></main></body></html>
