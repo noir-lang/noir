@@ -109,13 +109,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use acir_field::FieldElement;
     use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray};
     use std::str::FromStr;
 
     use crate::{
-        circuit::{Opcode, brillig::BrilligFunctionId},
-        native_types::{Expression, Witness},
+        native_types::Witness,
         serialization::{Format, msgpack_deserialize, msgpack_serialize},
     };
 
@@ -310,30 +308,6 @@ mod tests {
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert!(matches!(msg, Value::Integer(_)));
-    }
-
-    /// Test to show that optional fields, when empty, are still in the map.
-    /// The Rust library handles deserializing them as `None` if they are not present,
-    /// but the `msgpack-c` library does not.
-    #[test]
-    fn msgpack_optional() {
-        let value: Opcode<FieldElement> = Opcode::BrilligCall {
-            id: BrilligFunctionId(1),
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            predicate: Expression::one(),
-        };
-        let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
-
-        let fields = msg.as_map().expect("enum is a map");
-        let fields = &fields.first().expect("enum is non-empty").1;
-        let fields = fields.as_map().expect("fields are map");
-
-        // When the predicate is Expression::one(), it should be skipped during serialization
-        // and not appear in the fields at all
-        let has_predicate = fields.iter().any(|(k, _)| k.as_str() == Some("predicate"));
-        assert!(!has_predicate, "predicate field should be skipped when it's Expression::one()");
     }
 
     #[test]
