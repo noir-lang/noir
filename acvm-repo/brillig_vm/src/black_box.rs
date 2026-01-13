@@ -20,7 +20,7 @@ fn read_heap_array<'a, F: AcirField>(
     array: &HeapArray,
 ) -> &'a [MemoryValue<F>] {
     let items_start = memory.read_ref(array.pointer);
-    memory.read_slice(items_start, assert_usize(array.size))
+    memory.read_slice(items_start, assert_usize(array.size.0))
 }
 
 /// Write values to a [array][HeapArray] in memory.

@@ -447,7 +447,7 @@ impl Elaborator<'_> {
                             self.push_err(ResolverError::Expected {
                                 location,
                                 expected: "value",
-                                got: result.item.description(),
+                                found: result.item.description(self.interner),
                             });
                         } else {
                             self.push_err(error);

@@ -4,11 +4,15 @@ use acir::{
     brillig::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
+        lengths::{
+            ElementsFlattenedLength, ElementsLength, FlattenedLength, SemanticLength,
+            SemiFlattenedLength,
+        },
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{MemoryValue, VM, VMStatus, assert_usize, memory::ArrayAddress};
+use crate::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -69,7 +73,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             // from the shorter. There are ways to deal with this on the receiver side,
             // but it is cumbersome, and the cleanest solution is not to send the extra empty
             // items at all. To do this, however, we need infer which input is the vector length.
-            let mut vector_length: Option<usize> = None;
+            let mut vector_length: Option<u32> = None;
 
             let resolved_inputs = inputs
                 .iter()
@@ -85,13 +89,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             let ForeignCallParam::Single(length) = input else {
                                 unreachable!("expected u32; got {input:?}");
                             };
-                            vector_length = Some(length.to_u128() as usize);
+                            vector_length = Some(length.to_u128() as u32);
                         }
                         HeapValueType::Vector { value_types } => {
                             if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
+                                let flattened_length =
+                                    vector_flattened_length(value_types, SemanticLength(length));
                                 let mut fields = input.fields();
-                                fields.truncate(length * type_size);
+                                fields.truncate(assert_usize(flattened_length.0));
                                 input = ForeignCallParam::Array(fields);
                             }
                             vector_length = None;
@@ -136,9 +141,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             (
                 ValueOrArray::HeapArray(HeapArray { pointer, size }),
                 HeapValueType::Array { value_types, size: type_size },
-            ) if *type_size == size => {
+            ) => {
+                // The array's semi-flattened size must match the expected size
+                let semi_flattened_size = *type_size * ElementsLength::from(value_types);
+                assert_eq!(semi_flattened_size, size);
+
                 let start = self.memory.read_ref(pointer);
-                self.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
+                self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
@@ -150,6 +159,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             ) => {
                 let start = self.memory.read_ref(pointer);
                 let size = self.memory.read(size_addr).to_usize();
+                let size = SemiFlattenedLength(assert_u32(size));
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
@@ -164,13 +174,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
     /// Reads an array/vector from memory but recursively reads pointers to
     /// nested arrays/vectors according to the sequence of value types.
+    ///
+    /// The given `size` is the total number of `HeapValueType`s to read, which must
+    /// be a multiple of the length of `value_types` (unless `value_types.len()` is 0).
     fn read_slice_of_values_from_memory(
         &self,
         start: MemoryAddress,
-        size: usize,
+        size: SemiFlattenedLength,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
-        assert!(start.is_direct(), "read_vector_of_values_from_memory requires direct addresses");
+        let size = assert_usize(size.0);
+
+        assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, size).to_vec()
         } else {
@@ -189,13 +204,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
-                        HeapValueType::Array { value_types, size } => {
+                        HeapValueType::Array { value_types, size: type_size } => {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
+                            let semi_flattened_size =
+                                *type_size * ElementsLength::from(value_types);
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                assert_usize(*size),
+                                semi_flattened_size,
                                 value_types,
                             )
                         }
@@ -255,10 +272,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             match (destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {
                     let output_fields = output.fields();
-                    if value_type
-                        .flattened_size()
-                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
-                    {
+                    if value_type.flattened_size().is_some_and(|flattened_size| {
+                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+                    }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
                             value_type.flattened_size().unwrap(),
@@ -281,16 +297,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) => {
-                    if size != type_size {
+                    if *type_size * ElementsLength::from(value_types) != *size {
                         return Err(format!(
                             "Destination array size of {size} does not match the type size of {type_size}"
                         ));
                     }
                     let output_fields = output.fields();
-                    if value_type
-                        .flattened_size()
-                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
-                    {
+                    if value_type.flattened_size().is_some_and(|flattened_size| {
+                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+                    }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
                             value_type.flattened_size().unwrap(),
@@ -303,28 +318,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an array type"
                                 .to_string());
                         };
-                        if values.len()
-                            != usize::try_from(*size).expect("Failed conversion from u32 to usize")
-                        {
-                            // foreign call returning flattened values into a nested type, so the sizes do not match
-                            let destination = self.memory.read_ref(*pointer);
-
-                            let mut flatten_values_idx = 0; //index of values read from flatten_values
-                            self.write_flattened_values_to_memory(
-                                destination,
-                                &output_fields,
-                                &mut flatten_values_idx,
-                                value_type,
-                            )?;
-                            // Should be caught earlier but we want to be explicit.
-                            debug_assert_eq!(
-                                flatten_values_idx,
-                                output_fields.len(),
-                                "Not all values were written to memory"
-                            );
-                        } else {
-                            self.write_values_to_memory(*pointer, values, value_types)?;
-                        }
+                        assert_eq!(
+                            values.len(),
+                            size.0 as usize,
+                            "Expected values length to be equal to heap array size",
+                        );
+                        self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
                         // foreign call returning flattened values into a nested type, so the sizes do not match
                         let destination = self.memory.read_ref(*pointer);
@@ -459,7 +458,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             }
             HeapValueType::Array { value_types, size } => {
                 let mut current_pointer = destination;
-                for _ in 0..*size {
+                let size = size.0;
+                for _ in 0..size {
                     for typ in value_types {
                         match typ {
                             HeapValueType::Simple(bit_size) => {
@@ -506,12 +506,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 /// Returns the total number of field elements required to represent the elements in the vector in memory.
 ///
 /// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
-fn vector_element_size(value_types: &[HeapValueType]) -> usize {
-    value_types
+fn vector_flattened_length(
+    value_types: &[HeapValueType],
+    length: SemanticLength,
+) -> FlattenedLength {
+    let elements_flattened_length: FlattenedLength = value_types
         .iter()
         .map(|typ| {
             typ.flattened_size()
                 .unwrap_or_else(|| panic!("unexpected nested dynamic element type: {typ:?}"))
         })
-        .sum()
+        .sum();
+    ElementsFlattenedLength::from(elements_flattened_length) * length
 }
