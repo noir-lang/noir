@@ -8,7 +8,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{MemoryValue, VM, VMStatus, assert_usize, memory::ArrayAddress};
+use crate::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -138,7 +138,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) if *type_size == size => {
                 let start = self.memory.read_ref(pointer);
-                self.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
+                self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
@@ -150,7 +150,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             ) => {
                 let start = self.memory.read_ref(pointer);
                 let size = self.memory.read(size_addr).to_u32();
-                self.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
+                self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
@@ -167,21 +167,21 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     fn read_slice_of_values_from_memory(
         &self,
         start: MemoryAddress,
-        size: usize,
+        size: u32,
         value_types: &[HeapValueType],
     ) -> Vec<MemoryValue<F>> {
         assert!(start.is_direct(), "read_vector_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
-            self.memory.read_slice(start, size).to_vec()
+            self.memory.read_slice(start, assert_usize(size)).to_vec()
         } else {
             // Check that the sequence of value types fit an integer number of
             // times inside the given size.
             assert!(
-                0 == size % value_types.len(),
+                0 == size % assert_u32(value_types.len()),
                 "array/vector does not contain a whole number of elements"
             );
 
-            (0..crate::assert_u32(size))
+            (0..size)
                 .zip(value_types.iter().cycle())
                 .flat_map(|(i, value_type)| {
                     let value_address = start.offset(i);
@@ -195,7 +195,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                assert_usize(*size),
+                                *size,
                                 value_types,
                             )
                         }
