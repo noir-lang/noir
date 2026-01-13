@@ -128,7 +128,7 @@ impl PathResolutionItem {
             | PathResolutionItem::TypeTraitFunction(_, _, func_id)
             | PathResolutionItem::PrimitiveFunction(_, _, func_id) => {
                 let name = interner.function_name(func_id);
-                format!("function `{}`", name)
+                format!("function `{name}`")
             }
         }
     }
