@@ -1,5 +1,5 @@
 use crate::{
-    brillig::{BrilligOptions, brillig_ir::registers::Allocated},
+    brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
 

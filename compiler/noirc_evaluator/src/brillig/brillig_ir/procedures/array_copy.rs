@@ -11,7 +11,7 @@ use acvm::{
 
 use super::ProcedureId;
 use crate::brillig::{
-    BrilligVariable, assert_u32, assert_usize,
+    BrilligVariable, assert_u32,
     brillig_ir::{
         BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},

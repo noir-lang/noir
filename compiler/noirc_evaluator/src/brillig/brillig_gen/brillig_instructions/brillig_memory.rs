@@ -5,8 +5,8 @@ use acvm::acir::brillig::lengths::SemiFlattenedLength;
 use acvm::{AcirField, FieldElement};
 use im::Vector;
 
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
-use crate::brillig::brillig_ir::assert_u32;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
 use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{
