@@ -907,3 +907,36 @@ fn lambda_pairs() {
     }
     ");
 }
+
+#[test]
+fn global_lambda_becomes_local() {
+    let src = r#"
+    global FOO: u32 = 1;
+    global BAR: fn(u32) -> u32 = bar;
+    global BAZ: u32 = BAR(2);
+
+    fn main(x: u32) -> pub u32 {
+        let f = BAR;
+        f(x) + BAZ
+    }
+
+    fn bar(x: u32) -> u32 { x + FOO }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    global BAZ$g0: u32 = 3;
+    global FOO$g1: u32 = 1;
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let f$l1 = (bar$f1, bar$f2);
+        (f$l1.0(x$l0) + BAZ$g0)
+    }
+    fn bar$f1(x$l2: u32) -> u32 {
+        (x$l2 + FOO$g1)
+    }
+    unconstrained fn bar$f2(x$l3: u32) -> u32 {
+        (x$l3 + FOO$g1)
+    }
+    ");
+}
