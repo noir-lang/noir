@@ -700,7 +700,7 @@ impl<'f> LoopInvariantContext<'f> {
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
                 // ArrayGet can return an array but it does not create it
-                // In that case, the refcount is managed by the parent array.
+                // In that case, the refcount is managed by the ownership analysis.
                 _ => false,
             }
         } else {
@@ -3630,7 +3630,8 @@ mod control_dependence {
     }
 
     #[test]
-    fn call_func_make_arr_inc_rc() {
+    /// Checks that hoisting a function call returning an array adds an inc_rc operation
+    fn call_func_call_inc_rc() {
         let src = r#"
         brillig(inline) impure fn main f0 {
           b0():
