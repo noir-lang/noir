@@ -137,14 +137,10 @@ impl HeapValueType {
                 // This is the flattened length of a single entry in the array (all of `value_types`)
                 let elements_flattened_size =
                     value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
-                let elements_flattened_size =
-                    elements_flattened_size.map(|elements_flattened_size| {
-                        elements_flattened_size.as_elements_flattened_length()
-                    });
-
                 // Next we multiply it by the size of the array
-                elements_flattened_size
-                    .map(|elements_flattened_size| elements_flattened_size * *size)
+                elements_flattened_size.map(|elements_flattened_size| {
+                    elements_flattened_size.as_elements_flattened_length() * *size
+                })
             }
             HeapValueType::Vector { .. } => {
                 // Vectors are dynamic, so we cannot determine their size statically.
