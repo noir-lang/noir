@@ -473,7 +473,7 @@ fn extreme_type_alias_chain_stack_overflow() {
     let mut aliases = String::new();
 
     // Start with the base type
-    aliases.push_str(&format!("    type Alias{} = u8;\n", DEPTH));
+    aliases.push_str(&format!("    type Alias{DEPTH} = u8;\n"));
 
     // Chain aliases from top to bottom
     for i in (1..DEPTH).rev() {
@@ -494,6 +494,7 @@ fn extreme_type_alias_chain_stack_overflow() {
     let _ = get_monomorphized(&src);
 }
 
+#[test]
 fn tuple_pattern_becomes_separate_params() {
     let src = r#"
     fn main() -> pub u32 {
