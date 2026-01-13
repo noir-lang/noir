@@ -38,7 +38,7 @@ use crate::BlackBoxResolutionError;
 /// According to ECDSA specification, the message hash leftmost bits should be truncated
 /// up to the curve order length, and then reduced modulo the curve order.
 pub(super) fn verify_signature(
-    hashed_msg: &[u8],
+    hashed_msg: &[u8; 32],
     public_key_x_bytes: &[u8; 32],
     public_key_y_bytes: &[u8; 32],
     signature: &[u8; 64],
