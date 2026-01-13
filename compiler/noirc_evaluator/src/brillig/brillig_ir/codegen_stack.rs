@@ -1,10 +1,11 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
-use crate::brillig::brillig_ir::registers::Stack;
-
-use super::{
-    BrilligContext, assert_usize, debug_show::DebugToString, registers::RegisterAllocator,
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{assert_u32, registers::Stack},
 };
+
+use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Map sources to potentially multiple destinations.
@@ -160,7 +161,7 @@ fn to_index(adr: &MemoryAddress) -> Option<usize> {
 /// Construct the register corresponding to the given mapped 'index'
 fn from_index(idx: usize) -> MemoryAddress {
     assert!(idx != usize::MAX, "invalid index");
-    MemoryAddress::relative(idx + Stack::start())
+    MemoryAddress::relative(assert_u32(idx + Stack::start()))
 }
 
 #[cfg(test)]
@@ -174,7 +175,7 @@ mod tests {
 
     use crate::{
         brillig::{
-            BrilligOptions,
+            BrilligOptions, assert_u32, assert_usize,
             brillig_ir::{
                 BrilligContext, LayoutConfig,
                 artifact::Label,
@@ -191,8 +192,8 @@ mod tests {
         movements
             .into_iter()
             .map(|(src, dst)| Opcode::Mov {
-                destination: MemoryAddress::relative(dst),
-                source: MemoryAddress::relative(src),
+                destination: MemoryAddress::relative(assert_u32(dst)),
+                source: MemoryAddress::relative(assert_u32(src)),
             })
             .collect()
     }
@@ -201,11 +202,13 @@ mod tests {
     fn movements_to_source_and_destinations(
         movements: Vec<(usize, usize)>,
     ) -> (Vec<MemoryAddress>, Vec<MemoryAddress>) {
-        let sources =
-            movements.iter().map(|(source, _)| MemoryAddress::relative(*source)).collect();
+        let sources = movements
+            .iter()
+            .map(|(source, _)| MemoryAddress::relative(assert_u32(*source)))
+            .collect();
         let destinations = movements
             .iter()
-            .map(|(_, destination)| MemoryAddress::relative(*destination))
+            .map(|(_, destination)| MemoryAddress::relative(assert_u32(*destination)))
             .collect();
         (sources, destinations)
     }
@@ -345,13 +348,14 @@ mod tests {
             // Generate the opcodes.
             let opcodes = {
                 // Convert to MemoryAddress
-                let sources = vecmap(&sources, |i| MemoryAddress::relative(*i));
-                let destinations = vecmap(&destinations, |i| MemoryAddress::relative(*i));
+                let sources = vecmap(&sources, |i| MemoryAddress::relative(assert_u32(*i)));
+                let destinations =
+                    vecmap(&destinations, |i| MemoryAddress::relative(assert_u32(*i)));
 
                 let mut context = create_context();
 
                 // Treat the memory we care about as pre-allocated, so temporary variables are created after them.
-                let all_registers = vecmap(all_indexes, MemoryAddress::relative);
+                let all_registers = vecmap(all_indexes, |i| MemoryAddress::relative(assert_u32(i)));
                 context.set_allocated_registers(all_registers);
 
                 context.codegen_mov_registers_to_registers(&sources, &destinations);
@@ -363,7 +367,7 @@ mod tests {
                 let Opcode::Mov { destination, source } = opcode else {
                     unreachable!("only Mov expected");
                 };
-                memory[destination.to_usize()] = memory[source.to_usize()];
+                memory[assert_usize(destination.to_u32())] = memory[assert_usize(source.to_u32())];
             }
 
             // Get the final values at the destination slots.

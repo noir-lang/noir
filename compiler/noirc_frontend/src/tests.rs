@@ -34,7 +34,7 @@ use std::collections::{HashMap, HashSet};
 use crate::elaborator::{FrontendOptions, UnstableFeature};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
-use crate::test_utils::{get_program, get_program_with_options};
+use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options};
 
 use noirc_errors::reporter::report_all;
 use noirc_errors::{CustomDiagnostic, Span};
@@ -48,14 +48,20 @@ pub(crate) fn get_program_using_features(
     src: &str,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
-    let allow_parser_errors = false;
-    let mut options = FrontendOptions::test_default();
-    options.enabled_unstable_features = features;
-    get_program_with_options(src, allow_parser_errors, options)
+    get_program_with_options(
+        src,
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    )
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
-    get_program(src).2
+    get_program_with_options(src, Default::default()).2
 }
 
 pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
@@ -99,45 +105,55 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
-    let allow_parser_errors = false;
     let monomorphize = false;
     check_errors_with_options(
         src,
-        allow_parser_errors,
         monomorphize,
-        FrontendOptions::test_default(),
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
     );
 }
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
-    let allow_parser_errors = false;
     let monomorphize = false;
-    let options =
-        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
-    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
-}
-
-pub(super) fn check_monomorphization_error(src: &str) {
-    check_monomorphization_error_using_features(src, &[]);
-}
-
-pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
-    let allow_parser_errors = false;
-    let monomorphize = true;
     check_errors_with_options(
         src,
-        allow_parser_errors,
         monomorphize,
-        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
     );
 }
 
-fn check_errors_with_options(
+pub(super) fn check_monomorphization_error(src: &str) {
+    check_monomorphization_error_using_features(src, &[], false);
+}
+
+pub(super) fn check_monomorphization_error_using_features(
     src: &str,
-    allow_parser_errors: bool,
-    monomorphize: bool,
-    options: FrontendOptions,
+    features: &[UnstableFeature],
+    allow_elaborator_errors: bool,
 ) {
+    let monomorphize = true;
+    check_errors_with_options(
+        src,
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors,
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    );
+}
+
+fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramOptions) {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
@@ -195,15 +211,15 @@ fn check_errors_with_options(
     let secondary_spans_with_errors = to_message_map(secondary_spans_with_errors);
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let (_, mut context, errors) = get_program_with_options(&src, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
-    if monomorphize {
-        if !errors.is_empty() {
-            report_all(context.file_manager.as_file_map(), &errors, false, false);
-            panic!("Expected no errors before monomorphization");
-        }
+    if !options.allow_elaborator_errors && !errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        panic!("Expected no elaborator errors");
+    }
 
+    if monomorphize {
         let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
             panic!("get_monomorphized: test program contains no 'main' function")
         });
@@ -354,7 +370,7 @@ fn wildcard_with_generic_argument() {
     struct Foo<T> {}
 
     pub fn println<T>(_input: T) { }
-    
+
     fn main() {
       let x: _<_> = "123";
       let y: _<_> = Foo::<()> { };

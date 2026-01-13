@@ -1,11 +1,14 @@
 use acvm::{AcirField, brillig_vm::offsets};
 
 use super::ProcedureId;
-use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, assert_usize,
-    brillig_variable::BrilligVector,
-    debug_show::DebugToString,
-    registers::{RegisterAllocator, ScratchSpace},
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{
+        BrilligBinaryOp, BrilligContext,
+        brillig_variable::BrilligVector,
+        debug_show::DebugToString,
+        registers::{RegisterAllocator, ScratchSpace},
+    },
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

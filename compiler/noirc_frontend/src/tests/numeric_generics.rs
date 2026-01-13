@@ -624,3 +624,29 @@ fn no_panic_on_numeric_generic_parse_error() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn regression_10555() {
+    let src = "
+    trait Trait {
+        fn foo<let X: u32>();
+        fn bar<X>();
+        fn baz<let X: u32>();
+    }
+
+    impl Trait for i32 {
+        fn foo<X>() {}
+               ^ Expected type, found numeric generic
+               ~ not a type
+        fn bar<let X: u32>() {}
+                   ^^^^^^ Type provided when a numeric generic was expected
+                   ~~~~~~ the numeric generic is not of type `u32`
+        fn baz<let X: u8>() {}
+                   ^^^^^ The numeric generic is not of type `u8`
+                   ~~~~~ expected `u8`, found `u32`
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
