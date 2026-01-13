@@ -77,7 +77,7 @@ fn inversion_brillig_oracle_equivalence() {
 
     let src = format!(
         "
-    BRILLIG CALL func: 0, predicate 1, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}]
     ASSERT {w_z} = {w_x} + {w_y}
     ASSERT 0 = {w_z}*{w_z_inverse} - 1
     ASSERT {w_z_inverse} = {w_oracle}
@@ -193,7 +193,7 @@ fn double_inversion_brillig_oracle() {
 
     let src = format!(
         "
-    BRILLIG CALL func: 0, predicate 1, inputs: [{w_x} + {w_y}, 0, {w_i} + {w_j}], outputs: [{w_x_plus_y}, {w_oracle}, {w_i_plus_j}, {w_ij_oracle}, {w_equal_res}]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x} + {w_y}, 0, {w_i} + {w_j}], outputs: [{w_x_plus_y}, {w_oracle}, {w_i_plus_j}, {w_ij_oracle}, {w_equal_res}]
     ASSERT {w_z} = {w_x} + {w_y}
     ASSERT 0 = {w_z}*{w_z_inverse} - 1
     ASSERT {w_z_inverse} = {w_oracle}
@@ -382,7 +382,7 @@ fn oracle_dependent_execution() {
         "
     // This equality check can be executed immediately before resolving any foreign calls.
     ASSERT {w_y} = {w_x}
-    BRILLIG CALL func: 0, predicate 1, inputs: [{w_x}, 0, {w_y}], outputs: [{w_x}, {w_y_inv}, {w_y}, {w_y_inv}]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, 0, {w_y}], outputs: [{w_x}, {w_y_inv}, {w_y}, {w_y_inv}]
     // This equality check relies on the outputs of the Brillig call.
     // It then cannot be solved until the foreign calls are resolved.
     ASSERT {w_y_inv} = {w_x_inv}
@@ -486,7 +486,7 @@ fn brillig_oracle_predicate() {
 
     let src = format!(
         "
-    BRILLIG CALL func: 0, predicate: 0, predicate 1, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}, {w_lt_res}]
+    BRILLIG CALL func: 0, predicate: 0, predicate: 1, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}, {w_lt_res}]
     "
     );
     let opcodes = parse_opcodes(&src).unwrap();

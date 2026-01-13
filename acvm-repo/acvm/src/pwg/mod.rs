@@ -38,7 +38,7 @@
 // BLACKBOX::RANGE input: w3, bits: 32
 // BLACKBOX::RANGE input: w4, bits: 32
 // ASSERT w0 - w1 - w6 = 0
-// BRILLIG CALL func: 0, predicate 1, inputs: [w6], outputs: [w7]
+// BRILLIG CALL func: 0, predicate: 1, inputs: [w6], outputs: [w7]
 // ASSERT w6*w7 + w8 - 1 = 0
 // ASSERT w6*w8 = 0
 // ASSERT w1*w8 = 0

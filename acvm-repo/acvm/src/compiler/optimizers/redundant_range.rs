@@ -490,11 +490,11 @@ mod tests {
         BLACKBOX::RANGE input: w1, bits: 32
 
         // Call brillig with w2
-        BRILLIG CALL func: 0, predicate 1, inputs: [w2], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w2], outputs: []
         BLACKBOX::RANGE input: w1, bits: 16
 
         // Another call
-        BRILLIG CALL func: 0, predicate 1, inputs: [w2], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w2], outputs: []
 
         // One more constraint, but this is redundant.
         BLACKBOX::RANGE input: w1, bits: 64
@@ -522,9 +522,9 @@ mod tests {
         public parameters: []
         return values: []
         BLACKBOX::RANGE input: w1, bits: 32
-        BRILLIG CALL func: 0, predicate 1, inputs: [w2], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w2], outputs: []
         BLACKBOX::RANGE input: w1, bits: 16
-        BRILLIG CALL func: 0, predicate 1, inputs: [w2], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w2], outputs: []
         ASSERT w1 = 0
         ");
 
