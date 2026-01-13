@@ -1,6 +1,7 @@
 #![cfg(test)]
 use crate::{
-    elaborator::UnstableFeature, test_utils::get_monomorphized,
+    elaborator::UnstableFeature,
+    test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options},
     tests::check_monomorphization_error_using_features,
 };
 
@@ -458,6 +459,297 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+fn tuple_pattern_becomes_separate_params() {
+    let src = r#"
+    fn main() -> pub u32 {
+        let ab = (1, 2);
+        let cd = (3, 4);
+        foo(ab, cd)
+    }
+
+    fn foo((a, b): (u32, u32), cd: (u32, u32)) -> u32 {
+        a + b + cd.0 + cd.1
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let ab$l0 = (1, 2);
+        let cd$l1 = (3, 4);
+        foo$f1(ab$l0, cd$l1)
+    }
+    fn foo$f1(a$l2: u32, b$l3: u32, cd$l4: (u32, u32)) -> u32 {
+        (((a$l2 + b$l3) + cd$l4.0) + cd$l4.1)
+    }
+    ");
+}
+
+#[test]
+fn return_impl_trait_becomes_underlying_type() {
+    let src = r#"
+    trait Foo {}
+    struct Bar { x: u32, y: Field }
+    impl Foo for Bar {}
+
+    fn foo_bar() -> impl Foo {
+        Bar { x: 0, y: 0 }
+    }
+
+    fn main() {
+        let _fb = foo_bar();
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _fb$l0 = foo_bar$f1()
+    }
+    fn foo_bar$f1() -> (u32, Field) {
+        {
+            let x$l1 = 0;
+            let y$l2 = 0;
+            (x$l1, y$l2)
+        }
+    }
+    ");
+}
+
+#[test]
+fn unused_generic_becomes_field() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B
+    }
+    fn main() {
+        let _foo: Foo<u32> = Foo::B;
+    }
+    "#;
+
+    // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
+    // Since variant-2 doesn't have a T value, even though we have u32 on the LHS it becomes Field.
+    // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global B$g0: (Field, (Field,), ()) = (1, (0), ());
+    fn main$f0() -> () {
+        let _foo$l0 = B$g0
+    }
+    ");
+}
+
+#[test]
+fn unused_const_generic_becomes_zero() {
+    let src = r#"
+    enum Foo<let N: u32> {
+        A(str<N>),
+        B
+    }
+
+    fn main() {
+        let _f: Foo<5> = Foo::B;
+    }
+    "#;
+
+    // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
+    // Since variant-2 doesn't use the N value, even though we have 5 on the LHS it becomes 0.
+    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r#"
+    global B$g0: (Field, (str<5>,), ()) = (1, (""), ());
+    fn main$f0() -> () {
+        let _f$l0 = B$g0
+    }
+    "#);
+}
+
+#[test]
+fn repeated_array() {
+    let src = r#"
+    fn main() {
+        let _a = [1 + 2; 3];
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l1 = {
+            let repeated_element$l0 = (1 + 2);
+            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
+        }
+    }
+    ");
+}
+
+#[test]
+fn repeated_array_zero() {
+    let src = r#"
+    fn main() {
+        let _a = @[foo(); 0];
+    }
+    fn foo() -> Field {
+        1 + 2
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l1 = {
+            let repeated_element$l0 = foo$f1();
+            @[]
+        }
+    }
+    fn foo$f1() -> Field {
+        (1 + 2)
+    }
+    ");
+}
+
+#[test]
+fn trait_method() {
+    let src = r#"
+    struct Foo {
+        a: u32,
+    }
+
+    trait Bar {
+        fn bar(self, other: Self) -> bool;
+    }
+
+    impl Bar for Foo {
+        fn bar(self, other: Self) -> bool {
+            self.a == other.a
+        }
+    }
+
+    fn main() -> pub bool {
+        let f1 = Foo { a: 1 };
+        let f2 = Foo { a: 2 };
+        f1.bar(f2)
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub bool {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let f2$l3 = {
+            let a$l2 = 2;
+            (a$l2)
+        };
+        bar$f1(f1$l1, f2$l3)
+    }
+    fn bar$f1(self$l4: (u32,), other$l5: (u32,)) -> bool {
+        (self$l4.0 == other$l5.0)
+    }
+    ");
+}
+
+#[test]
+fn infix_trait_method() {
+    let src = r#"
+    // There is no stdlib in these tests, so the definition is repeated here.
+    pub trait Eq {
+        fn eq(self, other: Self) -> bool;
+    }
+
+    struct Foo {
+        a: u32,
+    }
+
+    impl Eq for Foo {
+        fn eq(self, other: Self) -> bool {
+            self.a == other.a
+        }
+    }
+
+    fn main() -> pub bool {
+        let f1 = Foo { a: 1 };
+        let f2 = Foo { a: 2 };
+        f1 == f2
+    }
+    "#;
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub bool {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let f2$l3 = {
+            let a$l2 = 2;
+            (a$l2)
+        };
+        eq$f1(f1$l1, f2$l3)
+    }
+    fn eq$f1(self$l4: (u32,), other$l5: (u32,)) -> bool {
+        (self$l4.0 == other$l5.0)
+    }
+    ");
+}
+
+#[test]
+fn prefix_trait_method() {
+    let src = r#"
+    // There is no stdlib in these tests, so the definition is repeated here.
+    pub trait Neg {
+        fn neg(self) -> Self;
+    }
+
+    struct Foo {
+        a: i32,
+    }
+
+    impl Neg for Foo {
+        fn neg(self) -> Self {
+            Self { a: -self.a }
+        }
+    }
+
+    fn main() {
+        let f1 = Foo { a: 1 };
+        let _f2 = -f1;
+    }
+    "#;
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let _f2$l2 = neg$f1(f1$l1)
+    }
+    fn neg$f1(self$l3: (i32,)) -> (i32,) {
+        {
+            let a$l4 = (-self$l3.0);
+            (a$l4)
+        }
+    }
+    ");
+}
+
+#[test]
+
 fn fail_to_call_enum_member_without_panic() {
     // The 'Unexpected Type::Error found during monomorphization' error doesn't occur
     // when running this code as a real source file because in actual Noir code we don't
@@ -481,4 +773,170 @@ fn fail_to_call_enum_member_without_panic() {
     ";
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features, true);
+}
+
+#[test]
+fn lambda_pairs() {
+    let src = r#"
+    fn main() {
+        constrained_context();
+        // safety: test
+        unsafe { unconstrained_context(); }
+    }
+
+    fn foo() {}
+    unconstrained fn bar() {}
+
+    fn baz(f: fn () -> ()) {
+        f();
+    }
+    fn qux(f: unconstrained fn () -> ()) {
+        // safety: test
+        unsafe { f(); }
+    }
+    unconstrained fn quy(f: fn () -> ()) {
+        f();
+    }
+    unconstrained fn quz(f: unconstrained fn () -> ()) {
+        f();
+    }
+
+    fn constrained_context() {
+        let f = foo; // should be (constrained, unconstrained), because we could call the constrained, or pass on the unconstrained
+        let b = bar; // should be (unconstrained, unconstrained), because we only have unconstrained
+        f();
+        // safety: test
+        unsafe {
+            b();
+        }
+        baz(f);
+        // baz(b);   // cannot pass unconstrained where constrained is expected
+        qux(f);
+        qux(b);
+        // safety: test
+        unsafe {
+            quy(f);
+            quy(b);
+            quz(f);
+            quz(b);
+        }
+    }
+
+    unconstrained fn unconstrained_context() {
+        let f = foo; // should be (unconstrained, unconstrained), because we can only call unconstrained
+        let b = bar; // should be (unconstrained, unconstrained), because we only have unconstrained
+        f();
+        b();
+        baz(f);
+        // baz(b);   // cannot pass unconstrained where constrained is expected
+        qux(f);
+        qux(b);
+        quy(f);
+        quy(b);
+        quz(f);
+        quz(b);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        constrained_context$f1();;
+        {
+            unconstrained_context$f2();
+        }
+    }
+    fn constrained_context$f1() -> () {
+        let f$l0 = (foo$f3, foo$f4);
+        let b$l1 = (bar$f5, bar$f5);
+        f$l0.0();;
+        {
+            b$l1.0();
+        };
+        baz$f6(f$l0);;
+        qux$f7(f$l0);;
+        qux$f7(b$l1);;
+        {
+            quy$f8(f$l0);;
+            quy$f8(b$l1);;
+            quz$f9(f$l0);;
+            quz$f9(b$l1);
+        }
+    }
+    unconstrained fn unconstrained_context$f2() -> () {
+        let f$l2 = (foo$f4, foo$f4);
+        let b$l3 = (bar$f5, bar$f5);
+        f$l2.1();;
+        b$l3.1();;
+        baz$f10(f$l2);;
+        qux$f11(f$l2);;
+        qux$f11(b$l3);;
+        quy$f8(f$l2);;
+        quy$f8(b$l3);;
+        quz$f9(f$l2);;
+        quz$f9(b$l3);
+    }
+    fn foo$f3() -> () {
+    }
+    unconstrained fn foo$f4() -> () {
+    }
+    unconstrained fn bar$f5() -> () {
+    }
+    fn baz$f6(f$l4: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l4.0();
+    }
+    fn qux$f7(f$l5: (fn() -> (), unconstrained fn() -> ())) -> () {
+        {
+            f$l5.0();
+        }
+    }
+    unconstrained fn quy$f8(f$l6: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l6.1();
+    }
+    unconstrained fn quz$f9(f$l7: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l7.1();
+    }
+    unconstrained fn baz$f10(f$l8: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l8.1();
+    }
+    unconstrained fn qux$f11(f$l9: (fn() -> (), unconstrained fn() -> ())) -> () {
+        {
+            f$l9.1();
+        }
+    }
+    ");
+}
+
+#[test]
+fn global_lambda_becomes_local() {
+    let src = r#"
+    global FOO: u32 = 1;
+    global BAR: fn(u32) -> u32 = bar;
+    global BAZ: u32 = BAR(2);
+
+    fn main(x: u32) -> pub u32 {
+        let f = BAR;
+        f(x) + BAZ
+    }
+
+    fn bar(x: u32) -> u32 { x + FOO }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    global BAZ$g0: u32 = 3;
+    global FOO$g1: u32 = 1;
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let f$l1 = (bar$f1, bar$f2);
+        (f$l1.0(x$l0) + BAZ$g0)
+    }
+    fn bar$f1(x$l2: u32) -> u32 {
+        (x$l2 + FOO$g1)
+    }
+    unconstrained fn bar$f2(x$l3: u32) -> u32 {
+        (x$l3 + FOO$g1)
+    }
+    ");
 }

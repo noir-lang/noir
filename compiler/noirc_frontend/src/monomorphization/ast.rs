@@ -272,7 +272,11 @@ pub enum Literal {
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
+    FmtStr(
+        Vec<FmtStrFragment>,
+        /* Number of variables in the format string. */ u64,
+        /* Tuple with variables to interpolate. */ Box<Expression>,
+    ),
 }
 
 #[derive(Debug, Clone, Hash)]

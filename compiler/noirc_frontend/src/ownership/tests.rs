@@ -4,10 +4,7 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::{
-    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-    test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
-};
+use crate::test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -423,12 +420,10 @@ fn pure_builtin_args_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized_with_error_filter(src, |err| {
-        matches!(
-            err,
-            CompilationError::ResolverError(ResolverError::LowLevelFunctionOutsideOfStdlib { .. })
-        )
-    })
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
     .unwrap();
 
     // The ownership pass doesn't know which builtin functions are pure and which ones
