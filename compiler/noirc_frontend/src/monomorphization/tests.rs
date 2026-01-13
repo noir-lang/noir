@@ -940,3 +940,56 @@ fn global_lambda_becomes_local() {
     }
     ");
 }
+
+#[test]
+fn match_missing_case_becomes_constrain() {
+    let src = r#"
+    enum Foo {
+        A(u32),
+        B
+    }
+
+    fn main() {
+        let _ = foo(Foo::A(0));
+    }
+
+    fn foo(f: Foo) -> bool {
+        match f {
+            Foo::A(0) => true,
+        }
+    }
+    "#;
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions {
+            // Normally a missing case causes an elaboration failure,
+            // which prevents monomorphization, but here we want to exercise
+            // the code that would handle this, although it should never have to.
+            allow_elaborator_errors: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    insta::assert_snapshot!(program, @r#"
+    fn main$f0() -> () {
+        let _$l0 = foo$f1(A$f2(0))
+    }
+    fn foo$f1(f$l1: (Field, (u32,), ())) -> bool {
+        {
+            let internal variable$l2 = f$l1;
+            match $2 {
+                A($3) => match $3 {
+                    0 => true,
+                    _ => assert(false, "match failure"),
+                },
+                B => assert(false, "match failure"),
+            }
+        }
+    }
+    fn A$f2($0$l4: u32) -> (Field, (u32,), ()) {
+        (0, ($0$l4), ())
+    }
+    "#);
+}

@@ -61,7 +61,7 @@ pub fn get_monomorphized_with_options(
 
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
-    if !only_warnings || !has_defs && !errors.is_empty() {
+    if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
