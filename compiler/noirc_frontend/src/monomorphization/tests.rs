@@ -492,7 +492,7 @@ fn return_impl_trait_becomes_underlying_type() {
     struct Bar { x: u32, y: Field }
     impl Foo for Bar {}
 
-    fn foo_bar() -> Bar {
+    fn foo_bar() -> impl Foo {
         Bar { x: 0, y: 0 }
     }
 
