@@ -1,6 +1,7 @@
 #![cfg(test)]
 use crate::{
     elaborator::UnstableFeature,
+    monomorphization::errors::MonomorphizationError,
     test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options},
     tests::check_monomorphization_error_using_features,
 };
@@ -1120,4 +1121,48 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         *env$l8.0 = y$l7
     }
     ");
+}
+
+#[test]
+fn pass_ref_from_constrained_to_unconstrained_via_arg() {
+    let src = r#"
+    fn main()  {
+        // safety: test
+        unsafe { foo(&mut 0); }
+    }
+
+    unconstrained fn foo(_x: &mut u32) {}
+    "#;
+
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .expect_err("should fail to monomorphize");
+
+    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+}
+
+#[test]
+fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
+    let src = r#"
+    fn main()  {
+        // safety: test
+        unsafe {
+            let _x = foo();
+        }
+    }
+
+    unconstrained fn foo() -> &mut u32 {
+        &mut 0
+    }
+    "#;
+
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .expect_err("should fail to monomorphize");
+
+    assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
 }
