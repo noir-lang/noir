@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_errors_if_trying_to_access_public_function_inside_private_module"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

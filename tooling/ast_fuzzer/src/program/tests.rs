@@ -3,14 +3,17 @@ use nargo::errors::Location;
 use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
 use noirc_frontend::{
     ast::IntegerBitSize,
-    monomorphization::ast::{
-        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LocalId,
-        Program, Type,
+    monomorphization::{
+        Monomorphizer,
+        ast::{
+            Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType,
+            LocalId, Program, Type,
+        },
     },
     shared::Visibility,
 };
 
-use crate::{Config, program::FunctionDeclaration};
+use crate::{Config, arb_program, program::FunctionDeclaration, types};
 
 use super::{Context, DisplayAstAsNoir};
 
@@ -242,4 +245,41 @@ fn test_recursion_limit_rewrite() {
         bar((&mut ctx_limit))
     }
     ");
+}
+
+/// Test that if we generate a random program, then all of the functions' HIR type signature
+/// can be turned into an AST type and back and yield the same result.
+///
+/// This is not generally true for real Noir programs with e.g. `struct`s in them, but for
+/// HIR types that were derived from AST types, the transformation should be idempotent.
+#[test]
+fn test_to_hir_type_roundtrip() {
+    arbtest::arbtest(|u| {
+        let config = Config::default();
+        let program = arb_program(u, config)?;
+
+        // `program.function_signatures` only contains the `main` function.
+        for func in program.functions {
+            let hir_types = func
+                .func_sig
+                .0
+                .into_iter()
+                .map(|(_, typ, _)| typ)
+                .chain(func.func_sig.1.into_iter());
+
+            for hir_type0 in hir_types {
+                let mono_type0 =
+                    Monomorphizer::convert_type(&hir_type0, Location::dummy()).unwrap();
+                let hir_type1 = types::to_hir_type(&mono_type0);
+                // Need a second pass to get rid of any inconsistency in the constrainedness of functions.
+                let mono_type1 =
+                    Monomorphizer::convert_type(&hir_type1, Location::dummy()).unwrap();
+                let hir_type2 = types::to_hir_type(&mono_type1);
+                assert_eq!(hir_type1, hir_type2);
+            }
+        }
+
+        Ok(())
+    })
+    .run();
 }

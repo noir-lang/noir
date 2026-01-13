@@ -1,0 +1,18 @@
+name: Download noir-ssa
+description: Downloads the noir-ssa binary from an artifact and adds it to the path
+
+runs:
+  using: composite
+  steps:
+    - name: Download noir-ssa binary
+      uses: actions/download-artifact@v4
+      with:
+        name: noir-ssa
+        path: ./noir-ssa
+
+    - name: Set noir-ssa on PATH
+      shell: bash
+      run: |
+        noir_binary="${{ github.workspace }}/noir-ssa/noir-ssa"
+        chmod +x $noir_binary
+        echo "$(dirname $noir_binary)" >> $GITHUB_PATH

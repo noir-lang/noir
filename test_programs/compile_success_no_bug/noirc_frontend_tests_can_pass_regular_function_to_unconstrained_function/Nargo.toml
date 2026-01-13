@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_can_pass_regular_function_to_unconstrained_function"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

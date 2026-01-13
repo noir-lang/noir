@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: duplicate field a
+  ┌─ src/main.nr:8:29
+  │
+8 │         let x = Foo { a: 1, a: "hello", c: true };
+  │                             -
+  │
+
+error: no such field c defined in struct Foo
+  ┌─ src/main.nr:8:41
+  │
+8 │         let x = Foo { a: 1, a: "hello", c: true };
+  │                                         -
+  │
+
+error: missing field b in struct Foo
+  ┌─ src/main.nr:8:17
+  │
+8 │         let x = Foo { a: 1, a: "hello", c: true };
+  │                 ---
+  │
+
+error: Type Foo has no member named c
+   ┌─ src/main.nr:11:19
+   │
+11 │         println(x.c);
+   │                   -
+   │
+
+error: Type annotation needed
+   ┌─ src/main.nr:11:9
+   │
+11 │         println(x.c);
+   │         ------- Could not determine the type of the generic argument `T` declared on the function `println`
+   │
+
+Aborting due to 5 previous errors

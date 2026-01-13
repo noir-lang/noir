@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_disallows_export_attribute_on_trait_impl_method"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

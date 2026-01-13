@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_does_not_stack_overflow_on_many_comments_in_a_row"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

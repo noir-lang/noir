@@ -4,15 +4,18 @@ use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_frontend::{
     ast::BinaryOpKind,
-    monomorphization::ast::{
-        Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
+    monomorphization::{
+        ast::{
+            Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
+        },
+        visitor::visit_expr_mut,
     },
     shared::Visibility,
 };
 
 use crate::{
     Config,
-    program::{Context, VariableId, expr, types, visitor::visit_expr_mut},
+    program::{Context, VariableId, expr, types},
 };
 
 use super::next_local_and_ident_id;

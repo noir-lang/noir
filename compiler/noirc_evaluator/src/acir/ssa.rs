@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use acvm::{
     FieldElement,
-    acir::circuit::{ErrorSelector, ExpressionWidth, brillig::BrilligBytecode},
+    acir::circuit::{ErrorSelector, brillig::BrilligBytecode},
 };
 use noirc_frontend::Type as HirType;
 
@@ -17,7 +17,6 @@ use super::{Context, GeneratedAcir, SharedContext, acir_context::BrilligStdLib};
 pub type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
-    Vec<String>,
     BTreeMap<ErrorSelector, HirType>,
 );
 
@@ -27,9 +26,8 @@ impl Ssa {
         self,
         brillig: &Brillig,
         brillig_options: &BrilligOptions,
-        expression_width: ExpressionWidth,
     ) -> Result<Artifacts, RuntimeError> {
-        codegen_acir(self, brillig, BrilligStdLib::default(), brillig_options, expression_width)
+        codegen_acir(self, brillig, BrilligStdLib::default(), brillig_options)
     }
 }
 
@@ -38,21 +36,17 @@ pub(super) fn codegen_acir(
     brillig: &Brillig,
     brillig_stdlib: BrilligStdLib<FieldElement>,
     brillig_options: &BrilligOptions,
-    expression_width: ExpressionWidth,
 ) -> Result<Artifacts, RuntimeError> {
     let mut acirs = Vec::new();
-    // TODO: can we parallelize this?
-    let mut shared_context =
-        SharedContext { brillig_stdlib: brillig_stdlib.clone(), ..SharedContext::default() };
+
+    let used_globals = ssa.used_globals_in_functions();
+
+    // TODO(https://github.com/noir-lang/noir/issues/10269): can we parallelize this?
+    let mut shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     for function in ssa.functions.values() {
-        let context = Context::new(
-            &mut shared_context,
-            expression_width,
-            brillig,
-            brillig_stdlib.clone(),
-            brillig_options,
-        );
+        let context =
+            Context::new(&mut shared_context, brillig, brillig_stdlib.clone(), brillig_options);
 
         if let Some(mut generated_acir) = context.convert_ssa_function(&ssa, function)? {
             // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
@@ -71,14 +65,12 @@ pub(super) fn codegen_acir(
             }
 
             // Fetch the Brillig stdlib calls to resolve for this function
-            if let Some(calls_to_resolve) =
-                shared_context.brillig_stdlib_calls_to_resolve.get(&function.id())
-            {
+            if let Some(calls_to_resolve) = shared_context.remove_call_to_resolve(function.id()) {
                 // Resolve the Brillig stdlib calls
                 // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
                 for (opcode_location, brillig_function_pointer) in calls_to_resolve {
                     generated_acir
-                        .resolve_brillig_stdlib_call(*opcode_location, *brillig_function_pointer);
+                        .resolve_brillig_stdlib_call(opcode_location, brillig_function_pointer);
                 }
             }
 
@@ -87,11 +79,11 @@ pub(super) fn codegen_acir(
         }
     }
 
-    let (brillig_bytecode, brillig_names) = shared_context
-        .generated_brillig
+    let generated_brillig = shared_context.finish();
+    let brillig_bytecode = generated_brillig
         .into_iter()
-        .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
-        .unzip();
+        .map(|brillig| BrilligBytecode { function_name: brillig.name, bytecode: brillig.byte_code })
+        .collect();
 
-    Ok((acirs, brillig_bytecode, brillig_names, ssa.error_selector_to_type))
+    Ok((acirs, brillig_bytecode, ssa.error_selector_to_type))
 }

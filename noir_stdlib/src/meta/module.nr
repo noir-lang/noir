@@ -1,3 +1,5 @@
+use crate::option::Option;
+
 impl Module {
     #[builtin(module_add_item)]
     // docs:start:add_item
@@ -24,10 +26,20 @@ impl Module {
     pub comptime fn structs(self) -> [TypeDefinition] {}
     // docs:end:structs
 
+    #[builtin(module_child_modules)]
+    // docs:start:child_modules
+    pub comptime fn child_modules(self) -> [Module] {}
+    // docs:end:child_modules
+
     #[builtin(module_name)]
     // docs:start:name
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
+
+    #[builtin(module_parent)]
+    // docs:start:parent
+    pub comptime fn parent(self) -> Option<Module> {}
+    // docs:end:parent
 }
 
 impl crate::hash::Hash for Module {

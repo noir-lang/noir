@@ -12,7 +12,7 @@ unconstrained fn main() -> pub [[bool; 1]; 1] {
 
 unconstrained fn func_3(a: ([bool; 1],), mut c: [[bool; 1]; 1], ctx_limit: &mut u32) -> bool {
     if *ctx_limit > 0_u32 {
-        *(ctx_limit) = *ctx_limit - 1_u32;
+        *ctx_limit = *ctx_limit - 1_u32;
         if func_3(G_B, [a.0], ctx_limit) {
             c[0_u32] = {
                 {

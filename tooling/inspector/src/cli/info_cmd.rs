@@ -31,7 +31,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| "artifact".to_string());
 
-            vec![count_opcodes_and_gates_in_program(program, package_name, None)]
+            vec![count_opcodes_and_gates_in_program(program, package_name)]
         }
         Artifact::Contract(contract) => contract
             .functions
@@ -43,7 +43,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                     contract.noir_version.clone(),
                     contract.file_map.clone(),
                 );
-                count_opcodes_and_gates_in_program(program.into(), package_name, None)
+                count_opcodes_and_gates_in_program(program.into(), package_name)
             })
             .collect::<Vec<_>>(),
     };

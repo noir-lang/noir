@@ -193,9 +193,11 @@ mod tests {
     use acir::circuit::{Circuit, Program, brillig::BrilligBytecode};
     use color_eyre::eyre;
     use fm::codespan_files::Files;
-    use noirc_artifacts::program::ProgramArtifact;
+    use noirc_artifacts::{
+        debug::{DebugInfo, ProgramDebugInfo},
+        program::ProgramArtifact,
+    };
     use noirc_driver::CrateName;
-    use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
     use std::{collections::BTreeMap, path::Path, str::FromStr};
 
     use crate::flamegraph::Sample;
@@ -234,7 +236,10 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit::default()],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: vec![
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),
@@ -242,8 +247,7 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: Vec::new(),
+            expression_width: acir::circuit::ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file
@@ -264,7 +268,7 @@ mod tests {
                 &Some(temp_dir.keep()),
                 false,
                 false,
-                false
+                false,
             )
             .is_err()
         );

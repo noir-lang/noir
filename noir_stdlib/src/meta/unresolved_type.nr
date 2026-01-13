@@ -9,11 +9,16 @@ impl UnresolvedType {
     pub comptime fn as_mutable_reference(self) -> Option<UnresolvedType> {}
     // docs:end:as_mutable_reference
 
-    /// If this is a slice `&[T]`, returns the element type `T`.
-    #[builtin(unresolved_type_as_slice)]
-    // docs:start:as_slice
+    /// If this is a vector `[T].as_vector()`, returns the element type `T`.
+    #[builtin(unresolved_type_as_vector)]
+    // docs:start:as_vector
+    pub comptime fn as_vector(self) -> Option<UnresolvedType> {}
+    // docs:end:as_vector
+
+    /// If this is a vector `[T].as_vector()`, returns the element type `T`.
+    #[builtin(unresolved_type_as_vector)]
+    #[deprecated("This method has been renamed to `as_vector`")]
     pub comptime fn as_slice(self) -> Option<UnresolvedType> {}
-    // docs:end:as_slice
 
     /// Returns `true` if this type is `bool`.
     #[builtin(unresolved_type_is_bool)]

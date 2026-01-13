@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_bool_generic_as_loop_bound"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

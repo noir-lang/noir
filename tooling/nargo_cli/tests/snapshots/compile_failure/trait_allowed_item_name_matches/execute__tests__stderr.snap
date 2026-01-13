@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Duplicate definitions of trait associated item with name Tralala found
+  ┌─ src/main.nr:3:10
+  │
+3 │     type Tralala;
+  │          ------- First trait associated item found here
+4 │     let Tralala: u32;
+  │         ------- Second trait associated item found here
+  │
+
+error: Duplicate definitions of trait associated item with name Tralala found
+   ┌─ src/main.nr:9:9
+   │
+ 9 │     let Tralala: u32;
+   │         ------- First trait associated item found here
+10 │     type Tralala;
+   │          ------- Second trait associated item found here
+   │
+
+error: Duplicate definitions of trait associated item with name Tralala found
+   ┌─ src/main.nr:15:10
+   │
+15 │     type Tralala;
+   │          ------- First trait associated item found here
+16 │     fn Tralala();
+   │        ------- Second trait associated item found here
+   │
+
+error: Duplicate definitions of trait associated item with name Tralala found
+   ┌─ src/main.nr:21:8
+   │
+21 │     fn Tralala();
+   │        ------- First trait associated item found here
+22 │     type Tralala;
+   │          ------- Second trait associated item found here
+   │
+
+Aborting due to 4 previous errors

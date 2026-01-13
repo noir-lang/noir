@@ -1,0 +1,7 @@
+[package]
+name = "ecdsa_secp256r1_r_zero"
+description = "ECDSA secp256r1 verification should fail with r=0"
+type = "bin"
+authors = [""]
+
+[dependencies]

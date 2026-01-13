@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_indexing_array_with_non_u32"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

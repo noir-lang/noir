@@ -73,6 +73,7 @@ impl Block {
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
         } else if let Some(alias) = aliases.single_alias() {
+            // We always know address points to value
             self.set_reference_value(alias, value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to
@@ -237,7 +238,10 @@ impl Block {
     }
 
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
-        self.last_loads.insert(address, instruction);
+        let aliases = self.get_aliases_for_value(address);
+        if !aliases.is_unknown() {
+            self.last_loads.insert(address, instruction);
+        }
     }
 
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_2"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

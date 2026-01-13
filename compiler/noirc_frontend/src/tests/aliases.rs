@@ -1,6 +1,5 @@
-use crate::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors};
 
-#[named]
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
     let src = r#"
@@ -14,10 +13,9 @@ fn allows_usage_of_type_alias_as_argument_type() {
         accepts_a_foo(42);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn allows_usage_of_type_alias_as_return_type() {
     let src = r#"
@@ -31,10 +29,9 @@ fn allows_usage_of_type_alias_as_return_type() {
         let _ = returns_a_foo();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn alias_in_let_pattern() {
     let src = r#"
@@ -48,10 +45,9 @@ fn alias_in_let_pattern() {
             let _: [Field; 1] = x;
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn double_alias_in_path() {
     let src = r#"
@@ -70,10 +66,9 @@ fn double_alias_in_path() {
         let _ = FooAlias2::new();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn double_generic_alias_in_path() {
     let src = r#"
@@ -92,21 +87,60 @@ fn double_generic_alias_in_path() {
         let _ = FooAlias2::new();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
+#[test]
+fn deny_cyclic_type_aliases() {
+    let src = r#"
+        type A = B;
+        type B = A;
+        ^^^^^^^^^^ Dependency cycle found
+        ~~~~~~~~~~ 'B' recursively depends on itself: B -> A -> B
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ensure_nested_type_aliases_type_check() {
+    let src = r#"
+        type A = B;
+        type B = u8;
+        fn main() {
+            let _a: A = 0 as u16;
+                        ^^^^^^^^ Expected type A, found type u16
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_aliases_in_entry_point() {
+    let src = r#"
+        type Foo = u8;
+        fn main(_x: Foo) {}
+    "#;
+    assert_no_errors(src);
+}
+
+// Regression for #4545
+#[test]
+fn array_type_aliases_in_main() {
+    let src = r#"
+        type Outer<let N: u32> = [u8; N];
+        fn main(_arg: Outer<1>) {}
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn identity_numeric_type_alias_works() {
     let src = r#"
     pub type Identity<let N: u32>: u32 = N;
-
-    fn main() {}
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn self_referring_type_alias_is_not_allowed() {
     let src = r#"
@@ -118,10 +152,9 @@ fn self_referring_type_alias_is_not_allowed() {
                    ~ Cyclic types have unlimited size and are prohibited in Noir
         }
       "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn type_alias_to_numeric_generic() {
     let src = r#"
@@ -138,10 +171,9 @@ fn type_alias_to_numeric_generic() {
         a
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn disallows_composing_numeric_type_aliases() {
     let src = r#"
@@ -163,10 +195,9 @@ fn disallows_composing_numeric_type_aliases() {
         a
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
@@ -188,10 +219,9 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
         a
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
@@ -214,10 +244,9 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
         a
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
@@ -229,10 +258,9 @@ fn disallows_numeric_type_aliases_to_type() {
         a
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn type_alias_to_numeric_as_generic() {
     let src = r#"
@@ -253,10 +281,9 @@ fn type_alias_to_numeric_as_generic() {
         }
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn self_referring_type_alias_with_generics_is_not_allowed() {
     let src = r#"
@@ -268,5 +295,141 @@ fn self_referring_type_alias_with_generics_is_not_allowed() {
                    ~~ Cyclic types have unlimited size and are prohibited in Noir
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
+}
+
+#[test]
+fn use_type_alias_in_method_call() {
+    let src = r#"
+        pub struct Foo {
+        }
+
+        impl Foo {
+            fn new() -> Self {
+                Foo {}
+            }
+        }
+
+        type Bar = Foo;
+
+        fn foo() -> Foo {
+            Bar::new()
+        }
+
+        fn main() {
+            let _ = foo();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_type_alias_to_generic_concrete_type_in_method_call() {
+    let src = r#"
+        pub struct Foo<T> {
+            x: T,
+        }
+
+        impl<T> Foo<T> {
+            fn new(x: T) -> Self {
+                Foo { x }
+            }
+        }
+
+        type Bar = Foo<i32>;
+
+        fn foo() -> Bar {
+            Bar::new(1)
+        }
+
+        fn main() {
+            let _ = foo();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn incorrect_generic_count_on_type_alias() {
+    let src = r#"
+    pub struct Foo {}
+    pub type Bar = Foo<i32>;
+                   ^^^ Foo expects 0 generics but 1 was given
+    fn main() {
+        let _ = Foo {}; // silence Foo never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn call_function_alias_type() {
+    let src = r#"
+    type Alias<Env> = fn[Env](Field) -> Field;
+
+    fn main() {
+        call_fn(|x| x + 1);
+    }
+
+    fn call_fn<Env>(f: Alias<Env>) {
+        assert_eq(f(0), 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10415() {
+    let src = r#"
+    type Nothing = ();
+
+    fn main() -> Nothing {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10415_without_alias() {
+    let src = r#"
+    fn main() -> () {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10429() {
+    let src = r#"
+    struct Struct {}
+
+    type Alias = Struct;
+
+    impl Alias {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10429_with_trait() {
+    let src = r#"
+    struct Struct {}
+
+    type Alias = Struct;
+
+    trait Foo {
+        fn foo() -> Self;
+    }
+
+    impl Foo for Alias {
+        fn foo() -> Self {
+            Struct {}
+        }
+    }
+
+    fn main() {
+        let _alias: Alias = <Alias as Foo>::foo();
+    }
+    "#;
+    assert_no_errors(src);
 }

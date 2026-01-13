@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_references_constrained_reference_to_unconstrained"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

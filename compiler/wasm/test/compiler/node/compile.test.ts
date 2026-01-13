@@ -99,6 +99,7 @@ describe('noir-compiler/node', () => {
     'regression_7323',
     'workspace',
     'workspace_default_member',
+    'regression_9294', // TODO: Requires the 'enums' unstable feature.
   ];
   getSubdirs(join(testProgramsDir, 'execution_success'))
     .filter((name) => !filteredExecutionSuccessTests.includes(name))

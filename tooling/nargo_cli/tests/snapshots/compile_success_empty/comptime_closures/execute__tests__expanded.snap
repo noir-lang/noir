@@ -8,9 +8,9 @@ fn main() {
 
 fn closure_test(mut x: Field) {
     let one: Field = 1_Field;
-    let add1: fn[(Field,)](&mut Field) = |z: &mut Field| (|| { *(z) = *z + one; })();
+    let add1: fn[(Field,)](&mut Field) = |z: &mut Field| (|| { *z = *z + one; })();
     let two: Field = 2_Field;
-    let add2: fn[(Field,)](&mut Field) = |z: &mut Field| { *(z) = *z + two; };
+    let add2: fn[(Field,)](&mut Field) = |z: &mut Field| { *z = *z + two; };
     add1(&mut x);
     assert(x == 1_Field);
     add2(&mut x);
@@ -20,7 +20,7 @@ fn closure_test(mut x: Field) {
 
 fn issue_2120() {
     let x1: &mut Field = &mut 42_Field;
-    let set_x1: fn[(&mut Field,)](Field) = |y: Field| { *(x1) = y; };
+    let set_x1: fn[(&mut Field,)](Field) = |y: Field| { *x1 = y; };
     assert(*x1 == 42_Field);
     set_x1(44_Field);
     assert(*x1 == 44_Field);

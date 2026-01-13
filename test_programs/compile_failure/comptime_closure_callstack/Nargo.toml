@@ -1,0 +1,7 @@
+[package]
+name = "comptime_closure_callstack"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

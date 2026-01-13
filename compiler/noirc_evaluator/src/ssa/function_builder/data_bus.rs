@@ -2,13 +2,12 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{
     function::RuntimeType,
-    instruction::ArrayOffset,
     types::{NumericType, Type},
     value::{ValueId, ValueMapping},
 };
-use fxhash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
@@ -63,7 +62,18 @@ impl DataBusBuilder {
 pub(crate) struct CallData {
     /// The id to this calldata assigned by the user
     pub(crate) call_data_id: u32,
+    /// The array to read from, when reading from a value in `index_map`
     pub(crate) array_id: ValueId,
+    /// When reading from a value in `index_map`, read it instead fom `array_id` at the offset
+    /// given by the value in the map.
+    ///
+    /// For example, if the call data is:
+    ///
+    /// ```ssa
+    /// call_data(0): array: v16, indexes: [v2: 1]
+    /// ```
+    ///
+    /// then when reading from `v2`, read from `v16` but with an offset of 1.
     pub(crate) index_map: HashMap<ValueId, usize>,
 }
 
@@ -160,14 +170,14 @@ impl FunctionBuilder {
                         .dfg
                         .make_constant(my_index.into(), NumericType::length_type());
                     assert!(matches!(typ, Type::Numeric(_)));
-                    let element = self.insert_array_get(value, index, ArrayOffset::None, typ);
+                    let element = self.insert_array_get(value, index, typ);
                     self.add_to_data_bus(element, databus);
                 }
             }
             Type::Reference(_) => {
                 unreachable!("Attempted to add invalid type (reference) to databus")
             }
-            Type::Slice(_) => unreachable!("Attempted to add invalid type (slice) to databus"),
+            Type::Vector(_) => unreachable!("Attempted to add invalid type (vector) to databus"),
             Type::Function => unreachable!("Attempted to add invalid type (function) to databus"),
         }
     }
@@ -237,6 +247,11 @@ impl FunctionBuilder {
             result.push(call_databus);
         }
         result
+    }
+
+    /// Forcefully sets the databus of the current function.
+    pub(crate) fn set_data_bus(&mut self, data_bus: DataBus) {
+        self.current_function.dfg.data_bus = data_bus;
     }
 
     /// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter

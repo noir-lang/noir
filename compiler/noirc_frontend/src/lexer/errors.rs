@@ -46,6 +46,10 @@ pub enum LexerErrorKind {
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
     #[error("Unicode character '{}' looks like space, but is it not", char)]
     UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
+    #[error(
+        "Invalid form of the `must_use` attribute. Valid forms are `#[must_use]` and `#[must_use = \"message\"]`"
+    )]
+    MalformedMustUseAttribute { location: Location },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -65,23 +69,24 @@ impl LexerErrorKind {
     pub fn location(&self) -> Location {
         match self {
             LexerErrorKind::UnexpectedCharacter { location, .. } => *location,
-            LexerErrorKind::NotADoubleChar { location, .. } => *location,
-            LexerErrorKind::InvalidIntegerLiteral { location, .. } => *location,
-            LexerErrorKind::IntegerLiteralTooLarge { location, .. } => *location,
-            LexerErrorKind::MalformedFuncAttribute { location, .. } => *location,
-            LexerErrorKind::MalformedTestAttribute { location, .. } => *location,
-            LexerErrorKind::MalformedFuzzAttribute { location, .. } => *location,
-            LexerErrorKind::InvalidInnerAttribute { location, .. } => *location,
-            LexerErrorKind::UnterminatedBlockComment { location } => *location,
-            LexerErrorKind::UnterminatedStringLiteral { location } => *location,
-            LexerErrorKind::InvalidFormatString { location, .. } => *location,
-            LexerErrorKind::EmptyFormatStringInterpolation { location, .. } => *location,
-            LexerErrorKind::InvalidEscape { location, .. } => *location,
-            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
-            LexerErrorKind::NonAsciiComment { location, .. }
+            LexerErrorKind::NotADoubleChar { location, .. }
+            | LexerErrorKind::InvalidIntegerLiteral { location, .. }
+            | LexerErrorKind::IntegerLiteralTooLarge { location, .. }
+            | LexerErrorKind::MalformedFuncAttribute { location, .. }
+            | LexerErrorKind::MalformedTestAttribute { location, .. }
+            | LexerErrorKind::MalformedFuzzAttribute { location, .. }
+            | LexerErrorKind::InvalidInnerAttribute { location, .. }
+            | LexerErrorKind::UnterminatedBlockComment { location }
+            | LexerErrorKind::UnterminatedStringLiteral { location }
+            | LexerErrorKind::InvalidFormatString { location, .. }
+            | LexerErrorKind::EmptyFormatStringInterpolation { location, .. }
+            | LexerErrorKind::InvalidEscape { location, .. }
+            | LexerErrorKind::NonAsciiComment { location, .. }
+            | LexerErrorKind::MalformedMustUseAttribute { location }
             | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
                 *location
             }
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
     }
@@ -218,6 +223,9 @@ impl LexerErrorKind {
                 };
                 (primary, secondary, *location)
             }
+            LexerErrorKind::MalformedMustUseAttribute { location } => {
+                ("Invalid syntax for `must_use` attribute".to_string(), "Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`".to_string(), *location)
+            },
         }
     }
 }

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_specify_method_types_with_turbofish"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

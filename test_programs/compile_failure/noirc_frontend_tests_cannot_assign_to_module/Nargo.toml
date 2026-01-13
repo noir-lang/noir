@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cannot_assign_to_module"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

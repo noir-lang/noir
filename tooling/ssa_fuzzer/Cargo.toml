@@ -16,6 +16,7 @@ workspace = true
 noirc_frontend.workspace = true
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
+noirc_artifacts.workspace = true
 noir_ssa_executor.workspace = true
 acvm.workspace = true
 thiserror.workspace = true

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_deny_attaching_mut_ref_to_immutable_object"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

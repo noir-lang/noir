@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Comptime-only type `Quoted` cannot be used in non-comptime global
+  ┌─ src/main.nr:1:13
+  │
+1 │ global foo: Quoted = quote { 1};
+  │             ------ Comptime-only type used here
+  │
+
+Aborting due to 1 previous error

@@ -47,7 +47,10 @@ impl Parser<'_> {
             }
         } else {
             expr_location = self.current_token_location;
-            let typ = self.parse_type_or_type_expression().unwrap();
+            let typ = self.parse_type_or_type_expression().unwrap_or(UnresolvedType {
+                typ: UnresolvedTypeData::Error,
+                location: expr_location,
+            });
             location = self.location_since(start_location);
             self.eat_semicolon_or_error();
             typ
@@ -69,7 +72,7 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::TypeAlias,
+        ast::{TypeAlias, UnresolvedType, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{ItemKind, parser::tests::expect_no_errors},
     };
@@ -108,5 +111,19 @@ mod tests {
         let alias = parse_type_alias_no_errors(src);
         assert_eq!("Double", alias.name.to_string());
         assert_eq!(alias.generics.len(), 1);
+    }
+
+    #[test]
+    fn parse_incomplete_type_alias() {
+        let src = "type Foo = ";
+        let (mut module, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TypeAlias(alias) = item.kind else {
+            panic!("Expected global");
+        };
+        assert_eq!(alias.name.to_string(), "Foo");
+        assert!(matches!(alias.typ, UnresolvedType { typ: UnresolvedTypeData::Error, .. }));
     }
 }

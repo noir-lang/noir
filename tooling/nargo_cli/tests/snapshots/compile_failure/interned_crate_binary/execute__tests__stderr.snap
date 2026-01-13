@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: fun is private and not visible from the current module
+   ┌─ interned_crate_library/src/lib.nr:11:25
+   │
+11 │                 $crate::fun::my_public_fn_that_cannot_be_imported();
+   │                         --- fun is private
+   ·
+18 │ #[derive(Foo)]
+   │ -------------- While running this function attribute
+   │
+
+error: fun is private and not visible from the current module
+   ┌─ interned_crate_library/src/lib.nr:11:25
+   │
+11 │                 $crate::fun::my_public_fn_that_cannot_be_imported();
+   │                         --- fun is private
+   │
+   ┌─ src/main.nr:4:1
+   │
+ 4 │ #[derive(Foo)]
+   │ -------------- While running this function attribute
+   │
+
+Aborting due to 2 previous errors

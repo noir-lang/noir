@@ -462,7 +462,7 @@ fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
     use strum::IntoEnumIterator;

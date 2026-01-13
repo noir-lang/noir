@@ -339,8 +339,8 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         assert_eq!(
-            item.doc_comments,
-            vec![" One".to_string(), " Two".to_string(), " Three".to_string(),]
+            item.doc_comments.iter().map(|c| c.contents.clone()).collect::<Vec<String>>(),
+            vec!["One".to_string(), "Two".to_string(), "Three".to_string(),]
         );
         let ItemKind::Function(func) = &item.kind else {
             panic!("Expected function");

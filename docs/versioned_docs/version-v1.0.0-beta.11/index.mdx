@@ -55,8 +55,15 @@ Noir can be used both in complex cloud-based backends and in user's smartphones,
 
 <Tabs>
   <TabItem value="Aztec Contracts" label="Aztec Contracts" default>
-    <img src={require("@site/static/img/aztec_logo.png").default} style={{display: "block", width: "50%", margin: "2rem auto"}} alt="Noir Logo"  />
-    
+    <ThemedImage
+      sources={{
+        light: useBaseUrl("/img/aztec_word_mark_dark.svg"),
+        dark: useBaseUrl("/img/aztec_word_mark_light.svg"),
+      }}
+      style={{display: "block", width: "50%", margin: "2rem auto"}} 
+      alt="Aztec word mark" 
+    />
+        
     Aztec Contracts leverage Noir to allow for the storage and execution of private information. Writing an Aztec Contract is as easy as writing Noir, and Aztec developers can easily interact with the network storage and execution through the [Aztec.nr](https://docs.aztec.network/developers/contracts/main) library.
   </TabItem>
   <TabItem value="Solidity Verifiers" label="Solidity Verifiers">

@@ -32,7 +32,7 @@ impl Poseidon2 {
                 self.state[i] += self.cache[i];
             }
         }
-        self.state = crate::hash::poseidon2_permutation(self.state, 4);
+        self.state = crate::hash::poseidon2_permutation_internal(self.state);
     }
 
     fn absorb(&mut self, input: Field) {
@@ -104,6 +104,6 @@ impl Hasher for Poseidon2Hasher {
 
 impl Default for Poseidon2Hasher {
     fn default() -> Self {
-        Poseidon2Hasher { _state: &[] }
+        Poseidon2Hasher { _state: [].as_vector() }
     }
 }

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_serialize_test_with_a_previous_unrelated_definition"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

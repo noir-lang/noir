@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_references_does_not_crash_when_passing_mutable_undefined_variable"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

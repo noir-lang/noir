@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_error_when_using_private_struct_field_in_struct_pattern"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

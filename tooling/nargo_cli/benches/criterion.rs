@@ -4,7 +4,7 @@ use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{Criterion, criterion_group, criterion_main};
 
 use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
-use noirc_driver::CompiledProgram;
+use noirc_artifacts::program::CompiledProgram;
 use pprof::criterion::{Output, PProfProfiler};
 use std::cell::RefCell;
 use std::hint::black_box;

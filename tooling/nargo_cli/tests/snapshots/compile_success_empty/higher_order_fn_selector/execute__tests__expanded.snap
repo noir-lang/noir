@@ -3,16 +3,16 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn g(x: &mut Field) {
-    *(x) = *x * 2_Field;
+    *x = *x * 2_Field;
 }
 
 fn h(x: &mut Field) {
-    *(x) = *x * 3_Field;
+    *x = *x * 3_Field;
 }
 
 fn selector(flag: &mut bool) -> fn(&mut Field) {
     let my_func: fn(&mut Field) = if *flag { g } else { h };
-    *(flag) = !*flag;
+    *flag = !*flag;
     my_func
 }
 

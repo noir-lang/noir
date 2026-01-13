@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_does_not_error_if_trait_with_default_visibility_returns_struct_with_default_visibility"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

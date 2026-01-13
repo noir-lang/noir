@@ -1,4 +1,7 @@
-use crate::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
+use crate::{
+    brillig::{BrilligOptions, brillig_ir::registers::Allocated},
+    ssa::ir::function::FunctionId,
+};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -12,10 +15,6 @@ use acvm::acir::{
     brillig::{HeapVector, MemoryAddress},
 };
 
-pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
-pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
-pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
-
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
     pub(crate) fn new_entry_point_artifact(
@@ -24,13 +23,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         target_function: FunctionId,
         globals_init: bool,
         globals_memory_size: usize,
+        name: &str,
         options: &BrilligOptions,
-    ) -> BrilligArtifact<F> {
-        let mut context = BrilligContext::new(options);
+    ) -> (BrilligArtifact<F>, usize) {
+        let mut context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
-        context.codegen_entry_point(&arguments, &return_parameters);
+        let stack_start = context.codegen_entry_point(&arguments, &return_parameters);
 
         if globals_init {
             context.add_globals_init_instruction(target_function);
@@ -39,28 +39,37 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.add_external_call_instruction(target_function);
 
         context.codegen_exit_point(&arguments, &return_parameters);
-        context.artifact()
+        (context.into_artifact(), stack_start)
     }
 
     fn calldata_start_offset(&self) -> usize {
-        ReservedRegisters::len()
-            + MAX_STACK_SIZE
-            + MAX_SCRATCH_SPACE
-            + self.globals_memory_size.expect("The memory size of globals should be set")
+        let globals_size =
+            self.globals_memory_size.expect("The memory size of globals should be set");
+        self.layout().entry_point_start(globals_size)
     }
 
     fn return_data_start_offset(&self, calldata_size: usize) -> usize {
-        self.calldata_start_offset() + calldata_size
+        let globals_size =
+            self.globals_memory_size.expect("The memory size of globals should be set");
+        self.layout().return_data_start(globals_size, calldata_size)
     }
 
     /// Adds the instructions needed to handle entry point parameters
     /// The runtime will leave the parameters in calldata.
     /// Arrays will be passed flattened.
+    ///
+    /// Memory layout for entry points:
+    /// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+    ///
+    /// # Returns
+    /// The start of the stack memory region. The start of the stack is determined by the globals compiled as well as
+    /// the amount of call data and return data. We return this information so that the [max stack depth check][super::ProcedureId::CheckMaxStackDepth]
+    /// can check against the appropriate constant represented the max stack pointer we can have in memory.
     fn codegen_entry_point(
         &mut self,
         arguments: &[BrilligParameter],
         return_parameters: &[BrilligParameter],
-    ) {
+    ) -> usize {
         // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         let mut argument_variables = self.allocate_function_arguments(arguments);
 
@@ -73,16 +82,21 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             1_usize.into(),
         );
 
-        // Set initial value of free memory pointer: calldata_start_offset + calldata_size + return_data_size
+        let return_data_start = self.return_data_start_offset(calldata_size);
+
+        // The heap begins after the end of the stack.
+        // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_size()`
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (self.calldata_start_offset() + calldata_size + return_data_size).into(),
+            (return_data_start + return_data_size + self.layout().max_stack_size()).into(),
         );
 
-        // Set initial value of stack pointer: ReservedRegisters.len()
+        // The stack begins after the calldata region (calldata + return data)
+        // Set initial value of the stack pointer: `return_data_start + return_data_size`
+        let stack_start = return_data_start + return_data_size;
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
-            ReservedRegisters::len().into(),
+            stack_start.into(),
         );
 
         // Copy calldata
@@ -92,7 +106,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         // Initialize the variables with the calldata
         for (argument_variable, argument) in argument_variables.iter_mut().zip(arguments) {
-            match (argument_variable, argument) {
+            match (**argument_variable, argument) {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
                         single_address.address,
@@ -101,7 +115,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                     current_calldata_pointer += 1;
                 }
                 (
-                    BrilligVariable::BrilligArray(array),
+                    BrilligVariable::BrilligArray(mut array),
                     BrilligParameter::Array(item_type, item_count),
                 ) => {
                     let flattened_size = array.size;
@@ -109,54 +123,49 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
                     let deflattened_address =
                         self.deflatten_array(item_type, *item_count, array.pointer, false);
-                    self.mov_instruction(array.pointer, deflattened_address);
+                    self.mov_instruction(array.pointer, *deflattened_address);
+
+                    // After deflattening, we have to adjust the size of the array.
                     array.size = item_type.len() * item_count;
-                    self.deallocate_register(deflattened_address);
 
                     current_calldata_pointer += flattened_size;
                 }
                 (
                     BrilligVariable::BrilligVector(vector),
-                    BrilligParameter::Slice(item_type, item_count),
+                    BrilligParameter::Vector(item_type, item_count),
                 ) => {
                     let flattened_size = Self::flattened_size(argument);
                     self.usize_const_instruction(vector.pointer, current_calldata_pointer.into());
                     let deflattened_address =
                         self.deflatten_array(item_type, *item_count, vector.pointer, true);
-                    self.mov_instruction(vector.pointer, deflattened_address);
-
-                    self.deallocate_register(deflattened_address);
+                    self.mov_instruction(vector.pointer, *deflattened_address);
 
                     current_calldata_pointer += flattened_size;
                 }
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
         }
+
+        stack_start
     }
 
     fn allocate_function_arguments(
         &mut self,
         arguments: &[BrilligParameter],
-    ) -> Vec<BrilligVariable> {
+    ) -> Vec<Allocated<BrilligVariable, Stack>> {
         arguments
             .iter()
             .map(|argument| match argument {
                 BrilligParameter::SingleAddr(bit_size) => {
-                    BrilligVariable::SingleAddr(SingleAddrVariable {
-                        address: self.allocate_register(),
-                        bit_size: *bit_size,
-                    })
+                    self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Array(_, _) => {
                     let flattened_size = Self::flattened_size(argument);
-                    BrilligVariable::BrilligArray(BrilligArray {
-                        pointer: self.allocate_register(),
-                        size: flattened_size,
-                    })
+                    self.allocate_brillig_array(flattened_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Slice(_, _) => BrilligVariable::BrilligVector(BrilligVector {
-                    pointer: self.allocate_register(),
-                }),
+                BrilligParameter::Vector(_, _) => {
+                    self.allocate_brillig_vector().map(BrilligVariable::from)
+                }
             })
             .collect()
     }
@@ -173,7 +182,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             match param {
                 BrilligParameter::SingleAddr(bit_size) => Box::new(std::iter::once(*bit_size)),
                 BrilligParameter::Array(item_types, item_count)
-                | BrilligParameter::Slice(item_types, item_count) => Box::new(
+                | BrilligParameter::Vector(item_types, item_count) => Box::new(
                     (0..*item_count).flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
             }
@@ -204,20 +213,18 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         item_count: usize,
         flattened_array_pointer: MemoryAddress,
         is_vector: bool,
-    ) -> MemoryAddress {
+    ) -> Allocated<MemoryAddress, Stack> {
         let deflattened_array_pointer = self.allocate_register();
         let deflattened_size_variable =
             self.make_usize_constant_instruction((item_count * item_type.len()).into());
 
         let deflattened_items_pointer = if is_vector {
-            let vector = BrilligVector { pointer: deflattened_array_pointer };
-
-            self.codegen_initialize_vector(vector, deflattened_size_variable, None);
-
+            let vector = BrilligVector { pointer: *deflattened_array_pointer };
+            self.codegen_initialize_vector(vector, *deflattened_size_variable, None);
             self.codegen_make_vector_items_pointer(vector)
         } else {
             let arr = BrilligArray {
-                pointer: deflattened_array_pointer,
+                pointer: *deflattened_array_pointer,
                 size: item_count * item_type.len(),
             };
             self.codegen_initialize_array(arr);
@@ -249,13 +256,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         BrilligParameter::SingleAddr(_) => {
                             self.codegen_load_with_offset(
                                 flattened_array_pointer,
-                                source_index,
-                                movement_register,
+                                *source_index,
+                                *movement_register,
                             );
                             self.codegen_store_with_offset(
-                                deflattened_items_pointer,
-                                target_index,
-                                movement_register,
+                                *deflattened_items_pointer,
+                                *target_index,
+                                *movement_register,
                             );
                             source_offset += 1;
                         }
@@ -267,44 +274,37 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                             self.memory_op_instruction(
                                 flattened_array_pointer,
                                 source_index.address,
-                                nested_array_pointer,
+                                *nested_array_pointer,
                                 BrilligBinaryOp::Add,
                             );
                             let deflattened_nested_array_pointer = self.deflatten_array(
                                 nested_array_item_type,
                                 *nested_array_item_count,
-                                nested_array_pointer,
+                                *nested_array_pointer,
                                 false,
                             );
                             self.codegen_store_with_offset(
-                                deflattened_items_pointer,
-                                target_index,
-                                deflattened_nested_array_pointer,
+                                *deflattened_items_pointer,
+                                *target_index,
+                                *deflattened_nested_array_pointer,
                             );
-
-                            self.deallocate_register(nested_array_pointer);
-                            self.deallocate_register(deflattened_nested_array_pointer);
 
                             source_offset += Self::flattened_size(subitem);
                         }
-                        BrilligParameter::Slice(..) => unreachable!("ICE: Cannot deflatten slices"),
+                        BrilligParameter::Vector(..) => {
+                            unreachable!("ICE: Cannot deflatten vectors")
+                        }
                     }
-
-                    self.deallocate_single_addr(source_index);
-                    self.deallocate_single_addr(target_index);
                 }
             }
-            self.deallocate_register(movement_register);
         } else {
             self.codegen_mem_copy(
                 flattened_array_pointer,
-                deflattened_items_pointer,
-                deflattened_size_variable,
+                *deflattened_items_pointer,
+                *deflattened_size_variable,
             );
         }
 
-        self.deallocate_single_addr(deflattened_size_variable);
-        self.deallocate_register(deflattened_items_pointer);
         deflattened_array_pointer
     }
 
@@ -319,22 +319,17 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     ) {
         // First, we allocate the registers that hold the returned variables from the function call.
         self.set_allocated_registers(vec![]);
+
         let returned_variables: Vec<_> = return_parameters
             .iter()
             .map(|return_parameter| match return_parameter {
                 BrilligParameter::SingleAddr(bit_size) => {
-                    BrilligVariable::SingleAddr(SingleAddrVariable {
-                        address: self.allocate_register(),
-                        bit_size: *bit_size,
-                    })
+                    self.allocate_single_addr(*bit_size).map(BrilligVariable::from)
                 }
-                BrilligParameter::Array(item_types, item_count) => {
-                    BrilligVariable::BrilligArray(BrilligArray {
-                        pointer: self.allocate_register(),
-                        size: item_types.len() * item_count,
-                    })
-                }
-                BrilligParameter::Slice(..) => unreachable!("ICE: Cannot return slices"),
+                BrilligParameter::Array(item_types, item_count) => self
+                    .allocate_brillig_array(item_types.len() * item_count)
+                    .map(BrilligVariable::from),
+                BrilligParameter::Vector(..) => unreachable!("ICE: Cannot return vectors"),
             })
             .collect();
 
@@ -365,24 +360,20 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         item_type,
                         *item_count,
                         pointer_to_return_data.address,
-                        deflattened_items_pointer,
+                        *deflattened_items_pointer,
                     );
-
-                    self.deallocate_single_addr(pointer_to_return_data);
-                    self.deallocate_register(deflattened_items_pointer);
 
                     return_data_index += Self::flattened_size(return_param);
                 }
-                BrilligParameter::Slice(..) => {
-                    unreachable!("ICE: Cannot return slices from brillig entrypoints")
+                BrilligParameter::Vector(..) => {
+                    unreachable!("ICE: Cannot return vectors from brillig entrypoints")
                 }
             }
         }
 
-        let return_data = HeapVector {
-            pointer: self.make_usize_constant_instruction(return_data_offset.into()).address,
-            size: self.make_usize_constant_instruction(return_data_size.into()).address,
-        };
+        let return_pointer = self.make_usize_constant_instruction(return_data_offset.into());
+        let return_size = self.make_usize_constant_instruction(return_data_size.into());
+        let return_data = HeapVector { pointer: return_pointer.address, size: return_size.address };
 
         self.stop_instruction(return_data);
     }
@@ -395,7 +386,7 @@ mod tests {
 
     use crate::{
         brillig::brillig_ir::{
-            brillig_variable::BrilligArray,
+            brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
             entry_point::BrilligParameter,
             tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
         },
@@ -428,16 +419,17 @@ mod tests {
         let array_value = context.allocate_register();
 
         let items_pointer = context
-            .codegen_make_array_items_pointer(BrilligArray { pointer: array_pointer, size: 2 });
+            .codegen_make_array_items_pointer(BrilligArray { pointer: *array_pointer, size: 2 });
 
         // Load the nested array
-        context.load_instruction(array_pointer, items_pointer);
+        context.load_instruction(*array_pointer, *items_pointer);
         let items_pointer = context
-            .codegen_make_array_items_pointer(BrilligArray { pointer: array_pointer, size: 2 });
+            .codegen_make_array_items_pointer(BrilligArray { pointer: *array_pointer, size: 2 });
         // Load the first item of the nested array.
-        context.load_instruction(array_value, items_pointer);
+        context.load_instruction(*array_value, *items_pointer);
 
-        context.codegen_return(&[array_value]);
+        let return_value = BrilligVariable::from(SingleAddrVariable::new_usize(*array_value));
+        context.codegen_return(&[return_value]);
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let (vm, return_data_offset, return_data_size) =
@@ -469,9 +461,9 @@ mod tests {
         let mut context = create_context(FunctionId::test_new(0));
 
         // Allocate the parameter
-        let brillig_array = BrilligArray { pointer: context.allocate_register(), size: 2 };
+        let return_register = context.allocate_brillig_array(2);
 
-        context.codegen_return(&[brillig_array.pointer]);
+        context.codegen_return(&[return_register.to_var()]);
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
         let (vm, return_data_pointer, return_data_size) =

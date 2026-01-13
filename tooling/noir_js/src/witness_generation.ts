@@ -76,7 +76,7 @@ export async function generateWitness(
     const solvedWitness = await executeProgram(base64Decode(compiledProgram.bytecode), witnessMap, foreignCallHandler);
     return solvedWitness;
   } catch (err) {
-    // Typescript types catched errors as unknown or any, so we need to narrow its type to check if it has raw assertion payload.
+    // Typescript types caught errors as unknown or any, so we need to narrow its type to check if it has raw assertion payload.
     if (typeof err === 'object' && err !== null && 'rawAssertionPayload' in err) {
       throw enrichExecutionError(compiledProgram, err as ExecutionError);
     }

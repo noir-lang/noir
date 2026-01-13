@@ -6,7 +6,7 @@ use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::{
-    Generics, Type, TypeBindings, TypeVariable,
+    ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -21,7 +21,7 @@ pub struct TraitFunction {
     pub default_impl: Option<Box<NoirFunction>>,
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
     pub trait_constraints: Vec<TraitConstraint>,
-    pub direct_generics: Generics,
+    pub direct_generics: ResolvedGenerics,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,11 +62,11 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
-    pub associated_types: Generics,
+    pub associated_types: ResolvedGenerics,
     pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub location: Location,
     pub visibility: ItemVisibility,
 
@@ -81,7 +81,7 @@ pub struct Trait {
 
     pub where_clause: Vec<TraitConstraint>,
 
-    pub all_generics: Generics,
+    pub all_generics: ResolvedGenerics,
 
     /// Map from each associated constant's name to a unique DefinitionId for that constant.
     pub associated_constant_ids: HashMap<String, DefinitionId>,
@@ -120,6 +120,8 @@ pub struct TraitConstraint {
 }
 
 impl TraitConstraint {
+    /// Update the type in the constraint by substituting the bindings onto it,
+    /// then apply the bindings onto the trait bounds as well.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
@@ -143,6 +145,7 @@ pub struct ResolvedTraitBound {
 }
 
 impl ResolvedTraitBound {
+    /// Update all [Type]s in the bound generics by substituting some [TypeBindings] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
@@ -190,7 +193,7 @@ impl Trait {
         self.visibility = visibility;
     }
 
-    pub fn set_all_generics(&mut self, generics: Generics) {
+    pub fn set_all_generics(&mut self, generics: ResolvedGenerics) {
         self.all_generics = generics;
     }
 

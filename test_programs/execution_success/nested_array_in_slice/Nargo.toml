@@ -1,5 +1,0 @@
-[package]
-name = "nested_array_in_slice"
-type = "bin"
-authors = [""]
-[dependencies]

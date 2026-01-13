@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_resolve_simplified_closure"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Trait {
+    type Assoc;
+}
+
+impl Trait for Field {
+    type Assoc = i32;
+}
+
+comptime fn foo(_: FunctionDefinition) -> Quoted {
+    let q: Quoted = quote { Trait < Assoc = i32 >  };
+    let trait_constraint: TraitConstraint = q.as_trait_constraint();
+    quote {
+        impl $trait_constraint for Field {
+            
+        }
+    }
+}
+
+fn main() {}

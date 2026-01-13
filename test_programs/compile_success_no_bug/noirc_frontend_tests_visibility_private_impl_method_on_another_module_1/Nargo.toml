@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_private_impl_method_on_another_module_1"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

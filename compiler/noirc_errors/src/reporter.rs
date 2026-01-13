@@ -1,10 +1,11 @@
 use std::io::IsTerminal;
 
-use crate::{Location, Span};
+use crate::Location;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use noirc_span::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
@@ -200,7 +201,7 @@ pub fn report_all<'files>(
     diagnostics.append(&mut errors);
 
     let error_count =
-        diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
+        diagnostics.iter().map(|error| u32::from(error.report(files, deny_warnings))).sum();
 
     ReportedErrors { error_count }
 }

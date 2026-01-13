@@ -1,0 +1,7 @@
+[package]
+name = "ecdsa_secp256r1_invalid_pubkey"
+description = "ECDSA secp256r1 verification should fail with invalid public key"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let string: &mut str<4> = &mut "OOPS";
+    let param: [&mut str<4>; 1] = [string];
+    assert(*param[0_u32] == "OOPS");
+    foo(param);
+    assert(*param[0_u32] == "GOOD");
+}
+
+fn foo(param: [&mut str<4>; 1]) {
+    let s: &mut str<4> = param[0_u32];
+    *s = "GOOD";
+    for _ in 0_u32..1_u32 {}
+}

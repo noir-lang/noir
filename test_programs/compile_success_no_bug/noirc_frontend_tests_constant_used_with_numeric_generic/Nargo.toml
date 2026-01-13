@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_constant_used_with_numeric_generic"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

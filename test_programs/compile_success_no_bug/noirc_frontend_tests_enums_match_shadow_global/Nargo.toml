@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_match_shadow_global"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

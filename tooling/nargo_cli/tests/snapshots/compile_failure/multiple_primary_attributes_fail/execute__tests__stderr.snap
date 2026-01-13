@@ -8,7 +8,7 @@ error: Usage of the `#[oracle]` function attribute is only valid on unconstraine
 2 │ #[oracle(oracleName)]
   │ ---------------------
 3 │ #[builtin(builtinName)]
-4 │ fn main(x: Field) -> pub Field {
+4 │ fn main(x: Field) -> pub Field {}
   │    ---- Oracle functions must have the `unconstrained` keyword applied
   │
 

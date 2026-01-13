@@ -42,10 +42,10 @@ pub(crate) fn mutate_fuzzer_function_command(
                     mutate_usize(block_body_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 InsertCycleMutationOptions::StartIter => {
-                    *start_iter = rng.gen_range(u8::MIN..=u8::MAX);
+                    *start_iter = rng.random_range(u8::MIN..=u8::MAX);
                 }
                 InsertCycleMutationOptions::EndIter => {
-                    *end_iter = rng.gen_range(u8::MIN..=u8::MAX);
+                    *end_iter = rng.random_range(u8::MIN..=u8::MAX);
                 }
             }
         }
@@ -55,7 +55,7 @@ pub(crate) fn mutate_fuzzer_function_command(
                     mutate_usize(function_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 InsertFunctionCallMutationOptions::Args => {
-                    let idx = rng.gen_range(0..args.len());
+                    let idx = rng.random_range(0..args.len());
                     mutate_usize(&mut args[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
             }

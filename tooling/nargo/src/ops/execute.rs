@@ -217,6 +217,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     }
 }
 
+/// Execute a [Program], returning the [WitnessStack].
 pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,
@@ -236,6 +237,7 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
     Ok(witness_stack)
 }
 
+/// Execute a [Program] with profiling turned on, returning the [WitnessStack] along with the [ProfilingSamples].
 pub fn execute_program_with_profiling<
     F: AcirField,
     B: BlackBoxFunctionSolver<F>,

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_mentioned_in_return_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

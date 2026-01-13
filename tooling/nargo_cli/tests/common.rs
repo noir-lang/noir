@@ -5,9 +5,10 @@
 use std::path::Path;
 
 use nargo::parse_all;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
+    prepare_crate,
 };
 use noirc_frontend::hir::Context;
 
@@ -22,6 +23,7 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
     let parsed_files = parse_all(&file_manager);
 
     let mut context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)
@@ -37,6 +39,5 @@ pub(crate) fn prepare_and_compile_snippet(
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, root_crate_id) = prepare_snippet(source);
     let options = CompileOptions { force_brillig, ..Default::default() };
-    // TODO: Run nargo::ops::transform_program?
     compile_main(&mut context, root_crate_id, &options, None)
 }

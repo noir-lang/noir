@@ -1,0 +1,6 @@
+[package]
+name = "assert_generic_invalid_message"
+type = "bin"
+authors = [""]
+
+[dependencies]

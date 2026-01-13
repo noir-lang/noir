@@ -107,7 +107,6 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!(
@@ -144,7 +143,6 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         let valid_dependency = Package {
@@ -201,7 +199,6 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
@@ -224,7 +221,6 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
@@ -245,7 +241,6 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {

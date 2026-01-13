@@ -69,7 +69,7 @@ fn add_one(x: Field) -> Field {
 
 comptime fn mutate_add_one(f: FunctionDefinition) {
     assert(f.parameters().len() == 0_u32);
-    f.set_parameters(&[(quote { x }, type_of(0_Field))]);
+    f.set_parameters([(quote { x }, type_of(0_Field))].as_vector());
     assert(f.parameters().len() == 1_u32);
     assert(f.return_type() == type_of(()));
     f.set_return_type(type_of(0_Field));

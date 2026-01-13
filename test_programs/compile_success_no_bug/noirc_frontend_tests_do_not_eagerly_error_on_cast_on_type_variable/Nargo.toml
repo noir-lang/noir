@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_do_not_eagerly_error_on_cast_on_type_variable"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

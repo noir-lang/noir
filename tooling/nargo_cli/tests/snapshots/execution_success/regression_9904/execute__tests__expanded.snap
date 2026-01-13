@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub i8 {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        func_1(-1_i8, false)
+    }
+}
+
+unconstrained fn func_1(a: i8, b: bool) -> i8 {
+    if b {
+        1_i8
+    } else {
+        if func_1(a, true) > 0_i8 {
+            -128_i8 % a
+        } else {
+            0_i8
+        }
+    }
+}

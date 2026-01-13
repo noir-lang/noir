@@ -11,8 +11,11 @@
 use std::{collections::BTreeMap, ops::RangeInclusive};
 
 use arbtest::arbtest;
-use noir_ast_fuzzer::{Config, arb_program, visitor::visit_expr};
-use noirc_frontend::monomorphization::ast::{Expression, Type};
+use noir_ast_fuzzer::{Config, arb_program};
+use noirc_frontend::monomorphization::{
+    ast::{Expression, Type},
+    visitor::visit_expr,
+};
 
 #[test]
 fn arb_program_freqs_in_expected_range() {

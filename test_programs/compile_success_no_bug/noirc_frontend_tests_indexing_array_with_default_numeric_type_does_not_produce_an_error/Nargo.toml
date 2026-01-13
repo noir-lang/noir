@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_indexing_array_with_default_numeric_type_does_not_produce_an_error"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

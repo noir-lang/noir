@@ -147,14 +147,28 @@ mod hover_tests {
     }
 
     #[test]
-    async fn hover_on_global() {
+    async fn hover_on_invalid_global() {
         assert_hover(
             "workspace",
             "two/src/lib.nr",
             Position { line: 15, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global some_global: Field = 2"#,
+    global invalid_global: Field = 2"#,
+            // cSpell:enable
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_valid_global() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 122, character: 25 },
+            // cSpell:disable
+            r#"    one::subone
+    global valid_global: Field = 2"#,
             // cSpell:enable
         )
         .await;
@@ -446,7 +460,7 @@ mod hover_tests {
 
 ---
 
- Red, blue, etc."
+Red, blue, etc."
         ));
     }
 
@@ -463,7 +477,7 @@ mod hover_tests {
 
 ---
 
- Red, blue, etc."
+Red, blue, etc."
         ));
     }
 
@@ -478,7 +492,7 @@ mod hover_tests {
 
 ---
 
- Like a tomato"
+Like a tomato"
         ));
     }
 
@@ -493,7 +507,7 @@ mod hover_tests {
 
 ---
 
- Like a tomato"
+Like a tomato"
         ));
     }
 
@@ -511,5 +525,30 @@ mod hover_tests {
             get_hover_text("workspace", "two/src/lib.nr", Position { line: 113, character: 5 })
                 .await;
         assert_eq!(&hover_text, "    i32\n---\nvalue of literal: `-8 (-0x08)`");
+    }
+
+    #[test]
+    async fn hover_on_i32() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 30, character: 30 })
+                .await;
+        assert_eq!(&hover_text, "    i32\n---\nThe 32-bit signed integer type.\n");
+    }
+
+    #[test]
+    async fn hover_on_doc_comment_reference() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 118, character: 11 },
+            // cSpell:disable
+            r#"    one::subone
+    struct SubOneStruct {
+        some_field: i32,
+        some_other_field: Field,
+    }"#,
+            // cSpell:enable
+        )
+        .await;
     }
 }

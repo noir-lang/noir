@@ -36,7 +36,7 @@ fn is_valid_in_abi(typ: &Type) -> bool {
     match typ {
         Type::Unit
         | Type::FmtString(_, _)
-        | Type::Slice(_)
+        | Type::Vector(_)
         | Type::Reference(_, _)
         | Type::Function(_, _, _, _) => false,
 

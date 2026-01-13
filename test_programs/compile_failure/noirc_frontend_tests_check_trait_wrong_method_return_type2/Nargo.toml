@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_check_trait_wrong_method_return_type2"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

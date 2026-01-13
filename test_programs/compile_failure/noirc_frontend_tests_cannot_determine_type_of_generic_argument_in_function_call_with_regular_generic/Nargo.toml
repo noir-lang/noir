@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_ambiguous_associated_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

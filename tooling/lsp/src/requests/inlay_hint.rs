@@ -12,8 +12,7 @@ use noirc_frontend::{
     self, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
-        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
-        UnresolvedTypeData, Visitor,
+        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl, Visitor,
     },
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
@@ -362,7 +361,7 @@ impl Visitor for InlayHintCollector<'_> {
 
     fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
         // Only show inlay hints for let variables that don't have an explicit type annotation
-        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+        if let_statement.r#type.is_none() {
             let_statement.pattern.accept(self);
         };
 
@@ -410,7 +409,8 @@ impl Visitor for InlayHintCollector<'_> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (pattern, typ) in &lambda.parameters {
-            if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+            // Only show inlay hints for parameters that don't have an explicit type annotation
+            if typ.is_none() {
                 pattern.accept(self);
             }
         }
@@ -451,7 +451,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             push_type_parts(size, parts, files);
             parts.push(string_part("]"));
         }
-        Type::Slice(typ) => {
+        Type::Vector(typ) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("]"));
@@ -499,20 +499,32 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 parts.push(string_part(">"));
             }
         }
-        Type::Function(args, return_type, _env, unconstrained) => {
+        Type::Function(args, return_type, env, unconstrained) => {
             if *unconstrained {
                 parts.push(string_part("unconstrained "));
             }
 
-            parts.push(string_part("fn("));
+            if matches!(**env, Type::Unit) {
+                parts.push(string_part("fn("));
+            } else {
+                parts.push(string_part("fn["));
+                push_type_parts(env, parts, files);
+                parts.push(string_part("]("));
+            }
+
             for (index, arg) in args.iter().enumerate() {
                 push_type_parts(arg, parts, files);
                 if index != args.len() - 1 {
                     parts.push(string_part(", "));
                 }
             }
-            parts.push(string_part(") -> "));
-            push_type_parts(return_type, parts, files);
+
+            if matches!(**return_type, Type::Unit) {
+                parts.push(string_part(")"));
+            } else {
+                parts.push(string_part(") -> "));
+                push_type_parts(return_type, parts, files);
+            }
         }
         Type::Reference(typ, false) => {
             parts.push(string_part("&"));
@@ -853,6 +865,42 @@ mod inlay_hints_tests {
                 new_text: ": i32".to_string(),
             }])
         );
+    }
+
+    #[test]
+    async fn test_fn_no_env_no_return_type_hint() {
+        let inlay_hints = get_inlay_hints(131, 133, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 132, character: 9 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            let label = labels.iter().map(|label| label.value.clone()).collect::<String>();
+            assert_eq!(label, ": fn()");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_fn_env_return_type_hint() {
+        let inlay_hints = get_inlay_hints(136, 138, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 137, character: 9 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            let label = labels.iter().map(|label| label.value.clone()).collect::<String>();
+            assert_eq!(label, ": fn[(i32,)]() -> i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
     }
 
     #[test]

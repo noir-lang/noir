@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_mutable_reference_to_array_element_as_func_arg"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

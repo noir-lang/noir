@@ -1,0 +1,7 @@
+[package]
+name = "oracle_return_vector"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.23.0"
+
+[dependencies]

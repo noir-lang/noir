@@ -12,6 +12,7 @@ import { expect } from 'chai';
 const assert_lt_program = assert_lt_json as CompiledCircuit;
 const assert_msg_runtime = assert_msg_json as CompiledCircuit;
 const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
+const assert_raw_payload = assert_raw_payload_json as CompiledCircuit;
 const databus_program = databus_json as CompiledCircuit;
 const assert_inside_brillig_nested = assert_inside_brillig_nested_json as CompiledCircuit;
 
@@ -83,8 +84,9 @@ it('circuit with a raw assert payload should fail with the decoded payload', asy
     y: '5',
   };
   try {
-    await new Noir(assert_raw_payload_json).execute(inputs);
+    await new Noir(assert_raw_payload).execute(inputs);
   } catch (error) {
+    console.log(error);
     const knownError = error as ErrorWithPayload;
     const invalidXYErrorSelector = Object.keys(assert_raw_payload_json.abi.error_types)[0];
     expect(knownError.rawAssertionPayload!.selector).to.equal(invalidXYErrorSelector);

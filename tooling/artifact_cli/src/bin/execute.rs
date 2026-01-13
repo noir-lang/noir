@@ -40,7 +40,7 @@ fn main() {
         .init();
 
     if let Err(e) = start_cli() {
-        eprintln!("{e:?}");
+        eprintln!("{e:#}");
         std::process::exit(1);
     }
 }

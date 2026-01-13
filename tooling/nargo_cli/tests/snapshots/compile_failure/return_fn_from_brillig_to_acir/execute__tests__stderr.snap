@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Functions cannot be returned from an unconstrained runtime to a constrained runtime
+   ┌─ src/main.nr:12:18
+   │
+12 │         unsafe { inc_or_dec(c) };
+   │                  -------------
+   │
+
+Aborting due to 1 previous error

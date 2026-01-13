@@ -1,5 +1,6 @@
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use std::hash::BuildHasher;
 
 use crate::Location;
 
@@ -22,30 +23,6 @@ impl CallStackId {
 
     pub fn is_root(&self) -> bool {
         self.0 == 0
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
-pub struct LocationNodeDebugInfo {
-    pub parent: Option<CallStackId>,
-    pub value: Location,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
-pub struct LocationTree {
-    pub locations: Vec<LocationNodeDebugInfo>,
-}
-
-impl LocationTree {
-    /// Construct a CallStack from a CallStackId
-    pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
-        let mut result = Vec::new();
-        while let Some(parent) = self.locations[call_stack.index()].parent {
-            result.push(self.locations[call_stack.index()].value);
-            call_stack = parent;
-        }
-        result.reverse();
-        result
     }
 }
 
@@ -89,7 +66,7 @@ impl CallStackHelper {
         result
     }
 
-    /// Returns a new CallStackId which extends the call_stack with the provided call_stack.
+    /// Returns a new [CallStackId] which extends the `call_stack` with the provided `locations`.
     pub fn extend_call_stack(
         &mut self,
         mut call_stack: CallStackId,
@@ -101,16 +78,16 @@ impl CallStackHelper {
         call_stack
     }
 
-    /// Adds a location to the call stack
+    /// Adds a location to the call stack, maintaining the location cache along the way.
     pub fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
-        let key = fxhash::hash64(&location);
+        let key = rustc_hash::FxBuildHasher.hash_one(location);
         if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key) {
             if self.locations[result.index()].value == location {
                 return *result;
             }
         }
         let new_location = LocationNode::new(Some(call_stack), location);
-        let key = fxhash::hash64(&new_location.value);
+        let key = rustc_hash::FxBuildHasher.hash_one(new_location.value);
         self.locations.push(new_location);
         let new_location_id = CallStackId::new(self.locations.len() - 1);
 
@@ -141,19 +118,8 @@ impl CallStackHelper {
         }
     }
 
-    /// Get (or create) a CallStackId corresponding to the given locations
+    /// Get (or create) a CallStackId corresponding to the given locations.
     pub fn get_or_insert_locations(&mut self, locations: &CallStack) -> CallStackId {
         self.extend_call_stack(CallStackId::root(), locations)
-    }
-
-    // Clone the locations into a LocationTree
-    pub fn to_location_tree(&self) -> LocationTree {
-        LocationTree {
-            locations: self
-                .locations
-                .iter()
-                .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
-                .collect(),
-        }
     }
 }

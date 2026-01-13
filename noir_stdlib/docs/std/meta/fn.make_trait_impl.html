@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<script defer src="../../nargo_doc.js"></script>
+<title>Function make_trait_impl documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">make_trait_impl</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2>In module meta</h2>
+<h3>Modules</h3><ul class="item-list">
+<li><a href="ctstring/index.html">ctstring</a></div></li>
+<li><a href="op/index.html">op</a></div></li>
+<li><a href="typ/index.html">typ</a></div></li>
+</ul>
+<h3>Type aliases</h3><ul class="item-list">
+<li><a href="type.DeriveFunction.html">DeriveFunction</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.derive.html">derive</a></div></li>
+<li><a href="fn.derive_via.html">derive_via</a></div></li>
+<li><a href="fn.make_trait_impl.html">make_trait_impl</a></div></li>
+<li><a href="fn.type_of.html">type_of</a></div></li>
+<li><a href="fn.unquote.html">unquote</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">meta</a></div>
+<h1>Function <span class="fn">make_trait_impl</span></h1>
+<pre><code>pub comptime fn make_trait_impl&lt;Env1, Env2&gt;(
+    s: <a href="../../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>,
+    trait_name: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>,
+    function_signature: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>,
+    for_each_field: fn[Env1](<a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>,
+    join_fields_with: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>,
+    body: fn[Env2](<a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>,
+) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></pre>
+
+<div class="comments">
+<p><code>make_impl</code> is a helper function to make a simple impl, usually while deriving a trait.
+This impl has a couple assumptions:</p>
+<ol>
+<li>The impl only has one function, with the signature <code>function_signature</code></li>
+<li>The trait itself does not have any generics.</li>
+</ol>
+<p>While these assumptions are met, <code>make_impl</code> will create an impl from a TypeDefinition,
+automatically filling in the required generics from the type, along with the where clause.
+The function body is created by mapping each field with <code>for_each_field</code> and joining the
+results with <code>join_fields_with</code>. The result of this is passed to the <code>body</code> function for
+any final processing - e.g. wrapping each field in a <code>StructConstructor { .. }</code> expression.</p>
+<p>See <code>derive_eq</code> and <code>derive_default</code> for example usage.</p>
+</div>
+</main>
+</span>
+</body>
+</html>

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_no_such_field_in_match_struct_pattern"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

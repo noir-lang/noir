@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_incorrect_generic_count_on_type_alias"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

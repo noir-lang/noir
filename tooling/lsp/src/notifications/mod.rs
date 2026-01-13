@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::{BTreeMap, HashSet};
 use std::ops::ControlFlow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
 use crate::{
@@ -260,7 +260,6 @@ pub(crate) fn fake_stdlib_workspace() -> Workspace {
         entry_path: PathBuf::from_str("fake_entry_path.nr").unwrap(),
         name: CrateName::from_str("fake_std").unwrap(),
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     Workspace {
         root_dir: PathBuf::from_str("std").unwrap(),
@@ -283,7 +282,7 @@ fn publish_diagnostics(
     for custom_diagnostic in custom_diagnostics.into_iter() {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
-        if let Ok(uri) = Url::from_file_path(path) {
+        if let Some(uri) = uri_from_path(path) {
             if let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
             {
@@ -356,6 +355,7 @@ fn custom_diagnostic_to_diagnostic(
     let call_stack = diagnostic
         .call_stack
         .into_iter()
+        .rev()
         .filter_map(|frame| call_stack_frame_to_related_information(frame, files, fm));
     let related_information: Vec<_> = secondaries.chain(notes).chain(call_stack).collect();
 
@@ -380,10 +380,20 @@ fn secondary_to_related_information(
 ) -> Option<DiagnosticRelatedInformation> {
     let secondary_file = secondary.location.file;
     let path = fm.path(secondary_file)?;
-    let uri = Url::from_file_path(path).ok()?;
+    let uri = uri_from_path(path)?;
     let range = byte_span_to_range(files, secondary_file, secondary.location.span.into())?;
     let message = secondary.message;
     Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
+}
+
+fn uri_from_path(path: &Path) -> Option<Url> {
+    if let Ok(uri) = Url::from_file_path(path) {
+        Some(uri)
+    } else if path.starts_with("std") {
+        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+    } else {
+        None
+    }
 }
 
 fn call_stack_frame_to_related_information(
@@ -392,7 +402,7 @@ fn call_stack_frame_to_related_information(
     fm: &FileManager,
 ) -> Option<DiagnosticRelatedInformation> {
     let path = fm.path(frame.file)?;
-    let uri = Url::from_file_path(path).ok()?;
+    let uri = uri_from_path(path)?;
     let range = byte_span_to_range(files, frame.file, frame.span.into())?;
     Some(DiagnosticRelatedInformation {
         location: lsp_types::Location { uri, range },

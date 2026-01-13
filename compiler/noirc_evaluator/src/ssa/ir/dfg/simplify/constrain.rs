@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::ir::{
@@ -15,10 +17,20 @@ pub(super) fn decompose_constrain(
     msg: &Option<ConstrainError>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
-    if lhs == rhs {
+    let mut instructions = Vec::new();
+
+    // Sometimes when decomposing a constraint we may generate further constraints to decompose.
+    // A recursive version can hit stack overflow, so here we use a stack for an interative approach.
+    // Each entry in the stack represents `constrain lhs == rhs`.
+    let mut constrains = VecDeque::new();
+    constrains.push_back((lhs, rhs));
+
+    while let Some((lhs, rhs)) = constrains.pop_front() {
         // Remove trivial case `assert_eq(x, x)`
-        Vec::new()
-    } else {
+        if lhs == rhs {
+            continue;
+        }
+
         match (&dfg[lhs], &dfg[rhs]) {
             (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
@@ -40,8 +52,7 @@ pub(super) fn decompose_constrain(
                         //
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
-
-                        vec![Instruction::Constrain(lhs, rhs, msg.clone())]
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
@@ -65,11 +76,8 @@ pub(super) fn decompose_constrain(
                         let one = FieldElement::one();
                         let one = dfg.make_constant(one, NumericType::bool());
 
-                        [
-                            decompose_constrain(lhs, one, msg, dfg),
-                            decompose_constrain(rhs, one, msg, dfg),
-                        ]
-                        .concat()
+                        constrains.push_back((lhs, one));
+                        constrains.push_back((rhs, one));
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
@@ -93,11 +101,8 @@ pub(super) fn decompose_constrain(
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
-                        [
-                            decompose_constrain(lhs, zero, msg, dfg),
-                            decompose_constrain(rhs, zero, msg, dfg),
-                        ]
-                        .concat()
+                        constrains.push_back((lhs, zero));
+                        constrains.push_back((rhs, zero));
                     }
 
                     Instruction::Not(value) => {
@@ -116,10 +121,13 @@ pub(super) fn decompose_constrain(
                         let reversed_constant = FieldElement::from(!constant.is_one());
                         let reversed_constant =
                             dfg.make_constant(reversed_constant, NumericType::bool());
-                        decompose_constrain(value, reversed_constant, msg, dfg)
+
+                        constrains.push_back((value, reversed_constant));
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                    _ => {
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+                    }
                 }
             }
 
@@ -149,7 +157,7 @@ pub(super) fn decompose_constrain(
 
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
-                        decompose_constrain(lhs, zero, msg, dfg)
+                        constrains.push_back((lhs, zero));
                     }
 
                     // Casting a value just to constrain it to a constant.
@@ -159,7 +167,7 @@ pub(super) fn decompose_constrain(
                     Instruction::Cast(val, _) => {
                         let original_typ = dfg.type_of_value(val).unwrap_numeric();
                         let original_typ_max_value =
-                            original_typ.max_value().map(|max_value| *constant < max_value);
+                            original_typ.max_value().map(|max_value| *constant <= max_value);
 
                         match original_typ_max_value {
                             Ok(true) => {
@@ -167,17 +175,23 @@ pub(super) fn decompose_constrain(
                                 // value.
                                 let downcasted_constant =
                                     dfg.make_constant(*constant, original_typ);
-                                vec![Instruction::Constrain(val, downcasted_constant, msg.clone())]
+                                instructions.push(Instruction::Constrain(
+                                    val,
+                                    downcasted_constant,
+                                    msg.clone(),
+                                ));
                             }
                             Ok(false) | Err(_) => {
                                 // Constant does not fit in original type or type does not have `max_value` defined.
                                 // We then leave in the cast.
-                                vec![Instruction::Constrain(lhs, rhs, msg.clone())]
+                                instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
                             }
                         }
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                    _ => {
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+                    }
                 }
             }
 
@@ -192,15 +206,25 @@ pub(super) fn decompose_constrain(
                     (Instruction::Cast(original_lhs, _), Instruction::Cast(original_rhs, _))
                         if dfg.type_of_value(*original_lhs) == dfg.type_of_value(*original_rhs) =>
                     {
-                        vec![Instruction::Constrain(*original_lhs, *original_rhs, msg.clone())]
+                        instructions.push(Instruction::Constrain(
+                            *original_lhs,
+                            *original_rhs,
+                            msg.clone(),
+                        ));
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                    _ => {
+                        instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+                    }
                 }
             }
-            _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+            _ => {
+                instructions.push(Instruction::Constrain(lhs, rhs, msg.clone()));
+            }
         }
     }
+
+    instructions
 }
 
 #[cfg(test)]
@@ -276,6 +300,157 @@ mod tests {
             constrain v0 == u1 1
             constrain v1 == u1 1
             constrain v2 == u1 0
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn decompose_not_condition() {
+        let src_template = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = not v0
+                constrain v1 == u1 {}
+                return
+            }
+            ";
+
+        let src = src_template.replace("{}", "1");
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            constrain v0 == u1 0
+            return
+        }
+        ");
+
+        let src = src_template.replace("{}", "0");
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            constrain v0 == u1 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn decompose_or_condition() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u8, v1: u8):
+                v2 = or v0, v1
+                constrain v2 == u1 0
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = or v0, v1
+            constrain v0 == u8 0
+            constrain v1 == u8 0
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn remove_casts_from_same_type() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = cast v0 as u8
+                v3 = cast v1 as u8
+                constrain v2 == v3
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = cast v0 as u8
+            v3 = cast v1 as u8
+            constrain v0 == v1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_remove_casts_from_different_types() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u8):
+                v2 = cast v0 as u16
+                v3 = cast v1 as u16
+                constrain v2 == v3
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u8):
+            v2 = cast v0 as u16
+            v3 = cast v1 as u16
+            constrain v2 == v3
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_constants_with_pre_cast_type() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u8):
+                v1 = cast v0 as u16
+                constrain v1 == u16 255
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            constrain v0 == u8 255
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_cast_constant_to_incompatible_type() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u8):
+                v1 = cast v0 as u16
+                constrain v1 == u16 256
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            constrain v1 == u16 256
             return
         }
         ");

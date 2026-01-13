@@ -21,6 +21,6 @@ fn plain_store() -> bool {
 fn store_through_pointer() -> bool {
     let a: &mut (bool,) = &mut (false,);
     let b: &mut bool = &mut a.0;
-    *(a) = (true,);
+    *a = (true,);
     *b
 }

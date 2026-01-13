@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_does_not_error_on_return_values_after_block_expression"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

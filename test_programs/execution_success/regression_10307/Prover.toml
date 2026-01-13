@@ -1,0 +1,4 @@
+a = [[true, false], [false, false], [false, true]]
+b = "0x00000000000000000000000000000000000000000000000000000000d98e8c43"
+c = false
+return = false

@@ -1,0 +1,7 @@
+[package]
+name = "ecdsa_secp256r1_msg_equals_order"
+description = "ECDSA secp256r1 verification should fail when hashed_msg equals ORDER"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_match_integer_type_mismatch_in_pattern"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
