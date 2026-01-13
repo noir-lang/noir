@@ -4,6 +4,7 @@ use acvm::{
     AcirField,
     acir::brillig::{
         BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
+        lengths::{SemanticLength, SemiFlattenedLength},
     },
     brillig_vm::offsets,
 };
@@ -12,7 +13,7 @@ use super::ProcedureId;
 use crate::brillig::{
     BrilligVariable,
     brillig_ir::{
-        BrilligContext, ReservedRegisters, assert_u32, assert_usize,
+        BrilligContext, ReservedRegisters, assert_u32,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -39,7 +40,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(source_array_pointer_arg, source_array.pointer);
         self.usize_const_instruction(
             source_array_memory_size_arg,
-            (source_array.size + assert_usize(offsets::ARRAY_META_COUNT)).into(),
+            (source_array.size.0 + offsets::ARRAY_META_COUNT).into(),
         );
 
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
@@ -102,7 +103,8 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     data: &str,
     brillig_context: &mut BrilligContext<F, Registers>,
 ) -> Allocated<ValueOrArray, Registers> {
-    let brillig_array = brillig_context.allocate_brillig_array(data.len());
+    let brillig_array =
+        brillig_context.allocate_brillig_array(SemiFlattenedLength(assert_u32(data.len())));
 
     // Allocate space on the heap.
     brillig_context.codegen_initialize_array(*brillig_array);
@@ -114,8 +116,8 @@ fn literal_string_to_value<F: AcirField + DebugToString, Registers: RegisterAllo
     initialize_constant_string(brillig_context, data, *items_pointer);
 
     // Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
-    items_pointer
-        .map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size: assert_u32(data.len()) }))
+    let size = SemiFlattenedLength(assert_u32(data.len()));
+    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size }))
 }
 
 /// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
@@ -172,14 +174,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         let newline_type = u1_type.clone();
-        let size = message_with_func_name.len();
-        let msg_type =
-            HeapValueType::Array { value_types: vec![u8_type.clone()], size: assert_u32(size) };
+        let size = SemanticLength(assert_u32(message_with_func_name.len()));
+        let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
-        let size = PRINT_U32_TYPE_STRING.len();
-        let metadata_type =
-            HeapValueType::Array { value_types: vec![u8_type], size: assert_u32(size) };
+        let size = SemanticLength(assert_u32(PRINT_U32_TYPE_STRING.len()));
+        let metadata_type = HeapValueType::Array { value_types: vec![u8_type], size };
         let is_fmt_string_type = u1_type;
 
         let input_types = [

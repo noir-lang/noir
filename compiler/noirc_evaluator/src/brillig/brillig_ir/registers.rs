@@ -34,12 +34,12 @@ use std::{
     rc::Rc,
 };
 
-use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
+use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress, lengths::SemiFlattenedLength};
 use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
 use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, assert_u32,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     brillig_variable::{BrilligArray, BrilligVector},
 };
 
@@ -544,7 +544,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// That is done by [BrilligContext::codegen_initialize_array].
     pub(crate) fn allocate_brillig_array(
         &mut self,
-        size: usize,
+        size: SemiFlattenedLength,
     ) -> Allocated<BrilligArray, Registers> {
         self.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
@@ -557,8 +557,11 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     }
 
     /// Allocate a [HeapArray].
-    pub(crate) fn allocate_heap_array(&mut self, size: usize) -> Allocated<HeapArray, Registers> {
-        self.allocate_register().map(|pointer| HeapArray { pointer, size: assert_u32(size) })
+    pub(crate) fn allocate_heap_array(
+        &mut self,
+        size: SemiFlattenedLength,
+    ) -> Allocated<HeapArray, Registers> {
+        self.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
 
     /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].

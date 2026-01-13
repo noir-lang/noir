@@ -49,12 +49,12 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 /// Converts a u32 value to usize, panicking if the conversion fails.
-fn assert_usize(value: u32) -> usize {
+pub(crate) fn assert_usize(value: u32) -> usize {
     value.try_into().expect("Failed conversion from u32 to usize")
 }
 
 /// Converts a usize value to u32, panicking if the conversion fails.
-fn assert_u32(value: usize) -> u32 {
+pub(crate) fn assert_u32(value: usize) -> u32 {
     value.try_into().expect("Failed conversion from usize to u32")
 }
 
