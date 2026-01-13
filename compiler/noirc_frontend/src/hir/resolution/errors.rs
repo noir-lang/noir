@@ -74,6 +74,8 @@ pub enum ResolverError {
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
+    #[error("Oracle functions cannot return references")]
+    OracleReturnsReference { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -110,6 +112,8 @@ pub enum ResolverError {
     NoPredicatesAttributeOnEntryPoint { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident, location: Location },
+    #[error("#[inline_never] attribute is only allowed on unconstrained functions")]
+    InlineNeverAttributeOnConstrained { ident: Ident, location: Location },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
     #[error("Invalid syntax in macro call")]
@@ -202,6 +206,14 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, ident: Ident },
+    #[error("Associated type in `impl` without body")]
+    AssociatedTypeInImplWithoutBody { ident: Ident },
+    #[error("#[varargs] can only be applied to comptime functions")]
+    VarargsOnNonComptimeFunction { location: Location },
+    #[error("#[varargs] requires its function to have at least one parameter")]
+    VarargsOnFunctionWithNoParameters { location: Location },
+    #[error("The last parameter of a #[varargs] function must be a vector")]
+    VarargsLastParameterIsNotAVector { location: Location },
 }
 
 impl ResolverError {
@@ -262,8 +274,10 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
+            | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -271,7 +285,10 @@ impl ResolverError {
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
-            | ResolverError::BuiltinWithBody { location } => *location,
+            | ResolverError::BuiltinWithBody { location }
+            | ResolverError::VarargsOnNonComptimeFunction { location }
+            | ResolverError::VarargsOnFunctionWithNoParameters { location }
+            | ResolverError::VarargsLastParameterIsNotAVector { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -280,7 +297,8 @@ impl ResolverError {
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
             | ResolverError::DataBusOnNonEntryPoint { ident, .. }
-            | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
+            | ResolverError::PatternBoundMoreThanOnce { ident }
+            | ResolverError::AssociatedTypeInImplWithoutBody { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
             }
@@ -487,6 +505,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::OracleReturnsReference { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
@@ -610,6 +635,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
+                diag
+            }
+            ResolverError::InlineNeverAttributeOnConstrained { ident, location } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[inline_never] attribute on constrained function {ident}. Only allowed on unconstrained functions"),
+                    "misplaced #[inline_never] attribute".to_string(),
+                    *location,
+                );
+
+                diag.add_note("The `#[inline_never]` attribute prevents inlining of unconstrained functions".to_owned());
                 diag
             }
             ResolverError::UnquoteUsedOutsideQuote { location } => {
@@ -892,6 +927,34 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
+            },
+            ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
+                Diagnostic::simple_error(
+                    "Associated type in impl without body".to_string(),
+                    "Provide a definition for the type: ` = <type>;`".to_string(),
+                    ident.location(),
+                )
+            },
+            ResolverError::VarargsOnNonComptimeFunction { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] can only be applied to comptime functions".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsOnFunctionWithNoParameters { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] requires its function to have at least one parameter".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsLastParameterIsNotAVector { location } => {
+                Diagnostic::simple_error(
+                    "The last parameter of a #[varargs] function must be a vector".to_string(),
+                    String::new(),
+                    *location,
+                )
             },
         }
     }

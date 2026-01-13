@@ -374,7 +374,8 @@ fn does_not_fail_to_parse_macro_on_parser_warning() {
 
 #[test]
 fn quote_code_fragments() {
-    // TODO: have the error also point to `contact!` as a secondary
+    // TODO(https://github.com/noir-lang/noir/issues/10601): have the error
+    // also point to `concat!` as a secondary
     // This test ensures we can quote (and unquote/splice) code fragments
     // which by themselves are not valid code. They only need to be valid
     // by the time they are unquoted into the macro's call site.
@@ -754,10 +755,8 @@ fn multiple_comptime_blocks_share_scope() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
-fn nested_comptime_accesses_outer_comptime_variable() {
+fn nested_comptime_statement_accesses_outer_comptime_variable() {
     let src = r#"
         fn main() {
             comptime {
@@ -772,9 +771,21 @@ fn nested_comptime_accesses_outer_comptime_variable() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
+fn nested_comptime_expression_accesses_outer_comptime_variable() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let x = 5;
+                let y = comptime { x + 1 } ;
+                assert_eq(y, 6);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn nested_comptime_accesses_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -788,9 +799,7 @@ fn nested_comptime_accesses_outer_comptime_func_variable() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
 fn nested_comptime_with_mut_variable() {
     let src = r#"
         fn main() {
@@ -806,9 +815,7 @@ fn nested_comptime_with_mut_variable() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
 fn nested_comptime_mut_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -822,15 +829,14 @@ fn nested_comptime_mut_outer_comptime_func_variable() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
 fn comptime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         comptime fn helper(x: Field) -> Field {
             comptime {
                 assert_eq(x, 5);
             }
+            x + 1
         }
 
         fn main() {
@@ -844,15 +850,16 @@ fn comptime_function_with_comptime_block_called_from_comptime() {
     assert_no_errors(src);
 }
 
-// Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic]
 fn runtime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         fn helper(x: Field) -> Field {
             comptime {
                 assert_eq(x, 5);
+                          ^ Non-comptime variable `x` referenced in comptime code
+                          ~ Non-comptime variables can't be used in comptime code
             }
+            x + 1
         }
 
         fn main() {
@@ -863,7 +870,7 @@ fn runtime_function_with_comptime_block_called_from_comptime() {
             }
         }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1024,7 +1031,7 @@ fn comptime_uhashmap_of_vectors() {
     }
 
     pub fn example_umap<T>() -> UHashMap<u32, T> {
-        let _table = &[];
+        let _table = @[];
         let _len = 0;
         UHashMap { _table, _len }
     }
@@ -1071,14 +1078,14 @@ fn comptime_uhashmap_of_vectors_attribute() {
     impl<K, V> UHashMap<K, V> {
         fn default_umap(zeroed_value: (K, V)) -> UHashMap<K, V>
         {
-            let _table = &[Slot::default_slot(zeroed_value)];
+            let _table = @[Slot::default_slot(zeroed_value)];
             let _len = 0;
             UHashMap { _table, _len }
         }
     }
 
     comptime fn empty_function_definition_vector() -> [FunctionDefinition] {
-        &[]
+        @[]
     }
 
     comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =
@@ -1097,6 +1104,84 @@ fn comptime_uhashmap_of_vectors_attribute() {
     }
 
     fn main() { }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_11016() {
+    let src = "
+    fn main() {
+        let _s1 = comptime {
+            foo
+            ^^^ cannot find `foo` in this scope
+            ~~~ not found in this scope
+        };
+        call!(quote {});
+    }
+
+    comptime fn call(x: Quoted) -> Quoted {
+        quote { $x() }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_non_comptime_function() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] can only be applied to comptime functions
+    fn main() {
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_arguments() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] requires its function to have at least one parameter
+    pub comptime fn foo() {}
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_last_vector_parameter() {
+    let src = "
+    #[foo(1, 2, 3, 4)] // Make sure no error is triggered here because of the varargs error
+    #[varargs]
+    pub comptime fn foo(_: FunctionDefinition, _x: Field, _y: Field) {}
+                                                          ^^ The last parameter of a #[varargs] function must be a vector
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unify_comptime_block_expression_with_target_type() {
+    let src = r#"
+    fn main() {
+        let _: u8 = comptime { 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unify_comptime_block_statement_with_target_type() {
+    let src = r#"
+    fn main() {
+    }
+
+    pub fn foo() -> u8 {
+        comptime { 1 }
+    }
     "#;
     assert_no_errors(src);
 }

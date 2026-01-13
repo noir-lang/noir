@@ -59,6 +59,7 @@ pub enum Type {
 
     /// `FmtString(N, Vec<E>)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
+    /// and where N is either a type variable of some kind or a Type::Constant
     FmtString(Box<Type>, Box<Type>),
 
     /// The unit type `()`.
@@ -67,18 +68,18 @@ pub enum Type {
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
-    /// A user-defined struct type. The `Shared<StructType>` field here refers to
-    /// the shared definition for each instance of this struct type. The `Vec<Type>`
-    /// represents the generic arguments (if any) to this struct type.
+    /// A user-defined struct or enum type. The `Shared<DataType>` field here refers to
+    /// the shared definition for each instance of this struct or enum type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this struct or enum type.
     DataType(Shared<DataType>, Vec<Type>),
 
-    /// A user-defined alias to another type. Similar to a Struct, this carries a shared
+    /// A user-defined alias to another type. Similar to a struct, this carries a shared
     /// reference to the definition of the alias along with any generics that may have
     /// been applied to the alias.
     Alias(Shared<TypeAlias>, Vec<Type>),
 
     /// TypeVariables are stand-in variables for some type which is not yet known.
-    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// They are not to be confused with NamedGenerics. While the latter mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
     /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
@@ -116,7 +117,7 @@ pub enum Type {
     /// &T
     Reference(Box<Type>, /*mutable*/ bool),
 
-    /// A type generic over the given type variables.
+    /// A type that's generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
@@ -199,7 +200,7 @@ impl Kind {
     }
 
     pub(crate) fn u32() -> Self {
-        Self::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))
+        Self::numeric(Type::u32())
     }
 
     pub(crate) fn follow_bindings(&self) -> Self {
@@ -295,7 +296,7 @@ impl std::fmt::Display for Kind {
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
             Kind::IntegerOrField => write!(f, "intOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
+            Kind::Numeric(typ) => write!(f, "{typ}"),
         }
     }
 }
@@ -356,7 +357,7 @@ pub struct DataType {
     /// since these will handle applying generic arguments to fields as well.
     body: TypeBody,
 
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub location: Location,
 
     pub must_use: MustUse,
@@ -411,7 +412,7 @@ pub type GenericTypeVars = Vec<TypeVariable>;
 /// Corresponds to generic lists such as `<T, U>` with additional
 /// information gathered during name resolution that is necessary
 /// correctly resolving types.
-pub type Generics = Vec<ResolvedGeneric>;
+pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
@@ -465,7 +466,7 @@ impl DataType {
         id: TypeId,
         name: Ident,
         location: Location,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
     ) -> DataType {
         DataType {
@@ -610,7 +611,11 @@ impl DataType {
         &self,
         generic_args: &[Type],
     ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
-        assert_eq!(self.generics.len(), generic_args.len());
+        assert_eq!(
+            self.generics.len(),
+            generic_args.len(),
+            "get_fields_substitutions: expected the number of generics to equal the number of generic_args"
+        );
 
         self.generics
             .iter()
@@ -716,7 +721,7 @@ pub struct TypeAlias {
     pub name: Ident,
     pub id: TypeAliasId,
     pub typ: Type,
-    pub generics: Generics,
+    pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
@@ -760,7 +765,7 @@ impl TypeAlias {
         name: Ident,
         location: Location,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -> TypeAlias {
@@ -770,7 +775,7 @@ impl TypeAlias {
     pub fn set_type_and_generics(
         &mut self,
         new_typ: Type,
-        new_generics: Generics,
+        new_generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         assert_eq!(self.typ, Type::Error);
@@ -1024,6 +1029,14 @@ impl TypeVariable {
             _ => false,
         }
     }
+
+    pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
+    }
+
+    pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
+    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1211,6 +1224,10 @@ impl Type {
     }
 
     pub fn default_int_type() -> Type {
+        Self::u32()
+    }
+
+    pub fn u32() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
@@ -1559,17 +1576,19 @@ impl Type {
                     .evaluate_to_u32(*location)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                length * typ.field_count(location)
+                length.checked_mul(typ.field_count(location)).expect("Array length overflow")
             }
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if let Some(fields) = struct_type.get_fields(args) {
                     fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
                 } else if let Some(variants) = struct_type.get_variants(args) {
-                    let mut size = 1; // start with the tag size
+                    let mut size: u32 = 1; // start with the tag size
                     for (_, args) in variants {
                         for arg in args {
-                            size += arg.field_count(location);
+                            size = size
+                                .checked_add(arg.field_count(location))
+                                .expect("Variant size overflow");
                         }
                     }
                     size
@@ -1579,9 +1598,9 @@ impl Type {
             }
             Type::CheckedCast { to, .. } => to.field_count(location),
             Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
-            }
+            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
+                acc.checked_add(field_typ.field_count(location)).expect("Tuple size overflow")
+            }),
             Type::String(size) => size
                 .evaluate_to_u32(*location)
                 .expect("Cannot have variable sized strings as a parameter to main"),
@@ -1597,7 +1616,9 @@ impl Type {
             | Type::Quoted(_)
             | Type::Vector(_)
             | Type::InfixExpr(..)
-            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
+            | Type::Error => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
         }
     }
 
@@ -2011,7 +2032,7 @@ impl Type {
         self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
     }
 
-    /// evaluate_to_field_element with optional generic arithmetic simplifications
+    /// `evaluate_to_field_element` with optional generic arithmetic simplifications
     pub(crate) fn evaluate_to_signed_field_helper(
         &self,
         kind: &Kind,
@@ -2757,6 +2778,27 @@ impl Type {
     }
 }
 
+impl From<u8> for Type {
+    fn from(value: u8) -> Self {
+        Type::Constant(
+            value.into(),
+            Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        )
+    }
+}
+
+impl From<u32> for Type {
+    fn from(value: u32) -> Self {
+        Type::Constant(value.into(), Kind::u32())
+    }
+}
+
+impl From<SignedField> for Type {
+    fn from(value: SignedField) -> Self {
+        Type::Constant(value, Kind::numeric(Type::FieldElement))
+    }
+}
+
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
@@ -2766,7 +2808,7 @@ impl BinaryTypeOperator {
         kind: &Kind,
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
-        match kind.follow_bindings().integral_maximum_size() {
+        match kind.integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
                 BinaryTypeOperator::Subtraction => Ok(a - b),
@@ -2818,7 +2860,7 @@ impl BinaryTypeOperator {
                         BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                     };
 
-                    Ok(result.into())
+                    kind.ensure_value_fits(result.into(), location)
                 }
             }
         }

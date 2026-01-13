@@ -276,6 +276,10 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
+        if let Some(return_data) = function.dfg.data_bus.return_data {
+            self.used_values.insert(return_data);
+        }
+
         // Indices of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
         let mut possible_index_out_of_bounds_indices = Vec::new();
@@ -343,17 +347,9 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
+        can_be_eliminated_if_unused(instruction, function, self.flattened, &self.used_values) && {
             let results = function.dfg.instruction_results(instruction_id);
-            let results_unused = results.iter().all(|result| !self.used_values.contains(result));
-            results_unused && !function.dfg.is_returned_in_databus(instruction_id)
-        } else if let Instruction::Call { func, arguments } = instruction {
-            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
-        } else {
-            // If the instruction has side effects we should never remove it.
-            false
+            results.iter().all(|result| !self.used_values.contains(result))
         }
     }
 
@@ -440,6 +436,7 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     flattened: bool,
+    used_values: &HashSet<ValueId>,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -497,7 +494,8 @@ fn can_be_eliminated_if_unused(
         | RangeCheck { .. } => false,
 
         // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-        Call { func, .. } => match function.dfg[*func] {
+        Call { func, arguments } => match function.dfg[*func] {
+            Value::Intrinsic(Intrinsic::AsWitness) if !used_values.contains(&arguments[0]) => true,
             Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
             // All foreign functions are treated as having side effects.
@@ -561,7 +559,7 @@ fn die_post_check(func: &Function, flattened: bool) {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use im::vector;
@@ -1301,5 +1299,21 @@ mod test {
         "#;
 
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn keeps_unused_as_witness_databus_return_value() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v2
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = load v1 -> Field
+            call as_witness(v2)
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
     }
 }

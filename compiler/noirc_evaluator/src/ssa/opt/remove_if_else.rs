@@ -107,6 +107,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -239,25 +240,12 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        match self.vector_capacity_change(
-                            context.dfg,
-                            intrinsic,
-                            arguments,
-                            results,
-                        ) {
-                            SizeChange::None => (),
-                            SizeChange::SetTo { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| c);
-                            }
-                            SizeChange::Inc { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| c + 1);
-                            }
-                            SizeChange::Dec { old, new } => {
-                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
-                                // would otherwise underflow.
-                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
-                            }
-                        }
+                        self.vector_constant_size_override(context.dfg, intrinsic, arguments);
+
+                        let size_change =
+                            self.vector_capacity_change(context.dfg, intrinsic, arguments, results);
+
+                        self.change_size(size_change, context);
                     }
                 }
                 // Track vector sizes through array set instructions
@@ -269,6 +257,31 @@ impl Context {
             }
             Ok(())
         })
+    }
+
+    fn change_size(&mut self, size_change: SizeChange, context: &mut SimpleOptimizationContext) {
+        match size_change {
+            SizeChange::None => (),
+            SizeChange::SetTo { old, new } => {
+                self.set_capacity(context.dfg, old, new, |c| c);
+            }
+            SizeChange::Inc { old, new } => {
+                self.set_capacity(context.dfg, old, new, |c| {
+                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
+                    c.checked_add(1).expect("Vector capacity overflow")
+                });
+            }
+            SizeChange::Dec { old, new } => {
+                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
+                // would otherwise underflow.
+                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
+            }
+            SizeChange::Many(changes) => {
+                for change in changes {
+                    self.change_size(change, context);
+                }
+            }
+        }
     }
 
     /// Set the capacity of the new vector based on the capacity of the old array/vector.
@@ -304,6 +317,32 @@ impl Context {
                 let dbg_value = &dfg[value];
                 unreachable!("ICE: No size for vector {value} = {dbg_value:?}")
             }
+        }
+    }
+
+    /// If we have already determined a constant for the vector length, we can override the backing capacity
+    /// of the vector contents. There is no need to use the backing capacity if we have already determined the actual length of the vector.
+    /// In these situations, using the capacity over the vector length would require laying down more instructions to handle the extra padding
+    /// while preventing downstream passes or runtimes from implementing optimizations using the vector length.
+    fn vector_constant_size_override(
+        &mut self,
+        dfg: &DataFlowGraph,
+        intrinsic: Intrinsic,
+        arguments: &[ValueId],
+    ) {
+        match intrinsic {
+            Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorRemove
+            | Intrinsic::VectorPopFront => {
+                if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
+                    self.vector_sizes
+                        .insert(arguments[1], const_len.try_to_u32().expect("Type should be u32"));
+                }
+            }
+            _ => {}
         }
     }
 
@@ -367,20 +406,21 @@ impl Context {
                     arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
                 let results_types =
                     results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+
                 assert_eq!(arguments_types, results_types);
-                let old =
-                    *arguments.last().expect("expected at least one argument to Hint::BlackBox");
-                if self.vector_sizes.contains_key(&old) {
-                    if arguments.len() != 1 {
-                        assert!(arguments.len() == 2);
-                        assert!(matches!(arguments_types[0], Type::Numeric(_)));
+
+                let mut changes = Vec::new();
+                for (i, argument) in arguments.iter().enumerate() {
+                    if self.vector_sizes.contains_key(argument)
+                        && matches!(arguments_types[i], Type::Vector(_))
+                    {
+                        assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                        let new = results[i];
+                        changes.push(SizeChange::SetTo { old: *argument, new });
                     }
-                    assert!(matches!(arguments_types.last().unwrap(), Type::Vector(_)));
-                    let new = *results.last().unwrap();
-                    SizeChange::SetTo { old, new }
-                } else {
-                    SizeChange::None
                 }
+
+                SizeChange::Many(changes)
             }
 
             // These cases don't affect vector capacities
@@ -420,6 +460,7 @@ enum SizeChange {
         old: ValueId,
         new: ValueId,
     },
+    Many(Vec<SizeChange>),
 }
 
 #[cfg(debug_assertions)]
@@ -479,7 +520,13 @@ fn remove_if_else_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            interpreter::{errors::InterpreterError, value::Value},
+            ssa_gen::Ssa,
+        },
+    };
 
     #[test]
     fn merge_basic_arrays() {
@@ -1048,5 +1095,115 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn merge_vector_with_capacity_larger_than_length() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v5 = allocate -> &mut u32
+            v6 = allocate -> &mut [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            v19 = if v8 then v13 else (if v14) v4
+            enable_side_effects u1 1
+            v21 = lt v2, v18
+            constrain v21 == u1 1, "Index out of bounds"
+            v22 = unchecked_mul v2, u32 2
+            v23 = array_get v19, index v22 -> u32
+            v25 = unchecked_add v22, u32 1
+            v26 = array_get v19, index v25 -> u32
+            return v23, v26, v18
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_if_else().unwrap();
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(0)];
+        let result = ssa.interpret(args).unwrap();
+        assert_eq!(result, vec![Value::u32(10), Value::u32(4), Value::u32(1)]);
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(20)];
+        let result = ssa.interpret(args).unwrap_err();
+        let InterpreterError::ConstrainEqFailed { msg, .. } = result else {
+            panic!("Expected a constrain failure on the final vector access");
+        };
+        assert_eq!(msg, Some("Index out of bounds".to_string()));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v5 = allocate -> &mut u32
+            v6 = allocate -> &mut [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            enable_side_effects u1 1
+            v20 = array_get v13, index u32 0 -> u32
+            v22 = array_get v13, index u32 1 -> u32
+            v23 = make_array [v20, v22] : [(u32, u32)]
+            enable_side_effects v8
+            enable_side_effects u1 1
+            v24 = lt v2, v18
+            constrain v24 == u1 1, "Index out of bounds"
+            v25 = unchecked_mul v2, u32 2
+            v26 = array_get v23, index v25 -> u32
+            v27 = unchecked_add v25, u32 1
+            v28 = array_get v23, index v27 -> u32
+            return v26, v28, v18
+        }
+        "#);
+    }
+
+    // Regression test for https://github.com/noir-lang/noir/issues/10978
+    // The remove_if_else pass should panic due to a checked addition overflow
+    // when processing arrays with capacity u32::MAX.
+    #[test]
+    #[should_panic(expected = "Vector capacity overflow")]
+    fn regression_10978() {
+        // This is the SSA for the Noir program described in the issue,
+        // before the remove if-else pass.
+        let src = "
+       acir(inline) impure fn main f0 {
+        b0(v0: u1):
+            v2 = call f1() -> [Field; 4294967295]
+            v4, v5 = call as_vector(v2) -> (u32, [Field])
+            v9, v10 = call vector_push_back(u32 4294967295, v5, Field 1) -> (u32, [Field])
+            v11, v12 = call vector_push_back(v9, v10, Field 1) -> (u32, [Field])
+            enable_side_effects v0
+            v13 = not v0
+            enable_side_effects u1 1
+            v15 = cast v0 as u32
+            v16 = cast v13 as u32
+            v17 = unchecked_mul v15, v9
+            v18 = unchecked_mul v16, v11
+            v19 = unchecked_add v17, v18
+            v20 = if v0 then v10 else (if v13) v12
+            v22, v23 = call black_box(v19, v20) -> (u32, [Field])
+            return
+        }
+        brillig(inline) impure fn void_to_array f1 {
+        b0():
+            v1 = call void_to_array_oracle() -> [Field; 4294967295]
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.remove_if_else();
     }
 }

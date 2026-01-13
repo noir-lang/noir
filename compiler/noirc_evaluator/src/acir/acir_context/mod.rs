@@ -17,6 +17,7 @@ use acvm::acir::{
     native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
+use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
@@ -26,7 +27,7 @@ use std::borrow::Cow;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use crate::{
     ErrorType,
-    errors::{InternalBug, InternalError, RuntimeError, SsaReport},
+    errors::{InternalError, RuntimeError},
 };
 
 mod black_box;
@@ -199,15 +200,21 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         var: AcirVar,
     ) -> Result<AcirVar, InternalError> {
-        if self.var_to_expression(var)?.to_witness().is_some() {
+        let expression = self.var_to_expression(var)?;
+        if expression.to_witness().is_some() {
             // If called with a variable which is already a witness then return the same variable.
             return Ok(var);
         }
 
         let var_as_witness = self.var_to_witness(var)?;
-
         let witness_var = self.add_data(AcirVarData::Witness(var_as_witness));
-        self.mark_variables_equivalent(var, witness_var)?;
+
+        // Issue https://github.com/noir-lang/noir/issues/11045
+        // Do not mark witness_var as equivalent to a constant
+        if expression.to_const().is_none() {
+            self.mark_variables_equivalent(var, witness_var)?;
+        }
+        debug_assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
 
         Ok(witness_var)
     }
@@ -550,12 +557,6 @@ impl<F: AcirField> AcirContext<F> {
         self.assert_eq_var(var, zero, Some(msg))
     }
 
-    /// Add an always-fail assertion with a message.
-    pub(crate) fn assert_always_fail(&mut self, msg: String) -> Result<(), RuntimeError> {
-        let one = self.add_constant(F::one());
-        self.assert_zero_var(one, msg)
-    }
-
     pub(crate) fn values_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
@@ -826,7 +827,7 @@ impl<F: AcirField> AcirContext<F> {
                 let msg = format!(
                     "attempted to divide by constant larger than operand type: {rhs_bits} > {bit_size}"
                 );
-                self.assert_always_fail(msg)?;
+                self.assert_zero_var(predicate, msg)?;
                 return Ok((zero, zero));
             }
 
@@ -1428,8 +1429,12 @@ impl<F: AcirField> AcirContext<F> {
         // See issue https://github.com/noir-lang/noir/issues/1439
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-
-        let predicate = Some(self.var_to_expression(predicate)?);
+        let expr: Expression<F> = if self.is_constant(&predicate) {
+            self.var_to_expression(predicate)?
+        } else {
+            self.var_to_witness(predicate)?.into()
+        };
+        let predicate = Some(expr);
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
@@ -1523,7 +1528,7 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::BTreeMap;
 
     use acvm::{
@@ -1561,7 +1566,14 @@ mod test {
 
 
         #[test]
-        fn fuzz_bound_constraint_with_offset(limit: u128, offset: bool) {
+        fn fuzz_bound_constraint_with_offset(
+            (limit, offset) in prop_oneof![
+                // Specific case: strict inequality with 2^127 + 1
+                Just((170141183460469231731687303715884105729u128, true)),
+                // Random cases
+                (any::<u128>(), any::<bool>())
+            ]
+        ) {
             let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
 
             let lhs = context.add_variable();

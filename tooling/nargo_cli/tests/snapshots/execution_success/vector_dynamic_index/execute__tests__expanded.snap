@@ -7,7 +7,7 @@ fn main(x: u32) {
 }
 
 fn regression_dynamic_vector_index(x: u32, y: u32) {
-    let mut vector: [Field] = &[];
+    let mut vector: [Field] = [].as_vector();
     for i in 0_u32..5_u32 {
         vector = vector.push_back(i as Field);
     }
@@ -36,8 +36,8 @@ fn dynamic_vector_index_set_if(mut vector: [Field], x: u32, y: u32) {
         assert(vector[x] == 4_Field);
         vector[x] = vector[x] - 2_Field;
         {
-            let i_4539: u32 = x - 1_u32;
-            vector[i_4539] = vector[x];
+            let i_4538: u32 = x - 1_u32;
+            vector[i_4538] = vector[x];
         }
     } else {
         vector[x] = 0_Field;
@@ -56,8 +56,8 @@ fn dynamic_vector_index_set_else(mut vector: [Field], x: u32, y: u32) {
         assert(vector[x] == 4_Field);
         vector[x] = vector[x] - 2_Field;
         {
-            let i_4540: u32 = x - 1_u32;
-            vector[i_4540] = vector[x];
+            let i_4539: u32 = x - 1_u32;
+            vector[i_4539] = vector[x];
         }
     } else {
         vector[x] = 0_Field;

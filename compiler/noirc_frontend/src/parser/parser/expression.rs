@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    Parser,
+    MAX_PARSER_RECURSION_DEPTH, Parser,
     parse_many::{
         separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
         without_separator,
@@ -66,7 +66,29 @@ impl Parser<'_> {
     }
 
     fn parse_expression_impl(&mut self, allow_constructors: bool) -> Option<Expression> {
-        self.parse_equal_or_not_equal(allow_constructors)
+        // Check recursion depth to prevent stack overflow
+        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
+            self.push_error(
+                ParserErrorReason::MaximumRecursionDepthExceeded,
+                self.current_token_location,
+            );
+            // Skip to a recovery point to avoid cascading errors
+            self.skip_to_recovery_point();
+            // Set flag to suppress cascading errors during stack unwinding
+            self.recovering_from_depth_overflow = true;
+            return None;
+        }
+
+        self.recursion_depth += 1;
+        let result = self.parse_equal_or_not_equal(allow_constructors);
+        self.recursion_depth -= 1;
+
+        // Clear recovery flag when we've fully unwound (back at top level)
+        if self.recursion_depth == 0 {
+            self.recovering_from_depth_overflow = false;
+        }
+
+        result
     }
 
     /// Term
@@ -553,6 +575,8 @@ impl Parser<'_> {
 
     /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
+        let if_keyword_location = self.current_token_location;
+
         if !self.eat_keyword(Keyword::If) {
             return None;
         }
@@ -561,6 +585,20 @@ impl Parser<'_> {
 
         let start_location = self.current_token_location;
         let Some(consequence) = self.parse_block() else {
+            // If it's `if { ... }` and a block doesn't come next, the user likely forgot
+            // to include a condition.
+            if matches!(condition.kind, ExpressionKind::Block(..)) {
+                self.push_error(ParserErrorReason::MissingIfCondition, if_keyword_location);
+                return Some(ExpressionKind::If(Box::new(IfExpression {
+                    condition: Expression {
+                        kind: ExpressionKind::Error,
+                        location: if_keyword_location,
+                    },
+                    consequence: condition,
+                    alternative: None,
+                })));
+            }
+
             self.expected_token(Token::LeftBrace);
             let location = self.location_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
@@ -862,9 +900,11 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// VectorExpression = '&' ArrayLiteral
+    /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::VectorStart) && self.next_is(Token::LeftBracket)) {
+        if !((self.at(Token::At) || self.at(Token::DeprecatedVectorStart))
+            && self.next_is(Token::LeftBracket))
+        {
             return None;
         }
 
@@ -939,7 +979,10 @@ impl Parser<'_> {
         if let Some(expr) = self.parse_expression() {
             Some(expr)
         } else {
-            self.expected_label(ParsingRuleLabel::Expression);
+            // Don't generate cascading errors when recovering from depth overflow
+            if !self.recovering_from_depth_overflow {
+                self.expected_label(ParsingRuleLabel::Expression);
+            }
             None
         }
     }
@@ -1416,7 +1459,7 @@ mod tests {
 
     #[test]
     fn parses_empty_vector_expression() {
-        let src = "&[]";
+        let src = "@[]";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -2241,5 +2284,20 @@ mod tests {
         ";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parses_if_missing_condition() {
+        let src = "
+        if { 1 }
+        ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert!(matches!(expression.kind, ExpressionKind::If(..)));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
     }
 }

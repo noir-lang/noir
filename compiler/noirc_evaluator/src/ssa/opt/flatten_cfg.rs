@@ -1064,7 +1064,7 @@ impl<'f> Context<'f> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::acir::AcirField;
 
     use crate::{

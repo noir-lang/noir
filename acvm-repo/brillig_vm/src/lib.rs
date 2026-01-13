@@ -35,6 +35,16 @@ mod foreign_call;
 pub mod fuzzing;
 mod memory;
 
+/// Converts a u32 value to usize, panicking if the conversion fails.
+fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
+}
+
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
@@ -47,9 +57,9 @@ pub enum FailureReason {
     /// The revert data is referenced by the offset and size in the VM memory.
     Trap {
         /// Offset in memory where the revert data begins.
-        revert_data_offset: usize,
+        revert_data_offset: u32,
         /// Size of the revert data.
-        revert_data_size: usize,
+        revert_data_size: u32,
     },
     /// A runtime failure during execution.
     /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
@@ -64,9 +74,9 @@ pub enum VMStatus<F> {
     /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
     Finished {
         /// Offset in memory where the return data begins.
-        return_data_offset: usize,
+        return_data_offset: u32,
         /// Size of the return data.
-        return_data_size: usize,
+        return_data_size: u32,
     },
     /// The VM is still in progress and has not yet completed execution.
     /// This is used when simulating execution.
@@ -200,7 +210,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Sets the current status of the VM to Finished (completed execution).
-    fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> &VMStatus<F> {
+    fn finish(&mut self, return_data_offset: u32, return_data_size: u32) -> &VMStatus<F> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
     }
 
@@ -221,7 +231,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Sets the current status of the VM to `Failure`,
     /// indicating that the VM encountered a `Trap` Opcode.
-    fn trap(&mut self, revert_data_offset: usize, revert_data_size: usize) -> &VMStatus<F> {
+    fn trap(&mut self, revert_data_offset: u32, revert_data_size: u32) -> &VMStatus<F> {
         self.status(VMStatus::Failure {
             call_stack: self.get_call_stack(),
             reason: FailureReason::Trap { revert_data_offset, revert_data_size },
@@ -425,8 +435,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let revert_data_size = self.memory.read(revert_data.size).to_usize();
                 if revert_data_size > 0 {
                     self.trap(
-                        self.memory.read_ref(revert_data.pointer).unwrap_direct(),
-                        revert_data_size,
+                        assert_u32(self.memory.read_ref(revert_data.pointer).unwrap_direct()),
+                        assert_u32(revert_data_size),
                     )
                 } else {
                     self.trap(0, 0)
@@ -436,8 +446,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let return_data_size = self.memory.read(return_data.size).to_usize();
                 if return_data_size > 0 {
                     self.finish(
-                        self.memory.read_ref(return_data.pointer).unwrap_direct(),
-                        return_data_size,
+                        assert_u32(self.memory.read_ref(return_data.pointer).unwrap_direct()),
+                        assert_u32(return_data_size),
                     )
                 } else {
                     self.finish(0, 0)

@@ -850,6 +850,7 @@ pub mod test_utils {
         let file_manager = FileManager::new(&PathBuf::new());
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
+        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
@@ -898,10 +899,12 @@ pub mod test_utils {
             Location::dummy(),
         ) {
             Err(e) => return Err(ElaboratorError::Interpret(e)),
-            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
-                Err(e) => return Err(ElaboratorError::HIRConvert(e)),
-                Ok(expr_id) => expr_id,
-            },
+            Ok(value) => {
+                match value.into_runtime_hir_expression(elaborator.interner, Location::dummy()) {
+                    Err(e) => return Err(ElaboratorError::HIRConvert(e)),
+                    Ok(expr_id) => expr_id,
+                }
+            }
         };
 
         let mut monomorphizer =

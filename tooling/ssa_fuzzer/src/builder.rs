@@ -1,7 +1,8 @@
 use crate::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
 use noir_ssa_executor::compiler::compile_from_ssa;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};

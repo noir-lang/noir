@@ -19,6 +19,13 @@ updates:
     # Check the npm registry for updates every Monday
     schedule:
       interval: "weekly"
+    ignore:
+      # @types/node major version matches Node.js major version
+      # Keep compatible with our minimum supported Node version (22.x)
+      - dependency-name: "@types/node"
+        versions: [">=23.0.0"]
+      # Ignore updates for @aztec/bb.js as it's managed separately
+      - dependency-name: "@aztec/bb.js"
     groups:
       # group updates for linter
       linter:
@@ -38,3 +45,16 @@ updates:
       typedoc:
         patterns:
           - "typedoc*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+      testing:
+        patterns:
+          - "chai"
+          - "@esm-bundle/chai"
+          - "mocha*"
+          - "sinon"
+          - "@types/chai"
+          - "@types/mocha*"
+          - "@types/sinon"

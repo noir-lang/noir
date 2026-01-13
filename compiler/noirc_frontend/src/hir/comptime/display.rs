@@ -14,6 +14,7 @@ use crate::{
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
         StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
+    hir::comptime::interpreter::builtin_helpers::fragments_to_string,
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
@@ -284,7 +285,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::VectorStart
+            | Token::DeprecatedVectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -303,6 +304,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Pound
             | Token::Pipe
             | Token::Bang
+            | Token::At
             | Token::DollarSign => {
                 write!(f, "{token}")
             }
@@ -400,7 +402,10 @@ impl Display for ValuePrinter<'_, '_> {
             Value::U128(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
-            Value::FormatString(value, _) => write!(f, "{value}"),
+            Value::FormatString(fragments, _, _) => {
+                let string = fragments_to_string(fragments, self.interner);
+                write!(f, "{string}")
+            }
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
@@ -464,7 +469,7 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::Vector(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
-                write!(f, "&[{}]", values.join(", "))
+                write!(f, "@[{}]", values.join(", "))
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
             Value::TypeDefinition(id) => {

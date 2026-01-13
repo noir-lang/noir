@@ -89,8 +89,14 @@ impl NodeInterner {
         self.push_definition(name, false, comptime, DefinitionKind::Function(func), location)
     }
 
-    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
-        self.func_id_to_trait.insert(func, (self_type, trait_id));
+    // Returns Some((overlapping_self_type, overlapping_trait_id)) if overlapping
+    pub fn set_function_trait(
+        &mut self,
+        func: FuncId,
+        self_type: Type,
+        trait_id: TraitId,
+    ) -> Option<(Type, TraitId)> {
+        self.func_id_to_trait.insert(func, (self_type, trait_id))
     }
 
     pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {
@@ -124,10 +130,12 @@ impl NodeInterner {
                 }
                 Some(DefinitionKind::Global(global_id)) => {
                     let info = self.get_global(*global_id);
-                    let HirStatement::Let(HirLetStatement { expression, .. }) =
-                        self.statement(&info.let_statement)
-                    else {
-                        unreachable!("global refers to a let statement");
+                    let expression = match self.statement(&info.let_statement) {
+                        HirStatement::Let(HirLetStatement { expression, .. })
+                        | HirStatement::Expression(expression) => expression,
+                        other => unreachable!(
+                            "Expected global to be a let statement or expression but found: {other:?}"
+                        ),
                     };
                     self.lookup_function_from_expr(&expression)
                 }

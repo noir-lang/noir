@@ -428,21 +428,24 @@ impl<'f> LoopInvariantContext<'f> {
                 if hoist_invariant {
                     self.inserter.push_instruction(instruction_id, pre_header, false);
 
-                    // If we are hoisting a MakeArray instruction,
-                    // we need to issue an extra inc_rc in case they are mutated afterward.
+                    // If we are hoisting an instruction which returns a new array,
+                    // we need to issue an extra inc_rc in case it is mutated afterward.
                     if insert_rc {
-                        let [result] =
-                            self.inserter.function.dfg.instruction_result(instruction_id);
-                        let inc_rc = Instruction::IncrementRc { value: result };
-                        let call_stack = self
-                            .inserter
-                            .function
-                            .dfg
-                            .get_instruction_call_stack_id(instruction_id);
-                        self.inserter
-                            .function
-                            .dfg
-                            .insert_instruction_and_results(inc_rc, *block, None, call_stack);
+                        let dfg = &self.inserter.function.dfg;
+                        let results: Vec<_> = dfg
+                            .instruction_results(instruction_id)
+                            .iter()
+                            .filter(|result| dfg.type_of_value(**result).is_array())
+                            .copied()
+                            .collect();
+                        let call_stack = dfg.get_instruction_call_stack_id(instruction_id);
+                        for result in results {
+                            let inc_rc = Instruction::IncrementRc { value: result };
+                            self.inserter
+                                .function
+                                .dfg
+                                .insert_instruction_and_results(inc_rc, *block, None, call_stack);
+                        }
                     }
                 } else {
                     let dfg = &self.inserter.function.dfg;
@@ -685,17 +688,36 @@ impl<'f> LoopInvariantContext<'f> {
             return (false, false);
         }
 
+        // In Brillig, if the instruction creates a new array, we need to insert an inc_rc
+        // to handle potential mutations.
+        let dfg = &self.inserter.function.dfg;
+        let returns_array = if dfg.runtime().is_brillig() {
+            // Add inc_rc for instructions that create new arrays
+            match &instruction {
+                Instruction::MakeArray { .. } => true,
+                Instruction::Call { .. } => {
+                    let results = dfg.instruction_results(instruction_id);
+                    results.iter().any(|r| dfg.type_of_value(*r).is_array())
+                }
+                // RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
+                _ => false,
+            }
+        } else {
+            false
+        };
+
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
-            return (true, false);
+            return (true, returns_array);
         }
 
-        match can_be_hoisted(&instruction, &self.inserter.function.dfg) {
-            Yes => (true, false),
+        match can_be_hoisted(&instruction, dfg) {
+            Yes => (true, returns_array),
             No => (false, false),
-            WithRefCount => (true, true),
-            WithPredicate => (block_context.can_hoist_control_dependent_instruction(), false),
+            WithPredicate => {
+                (block_context.can_hoist_control_dependent_instruction(), returns_array)
+            }
         }
     }
 
@@ -791,7 +813,6 @@ enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
-    WithRefCount,
 }
 
 impl From<bool> for CanBeHoistedResult {
@@ -867,13 +888,7 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before hoisted.
         // An ACIR it is always safe to hoist MakeArray.
-        MakeArray { .. } => {
-            if dfg.runtime().is_acir() {
-                Yes
-            } else {
-                WithRefCount
-            }
-        }
+        MakeArray { .. } => Yes,
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
@@ -883,7 +898,7 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use crate::assert_ssa_snapshot;
@@ -2411,8 +2426,8 @@ mod test {
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
-    /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
+    /// Test that `MakeArray` can be hoisted in both ACIR and Brillig.
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::Yes)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
@@ -3611,5 +3626,77 @@ mod control_dependence {
           "#
         );
         assert_ssa_does_not_change(&src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    /// Checks that hoisting a function call returning an array adds an inc_rc operation
+    fn call_func_call_inc_rc() {
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v2 = make_array [u8 0, u8 0, u8 0, u8 0] : [u8; 4]
+            v3 = allocate -> &mut [u8; 4]
+            store v2 at v3
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v6 = lt v0, u32 10
+            jmpif v6 then: b2, else: b3
+          b2():
+            v10, v11 = call f1() -> (u8, [u8; 4])
+            store v11 at v3
+            v13 = unchecked_add v0, u32 1
+            jmp b1(v13)
+          b3():
+            v7 = load v3 -> [u8; 4]
+            v9 = call black_box(v7) -> [u8; 4]
+            return
+        }
+        brillig(inline) predicate_pure fn ret_arr f1 {
+          b0():
+            v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
+            return u8 7, v4
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let ssa_string = ssa.to_string();
+        assert!(ssa_string.contains("inc_rc"), "failed on call f1() -> (u8, [u8; 4])");
+    }
+
+    #[test]
+    /// Validates that the pass does not add an inc_rc operation for ArrayGet
+    fn array_get_does_not_add_inc_rc() {
+        let src = r#"
+        g0 = make_array [Field 1, Field 2] : [Field; 2]
+        g1 = make_array [Field 3, Field 4] : [Field; 2]
+        g2 = make_array [g0, g1] : [[Field; 2]; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            v3 = allocate -> &mut Field
+            store Field 0 at v3
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v6 = lt v0, u32 2
+            jmpif v6 then: b2, else: b3
+          b2():
+            v8 = array_get g2, index v0 -> [Field; 2]
+            v9 = array_get v8, index u32 0 -> Field
+            v10 = load v3 -> Field
+            v11 = add v10, v9
+            store v11 at v3
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b3():
+            v7 = load v3 -> Field
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let ssa_string = ssa.to_string();
+        // ArrayGet should not add inc_rc since it extracts from an existing array
+        // rather than creating a new one
+        assert!(!ssa_string.contains("inc_rc"), "ArrayGet should not add inc_rc");
     }
 }

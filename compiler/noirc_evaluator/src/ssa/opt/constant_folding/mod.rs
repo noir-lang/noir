@@ -194,7 +194,7 @@ struct Context {
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
-    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 2` without
     /// laying down constraints for the addition:
     ///
     /// ```ssa
@@ -464,37 +464,45 @@ impl Context {
         block: BasicBlockId,
     ) {
         if self.use_constraint_info {
-            // If the instruction was a constraint, then create a link between the two `ValueId`s
-            // to map from the more complex to the simpler value.
-            if let Instruction::Constrain(lhs, rhs, _) = instruction {
-                // These `ValueId`s should be fully resolved now.
-                self.constraint_simplification_mappings.cache(
-                    dfg,
-                    side_effects_enabled_var,
-                    block,
-                    *lhs,
-                    *rhs,
-                );
+            match instruction {
+                // If the instruction was a constraint, then create a link between the two `ValueId`s
+                // to map from the more complex to the simpler value.
+                Instruction::Constrain(lhs, rhs, _) => {
+                    // These `ValueId`s should be fully resolved now.
+                    self.constraint_simplification_mappings.cache(
+                        dfg,
+                        side_effects_enabled_var,
+                        block,
+                        *lhs,
+                        *rhs,
+                    );
+                }
+
+                // If we have an array get whose value is from an array set on the same array at the same index,
+                // we can simplify that array get to the value of the previous array set.
+                //
+                // For example:
+                // v3 = array_set v0, index v1, value v2
+                // v4 = array_get v3, index v1 -> Field
+                //
+                // We know that `v4` can be simplified to `v2`.
+                // Thus, even if the index is dynamic (meaning the array get would have side effects),
+                // we can simplify the operation when we take into account the predicate.
+                Instruction::ArraySet { index, value, .. } => {
+                    let array_get =
+                        Instruction::ArrayGet { array: instruction_results[0], index: *index };
+
+                    // If we encounter an array_get for this address, we know what the result will be.
+                    self.cached_instruction_results.cache(
+                        dom,
+                        array_get,
+                        Some(side_effects_enabled_var),
+                        block,
+                        vec![*value],
+                    );
+                }
+                _ => (),
             }
-        }
-
-        // If we have an array get whose value is from an array set on the same array at the same index,
-        // we can simplify that array get to the value of the previous array set.
-        //
-        // For example:
-        // v3 = array_set v0, index v1, value v2
-        // v4 = array_get v3, index v1 -> Field
-        //
-        // We know that `v4` can be simplified to `v2`.
-        // Thus, even if the index is dynamic (meaning the array get would have side effects),
-        // we can simplify the operation when we take into account the predicate.
-        if let Instruction::ArraySet { index, value, .. } = instruction {
-            let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
-
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
-
-            // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(dom, array_get, predicate, block, vec![*value]);
         }
 
         self.cached_instruction_results
@@ -671,7 +679,7 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -2502,5 +2510,21 @@ mod test {
         });
 
         assert!(execution_result.is_ok());
+    }
+
+    #[test]
+    fn bug_array_get_from_array_set_ignores_predicate_without_constraint_info() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 0
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "slice_dynamic_index"
+name = "vector_dynamic_index"
 type = "bin"
 authors = [""]
 

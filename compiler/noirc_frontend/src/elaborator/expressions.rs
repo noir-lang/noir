@@ -102,8 +102,15 @@ impl Elaborator<'_> {
                 return self.elaborate_expression_with_target_type(*expr, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
-            ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type);
+            ExpressionKind::Comptime(block, _) => {
+                if self.in_comptime_context {
+                    // Treat a nested comptime block as a regular block. Nested comptime blocks
+                    // can happen as a result of macro expansion so it wouldn't be good to produce
+                    // a warning in that case.
+                    self.elaborate_block(block, target_type)
+                } else {
+                    return self.elaborate_comptime_block(block, expr.location, target_type);
+                }
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
@@ -338,7 +345,10 @@ impl Elaborator<'_> {
                 (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len().into(), Kind::u32());
+                let len: u32 = str.len().try_into().expect(
+                    "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
+                );
+                let len = len.into();
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
@@ -407,7 +417,8 @@ impl Elaborator<'_> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len().into(), Kind::u32());
+                let length: u32 = elements.len().try_into().expect("ICE: Elaborator::elaborate_array_literal: elements.len() is expected to fit into a u32");
+                let length = length.into();
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -462,7 +473,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let len = Type::Constant(length.into(), Kind::u32());
+        let len = length.into();
         let fmtstr_type =
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
@@ -579,7 +590,7 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        let expected = Type::u32();
         self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
             expected: expected.clone(),
             actual: index_type.clone(),
@@ -1215,14 +1226,14 @@ impl Elaborator<'_> {
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
-        let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
+        let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
         let operator = HirBinaryOp::new(infix.operator, file);
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
-            trait_method_id: trait_id,
+            trait_method_id: opt_trait_id,
             rhs,
         });
 
@@ -1232,7 +1243,7 @@ impl Elaborator<'_> {
         let typ = self.handle_operand_type_rules_result(
             result,
             &lhs_type,
-            Some(trait_id),
+            opt_trait_id,
             *expr_id,
             location,
         );
@@ -1257,7 +1268,7 @@ impl Elaborator<'_> {
             Ok((typ, use_impl)) => {
                 if use_impl {
                     let trait_method_id = trait_method_id
-                        .expect("ice: expected some trait_method_id when use_impl is true");
+                        .expect("ICE: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
@@ -1268,10 +1279,12 @@ impl Elaborator<'_> {
                     let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
                     let select_impl = true; // this constraint should lead to choosing a trait impl
                     self.push_trait_constraint(constraint, expr_id, select_impl);
+
                     self.type_check_operator_method(
                         expr_id,
                         trait_method_id,
                         operand_type,
+                        &typ,
                         location,
                     );
                 }
@@ -1532,8 +1545,22 @@ impl Elaborator<'_> {
         location: Location,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
-            this.elaborate_block_expression(block, target_type)
+        let block = self.elaborate_in_comptime_context(|this| {
+            let (block, block_type) = this.elaborate_block_expression(block, target_type);
+
+            // If the comptime block is expected to return a specific type, unify their types.
+            // This for example allows this code to compile: `let x: u8 = comptime { 1 }`.
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            if let Some(target_type) = target_type {
+                this.unify(&block_type, target_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: target_type.to_string(),
+                    expr_typ: block_type.to_string(),
+                    expr_location: location,
+                });
+            }
+
+            block
         });
 
         let mut interpreter = self.setup_interpreter();
@@ -1633,7 +1660,7 @@ impl Elaborator<'_> {
 
         let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
-        let mut errors = Vec::new();
+        let mut errors: Vec<CompilationError> = Vec::new();
 
         for argument in arguments {
             match interpreter.evaluate(argument) {
@@ -1649,7 +1676,7 @@ impl Elaborator<'_> {
         let result = interpreter.call_function(function, comptime_args, bindings, location);
 
         if !errors.is_empty() {
-            self.errors.append(&mut errors);
+            self.push_errors(errors);
             return None;
         }
 
@@ -1664,7 +1691,6 @@ impl Elaborator<'_> {
             typ: path.typ,
             trait_bound: TraitBound {
                 trait_path: path.trait_path,
-                trait_id: None,
                 trait_generics: path.trait_generics,
             },
         };

@@ -45,6 +45,7 @@ use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 use crate::hir::Context;
+use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
@@ -83,6 +84,8 @@ mod cast;
 mod foreign;
 mod infix;
 mod unquote;
+
+pub(crate) use builtin::builtin_helpers;
 
 /// Maximum depth of evaluation, limiting recursion during comptime as well as
 /// expression depth. The goal is to be able to provide Noir stack traces if
@@ -751,9 +754,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => self.evaluate_integer(value, id),
-                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
-                        typ: associated_type.typ.clone(),
-                        err: Some(Box::new(err)),
+                    Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
+                        err: Box::new(err),
                         location,
                     }),
                 }
@@ -768,10 +770,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let value = value
             .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
-                let typ = value;
-                let err = Some(Box::new(err));
+                let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
-                InterpreterError::NonIntegerArrayLength { typ, err, location }
+                InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
         self.evaluate_integer(value, id)
@@ -796,8 +797,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(fragments, captures, _length) => {
-                self.evaluate_format_string(fragments, captures, id)
+            HirLiteral::FmtStr(fragments, captures, length) => {
+                self.evaluate_format_string(fragments, captures, length, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Vector(array) => self.evaluate_vector(array, id),
@@ -812,9 +813,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         fragments: Vec<FmtStrFragment>,
         captures: Vec<ExprId>,
+        length: u32,
         id: ExprId,
     ) -> IResult<Value> {
-        let mut result = String::new();
+        let mut new_fragments = Vec::with_capacity(fragments.len());
 
         let mut values: VecDeque<_> =
             captures.into_iter().map(|capture| self.evaluate(capture)).collect::<Result<_, _>>()?;
@@ -822,24 +824,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         for fragment in fragments {
             match fragment {
                 FmtStrFragment::String(string) => {
-                    result.push_str(&string);
+                    new_fragments.push(FormatStringFragment::String(string));
                 }
-                FmtStrFragment::Interpolation(..) => {
+                FmtStrFragment::Interpolation(name, _location) => {
                     if let Some(value) = values.pop_front() {
-                        // When interpolating a quoted value inside a format string, we don't include the
-                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
-                        if let Value::Quoted(tokens) = value {
-                            for (index, token) in tokens.iter().enumerate() {
-                                if index > 0 {
-                                    result.push(' ');
-                                }
-                                result.push_str(
-                                    &token.token().display(self.elaborator.interner).to_string(),
-                                );
-                            }
-                        } else {
-                            result.push_str(&value.display(self.elaborator.interner).to_string());
-                        }
+                        new_fragments.push(FormatStringFragment::Value { name, value });
                     } else {
                         // If we can't find a value for this fragment it means the interpolated value was not
                         // found or it errored. In this case we error here as well.
@@ -853,7 +842,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         let typ = self.elaborator.interner.id_type(id);
-        Ok(Value::FormatString(Rc::new(result), typ))
+        Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
@@ -909,9 +898,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Ok(Value::Array(elements, typ))
                     }
                     Err(err) => {
-                        let err = Some(Box::new(err));
+                        let err = Box::new(err);
                         let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ: length, err, location })
+                        Err(InterpreterError::InvalidArrayLength { err, location })
                     }
                 }
             }
@@ -963,7 +952,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
-        let method = infix.trait_method_id;
+        let method = infix
+            .trait_method_id
+            .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
         let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
@@ -1797,7 +1788,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 }
 
 /// Bounds check the given array and index pair.
-/// This will also ensure the given arguments are in fact an array and integer.
+/// This will also ensure the given arguments are in fact an array and u32.
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
@@ -1809,32 +1800,15 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
     };
 
     let index = match index {
-        Value::Field(value) => {
-            let u64: Option<u64> = value.try_to_unsigned();
-            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                let typ = Type::default_int_type();
-                InterpreterError::IntegerOutOfRangeForType { value, typ, location }
-            })?
-        }
-        Value::I8(value) => value as usize,
-        Value::I16(value) => value as usize,
-        Value::I32(value) => value as usize,
-        Value::I64(value) => value as usize,
-        Value::U1(value) => {
-            if value {
-                1_usize
-            } else {
-                0_usize
-            }
-        }
-        Value::U8(value) => value as usize,
-        Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
-        Value::U64(value) => value as usize,
-        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
-            return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
+            let expected_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            return Err(InterpreterError::TypeMismatch {
+                expected: expected_type.to_string(),
+                actual: typ,
+                location,
+            });
         }
     };
 
@@ -1951,9 +1925,10 @@ impl Context<'_, '_> {
         let local_id = func_meta.source_module;
         let location = func_meta.location;
         let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let pedantic_solving = self.def_interner.pedantic_solving;
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: false,
+            pedantic_solving,
             enabled_unstable_features,
             disable_required_unstable_features: false,
         };

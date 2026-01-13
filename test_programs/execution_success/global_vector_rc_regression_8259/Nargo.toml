@@ -1,5 +1,5 @@
 [package]
-name = "global_slice_rc_regression_8259"
+name = "global_vector_rc_regression_8259"
 type = "bin"
 authors = [""]
 

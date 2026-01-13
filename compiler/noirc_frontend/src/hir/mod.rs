@@ -15,7 +15,7 @@ use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
-use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
+use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, TypeVariable};
 use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
@@ -164,7 +164,8 @@ impl Context<'_, '_> {
     /// - Panics if no main function is found
     pub fn get_main_function(&self, crate_id: &CrateId) -> Option<FuncId> {
         // Find the local crate, one should always be present
-        let local_crate = self.def_map(crate_id).unwrap();
+        let local_crate =
+            self.def_map(crate_id).expect("cannot find the crate of the main function");
 
         local_crate.main_function()
     }
@@ -242,7 +243,7 @@ impl Context<'_, '_> {
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
         errors: &mut Vec<CompilationError>,
-    ) -> Generics {
+    ) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
@@ -270,6 +271,10 @@ impl Context<'_, '_> {
     /// Activates LSP mode, which will track references for all definitions.
     pub fn activate_lsp_mode(&mut self) {
         self.def_interner.lsp_mode = true;
+    }
+
+    pub fn enable_pedantic_solving(&mut self) {
+        self.def_interner.pedantic_solving = true;
     }
 
     pub fn disable_comptime_printing(&mut self) {

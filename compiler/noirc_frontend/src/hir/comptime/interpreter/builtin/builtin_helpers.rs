@@ -8,17 +8,17 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
-use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
-use crate::{Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
@@ -183,8 +183,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
         let Type::Array(_, ref elem) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let expected =
-            Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone()).to_string();
+        let len: u32 =
+            N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
+        let expected = Type::Array(Box::new(len.into()), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -237,8 +238,8 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
-            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            type_mismatch(value, expected.to_string(), location)
+            let expected = Type::u32().to_string();
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -279,9 +280,9 @@ pub(crate) fn get_expr(
 
 pub(crate) fn get_format_string(
     (value, location): (Value, Location),
-) -> IResult<(Rc<String>, Type)> {
+) -> IResult<(Rc<Vec<FormatStringFragment>>, Type, u32)> {
     match value {
-        Value::FormatString(value, typ) => Ok((value, typ)),
+        Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
         value => type_mismatch(value, "fmtstr", location),
     }
 }
@@ -544,7 +545,7 @@ pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<
 pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
     match typ {
         Type::Function(_, ret, _, _) => {
-            *ret = Box::new(return_type);
+            **ret = return_type;
         }
         Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
         _ => {}
@@ -637,25 +638,16 @@ pub(super) fn eq_item<T: Eq>(
 
 /// Type to be used in `Value::Array(<values>, <array-type>)`.
 pub(crate) fn byte_array_type(len: usize) -> Type {
+    let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(Type::Constant(len.into(), Kind::u32())),
+        Box::new(len.into()),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
-}
-
-/// Type to be used in `Value::Vector(<values>, <vector-type>)`.
-pub(crate) fn byte_vector_type() -> Type {
-    Type::Vector(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
 }
 
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
-}
-
-/// Create a `Value::Vector` from bytes.
-pub(crate) fn to_byte_vector(values: &[u8]) -> Value {
-    Value::Vector(values.iter().copied().map(Value::U8).collect(), byte_vector_type())
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
@@ -716,4 +708,42 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     };
     let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
     Value::Quoted(Rc::new(tokens))
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+) -> String {
+    let mut result = String::new();
+    for fragment in fragments {
+        match fragment {
+            FormatStringFragment::String(string) => {
+                result.push_str(string);
+            }
+            FormatStringFragment::Value { name: _, value } => {
+                match value {
+                    Value::Quoted(tokens) => {
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        for (index, token) in tokens.iter().enumerate() {
+                            if index > 0 {
+                                result.push(' ');
+                            }
+                            result.push_str(&token.token().display(interner).to_string());
+                        }
+                    }
+                    Value::FormatString(fragments, _, _) => {
+                        // Nested format strings might have quoted values inside them,
+                        // so we need to recurse here instead of calling `value.display`.
+                        let inner_string = fragments_to_string(fragments, interner);
+                        result.push_str(&inner_string);
+                    }
+                    _ => {
+                        result.push_str(&value.display(interner).to_string());
+                    }
+                }
+            }
+        }
+    }
+    result
 }

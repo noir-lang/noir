@@ -26,10 +26,6 @@ jobs:
           crawler-name: noir-lang
           override-config: false
 
-      - name: Get current date
-        id: date
-        run: echo "DAY=date::$(date +'%u')" >> $GITHUB_OUTPUT
-
       - name: Send an alert in slack
         # Send notifications on scheduled runs if there's a failure.
         if: ${{ failure() && github.event_name == 'schedule' }}

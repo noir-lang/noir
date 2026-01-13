@@ -13,7 +13,7 @@
 //! dispatch functions for them in the `defunctionalize` pass.
 //!
 //! The pass also automatically wraps direct calls to oracle functions from constrained functions,
-//! which, after creating wrapper for function values, would only present an inconvenience for users
+//! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
 use std::collections::HashMap;
@@ -86,7 +86,7 @@ impl ProxyContext {
             // Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
             // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
-            // If this is a direct from ACIR to an Oracle, we want to create a proxy.
+            // If this is a direct call from ACIR to an Oracle, we want to create a proxy.
             if !self.in_unconstrained {
                 if let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
@@ -286,10 +286,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
-    };
+    use crate::test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options};
 
     #[test]
     fn creates_proxies_for_acir_to_oracle_calls() {
@@ -367,15 +364,10 @@ mod tests {
         }
         ";
 
-        let program = get_monomorphized_with_error_filter(src, |err| {
-            matches!(
-                err,
-                // Ignore the error about creating a builtin function.
-                CompilationError::ResolverError(
-                    ResolverError::LowLevelFunctionOutsideOfStdlib { .. }
-                )
-            )
-        })
+        let program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+        )
         .unwrap();
 
         insta::assert_snapshot!(program, @r"

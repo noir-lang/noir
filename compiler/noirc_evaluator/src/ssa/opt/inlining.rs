@@ -704,7 +704,7 @@ impl<'function> PerFunctionContext<'function> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         errors::RuntimeError,
@@ -1194,6 +1194,25 @@ mod test {
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_normalized_ssa_equals(ssa, no_inline_always_src);
+    }
+
+    #[test]
+    fn inline_never_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]

@@ -21,8 +21,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings,
-    TypeVariable,
+    Kind, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -37,7 +36,8 @@ use crate::{
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
-            value::{ExprValue, TypedExpr},
+            interpreter::builtin::builtin_helpers::fragments_to_string,
+            value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
@@ -127,8 +127,8 @@ impl Interpreter<'_, '_> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "field_less_than" => field_less_than(arguments, location),
-            "fmtstr_as_ctstring" => fmtstr_as_ctstring(arguments, location),
-            "fmtstr_quoted_contents" => fmtstr_quoted_contents(arguments, location),
+            "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
+            "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
@@ -481,11 +481,7 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = Type::NamedGeneric(NamedGeneric {
-        type_var: type_var.clone(),
-        name: name.clone(),
-        implicit: false,
-    });
+    let typ = type_var.clone().into_named_generic(name.clone());
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -1078,10 +1074,11 @@ fn to_le_radix(
         if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
     });
 
-    let result_type = Type::Array(
-        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
-        element_type,
-    );
+    let len: u32 = decomposed_integer
+        .len()
+        .try_into()
+        .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
+    let result_type = Type::Array(Box::new(len.into()), element_type);
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
@@ -1131,8 +1128,8 @@ fn type_as_constant(
                 if err.is_non_constant_evaluated() {
                     Ok(None)
                 } else {
-                    let err = Some(Box::new(err));
-                    Err(InterpreterError::NonIntegerArrayLength { typ, err, location })
+                    let err = Box::new(err);
+                    Err(InterpreterError::InvalidArrayLength { err, location })
                 }
             }
         }
@@ -1592,7 +1589,8 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             let length = length_type.evaluate_to_u32(location);
             let typ = Type::FmtString(length_type, captures);
             if let Ok(length) = length {
-                Value::FormatString(Rc::new("\0".repeat(length as usize)), typ)
+                let fragments = vec![FormatStringFragment::String("\0".repeat(length as usize))];
+                Value::FormatString(Rc::new(fragments), typ, length)
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(typ)
@@ -2490,16 +2488,26 @@ fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> Expr
 }
 
 // fn fmtstr_as_ctstring(self) -> CtString
-fn fmtstr_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn fmtstr_as_ctstring(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let (string, _) = get_format_string(self_argument)?;
-    Ok(Value::CtString(string))
+    let (fragments, _, _) = get_format_string(self_argument)?;
+    let string = fragments_to_string(&fragments, interner);
+    Ok(Value::CtString(Rc::new(string)))
 }
 
 // fn quoted_contents(self) -> Quoted
-fn fmtstr_quoted_contents(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn fmtstr_quoted_contents(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let (string, _) = get_format_string(self_argument)?;
+    let (fragments, _, _) = get_format_string(self_argument)?;
+    let string = fragments_to_string(&fragments, interner);
     let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
 }

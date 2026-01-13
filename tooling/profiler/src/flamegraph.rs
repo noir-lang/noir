@@ -6,8 +6,8 @@ use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 use color_eyre::eyre;
 use fm::codespan_files::Files;
 use inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
+use noirc_artifacts::debug::DebugInfo;
 use noirc_errors::Location;
-use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_evaluator::brillig::ProcedureId;
 use rustc_hash::FxHashMap as HashMap;
@@ -307,10 +307,10 @@ mod tests {
         native_types::Expression,
     };
     use fm::FileManager;
+    use noirc_artifacts::debug::{DebugInfo, LocationTree};
     use noirc_errors::{
         Location, Span,
         call_stack::{CallStackHelper, CallStackId},
-        debug_info::DebugInfo,
     };
     use std::{collections::BTreeMap, path::Path};
 
@@ -392,7 +392,7 @@ mod tests {
         opcode_locations.insert(AcirOpcodeLocation::new(2), call_stack_id);
 
         opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
-        let location_tree = call_stack_hlp.to_location_tree();
+        let location_tree = LocationTree::from(&call_stack_hlp);
 
         let debug_info = DebugInfo::new(
             BTreeMap::default(),

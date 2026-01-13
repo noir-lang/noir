@@ -8,10 +8,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::{
-    MemoryValue, VM, VMStatus,
-    memory::{ArrayAddress, VectorAddress},
-};
+use crate::{MemoryValue, VM, VMStatus, assert_usize, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
@@ -141,7 +138,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) if *type_size == size => {
                 let start = self.memory.read_ref(pointer);
-                self.read_slice_of_values_from_memory(start, size, value_types)
+                self.read_slice_of_values_from_memory(start, assert_usize(size), value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
@@ -184,14 +181,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 "array/vector does not contain a whole number of elements"
             );
 
-            // We want to send vectors to foreign functions truncated to their semantic length.
-            let mut vector_length: Option<usize> = None;
-
             (0..size)
                 .zip(value_types.iter().cycle())
-                .map(|(i, value_type)| {
+                .flat_map(|(i, value_type)| {
                     let value_address = start.offset(i);
-                    let values = match value_type {
+                    match value_type {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
@@ -201,44 +195,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
-                                *size,
+                                assert_usize(*size),
                                 value_types,
                             )
                         }
-                        HeapValueType::Vector { value_types } => {
-                            let vector_address =
-                                VectorAddress::from(self.memory.read_ref(value_address));
-
-                            let side_addr = vector_address.size_addr();
-                            let items_start = vector_address.items_start();
-                            let vector_size = self.memory.read(side_addr).to_usize();
-                            self.read_slice_of_values_from_memory(
-                                items_start,
-                                vector_size,
-                                value_types,
-                            )
-                        }
-                    };
-                    (value_type, values)
-                })
-                .flat_map(|(value_type, mut values)| {
-                    match value_type {
-                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
-                            vector_length = Some(values[0].to_usize());
-                        }
-                        HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let type_size = vector_element_size(value_types);
-                                values.truncate(length * type_size);
-                            }
-                            vector_length = None;
-                        }
-                        _ => {
-                            // Otherwise we are not dealing with a u32 followed by a vector.
-                            vector_length = None;
+                        HeapValueType::Vector { .. } => {
+                            unreachable!("Vectors nested in arrays/vectors are not supported");
                         }
                     }
-                    values
                 })
                 .collect::<Vec<_>>()
         }
@@ -339,7 +303,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an array type"
                                 .to_string());
                         };
-                        if values.len() != *size {
+                        if values.len()
+                            != usize::try_from(*size).expect("Failed conversion from u32 to usize")
+                        {
                             // foreign call returning flattened values into a nested type, so the sizes do not match
                             let destination = self.memory.read_ref(*pointer);
 

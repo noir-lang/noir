@@ -118,14 +118,15 @@ impl Elaborator<'_> {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
 
             self.recover_generics(|this| {
-                this.declare_methods_on_struct(None, unresolved, *location);
+                let no_trait_id = None;
+                this.declare_methods_on_data_type(no_trait_id, unresolved, *location);
             });
         }
     }
 
     /// Declares methods in the appropriate module and registers them in the interner.
     ///
-    /// This handles the cross-module strategy: methods are declared in the struct's module
+    /// This handles the cross-module strategy: methods are declared in the data type's module
     /// (for qualified calls) but will be resolved in the impl's module (for name resolution).
     ///
     /// # Parameters
@@ -141,34 +142,34 @@ impl Elaborator<'_> {
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
     /// The self type should be resolved by [Self::define_function_metas] before this method is called.
-    pub(super) fn declare_methods_on_struct(
+    pub(super) fn declare_methods_on_data_type(
         &mut self,
         trait_id: Option<TraitId>,
         functions: &mut UnresolvedFunctions,
         location: Location,
     ) {
         let self_type = functions.self_type.as_ref();
-        let self_type =
-            self_type.expect("Expected struct type to be set before declare_methods_on_struct");
+        let self_type = self_type
+            .expect("Expected data type's self type to be set before declare_methods_on_data_type");
 
         let function_ids = functions.function_ids();
 
-        if let Type::DataType(struct_type, _) = &self_type {
-            let struct_ref = struct_type.borrow();
+        if let Type::DataType(data_type, _) = &self_type.follow_bindings() {
+            let data_ref = data_type.borrow();
 
             // `impl`s are only allowed on types defined within the current crate
-            if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
-                let type_name = struct_ref.name.to_string();
+            if trait_id.is_none() && data_ref.id.krate() != self.crate_id {
+                let type_name = data_ref.name.to_string();
                 self.push_err(DefCollectorErrorKind::ForeignImpl { location, type_name });
                 return;
             }
 
-            // Grab the module defined by the struct type. Note that impls are a case
+            // Grab the module defined by the data type. Note that impls are a case
             // where the module the methods are added to is not the same as the module
             // they are resolved in.
-            let module = Self::get_module_mut(self.def_maps, struct_ref.id.module_id());
+            let module = Self::get_module_mut(self.def_maps, data_ref.id.module_id());
 
-            // Declare each method in the struct's module for qualified access (TypeName::method)
+            // Declare each method in the data type's module for qualified access (TypeName::method)
             for (_, method_id, method) in &functions.functions {
                 let name = method.name_ident().clone();
                 let result = if let Some(trait_id) = trait_id {
@@ -211,7 +212,7 @@ impl Elaborator<'_> {
                 }
             } else {
                 let is_primitive = self_type.is_primitive();
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl {
+                self.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
                     location,
                     is_primitive,
                 });

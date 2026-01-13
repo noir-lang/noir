@@ -157,7 +157,7 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use crate::{
         assert_ssa_snapshot,
