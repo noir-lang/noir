@@ -1,0 +1,7 @@
+[package]
+name = "print_composite_array"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

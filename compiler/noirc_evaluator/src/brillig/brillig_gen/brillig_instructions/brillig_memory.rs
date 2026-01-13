@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use acvm::acir::brillig::MemoryAddress;
+use acvm::acir::brillig::lengths::SemiFlattenedLength;
 use acvm::{AcirField, FieldElement};
 use im::Vector;
 
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
+use crate::brillig::brillig_ir::assert_u32;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
 use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{
@@ -438,7 +440,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         match new_variable {
             BrilligVariable::BrilligArray(brillig_array) => {
-                debug_assert_eq!(array.len(), brillig_array.size);
+                debug_assert_eq!(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
                 self.brillig_context.codegen_initialize_array(brillig_array);
             }
             BrilligVariable::BrilligVector(vector) => {

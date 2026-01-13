@@ -1,4 +1,5 @@
 //! Module containing Brillig-gen logic specific to SSA [Function]'s.
+use acvm::acir::brillig::lengths::SemanticLength;
 use iter_extended::vecmap;
 
 use crate::{
@@ -104,7 +105,7 @@ impl FunctionContext {
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
                 vecmap(item_type.iter(), Self::ssa_type_to_parameter),
-                *size as usize,
+                SemanticLength(*size),
             ),
             Type::Vector(_) => {
                 panic!("ICE: Vector parameters cannot be derived from type information")
