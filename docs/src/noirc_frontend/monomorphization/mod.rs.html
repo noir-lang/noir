@@ -3247,7 +3247,60 @@
 <a href="#3246" id="3246">3246</a>
 <a href="#3247" id="3247">3247</a>
 <a href="#3248" id="3248">3248</a>
-<a href="#3249" id="3249">3249</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3249" id="3249">3249</a>
+<a href="#3250" id="3250">3250</a>
+<a href="#3251" id="3251">3251</a>
+<a href="#3252" id="3252">3252</a>
+<a href="#3253" id="3253">3253</a>
+<a href="#3254" id="3254">3254</a>
+<a href="#3255" id="3255">3255</a>
+<a href="#3256" id="3256">3256</a>
+<a href="#3257" id="3257">3257</a>
+<a href="#3258" id="3258">3258</a>
+<a href="#3259" id="3259">3259</a>
+<a href="#3260" id="3260">3260</a>
+<a href="#3261" id="3261">3261</a>
+<a href="#3262" id="3262">3262</a>
+<a href="#3263" id="3263">3263</a>
+<a href="#3264" id="3264">3264</a>
+<a href="#3265" id="3265">3265</a>
+<a href="#3266" id="3266">3266</a>
+<a href="#3267" id="3267">3267</a>
+<a href="#3268" id="3268">3268</a>
+<a href="#3269" id="3269">3269</a>
+<a href="#3270" id="3270">3270</a>
+<a href="#3271" id="3271">3271</a>
+<a href="#3272" id="3272">3272</a>
+<a href="#3273" id="3273">3273</a>
+<a href="#3274" id="3274">3274</a>
+<a href="#3275" id="3275">3275</a>
+<a href="#3276" id="3276">3276</a>
+<a href="#3277" id="3277">3277</a>
+<a href="#3278" id="3278">3278</a>
+<a href="#3279" id="3279">3279</a>
+<a href="#3280" id="3280">3280</a>
+<a href="#3281" id="3281">3281</a>
+<a href="#3282" id="3282">3282</a>
+<a href="#3283" id="3283">3283</a>
+<a href="#3284" id="3284">3284</a>
+<a href="#3285" id="3285">3285</a>
+<a href="#3286" id="3286">3286</a>
+<a href="#3287" id="3287">3287</a>
+<a href="#3288" id="3288">3288</a>
+<a href="#3289" id="3289">3289</a>
+<a href="#3290" id="3290">3290</a>
+<a href="#3291" id="3291">3291</a>
+<a href="#3292" id="3292">3292</a>
+<a href="#3293" id="3293">3293</a>
+<a href="#3294" id="3294">3294</a>
+<a href="#3295" id="3295">3295</a>
+<a href="#3296" id="3296">3296</a>
+<a href="#3297" id="3297">3297</a>
+<a href="#3298" id="3298">3298</a>
+<a href="#3299" id="3299">3299</a>
+<a href="#3300" id="3300">3300</a>
+<a href="#3301" id="3301">3301</a>
+<a href="#3302" id="3302">3302</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3381,11 +3434,11 @@
         Location,
     )&gt;,
 
-    <span class="doccomment">/// When a function finishes being monomorphized, the monomorphized ast::Function is
-    /// stored here along with its FuncId.
+    <span class="doccomment">/// When a function finishes being monomorphized, the monomorphized [ast::Function] is
+    /// stored here along with its [FuncId].
     </span>finished_functions: BTreeMap&lt;FuncId, Function&gt;,
 
-    <span class="doccomment">/// Used to reference existing definitions in the HIR
+    <span class="doccomment">/// Used to reference existing definitions in the HIR.
     </span>interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span><span class="kw-2">mut </span>NodeInterner,
 
     lambda_envs_stack: Vec&lt;LambdaContext&gt;,
@@ -3395,13 +3448,14 @@
     next_function_id: u32,
     next_ident_id: u32,
 
-    is_range_loop: bool,
-
-    return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
+    <span class="doccomment">/// Location of the last statement in the `main` function, determined during compilation.
+    </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
 
     debug_type_tracker: DebugTypeTracker,
 
-    in_unconstrained_function: bool,
+    <span class="doccomment">/// Indicate that we are currently monomorphizing an unconstrained function, which causes
+    /// constrained function called from this context to be monomorphized as unconstrained too.
+    </span>in_unconstrained_function: bool,
 
     <span class="doccomment">/// Set to true to force every function to be unconstrained.
     /// Note that this also changes the first-class function representation
@@ -3410,6 +3464,8 @@
 }
 
 <span class="doccomment">/// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
+///
+/// Maps (interner FuncId, unconstrained) -&gt; Map (Func Type) -&gt; Map (Turbofish Generics) -&gt; monomorphized FuncId
 </span><span class="kw">type </span>Functions = HashMap&lt;
     (node_interner::FuncId, <span class="comment">/*is_unconstrained:*/ </span>bool),
     HashMap&lt;HirType, HashMap&lt;Vec&lt;HirType&gt;, FuncId&gt;&gt;,
@@ -3474,7 +3530,6 @@
             next_ident_id: <span class="number">0</span>,
             interner,
             lambda_envs_stack: Vec::new(),
-            is_range_loop: <span class="bool-val">false</span>,
             return_location: <span class="prelude-val">None</span>,
             debug_type_tracker,
             in_unconstrained_function: force_unconstrained,
@@ -3642,8 +3697,8 @@
         <span class="kw">match </span><span class="self">self
             </span>.functions
             .get(<span class="kw-2">&amp;</span>(id, is_unconstrained))
-            .and_then(|inner_map| inner_map.get(<span class="kw-2">&amp;</span>typ))
-            .and_then(|inner_map| inner_map.get(<span class="kw-2">&amp;</span>turbofish_generics))
+            .and_then(|by_func_type| by_func_type.get(<span class="kw-2">&amp;</span>typ))
+            .and_then(|by_turbofish| by_turbofish.get(<span class="kw-2">&amp;</span>turbofish_generics))
         {
             <span class="prelude-val">Some</span>(id) =&gt; Definition::Function(<span class="kw-2">*</span>id),
             <span class="prelude-val">None </span>=&gt; {
@@ -3653,14 +3708,14 @@
                     FunctionKind::LowLevel =&gt; {
                         <span class="kw">let </span>attribute = attributes.function().expect(<span class="string">"all low level functions must contain a function attribute which contains the opcode which it links to"</span>);
                         <span class="kw">let </span>opcode = attribute.kind.foreign().expect(
-                            <span class="string">"ice: function marked as foreign, but attribute kind does not match this"</span>,
+                            <span class="string">"ICE: function marked as foreign, but attribute kind does not match this"</span>,
                         );
                         Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin =&gt; {
                         <span class="kw">let </span>attribute = attributes.function().expect(<span class="string">"all builtin functions must contain a function attribute which contains the opcode which it links to"</span>);
                         <span class="kw">let </span>opcode = attribute.kind.builtin().expect(
-                            <span class="string">"ice: function marked as builtin, but attribute kind does not match this"</span>,
+                            <span class="string">"ICE: function marked as builtin, but attribute kind does not match this"</span>,
                         );
                         Definition::Builtin(opcode.to_string())
                     }
@@ -3672,7 +3727,7 @@
                     FunctionKind::Oracle =&gt; {
                         <span class="kw">let </span>attribute = attributes.function().expect(<span class="string">"all oracle functions must contain a function attribute which contains the opcode which it links to"</span>);
                         <span class="kw">let </span>opcode = attribute.kind.oracle().expect(
-                            <span class="string">"ice: function marked as builtin, but attribute kind does not match this"</span>,
+                            <span class="string">"ICE: function marked as builtin, but attribute kind does not match this"</span>,
                         );
                         Definition::Oracle(opcode.to_string())
                     }
@@ -3681,12 +3736,18 @@
         }
     }
 
-    <span class="kw">fn </span>define_local(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: node_interner::DefinitionId, new_id: LocalId) {
+    <span class="doccomment">/// Store the local variable ID created for a definition.
+    ///
+    /// Note that this might overwrite a previous association, which happens when
+    /// we define a (constrained, unconstrained) pair of lambdas, which share
+    /// the same list of parameter definitions, but will have different
+    /// monomorphized variable IDs created for both function instance.
+    </span><span class="kw">fn </span>define_local(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: node_interner::DefinitionId, new_id: LocalId) {
         <span class="self">self</span>.locals.insert(id, new_id);
     }
 
-    <span class="doccomment">/// Prerequisite: typ = typ.follow_bindings()
-    ///          and: turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)
+    <span class="doccomment">/// Prerequisite: `typ = typ.follow_bindings()`
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
     </span><span class="kw">fn </span>define_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: node_interner::FuncId,
@@ -3703,13 +3764,18 @@
             .insert(turbofish_generics, new_id);
     }
 
-    <span class="doccomment">/// Monomorphize the `main` function, ensuring it has the id expected by [Program::main_id].
+    <span class="doccomment">/// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
+    ///
+    /// Sets the `return_location` expected by `into_program` later.
+    /// Returns the [FunctionSignature] of `main`, expected to be passed to `into_program`.
+    ///
+    /// Panics if some other function has already been monomorphized before.
     </span><span class="kw">pub fn </span>compile_main(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         main_id: node_interner::FuncId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionSignature, MonomorphizationError&gt; {
         <span class="kw">let </span>new_main_id = <span class="self">self</span>.next_function_id();
-        <span class="macro">assert_eq!</span>(new_main_id, Program::main_id());
+        <span class="macro">assert_eq!</span>(new_main_id, Program::main_id(), <span class="string">"expected main to be monomorphized first"</span>);
 
         <span class="kw">let </span>location = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>main_id).location;
         <span class="self">self</span>.in_unconstrained_function = <span class="self">self</span>.is_unconstrained(main_id);
@@ -3802,9 +3868,12 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>push_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, function: Function) {
+    <span class="doccomment">/// Store a monomorphized [Function] among the finished ones.
+    ///
+    /// Panics if the function has already been pushed.
+    </span><span class="kw">fn </span>push_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, function: Function) {
         <span class="kw">let </span>existing = <span class="self">self</span>.finished_functions.insert(id, function);
-        <span class="macro">assert!</span>(existing.is_none());
+        <span class="macro">assert!</span>(existing.is_none(), <span class="string">"ICE: Redefined function"</span>);
     }
 
     <span class="doccomment">/// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
@@ -3821,7 +3890,9 @@
         <span class="prelude-val">Ok</span>(new_params)
     }
 
-    <span class="kw">fn </span>parameter(
+    <span class="doccomment">/// Monomorphize a single function parameters, potentially expanding it into multiple parameters
+    /// if it's a tuple/struct pattern, appending the new parameters to an accumulator.
+    </span><span class="kw">fn </span>parameter(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         param: <span class="kw-2">&amp;</span>HirPattern,
         typ: <span class="kw-2">&amp;</span>HirType,
@@ -3842,14 +3913,22 @@
             }
             HirPattern::Tuple(fields, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>tuple_field_types = unwrap_tuple_type(typ);
-
+                <span class="macro">assert_eq!</span>(
+                    fields.len(),
+                    tuple_field_types.len(),
+                    <span class="string">"ICE: Unexpected number of tuple pattern fields"
+                </span>);
                 <span class="kw">for </span>(field, typ) <span class="kw">in </span>fields.iter().zip(tuple_field_types) {
                     <span class="self">self</span>.parameter(field, <span class="kw-2">&amp;</span>typ, visibility, new_params)<span class="question-mark">?</span>;
                 }
             }
             HirPattern::Struct(<span class="kw">_</span>, fields, location) =&gt; {
                 <span class="kw">let </span>struct_field_types = unwrap_struct_type(typ, <span class="kw-2">*</span>location)<span class="question-mark">?</span>;
-                <span class="macro">assert_eq!</span>(struct_field_types.len(), fields.len());
+                <span class="macro">assert_eq!</span>(
+                    struct_field_types.len(),
+                    fields.len(),
+                    <span class="string">"ICE: Unexpected number of struct pattern fields"
+                </span>);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>fields = btree_map(fields, |(name, field)| (name.to_string(), field));
 
@@ -3867,7 +3946,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Monomorphize an expression
+    <span class="doccomment">/// Monomorphize an expression.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: ExprId) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">use </span>ast::Expression::Literal;
         <span class="kw">use </span>ast::Literal::<span class="kw-2">*</span>;
@@ -3917,7 +3996,7 @@
 
                     <span class="kw">let </span>method = prefix
                         .trait_method_id
-                        .expect(<span class="string">"ice: missing trait method if when impl was found"</span>);
+                        .expect(<span class="string">"ICE: missing trait method when impl was found"</span>);
 
                     <span class="comment">// `true` here to use the current runtime since we're immediately calling this
                     // method in our current runtime.
@@ -3951,8 +4030,8 @@
                     <span class="kw">let </span>method = infix.trait_method_id;
 
                     <span class="kw">let </span>method = method.expect(<span class="string">"ICE: Monomorphizer::expr: expected the infix operator method to be resolved by monomorphization"</span>);
-                    <span class="comment">// True here since we're immediately calling this operator method in the
-                    // current runtime.
+                    <span class="comment">// `true` here to use the current runtime since we're immediately calling this
+                    // operator method in the current runtime.
                     </span><span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>operator = infix.operator;
                     <span class="self">self</span>.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)<span class="question-mark">?
@@ -4148,7 +4227,7 @@
         }
     }
 
-    <span class="doccomment">/// Monomorphize an array with repeated elements, such as `[3; 10]`.
+    <span class="doccomment">/// Monomorphize an array or vector with repeated elements, such as `[3; 10]`.
     </span><span class="kw">fn </span>repeated_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ExprId,
@@ -4173,6 +4252,8 @@
         //
         // That is, `expr` is only evaluated once, assigned to a local variable,
         // and the array consists of references to that local variable.
+        //
+        // Note that `expr` is evaluated even if the length is 0 (same as in Rust).
         </span><span class="kw">let </span>element = <span class="self">self</span>.expr(repeated_element)<span class="question-mark">?</span>;
         <span class="kw">let </span>local_id = <span class="self">self</span>.next_local_id();
 
@@ -4220,10 +4301,8 @@
             HirStatement::Let(let_statement) =&gt; <span class="self">self</span>.let_statement(let_statement),
             HirStatement::Assign(assign) =&gt; <span class="self">self</span>.assign(assign),
             HirStatement::For(for_loop) =&gt; {
-                <span class="self">self</span>.is_range_loop = <span class="bool-val">true</span>;
                 <span class="kw">let </span>start = <span class="self">self</span>.expr(for_loop.start_range)<span class="question-mark">?</span>;
                 <span class="kw">let </span>end = <span class="self">self</span>.expr(for_loop.end_range)<span class="question-mark">?</span>;
-                <span class="self">self</span>.is_range_loop = <span class="bool-val">false</span>;
                 <span class="kw">let </span>index_variable = <span class="self">self</span>.next_local_id();
                 <span class="self">self</span>.define_local(for_loop.identifier.id, index_variable);
 
@@ -4758,7 +4837,8 @@
             HirType::String(size) =&gt; {
                 <span class="kw">let </span>size = <span class="kw">match </span>size.evaluate_to_u32(location) {
                     <span class="prelude-val">Ok</span>(size) =&gt; size,
-                    <span class="comment">// only default variable sizes to size 0
+                    <span class="comment">// This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
+                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     </span><span class="prelude-val">Err</span>(TypeCheckError::NonConstantEvaluated { .. }) =&gt; <span class="number">0</span>,
                     <span class="prelude-val">Err</span>(err) =&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
@@ -4769,7 +4849,8 @@
             HirType::FmtString(size, fields) =&gt; {
                 <span class="kw">let </span>size = <span class="kw">match </span>size.evaluate_to_u32(location) {
                     <span class="prelude-val">Ok</span>(size) =&gt; size,
-                    <span class="comment">// only default variable sizes to size 0
+                    <span class="comment">// This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
+                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     </span><span class="prelude-val">Err</span>(TypeCheckError::NonConstantEvaluated { .. }) =&gt; <span class="number">0</span>,
                     <span class="prelude-val">Err</span>(err) =&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
@@ -4814,7 +4895,8 @@
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 </span>type_var.bind(HirType::default_int_or_field_type());
-                ast::Type::Field
+                <span class="comment">// FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
+                </span>ast::Type::Field
             }
 
             HirType::CheckedCast { from, to } =&gt; {
@@ -5067,9 +5149,9 @@
         }
     }
 
-    <span class="doccomment">/// Check that the 'from' and to' sides of a CheckedCast unify and
-    /// that if the 'to' side evaluates to a field element, that the 'from' side
-    /// evaluates to the same field element
+    <span class="doccomment">/// Check that the 'from' and to' sides of a `CheckedCast` unify and
+    /// that if the 'to' side evaluates to a field element, then the 'from' side
+    /// evaluates to the same field element as well.
     </span><span class="kw">fn </span>check_checked_cast(
         from: <span class="kw-2">&amp;</span>Type,
         to: <span class="kw-2">&amp;</span>Type,
@@ -5125,7 +5207,10 @@
         </span>}
     }
 
-    <span class="kw">fn </span>resolve_trait_item_expr(
+    <span class="doccomment">/// Resolve a trait item and monomorphize it either as:
+    /// * an associated numeric constant, or
+    /// * a tuple of (constrained, unconstrained) functions
+    </span><span class="kw">fn </span>resolve_trait_item_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr_id: ExprId,
         function_type: HirType,
@@ -5152,7 +5237,9 @@
         )
     }
 
-    <span class="kw">fn </span>resolve_trait_method_expr(
+    <span class="doccomment">/// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
+    /// and return and identifier to it.
+    </span><span class="kw">fn </span>resolve_trait_method_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: node_interner::FuncId,
         expr_id: ExprId,
@@ -5518,7 +5605,10 @@
         Expression::Literal(Literal::Vector(arr_literal))
     }
 
-    <span class="kw">fn </span>queue_function(
+    <span class="doccomment">/// Look up the instantiation bindings of a function expression and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
+    </span><span class="kw">fn </span>queue_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: node_interner::FuncId,
         expr_id: ExprId,
@@ -5539,7 +5629,10 @@
         )
     }
 
-    <span class="kw">pub fn </span>queue_function_with_bindings(
+    <span class="doccomment">/// Store the definition of a function and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
+    </span><span class="kw">pub fn </span>queue_function_with_bindings(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: node_interner::FuncId,
         expr_location: Location,
@@ -6110,7 +6203,9 @@
         <span class="prelude-val">Ok</span>(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 
-    <span class="kw">fn </span>is_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: node_interner::FuncId) -&gt; bool {
+    <span class="doccomment">/// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
+    /// unconstrained function, in which case all callees are treated as unconstrained.
+    </span><span class="kw">fn </span>is_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: node_interner::FuncId) -&gt; bool {
         <span class="self">self</span>.in_unconstrained_function
             || <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).is_unconstrained
     }
@@ -6146,7 +6241,10 @@
         }
     }
 
-    <span class="kw">fn </span>function_is_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ExprId) -&gt; bool {
+    <span class="doccomment">/// Check that an identifier refers to an unconstrained user defined function.
+    ///
+    /// Returns `false` for any other kind of expression.
+    </span><span class="kw">fn </span>function_is_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ExprId) -&gt; bool {
         <span class="kw">if let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function) {
             <span class="kw">if let </span>DefinitionKind::Function(func_id) = <span class="self">self</span>.interner.definition(ident.id).kind {
                 <span class="kw">return </span><span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).is_unconstrained;
@@ -6256,7 +6354,7 @@
     <span class="prelude-val">Ok</span>(bindings)
 }
 
-<span class="doccomment">/// Resolve a trait item to a particular impl, returning the id of that impl or an error on failure.
+<span class="doccomment">/// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
 </span><span class="kw">fn </span>resolve_trait_item_impl(
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     method_id: TraitItemId,
@@ -6352,7 +6450,7 @@
 ///
 /// During monomorphization, on the specific call to `foo::&lt;Field&gt;()`,
 /// the compiler will know that `K` refers to `Field`, and that `K::baz::&lt;2&gt;`
-/// refers to the `baz` method on the `Field` impl for `Bar`. In that method
+/// refers to the `baz` method on the `Bar` impl for `Field`. In that method
 /// the type variable `M` is unbound. Looking up its value will fail.
 /// However, we can bind `M` to `N`, so it eventually resolves to `2`,
 /// which is what this method does.
@@ -6402,7 +6500,11 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_trait_item(
+<span class="doccomment">/// Look up a specific member of a trait, then look through the trait methods
+/// and associated constants until an item with a matching name is found.
+///
+/// Panics if the name cannot be matched to anything.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_trait_item(
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
@@ -6440,7 +6542,7 @@
         }
     }
 
-    <span class="macro">unreachable!</span>(<span class="string">"No method named `{name}` in impl"</span>)
+    <span class="macro">unreachable!</span>(<span class="string">"No method or constant named `{name}` in impl"</span>)
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TraitItem {
@@ -6449,7 +6551,10 @@
 }
 
 <span class="kw">impl </span>TraitItem {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwrap_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; node_interner::FuncId {
+    <span class="doccomment">/// Get the function ID from a [TraitItem::Method].
+    ///
+    /// Panics if called on a [TraitItem::Constant].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwrap_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; node_interner::FuncId {
         <span class="kw">match </span><span class="self">self </span>{
             TraitItem::Method(func_id) =&gt; <span class="kw-2">*</span>func_id,
             TraitItem::Constant { .. } =&gt; {
@@ -6459,15 +6564,16 @@
     }
 }
 
-<span class="doccomment">/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
-/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
-/// value, and another `bool` to show if the print is using a format string, or a raw
-/// value.
+<span class="doccomment">/// Extend the arguments to `print` (which so far is a `bool` to show if newline is needed and
+/// value to be printed itself) with further metadata:
+/// * if we print a raw value, then append a JSON serialized `PrintableType` to describe it
+/// * if we are using a format string with multiple interpolations, append a separate JSON for each value in it
+/// * finally another `bool` to show if the print is using a format string, or a raw value
 </span><span class="kw">pub fn </span>append_printable_type_info_for_type(typ: Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
     <span class="kw">let </span>typ: Type = typ.follow_bindings();
     <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
         <span class="comment">// A format string has many different possible types that need to be handled.
-        // Loop over each element in the format string to fetch each type's relevant metadata
+        // Loop over each element in the format string to fetch each type's relevant metadata.
         </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
             <span class="kw">match </span><span class="kw-2">*</span>elements {
                 Type::Tuple(element_types) =&gt; {

@@ -2626,7 +2626,7 @@
         <span class="self">self</span>.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    <span class="doccomment">/// Retrieves the impl selected for a given ExprId during name resolution.
+    <span class="doccomment">/// Retrieves the impl selected for a given [ExprId] during name resolution.
     </span><span class="kw">pub fn </span>get_selected_impl_for_expression(<span class="kw-2">&amp;</span><span class="self">self</span>, ident_id: ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;TraitImplKind&gt; {
         <span class="self">self</span>.selected_trait_implementations.get(<span class="kw-2">&amp;</span>ident_id).cloned()
     }

@@ -388,15 +388,7 @@
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implement a post-monomorphization pass where builtin/intrinsic/oracle functions used as values
+<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implement a post-monomorphization pass where builtin/intrinsic/oracle functions used as values
 //! are wrapped in a proxy function which replaces them as a value and forwards calls to them.
 //!
 //! The reason this exists is because by the time we get to the `defunctionalize` SSA pass it would
@@ -411,7 +403,7 @@
 //! dispatch functions for them in the `defunctionalize` pass.
 //!
 //! The pass also automatically wraps direct calls to oracle functions from constrained functions,
-//! which, after creating wrapper for function values, would only present an inconvenience for users
+//! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
 </span><span class="kw">use </span>std::collections::HashMap;
@@ -484,7 +476,7 @@
             <span class="comment">// Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
             // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
-            // If this is a direct from ACIR to an Oracle, we want to create a proxy.
+            // If this is a direct call from ACIR to an Oracle, we want to create a proxy.
             </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained {
                 <span class="kw">if let </span>Expression::Call(Call { func, arguments, return_type: <span class="kw">_</span>, location: <span class="kw">_ </span>}) =
                     expr
@@ -684,10 +676,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use crate</span>::{
-        hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
-    };
+    <span class="kw">use </span><span class="kw">crate</span>::test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>creates_proxies_for_acir_to_oracle_calls() {
@@ -765,15 +754,10 @@
         }
         "</span>;
 
-        <span class="kw">let </span>program = get_monomorphized_with_error_filter(src, |err| {
-            <span class="macro">matches!</span>(
-                err,
-                <span class="comment">// Ignore the error about creating a builtin function.
-                </span>CompilationError::ResolverError(
-                    ResolverError::LowLevelFunctionOutsideOfStdlib { .. }
-                )
-            )
-        })
+        <span class="kw">let </span>program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: <span class="bool-val">true</span>, ..Default::default() },
+        )
         .unwrap();
 
         <span class="macro">insta::assert_snapshot!</span>(program, @<span class="string">r"

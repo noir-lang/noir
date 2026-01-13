@@ -135,7 +135,35 @@
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -163,21 +191,46 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-<span class="kw">pub fn </span>get_monomorphized(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
-    get_monomorphized_with_error_filter(src, |<span class="kw">_</span>| <span class="bool-val">false</span>)
+<span class="attr">#[derive(Copy, Clone, Debug)]
+</span><span class="kw">pub struct </span>GetProgramOptions&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">pub </span>allow_parser_errors: bool,
+    <span class="kw">pub </span>allow_elaborator_errors: bool,
+    <span class="doccomment">/// Treats the program snippet as if it was stdlib, which allows the definition of
+    /// low-level (builtin) functions, and standard traits used by prefix/infix operators.
+    </span><span class="kw">pub </span>root_and_stdlib: bool,
+    <span class="kw">pub </span>frontend_options: FrontendOptions&lt;<span class="lifetime">'a</span>&gt;,
 }
 
-<span class="kw">pub fn </span>get_monomorphized_with_error_filter(
-    src: <span class="kw-2">&amp;</span>str,
-    ignore_error: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>CompilationError) -&gt; bool,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
-    <span class="kw">let </span>(_parsed_module, <span class="kw-2">mut </span>context, errors) = get_program(src);
+<span class="kw">impl </span>Default <span class="kw">for </span>GetProgramOptions&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            allow_parser_errors: <span class="bool-val">false</span>,
+            allow_elaborator_errors: <span class="bool-val">false</span>,
+            root_and_stdlib: <span class="bool-val">false</span>,
+            frontend_options: FrontendOptions::test_default(),
+        }
+    }
+}
 
-    <span class="kw">let </span>errors = errors.into_iter().filter(|e| !ignore_error(e)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-    <span class="macro">assert!</span>(
-        errors.iter().all(|err| !err.is_error()),
-        <span class="string">"Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
-    </span>);
+<span class="doccomment">/// Compile and monomorphize a program.
+</span><span class="kw">pub fn </span>get_monomorphized(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
+    get_monomorphized_with_options(src, GetProgramOptions::default())
+}
+
+<span class="doccomment">/// Compile and monomorphize a program.
+</span><span class="kw">pub fn </span>get_monomorphized_with_options(
+    src: <span class="kw-2">&amp;</span>str,
+    options: GetProgramOptions,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
+    <span class="kw">let </span>(_parsed_module, <span class="kw-2">mut </span>context, errors) = get_program_with_options(src, options);
+
+    <span class="kw">let </span>only_warnings = errors.iter().all(|err| !err.is_error());
+    <span class="kw">let </span>has_defs = !context.def_maps.is_empty();
+    <span class="kw">if </span>!only_warnings || !has_defs &amp;&amp; !errors.is_empty() {
+        <span class="macro">panic!</span>(
+            <span class="string">"Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
+        </span>)
+    }
 
     <span class="kw">let </span>main = context
         .get_main_function(context.root_crate_id())
@@ -199,9 +252,11 @@
     });
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_program(src: <span class="kw-2">&amp;</span>str) -&gt; (ParsedModule, Context, Vec&lt;CompilationError&gt;) {
-    <span class="kw">let </span>allow_parser_errors = <span class="bool-val">false</span>;
-    get_program_with_options(src, allow_parser_errors, FrontendOptions::test_default())
+<span class="doccomment">/// Compile a program.
+///
+/// The stdlib is not available for these snippets.
+</span><span class="kw">pub fn </span>get_program(src: <span class="kw-2">&amp;</span>str) -&gt; (ParsedModule, Context, Vec&lt;CompilationError&gt;) {
+    get_program_with_options(src, GetProgramOptions::default())
 }
 
 <span class="kw">pub enum </span>Expect {
@@ -212,15 +267,12 @@
 
 <span class="doccomment">/// Compile a program.
 ///
-/// The stdlib is not available for these snippets.
-///
-/// An optional test path is supplied as an argument.
-/// The existence of a test path indicates that we want to emit integration tests
-/// for the supplied program as well.
+/// The stdlib is not available for these snippets, but using the `root_and_stdlib`
+/// option allows the inclusion of trait definitions that are considered for prefix/infix
+/// operators by the compiler, as well as defining low-level builtin functions.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_program_with_options(
     src: <span class="kw-2">&amp;</span>str,
-    allow_parser_errors: bool,
-    options: FrontendOptions,
+    options: GetProgramOptions,
 ) -&gt; (ParsedModule, Context&lt;<span class="lifetime">'static</span>, <span class="lifetime">'static</span>&gt;, Vec&lt;CompilationError&gt;) {
     <span class="kw">let </span>root = Path::new(<span class="string">"/"</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>fm = FileManager::new(root);
@@ -229,13 +281,17 @@
     context.enable_pedantic_solving();
 
     context.def_interner.populate_dummy_operator_traits();
-    <span class="kw">let </span>root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    <span class="kw">let </span>root_crate_id = <span class="kw">if </span>options.root_and_stdlib {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    } <span class="kw">else </span>{
+        context.crate_graph.add_crate_root(root_file_id)
+    };
 
     <span class="kw">let </span>(program, parser_errors) = parse_program(src, root_file_id);
     <span class="kw">let </span><span class="kw-2">mut </span>errors = vecmap(parser_errors, |e| e.into());
     remove_experimental_warnings(<span class="kw-2">&amp;mut </span>errors);
 
-    <span class="kw">if </span>allow_parser_errors || !has_parser_error(<span class="kw-2">&amp;</span>errors) {
+    <span class="kw">if </span>options.allow_parser_errors || !has_parser_error(<span class="kw-2">&amp;</span>errors) {
         <span class="kw">let </span>inner_attributes: Vec&lt;SecondaryAttribute&gt; = program
             .items
             .iter()
@@ -266,7 +322,7 @@
             <span class="kw-2">&amp;mut </span>context,
             program.clone().into_sorted(),
             root_file_id,
-            options,
+            options.frontend_options,
         ));
     }
 

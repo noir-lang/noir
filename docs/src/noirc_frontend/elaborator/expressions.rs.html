@@ -1749,7 +1749,8 @@
 <a href="#1748" id="1748">1748</a>
 <a href="#1749" id="1749">1749</a>
 <a href="#1750" id="1750">1750</a>
-<a href="#1751" id="1751">1751</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -3019,7 +3020,7 @@
             <span class="prelude-val">Ok</span>((typ, use_impl)) =&gt; {
                 <span class="kw">if </span>use_impl {
                     <span class="kw">let </span>trait_method_id = trait_method_id
-                        .expect(<span class="string">"ice: expected some trait_method_id when use_impl is true"</span>);
+                        .expect(<span class="string">"ICE: expected some trait_method_id when use_impl is true"</span>);
 
                     <span class="comment">// Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
@@ -3030,6 +3031,7 @@
                     <span class="kw">let </span>constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
                     <span class="kw">let </span>select_impl = <span class="bool-val">true</span>; <span class="comment">// this constraint should lead to choosing a trait impl
                     </span><span class="self">self</span>.push_trait_constraint(constraint, expr_id, select_impl);
+
                     <span class="self">self</span>.type_check_operator_method(
                         expr_id,
                         trait_method_id,

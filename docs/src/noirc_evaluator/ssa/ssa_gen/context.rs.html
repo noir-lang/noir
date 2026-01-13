@@ -1045,7 +1045,9 @@
 <a href="#1044" id="1044">1044</a>
 <a href="#1045" id="1045">1045</a>
 <a href="#1046" id="1046">1046</a>
-<a href="#1047" id="1047">1047</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1684,9 +1686,11 @@
     ///                  construct the larger value as needed until we can `store` to the nearest
     ///                  allocation.
     ///
+    /// ```text
     /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
     /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
     /// store v5 in v0                   ; and store the result in the only mutable reference
+    /// ```
     ///
     /// The returned `LValueRef` tracks the current value at each step of the lvalue.
     /// This is later used by `assign_new_value` to construct a new updated value that

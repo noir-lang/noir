@@ -703,7 +703,11 @@
 <a href="#702" id="702">702</a>
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
@@ -977,7 +981,11 @@
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(Vec&lt;FmtStrFragment&gt;, u64, Box&lt;Expression&gt;),
+    FmtStr(
+        Vec&lt;FmtStrFragment&gt;,
+        <span class="comment">/* Number of variables in the format string. */ </span>u64,
+        <span class="comment">/* Tuple with variables to interpolate. */ </span>Box&lt;Expression&gt;,
+    ),
 }
 
 <span class="attr">#[derive(Debug, Clone, Hash)]

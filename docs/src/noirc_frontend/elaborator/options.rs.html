@@ -106,7 +106,7 @@
 <span class="doccomment">/// Generic options struct meant to resolve to ElaboratorOptions below when
 /// we can resolve a file path to a file id later. This generic struct is used
 /// so that FrontendOptions doesn't need to duplicate fields and methods with ElaboratorOptions.
-</span><span class="attr">#[derive(Copy, Clone)]
+</span><span class="attr">#[derive(Copy, Clone, Debug)]
 </span><span class="kw">pub struct </span>GenericOptions&lt;<span class="lifetime">'a</span>, T&gt; {
     <span class="doccomment">/// The scope of --debug-comptime, or None if unset
     </span><span class="kw">pub </span>debug_comptime_in_file: <span class="prelude-ty">Option</span>&lt;T&gt;,

@@ -330,7 +330,8 @@
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>printer;
@@ -496,7 +497,8 @@
     /// - Panics if no main function is found
     </span><span class="kw">pub fn </span>get_main_function(<span class="kw-2">&amp;</span><span class="self">self</span>, crate_id: <span class="kw-2">&amp;</span>CrateId) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
         <span class="comment">// Find the local crate, one should always be present
-        </span><span class="kw">let </span>local_crate = <span class="self">self</span>.def_map(crate_id).unwrap();
+        </span><span class="kw">let </span>local_crate =
+            <span class="self">self</span>.def_map(crate_id).expect(<span class="string">"cannot find the crate of the main function"</span>);
 
         local_crate.main_function()
     }

@@ -151,7 +151,7 @@
 <span class="kw">use </span>std::collections::HashMap;
 
 <span class="doccomment">/// We keep a collection of the debug variables and their types in this
-/// structure. The source_var_id refers to the ID given by the debug
+/// structure. The `source_var_id` refers to the ID given by the debug
 /// instrumenter. This variable does not have a type yet and hence it
 /// can be instantiated for multiple types if it's in the context of a generic
 /// variable. The var_id refers to the ID of the instantiated variable which
@@ -165,7 +165,7 @@
     </span>source_field_names: HashMap&lt;SourceFieldId, String&gt;,
 
     <span class="comment">// Current instances of tracked variables from the ID given during
-    // instrumentation. The tracked var_id will change for each source_var_id
+    // instrumentation. The tracked var_id will change for each `source_var_id`
     // when compiling generic functions.
     </span>source_to_debug_vars: HashMap&lt;SourceVarId, DebugVarId&gt;,
 
