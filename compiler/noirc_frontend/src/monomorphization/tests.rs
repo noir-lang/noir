@@ -993,3 +993,64 @@ fn match_missing_case_becomes_constrain() {
     }
     "#);
 }
+
+#[test]
+fn match_tuple_becomes_multiple_matches() {
+    let src = r#"
+    fn main(xy: (u32, u32)) -> pub bool {
+        match xy {
+            (0, _) => true,
+            (_, 0) => true,
+            _ => false,
+        }
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(xy$l0: (u32, u32)) -> pub bool {
+        {
+            let internal variable$l1 = xy$l0;
+            match $1 {
+                ($2, $3) => match $2 {
+                    0 => {
+                        let _$l4 = internal_match_variable_1$l3;
+                        true
+                    },
+                    _ => match $3 {
+                        0 => {
+                            let _$l5 = internal_match_variable_0$l2;
+                            true
+                        },
+                        _ => {
+                            let _$l6 = internal variable$l1;
+                            false
+                        },
+                    },
+                },
+            }
+        }
+    }
+    ");
+}
+
+// Placeholder: code exists in the monomorphizer to handle `HirExpression::Guard`,
+// but it looks like a guard is never constructed at the moment.
+// When it is implemented, we should complete this test.
+#[test]
+#[should_panic(expected = "ParseError")]
+fn match_guard_becomes_if_then_else() {
+    let src = r#"
+    fn main(xy: (u32, u32)) -> pub u32 {
+        match xy {
+            (x, y) if x == 0 => y,
+            (x, _) => x,
+        }
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"???");
+}
