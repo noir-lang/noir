@@ -317,8 +317,6 @@ mod tests {
     /// but the `msgpack-c` library does not.
     #[test]
     fn msgpack_optional() {
-        use rmpv::Value; // cSpell:disable-line
-
         let value: Opcode<FieldElement> = Opcode::BrilligCall {
             id: BrilligFunctionId(1),
             inputs: Vec::new(),
