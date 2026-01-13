@@ -707,7 +707,16 @@
 <a href="#706" id="706">706</a>
 <a href="#707" id="707">707</a>
 <a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>modifiers::Modifiers;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -968,6 +977,15 @@
         } <span class="kw">else </span>{
             <span class="bool-val">false
         </span>}
+    }
+
+    <span class="doccomment">/// Eats an identifier. If it's `_`, pushes an error but still returns it as an identifier.
+    </span><span class="kw">fn </span>eat_non_underscore_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {
+        <span class="kw">let </span>ident = <span class="self">self</span>.eat_ident()<span class="question-mark">?</span>;
+        <span class="kw">if </span>ident.as_str() == <span class="string">"_" </span>{
+            <span class="self">self</span>.push_error(ParserErrorReason::ExpectedIdentifierGotUnderscore, ident.location());
+        }
+        <span class="prelude-val">Some</span>(ident)
     }
 
     <span class="kw">fn </span>eat_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {

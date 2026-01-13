@@ -2571,7 +2571,7 @@
     }
 
     <span class="kw">fn </span>parse_member_access_field_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_non_underscore_ident() {
             <span class="prelude-val">Some</span>(ident)
         <span class="comment">// We allow integer type suffixes on tuple field names since this lets
         // users unquote typed integers in macros to use as a tuple access expression.
@@ -2859,7 +2859,7 @@
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">let </span>ident = <span class="self">self</span>.eat_ident()<span class="question-mark">?</span>;
+            <span class="kw">let </span>ident = <span class="self">self</span>.eat_non_underscore_ident()<span class="question-mark">?</span>;
 
             <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw">if </span><span class="self">self</span>.eat_colon() {
                 <span class="kw">let </span>expression = <span class="self">self</span>.parse_expression_or_error();
@@ -3047,7 +3047,7 @@
     <span class="kw">fn </span>parse_type_path_expr_for_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; TypePath {
         <span class="self">self</span>.eat_or_error(Token::DoubleColon);
 
-        <span class="kw">let </span>item = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
+        <span class="kw">let </span>item = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_non_underscore_ident() {
             ident
         } <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();

@@ -610,7 +610,7 @@
     }
 
     <span class="kw">fn </span>parse_struct_pattern_field(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Ident, Pattern)&gt; {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_non_underscore_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
             <span class="kw">return </span><span class="prelude-val">None</span>;
         };

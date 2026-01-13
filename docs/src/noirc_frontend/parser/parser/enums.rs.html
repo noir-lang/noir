@@ -281,7 +281,7 @@
     ) -&gt; NoirEnumeration {
         <span class="kw">let </span>attributes = <span class="self">self</span>.validate_secondary_attributes(attributes);
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_non_underscore_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
             <span class="kw">return </span><span class="self">self</span>.empty_enum(
                 <span class="self">self</span>.unknown_ident_at_previous_token_end(),
@@ -321,7 +321,7 @@
             <span class="kw">let </span>doc_comments_start_location = <span class="self">self</span>.current_token_location;
             doc_comments = <span class="self">self</span>.parse_outer_doc_comments();
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_non_underscore_ident() {
                 name = ident;
                 <span class="kw">break</span>;
             }

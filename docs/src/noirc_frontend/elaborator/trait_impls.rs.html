@@ -984,7 +984,15 @@
 <a href="#983" id="983">983</a>
 <a href="#984" id="984">984</a>
 <a href="#985" id="985">985</a>
-<a href="#986" id="986">986</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -1386,17 +1394,23 @@
         <span class="kw">let </span><span class="kw-2">mut </span>bindings =
             <span class="self">self</span>.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
-        <span class="kw">let </span>override_meta = <span class="self">self</span>.interner.function_meta(func_id);
+        <span class="kw">let </span>override_meta = <span class="self">self</span>.interner.remove_function_meta(func_id);
+
         <span class="comment">// Substitute each generic on the trait function with the corresponding generic on the impl function
         </span><span class="kw">for </span>(ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) <span class="kw">in
             </span>method.direct_generics.iter().zip(<span class="kw-2">&amp;</span>override_meta.direct_generics)
         {
             <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
             <span class="kw">let </span>arg = impl_fn_resolved_generic.clone().as_named_generic();
-            bindings.insert(
-                trait_fn_generic.id(),
-                (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
-            );
+
+            <span class="kw">if </span><span class="self">self</span>.check_kind(
+                trait_fn_kind.clone(),
+                <span class="kw-2">&amp;</span>arg.kind(),
+                impl_fn_resolved_generic.location,
+            ) {
+                bindings
+                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            }
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>substituted_method_ids = HashSet::default();
@@ -1444,6 +1458,8 @@
                 });
             }
         }
+
+        <span class="self">self</span>.interner.push_fn_meta(override_meta, <span class="kw-2">*</span>func_id);
     }
 
     <span class="kw">fn </span>check_trait_impl_crate_coherence(

@@ -787,7 +787,7 @@
         allow_optional_body: bool,
         allow_self: bool,
     ) -&gt; FunctionDefinitionWithOptionalBody {
-        <span class="kw">let </span>name = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() {
+        <span class="kw">let </span>name = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_non_underscore_ident() {
             name
         } <span class="kw">else if </span><span class="self">self</span>.at(Token::LeftParen) || <span class="self">self</span>.at(Token::Less) {
             <span class="comment">// If it's `fn (...` or `fn &lt;...` we assume the user missed the function name but a function

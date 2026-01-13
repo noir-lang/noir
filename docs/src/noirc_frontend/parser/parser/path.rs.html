@@ -572,7 +572,7 @@
         <span class="kw">let </span>trait_generics = <span class="self">self</span>.parse_generic_type_args();
         <span class="self">self</span>.eat_or_error(Token::Greater);
         <span class="self">self</span>.eat_or_error(Token::DoubleColon);
-        <span class="kw">let </span>impl_item = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
+        <span class="kw">let </span>impl_item = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_non_underscore_ident() {
             ident
         } <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();

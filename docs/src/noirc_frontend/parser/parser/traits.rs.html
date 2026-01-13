@@ -683,7 +683,7 @@
     ) -&gt; (NoirTrait, <span class="prelude-ty">Option</span>&lt;NoirTraitImpl&gt;) {
         <span class="kw">let </span>attributes = <span class="self">self</span>.validate_secondary_attributes(attributes);
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_non_underscore_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
             <span class="kw">let </span>noir_trait =
                 empty_trait(attributes, visibility, <span class="self">self</span>.location_since(start_location));
@@ -833,7 +833,7 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let </span>name = <span class="kw">match </span><span class="self">self</span>.eat_ident() {
+        <span class="kw">let </span>name = <span class="kw">match </span><span class="self">self</span>.eat_non_underscore_ident() {
             <span class="prelude-val">Some</span>(name) =&gt; name,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="self">self</span>.expected_identifier();
@@ -854,7 +854,7 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let </span>name = <span class="kw">match </span><span class="self">self</span>.eat_ident() {
+        <span class="kw">let </span>name = <span class="kw">match </span><span class="self">self</span>.eat_non_underscore_ident() {
             <span class="prelude-val">Some</span>(name) =&gt; name,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="self">self</span>.expected_identifier();
