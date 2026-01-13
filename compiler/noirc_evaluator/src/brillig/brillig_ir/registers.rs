@@ -38,9 +38,12 @@ use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress, lengths::SemiFla
 use iter_extended::vecmap;
 use smallvec::{SmallVec, smallvec};
 
-use crate::brillig::brillig_ir::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-    brillig_variable::{BrilligArray, BrilligVector},
+use crate::brillig::{
+    assert_u32, assert_usize,
+    brillig_ir::{
+        BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        brillig_variable::{BrilligArray, BrilligVector},
+    },
 };
 
 use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVariable};
@@ -148,7 +151,7 @@ impl Stack {
     ///
     /// Panics if the address is `Direct`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
-        let offset = register.unwrap_relative();
+        let offset = assert_usize(register.unwrap_relative());
         offset >= self.start() && offset < self.end()
     }
 
@@ -171,17 +174,17 @@ impl RegisterAllocator for Stack {
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
         assert!(self.is_within_bounds(register), "Register out of stack bounds");
-        self.storage.ensure_register_is_allocated(register.unwrap_relative());
+        self.storage.ensure_register_is_allocated(assert_usize(register.unwrap_relative()));
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
-        let allocated = MemoryAddress::relative(self.storage.allocate_register());
+        let allocated = MemoryAddress::relative(assert_u32(self.storage.allocate_register()));
         assert!(self.is_within_bounds(allocated), "Stack frame too deep");
         allocated
     }
 
     fn deallocate_register(&mut self, register: MemoryAddress) {
-        self.storage.deallocate_register(register.unwrap_relative());
+        self.storage.deallocate_register(assert_usize(register.unwrap_relative()));
     }
 
     fn from_preallocated_registers(
@@ -196,14 +199,14 @@ impl RegisterAllocator for Stack {
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
                 empty.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_relative()),
+                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
             ),
             layout,
         }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::relative(self.storage.empty_registers_start())
+        MemoryAddress::relative(assert_u32(self.storage.empty_registers_start()))
     }
 
     fn layout(&self) -> LayoutConfig {
@@ -228,7 +231,7 @@ impl ScratchSpace {
     ///
     /// Panics if the address is `Relative`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
-        let index = register.unwrap_direct();
+        let index = assert_usize(register.unwrap_direct());
         index >= self.start() && index < self.end()
     }
 
@@ -254,17 +257,17 @@ impl RegisterAllocator for ScratchSpace {
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
         assert!(self.is_within_bounds(register), "Register out of scratch space bounds");
-        self.storage.ensure_register_is_allocated(register.unwrap_direct());
+        self.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
-        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        let allocated = MemoryAddress::direct(assert_u32(self.storage.allocate_register()));
         assert!(self.is_within_bounds(allocated), "Scratch space too deep");
         allocated
     }
 
     fn deallocate_register(&mut self, register: MemoryAddress) {
-        self.storage.deallocate_register(register.unwrap_direct());
+        self.storage.deallocate_register(assert_usize(register.unwrap_direct()));
     }
 
     fn from_preallocated_registers(
@@ -279,14 +282,14 @@ impl RegisterAllocator for ScratchSpace {
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
                 empty.start(),
-                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_direct())),
             ),
             layout,
         }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start())
+        MemoryAddress::direct(assert_u32(self.storage.empty_registers_start()))
     }
 
     fn layout(&self) -> LayoutConfig {
@@ -312,7 +315,7 @@ impl GlobalSpace {
 
     /// Expand the global space to fit a new register if necessary.
     fn update_max_address(&mut self, register: MemoryAddress) {
-        let index = register.unwrap_direct();
+        let index = assert_usize(register.unwrap_direct());
         assert!(index >= self.start(), "Global space malformed");
         if index > self.max_memory_address {
             self.max_memory_address = index;
@@ -341,18 +344,18 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
-        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        let allocated = MemoryAddress::direct(assert_u32(self.storage.allocate_register()));
         self.update_max_address(allocated);
         allocated
     }
 
     fn deallocate_register(&mut self, register: MemoryAddress) {
-        self.storage.deallocate_register(register.unwrap_direct());
+        self.storage.deallocate_register(assert_usize(register.unwrap_direct()));
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
         self.update_max_address(register);
-        self.storage.ensure_register_is_allocated(register.unwrap_direct());
+        self.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
     fn from_preallocated_registers(
@@ -363,7 +366,7 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
-        MemoryAddress::direct(self.storage.empty_registers_start())
+        MemoryAddress::direct(assert_u32(self.storage.empty_registers_start()))
     }
 
     fn layout(&self) -> LayoutConfig {
@@ -567,7 +570,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
     pub(crate) fn make_scratch_registers<const N: usize>(&self) -> [MemoryAddress; N] {
         let scratch_start = ScratchSpace::start();
-        std::array::from_fn(|i| MemoryAddress::direct(scratch_start + i))
+        std::array::from_fn(|i| MemoryAddress::direct(assert_u32(scratch_start + i)))
     }
 }
 

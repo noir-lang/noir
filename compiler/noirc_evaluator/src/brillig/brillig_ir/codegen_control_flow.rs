@@ -10,7 +10,7 @@ use acvm::{
 };
 
 use crate::{
-    brillig::brillig_ir::{assert_usize, registers::Allocated},
+    brillig::{assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::instruction::ErrorType,
 };
 
