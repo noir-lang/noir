@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768308937684,
+  "lastUpdate": 1768309601817,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23226,48 +23226,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "79e93d824a583a5fe4e04b5af749261a9bec0f8c",
-          "message": "chore: add Brillig compilation benchmarks to external repo reports (#11101)",
-          "timestamp": "2026-01-06T18:37:35Z",
-          "tree_id": "5f08bdf734357a8117dbebb037e6af2113a3d1a8",
-          "url": "https://github.com/noir-lang/noir/commit/79e93d824a583a5fe4e04b5af749261a9bec0f8c"
-        },
-        "date": 1767725856233,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256590,
-            "range": "± 627",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232443,
-            "range": "± 2166",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2262216,
-            "range": "± 3305",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25319,6 +25277,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786770,
             "range": "± 7360",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6ac6ec254f0579191429a894571c4c18497d6751",
+          "message": "chore(monomorhpization): More tests and docs; option allow builtin traits in test snippets; fix secondary panic from `PushedExpr::drop` (#11145)",
+          "timestamp": "2026-01-13T12:44:49Z",
+          "tree_id": "6bac81f35aa29e223f1095339900d0dafb69075a",
+          "url": "https://github.com/noir-lang/noir/commit/6ac6ec254f0579191429a894571c4c18497d6751"
+        },
+        "date": 1768309566641,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252810,
+            "range": "± 733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219926,
+            "range": "± 3133",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780335,
+            "range": "± 3978",
             "unit": "ns/iter"
           }
         ]
