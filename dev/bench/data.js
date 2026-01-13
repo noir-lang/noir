@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768315390863,
+  "lastUpdate": 1768315433142,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "e1bd2c70f7adf6347a1ab5aa5da2729c641abd12",
-          "message": "fix: do not discard terms that cannot be added to intermediate variables (#11087)",
-          "timestamp": "2026-01-07T15:08:47Z",
-          "tree_id": "7d0f9c21fd6e99df91cdcf79637bbb6ea230334b",
-          "url": "https://github.com/noir-lang/noir/commit/e1bd2c70f7adf6347a1ab5aa5da2729c641abd12"
-        },
-        "date": 1767801192399,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 269.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 304.88,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 256.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 335.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 334.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 335.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 523.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 464.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 333.87,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.01,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.08,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "453c9df6b9bf979089fdf2e107c3dd2316220205",
           "message": "chore: document indexing array with Field elements (#11117)",
           "timestamp": "2026-01-07T15:48:28Z",
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4be5c07d5c83b56204a35d5e29102c31e18f331b"
         },
         "date": 1768315348833,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 270.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 306.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 257.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 337.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 336.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 360.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 525.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 466.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 335.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.19,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.49,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44aa82bae38eb604ebf95dd9b7a9873f1bccd674",
+          "message": "fix: ensure trait impl generic kinds match their corresponding trait generic kinds (#11172)",
+          "timestamp": "2026-01-13T13:56:58Z",
+          "tree_id": "0fd120c0613d2d49d5bfbe3abf96657a36f7a52d",
+          "url": "https://github.com/noir-lang/noir/commit/44aa82bae38eb604ebf95dd9b7a9873f1bccd674"
+        },
+        "date": 1768315394126,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
