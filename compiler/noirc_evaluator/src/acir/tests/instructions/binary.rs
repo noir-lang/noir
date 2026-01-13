@@ -718,6 +718,7 @@ fn div_divisor_overflow_without_side_effects_enabled() {
     public parameters: []
     return values: [w1]
     BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT 0 = 1
     ASSERT w1 = w0
     ");
 }
@@ -740,7 +741,8 @@ fn div_divisor_overflow_with_dynamic_side_effects_enabled() {
     public parameters: []
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 8
-    ASSERT w1 = 0
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT 0 = 1
     ASSERT w2 = w0
     ");
 }
