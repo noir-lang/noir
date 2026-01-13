@@ -82,6 +82,10 @@ impl std::fmt::Display for ElementsLength {
 /// - The elements length is 3
 /// - The semi-flattened length is 24 (8 * 3)
 ///
+/// The reason the semi-flattened length is required, and different than the semantic length,
+/// is that in our SSA tuples are flattened so the number of value slots needed to represent an
+/// array is different than the semantic length
+///
 /// Note that this is different from the fully flattened length, which would be 8 * (1 + 1 + 4) = 48.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
