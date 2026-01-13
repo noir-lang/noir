@@ -763,9 +763,13 @@ impl Elaborator<'_> {
                     return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(ResolverError::PathResolutionError(..)) => {
+                    // A path resolution error is more specific than a "variable not found"
                     return Err(error);
                 }
                 Err(global_error) => match error {
+                    // If the path was "_" then we want to preseve that error as it's clearer
+                    // than the error of an item not being found (it will mention that "_" is
+                    // not valid as an expression).
                     ResolverError::VariableNotDeclared { name, .. } if name != "_" => {
                         return Err(global_error);
                     }
