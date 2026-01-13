@@ -754,9 +754,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => self.evaluate_integer(value, id),
-                    Err(err) => {
-                        Err(InterpreterError::InvalidArrayLength { err: Box::new(err), location })
-                    }
+                    Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
+                        err: Box::new(err),
+                        location,
+                    }),
                 }
             }
         }
@@ -771,7 +772,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .map_err(|err| {
                 let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
-                InterpreterError::InvalidArrayLength { err, location }
+                InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
         self.evaluate_integer(value, id)

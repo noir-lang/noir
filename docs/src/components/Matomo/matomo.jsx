@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import Link from '@docusaurus/Link';
+import { useEffect, useState } from "react";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import Link from "@docusaurus/Link";
+import { useLocation } from "@docusaurus/router";
 
 function getSiteId(env) {
-  if (env == 'dev') {
-    return '3';
-  } else if (env == 'staging') {
-    return '2';
+  // Noir site IDs
+  if (env == "dev") {
+    return "3"; // Keep existing Noir dev ID
+  } else if (env == "staging") {
+    return "2"; // Keep existing Noir staging ID
   } else {
-    return '1';
+    return "1"; // Keep existing Noir production ID
   }
 }
+
 function pushInstruction(name, ...args) {
   return window._paq.push([name, ...args]);
 }
@@ -18,33 +21,44 @@ function pushInstruction(name, ...args) {
 export default function useMatomo() {
   const { siteConfig } = useDocusaurusContext();
   const [showBanner, setShowBanner] = useState(false);
+  const location = useLocation();
 
-  const env = siteConfig.customFields.MATOMO_ENV;
-  const urlBase = 'https://noirlang.matomo.cloud/';
+  const env = siteConfig.customFields.ENV || 'dev';
+  const urlBase = "https://noirlang.matomo.cloud/";
   const trackerUrl = `${urlBase}matomo.php`;
   const srcUrl = `${urlBase}matomo.js`;
 
   window._paq = window._paq || [];
 
+  // Debug logging
+  if (typeof window !== 'undefined' && env !== 'prod') {
+    console.log('🔍 Matomo Debug:', {
+      env,
+      siteId: getSiteId(env),
+      trackerUrl,
+      consentGiven: localStorage.getItem("matomoConsent")
+    });
+  }
+
   useEffect(() => {
-    const storedConsent = localStorage.getItem('matomoConsent');
+    const storedConsent = localStorage.getItem("matomoConsent");
     if (storedConsent === null) {
       setShowBanner(true);
     }
   }, []);
 
   useEffect(() => {
-    pushInstruction('setTrackerUrl', trackerUrl);
-    pushInstruction('setSiteId', getSiteId(env));
-    if (env !== 'prod') {
-      pushInstruction('setSecureCookie', false);
+    pushInstruction("setTrackerUrl", trackerUrl);
+    pushInstruction("setSiteId", getSiteId(env));
+    if (env !== "prod") {
+      pushInstruction("setSecureCookie", false);
     }
 
     const doc = document;
-    const scriptElement = doc.createElement('script');
-    const scripts = doc.getElementsByTagName('script')[0];
+    const scriptElement = doc.createElement("script");
+    const scripts = doc.getElementsByTagName("script")[0];
 
-    scriptElement.type = 'text/javascript';
+    scriptElement.type = "text/javascript";
     scriptElement.async = true;
     scriptElement.defer = true;
     scriptElement.src = srcUrl;
@@ -55,50 +69,38 @@ export default function useMatomo() {
   }, []);
 
   useEffect(() => {
-    pushInstruction('trackPageView');
-  }, [window.location.href]);
+    pushInstruction("trackPageView");
+  }, [location.pathname]);
 
   const optIn = () => {
-    pushInstruction('rememberConsentGiven');
-    localStorage.setItem('matomoConsent', true);
+    pushInstruction("rememberConsentGiven");
+    localStorage.setItem("matomoConsent", true);
     setShowBanner(false);
   };
 
   const optOut = () => {
-    pushInstruction('forgetConsentGiven');
-    localStorage.setItem('matomoConsent', false);
+    pushInstruction("forgetConsentGiven");
+    localStorage.setItem("matomoConsent", false);
     setShowBanner(false);
   };
 
-  const debug = () => {
-    pushInstruction(function () {
-      console.log(this.getRememberedConsent());
-      console.log(localStorage.getItem('matomoConsent'));
-    });
-  };
+  // Add global debug function for console access
+  useEffect(() => {
+    if (env !== "prod" && typeof window !== 'undefined') {
+      window.forceNPS = () => {
+        const event = new CustomEvent('forceShowNPS');
+        window.dispatchEvent(event);
+        console.log('🔧 Forcing NPS widget to show');
+      };
 
-  const reset = () => {
-    pushInstruction('forgetConsentGiven');
-    localStorage.clear('matomoConsent');
-  };
+      // Clean up on unmount
+      return () => {
+        delete window.forceNPS;
+      };
+    }
+  }, [env]);
 
-  if (!showBanner && env === 'dev') {
-    return (
-      <div id="optout-form">
-        <div className="homepage_footer">
-          <p>Debugging analytics</p>
-          <div className="homepage_cta_footer_container">
-            <button className="cta-button button button--secondary button--sm" onClick={debug}>
-              Debug
-            </button>
-            <button className="cta-button button button--secondary button--sm" onClick={reset}>
-              Reset
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  } else if (!showBanner) {
+  if (!showBanner) {
     return null;
   }
 
@@ -121,11 +123,6 @@ export default function useMatomo() {
           <button className="cta-button button button--secondary button--sm" onClick={optOut}>
             I refuse cookies
           </button>
-          {env === 'dev' && (
-            <button className="cta-button button button--secondary button--sm" onClick={debug}>
-              Debug
-            </button>
-          )}
         </div>
       </div>
     </div>
