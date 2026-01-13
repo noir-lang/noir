@@ -382,7 +382,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                             nested_array_item_count,
                         ) => {
                             // Usually we need to pass a semi-flattened length to `allocate_brillig_array`.
-                            // However, since we are deflattenning arrays, we need to allocate as many elements
+                            // However, since we are deflattening arrays, we need to allocate as many elements
                             // as there are in this particular nested array, which is its semantic length.
                             let deflattened_nested_array = self.allocate_brillig_array(
                                 SemiFlattenedLength(nested_array_item_count.0),

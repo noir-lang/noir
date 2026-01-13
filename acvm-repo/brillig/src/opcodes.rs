@@ -1,6 +1,6 @@
 use crate::{
     black_box::BlackBoxOp,
-    lengths::{FlattenedLength, SemanticLength, SemiFlattenedLength},
+    lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
 };
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
@@ -139,7 +139,7 @@ impl HeapValueType {
                     value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
                 // Next we multiply it by the size of the array
                 elements_flattened_size.map(|elements_flattened_size| {
-                    elements_flattened_size.as_elements_flattened_length() * *size
+                    ElementsFlattenedLength::from(elements_flattened_size) * *size
                 })
             }
             HeapValueType::Vector { .. } => {

@@ -121,17 +121,17 @@ impl Mul<SemanticLength> for ElementsFlattenedLength {
     }
 }
 
+impl From<FlattenedLength> for ElementsFlattenedLength {
+    /// Assumes this flattened length represents a single entry in an array or vector,
+    fn from(flattened_length: FlattenedLength) -> Self {
+        ElementsFlattenedLength(flattened_length.0)
+    }
+}
+
 /// Represents the total number of fields required to represent the entirety of an array or vector.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened length is 48: 8 * (1 + 1 + 4).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct FlattenedLength(pub u32);
-
-impl FlattenedLength {
-    /// Assumes this flattened length represents a single entry in an array or vector,
-    pub fn as_elements_flattened_length(self) -> ElementsFlattenedLength {
-        ElementsFlattenedLength(self.0)
-    }
-}
 
 impl std::fmt::Display for FlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
