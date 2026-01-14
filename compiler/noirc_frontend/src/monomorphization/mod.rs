@@ -48,13 +48,12 @@
 //! an unconstrained lambda being passed into and called in constrained code. This is possible
 //! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 //! which shouldn't leave the current context.
-use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
+use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
-use crate::shared::{Signedness, Visibility};
+use crate::shared::Visibility;
 use crate::signed_field::SignedField;
-use crate::token::FmtStrFragment;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -2216,49 +2215,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn checked_transmute(
-        &mut self,
-        parameter_id: LocalId,
-        parameter_type: &ast::Type,
-        return_type: &ast::Type,
-        location: Location,
-    ) -> Result<ast::Expression, MonomorphizationError> {
-        if parameter_type != return_type {
-            let actual = parameter_type.to_string();
-            let expected = return_type.to_string();
-            Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
-        } else {
-            Ok(ast::Expression::Ident(ast::Ident {
-                location: Some(location),
-                definition: Definition::Local(parameter_id),
-                mutable: false,
-                name: "x".to_string(),
-                typ: parameter_type.clone(),
-                id: self.next_ident_id(),
-            }))
-        }
-    }
-
-    fn modulus_vector_literal(
-        &self,
-        bytes: Vec<u8>,
-        arr_elem_bits: IntegerBitSize,
-        location: Location,
-    ) -> ast::Expression {
-        use ast::*;
-
-        let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
-
-        let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(u32::from(byte));
-            Expression::Literal(Literal::Integer(value, int_type.clone(), location))
-        });
-
-        let typ = Type::Vector(Box::new(int_type));
-        let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
-        Expression::Literal(Literal::Vector(arr_literal))
-    }
-
     /// Look up the instantiation bindings of a function expression and enqueue it for monomorphization.
     ///
     /// Returns the monomorphized ID assigned to the function.
@@ -2658,122 +2614,6 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
         }
-    }
-
-    /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed
-    /// ast literal or collection node for the given type. Note that for functions
-    /// there is no obvious zeroed value so this should be considered unsafe to use.
-    fn zeroed_value_of_type(&mut self, typ: &ast::Type, location: Location) -> ast::Expression {
-        match typ {
-            ast::Type::Field | ast::Type::Integer(..) => {
-                let typ = typ.clone();
-                let zero = SignedField::positive(0u32);
-                ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
-            }
-            ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
-            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
-            ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type.as_ref(), location);
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: vec![element; *length as usize],
-                    typ: ast::Type::Array(*length, element_type.clone()),
-                }))
-            }
-            ast::Type::String(length) => {
-                ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
-            }
-            ast::Type::FmtString(length, fields) => {
-                let zeroed_tuple = self.zeroed_value_of_type(fields, location);
-                let fields_len = match &zeroed_tuple {
-                    ast::Expression::Tuple(fields) => fields.len() as u64,
-                    _ => unreachable!(
-                        "ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"
-                    ),
-                };
-                ast::Expression::Literal(ast::Literal::FmtStr(
-                    vec![FmtStrFragment::String("\0".repeat(*length as usize))],
-                    fields_len,
-                    Box::new(zeroed_tuple),
-                ))
-            }
-            ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
-                self.zeroed_value_of_type(field, location)
-            })),
-            ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
-                .create_zeroed_function(parameter_types, ret_type, env, *unconstrained, location),
-            ast::Type::Vector(element_type) => {
-                ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral {
-                    contents: vec![],
-                    typ: ast::Type::Vector(element_type.clone()),
-                }))
-            }
-            ast::Type::Reference(element, mutable) => {
-                use UnaryOp::Reference;
-                let rhs = Box::new(self.zeroed_value_of_type(element, location));
-                let result_type = typ.clone();
-                ast::Expression::Unary(ast::Unary {
-                    rhs,
-                    result_type,
-                    operator: Reference { mutable: *mutable },
-                    location,
-                    skip: false,
-                })
-            }
-        }
-    }
-
-    // Creating a zeroed function value is almost always an error if it is used later,
-    // Hence why std::unsafe_func::zeroed is unsafe.
-    //
-    // To avoid confusing later passes, we arbitrarily choose to construct a function
-    // that satisfies the input type by discarding all its parameters and returning a
-    // zeroed value of the result type.
-    fn create_zeroed_function(
-        &mut self,
-        parameter_types: &[ast::Type],
-        ret_type: &ast::Type,
-        env_type: &ast::Type,
-        unconstrained: bool,
-        location: Location,
-    ) -> ast::Expression {
-        let lambda_name = "zeroed_lambda";
-
-        let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone(), Visibility::Private)
-        });
-
-        let body = self.zeroed_value_of_type(ret_type, location);
-
-        let id = self.next_function_id();
-        let return_type = ret_type.clone();
-        let name = lambda_name.to_owned();
-
-        let function = Function {
-            id,
-            name,
-            parameters,
-            body,
-            return_type,
-            return_visibility: Visibility::Private,
-            unconstrained,
-            inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
-        };
-        self.push_function(id, function);
-
-        ast::Expression::Ident(ast::Ident {
-            definition: Definition::Function(id),
-            mutable: false,
-            location: None,
-            name: lambda_name.to_owned(),
-            typ: ast::Type::Function(
-                parameter_types.to_owned(),
-                Box::new(ret_type.clone()),
-                Box::new(env_type.clone()),
-                unconstrained,
-            ),
-            id: self.next_ident_id(),
-        })
     }
 
     /// Call an infix operator overloading method for the given operator.
