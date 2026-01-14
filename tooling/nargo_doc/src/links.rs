@@ -375,8 +375,7 @@ fn path_to_link_target_searching_modules(
     }
 
     let crate_id = module_id.krate;
-    let crate_def_map = &def_maps[&crate_id];
-    let mut current_module = &crate_def_map[module_id.local_id];
+    let mut current_module = &def_maps[&module_id.krate][module_id.local_id];
 
     for (index, segment) in segments.iter().enumerate() {
         let name = Ident::new(segment.to_string(), Location::dummy());
@@ -422,7 +421,7 @@ fn path_to_link_target_searching_modules(
         let (module_def_id, _, _) = per_ns.types?;
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                current_module = &crate_def_map[module_id.local_id];
+                current_module = &def_maps[&module_id.krate][module_id.local_id];
             }
             ModuleDefId::TypeId(type_id) => {
                 // This must refer to a type method, so only one segment should remain
