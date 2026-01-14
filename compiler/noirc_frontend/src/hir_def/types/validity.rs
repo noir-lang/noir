@@ -1,6 +1,6 @@
 use noirc_errors::Location;
 
-use crate::{ARBITRARY_RECURSION_LIMIT, NamedGeneric, Type, TypeBinding, ast::Ident};
+use crate::{NamedGeneric, TYPE_RECURSION_LIMIT, Type, TypeBinding, ast::Ident};
 
 /// An type incorrectly used as a program input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +26,7 @@ impl Type {
     /// Returns `None` if this type and its nested types are all valid program inputs.
     pub(crate) fn program_input_validity(&self, allow_empty_arrays: bool) -> Option<InvalidType> {
         fn helper(this: &Type, allow_empty_arrays: bool, mut i: u32) -> Option<InvalidType> {
-            if i == ARBITRARY_RECURSION_LIMIT {
+            if i == TYPE_RECURSION_LIMIT {
                 return None;
             }
             i += 1;

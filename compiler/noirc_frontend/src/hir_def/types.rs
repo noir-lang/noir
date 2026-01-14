@@ -36,7 +36,7 @@ pub use unification::UnificationError;
 
 /// Arbitrary recursion limit when following type variables or recurring on types some other way.
 /// Types form trees but are not likely to be more deep than just a few levels in real code.
-pub const ARBITRARY_RECURSION_LIMIT: u32 = 100;
+pub const TYPE_RECURSION_LIMIT: u32 = 100;
 
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
@@ -2466,7 +2466,7 @@ impl Type {
     /// Expected to be called on an instantiated type (with no Type::Foralls)
     pub fn follow_bindings(&self) -> Type {
         fn helper(this: &Type, i: u32) -> Type {
-            if i >= ARBITRARY_RECURSION_LIMIT {
+            if i >= TYPE_RECURSION_LIMIT {
                 panic!("Type recursion limit reached - types are too large")
             }
             let recur = |typ| helper(typ, i);
@@ -2540,7 +2540,7 @@ impl Type {
     /// fields or arguments of this type.
     pub fn follow_bindings_shallow(&self) -> Cow<Type> {
         let mut this = Cow::Borrowed(self);
-        for _ in 0..ARBITRARY_RECURSION_LIMIT {
+        for _ in 0..TYPE_RECURSION_LIMIT {
             match this.as_ref() {
                 Type::TypeVariable(var)
                 | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
