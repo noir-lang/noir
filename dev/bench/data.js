@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768407766368,
+  "lastUpdate": 1768412293370,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e21400f33888a8c61cd9e101054a5c6e8ce58e9",
-          "message": "chore: add explicit regression test for `bound_constraint_with_offset` (#11120)",
-          "timestamp": "2026-01-08T10:45:49Z",
-          "tree_id": "9b4b9bcd12d510b82bd5dc2744486d47f3641ddf",
-          "url": "https://github.com/noir-lang/noir/commit/3e21400f33888a8c61cd9e101054a5c6e8ce58e9"
-        },
-        "date": 1767870389663,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255480,
-            "range": "± 1329",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224479,
-            "range": "± 4100",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798238,
-            "range": "± 19049",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2805688,
             "range": "± 7862",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89000634f12d23b3977e3890cab9fcdf25fdbf05",
+          "message": "fix(doc): don't hide sidebar if not on a mobile device (#11210)",
+          "timestamp": "2026-01-14T17:15:41Z",
+          "tree_id": "4efa4b741dfa5e9af0d79b17156f121da84070a9",
+          "url": "https://github.com/noir-lang/noir/commit/89000634f12d23b3977e3890cab9fcdf25fdbf05"
+        },
+        "date": 1768412256444,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266953,
+            "range": "± 5889",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 254628,
+            "range": "± 11387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2823306,
+            "range": "± 14527",
             "unit": "ns/iter"
           }
         ]
