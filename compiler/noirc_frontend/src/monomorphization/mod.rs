@@ -85,6 +85,7 @@ use self::{
 };
 
 pub mod ast;
+mod builtin;
 mod debug;
 pub mod debug_types;
 pub mod errors;
@@ -387,12 +388,12 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         turbofish_generics: &[HirType],
         trait_method: Option<TraitItemId>,
-    ) -> Definition {
+    ) -> Result<Definition, MonomorphizationError> {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
         let is_unconstrained = self.is_unconstrained(id);
 
-        match self
+        let definition = match self
             .functions
             .get(&(id, is_unconstrained))
             .and_then(|by_func_type| by_func_type.get(&typ))
@@ -415,7 +416,17 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.builtin().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Builtin(opcode.to_string())
+                        let location = self.interner.expr_location(&expr_id);
+                        let opcode = opcode.to_string();
+                        match self.try_evaluate_builtin(
+                            &opcode,
+                            &typ,
+                            is_unconstrained,
+                            location,
+                        )? {
+                            Some(id) => Definition::Function(id),
+                            None => Definition::Builtin(opcode),
+                        }
                     }
                     FunctionKind::Normal | FunctionKind::TraitFunctionWithoutBody => {
                         let id =
@@ -431,7 +442,8 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                 }
             }
-        }
+        };
+        Ok(definition)
     }
 
     /// Store the local variable ID created for a definition.
@@ -1399,7 +1411,7 @@ impl<'interner> Monomorphizer<'interner> {
         generics: Option<Vec<HirType>>,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let definition =
-            self.lookup_function(func_id, expr_id, typ, &generics.unwrap_or_default(), None);
+            self.lookup_function(func_id, expr_id, typ, &generics.unwrap_or_default(), None)?;
         let typ = Self::convert_type(typ, location)?;
         let location = Some(location);
         let id = self.next_ident_id();
@@ -1950,7 +1962,7 @@ impl<'interner> Monomorphizer<'interner> {
             &function_type,
             &[],
             Some(trait_item_id),
-        ) {
+        )? {
             Definition::Function(func_id) => func_id,
             _ => unreachable!(),
         };
@@ -2127,9 +2139,7 @@ impl<'interner> Monomorphizer<'interner> {
             original_func.clone()
         };
 
-        let call = self
-            .try_evaluate_call(&func, &id, &call.arguments, &arguments, &return_type)?
-            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
+        let call = ast::Expression::Call(ast::Call { func, arguments, return_type, location });
 
         if !block_expressions.is_empty() {
             block_expressions.push(call);
@@ -2206,80 +2216,26 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
-    /// at their call site.
-    /// NOTE: Evaluating at the call site means we cannot track aliased functions.
-    ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
-    ///       To fix this we need to evaluate on the identifier instead, which
-    ///       requires us to evaluate to a Lambda value which isn't in noir yet.
-    fn try_evaluate_call(
-        &mut self,
-        func: &ast::Expression,
-        expr_id: &ExprId,
-        arguments: &[ExprId],
-        argument_values: &[ast::Expression],
-        result_type: &ast::Type,
-    ) -> Result<Option<ast::Expression>, MonomorphizationError> {
-        if let ast::Expression::Ident(ident) = func {
-            if let Definition::Builtin(opcode) = &ident.definition {
-                // TODO(#1736): Move this builtin to the SSA pass
-                let location = self.interner.expr_location(expr_id);
-                return Ok(match opcode.as_str() {
-                    "modulus_num_bits" => {
-                        let bits = FieldElement::max_num_bits();
-                        let typ =
-                            ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                        let bits = SignedField::positive(bits);
-                        Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
-                    }
-                    "zeroed" => {
-                        let location = self.interner.expr_location(expr_id);
-                        Some(self.zeroed_value_of_type(result_type, location))
-                    }
-                    "modulus_le_bits" => {
-                        let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_vector_literal(bits, IntegerBitSize::One, location))
-                    }
-                    "modulus_be_bits" => {
-                        let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_vector_literal(bits, IntegerBitSize::One, location))
-                    }
-                    "modulus_be_bytes" => {
-                        let bytes = FieldElement::modulus().to_bytes_be();
-                        Some(self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
-                    }
-                    "modulus_le_bytes" => {
-                        let bytes = FieldElement::modulus().to_bytes_le();
-                        Some(self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
-                    }
-                    "checked_transmute" => {
-                        Some(self.checked_transmute(*expr_id, arguments, argument_values)?)
-                    }
-                    _ => None,
-                });
-            }
-        }
-        Ok(None)
-    }
-
     fn checked_transmute(
         &mut self,
-        expr_id: ExprId,
-        arguments: &[ExprId],
-        argument_values: &[ast::Expression],
+        parameter_id: LocalId,
+        parameter_type: &ast::Type,
+        return_type: &ast::Type,
+        location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let location = self.interner.expr_location(&expr_id);
-        let actual = self.interner.id_type(arguments[0]).follow_bindings();
-        let expected = self.interner.id_type(expr_id).follow_bindings();
-
-        if actual.unify(&expected).is_err() {
+        if parameter_type != return_type {
+            let actual = parameter_type.to_string();
+            let expected = return_type.to_string();
             Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
         } else {
-            // Evaluate `checked_transmute(arg)` to `{ arg }`
-            // in case the user did `&mut checked_transmute(arg)`. Wrapping the
-            // arg in a block prevents mutating the original argument.
-            let argument = argument_values[0].clone();
-            Ok(ast::Expression::Block(vec![argument]))
+            Ok(ast::Expression::Ident(ast::Ident {
+                location: Some(location),
+                definition: Definition::Local(parameter_id),
+                mutable: false,
+                name: "x".to_string(),
+                typ: parameter_type.clone(),
+                id: self.next_ident_id(),
+            }))
         }
     }
 
