@@ -1172,3 +1172,21 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
 
     assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
 }
+
+#[test]
+fn evaluates_builtin_zeroed() {
+    let stdlib_src = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+    ";
+
+    let src = r#"
+    fn main() {
+        let _a: [(u32, str<3>); 2] = zeroed();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
+    // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
+    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+}
