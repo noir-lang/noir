@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768336722094,
+  "lastUpdate": 1768402582997,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1d4b60b5a81feb9f2ab2f5e0f2b1c8401c58bf33",
-          "message": "feat: Inline never attribute (#11114)",
-          "timestamp": "2026-01-07T18:01:39Z",
-          "tree_id": "b00a07b64f68d4abb3b7432cde4fe33a1f1468ab",
-          "url": "https://github.com/noir-lang/noir/commit/1d4b60b5a81feb9f2ab2f5e0f2b1c8401c58bf33"
-        },
-        "date": 1767810107139,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253564,
-            "range": "± 1079",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222589,
-            "range": "± 5372",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791041,
-            "range": "± 4982",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2809272,
             "range": "± 12907",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8af6f7b777b104599f7a3a8e7a840d1f5cffcac5",
+          "message": "fix: Fix stack overflow on some Type methods (#11203)",
+          "timestamp": "2026-01-14T14:34:38Z",
+          "tree_id": "856c330a06a842e3be18a9a356eecf114c7150ce",
+          "url": "https://github.com/noir-lang/noir/commit/8af6f7b777b104599f7a3a8e7a840d1f5cffcac5"
+        },
+        "date": 1768402544607,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269637,
+            "range": "± 803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239352,
+            "range": "± 5347",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2804789,
+            "range": "± 5601",
             "unit": "ns/iter"
           }
         ]
