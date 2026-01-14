@@ -116,7 +116,7 @@ impl LinkFinder {
         def_maps: &DefMaps,
         crate_graph: &CrateGraph,
     ) -> impl Iterator<Item = Link> {
-        find_links_in_markdown_line(line, &self.reference_regex).filter_map(move |link| {
+        find_links_in_markdown_line(line, &self.reference_regex).map(move |link| {
             let path = &link.link;
             let target = path_to_link_target(
                 path,
@@ -126,14 +126,14 @@ impl LinkFinder {
                 def_maps,
                 crate_graph,
             );
-            Some(Link {
+            Link {
                 target,
                 line: line_number,
                 name: link.name,
                 path: link.link,
                 start: link.start,
                 end: link.end,
-            })
+            }
         })
     }
 
