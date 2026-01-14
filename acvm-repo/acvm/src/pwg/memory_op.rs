@@ -110,8 +110,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
         let is_read_operation = !op.operation;
 
         // Find the memory index associated with this memory operation.
-        let index = get_value(&op.index.into(), initial_witness)?;
-        let memory_index = self.index_from_field(index)?;
+        let index = witness_to_value(initial_witness, op.index)?;
+        let memory_index = self.index_from_field(*index)?;
 
         if is_read_operation {
             // `value_read = arr[memory_index]`

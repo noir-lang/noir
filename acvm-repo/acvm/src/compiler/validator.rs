@@ -1,10 +1,9 @@
 use crate::pwg::{
     ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ResolvedAssertionPayload,
     arithmetic::ExpressionSolver,
-    blackbox::embedded_curve_ops::{execute_embedded_curve_add, execute_multi_scalar_mul},
-    blackbox::{self, hash::get_hash_input},
+    blackbox::{self, embedded_curve_ops::{execute_embedded_curve_add, execute_multi_scalar_mul}, hash::get_hash_input},
     get_value, input_to_value,
-    memory_op::MemoryOpSolver,
+    memory_op::MemoryOpSolver, witness_to_value,
 };
 use acir::{
     AcirField,
@@ -398,11 +397,11 @@ impl<F: AcirField> MemoryOpSolver<F> {
         opcode_index: usize,
     ) -> Result<(), OpcodeResolutionError<F>> {
         // Find the memory index associated with this memory operation.
-        let index = get_value(&op.index.into(), witness_map)?;
-        let memory_index = self.index_from_field(index)?;
+        let index = witness_to_value(witness_map, op.index)?;
+        let memory_index = self.index_from_field(*index)?;
 
         // Calculate the value associated with this memory operation.
-        let value = get_value(&op.value.into(), witness_map)?;
+        let value = *witness_to_value( witness_map, op.value)?;
 
         // `operation == 0` for read operation, `operation == 1` for write operation.
         let is_read_operation = !op.operation;
