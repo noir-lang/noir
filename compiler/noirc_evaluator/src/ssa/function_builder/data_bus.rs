@@ -1,11 +1,14 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{
-    function::RuntimeType,
-    types::{NumericType, Type},
-    value::{ValueId, ValueMapping},
+use crate::{
+    brillig::assert_usize,
+    ssa::ir::{
+        function::RuntimeType,
+        types::{NumericType, Type},
+        value::{ValueId, ValueMapping},
+    },
 };
-use acvm::FieldElement;
+use acvm::{FieldElement, acir::brillig::lengths::FlattenedLength};
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;
@@ -274,15 +277,14 @@ impl FunctionBuilder {
         ssa_params: &[ValueId],
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<usize> = ssa_params
+        let ssa_param_sizes: Vec<FlattenedLength> = ssa_params
             .iter()
-            .map(|ssa_param| {
-                self.current_function.dfg[*ssa_param].get_type().flattened_size() as usize
-            })
+            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
         for size in ssa_param_sizes {
+            let size = assert_usize(size.0);
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();
             let visibility = visibilities.first().copied().unwrap_or(DatabusVisibility::None);

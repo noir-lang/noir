@@ -1,6 +1,6 @@
 use std::{
     iter::Sum,
-    ops::{Add, Mul},
+    ops::{Add, AddAssign, Div, Mul},
 };
 
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,15 @@ use serde::{Deserialize, Serialize};
 /// For example in the array `[(u8, u16, [u32; 4]); 8]`, the semantic length is 8.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct SemanticLength(pub u32);
+
+impl Add<SemanticLength> for SemanticLength {
+    type Output = SemanticLength;
+
+    /// Computes the sum of two semantic lengths.
+    fn add(self, rhs: SemanticLength) -> Self::Output {
+        SemanticLength(self.0 + rhs.0)
+    }
+}
 
 impl Mul<ElementsLength> for SemanticLength {
     type Output = SemiFlattenedLength;
@@ -37,13 +46,13 @@ pub struct ElementsLength(pub u32);
 
 impl<T> From<&[T]> for ElementsLength {
     fn from(elements: &[T]) -> Self {
-        ElementsLength(assert_u32(elements.len()))
+        Self(assert_u32(elements.len()))
     }
 }
 
 impl<T> From<&Vec<T>> for ElementsLength {
     fn from(elements: &Vec<T>) -> Self {
-        ElementsLength(assert_u32(elements.len()))
+        Self(assert_u32(elements.len()))
     }
 }
 
@@ -97,6 +106,26 @@ impl std::fmt::Display for SemiFlattenedLength {
     }
 }
 
+impl<T> From<&[T]> for SemiFlattenedLength {
+    fn from(elements: &[T]) -> Self {
+        Self(assert_u32(elements.len()))
+    }
+}
+
+impl<T> From<&Vec<T>> for SemiFlattenedLength {
+    fn from(elements: &Vec<T>) -> Self {
+        Self(assert_u32(elements.len()))
+    }
+}
+
+impl Div<ElementsLength> for SemiFlattenedLength {
+    type Output = SemanticLength;
+
+    fn div(self, rhs: ElementsLength) -> Self::Output {
+        SemanticLength(self.0 / rhs.0)
+    }
+}
+
 /// Represents the total number of fields required to represent a single entry of an array or vector.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]` the elements flattened length is 6:
 /// 1. u8 (1)
@@ -124,7 +153,7 @@ impl Mul<SemanticLength> for ElementsFlattenedLength {
 impl From<FlattenedLength> for ElementsFlattenedLength {
     /// Assumes this flattened length represents a single entry in an array or vector,
     fn from(flattened_length: FlattenedLength) -> Self {
-        ElementsFlattenedLength(flattened_length.0)
+        Self(flattened_length.0)
     }
 }
 
@@ -139,6 +168,18 @@ impl std::fmt::Display for FlattenedLength {
     }
 }
 
+impl<T> From<&[T]> for FlattenedLength {
+    fn from(elements: &[T]) -> Self {
+        Self(assert_u32(elements.len()))
+    }
+}
+
+impl<T> From<&Vec<T>> for FlattenedLength {
+    fn from(elements: &Vec<T>) -> Self {
+        Self(assert_u32(elements.len()))
+    }
+}
+
 impl Add for FlattenedLength {
     type Output = FlattenedLength;
 
@@ -147,9 +188,23 @@ impl Add for FlattenedLength {
     }
 }
 
+impl AddAssign for FlattenedLength {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
 impl Sum for FlattenedLength {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(FlattenedLength(0), |acc, x| acc + x)
+    }
+}
+
+impl Div<ElementsFlattenedLength> for FlattenedLength {
+    type Output = SemanticLength;
+
+    fn div(self, rhs: ElementsFlattenedLength) -> Self::Output {
+        SemanticLength(self.0 / rhs.0)
     }
 }
 

@@ -273,7 +273,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {
                     let output_fields = output.fields();
                     if value_type.flattened_size().is_some_and(|flattened_size| {
-                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+                        FlattenedLength::from(&output_fields) != flattened_size
                     }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
@@ -304,7 +304,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     }
                     let output_fields = output.fields();
                     if value_type.flattened_size().is_some_and(|flattened_size| {
-                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+                        FlattenedLength::from(&output_fields) != flattened_size
                     }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
