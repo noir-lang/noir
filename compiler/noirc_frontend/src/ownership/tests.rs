@@ -4,7 +4,7 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options};
+use crate::test_utils::{get_monomorphized, get_monomorphized_with_stdlib};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -406,25 +406,22 @@ fn clone_nested_array_in_lvalue() {
 
 #[test]
 fn pure_builtin_args_get_cloned() {
-    // Punting the builtin array_len, because these snippets don't have access to stdlib.
-    // Trying to use `a.len()` would result in a panic, even if it's defined an impl block here.
-    let src = "
-    #[builtin(array_len)]
-    fn len<T, let N: u32>(a: [T; N]) -> u32 { }
+    let stdlib_src = "
+    impl<T, let N: u32> [T; N] {
+        #[builtin(array_len)]
+        pub fn len(self) -> u32 {}
+    }";
 
+    let src = "
     unconstrained fn main() -> pub u32 {
         let a = [1, 2, 3];
-        let x = len(a);
-        let y = len(a);
+        let x = a.len();
+        let y = a.len();
         x + y
     }
     ";
 
-    let program = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
-    )
-    .unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
 
     // The ownership pass doesn't know which builtin functions are pure and which ones
     // modifies the arguments, so this optimization is deferred to the SSA generation.

@@ -1,22 +1,13 @@
 #![cfg(test)]
 use crate::{
     elaborator::UnstableFeature,
-    monomorphization::{ast::Program, errors::MonomorphizationError},
-    test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options},
+    monomorphization::errors::MonomorphizationError,
+    test_utils::{
+        GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+        get_monomorphized_with_stdlib,
+    },
     tests::check_monomorphization_error_using_features,
 };
-
-/// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
-fn get_monomorphized_with_stdlib(
-    user_src: &str,
-    stdlib_src: &str,
-) -> Result<Program, MonomorphizationError> {
-    let src = format!("{stdlib_src}\n\n{user_src}");
-    get_monomorphized_with_options(
-        &src,
-        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
-    )
-}
 
 mod stdlib_src {
     pub(super) const ZEROED: &str = "
@@ -33,6 +24,13 @@ mod stdlib_src {
     pub(super) const NEG: &str = "
         pub trait Neg {
             fn neg(self) -> Self;
+        }
+    ";
+
+    pub(super) const ARRAY_LEN: &str = "
+        impl<T, let N: u32> [T; N] {
+            #[builtin(array_len)]
+            pub fn len(self) -> u32 {}
         }
     ";
 }
@@ -1213,6 +1211,26 @@ fn evaluates_builtin_zeroed_function() {
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
         [0, 0]
+    }
+    ");
+}
+
+#[test]
+fn does_not_evaluate_array_len() {
+    let src = r#"
+    fn main() -> pub u32 {
+        let a = [1, 2, 3];
+        a.len()
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+
+    // The evaluation of array_len has been moved to the SSA in #1736
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let a$l0 = [1, 2, 3];
+        len$array_len(a$l0)
     }
     ");
 }

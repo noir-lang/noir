@@ -52,6 +52,18 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
     get_monomorphized_with_options(src, GetProgramOptions::default())
 }
 
+/// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
+pub fn get_monomorphized_with_stdlib(
+    user_src: &str,
+    stdlib_src: &str,
+) -> Result<Program, MonomorphizationError> {
+    let src = format!("{stdlib_src}\n\n{user_src}");
+    get_monomorphized_with_options(
+        &src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+}
+
 /// Compile and monomorphize a program.
 pub fn get_monomorphized_with_options(
     src: &str,

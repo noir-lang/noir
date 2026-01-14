@@ -2207,12 +2207,12 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
-    /// at their call site.
+    /// Try to evaluate certain builtin functions at their call site.
+    ///
     /// NOTE: Evaluating at the call site means we cannot track aliased functions.
-    ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
+    ///       E.g. `let f = std::array::len; f(arr)` would fail to evaluate.
     ///       To fix this we need to evaluate on the identifier instead, which
-    ///       requires us to evaluate to a Lambda value which isn't in noir yet.
+    ///       requires us to evaluate to a Lambda value which isn't in Noir yet.
     fn try_evaluate_call(
         &mut self,
         func: &ast::Expression,
@@ -2223,7 +2223,6 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<Option<ast::Expression>, MonomorphizationError> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
-                // TODO(#1736): Move this builtin to the SSA pass
                 let location = self.interner.expr_location(expr_id);
                 return Ok(match opcode.as_str() {
                     "modulus_num_bits" => {
