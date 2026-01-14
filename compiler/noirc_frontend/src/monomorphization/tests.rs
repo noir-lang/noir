@@ -33,6 +33,11 @@ mod stdlib_src {
             pub fn len(self) -> u32 {}
         }
     ";
+
+    pub(super) const CHECKED_TRANSMUTE: &str = "
+        #[builtin(checked_transmute)]
+        pub fn checked_transmute<T, U>(value: T) -> U {}
+    ";
 }
 
 #[test]
@@ -1211,6 +1216,32 @@ fn evaluates_builtin_zeroed_function() {
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
         [0, 0]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_checked_transmute() {
+    let src = r#"
+    fn main() {
+        let _a = foo([1, 2, 3]);
+    }
+
+    fn foo<let N: u32>(a: [u32; N]) -> [u32; 3] {
+        checked_transmute(a)
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l0 = foo$f1([1, 2, 3])
+    }
+    fn foo$f1(a$l1: [u32; 3]) -> [u32; 3] {
+        {
+            a$l1
+        }
     }
     ");
 }
