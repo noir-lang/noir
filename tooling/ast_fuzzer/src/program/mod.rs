@@ -375,7 +375,7 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
-            is_entry_point: false,
+            is_entry_point: id == FuncId(0), // we only need main as an entry point
         };
         self.functions.insert(id, func);
         Ok(())
