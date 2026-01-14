@@ -1571,61 +1571,6 @@ impl Type {
         Self::InfixExpr(lhs, op, rhs, inversion)
     }
 
-    /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self, location: &Location) -> u32 {
-        match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u32(*location)
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                let typ = typ.as_ref();
-                length.checked_mul(typ.field_count(location)).expect("Array length overflow")
-            }
-            Type::DataType(def, args) => {
-                let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    let mut size: u32 = 1; // start with the tag size
-                    for (_, args) in variants {
-                        for arg in args {
-                            size = size
-                                .checked_add(arg.field_count(location))
-                                .expect("Variant size overflow");
-                        }
-                    }
-                    size
-                } else {
-                    0
-                }
-            }
-            Type::CheckedCast { to, .. } => to.field_count(location),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
-                acc.checked_add(field_typ.field_count(location)).expect("Tuple size overflow")
-            }),
-            Type::String(size) => size
-                .evaluate_to_u32(*location)
-                .expect("Cannot have variable sized strings as a parameter to main"),
-            Type::FmtString(_, _)
-            | Type::Unit
-            | Type::TypeVariable(_)
-            | Type::TraitAsType(..)
-            | Type::NamedGeneric(_)
-            | Type::Function(_, _, _, _)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            | Type::Constant(_, _)
-            | Type::Quoted(_)
-            | Type::Vector(_)
-            | Type::InfixExpr(..)
-            | Type::Error => {
-                unreachable!("This type cannot exist as a parameter to main: {self:?}")
-            }
-        }
-    }
-
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
     pub(crate) fn is_nested_vector(&self) -> bool {
         match self {

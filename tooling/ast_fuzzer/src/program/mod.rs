@@ -375,7 +375,6 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
-            func_sig: decl.signature(),
         };
         self.functions.insert(id, func);
         Ok(())
@@ -391,19 +390,10 @@ impl Context {
     /// Return the generated [Program].
     fn finalize(self) -> Program {
         let functions = self.functions.into_values().collect::<Vec<_>>();
-
-        // The signatures should only contain entry functions. Currently that's just `main`.
-        let function_signatures =
-            functions.iter().take(1).map(|f| f.func_sig.clone()).collect::<Vec<_>>();
-
-        let main_function_signature = function_signatures[0].clone();
-
         let globals = self.globals.into_iter().collect();
 
         let program = Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location: None,
             globals,
             debug_variables: Default::default(),
