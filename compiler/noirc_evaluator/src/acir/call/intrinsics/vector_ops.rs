@@ -626,6 +626,8 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                // Note that here we pass `Some(vector)` as the supplied acir value. This is
+                // the input vector before insertion, so we still need an increase shift here.
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
                     result_ids[1],
