@@ -899,6 +899,10 @@ fn link_offset(text: &str, line: usize) -> usize {
         return 3;
     }
 
+    // If the text contains "\r\n" we assume that's the newline style used.
+    let rn = text.contains("\r\n");
+    let newline_width = if rn { 2 } else { 1 };
+
     // A bit more tricky: block comments.
     let mut offset = 0;
     let lines = text.lines().collect::<Vec<_>>();
@@ -923,8 +927,7 @@ fn link_offset(text: &str, line: usize) -> usize {
             if new_line_text.is_empty() {
                 // If the line is empty, the entire line is skipped. Note that we proceed
                 // with the next line without incrementing `current_line_number`.
-                // TODO: this assumes "\n" is the newline, so it won't work with "\r\n"
-                offset += new_line_text.len() + 1;
+                offset += new_line_text.len() + newline_width;
                 continue;
             } else {
                 // Otherwise we just skip the spaces.
@@ -963,8 +966,7 @@ fn link_offset(text: &str, line: usize) -> usize {
             break;
         }
 
-        // TODO: this assumes "\n" is the newline, so it won't work with "\r\n"
-        offset += line_text.len() + 1;
+        offset += line_text.len() + newline_width;
         current_line_number += 1;
     }
     offset
@@ -1054,5 +1056,13 @@ mod tests {
         let line = 2;
         let offset = link_offset(text, line);
         assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_7() {
+        let text = "/**\r\n  * One\r\n  * Two\r\n * Does not exist: [Foo] bar\r\n*/";
+        let line = 2;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\r\n*/");
     }
 }
