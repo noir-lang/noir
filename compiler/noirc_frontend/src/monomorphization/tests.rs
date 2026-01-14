@@ -1193,3 +1193,26 @@ fn evaluates_builtin_zeroed() {
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
     insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
 }
+
+#[test]
+fn evaluates_builtin_zeroed_function() {
+    let src = r#"
+    fn main() {
+        let _f: fn (u32, str<3>) -> [Field; 2] = zeroed();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _f$l4 = (zeroed_lambda$f1, zeroed_lambda$f2)
+    }
+    fn zeroed_lambda$f1(_$l0: u32, _$l1: str<3>) -> [Field; 2] {
+        [0, 0]
+    }
+    unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
+        [0, 0]
+    }
+    ");
+}
