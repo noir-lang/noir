@@ -109,7 +109,7 @@ impl Context<'_> {
                 if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
                     Some(self.init_element_type_sizes_array(
                         &vector_typ,
-                        vector_contents,
+                        result_ids[1],
                         Some(new_vector_array.clone()),
                         dfg,
                         // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
@@ -816,10 +816,11 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                let shift = ElementTypeSizesArrayShift::None;
+                // The resulting vector has one less element than before
+                let shift = ElementTypeSizesArrayShift::Decrease;
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
-                    vector_contents,
+                    result_ids[1],
                     Some(vector),
                     dfg,
                     shift,

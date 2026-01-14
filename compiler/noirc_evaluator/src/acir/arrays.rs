@@ -1229,6 +1229,7 @@ pub(super) enum ElementTypeSizesArrayShift {
     /// The element type sizes array needs to grow by one (semantic length).
     /// This is used for vector insert operations.
     Increase,
+    Decrease,
 }
 
 /// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
@@ -1267,6 +1268,9 @@ pub(super) fn calculate_element_type_sizes_array(
         ElementTypeSizesArrayShift::None => {}
         ElementTypeSizesArrayShift::Increase => {
             non_flattened_elements += 1;
+        }
+        ElementTypeSizesArrayShift::Decrease => {
+            non_flattened_elements = non_flattened_elements.saturating_sub(1);
         }
     }
 
