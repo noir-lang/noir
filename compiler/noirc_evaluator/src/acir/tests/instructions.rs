@@ -42,7 +42,7 @@ fn constrain_not_equal() {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    BRILLIG CALL func: 0, predicate 1, inputs: [w0 - w1], outputs: [w2]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w2]
     ASSERT 0 = w0*w2 - w1*w2 - 1
 
     unconstrained func 0: directive_invert
@@ -120,7 +120,7 @@ fn truncate_u16_to_6_bits() {
     public parameters: []
     return values: [w1]
     BLACKBOX::RANGE input: w0, bits: 16
-    BRILLIG CALL func: 0, predicate 1, inputs: [w0, 64], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 64], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 10
     BLACKBOX::RANGE input: w3, bits: 6
     ASSERT w3 = w0 - 64*w2
@@ -168,13 +168,13 @@ fn truncate_field_to_6_bits() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, predicate 1, inputs: [w0, 64], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 64], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 248
     BLACKBOX::RANGE input: w3, bits: 6
     ASSERT w3 = w0 - 64*w2
     ASSERT w4 = -w2 + 342003794872488675347600089769644923258568193756500536620284440415247007744
     BLACKBOX::RANGE input: w4, bits: 248
-    BRILLIG CALL func: 1, predicate 1, inputs: [-w2 + 342003794872488675347600089769644923258568193756500536620284440415247007744], outputs: [w5]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [-w2 + 342003794872488675347600089769644923258568193756500536620284440415247007744], outputs: [w5]
     ASSERT w6 = w2*w5 - 342003794872488675347600089769644923258568193756500536620284440415247007744*w5 + 1
     ASSERT 0 = -w2*w6 + 342003794872488675347600089769644923258568193756500536620284440415247007744*w6
     ASSERT 0 = w3*w6
@@ -218,13 +218,13 @@ fn truncate_field_to_64_bits() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, predicate 1, inputs: [w0, 18446744073709551616], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 18446744073709551616], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 190
     BLACKBOX::RANGE input: w3, bits: 64
     ASSERT w3 = w0 - 18446744073709551616*w2
     ASSERT w4 = -w2 + 1186564023676924939888766319973246049704924238154051448977
     BLACKBOX::RANGE input: w4, bits: 190
-    BRILLIG CALL func: 1, predicate 1, inputs: [-w2 + 1186564023676924939888766319973246049704924238154051448977], outputs: [w5]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [-w2 + 1186564023676924939888766319973246049704924238154051448977], outputs: [w5]
     ASSERT w6 = w2*w5 - 1186564023676924939888766319973246049704924238154051448977*w5 + 1
     ASSERT 0 = -w2*w6 + 1186564023676924939888766319973246049704924238154051448977*w6
     ASSERT w7 = w3*w6 + 4331911350818177023*w6
@@ -269,7 +269,7 @@ fn truncate_field_to_128_bits() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, predicate 1, inputs: [w0, 340282366920938463463374607431768211456], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 340282366920938463463374607431768211456], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 126
     BLACKBOX::RANGE input: w3, bits: 128
     ASSERT w4 = -w3 + 340282366920938463463374607431768211455
@@ -277,7 +277,7 @@ fn truncate_field_to_128_bits() {
     ASSERT w3 = w0 - 340282366920938463463374607431768211456*w2
     ASSERT w5 = w2 + 20746827117051438823981594372716013474
     BLACKBOX::RANGE input: w5, bits: 126
-    BRILLIG CALL func: 1, predicate 1, inputs: [-w2 + 64323764613183177041862057485226039389], outputs: [w6]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [-w2 + 64323764613183177041862057485226039389], outputs: [w6]
     ASSERT w7 = w2*w6 - 64323764613183177041862057485226039389*w6 + 1
     ASSERT 0 = -w2*w7 + 64323764613183177041862057485226039389*w7
     ASSERT w8 = w3*w7 + 31631953497925087476338759149270597631*w7

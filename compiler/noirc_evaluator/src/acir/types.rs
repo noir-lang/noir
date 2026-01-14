@@ -141,7 +141,7 @@ pub(crate) enum AcirValue {
     /// private parameters: [w0, w1, w2]
     /// public parameters: []
     /// return values: []
-    /// BRILLIG CALL func: 0, predicate 1, inputs: [[w0, w1, w2]], outputs: []
+    /// BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2]], outputs: []
     /// ```
     ///
     /// Compare this with `DynamicArray` below.

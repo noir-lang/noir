@@ -230,7 +230,7 @@ fn call_with_expression_predicate() {
     return values: [w3, w4]
     BLACKBOX::RANGE input: w2, bits: 1
     ASSERT w5 = w0 - w1
-    BRILLIG CALL func: 0, predicate 1, inputs: [w5], outputs: [w6]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w5], outputs: [w6]
     ASSERT w7 = -w5*w6 + 1
     ASSERT 0 = w5*w7
     ASSERT w9 = -w2*w7 + w2 + w7
@@ -243,7 +243,7 @@ fn call_with_expression_predicate() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func: 0, predicate 1, inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w3]
     ASSERT 0 = w0*w3 - w1*w3 - 1
     ASSERT w2 = w0
 
