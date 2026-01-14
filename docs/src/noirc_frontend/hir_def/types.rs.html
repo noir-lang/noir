@@ -3280,7 +3280,27 @@
 <a href="#3279" id="3279">3279</a>
 <a href="#3280" id="3280">3280</a>
 <a href="#3281" id="3281">3281</a>
-<a href="#3282" id="3282">3282</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3282" id="3282">3282</a>
+<a href="#3283" id="3283">3283</a>
+<a href="#3284" id="3284">3284</a>
+<a href="#3285" id="3285">3285</a>
+<a href="#3286" id="3286">3286</a>
+<a href="#3287" id="3287">3287</a>
+<a href="#3288" id="3288">3288</a>
+<a href="#3289" id="3289">3289</a>
+<a href="#3290" id="3290">3290</a>
+<a href="#3291" id="3291">3291</a>
+<a href="#3292" id="3292">3292</a>
+<a href="#3293" id="3293">3293</a>
+<a href="#3294" id="3294">3294</a>
+<a href="#3295" id="3295">3295</a>
+<a href="#3296" id="3296">3296</a>
+<a href="#3297" id="3297">3297</a>
+<a href="#3298" id="3298">3298</a>
+<a href="#3299" id="3299">3299</a>
+<a href="#3300" id="3300">3300</a>
+<a href="#3301" id="3301">3301</a>
+<a href="#3302" id="3302">3302</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3315,6 +3335,10 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>validity;
 
 <span class="kw">pub use </span>unification::UnificationError;
+
+<span class="doccomment">/// Arbitrary recursion limit when following type variables or recurring on types some other way.
+/// Types form trees but are not likely to be more deep than just a few levels in real code.
+</span><span class="kw">pub const </span>TYPE_RECURSION_LIMIT: u32 = <span class="number">100</span>;
 
 <span class="attr">#[derive(Eq, Clone, Ord, PartialOrd)]
 </span><span class="kw">pub enum </span>Type {
@@ -5743,87 +5767,103 @@
     ///
     /// Expected to be called on an instantiated type (with no Type::Foralls)
     </span><span class="kw">pub fn </span>follow_bindings(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
-        <span class="kw">use </span>Type::<span class="kw-2">*</span>;
-        <span class="kw">match </span><span class="self">self </span>{
-            Array(size, elem) =&gt; {
-                Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
+        <span class="kw">fn </span>helper(this: <span class="kw-2">&amp;</span>Type, i: u32) -&gt; Type {
+            <span class="kw">if </span>i &gt;= TYPE_RECURSION_LIMIT {
+                <span class="macro">panic!</span>(<span class="string">"Type recursion limit reached - types are too large"</span>)
             }
-            Vector(elem) =&gt; Vector(Box::new(elem.follow_bindings())),
-            String(size) =&gt; String(Box::new(size.follow_bindings())),
-            FmtString(size, args) =&gt; {
-                <span class="kw">let </span>size = Box::new(size.follow_bindings());
-                <span class="kw">let </span>args = Box::new(args.follow_bindings());
-                FmtString(size, args)
-            }
-            DataType(def, args) =&gt; {
-                <span class="kw">let </span>args = vecmap(args, |arg| arg.follow_bindings());
-                DataType(def.clone(), args)
-            }
-            Alias(def, args) =&gt; {
-                <span class="comment">// We don't need to vecmap(args, follow_bindings) since we're recursively
-                // calling follow_bindings here already.
-                </span>def.borrow().get_type(args).follow_bindings()
-            }
-            Tuple(args) =&gt; Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            CheckedCast { from, to } =&gt; {
-                <span class="kw">let </span>from = Box::new(from.follow_bindings());
-                <span class="kw">let </span>to = Box::new(to.follow_bindings());
-                CheckedCast { from, to }
-            }
-            TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) =&gt; {
-                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
-                    <span class="kw">return </span>typ.follow_bindings();
+            <span class="kw">let </span>recur = |typ| helper(typ, i);
+
+            <span class="kw">use </span>Type::<span class="kw-2">*</span>;
+            <span class="kw">match </span>this {
+                Array(size, elem) =&gt; Array(Box::new(recur(size)), Box::new(recur(elem))),
+                Vector(elem) =&gt; Vector(Box::new(recur(elem))),
+                String(size) =&gt; String(Box::new(recur(size))),
+                FmtString(size, args) =&gt; {
+                    <span class="kw">let </span>size = Box::new(recur(size));
+                    <span class="kw">let </span>args = Box::new(recur(args));
+                    FmtString(size, args)
                 }
-                <span class="self">self</span>.clone()
-            }
-            Function(args, ret, env, unconstrained) =&gt; {
-                <span class="kw">let </span>args = vecmap(args, |arg| arg.follow_bindings());
-                <span class="kw">let </span>ret = Box::new(ret.follow_bindings());
-                <span class="kw">let </span>env = Box::new(env.follow_bindings());
-                Function(args, ret, env, <span class="kw-2">*</span>unconstrained)
-            }
+                DataType(def, args) =&gt; {
+                    <span class="kw">let </span>args = vecmap(args, recur);
+                    DataType(def.clone(), args)
+                }
+                Alias(def, args) =&gt; {
+                    <span class="comment">// We don't need to vecmap(args, recur) since we're recursively
+                    // calling recur here already.
+                    </span>recur(<span class="kw-2">&amp;</span>def.borrow().get_type(args))
+                }
+                Tuple(args) =&gt; Tuple(vecmap(args, recur)),
+                CheckedCast { from, to } =&gt; {
+                    <span class="kw">let </span>from = Box::new(recur(from));
+                    <span class="kw">let </span>to = Box::new(recur(to));
+                    CheckedCast { from, to }
+                }
+                TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) =&gt; {
+                    <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
+                        <span class="kw">return </span>recur(typ);
+                    }
+                    this.clone()
+                }
+                Function(args, ret, env, unconstrained) =&gt; {
+                    <span class="kw">let </span>args = vecmap(args, recur);
+                    <span class="kw">let </span>ret = Box::new(recur(ret));
+                    <span class="kw">let </span>env = Box::new(recur(env));
+                    Function(args, ret, env, <span class="kw-2">*</span>unconstrained)
+                }
 
-            Reference(element, mutable) =&gt; Reference(Box::new(element.follow_bindings()), <span class="kw-2">*</span>mutable),
+                Reference(element, mutable) =&gt; Reference(Box::new(recur(element)), <span class="kw-2">*</span>mutable),
 
-            TraitAsType(s, name, args) =&gt; {
-                <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span>args.ordered, |arg| arg.follow_bindings());
-                <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span>args.named, |arg| NamedType {
-                    name: arg.name.clone(),
-                    typ: arg.typ.follow_bindings(),
-                });
-                TraitAsType(<span class="kw-2">*</span>s, name.clone(), TraitGenerics { ordered, named })
-            }
-            InfixExpr(lhs, op, rhs, inversion) =&gt; {
-                <span class="kw">let </span>lhs = lhs.follow_bindings();
-                <span class="kw">let </span>rhs = rhs.follow_bindings();
-                InfixExpr(Box::new(lhs), <span class="kw-2">*</span>op, Box::new(rhs), <span class="kw-2">*</span>inversion)
-            }
+                TraitAsType(s, name, args) =&gt; {
+                    <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span>args.ordered, recur);
+                    <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span>args.named, |arg| NamedType {
+                        name: arg.name.clone(),
+                        typ: recur(<span class="kw-2">&amp;</span>arg.typ),
+                    });
+                    TraitAsType(<span class="kw-2">*</span>s, name.clone(), TraitGenerics { ordered, named })
+                }
+                InfixExpr(lhs, op, rhs, inversion) =&gt; {
+                    <span class="kw">let </span>lhs = recur(lhs);
+                    <span class="kw">let </span>rhs = recur(rhs);
+                    InfixExpr(Box::new(lhs), <span class="kw-2">*</span>op, Box::new(rhs), <span class="kw-2">*</span>inversion)
+                }
 
-            <span class="comment">// Expect that this function should only be called on instantiated types
-            </span>Forall(..) =&gt; <span class="macro">unreachable!</span>(),
-            FieldElement | Integer(<span class="kw">_</span>, <span class="kw">_</span>) | Bool | Constant(<span class="kw">_</span>, <span class="kw">_</span>) | Unit | Quoted(<span class="kw">_</span>) | Error =&gt; {
-                <span class="self">self</span>.clone()
+                <span class="comment">// Expect that this function should only be called on instantiated types
+                </span>Forall(..) =&gt; <span class="macro">unreachable!</span>(),
+                FieldElement | Integer(<span class="kw">_</span>, <span class="kw">_</span>) | Bool | Constant(<span class="kw">_</span>, <span class="kw">_</span>) | Unit | Quoted(<span class="kw">_</span>) | Error =&gt; {
+                    this.clone()
+                }
             }
         }
+        helper(<span class="self">self</span>, <span class="number">0</span>)
     }
 
     <span class="doccomment">/// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
     </span><span class="kw">pub fn </span>follow_bindings_shallow(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
-                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
-                    <span class="kw">return </span>Cow::Owned(typ.follow_bindings_shallow().into_owned());
+        <span class="kw">let </span><span class="kw-2">mut </span>this = Cow::Borrowed(<span class="self">self</span>);
+        <span class="kw">for _ in </span><span class="number">0</span>..TYPE_RECURSION_LIMIT {
+            <span class="kw">match </span>this.as_ref() {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
+                    <span class="kw">let </span>binding = var.borrow();
+                    <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>binding {
+                        <span class="kw">let </span>typ = typ.clone();
+                        drop(binding);
+                        this = Cow::Owned(typ);
+                    } <span class="kw">else </span>{
+                        drop(binding);
+                        <span class="kw">return </span>this;
+                    };
                 }
-                Cow::Borrowed(<span class="self">self</span>)
-            }
-            Type::Alias(alias_def, generics) =&gt; {
-                <span class="kw">let </span>typ = alias_def.borrow().get_type(generics);
-                Cow::Owned(typ.follow_bindings_shallow().into_owned())
-            }
-            other =&gt; Cow::Borrowed(other),
+                Type::Alias(alias_def, generics) =&gt; {
+                    <span class="kw">let </span>typ = alias_def.borrow().get_type(generics);
+                    this = Cow::Owned(typ);
+                }
+                <span class="kw">_ </span>=&gt; <span class="kw">return </span>this,
+            };
         }
+        <span class="macro">panic!</span>(<span class="string">"Type recursion limit reached - types are too large"</span>)
     }
 
     <span class="kw">pub fn </span>from_generics(generics: <span class="kw-2">&amp;</span>GenericTypeVars) -&gt; Vec&lt;Type&gt; {
