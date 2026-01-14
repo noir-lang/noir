@@ -81,7 +81,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     if args.check {
         if !broken_links.is_empty() {
             let msg = if broken_links.len() == 1 {
-                "Error: doc comments contains 1 broken link".to_string()
+                "Error: doc comments contain 1 broken link".to_string()
             } else {
                 format!("Error: doc comments contain {} broken links", broken_links.len())
             };
