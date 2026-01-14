@@ -34,6 +34,10 @@ pub(crate) mod validity;
 
 pub use unification::UnificationError;
 
+/// Arbitrary recursion limit when following type variables or recurring on types some other way.
+/// Types form trees but are not likely to be more deep than just a few levels in real code.
+pub const TYPE_RECURSION_LIMIT: u32 = 100;
+
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
     /// A primitive Field type
@@ -304,7 +308,7 @@ impl std::fmt::Display for Kind {
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
             Kind::IntegerOrField => write!(f, "intOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
+            Kind::Numeric(typ) => write!(f, "{typ}"),
         }
     }
 }
@@ -2105,7 +2109,7 @@ impl Type {
         self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
     }
 
-    /// evaluate_to_field_element with optional generic arithmetic simplifications
+    /// `evaluate_to_field_element` with optional generic arithmetic simplifications
     pub(crate) fn evaluate_to_signed_field_helper(
         &self,
         kind: &Kind,
@@ -2534,87 +2538,103 @@ impl Type {
     ///
     /// Expected to be called on an instantiated type (with no Type::Foralls)
     pub fn follow_bindings(&self) -> Type {
-        use Type::*;
-        match self {
-            Array(size, elem) => {
-                Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
+        fn helper(this: &Type, i: u32) -> Type {
+            if i >= TYPE_RECURSION_LIMIT {
+                panic!("Type recursion limit reached - types are too large")
             }
-            Vector(elem) => Vector(Box::new(elem.follow_bindings())),
-            String(size) => String(Box::new(size.follow_bindings())),
-            FmtString(size, args) => {
-                let size = Box::new(size.follow_bindings());
-                let args = Box::new(args.follow_bindings());
-                FmtString(size, args)
-            }
-            DataType(def, args) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                DataType(def.clone(), args)
-            }
-            Alias(def, args) => {
-                // We don't need to vecmap(args, follow_bindings) since we're recursively
-                // calling follow_bindings here already.
-                def.borrow().get_type(args).follow_bindings()
-            }
-            Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            CheckedCast { from, to } => {
-                let from = Box::new(from.follow_bindings());
-                let to = Box::new(to.follow_bindings());
-                CheckedCast { from, to }
-            }
-            TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    return typ.follow_bindings();
+            let recur = |typ| helper(typ, i);
+
+            use Type::*;
+            match this {
+                Array(size, elem) => Array(Box::new(recur(size)), Box::new(recur(elem))),
+                Vector(elem) => Vector(Box::new(recur(elem))),
+                String(size) => String(Box::new(recur(size))),
+                FmtString(size, args) => {
+                    let size = Box::new(recur(size));
+                    let args = Box::new(recur(args));
+                    FmtString(size, args)
                 }
-                self.clone()
-            }
-            Function(args, ret, env, unconstrained) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                let ret = Box::new(ret.follow_bindings());
-                let env = Box::new(env.follow_bindings());
-                Function(args, ret, env, *unconstrained)
-            }
+                DataType(def, args) => {
+                    let args = vecmap(args, recur);
+                    DataType(def.clone(), args)
+                }
+                Alias(def, args) => {
+                    // We don't need to vecmap(args, recur) since we're recursively
+                    // calling recur here already.
+                    recur(&def.borrow().get_type(args))
+                }
+                Tuple(args) => Tuple(vecmap(args, recur)),
+                CheckedCast { from, to } => {
+                    let from = Box::new(recur(from));
+                    let to = Box::new(recur(to));
+                    CheckedCast { from, to }
+                }
+                TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) => {
+                    if let TypeBinding::Bound(typ) = &*var.borrow() {
+                        return recur(typ);
+                    }
+                    this.clone()
+                }
+                Function(args, ret, env, unconstrained) => {
+                    let args = vecmap(args, recur);
+                    let ret = Box::new(recur(ret));
+                    let env = Box::new(recur(env));
+                    Function(args, ret, env, *unconstrained)
+                }
 
-            Reference(element, mutable) => Reference(Box::new(element.follow_bindings()), *mutable),
+                Reference(element, mutable) => Reference(Box::new(recur(element)), *mutable),
 
-            TraitAsType(s, name, args) => {
-                let ordered = vecmap(&args.ordered, |arg| arg.follow_bindings());
-                let named = vecmap(&args.named, |arg| NamedType {
-                    name: arg.name.clone(),
-                    typ: arg.typ.follow_bindings(),
-                });
-                TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
-            }
-            InfixExpr(lhs, op, rhs, inversion) => {
-                let lhs = lhs.follow_bindings();
-                let rhs = rhs.follow_bindings();
-                InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
-            }
+                TraitAsType(s, name, args) => {
+                    let ordered = vecmap(&args.ordered, recur);
+                    let named = vecmap(&args.named, |arg| NamedType {
+                        name: arg.name.clone(),
+                        typ: recur(&arg.typ),
+                    });
+                    TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
+                }
+                InfixExpr(lhs, op, rhs, inversion) => {
+                    let lhs = recur(lhs);
+                    let rhs = recur(rhs);
+                    InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
+                }
 
-            // Expect that this function should only be called on instantiated types
-            Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
-                self.clone()
+                // Expect that this function should only be called on instantiated types
+                Forall(..) => unreachable!(),
+                FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
+                    this.clone()
+                }
             }
         }
+        helper(self, 0)
     }
 
     /// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
     pub fn follow_bindings_shallow(&self) -> Cow<Type> {
-        match self {
-            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    return Cow::Owned(typ.follow_bindings_shallow().into_owned());
+        let mut this = Cow::Borrowed(self);
+        for _ in 0..TYPE_RECURSION_LIMIT {
+            match this.as_ref() {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                    let binding = var.borrow();
+                    if let TypeBinding::Bound(typ) = &*binding {
+                        let typ = typ.clone();
+                        drop(binding);
+                        this = Cow::Owned(typ);
+                    } else {
+                        drop(binding);
+                        return this;
+                    };
                 }
-                Cow::Borrowed(self)
-            }
-            Type::Alias(alias_def, generics) => {
-                let typ = alias_def.borrow().get_type(generics);
-                Cow::Owned(typ.follow_bindings_shallow().into_owned())
-            }
-            other => Cow::Borrowed(other),
+                Type::Alias(alias_def, generics) => {
+                    let typ = alias_def.borrow().get_type(generics);
+                    this = Cow::Owned(typ);
+                }
+                _ => return this,
+            };
         }
+        panic!("Type recursion limit reached - types are too large")
     }
 
     pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {

@@ -58,6 +58,11 @@ impl<S> Deref for PushedExpr<S> {
 /// Panic if we dropped the pusher without having pushed both location and type.
 impl<S> Drop for PushedExpr<S> {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            // Do not mask another panic with this; if it's already panicking,
+            // that could be a reason why e.g. the type hasn't been pushed.
+            return;
+        }
         if !self.has_location {
             panic!("location hasn't been pushed for {:?}", self.id);
         }

@@ -4,6 +4,8 @@ use acir::{
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
+use crate::assert_usize;
+
 /// The bit size used for addressing memory within the Brillig VM.
 ///
 /// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
@@ -27,14 +29,14 @@ pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
 /// * Vectors are `[ref-count, size, capacity, ...items]`
 pub mod offsets {
     /// Number of prefix fields in an array: RC.
-    pub const ARRAY_META_COUNT: usize = 1;
-    pub const ARRAY_ITEMS: usize = 1;
+    pub const ARRAY_META_COUNT: u32 = 1;
+    pub const ARRAY_ITEMS: u32 = 1;
 
     /// Number of prefix fields in a vector: RC, size, capacity.
-    pub const VECTOR_META_COUNT: usize = 3;
-    pub const VECTOR_SIZE: usize = 1;
-    pub const VECTOR_CAPACITY: usize = 2;
-    pub const VECTOR_ITEMS: usize = 3;
+    pub const VECTOR_META_COUNT: u32 = 3;
+    pub const VECTOR_SIZE: u32 = 1;
+    pub const VECTOR_CAPACITY: u32 = 2;
+    pub const VECTOR_ITEMS: u32 = 3;
 }
 
 /// Wrapper for array addresses, with convenience methods for various offsets.
@@ -127,9 +129,9 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Expects a `U32` value and converts it into `usize`, otherwise panics.
     ///
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
-    pub fn to_usize(&self) -> usize {
+    pub fn to_u32(&self) -> u32 {
         match self {
-            MemoryValue::U32(value) => (*value).try_into().unwrap(),
+            MemoryValue::U32(value) => *value,
             other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
@@ -371,8 +373,8 @@ impl<F: AcirField> Memory<F> {
     /// Read the value from slot 0.
     ///
     /// Panics if it's not a `U32`.
-    fn get_stack_pointer(&self) -> usize {
-        self.read(STACK_POINTER_ADDRESS).to_usize()
+    fn get_stack_pointer(&self) -> u32 {
+        self.read(STACK_POINTER_ADDRESS).to_u32()
     }
 
     /// Resolve an address to either:
@@ -380,7 +382,7 @@ impl<F: AcirField> Memory<F> {
     /// * the current stack pointer plus the offset, if it's relative.
     ///
     /// Returns a memory slot index.
-    fn resolve(&self, address: MemoryAddress) -> usize {
+    fn resolve(&self, address: MemoryAddress) -> u32 {
         match address {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
@@ -391,19 +393,19 @@ impl<F: AcirField> Memory<F> {
     ///
     /// If the address is beyond the size of memory, a default value is returned.
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         self.inner.get(resolved_addr).copied().unwrap_or_default()
     }
 
     /// Reads the value at the address and returns it as a direct memory address,
     /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
-        MemoryAddress::direct(self.read(ptr).to_usize())
+        MemoryAddress::direct(self.read(ptr).to_u32())
     }
 
     /// Sets `ptr` to point at `address`.
     pub fn write_ref(&mut self, ptr: MemoryAddress, address: MemoryAddress) {
-        self.write(ptr, MemoryValue::from(address.to_usize()));
+        self.write(ptr, MemoryValue::from(address.to_u32()));
     }
 
     /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
@@ -416,13 +418,13 @@ impl<F: AcirField> Memory<F> {
         if len == 0 {
             return &[];
         }
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         &self.inner[resolved_addr..(resolved_addr + len)]
     }
 
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         self.resize_to_fit(resolved_addr + 1);
         self.inner[resolved_addr] = value;
     }
@@ -437,7 +439,7 @@ impl<F: AcirField> Memory<F> {
 
     /// Sets the values after `address` to `values`
     pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         let end_addr = resolved_addr + values.len();
         self.resize_to_fit(end_addr);
         self.inner[resolved_addr..end_addr].copy_from_slice(values);
@@ -477,7 +479,7 @@ mod tests {
         // Stack pointer + offset
         // 10 + 5 = 15
         assert_eq!(resolved_addr, 15);
-        assert_eq!(memory.values()[resolved_addr].to_u128().unwrap(), 42);
+        assert_eq!(memory.values()[assert_usize(resolved_addr)].to_u128().unwrap(), 42);
     }
 
     #[test]

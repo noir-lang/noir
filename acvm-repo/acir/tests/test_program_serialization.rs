@@ -17,6 +17,7 @@ use acir::{
 use acir_field::FieldElement;
 use brillig::{
     BitSize, HeapArray, HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, ValueOrArray,
+    lengths::{SemanticLength, SemiFlattenedLength},
 };
 
 fn assert_deserialization(expected: &Program<FieldElement>, bytes: [Vec<u8>; 2]) {
@@ -194,24 +195,30 @@ fn complex_brillig_foreign_call() {
                 inputs: vec![
                     ValueOrArray::HeapArray(HeapArray {
                         pointer: MemoryAddress::direct(0),
-                        size: 3,
+                        size: SemiFlattenedLength(3),
                     }),
                     ValueOrArray::MemoryAddress(MemoryAddress::direct(1)),
                 ],
                 input_value_types: vec![
-                    HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
+                    HeapValueType::Array {
+                        size: SemanticLength(3),
+                        value_types: vec![HeapValueType::field()],
+                    },
                     HeapValueType::field(),
                 ],
                 destinations: vec![
                     ValueOrArray::HeapArray(HeapArray {
                         pointer: MemoryAddress::direct(0),
-                        size: 3,
+                        size: SemiFlattenedLength(3),
                     }),
                     ValueOrArray::MemoryAddress(MemoryAddress::direct(35)),
                     ValueOrArray::MemoryAddress(MemoryAddress::direct(36)),
                 ],
                 destination_value_types: vec![
-                    HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
+                    HeapValueType::Array {
+                        size: SemanticLength(3),
+                        value_types: vec![HeapValueType::field()],
+                    },
                     HeapValueType::field(),
                     HeapValueType::field(),
                 ],

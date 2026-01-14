@@ -1,9 +1,11 @@
 use acvm::AcirField;
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
@@ -209,7 +211,7 @@ impl Context<'_> {
 
                     BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
-                        len,
+                        SemanticLength(assert_u32(len)),
                     )
                 } else {
                     FunctionContext::ssa_type_to_parameter(&typ)

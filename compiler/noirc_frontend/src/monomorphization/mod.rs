@@ -132,11 +132,11 @@ pub struct Monomorphizer<'interner> {
         Location,
     )>,
 
-    /// When a function finishes being monomorphized, the monomorphized ast::Function is
-    /// stored here along with its FuncId.
+    /// When a function finishes being monomorphized, the monomorphized [ast::Function] is
+    /// stored here along with its [FuncId].
     finished_functions: BTreeMap<FuncId, Function>,
 
-    /// Used to reference existing definitions in the HIR
+    /// Used to reference existing definitions in the HIR.
     interner: &'interner mut NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
@@ -146,12 +146,13 @@ pub struct Monomorphizer<'interner> {
     next_function_id: u32,
     next_ident_id: u32,
 
-    is_range_loop: bool,
-
+    /// Location of the last statement in the `main` function, determined during compilation.
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
 
+    /// Indicate that we are currently monomorphizing an unconstrained function, which causes
+    /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
 
     /// Set to true to force every function to be unconstrained.
@@ -161,6 +162,8 @@ pub struct Monomorphizer<'interner> {
 }
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
+///
+/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics) -> monomorphized FuncId
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
@@ -225,7 +228,6 @@ impl<'interner> Monomorphizer<'interner> {
             next_ident_id: 0,
             interner,
             lambda_envs_stack: Vec::new(),
-            is_range_loop: false,
             return_location: None,
             debug_type_tracker,
             in_unconstrained_function: force_unconstrained,
@@ -393,8 +395,8 @@ impl<'interner> Monomorphizer<'interner> {
         match self
             .functions
             .get(&(id, is_unconstrained))
-            .and_then(|inner_map| inner_map.get(&typ))
-            .and_then(|inner_map| inner_map.get(&turbofish_generics))
+            .and_then(|by_func_type| by_func_type.get(&typ))
+            .and_then(|by_turbofish| by_turbofish.get(&turbofish_generics))
         {
             Some(id) => Definition::Function(*id),
             None => {
@@ -404,14 +406,14 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::LowLevel => {
                         let attribute = attributes.function().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.foreign().expect(
-                            "ice: function marked as foreign, but attribute kind does not match this",
+                            "ICE: function marked as foreign, but attribute kind does not match this",
                         );
                         Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.builtin().expect(
-                            "ice: function marked as builtin, but attribute kind does not match this",
+                            "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         Definition::Builtin(opcode.to_string())
                     }
@@ -423,7 +425,7 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::Oracle => {
                         let attribute = attributes.function().expect("all oracle functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.oracle().expect(
-                            "ice: function marked as builtin, but attribute kind does not match this",
+                            "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         Definition::Oracle(opcode.to_string())
                     }
@@ -432,12 +434,18 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Store the local variable ID created for a definition.
+    ///
+    /// Note that this might overwrite a previous association, which happens when
+    /// we define a (constrained, unconstrained) pair of lambdas, which share
+    /// the same list of parameter definitions, but will have different
+    /// monomorphized variable IDs created for both function instance.
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: LocalId) {
         self.locals.insert(id, new_id);
     }
 
-    /// Prerequisite: typ = typ.follow_bindings()
-    ///          and: turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)
+    /// Prerequisite: `typ = typ.follow_bindings()`
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
     fn define_function(
         &mut self,
         id: node_interner::FuncId,
@@ -454,13 +462,18 @@ impl<'interner> Monomorphizer<'interner> {
             .insert(turbofish_generics, new_id);
     }
 
-    /// Monomorphize the `main` function, ensuring it has the id expected by [Program::main_id].
+    /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
+    ///
+    /// Sets the `return_location` expected by `into_program` later.
+    /// Returns the [FunctionSignature] of `main`, expected to be passed to `into_program`.
+    ///
+    /// Panics if some other function has already been monomorphized before.
     pub fn compile_main(
         &mut self,
         main_id: node_interner::FuncId,
     ) -> Result<FunctionSignature, MonomorphizationError> {
         let new_main_id = self.next_function_id();
-        assert_eq!(new_main_id, Program::main_id());
+        assert_eq!(new_main_id, Program::main_id(), "expected main to be monomorphized first");
 
         let location = self.interner.function_meta(&main_id).location;
         self.in_unconstrained_function = self.is_unconstrained(main_id);
@@ -553,9 +566,12 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    /// Store a monomorphized [Function] among the finished ones.
+    ///
+    /// Panics if the function has already been pushed.
     fn push_function(&mut self, id: FuncId, function: Function) {
         let existing = self.finished_functions.insert(id, function);
-        assert!(existing.is_none());
+        assert!(existing.is_none(), "ICE: Redefined function");
     }
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
@@ -572,6 +588,8 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(new_params)
     }
 
+    /// Monomorphize a single function parameters, potentially expanding it into multiple parameters
+    /// if it's a tuple/struct pattern, appending the new parameters to an accumulator.
     fn parameter(
         &mut self,
         param: &HirPattern,
@@ -593,14 +611,22 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
-
+                assert_eq!(
+                    fields.len(),
+                    tuple_field_types.len(),
+                    "ICE: Unexpected number of tuple pattern fields"
+                );
                 for (field, typ) in fields.iter().zip(tuple_field_types) {
                     self.parameter(field, &typ, visibility, new_params)?;
                 }
             }
             HirPattern::Struct(_, fields, location) => {
                 let struct_field_types = unwrap_struct_type(typ, *location)?;
-                assert_eq!(struct_field_types.len(), fields.len());
+                assert_eq!(
+                    struct_field_types.len(),
+                    fields.len(),
+                    "ICE: Unexpected number of struct pattern fields"
+                );
 
                 let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
 
@@ -618,7 +644,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    /// Monomorphize an expression
+    /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
@@ -668,7 +694,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = prefix
                         .trait_method_id
-                        .expect("ice: missing trait method if when impl was found");
+                        .expect("ICE: missing trait method when impl was found");
 
                     // `true` here to use the current runtime since we're immediately calling this
                     // method in our current runtime.
@@ -702,8 +728,8 @@ impl<'interner> Monomorphizer<'interner> {
                     let method = infix.trait_method_id;
 
                     let method = method.expect("ICE: Monomorphizer::expr: expected the infix operator method to be resolved by monomorphization");
-                    // True here since we're immediately calling this operator method in the
-                    // current runtime.
+                    // `true` here to use the current runtime since we're immediately calling this
+                    // operator method in the current runtime.
                     let func = self.resolve_trait_item_expr(expr, function_type, method, true)?;
                     let operator = infix.operator;
                     self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
@@ -899,7 +925,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Monomorphize an array with repeated elements, such as `[3; 10]`.
+    /// Monomorphize an array or vector with repeated elements, such as `[3; 10]`.
     fn repeated_array(
         &mut self,
         array: ExprId,
@@ -924,6 +950,8 @@ impl<'interner> Monomorphizer<'interner> {
         //
         // That is, `expr` is only evaluated once, assigned to a local variable,
         // and the array consists of references to that local variable.
+        //
+        // Note that `expr` is evaluated even if the length is 0 (same as in Rust).
         let element = self.expr(repeated_element)?;
         let local_id = self.next_local_id();
 
@@ -971,10 +999,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
-                self.is_range_loop = true;
                 let start = self.expr(for_loop.start_range)?;
                 let end = self.expr(for_loop.end_range)?;
-                self.is_range_loop = false;
                 let index_variable = self.next_local_id();
                 self.define_local(for_loop.identifier.id, index_variable);
 
@@ -1440,7 +1466,7 @@ impl<'interner> Monomorphizer<'interner> {
             {
                 let contains_function = value.contains_function_or_closure();
                 let expr = value
-                    .into_hir_expression(self.interner, global.location)
+                    .into_runtime_hir_expression(self.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, contains_function)
             } else {
@@ -1509,7 +1535,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
+                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
+                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         return Err(MonomorphizationError::UnknownArrayLength { location, err });
@@ -1520,7 +1547,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(size, fields) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
+                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
+                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         return Err(MonomorphizationError::UnknownArrayLength { location, err });
@@ -1565,6 +1593,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 type_var.bind(HirType::default_int_or_field_type());
+                // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
                 ast::Type::Field
             }
 
@@ -1818,9 +1847,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that the 'from' and to' sides of a CheckedCast unify and
-    /// that if the 'to' side evaluates to a field element, that the 'from' side
-    /// evaluates to the same field element
+    /// Check that the 'from' and to' sides of a `CheckedCast` unify and
+    /// that if the 'to' side evaluates to a field element, then the 'from' side
+    /// evaluates to the same field element as well.
     fn check_checked_cast(
         from: &Type,
         to: &Type,
@@ -1876,6 +1905,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Resolve a trait item and monomorphize it either as:
+    /// * an associated numeric constant, or
+    /// * a tuple of (constrained, unconstrained) functions
     fn resolve_trait_item_expr(
         &mut self,
         expr_id: ExprId,
@@ -1903,6 +1935,8 @@ impl<'interner> Monomorphizer<'interner> {
         )
     }
 
+    /// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
+    /// and return and identifier to it.
     fn resolve_trait_method_expr(
         &mut self,
         func_id: node_interner::FuncId,
@@ -2269,6 +2303,9 @@ impl<'interner> Monomorphizer<'interner> {
         Expression::Literal(Literal::Vector(arr_literal))
     }
 
+    /// Look up the instantiation bindings of a function expression and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
     fn queue_function(
         &mut self,
         id: node_interner::FuncId,
@@ -2290,6 +2327,9 @@ impl<'interner> Monomorphizer<'interner> {
         )
     }
 
+    /// Store the definition of a function and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
     pub fn queue_function_with_bindings(
         &mut self,
         id: node_interner::FuncId,
@@ -2861,6 +2901,8 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 
+    /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
+    /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
         self.in_unconstrained_function
             || self.interner.function_modifiers(&func_id).is_unconstrained
@@ -2897,6 +2939,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Check that an identifier refers to an unconstrained user defined function.
+    ///
+    /// Returns `false` for any other kind of expression.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
         if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
             if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
@@ -3007,7 +3052,7 @@ pub fn perform_impl_bindings(
     Ok(bindings)
 }
 
-/// Resolve a trait item to a particular impl, returning the id of that impl or an error on failure.
+/// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
 fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3103,7 +3148,7 @@ fn resolve_trait_item_impl(
 ///
 /// During monomorphization, on the specific call to `foo::<Field>()`,
 /// the compiler will know that `K` refers to `Field`, and that `K::baz::<2>`
-/// refers to the `baz` method on the `Field` impl for `Bar`. In that method
+/// refers to the `baz` method on the `Bar` impl for `Field`. In that method
 /// the type variable `M` is unbound. Looking up its value will fail.
 /// However, we can bind `M` to `N`, so it eventually resolves to `2`,
 /// which is what this method does.
@@ -3153,6 +3198,10 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
     }
 }
 
+/// Look up a specific member of a trait, then look through the trait methods
+/// and associated constants until an item with a matching name is found.
+///
+/// Panics if the name cannot be matched to anything.
 pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3191,7 +3240,7 @@ pub(crate) fn resolve_trait_item(
         }
     }
 
-    unreachable!("No method named `{name}` in impl")
+    unreachable!("No method or constant named `{name}` in impl")
 }
 
 pub(crate) enum TraitItem {
@@ -3200,6 +3249,9 @@ pub(crate) enum TraitItem {
 }
 
 impl TraitItem {
+    /// Get the function ID from a [TraitItem::Method].
+    ///
+    /// Panics if called on a [TraitItem::Constant].
     pub(crate) fn unwrap_method(&self) -> node_interner::FuncId {
         match self {
             TraitItem::Method(func_id) => *func_id,
@@ -3210,15 +3262,16 @@ impl TraitItem {
     }
 }
 
-/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
-/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
-/// value, and another `bool` to show if the print is using a format string, or a raw
-/// value.
+/// Extend the arguments to `print` (which so far is a `bool` to show if newline is needed and
+/// value to be printed itself) with further metadata:
+/// * if we print a raw value, then append a JSON serialized `PrintableType` to describe it
+/// * if we are using a format string with multiple interpolations, append a separate JSON for each value in it
+/// * finally another `bool` to show if the print is using a format string, or a raw value
 pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::Expression>) {
     let typ: Type = typ.follow_bindings();
     let is_fmt_str = match typ {
         // A format string has many different possible types that need to be handled.
-        // Loop over each element in the format string to fetch each type's relevant metadata
+        // Loop over each element in the format string to fetch each type's relevant metadata.
         Type::FmtString(_, elements) => {
             match *elements {
                 Type::Tuple(element_types) => {
