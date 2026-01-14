@@ -688,15 +688,25 @@ impl DocItemBuilder<'_> {
         let comments = self.interner.doc_comments(id)?;
         let mut links = Vec::new();
         let mut line = 0;
+
+        // Go comment by comment so that broken link locations are more accurate.
         for comment in comments {
             let mut comment_links = self.find_links_in_comments(&comment.contents);
             for link in &mut comment_links {
                 link.line += line;
 
                 if link.target.is_none() {
-                    // TODO(links): adjust location
-                    let broken_link =
-                        BrokenLink { text: link.path.clone(), location: comment.location() };
+                    // TODO: the broken link location will point to the entire comment.
+                    // Given that "///" comments are more common than "/**", pointing at the
+                    // entire comment line is good enough for the user to know where the problem is.
+                    // With "/**" comments it's a bit more problematic, but implementing this
+                    // correctly is tricky because at this point we don't know if the comment
+                    // starts with "///" or "/**" so there's no way to actually find the actual
+                    // location. We either need to keep track of this in the interned comments,
+                    // or we could get access to the source code here and later figure out that
+                    // (this is what we do in some LSP code).
+                    let location = comment.location();
+                    let broken_link = BrokenLink { text: link.path.clone(), location };
                     self.broken_links.push(broken_link);
                 }
             }
