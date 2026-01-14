@@ -813,10 +813,7 @@ mod tests {
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
             // Write value from witness 3 to index 0
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::write_to_mem_index(Witness(0), Witness(3)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::write_to_mem_index(Witness(0), Witness(3)) },
             // Read from index 0 into witness 4
             Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(4)) },
         ]);

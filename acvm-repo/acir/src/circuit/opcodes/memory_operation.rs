@@ -33,7 +33,7 @@ impl MemOp {
         MemOp { operation: false, index, value: witness }
     }
 
-    /// Creates a `MemOp` which writes the [`Expression`] `value` into memory at `index`.
+    /// Creates a `MemOp` which writes the value assigned to the [`Witness`] `value` into memory at `index`.
     pub fn write_to_mem_index(index: Witness, value: Witness) -> Self {
         MemOp { operation: true, index, value }
     }
