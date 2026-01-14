@@ -365,7 +365,7 @@ fn div_u8_with_predicate() {
     ASSERT w5 = -w1*w4 + 1
     ASSERT 0 = w1*w5
     ASSERT 0 = w2*w5
-    BRILLIG CALL func: 1, predicate: w2, predicate: 1, inputs: [w0, w1], outputs: [w6, w7]
+    BRILLIG CALL func: 1, predicate: w2, inputs: [w0, w1], outputs: [w6, w7]
     BLACKBOX::RANGE input: w6, bits: 8
     BLACKBOX::RANGE input: w7, bits: 8
     ASSERT w8 = w1 - w2 - w7
