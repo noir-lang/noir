@@ -173,6 +173,12 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
             .map(|capture| capture.as_str().to_string())
             .unwrap_or_else(|| word.clone());
 
+        // If the left bracket it escaped (`\[`) then it's not a link.
+        // There's no need to check the right bracket as `\` is not a valid path character.
+        if start > 0 && line.chars().nth(start - 1).is_some_and(|char| char == '\\') {
+            return None;
+        }
+
         // Remove surrounding backticks if present.
         // The link name will still mention the word with backticks.
         let link = &link;
@@ -591,6 +597,20 @@ mod tests {
     #[test]
     fn does_not_find_if_not_a_valid_path() {
         let line = "Hello [ 1 + 2 ]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_left_bracket_is_escaped() {
+        let line = "Hello \\[foo]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_right_bracket_is_escaped() {
+        let line = "Hello [foo\\]!";
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert!(links.is_empty());
     }
