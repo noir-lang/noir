@@ -80,8 +80,8 @@ pub struct BrokenLink {
     pub location: Location,
 }
 
-impl From<BrokenLink> for CustomDiagnostic {
-    fn from(link: BrokenLink) -> Self {
+impl From<&BrokenLink> for CustomDiagnostic {
+    fn from(link: &BrokenLink) -> Self {
         CustomDiagnostic {
             message: format!("Unresolved link to `{}`", link.text),
             file: link.location.file,

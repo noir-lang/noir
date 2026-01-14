@@ -28,6 +28,10 @@ pub(crate) struct DocCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// Do not produce any output files, only check for broken links.
+    #[clap(long)]
+    check: bool,
 }
 
 impl WorkspaceCommand for DocCommand {
@@ -65,13 +69,26 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     }
 
     // Report broken links
-    let diagnostics = vecmap(broken_links, CustomDiagnostic::from);
+    let diagnostics = vecmap(&broken_links, CustomDiagnostic::from);
+    let deny_warnings = args.compile_options.deny_warnings || args.check;
     noirc_errors::reporter::report_all(
         workspace_file_manager.as_file_map(),
         &diagnostics,
-        args.compile_options.deny_warnings,
+        deny_warnings,
         args.compile_options.silence_warnings,
     );
+
+    if args.check {
+        if !broken_links.is_empty() {
+            let msg = if broken_links.len() == 1 {
+                "Error: doc comments contains 1 broken link".to_string()
+            } else {
+                format!("Error: doc comments contain {} broken links", broken_links.len())
+            };
+            return Err(CliError::Generic(msg));
+        }
+        return Ok(());
+    }
 
     // Crates in the workspace might depend on other crates in the workspace.
     // Remove them from `all_dependencies`.
