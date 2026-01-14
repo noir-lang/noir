@@ -459,6 +459,42 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+#[should_panic(expected = "Type recursion limit reached - types are too large")]
+fn extreme_type_alias_chain_stack_overflow() {
+    // Generate a chain of 2,000 type aliases programmatically
+    // ```
+    // type Alias2000 = u8;
+    // type Alias1999 = Alias2000;
+    // type Alias1998 = Alias1999;
+    // ...
+    // type Alias1 = Alias2;
+    // ```
+    const DEPTH: usize = 2000;
+    let mut aliases = String::new();
+
+    // Start with the base type
+    aliases.push_str(&format!("    type Alias{DEPTH} = u8;\n"));
+
+    // Chain aliases from top to bottom
+    for i in (1..DEPTH).rev() {
+        aliases.push_str(&format!("    type Alias{} = Alias{};\n", i, i + 1));
+    }
+
+    // Insert the following alias chain:
+    let src = format!(
+        r#"
+        {aliases}
+
+        pub fn main(x: Alias1) -> pub u8 {{
+            x
+        }}
+    "#
+    );
+
+    let _ = get_monomorphized(&src);
+}
+
+#[test]
 fn tuple_pattern_becomes_separate_params() {
     let src = r#"
     fn main() -> pub u32 {
