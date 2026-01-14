@@ -276,6 +276,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,
+        is_entry_point: false, // This only matters for creating artifacts
     }
 }
 

@@ -36,6 +36,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         return_visibility: Visibility::Private,
         unconstrained: false,
         inline_type: InlineType::Inline,
+        is_entry_point: false,
     };
 
     let program = Program {
@@ -143,6 +144,7 @@ fn test_recursion_limit_rewrite() {
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::InlineAlways,
+            is_entry_point: false,
         };
 
         ctx.function_declarations.insert(

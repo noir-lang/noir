@@ -375,6 +375,7 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
+            is_entry_point: false,
         };
         self.functions.insert(id, func);
         Ok(())
