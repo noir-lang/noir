@@ -486,7 +486,7 @@ fn brillig_oracle_predicate() {
 
     let src = format!(
         "
-    BRILLIG CALL func: 0, predicate: 0, predicate: 1, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}, {w_lt_res}]
+    BRILLIG CALL func: 0, predicate: 0, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}, {w_lt_res}]
     "
     );
     let opcodes = parse_opcodes(&src).unwrap();
