@@ -3,7 +3,7 @@ use acvm::{
     acir::{
         brillig::{
             HeapVector, MemoryAddress,
-            lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+            lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
         },
         circuit::ErrorSelector,
     },
@@ -419,7 +419,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             }
         } else {
             let size: SemiFlattenedLength =
-                item_count * ElementsLength(assert_u32(item_type.len()));
+                item_count * ElementTypesLength(assert_u32(item_type.len()));
             let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }

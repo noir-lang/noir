@@ -119,7 +119,7 @@
 //! memory operations as they may produce runtime errors. These operations are special cased to always fail with an
 //! index out of bounds error (with respect to side effects) and ensures they do not produce illegal memory accesses.
 use acvm::acir::brillig::lengths::{
-    ElementsFlattenedLength, ElementsLength, FlattenedLength, SemanticLength,
+    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
 };
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
@@ -1271,7 +1271,7 @@ pub(super) fn calculate_element_type_sizes_array(
     // Capacity is the number of entries in element_type_sizes array
     // One entry per field per logical element (+ boundary + additional)
     let capacity = (non_flattened_elements + boundary + additional_capacity)
-        * ElementsLength(assert_u32(element_types.len()));
+        * ElementTypesLength(assert_u32(element_types.len()));
     let capacity = assert_usize(capacity.0);
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);

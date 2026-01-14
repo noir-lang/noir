@@ -1,6 +1,6 @@
 use acvm::AcirField;
 use acvm::acir::brillig::lengths::{
-    ElementsFlattenedLength, ElementsLength, FlattenedLength, SemanticLength, SemiFlattenedLength,
+    ElementsFlattenedLength, ElementTypesLength, FlattenedLength, SemanticLength, SemiFlattenedLength,
 };
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
@@ -212,7 +212,7 @@ impl Context<'_> {
                                 // len holds the semi-flattened length of all elements in the vector,
                                 // so here we need to divide by elements length of the item types
                                 let len = SemiFlattenedLength(assert_u32(array.len()));
-                                len / ElementsLength(assert_u32(item_types.len()))
+                                len / ElementTypesLength(assert_u32(item_types.len()))
                             }
                         }
                         _ => unreachable!("ICE: Vector value is not an array"),

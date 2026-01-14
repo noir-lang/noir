@@ -19,12 +19,12 @@ impl Add<SemanticLength> for SemanticLength {
     }
 }
 
-impl Mul<ElementsLength> for SemanticLength {
+impl Mul<ElementTypesLength> for SemanticLength {
     type Output = SemiFlattenedLength;
 
     /// Computes the semi-flattened length by multiplying the semantic length
-    /// by the elements length.
-    fn mul(self, rhs: ElementsLength) -> Self::Output {
+    /// by the element types length.
+    fn mul(self, rhs: ElementTypesLength) -> Self::Output {
         SemiFlattenedLength(self.0 * rhs.0)
     }
 }
@@ -35,20 +35,20 @@ impl std::fmt::Display for SemanticLength {
     }
 }
 
-/// Represents the number of elements inside a vectors' or array's type, without
+/// Represents the number of types of a single element inside a vector or array, without
 /// taking into account the vector or array length.
-/// For example, in the array `[(u8, u16, [u32; 4]); 8]`, the elements length is 3:
+/// For example, in the array `[(u8, u16, [u32; 4]); 8]`, the element types length is 3:
 /// 1. u8
 /// 2. u16
 /// 3. [u32; 4]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct ElementsLength(pub u32);
+pub struct ElementTypesLength(pub u32);
 
-impl Mul<SemanticLength> for ElementsLength {
+impl Mul<SemanticLength> for ElementTypesLength {
     type Output = SemiFlattenedLength;
 
     /// Computes the semi-flattened length by multiplying the semantic length
-    /// by the elements length.
+    /// by the element types length.
     fn mul(self, rhs: SemanticLength) -> Self::Output {
         SemiFlattenedLength(self.0 * rhs.0)
     }
@@ -64,7 +64,7 @@ impl Mul<ElementsFlattenedLength> for SemanticLength {
     }
 }
 
-impl std::fmt::Display for ElementsLength {
+impl std::fmt::Display for ElementTypesLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -72,11 +72,11 @@ impl std::fmt::Display for ElementsLength {
 
 /// Represents the number of value/memory slots required to represent an array or vector.
 /// The semi-flattened length can be computed by multiplying the semantic length by
-/// the elements length.
+/// the element types length.
 ///
 /// For example in the array `[(u8, u16, [u32; 4]); 8]`:
 /// - The semantic length is 8
-/// - The elements length is 3
+/// - The element types length is 3
 /// - The semi-flattened length is 24 (8 * 3)
 ///
 /// The reason the semi-flattened length is required, and different than the semantic length,
@@ -94,10 +94,10 @@ impl std::fmt::Display for SemiFlattenedLength {
     }
 }
 
-impl Div<ElementsLength> for SemiFlattenedLength {
+impl Div<ElementTypesLength> for SemiFlattenedLength {
     type Output = SemanticLength;
 
-    fn div(self, rhs: ElementsLength) -> Self::Output {
+    fn div(self, rhs: ElementTypesLength) -> Self::Output {
         SemanticLength(self.0 / rhs.0)
     }
 }
