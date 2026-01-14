@@ -2,14 +2,16 @@ use std::{collections::HashMap, fs};
 
 use clap::Args;
 use fm::FileManager;
+use iter_extended::vecmap;
 use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager,
     ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
     workspace::Workspace,
 };
-use nargo_doc::{crate_module, items::Crate};
+use nargo_doc::{BrokenLink, crate_module, items::Crate};
 use nargo_toml::{PackageConfig, PackageSelection};
 use noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CliError;
@@ -44,9 +46,12 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let mut crates = Vec::new();
+    let mut broken_links = Vec::new();
+
     // Maps a crate's root file to its crate
     let mut dependencies = HashMap::new();
+
+    let mut crates = Vec::new();
     for package in &workspace {
         let krate = package_crate(
             &workspace_file_manager,
@@ -54,9 +59,20 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
             package,
             &args.compile_options,
             &mut dependencies,
+            &mut broken_links,
         )?;
         crates.push(krate);
     }
+
+    // Report broken links
+    let diagnostics = vecmap(broken_links, CustomDiagnostic::from);
+    noirc_errors::reporter::report_all(
+        workspace_file_manager.as_file_map(),
+        &diagnostics,
+        args.compile_options.deny_warnings,
+        args.compile_options.silence_warnings,
+    );
+
     // Crates in the workspace might depend on other crates in the workspace.
     // Remove them from `all_dependencies`.
     for krate in &crates {
@@ -95,15 +111,24 @@ fn package_crate(
     package: &Package,
     compile_options: &CompileOptions,
     dependencies: &mut HashMap<String, Crate>,
+    broken_links: &mut Vec<BrokenLink>,
 ) -> Result<Crate, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    let module =
+    let (module, module_broken_links) =
         crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner);
+    broken_links.extend(module_broken_links);
 
-    collect_dependencies(&context, Some(package), crate_id, file_manager, dependencies)?;
+    collect_dependencies(
+        &context,
+        Some(package),
+        crate_id,
+        file_manager,
+        dependencies,
+        broken_links,
+    )?;
 
     let root_file = &context.crate_graph[crate_id].root_file_id;
     let root_file = file_manager.path(*root_file).unwrap().display().to_string();
@@ -120,6 +145,7 @@ fn collect_dependencies(
     crate_id: CrateId,
     file_manager: &FileManager,
     dependencies: &mut HashMap<String, Crate>,
+    broken_links: &mut Vec<BrokenLink>,
 ) -> Result<(), CompileError> {
     for dependency in &context.crate_graph[crate_id].dependencies {
         let crate_id = dependency.crate_id;
@@ -130,8 +156,10 @@ fn collect_dependencies(
             continue;
         }
 
-        let module =
+        let (module, module_broken_links) =
             crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner);
+        broken_links.extend(module_broken_links);
+
         let name = dependency.name.to_string();
         // The `graph::Dependency` type doesn't carry a version. Instead, we can get it from the
         // `Package's` dependencies by finding the dependency with the same name.
@@ -155,7 +183,7 @@ fn collect_dependencies(
         let krate = Crate { name, version, root_module: module, root_file: root_file.clone() };
         dependencies.insert(root_file, krate);
 
-        collect_dependencies(context, package, crate_id, file_manager, dependencies)?;
+        collect_dependencies(context, package, crate_id, file_manager, dependencies, broken_links)?;
     }
     Ok(())
 }

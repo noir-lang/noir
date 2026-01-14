@@ -38,7 +38,7 @@ pub enum ItemKind {
 /// - `[name]` (`path` will be the same as `name`)
 /// - `[name][path]`
 /// - `[name](path)`
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     pub name: String,
     pub path: String,
@@ -52,7 +52,7 @@ pub struct Link {
     pub end: usize,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LinkTarget {
     TopLevelItem(ItemId),
     Method(ItemId, String),

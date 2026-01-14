@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_errors::reporter::CustomLabel;
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
 use noirc_frontend::graph::CrateGraph;
 use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
@@ -36,12 +38,12 @@ pub fn crate_module(
     crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
-) -> Module {
+) -> (Module, Vec<BrokenLink>) {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
     let mut builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps);
     let mut module = builder.convert_module(module);
     builder.process_module_reexports(&mut module);
-    module
+    (module, builder.broken_links)
 }
 
 struct DocItemBuilder<'a> {
@@ -65,7 +67,35 @@ struct DocItemBuilder<'a> {
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     trait_constraints: Vec<TraitConstraint>,
+    broken_links: Vec<BrokenLink>,
     link_finder: LinkFinder,
+}
+
+#[derive(Debug)]
+pub struct BrokenLink {
+    pub text: String,
+    pub location: Location,
+}
+
+impl From<BrokenLink> for CustomDiagnostic {
+    fn from(link: BrokenLink) -> Self {
+        CustomDiagnostic {
+            message: format!("Unresolved link to `{}`", link.text),
+            file: link.location.file,
+            secondaries: vec![CustomLabel {
+                message: format!("No item named `{}` in scope", link.text),
+                location: link.location,
+            }],
+            notes: vec![
+                "to escape `[` and `]` characters, add '\\' before them like `\\[` or `\\]`"
+                    .to_string(),
+            ],
+            kind: DiagnosticKind::Warning,
+            deprecated: false,
+            unnecessary: false,
+            call_stack: vec![],
+        }
+    }
 }
 
 impl<'a> DocItemBuilder<'a> {
@@ -88,6 +118,7 @@ impl<'a> DocItemBuilder<'a> {
             module_def_id_to_item: HashMap::new(),
             module_imports: HashMap::new(),
             trait_constraints: Vec::new(),
+            broken_links: Vec::new(),
             link_finder,
         }
     }
@@ -652,10 +683,29 @@ impl DocItemBuilder<'_> {
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
+        self.link_finder.reset();
+
         let comments = self.interner.doc_comments(id)?;
+        let mut links = Vec::new();
+        let mut line = 0;
+        for comment in comments {
+            let mut comment_links = self.find_links_in_comments(&comment.contents);
+            for link in &mut comment_links {
+                link.line += line;
+
+                if link.target.is_none() {
+                    // TODO(links): adjust location
+                    let broken_link =
+                        BrokenLink { text: link.path.clone(), location: comment.location() };
+                    self.broken_links.push(broken_link);
+                }
+            }
+            links.extend(comment_links);
+            line += comment.contents.lines().count().max(1);
+        }
+
         let comments =
             vecmap(comments, |comment| comment.contents.clone()).join("\n").trim().to_string();
-        let links = self.find_links_in_comments(&comments);
         Some((comments, links))
     }
 
@@ -667,7 +717,6 @@ impl DocItemBuilder<'_> {
     /// with resolved HTML links.
     fn find_links_in_comments(&mut self, comments: &str) -> Links {
         let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
-        self.link_finder.reset();
         let links = self.link_finder.find_links(
             comments,
             current_module_id,
