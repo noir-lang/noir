@@ -220,6 +220,16 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+
+    /// Enable compilation of contract crates.
+    ///
+    /// Noir contracts are expected to be compiled within a larger smart contract development environment.
+    /// It's likely that if you're compiling a contract crate using Nargo directly, you may run into issues
+    /// due to missing this environment, e.g. tests may depend on foreign call handlers that are not available.
+    ///
+    /// If you are sure you want to compile contract crates directly, you can enable this flag.
+    #[arg(long)]
+    pub enable_contracts: bool,
 }
 
 impl Default for CompileOptions {
@@ -258,6 +268,7 @@ impl Default for CompileOptions {
             unstable_features: Vec::new(),
             no_unstable_features: false,
             disable_comptime_printing: false,
+            enable_contracts: false,
         }
     }
 }
@@ -534,6 +545,14 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
+    if !options.enable_contracts {
+        let err = CustomDiagnostic::from_message(
+            "compiling contract crates is disabled by default. To enable, pass the `--enable-contracts` flag to Nargo.",
+            FileId::default(),
+        );
+        return Err(vec![err]);
+    }
+
     let (_, warnings) = check_crate(context, crate_id, options)?;
 
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
