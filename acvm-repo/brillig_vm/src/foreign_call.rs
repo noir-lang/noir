@@ -5,7 +5,7 @@ use acir::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
         lengths::{
-            ElementsFlattenedLength, ElementTypesLength, FlattenedLength, SemanticLength,
+            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
             SemiFlattenedLength,
         },
     },

@@ -133,8 +133,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 match element_type {
                     Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
-                        let size: SemiFlattenedLength =
-                            ElementTypesLength(assert_u32(items.len())) * SemanticLength(*nested_size);
+                        let size: SemiFlattenedLength = ElementTypesLength(assert_u32(items.len()))
+                            * SemanticLength(*nested_size);
                         let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.

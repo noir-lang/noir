@@ -1,6 +1,7 @@
 use acvm::AcirField;
 use acvm::acir::brillig::lengths::{
-    ElementsFlattenedLength, ElementTypesLength, FlattenedLength, SemanticLength, SemiFlattenedLength,
+    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+    SemiFlattenedLength,
 };
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
