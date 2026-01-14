@@ -2210,7 +2210,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Try to evaluate certain builtin functions at their call site.
     ///
     /// NOTE: Evaluating at the call site means we cannot track aliased functions.
-    ///       E.g. `let f = std::array::len; f(arr)` would fail to evaluate.
+    ///       E.g. `let f = std::mem::checked_transmute; f(x)` would fail to evaluate.
     ///       To fix this we need to evaluate on the identifier instead, which
     ///       requires us to evaluate to a Lambda value which isn't in Noir yet.
     fn try_evaluate_call(

@@ -1268,6 +1268,40 @@ fn evaluates_builtin_checked_transmute() {
 }
 
 #[test]
+fn does_not_evaluate_aliased_functions() {
+    let src = r#"
+    fn main() -> pub Field {
+        let a = 1;
+        let f = checked_transmute;
+        let b = f(a);
+        b
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+
+    // We are using `checked_transmute` as a function value, so monomorphization will create
+    // proxies for it to forward the call, but note that this code would crash during SSA
+    // generation, as there is no intrinsic `checked_transmute` function.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        let a$l0 = 1;
+        let f$l1 = (checked_transmute$f1, checked_transmute$f2);
+        let b$l2 = f$l1.0(a$l0);
+        b$l2
+    }
+    #[inline_always]
+    fn checked_transmute_proxy$f1(p0$l0: Field) -> Field {
+        checked_transmute$checked_transmute(p0$l0)
+    }
+    #[inline_always]
+    unconstrained fn checked_transmute_proxy$f2(p0$l0: Field) -> Field {
+        checked_transmute$checked_transmute(p0$l0)
+    }
+    ");
+}
+
+#[test]
 fn evaluates_builtin_modulus_functions() {
     let src = r#"
     fn main() {
