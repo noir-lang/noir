@@ -18,6 +18,25 @@ fn get_monomorphized_with_stdlib(
     )
 }
 
+mod stdlib_src {
+    pub(super) const ZEROED: &str = "
+        #[builtin(zeroed)]
+        pub fn zeroed<T>() -> T {}
+    ";
+
+    pub(super) const EQ: &str = "
+        pub trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+    ";
+
+    pub(super) const NEG: &str = "
+        pub trait Neg {
+            fn neg(self) -> Self;
+        }
+    ";
+}
+
 #[test]
 fn bounded_recursive_type_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -667,12 +686,6 @@ fn trait_method() {
 
 #[test]
 fn infix_trait_method() {
-    let stdlib_src = "
-    pub trait Eq {
-        fn eq(self, other: Self) -> bool;
-    }
-    ";
-
     let src = r#"
     struct Foo {
         a: u32,
@@ -691,7 +704,7 @@ fn infix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::EQ).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub bool {
@@ -713,12 +726,6 @@ fn infix_trait_method() {
 
 #[test]
 fn prefix_trait_method() {
-    let stdlib_src = "
-    pub trait Neg {
-        fn neg(self) -> Self;
-    }
-    ";
-
     let src = r#"
     struct Foo {
         a: i32,
@@ -736,7 +743,7 @@ fn prefix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::NEG).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1175,18 +1182,14 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
 
 #[test]
 fn evaluates_builtin_zeroed() {
-    let stdlib_src = "
-    #[builtin(zeroed)]
-    pub fn zeroed<T>() -> T {}
-    ";
-
     let src = r#"
     fn main() {
         let _a: [(u32, str<3>); 2] = zeroed();
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
     insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
 }
