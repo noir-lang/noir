@@ -1,10 +1,22 @@
 #![cfg(test)]
 use crate::{
     elaborator::UnstableFeature,
-    monomorphization::errors::MonomorphizationError,
+    monomorphization::{ast::Program, errors::MonomorphizationError},
     test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options},
     tests::check_monomorphization_error_using_features,
 };
+
+/// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
+fn get_monomorphized_with_stdlib(
+    user_src: &str,
+    stdlib_src: &str,
+) -> Result<Program, MonomorphizationError> {
+    let src = format!("{stdlib_src}\n\n{user_src}");
+    get_monomorphized_with_options(
+        &src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+}
 
 #[test]
 fn bounded_recursive_type_errors() {
@@ -655,12 +667,13 @@ fn trait_method() {
 
 #[test]
 fn infix_trait_method() {
-    let src = r#"
-    // There is no stdlib in these tests, so the definition is repeated here.
+    let stdlib_src = "
     pub trait Eq {
         fn eq(self, other: Self) -> bool;
     }
+    ";
 
+    let src = r#"
     struct Foo {
         a: u32,
     }
@@ -678,11 +691,7 @@ fn infix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
-    )
-    .unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub bool {
@@ -704,12 +713,13 @@ fn infix_trait_method() {
 
 #[test]
 fn prefix_trait_method() {
-    let src = r#"
-    // There is no stdlib in these tests, so the definition is repeated here.
+    let stdlib_src = "
     pub trait Neg {
         fn neg(self) -> Self;
     }
+    ";
 
+    let src = r#"
     struct Foo {
         a: i32,
     }
@@ -726,11 +736,7 @@ fn prefix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
-    )
-    .unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
