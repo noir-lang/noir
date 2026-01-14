@@ -209,7 +209,7 @@ impl Parser<'_> {
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
         self.eat_or_error(Token::DoubleColon);
-        let impl_item = if let Some(ident) = self.eat_ident() {
+        let impl_item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();

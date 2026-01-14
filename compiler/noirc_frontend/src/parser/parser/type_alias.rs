@@ -15,7 +15,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> TypeAlias {
         let location = self.location_at_previous_token_end();
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return TypeAlias {
                 visibility,

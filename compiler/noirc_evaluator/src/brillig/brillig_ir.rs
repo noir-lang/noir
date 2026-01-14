@@ -32,6 +32,8 @@ pub(crate) use instructions::BrilligBinaryOp;
 use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
+use crate::brillig::assert_u32;
+
 pub(crate) use self::registers::LayoutConfig;
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
@@ -47,16 +49,6 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
-
-/// Converts a u32 value to usize, panicking if the conversion fails.
-fn assert_usize(value: u32) -> usize {
-    value.try_into().expect("Failed conversion from u32 to usize")
-}
-
-/// Converts a usize value to u32, panicking if the conversion fails.
-fn assert_u32(value: usize) -> u32 {
-    value.try_into().expect("Failed conversion from usize to u32")
-}
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
@@ -135,7 +127,7 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::direct(GlobalSpace::start_with_layout(&self.layout()))
+        MemoryAddress::direct(assert_u32(GlobalSpace::start_with_layout(&self.layout())))
     }
 
     /// If this flag is set, compile the array copy counter as a global.
@@ -352,14 +344,14 @@ pub(crate) mod tests {
     use acvm::brillig_vm::{VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::BrilligOptions;
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
+    use crate::brillig::{BrilligOptions, assert_u32, assert_usize};
     use crate::ssa::ir::function::FunctionId;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
     use super::procedures::compile_procedure;
     use super::registers::Stack;
-    use super::{BrilligOpcode, ReservedRegisters, assert_usize};
+    use super::{BrilligOpcode, ReservedRegisters};
 
     pub(crate) struct DummyBlackBoxSolver;
 
@@ -484,7 +476,7 @@ pub(crate) mod tests {
         let mut context = BrilligContext::new("test", &options);
 
         // Allocate variables
-        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        let r_input_size = MemoryAddress::direct(assert_u32(ReservedRegisters::len()));
         let r_output_ptr = r_input_size.offset(1);
         let r_output_size = r_input_size.offset(2);
         let r_equality = r_input_size.offset(3);

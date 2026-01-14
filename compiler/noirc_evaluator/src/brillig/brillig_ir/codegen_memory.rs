@@ -4,10 +4,13 @@ use acvm::{
     brillig_vm::offsets,
 };
 
-use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{BrilligBinaryOp, registers::Allocated},
+};
 
 use super::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters, assert_usize,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
@@ -481,10 +484,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         // Allocate memory for the ref counter and `size` items.
-        self.codegen_allocate_immediate_mem(
-            array.pointer,
-            array.size + assert_usize(offsets::ARRAY_META_COUNT),
-        );
+        let size = array.size.0 + offsets::ARRAY_META_COUNT;
+        self.codegen_allocate_immediate_mem(array.pointer, assert_usize(size));
         self.codegen_initialize_rc(array.pointer, 1);
     }
 

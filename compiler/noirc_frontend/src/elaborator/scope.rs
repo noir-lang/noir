@@ -86,10 +86,11 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Try to look up a [TypedPath] in the globals.
-    ///
-    /// If the item is a type alias to some as-of-yet unknown numeric generic, it returns a [DefinitionId::dummy_id].
-    pub(super) fn lookup_global(
+    /// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+    /// If the path resolves to an item that is not a value (for example a struct, an enum,
+    /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
+    /// when no item is found.
+    pub(super) fn lookup_item_as_value(
         &mut self,
         path: TypedPath,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
@@ -100,8 +101,7 @@ impl Elaborator<'_> {
             return Ok((self.interner.function_definition_id(function), item));
         }
 
-        let expected = "global variable";
-        let got = "local variable";
+        let expected = "value";
         match item {
             PathResolutionItem::Global(global) => {
                 let global = self.interner.get_global(global);
@@ -121,9 +121,17 @@ impl Elaborator<'_> {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
                     return Ok((DefinitionId::dummy_id(), item));
                 }
-                Err(ResolverError::Expected { location, expected, got })
+                Err(ResolverError::Expected {
+                    location,
+                    expected,
+                    found: item.description(self.interner),
+                })
             }
-            _ => Err(ResolverError::Expected { location, expected, got }),
+            item => Err(ResolverError::Expected {
+                location,
+                expected,
+                found: item.description(self.interner),
+            }),
         }
     }
 
@@ -173,7 +181,7 @@ impl Elaborator<'_> {
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
-                        got: item.description(),
+                        found: item.description(self.interner),
                         location,
                     });
                     None
@@ -214,7 +222,7 @@ impl Elaborator<'_> {
             Ok(other) => {
                 self.push_err(ResolverError::Expected {
                     expected: "type",
-                    got: other.description(),
+                    found: other.description(self.interner),
                     location,
                 });
                 None
