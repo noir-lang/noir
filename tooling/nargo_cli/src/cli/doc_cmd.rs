@@ -117,8 +117,13 @@ fn package_crate(
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    let (module, module_broken_links) =
-        crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner);
+    let (module, module_broken_links) = crate_module(
+        crate_id,
+        &context.crate_graph,
+        &context.def_maps,
+        &context.def_interner,
+        file_manager,
+    );
     broken_links.extend(module_broken_links);
 
     collect_dependencies(
@@ -156,8 +161,13 @@ fn collect_dependencies(
             continue;
         }
 
-        let (module, module_broken_links) =
-            crate_module(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner);
+        let (module, module_broken_links) = crate_module(
+            crate_id,
+            &context.crate_graph,
+            &context.def_maps,
+            &context.def_interner,
+            file_manager,
+        );
         broken_links.extend(module_broken_links);
 
         let name = dependency.name.to_string();

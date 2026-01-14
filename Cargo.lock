@@ -3422,6 +3422,7 @@ dependencies = [
 name = "nargo_doc"
 version = "1.0.0-beta.18"
 dependencies = [
+ "fm",
  "insta",
  "iter-extended",
  "markdown",

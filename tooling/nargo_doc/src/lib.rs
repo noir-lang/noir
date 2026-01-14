@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
 use noirc_errors::reporter::CustomLabel;
-use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
-use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location, Span};
+use noirc_frontend::ast::{DocComment, IntegerBitSize, ItemVisibility};
 use noirc_frontend::graph::CrateGraph;
 use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
@@ -38,9 +39,10 @@ pub fn crate_module(
     crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
+    file_manager: &FileManager,
 ) -> (Module, Vec<BrokenLink>) {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps);
+    let mut builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps, file_manager);
     let mut module = builder.convert_module(module);
     builder.process_module_reexports(&mut module);
     (module, builder.broken_links)
@@ -51,6 +53,7 @@ struct DocItemBuilder<'a> {
     crate_id: CrateId,
     crate_graph: &'a CrateGraph,
     def_maps: &'a DefMaps,
+    file_manager: &'a FileManager,
     current_module_id: LocalModuleId,
     current_type: Option<CurrentType>,
     /// The minimum visibility of the current module. For example,
@@ -104,6 +107,7 @@ impl<'a> DocItemBuilder<'a> {
         crate_id: CrateId,
         crate_graph: &'a CrateGraph,
         def_maps: &'a DefMaps,
+        file_manager: &'a FileManager,
     ) -> Self {
         let current_module_id = def_maps[&crate_id].root();
         let link_finder = LinkFinder::default();
@@ -112,6 +116,7 @@ impl<'a> DocItemBuilder<'a> {
             crate_id,
             crate_graph,
             def_maps,
+            file_manager,
             current_module_id,
             current_type: None,
             visibility: ItemVisibility::Public,
@@ -696,16 +701,7 @@ impl DocItemBuilder<'_> {
                 link.line += line;
 
                 if link.target.is_none() {
-                    // TODO: the broken link location will point to the entire comment.
-                    // Given that "///" comments are more common than "/**", pointing at the
-                    // entire comment line is good enough for the user to know where the problem is.
-                    // With "/**" comments it's a bit more problematic, but implementing this
-                    // correctly is tricky because at this point we don't know if the comment
-                    // starts with "///" or "/**" so there's no way to actually find the actual
-                    // location. We either need to keep track of this in the interned comments,
-                    // or we could get access to the source code here and later figure out that
-                    // (this is what we do in some LSP code).
-                    let location = comment.location();
+                    let location = self.link_location(comment, link.line, link.start, link.end);
                     let broken_link = BrokenLink { text: link.path.clone(), location };
                     self.broken_links.push(broken_link);
                 }
@@ -766,6 +762,26 @@ impl DocItemBuilder<'_> {
                 end: link.end,
             }
         })
+    }
+
+    /// Returns the actual [`Location`] of a link inside `comment`, one that is at the given
+    /// `line`, `start` and `end`.
+    fn link_location(
+        &self,
+        comment: &DocComment,
+        line: usize,
+        start: usize,
+        end: usize,
+    ) -> Location {
+        let location = comment.location();
+        let file = location.file;
+        let source = self.file_manager.fetch_file(file).unwrap();
+        let text: &str = &source[location.span.start() as usize..location.span.end() as usize];
+        let offset = link_offset(text, line) + start;
+        let span_start = location.span.start() + offset as u32;
+        let span_end = span_start + (end - start) as u32;
+        let span = Span::from(span_start..span_end);
+        Location::new(span, file)
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {
@@ -866,5 +882,177 @@ pub(crate) fn convert_primitive_type(
         noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
             PrimitiveTypeKind::UnresolvedType
         }
+    }
+}
+
+/// Returns the offset in `text` at which the actual comment text start at the given `line`,
+/// assuming `text` is the entire doc comment text.
+/// The `start` and `end` position of links are relative to the line in which a link appears,
+/// and because broken links need to be reported as [`Location`]s we need to adjust their
+/// span accordingly.
+fn link_offset(text: &str, line: usize) -> usize {
+    // Easy: for line comments we just need to skip the comment prefix
+    if text.starts_with("/// ") || text.starts_with("//! ") {
+        return 4;
+    }
+    if text.starts_with("///") || text.starts_with("//!") {
+        return 3;
+    }
+
+    // A bit more tricky: block comments.
+    let mut offset = 0;
+    let lines = text.lines().collect::<Vec<_>>();
+
+    // The line number in the doc comment we are in. This isn't exactly the `index` we get
+    // from `iter().enumerate()` because if the first line is just "/**" or "/*!" (with optional
+    // trailing spaces) then that line is not counted as the first line of the comment (the next
+    // one will).
+    let mut current_line_number: usize = 0;
+
+    for (line_index, line_text) in lines.iter().enumerate() {
+        // Special check for the first line
+        if line_index == 0 {
+            // We first skip past "/**" or "/*!" (one of those must come).
+            let new_line_text =
+                line_text.strip_prefix("/**").or_else(|| line_text.strip_prefix("/*!")).unwrap();
+            offset += 3;
+
+            // Next we skip any spaces after that
+            let line_text_length = new_line_text.len();
+            let new_line_text = new_line_text.trim_start();
+            if new_line_text.is_empty() {
+                // If the line is empty, the entire line is skipped. Note that we proceed
+                // with the next line without incrementing `current_line_number`.
+                // TODO: this assumes "\n" is the newline, so it won't work with "\r\n"
+                offset += new_line_text.len() + 1;
+                continue;
+            } else {
+                // Otherwise we just skip the spaces.
+                offset += line_text_length - new_line_text.len();
+            }
+        }
+
+        // Did we reach the line we were looking for?
+        if current_line_number == line {
+            let line_text_length = line_text.len();
+            let line_text = line_text.trim_start();
+            // Adjust offset to account for leading spaces
+            offset += line_text_length - line_text.len();
+
+            // Does every line in the comment start with "*" (except for the new first line)
+            let all_stars = lines.iter().enumerate().all(|(index, line)| {
+                if index == 0 || line.trim().is_empty() {
+                    // The first line never has a star. Then we ignore empty lines.
+                    true
+                } else {
+                    line.trim_start().starts_with('*')
+                }
+            });
+
+            // If every line starts with "*" we need to skip past it, and any spaces after it.
+            if all_stars {
+                if let Some(line_text) = line_text.strip_prefix('*') {
+                    offset += 1;
+                    let line_text_length = line_text.len();
+                    let line_text = line_text.trim_start();
+                    // Adjust offset to account for leading spaces after the "*"
+                    offset += line_text_length - line_text.len();
+                }
+            }
+
+            break;
+        }
+
+        // TODO: this assumes "\n" is the newline, so it won't work with "\r\n"
+        offset += line_text.len() + 1;
+        current_line_number += 1;
+    }
+    offset
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::link_offset;
+
+    #[test]
+    fn link_offset_line_comment_1() {
+        let text = "/// Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_line_comment_2() {
+        let text = "///Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_line_comment_3() {
+        let text = "//! Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_line_comment_4() {
+        let text = "//!Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_block_comment_1() {
+        let text = "/** Does not exist: [Foo] bar */";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar */");
+    }
+
+    #[test]
+    fn link_offset_block_comment_2() {
+        let text = "/**\n * Does not exist: [Foo] bar\n*/";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_3() {
+        let text = "/**\n   Does not exist: [Foo] bar\n*/";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_4() {
+        let text = "/*! Does not exist: [Foo] bar */";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar */");
+    }
+
+    #[test]
+    fn link_offset_block_comment_5() {
+        // Here "*" is included in the text because not every line starts with "*"
+        let text = "/**\n  One\n  Two\n * Does not exist: [Foo] bar\n*/";
+        let line = 2;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "* Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_6() {
+        // Here "*" is not included in the text because every line starts with "*"
+        let text = "/**\n  * One\n  * Two\n * Does not exist: [Foo] bar\n*/";
+        let line = 2;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
     }
 }
