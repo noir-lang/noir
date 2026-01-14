@@ -178,15 +178,14 @@ mod tests {
         let init = vec![Witness(1), Witness(2)];
         // Write at index '1', and then read at index '2' on an array of size 2.
         let invalid_trace = vec![
-            MemOp::write_to_mem_index(Witness(1), Witness(3).into()),
+            MemOp::write_to_mem_index(Witness(1), Witness(3)),
             MemOp::read_at_mem_index(Witness(3), Witness(4)),
         ];
         let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                err =
-                    block_solver.solve_memory_op(&op, &mut initial_witness).err();
+                err = block_solver.solve_memory_op(&op, &mut initial_witness).err();
             }
         }
 

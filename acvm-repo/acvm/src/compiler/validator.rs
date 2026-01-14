@@ -397,7 +397,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
         witness_map: &WitnessMap<F>,
         opcode_index: usize,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        
         // Find the memory index associated with this memory operation.
         let index = get_value(&op.index.into(), witness_map)?;
         let memory_index = self.index_from_field(index)?;
@@ -760,10 +759,7 @@ mod tests {
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
             // Read from index 0 into witness 3
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(Witness(0), Witness(3)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(3)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
@@ -789,10 +785,7 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(Witness(0), Witness(3)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(3)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
@@ -822,13 +815,10 @@ mod tests {
             // Write value from witness 3 to index 0
             Opcode::MemoryOp {
                 block_id,
-                op: MemOp::write_to_mem_index(Witness(0), Witness(3).into()),
+                op: MemOp::write_to_mem_index(Witness(0), Witness(3)),
             },
             // Read from index 0 into witness 4
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(Witness(0), Witness(4)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(4)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
