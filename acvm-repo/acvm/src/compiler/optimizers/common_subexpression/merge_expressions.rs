@@ -438,7 +438,7 @@ mod tests {
         BLACKBOX::RANGE input: w2, bits: 1
         ASSERT w4 = w0*w1
         ASSERT w5 = -w2 + 1
-        BRILLIG CALL func: 0, predicate: w4*w5, predicate: 1, inputs: [w2], outputs: [w6]
+        BRILLIG CALL func: 0, predicate: w4*w5, inputs: [w2], outputs: [w6]
         ASSERT w3 = -w5 + 1
         ";
         let circuit = Circuit::from_str(src).unwrap();

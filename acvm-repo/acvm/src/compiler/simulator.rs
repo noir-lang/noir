@@ -288,7 +288,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        CALL func: 0, inputs: [w0], outputs: [w1]
+        CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();

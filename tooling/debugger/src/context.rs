@@ -1373,7 +1373,7 @@ mod tests {
         return values: []
         INIT b0 = []
         BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: []
-        CALL func: 1, inputs: [], outputs: []
+        CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
         let circuit_one = Circuit::from_str(src_one).unwrap();
