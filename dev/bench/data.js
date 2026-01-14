@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768413664819,
+  "lastUpdate": 1768432358738,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "da063950925eade6172da1ed5910c2ef0a8127ff",
-          "message": "fix: mark bb predicates as used in merge_expression (#11123)",
-          "timestamp": "2026-01-08T11:43:08Z",
-          "tree_id": "5c25b2c419bf983f8db4e8211ca3526c9b39910b",
-          "url": "https://github.com/noir-lang/noir/commit/da063950925eade6172da1ed5910c2ef0a8127ff"
-        },
-        "date": 1767873910817,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253943,
-            "range": "± 364",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222403,
-            "range": "± 3774",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790675,
-            "range": "± 2138",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2823306,
             "range": "± 14527",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "404f60ff401cff2c89fe6c42b4afbd58cb7ea02f",
+          "message": "fix: prevent integer literals in non-numeric generic locations (#11211)",
+          "timestamp": "2026-01-14T22:50:21Z",
+          "tree_id": "5c4c0affc8108613bea8a02c1e08b3a2b7bb3cb4",
+          "url": "https://github.com/noir-lang/noir/commit/404f60ff401cff2c89fe6c42b4afbd58cb7ea02f"
+        },
+        "date": 1768432265757,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267767,
+            "range": "± 1176",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 238407,
+            "range": "± 5975",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2805822,
+            "range": "± 1721",
             "unit": "ns/iter"
           }
         ]
