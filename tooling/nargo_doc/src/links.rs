@@ -117,11 +117,7 @@ impl LinkFinder {
         crate_graph: &CrateGraph,
     ) -> impl Iterator<Item = Link> {
         find_links_in_markdown_line(line, &self.reference_regex).filter_map(move |link| {
-            // Remove surrounding backticks if present.
-            // The link name will still mention the word with backticks.
             let path = &link.link;
-            let path = path.strip_prefix('`').unwrap_or(path);
-            let path = path.strip_suffix('`').unwrap_or(path);
             let target = path_to_link_target(
                 path,
                 current_module_id,
@@ -153,6 +149,7 @@ impl LinkFinder {
 /// - `[name](link)`
 ///
 /// It's unresolved because the link might not resolve to an actual item.
+#[derive(Debug)]
 struct PlainLink {
     pub name: String,
     pub link: String,
@@ -175,8 +172,15 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
             .or(captures.get(3))
             .map(|capture| capture.as_str().to_string())
             .unwrap_or_else(|| word.clone());
-        if link_looks_like_a_path(&link) {
-            Some(PlainLink { name: word, link, start, end })
+
+        // Remove surrounding backticks if present.
+        // The link name will still mention the word with backticks.
+        let link = &link;
+        let link = link.strip_prefix('`').unwrap_or(link);
+        let link = link.strip_suffix('`').unwrap_or(link);
+
+        if link_looks_like_a_path(link) {
+            Some(PlainLink { name: word, link: link.to_string(), start, end })
         } else {
             None
         }
@@ -544,6 +548,18 @@ mod tests {
         assert_eq!(&link.link, "url");
         assert_eq!(link.start, 6);
         assert_eq!(link.end, 18);
+    }
+
+    #[test]
+    fn finds_reference_with_backquotes() {
+        let line = "Hello [`world`]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.name, "`world`");
+        assert_eq!(&link.link, "world");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 15);
     }
 
     #[test]
