@@ -814,8 +814,7 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // The new element type sizes array can be smaller after the remove operation
-                let shift = ElementTypeSizesArrayShift::Decrease;
+                let shift = ElementTypeSizesArrayShift::None;
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
                     vector_contents,
