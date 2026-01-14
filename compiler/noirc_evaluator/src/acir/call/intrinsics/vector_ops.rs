@@ -1,6 +1,6 @@
 use crate::acir::types::{flat_element_types, flat_numeric_types};
 use crate::acir::{AcirDynamicArray, AcirValue};
-use crate::brillig::assert_usize;
+use crate::brillig::{assert_u32, assert_usize};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -525,7 +525,7 @@ impl Context<'_> {
             let element = self.convert_value(*elem, dfg);
             // Flatten into (AcirVar, NumericType) pairs
             let flat_element = self.flatten(&element)?;
-            let elem_size = FlattenedLength::from(&flat_element);
+            let elem_size = FlattenedLength(assert_u32(flat_element.len()));
             inner_elem_size += elem_size;
             vector_size += elem_size;
             flattened_elements.extend(flat_element);
@@ -745,7 +745,7 @@ impl Context<'_> {
         let flat_vector = self.flatten(&vector)?;
         // Compiler sanity check
         assert_eq!(
-            FlattenedLength::from(&flat_vector),
+            FlattenedLength(assert_u32(flat_vector.len())),
             vector_size,
             "ICE: The read flattened vector should match the computed size"
         );

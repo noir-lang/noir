@@ -126,7 +126,7 @@ use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
 use crate::acir::types::flat_numeric_types;
-use crate::brillig::assert_usize;
+use crate::brillig::{assert_u32, assert_usize};
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
@@ -974,7 +974,7 @@ impl Context<'_> {
             let var = self.acir_context.add_constant(type_size);
             AcirValue::Var(var, NumericType::NativeField)
         });
-        let element_type_sizes_len = FlattenedLength::from(&init_values);
+        let element_type_sizes_len = FlattenedLength(assert_u32(init_values.len()));
         self.initialize_array(
             element_type_sizes_block,
             element_type_sizes_len,
@@ -1271,7 +1271,7 @@ pub(super) fn calculate_element_type_sizes_array(
     // Capacity is the number of entries in element_type_sizes array
     // One entry per field per logical element (+ boundary + additional)
     let capacity = (non_flattened_elements + boundary + additional_capacity)
-        * ElementsLength::from(element_types.as_ref());
+        * ElementsLength(assert_u32(element_types.len()));
     let capacity = assert_usize(capacity.0);
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);

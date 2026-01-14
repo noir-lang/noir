@@ -143,7 +143,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) => {
                 // The array's semi-flattened size must match the expected size
-                let semi_flattened_size = *type_size * ElementsLength::from(value_types);
+                let semi_flattened_size =
+                    *type_size * ElementsLength(assert_u32(value_types.len()));
                 assert_eq!(semi_flattened_size, size);
 
                 let start = self.memory.read_ref(pointer);
@@ -208,7 +209,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
                             let semi_flattened_size =
-                                *type_size * ElementsLength::from(value_types);
+                                *type_size * ElementsLength(assert_u32(value_types.len()));
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
@@ -273,7 +274,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {
                     let output_fields = output.fields();
                     if value_type.flattened_size().is_some_and(|flattened_size| {
-                        FlattenedLength::from(&output_fields) != flattened_size
+                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
                     }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",
@@ -297,14 +298,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) => {
-                    if *type_size * ElementsLength::from(value_types) != *size {
+                    if *type_size * ElementsLength(assert_u32(value_types.len())) != *size {
                         return Err(format!(
                             "Destination array size of {size} does not match the type size of {type_size}"
                         ));
                     }
                     let output_fields = output.fields();
                     if value_type.flattened_size().is_some_and(|flattened_size| {
-                        FlattenedLength::from(&output_fields) != flattened_size
+                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
                     }) {
                         return Err(format!(
                             "Foreign call return value does not match expected size. Expected {} but got {}",

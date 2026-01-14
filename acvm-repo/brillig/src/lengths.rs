@@ -44,18 +44,6 @@ impl std::fmt::Display for SemanticLength {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct ElementsLength(pub u32);
 
-impl<T> From<&[T]> for ElementsLength {
-    fn from(elements: &[T]) -> Self {
-        Self(assert_u32(elements.len()))
-    }
-}
-
-impl<T> From<&Vec<T>> for ElementsLength {
-    fn from(elements: &Vec<T>) -> Self {
-        Self(assert_u32(elements.len()))
-    }
-}
-
 impl Mul<SemanticLength> for ElementsLength {
     type Output = SemiFlattenedLength;
 
@@ -103,18 +91,6 @@ pub struct SemiFlattenedLength(pub u32);
 impl std::fmt::Display for SemiFlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-impl<T> From<&[T]> for SemiFlattenedLength {
-    fn from(elements: &[T]) -> Self {
-        Self(assert_u32(elements.len()))
-    }
-}
-
-impl<T> From<&Vec<T>> for SemiFlattenedLength {
-    fn from(elements: &Vec<T>) -> Self {
-        Self(assert_u32(elements.len()))
     }
 }
 
@@ -168,18 +144,6 @@ impl std::fmt::Display for FlattenedLength {
     }
 }
 
-impl<T> From<&[T]> for FlattenedLength {
-    fn from(elements: &[T]) -> Self {
-        Self(assert_u32(elements.len()))
-    }
-}
-
-impl<T> From<&Vec<T>> for FlattenedLength {
-    fn from(elements: &Vec<T>) -> Self {
-        Self(assert_u32(elements.len()))
-    }
-}
-
 impl Add for FlattenedLength {
     type Output = FlattenedLength;
 
@@ -206,9 +170,4 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
     fn div(self, rhs: ElementsFlattenedLength) -> Self::Output {
         SemanticLength(self.0 / rhs.0)
     }
-}
-
-/// Converts a usize value to u32, panicking if the conversion fails.
-pub(crate) fn assert_u32(value: usize) -> u32 {
-    value.try_into().expect("Failed conversion from usize to u32")
 }
