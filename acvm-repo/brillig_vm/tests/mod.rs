@@ -56,15 +56,15 @@ fn jmpif_opcode() {
 
     let lhs = {
         calldata.push(2u128.into());
-        MemoryAddress::direct(calldata.len() - 1)
+        MemoryAddress::direct((calldata.len() - 1).try_into().unwrap())
     };
 
     let rhs = {
         calldata.push(2u128.into());
-        MemoryAddress::direct(calldata.len() - 1)
+        MemoryAddress::direct((calldata.len() - 1).try_into().unwrap())
     };
 
-    let destination = MemoryAddress::direct(calldata.len());
+    let destination = MemoryAddress::direct(calldata.len().try_into().unwrap());
 
     let opcodes = vec![
         Opcode::Const {
@@ -189,7 +189,7 @@ fn stop() {
     let vector_size: u32 = 100;
     let calldata: Vec<FieldElement> = (0..vector_size).map(FieldElement::from).collect();
 
-    let calldata_pointer = MemoryAddress::Direct(calldata.len());
+    let calldata_pointer = MemoryAddress::direct(calldata.len().try_into().unwrap());
 
     // Simply immediately return the call data
     let opcodes = vec![
@@ -470,7 +470,7 @@ fn cmp_binary_ops() {
     let bit_size = MEMORY_ADDRESSING_BIT_SIZE;
     let calldata: Vec<FieldElement> =
         vec![(2u128).into(), (2u128).into(), (0u128).into(), (5u128).into(), (6u128).into()];
-    let calldata_size = calldata.len();
+    let calldata_size = calldata.len() as u32;
 
     let calldata_copy_opcodes = vec![
         Opcode::Const {
@@ -556,25 +556,25 @@ fn cmp_binary_ops() {
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
 
-    let output_eq_value = vm.get_memory()[destination.unwrap_direct()];
+    let output_eq_value = vm.get_memory()[destination.unwrap_direct() as usize];
     assert_eq!(output_eq_value, true.into());
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
 
-    let output_neq_value = vm.get_memory()[destination.unwrap_direct()];
+    let output_neq_value = vm.get_memory()[destination.unwrap_direct() as usize];
     assert_eq!(output_neq_value, false.into());
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::InProgress);
 
-    let lt_value = vm.get_memory()[destination.unwrap_direct()];
+    let lt_value = vm.get_memory()[destination.unwrap_direct() as usize];
     assert_eq!(lt_value, true.into());
 
     let status = vm.process_opcode();
     assert_eq!(*status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
-    let lte_value = vm.get_memory()[destination.unwrap_direct()];
+    let lte_value = vm.get_memory()[destination.unwrap_direct() as usize];
     assert_eq!(lte_value, true.into());
 }
 
@@ -991,7 +991,7 @@ fn free_memory_pointer_out_of_memory() {
         // would wrap around to equal 0.
         Opcode::Const {
             destination: big_array_size_addr,
-            value: FieldElement::from(u32::MAX - free_memory_starting_slot as u32 + 1),
+            value: FieldElement::from(u32::MAX - free_memory_starting_slot + 1),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
         },
         // Increase the free memory pointer by the size of the hypothetical big array.
@@ -1024,7 +1024,7 @@ fn free_memory_pointer_out_of_memory() {
 
     // Check that the free memory pointer did not wrap around.
     let free_memory_start = memory.read_ref(FREE_MEMORY_POINTER_ADDRESS);
-    assert!(free_memory_start.to_usize() >= free_memory_starting_slot);
+    assert!(free_memory_start.to_u32() >= free_memory_starting_slot);
 
     assert_eq!(
         status,
