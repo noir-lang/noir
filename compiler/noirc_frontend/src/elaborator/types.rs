@@ -750,7 +750,6 @@ impl Elaborator<'_> {
                     Kind::Numeric(Box::new(integer_or_field_var))
                 };
 
-                // self.check_kind(suffix_kind.clone(), expected_kind, location);
                 if !suffix_kind.unifies(expected_kind) {
                     self.push_err(TypeCheckError::ExpectingOtherError {
                         message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
