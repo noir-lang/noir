@@ -98,9 +98,6 @@
 <li><a href="fn.println.html">println</a></div></li>
 <li><a href="fn.static_assert.html">static_assert</a></div></li>
 <li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
-<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
-<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
-<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
 </ul>
 </nav>
 <main>
@@ -132,7 +129,7 @@ For example, <code>type Foo&lt;A, B&gt; { ... })</code> would return <code>Foo&l
 
 <div class="padded-description"><div class="comments">
 <p>Return this type applied to the given generic arguments.
-For example, given <code>type Foo&lt;A, B&gt; { ... })</code> could be applied to <code>&amp;[quote[i32].as_type(), quote[Field].as_type()]</code>
+For example, given <code>type Foo&lt;A, B&gt; { ... })</code> could be applied to <code>[quote[i32].as_type(), quote[Field].as_type()].as_vector()</code>
 to return <code>Foo&lt;i32, Field&gt;</code>.</p>
 <p>If an incorrect number of generic arguments are given, this function will return None.
 Otherwise, this function returns Some with the resulting type inside.</p>

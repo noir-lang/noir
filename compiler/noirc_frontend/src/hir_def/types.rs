@@ -296,7 +296,7 @@ impl std::fmt::Display for Kind {
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
             Kind::IntegerOrField => write!(f, "intOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
+            Kind::Numeric(typ) => write!(f, "{typ}"),
         }
     }
 }
@@ -2032,7 +2032,7 @@ impl Type {
         self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
     }
 
-    /// evaluate_to_field_element with optional generic arithmetic simplifications
+    /// `evaluate_to_field_element` with optional generic arithmetic simplifications
     pub(crate) fn evaluate_to_signed_field_helper(
         &self,
         kind: &Kind,

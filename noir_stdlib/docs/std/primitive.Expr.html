@@ -116,9 +116,6 @@
 <li><a href="fn.println.html">println</a></div></li>
 <li><a href="fn.static_assert.html">static_assert</a></div></li>
 <li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
-<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
-<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
-<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
 </ul>
 </nav>
 <main>
@@ -280,7 +277,7 @@ This method is deprecated in favor of <code>as_repeated_element_vector</code></p
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a vector literal <code>&amp;[elem1, ..., elemN]</code>,
+<p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
 return each element of the vector.</p>
 </div>
 </div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
@@ -290,7 +287,7 @@ return each element of the vector.</p>
 Deprecated: This method has been renamed to `as_vector`
 </div>
 <div class="comments">
-<p>If this expression is a vector literal <code>&amp;[elem1, ..., elemN]</code>,
+<p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
 return each element of the vector.
 This method is deprecated in favor of <code>as_vector</code></p>
 </div>
@@ -343,8 +340,8 @@ return each statement inside in a vector.</p>
 <p>Applies a mapping function to this expression and to all of its sub-expressions.
 <code>f</code> will be applied to each sub-expression first, then applied to the expression itself.</p>
 <p>This happens recursively for every expression within <code>self</code>.</p>
-<p>For example, calling <code>modify</code> on <code>(&amp;[1], &amp;[2, 3])</code> with an <code>f</code> that returns <code>Option::some</code>
-for expressions that are integers, doubling them, would return <code>(&amp;[2], &amp;[4, 6])</code>.</p>
+<p>For example, calling <code>modify</code> on <code>(@[1], @[2, 3])</code> with an <code>f</code> that returns <code>Option::some</code>
+for expressions that are integers, doubling them, would return <code>(@[2], @[4, 6])</code>.</p>
 </div>
 </div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted"><span class="fn">quoted</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 

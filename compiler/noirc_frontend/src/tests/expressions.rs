@@ -138,7 +138,7 @@ fn cannot_assign_to_module() {
 
     fn main() {
         foo = 1;
-        ^^^ expected value got module
+        ^^^ expected value, found module `foo`
     }
     "#;
     check_errors(src);
@@ -153,7 +153,7 @@ fn cannot_assign_to_nested_struct() {
 
     fn main() {
         foo::bar = 1;
-        ^^^^^^^^ expected value got type
+        ^^^^^^^^ expected value, found struct `bar`
     }
     "#;
     check_errors(src);
@@ -179,7 +179,7 @@ fn does_not_error_on_return_values_after_block_expression() {
     fn case1() -> [Field] {
         if true {
         }
-        &[1]
+        @[1]
     }
 
     fn case2() -> [u8] {
@@ -187,7 +187,7 @@ fn does_not_error_on_return_values_after_block_expression() {
         {
             var += 1;
         }
-        &[var]
+        @[var]
     }
 
     fn main() {
@@ -231,7 +231,7 @@ fn must_use() {
 fn abi_incompatible_assert_message() {
     let src = r#"
         fn main() {
-            let xs = &[0_u32];
+            let xs = @[0_u32];
             assert(xs[0] > 0, f"bad vector: {xs}");
                               ^^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
 
@@ -251,7 +251,7 @@ fn abi_incompatible_generic_assert_message() {
     // what T is going to be before monomorphization, so we can't reject.
     let src = r#"
         fn main() {
-            let a = &[1, 2, 3];
+            let a = @[1, 2, 3];
             foo(f"A: {a} is not 1!");
         }
 
@@ -260,4 +260,17 @@ fn abi_incompatible_generic_assert_message() {
         }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn use_struct_as_value() {
+    let src = r#"
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo;
+                ^^^ expected value, found struct `Foo`
+    }
+    "#;
+    check_errors(src);
 }

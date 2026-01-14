@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u32) {
-    let mut vector: [Field] = &[2_Field, 3_Field];
+    let mut vector: [Field] = [2_Field, 3_Field].as_vector();
     vector[x] = 4_Field;
     if x == 0_u32 {
         vector = vector.push_back(5_Field);

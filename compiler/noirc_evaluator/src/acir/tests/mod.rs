@@ -137,7 +137,7 @@ fn no_zero_bits_range_check() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -147,7 +147,7 @@ fn no_zero_bits_range_check() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -392,6 +392,25 @@ fn databus() {
     BLACKBOX::RANGE input: w3, bits: 32
     ASSERT w2 = w3
     ");
+}
+
+#[test]
+fn blake3_slice_regression() {
+    // Sanity check for blake3 black box call brillig codegen.
+    let src = "
+    brillig(inline) predicate_pure fn main f0 {
+      b0(v0: [u8; 1]):
+        v3 = call blake3(v0) -> [u8; 32]
+        return
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    execute_ssa(
+        ssa,
+        WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(104u128))])),
+        None,
+    );
 }
 
 /// Convert the SSA input into ACIR and use ACVM to execute it

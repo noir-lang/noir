@@ -33,7 +33,7 @@ fn main(y: u32) {
         b: [11_Field, 12_Field, 23_Field],
         bar: Bar { inner: [109_Field, 110_Field, 111_Field] },
     };
-    let mut x: [Foo] = &[foo_one];
+    let mut x: [Foo] = [foo_one].as_vector();
     x = x.push_back(foo_two);
     x = x.push_back(foo_three);
     x = x.push_back(foo_four);
@@ -48,25 +48,25 @@ fn main(y: u32) {
     assert(x[y].bar.inner == [109_Field, 110_Field, 111_Field]);
     if y != 2_u32 {
         {
-            let i_4496: u32 = y - 2_u32;
-            x[i_4496].a = 50_Field;
+            let i_4487: u32 = y - 2_u32;
+            x[i_4487].a = 50_Field;
         }
     } else {
         {
-            let i_4497: u32 = y - 2_u32;
-            x[i_4497].a = 100_Field;
+            let i_4488: u32 = y - 2_u32;
+            x[i_4488].a = 100_Field;
         }
     };
     assert(x[y - 2_u32].a == 50_Field);
     if y == 2_u32 {
         {
-            let i_4498: u32 = y - 1_u32;
-            x[i_4498].b = [50_Field, 51_Field, 52_Field];
+            let i_4489: u32 = y - 1_u32;
+            x[i_4489].b = [50_Field, 51_Field, 52_Field];
         }
     } else {
         {
-            let i_4499: u32 = y - 1_u32;
-            x[i_4499].b = [100_Field, 101_Field, 102_Field];
+            let i_4490: u32 = y - 1_u32;
+            x[i_4490].b = [100_Field, 101_Field, 102_Field];
         }
     };
     assert(x[2_u32].b == [100_Field, 101_Field, 102_Field]);

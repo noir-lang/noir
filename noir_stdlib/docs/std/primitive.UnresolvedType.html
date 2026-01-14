@@ -88,9 +88,6 @@
 <li><a href="fn.println.html">println</a></div></li>
 <li><a href="fn.static_assert.html">static_assert</a></div></li>
 <li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
-<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
-<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
-<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
 </ul>
 </nav>
 <main>
@@ -111,7 +108,7 @@
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a vector <code>&amp;[T]</code>, returns the element type <code>T</code>.</p>
+<p>If this is a vector <code>[T].as_vector()</code>, returns the element type <code>T</code>.</p>
 </div>
 </div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
@@ -120,7 +117,7 @@
 Deprecated: This method has been renamed to `as_vector`
 </div>
 <div class="comments">
-<p>If this is a vector <code>&amp;[T]</code>, returns the element type <code>T</code>.</p>
+<p>If this is a vector <code>[T].as_vector()</code>, returns the element type <code>T</code>.</p>
 </div>
 </div><code id="is_bool" class="code-header">pub comptime fn <a href="#is_bool"><span class="fn">is_bool</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 

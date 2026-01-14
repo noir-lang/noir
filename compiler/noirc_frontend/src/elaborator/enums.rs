@@ -764,7 +764,7 @@ impl Elaborator<'_> {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(func_id);
                 let Some(variant_index) = meta.enum_variant_index else {
-                    let item = resolution.description();
+                    let item = resolution.description(self.interner);
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     return Pattern::Error;
                 };
@@ -803,7 +803,7 @@ impl Elaborator<'_> {
                         variables_defined,
                     );
                 } else {
-                    let item = resolution.description();
+                    let item = resolution.description(self.interner);
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     return Pattern::Error;
                 }

@@ -268,7 +268,7 @@ impl Parser<'_> {
     }
 
     fn parse_member_access_field_name(&mut self) -> Option<Ident> {
-        if let Some(ident) = self.eat_ident() {
+        if let Some(ident) = self.eat_non_underscore_ident() {
             Some(ident)
         // We allow integer type suffixes on tuple field names since this lets
         // users unquote typed integers in macros to use as a tuple access expression.
@@ -556,7 +556,7 @@ impl Parser<'_> {
                 continue;
             }
 
-            let ident = self.eat_ident()?;
+            let ident = self.eat_non_underscore_ident()?;
 
             return Some(if self.eat_colon() {
                 let expression = self.parse_expression_or_error();
@@ -744,7 +744,7 @@ impl Parser<'_> {
     fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
         self.eat_or_error(Token::DoubleColon);
 
-        let item = if let Some(ident) = self.eat_ident() {
+        let item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();
@@ -900,9 +900,11 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// VectorExpression = '&' ArrayLiteral
+    /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::VectorStart) && self.next_is(Token::LeftBracket)) {
+        if !((self.at(Token::At) || self.at(Token::DeprecatedVectorStart))
+            && self.next_is(Token::LeftBracket))
+        {
             return None;
         }
 
@@ -1457,7 +1459,7 @@ mod tests {
 
     #[test]
     fn parses_empty_vector_expression() {
-        let src = "&[]";
+        let src = "@[]";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {

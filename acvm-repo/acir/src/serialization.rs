@@ -8,18 +8,16 @@ use strum_macros::EnumString;
 const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
 /// A marker byte for the serialization format.
-#[derive(Debug, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+#[derive(
+    Debug, Default, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq,
+)]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
-pub(crate) enum Format {
-    /// Bincode without format marker.
-    /// This does not actually appear in the data.
-    BincodeLegacy = 0,
-    /// Bincode with format marker.
-    Bincode = 1,
+pub enum Format {
     /// Msgpack with named structs.
     Msgpack = 2,
     /// Msgpack with tuple structs.
+    #[default]
     MsgpackCompact = 3,
 }
 
@@ -30,7 +28,7 @@ impl Format {
     /// 1. It has to be picked up in methods like `Program::serialize_program_base64` where no config is available.
     /// 2. At the moment this is mostly for testing, to be able to commit code that _can_ produce different formats,
     ///    but only activate it once a version of `bb` that can handle it is released.
-    pub(crate) fn from_env() -> Result<Option<Self>, String> {
+    pub fn from_env() -> Result<Option<Self>, String> {
         let Ok(format) = std::env::var(FORMAT_ENV_VAR) else {
             return Ok(None);
         };
@@ -38,22 +36,6 @@ impl Format {
             .map(Some)
             .map_err(|e| format!("unknown format '{format}' in {FORMAT_ENV_VAR}: {e}"))
     }
-}
-
-/// Serialize a value using `bincode`, based on `serde`.
-///
-/// This format is compact, but provides no backwards compatibility.
-pub(crate) fn bincode_serialize<T: Serialize>(value: &T) -> std::io::Result<Vec<u8>> {
-    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
-    bincode::serde::encode_to_vec(value, config).map_err(std::io::Error::other)
-}
-
-/// Deserialize a value using `bincode`, based on `serde`.
-pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
-    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
-    bincode::serde::borrow_decode_from_slice(buf, config)
-        .map(|(result, _)| result)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
 /// Serialize a value using MessagePack, based on `serde`.
@@ -65,62 +47,50 @@ pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
 ///
 /// Set `compact` to `true` if we want old readers to fail when a new field is added to a struct,
 /// that is, if we think that ignoring a new field could lead to incorrect behavior.
-#[allow(dead_code)]
 pub(crate) fn msgpack_serialize<T: Serialize>(
     value: &T,
     compact: bool,
 ) -> std::io::Result<Vec<u8>> {
-    if compact {
-        // The default behavior encodes struct fields as
-        rmp_serde::to_vec(value).map_err(std::io::Error::other)
+    // There are convenience methods to serialize structs as tuples or maps:
+    // * `rmp_serde::to_vec` uses tuples
+    // * `rmp_serde::to_vec_named` uses maps
+    // However it looks like the default `BytesMode` is not compatible with the C++ deserializer,
+    // so we have to use `rmp_serde::Serializer` directly.
+    let mut buf = Vec::new();
+
+    let serializer = rmp_serde::Serializer::new(&mut buf)
+        .with_bytes(rmp_serde::config::BytesMode::ForceIterables);
+
+    let result = if compact {
+        value.serialize(&mut serializer.with_struct_tuple())
     } else {
-        // Or this to be able to configure the serialization:
-        // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
-        // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
-        // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
-        rmp_serde::to_vec_named(value).map_err(std::io::Error::other)
+        value.serialize(&mut serializer.with_struct_map())
+    };
+
+    match result {
+        Ok(()) => Ok(buf),
+        Err(e) => Err(std::io::Error::other(e)),
     }
 }
 
 /// Deserialize a value using MessagePack, based on `serde`.
-#[allow(dead_code)]
 pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
-/// Deserialize any of the supported formats. Try go guess the format based on the first byte,
-/// but fall back to the legacy `bincode` format if anything fails.
+/// Deserialize any of the supported formats.
 pub(crate) fn deserialize_any_format<T>(buf: &[u8]) -> std::io::Result<T>
 where
     T: for<'a> Deserialize<'a>,
 {
-    // Unfortunately as long as we have to deal with legacy bincode format we might be able
-    // to deserialize any other format as pure coincidence, when it was just legacy data.
-    // Since `bincode` is the least backwards compatible, let's try that first.
-    let bincode_result = bincode_deserialize(buf);
+    let Some(format_byte) = buf.first() else {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "empty buffer"));
+    };
 
-    if bincode_result.is_err() && !buf.is_empty() {
-        if let Ok(format) = Format::try_from(buf[0]) {
-            match format {
-                Format::BincodeLegacy => {
-                    // This is just a coincidence, as this format does not appear in the data,
-                    // but we know it's none of the other formats.
-                }
-                Format::Bincode => {
-                    if let Ok(value) = bincode_deserialize(&buf[1..]) {
-                        return Ok(value);
-                    }
-                }
-                Format::Msgpack | Format::MsgpackCompact => {
-                    if let Ok(value) = msgpack_deserialize(&buf[1..]) {
-                        return Ok(value);
-                    }
-                }
-            }
-        }
+    match Format::try_from(*format_byte) {
+        Ok(Format::Msgpack) | Ok(Format::MsgpackCompact) => msgpack_deserialize(&buf[1..]),
+        Err(msg) => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, msg.to_string())),
     }
-
-    bincode_result
 }
 
 pub(crate) fn serialize_with_format<T>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
@@ -129,8 +99,6 @@ where
 {
     // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
-        Format::BincodeLegacy => return bincode_serialize(value),
-        Format::Bincode => bincode_serialize(value)?,
         Format::Msgpack => msgpack_serialize(value, false)?,
         Format::MsgpackCompact => msgpack_serialize(value, true)?,
     };
@@ -139,27 +107,10 @@ where
     Ok(res)
 }
 
-pub(crate) fn serialize_with_format_from_env<T>(value: &T) -> std::io::Result<Vec<u8>>
-where
-    T: Serialize,
-{
-    match Format::from_env() {
-        Ok(Some(format)) => {
-            // This will need a new `bb` even if it's the bincode format, because of the format byte.
-            serialize_with_format(value, format)
-        }
-        Ok(None) => {
-            // This is how the currently released `bb` expects the data.
-            bincode_serialize(value)
-        }
-        Err(e) => Err(std::io::Error::other(e)),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use acir_field::FieldElement;
-    use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray};
+    use brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray, lengths::SemiFlattenedLength};
     use std::str::FromStr;
 
     use crate::{
@@ -314,7 +265,7 @@ mod tests {
 
         let value = ValueOrArray::HeapArray(HeapArray {
             pointer: brillig::MemoryAddress::Relative(0),
-            size: 3,
+            size: SemiFlattenedLength(3),
         });
         let bz = msgpack_serialize(&value, false).unwrap();
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line

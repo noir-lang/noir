@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use acvm::acir::brillig::MemoryAddress;
+use acvm::acir::brillig::lengths::SemiFlattenedLength;
 use acvm::{AcirField, FieldElement};
 use im::Vector;
 
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable};
 use crate::brillig::brillig_ir::registers::Allocated;
@@ -424,40 +426,39 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         let [result_id] = dfg.instruction_result(instruction_id);
-        if !self.variables.is_allocated(&result_id) {
-            // Allocate memory for the array or vector. It will consist of a single register,
-            // and the initialization below will further set up its memory layout.
-            let new_variable = self.variables.define_variable(
-                self.function_context,
-                self.brillig_context,
-                result_id,
-                dfg,
-            );
+        assert!(!self.variables.is_allocated(&result_id), "ICE: array already allocated");
 
-            // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
-            match new_variable {
-                BrilligVariable::BrilligArray(brillig_array) => {
-                    debug_assert_eq!(array.len(), brillig_array.size);
-                    self.brillig_context.codegen_initialize_array(brillig_array);
-                }
-                BrilligVariable::BrilligVector(vector) => {
-                    // The size of a vector is expected to be at an address (could be the result of push/pop increments/decrements).
-                    // (This is different from the semantic length variable).
-                    let size =
-                        self.brillig_context.make_usize_constant_instruction(array.len().into());
+        // Allocate memory for the array or vector. It will consist of a single register,
+        // and the initialization below will further set up its memory layout.
+        let new_variable = self.variables.define_variable(
+            self.function_context,
+            self.brillig_context,
+            result_id,
+            dfg,
+        );
 
-                    self.brillig_context.codegen_initialize_vector(vector, *size, None);
-                }
-                _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
-            };
+        // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
+        match new_variable {
+            BrilligVariable::BrilligArray(brillig_array) => {
+                debug_assert_eq!(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
+                self.brillig_context.codegen_initialize_array(brillig_array);
+            }
+            BrilligVariable::BrilligVector(vector) => {
+                // The size of a vector is expected to be at an address (could be the result of push/pop increments/decrements).
+                // (This is different from the semantic length variable).
+                let size = self.brillig_context.make_usize_constant_instruction(array.len().into());
 
-            // Get a pointer to where the items need to be written.
-            let items_pointer =
-                self.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
+                self.brillig_context.codegen_initialize_vector(vector, *size, None);
+            }
+            _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
+        };
 
-            // Write the items.
-            self.initialize_constant_array(array, typ, dfg, *items_pointer);
-        }
+        // Get a pointer to where the items need to be written.
+        let items_pointer =
+            self.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
+
+        // Write the items.
+        self.initialize_constant_array(array, typ, dfg, *items_pointer);
     }
 
     pub(crate) fn codegen_increment_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
