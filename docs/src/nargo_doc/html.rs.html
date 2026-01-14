@@ -3378,7 +3378,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>lines = comments.lines().map(|line| line.to_string()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="kw">for </span>link <span class="kw">in </span>links.iter().rev() {
-            <span class="kw">let </span>target = <span class="kw-2">&amp;</span>link.target;
+            <span class="kw">let </span><span class="prelude-val">Some</span>(target) = <span class="kw-2">&amp;</span>link.target <span class="kw">else </span>{ <span class="kw">continue </span>};
             <span class="kw">let </span>name = <span class="kw-2">&amp;</span>link.name;
             <span class="kw">let </span>id = target.id();
             <span class="kw">let </span>anchor = target

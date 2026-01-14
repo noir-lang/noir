@@ -307,7 +307,11 @@
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>nargo_doc::links::{LinkFinder, LinkTarget};
 <span class="kw">use </span>noirc_errors::Span;
@@ -431,6 +435,10 @@
                 <span class="self">self</span>.args.crate_graph,
             );
             <span class="kw">for </span>link <span class="kw">in </span>links {
+                <span class="kw">let </span><span class="prelude-val">Some</span>(target) = link.target <span class="kw">else </span>{
+                    <span class="kw">continue</span>;
+                };
+
                 <span class="kw">let </span>line = start_line + link.line <span class="kw">as </span>u32;
                 <span class="kw">let </span>start =
                     <span class="kw">if </span>link.line == <span class="number">0 </span>{ start_char + link.start <span class="kw">as </span>u32 } <span class="kw">else </span>{ link.start <span class="kw">as </span>u32 };
@@ -440,7 +448,7 @@
                     &amp;&amp; start &lt;= byte_lsp_location.range.start.character
                     &amp;&amp; byte_lsp_location.range.start.character &lt;= end
                 {
-                    <span class="kw">let </span>reference = <span class="kw">match </span>link.target {
+                    <span class="kw">let </span>reference = <span class="kw">match </span>target {
                         LinkTarget::TopLevelItem(module_def_id) =&gt; {
                             module_def_id_to_reference_id(module_def_id)
                         }

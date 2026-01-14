@@ -544,7 +544,8 @@
 <a href="#543" id="543">543</a>
 <a href="#544" id="544">544</a>
 <a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="doccomment">//! Contains the data structures that represent items to be shown by the documentation generator.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -584,11 +585,12 @@
 /// - `[name]` (`path` will be the same as `name`)
 /// - `[name][path]`
 /// - `[name](path)`
-</span><span class="attr">#[derive(Clone, PartialEq, Eq, Hash)]
+</span><span class="attr">#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 </span><span class="kw">pub struct </span>Link {
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>path: String,
-    <span class="kw">pub </span>target: LinkTarget,
+    <span class="doccomment">/// The link target. If None it means this is a broken link.
+    </span><span class="kw">pub </span>target: <span class="prelude-ty">Option</span>&lt;LinkTarget&gt;,
     <span class="doccomment">/// The line number in the comments where this link occurs (0-based).
     </span><span class="kw">pub </span>line: usize,
     <span class="doccomment">/// The start byte in the line where the link occurs.
@@ -597,7 +599,7 @@
     </span><span class="kw">pub </span>end: usize,
 }
 
-<span class="attr">#[derive(Clone, PartialEq, Eq, Hash)]
+<span class="attr">#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 </span><span class="kw">pub enum </span>LinkTarget {
     TopLevelItem(ItemId),
     Method(ItemId, String),
