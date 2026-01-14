@@ -1,3 +1,4 @@
+use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::Ident,
@@ -339,6 +340,8 @@ fn path_to_link_target_searching_modules(
         return Some(LinkTarget::TopLevelItem(ModuleDefId::ModuleId(module_id)));
     }
 
+    let crate_id = module_id.krate;
+
     let mut segments: Vec<&str> = path.split("::").collect();
     if let Some(first_segment) = segments.first() {
         if check_dependencies && *first_segment == "crate" {
@@ -372,9 +375,18 @@ fn path_to_link_target_searching_modules(
                 );
             }
         }
+        if check_dependencies && *first_segment == "dep" {
+            segments.remove(0);
+            return path_to_link_target_searching_dependency(
+                crate_id,
+                segments,
+                interner,
+                def_maps,
+                crate_graph,
+            );
+        }
     }
 
-    let crate_id = module_id.krate;
     let mut current_module = &def_maps[&module_id.krate][module_id.local_id];
 
     for (index, segment) in segments.iter().enumerate() {
@@ -384,30 +396,14 @@ fn path_to_link_target_searching_modules(
         if per_ns.is_none() {
             // If we can't find the first segment we can try to search in dependencies
             if index == 0 && check_dependencies {
-                let crate_data = &crate_graph[crate_id];
-                let dependency_crate_id =
-                    crate_data.dependencies.iter().find_map(|dependency| {
-                        if &dependency.as_name() == segment {
-                            Some(dependency.crate_id)
-                        } else {
-                            None
-                        }
-                    })?;
-                let dependency_local_module_id = def_maps[&dependency_crate_id].root();
-                let dependency_module_id =
-                    ModuleId { krate: dependency_crate_id, local_id: dependency_local_module_id };
-                segments.remove(0);
-                let path = segments.join("::");
-                return path_to_link_target_searching_modules(
-                    &path,
-                    dependency_module_id,
-                    false,
+                return path_to_link_target_searching_dependency(
+                    crate_id,
+                    segments,
                     interner,
                     def_maps,
                     crate_graph,
                 );
             }
-
             return None;
         }
 
@@ -449,6 +445,35 @@ fn path_to_link_target_searching_modules(
         }
     }
     None
+}
+
+/// Starts the search in a dependency, assuming the first segment is the dependency name.
+/// Returns `None` if there's no first segment, or if the dependency is not found.
+fn path_to_link_target_searching_dependency(
+    crate_id: CrateId,
+    mut segments: Vec<&str>,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+    crate_graph: &CrateGraph,
+) -> Option<LinkTarget> {
+    let dependency_name = segments.first()?;
+    let crate_data = &crate_graph[crate_id];
+    let dependency_crate_id = crate_data.dependencies.iter().find_map(|dependency| {
+        if &dependency.as_name() == dependency_name { Some(dependency.crate_id) } else { None }
+    })?;
+    let dependency_local_module_id = def_maps[&dependency_crate_id].root();
+    let dependency_module_id =
+        ModuleId { krate: dependency_crate_id, local_id: dependency_local_module_id };
+    segments.remove(0);
+    let path = segments.join("::");
+    path_to_link_target_searching_modules(
+        &path,
+        dependency_module_id,
+        false,
+        interner,
+        def_maps,
+        crate_graph,
+    )
 }
 
 fn type_method_or_field_link_target(
