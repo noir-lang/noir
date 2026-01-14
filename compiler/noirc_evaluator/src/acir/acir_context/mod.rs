@@ -1321,7 +1321,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Add the memory read operation to the list of opcodes
-        let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
+        let op = MemOp::read_at_mem_index(index_witness, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)

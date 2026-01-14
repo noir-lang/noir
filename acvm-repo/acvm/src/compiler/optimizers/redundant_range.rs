@@ -168,15 +168,14 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 }
 
                 Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
-                    index.to_witness().map(|witness| {
-                        (
-                            witness,
+                    Some((
+                            *index,
                             *memory_block_lengths_bit_size
                                 .get(block_id)
                                 .expect("memory must be initialized before any reads/writes"),
                             true,
-                        )
-                    })
+                        ))
+                    
                 }
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
                     scalars,

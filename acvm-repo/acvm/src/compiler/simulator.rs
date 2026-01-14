@@ -95,17 +95,14 @@ impl CircuitSimulator {
                     // Memory must be initialized before it can be used.
                     return false;
                 }
-                if !self.can_solve_expression(&op.index) {
+                if !self.solvable_witnesses.contains(&op.index) {
                     return false;
                 }
-                if op.operation.is_zero() {
-                    let Some(w) = op.value.to_witness() else {
-                        return false;
-                    };
-                    self.mark_solvable(w);
+                if op.operation {
+                    self.mark_solvable(op.value);
                     true
                 } else {
-                    self.can_solve_expression(&op.value)
+                    self.solvable_witnesses.contains(&op.value)
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } => {

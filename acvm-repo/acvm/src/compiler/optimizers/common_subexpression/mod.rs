@@ -187,13 +187,7 @@ fn transform_internal_once<F: AcirField>(
                 transformed_opcodes.push(opcode);
             }
             Opcode::MemoryOp { ref op, .. } => {
-                for (_, witness1, witness2) in &op.value.mul_terms {
-                    transformer.mark_solvable(*witness1);
-                    transformer.mark_solvable(*witness2);
-                }
-                for (_, witness) in &op.value.linear_combinations {
-                    transformer.mark_solvable(*witness);
-                }
+                transformer.mark_solvable(op.value);
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
@@ -316,10 +310,9 @@ where
             }
             Opcode::BlackBoxFuncCall(call) => self.fold_blackbox(call),
             Opcode::MemoryOp { block_id: _, op } => {
-                let MemOp { operation, index, value } = op;
-                self.fold_expr(operation);
-                self.fold_expr(index);
-                self.fold_expr(value);
+                let MemOp { operation: _, index, value } = op;
+                self.fold(*index);
+                self.fold(*value);
             }
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 for witness in init {

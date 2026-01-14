@@ -921,7 +921,7 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
         let Opcode::MemoryOp { block_id, op } = opcode else {
             continue;
         };
-        if op.operation.is_one() {
+        if op.operation {
             // Check that we have no writes to the type size arrays
             let is_type_sizes_array =
                 context.element_type_sizes_blocks.values().any(|id| id == block_id);

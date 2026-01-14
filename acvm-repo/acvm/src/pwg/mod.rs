@@ -504,7 +504,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     .block_solvers
                     .get_mut(block_id)
                     .expect("Memory block should have been initialized before use");
-                solver.solve_memory_op(op, &mut self.witness_map, self.backend.pedantic_solving())
+                solver.solve_memory_op(op, &mut self.witness_map)
             }
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
                 match self.solve_brillig_call_opcode(id, inputs, outputs, predicate) {
