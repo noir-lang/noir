@@ -116,8 +116,12 @@ pub struct Monomorphizer<'interner> {
     /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
-    /// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
-    globals: HashMap<node_interner::GlobalId, GlobalId>,
+    /// Globals are keyed by their unique ID and their type, which should create a single global
+    /// instance per generic combination.
+    ///
+    /// The alternative would be to use defaults any unused generic parameters, but that could
+    /// fail during SSA validation.
+    globals: HashMap<node_interner::GlobalId, HashMap<HirType, GlobalId>>,
 
     finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
 
@@ -646,6 +650,19 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
+        self.expr_with_target_type(expr, None)
+    }
+
+    /// Monomorphize an expression with a target type.
+    ///
+    /// This can be used when we have a type that contains bound type variables on the LHS,
+    /// and a type with unbound named generic on the RHS, and we don't want the unbound
+    /// types to be converted to default values.
+    fn expr_with_target_type(
+        &mut self,
+        expr: ExprId,
+        target_type: Option<&Type>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -844,7 +861,8 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("unquote expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
-                self.enum_constructor(constructor, expr)?
+                let typ = target_type.cloned().unwrap_or_else(|| self.interner.id_type(expr));
+                self.enum_constructor(constructor, expr, &typ)?
             }
         };
 
@@ -1125,10 +1143,10 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         constructor: HirEnumConstructorExpression,
         id: ExprId,
+        typ: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
-        let typ = self.interner.id_type(id);
-        let variants = unwrap_enum_type(&typ, location)?;
+        let variants = unwrap_enum_type(typ, location)?;
 
         // Fill in each field of the translated enum tuple.
         // For most fields this will be simply `std::mem::zeroed::<T>()`,
@@ -1449,7 +1467,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
-        let expr = if let Some(seen_global) = self.globals.get(&id) {
+
+        let expr = if let Some(seen_global) = self.globals.get(&id).and_then(|m| m.get(typ)) {
             let typ = Self::convert_type(typ, location)?;
             let ident = ast::Ident {
                 location: Some(location),
@@ -1461,6 +1480,7 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
+            // Globals have been evaluated with the comptime interpreter. Convert that value to HIR.
             let (expr, contains_function) = if let GlobalValue::Resolved(value) =
                 global.value.clone()
             {
@@ -1475,7 +1495,10 @@ impl<'interner> Monomorphizer<'interner> {
                 );
             };
 
-            let expr = self.expr(expr)?;
+            // Type type of the expression on the RHS itself might be a `Forall` or contain unbound `NamedGeneric` that
+            // cannot be unified with some bound `TypeVariable` variable we have on the LHS (because that's not something we do).
+            // Still, we want to generate the expression specific to the LHS, so use it as a target type.
+            let expr = self.expr_with_target_type(expr, Some(typ))?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
@@ -1486,7 +1509,7 @@ impl<'interner> Monomorphizer<'interner> {
             // placing a closure in the global context to change the final result of the program.
             if !contains_function {
                 let new_id = self.next_global_id();
-                self.globals.insert(id, new_id);
+                self.globals.entry(id).or_default().insert(typ.clone(), new_id);
                 let typ = Self::convert_type(typ, location)?;
                 self.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 let ident = ast::Ident {
@@ -1588,7 +1611,6 @@ impl<'interner> Monomorphizer<'interner> {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
-
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
@@ -2984,7 +3006,7 @@ fn unwrap_enum_type(
     typ: &HirType,
     location: Location,
 ) -> Result<Vec<(String, Vec<HirType>)>, MonomorphizationError> {
-    match typ.unwrap_forall().1.follow_bindings() {
+    match typ.as_monotype().follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {
