@@ -1317,7 +1317,19 @@
 <a href="#1316" id="1316">1316</a>
 <a href="#1317" id="1317">1317</a>
 <a href="#1318" id="1318">1318</a>
-<a href="#1319" id="1319">1319</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1735,8 +1747,9 @@
         <span class="kw">let </span>array_typ = dfg.type_of_value(array_id);
         <span class="kw">let </span>block_id = <span class="self">self</span>.ensure_array_is_initialized(array_id, dfg)<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>shift = ElementTypeSizesArrayShift::None;
         <span class="kw">let </span>index_var = <span class="self">self</span>.convert_numeric_value(index, dfg)<span class="question-mark">?</span>;
-        <span class="kw">let </span>index_var = <span class="self">self</span>.get_flattened_index(<span class="kw-2">&amp;</span>array_typ, array_id, index_var, dfg)<span class="question-mark">?</span>;
+        <span class="kw">let </span>index_var = <span class="self">self</span>.get_flattened_index(<span class="kw-2">&amp;</span>array_typ, array_id, index_var, dfg, shift)<span class="question-mark">?</span>;
 
         <span class="comment">// Side-effects are always enabled so we do not need to do any predication
         </span><span class="kw">if </span><span class="self">self</span>.acir_context.is_constant_one(<span class="kw-2">&amp;</span><span class="self">self</span>.current_side_effects_enabled_var) {
@@ -2153,12 +2166,13 @@
 
         <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ).is_none() {
             <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array, dfg);
+            <span class="kw">let </span>shift = ElementTypeSizesArrayShift::None;
             <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                 <span class="kw-2">&amp;</span>array_typ,
                 array,
                 <span class="prelude-val">Some</span>(acir_value),
                 dfg,
-                SemanticLength(<span class="number">0</span>),
+                shift,
             )<span class="question-mark">?</span>)
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -2189,7 +2203,7 @@
         array_id: ValueId,
         supplied_acir_value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-        additional_capacity: SemanticLength,
+        shift: ElementTypeSizesArrayShift,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
         <span class="kw">let </span>element_type_sizes = <span class="self">self</span>.type_sizes_block_id(array_id);
         <span class="comment">// Check whether an internal type sizes array has already been initialized
@@ -2199,7 +2213,9 @@
         // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
         // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
         // that is bigger than what is needed for the supplied type/value.
-        </span><span class="kw">if </span><span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>element_type_sizes) &amp;&amp; additional_capacity.<span class="number">0 </span>== <span class="number">0 </span>{
+        </span><span class="kw">if </span><span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>element_type_sizes)
+            &amp;&amp; <span class="macro">matches!</span>(shift, ElementTypeSizesArrayShift::None)
+        {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(element_type_sizes);
         }
 
@@ -2227,13 +2243,10 @@
             supplied_acir_value.unwrap_or_else(|| <span class="self">self</span>.convert_value(array_id, dfg));
         <span class="kw">let </span>flattened_len = flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value);
         <span class="kw">match </span>array_acir_value {
-            AcirValue::Array(<span class="kw">_</span>) =&gt; <span class="self">self</span>.init_type_sizes_helper(
-                array_typ,
-                flattened_len,
-                additional_capacity,
-                element_type_sizes,
-            ),
-            AcirValue::DynamicArray(inner) <span class="kw">if </span>additional_capacity.<span class="number">0 </span>== <span class="number">0 </span>=&gt; {
+            AcirValue::Array(<span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
+            }
+            AcirValue::DynamicArray(inner) <span class="kw">if </span><span class="macro">matches!</span>(shift, ElementTypeSizesArrayShift::None) =&gt; {
                 <span class="kw">let </span>inner_elem_type_sizes = inner.element_type_sizes;
                 <span class="kw">let </span><span class="prelude-val">Some</span>(inner_elem_type_sizes) = <span class="kw-2">&amp;</span>inner_elem_type_sizes <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
@@ -2253,14 +2266,11 @@
                 </span><span class="self">self</span>.element_type_sizes_blocks.insert(array_id, <span class="kw-2">*</span>inner_elem_type_sizes);
                 <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>inner_elem_type_sizes)
             }
-            AcirValue::DynamicArray(inner) <span class="kw">if </span>additional_capacity.<span class="number">0 </span>!= <span class="number">0 </span>=&gt; {
+            AcirValue::DynamicArray(inner)
+                <span class="kw">if </span>!<span class="macro">matches!</span>(shift, ElementTypeSizesArrayShift::None) =&gt;
+            {
                 <span class="comment">// Recalculate with additional capacity for growth operations
-                </span><span class="self">self</span>.init_type_sizes_helper(
-                    array_typ,
-                    inner.len,
-                    additional_capacity,
-                    element_type_sizes,
-                )
+                </span><span class="self">self</span>.init_type_sizes_helper(array_typ, inner.len, shift, element_type_sizes)
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
                 expected: <span class="string">"AcirValue::DynamicArray or AcirValue::Array"</span>.to_owned(),
@@ -2276,11 +2286,11 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_typ: <span class="kw-2">&amp;</span>Type,
         flattened_length: FlattenedLength,
-        additional_capacity: SemanticLength,
+        shift: ElementTypeSizesArrayShift,
         element_type_sizes_block: BlockId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
         <span class="kw">let </span>flat_elem_type_sizes =
-            calculate_element_type_sizes_array(array_typ, flattened_length, additional_capacity);
+            calculate_element_type_sizes_array(array_typ, flattened_length, shift);
 
         <span class="comment">// If there's already a block with these same sizes, reuse it. It's fine to do so
         // because the element type sizes array is never mutated.
@@ -2405,6 +2415,7 @@
     /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
     /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
     /// array to calculate offsets when elements have a non-homogenous layout
+    ///
     /// See [self] for a more concrete example of how flattened indices are computed.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_flattened_index(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -2412,18 +2423,14 @@
         array_id: ValueId,
         var_index: AcirVar,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        shift: ElementTypeSizesArrayShift,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(step_size) = array_has_constant_element_size(array_typ) {
             <span class="kw">let </span>step_size = <span class="self">self</span>.acir_context.add_constant(step_size);
             <span class="self">self</span>.acir_context.mul_var(var_index, step_size)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>element_type_sizes = <span class="self">self</span>.init_element_type_sizes_array(
-                array_typ,
-                array_id,
-                <span class="prelude-val">None</span>,
-                dfg,
-                SemanticLength(<span class="number">0</span>),
-            )<span class="question-mark">?</span>;
+            <span class="kw">let </span>element_type_sizes =
+                <span class="self">self</span>.init_element_type_sizes_array(array_typ, array_id, <span class="prelude-val">None</span>, dfg, shift)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>predicate_index =
                 <span class="self">self</span>.acir_context.mul_var(var_index, <span class="self">self</span>.current_side_effects_enabled_var)<span class="question-mark">?</span>;
@@ -2553,6 +2560,17 @@
     }
 }
 
+<span class="doccomment">/// Represents a shift in the size of the element type sizes array.
+</span><span class="attr">#[derive(Debug, Clone, Copy)]
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>ElementTypeSizesArrayShift {
+    <span class="doccomment">/// No shift is needed.
+    </span><span class="prelude-val">None</span>,
+    <span class="doccomment">/// The element type sizes array needs to grow by one (semantic length).
+    /// This is used for vector insert operations.
+    </span>Increase,
+    Decrease,
+}
+
 <span class="doccomment">/// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
 ///
 /// # Parameters
@@ -2569,7 +2587,7 @@
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate_element_type_sizes_array(
     array_typ: <span class="kw-2">&amp;</span>Type,
     flattened_length: FlattenedLength,
-    additional_capacity: SemanticLength,
+    shift: ElementTypeSizesArrayShift,
 ) -&gt; Vec&lt;u32&gt; {
     <span class="kw">let </span>element_types = <span class="kw">match </span>array_typ {
         Type::Array(types, <span class="kw">_</span>) | Type::Vector(types) =&gt; types,
@@ -2581,16 +2599,22 @@
 
     <span class="kw">let </span>element_flattened_size: FlattenedLength =
         element_types.iter().map(|typ| typ.flattened_size()).sum();
-    <span class="kw">let </span>non_flattened_elements =
+    <span class="kw">let </span><span class="kw-2">mut </span>non_flattened_elements =
         flattened_length / ElementsFlattenedLength::from(element_flattened_size);
 
-    <span class="comment">// The implementation for vector insert requires one additional slot as insertions
-    // are allowed at the vector's length.
-    </span><span class="kw">let </span>boundary = SemanticLength(<span class="number">1</span>);
     <span class="comment">// Capacity is the number of entries in element_type_sizes array
-    // One entry per field per logical element (+ boundary + additional)
-    </span><span class="kw">let </span>capacity = (non_flattened_elements + boundary + additional_capacity)
-        * ElementTypesLength(assert_u32(element_types.len()));
+    // One entry per field per logical element.
+    </span><span class="kw">match </span>shift {
+        ElementTypeSizesArrayShift::None =&gt; {}
+        ElementTypeSizesArrayShift::Increase =&gt; {
+            non_flattened_elements += SemanticLength(<span class="number">1</span>);
+        }
+        ElementTypeSizesArrayShift::Decrease =&gt; {
+            non_flattened_elements = SemanticLength(non_flattened_elements.<span class="number">0</span>.saturating_sub(<span class="number">1</span>));
+        }
+    }
+
+    <span class="kw">let </span>capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
     <span class="kw">let </span>capacity = assert_usize(capacity.<span class="number">0</span>);
 
     <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::with_capacity(capacity);

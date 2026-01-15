@@ -840,13 +840,28 @@
 <a href="#839" id="839">839</a>
 <a href="#840" id="840">840</a>
 <a href="#841" id="841">841</a>
-<a href="#842" id="842">842</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::arrays::ElementTypeSizesArrayShift;
+<span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::{assert_u32, assert_usize};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
-<span class="kw">use </span>acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
+<span class="kw">use </span>acvm::acir::brillig::lengths::FlattenedLength;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span><span class="kw">super</span>::Context;
@@ -952,11 +967,11 @@
                 <span class="kw">if </span><span class="kw">super</span>::arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>vector_typ).is_none() {
                     <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                         <span class="kw-2">&amp;</span>vector_typ,
-                        vector_contents,
+                        result_ids[<span class="number">1</span>],
                         <span class="prelude-val">Some</span>(new_vector_array.clone()),
                         dfg,
                         <span class="comment">// We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        </span>SemanticLength(<span class="number">0</span>),
+                        </span>ElementTypeSizesArrayShift::None,
                     )<span class="question-mark">?</span>)
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
@@ -1356,8 +1371,12 @@
         <span class="comment">// Fetch the flattened index from the user provided index argument.
         </span><span class="kw">let </span>item_size = <span class="self">self</span>.acir_context.add_constant(elements_to_insert.len());
         <span class="kw">let </span>insert_index = <span class="self">self</span>.acir_context.mul_var(insert_index, item_size)<span class="question-mark">?</span>;
+
+        <span class="comment">// Because the insert index might be at the end of the slice, the element type sizes we
+        // index here need to have room for this extra element.
+        </span><span class="kw">let </span>shift = ElementTypeSizesArrayShift::Increase;
         <span class="kw">let </span>flat_user_index =
-            <span class="self">self</span>.get_flattened_index(<span class="kw-2">&amp;</span>vector_typ, vector_contents, insert_index, dfg)<span class="question-mark">?</span>;
+            <span class="self">self</span>.get_flattened_index(<span class="kw-2">&amp;</span>vector_typ, vector_contents, insert_index, dfg, shift)<span class="question-mark">?</span>;
 
         <span class="comment">// Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
@@ -1469,12 +1488,14 @@
 
         <span class="kw">let </span>element_type_sizes =
             <span class="kw">if </span><span class="kw">super</span>::arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>vector_typ).is_none() {
-                <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
+                <span class="comment">// Note that here we pass `Some(vector)` as the supplied acir value. This is
+                // the input vector before insertion, so we still need an increase shift here.
+                </span><span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                     <span class="kw-2">&amp;</span>vector_typ,
                     result_ids[<span class="number">1</span>],
                     <span class="prelude-val">Some</span>(vector),
                     dfg,
-                    SemanticLength(<span class="number">1</span>),
+                    shift,
                 )<span class="question-mark">?</span>)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -1597,8 +1618,13 @@
         <span class="kw">let </span>remove_index = <span class="self">self</span>.acir_context.mul_var(remove_index, item_size)<span class="question-mark">?</span>;
 
         <span class="comment">// Fetch the flattened index from the user provided index argument.
-        </span><span class="kw">let </span>flat_user_index =
-            <span class="self">self</span>.get_flattened_index(<span class="kw-2">&amp;</span>vector_typ, vector_contents, remove_index, dfg)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>flat_user_index = <span class="self">self</span>.get_flattened_index(
+            <span class="kw-2">&amp;</span>vector_typ,
+            vector_contents,
+            remove_index,
+            dfg,
+            ElementTypeSizesArrayShift::None,
+        )<span class="question-mark">?</span>;
 
         <span class="comment">// Fetch the values we are remove from the vector.
         // As we fetch the values we can determine the size of the removed values
@@ -1655,12 +1681,14 @@
 
         <span class="kw">let </span>element_type_sizes =
             <span class="kw">if </span><span class="kw">super</span>::arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>vector_typ).is_none() {
+                <span class="comment">// The resulting vector has one less element than before
+                </span><span class="kw">let </span>shift = ElementTypeSizesArrayShift::Decrease;
                 <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
                     <span class="kw-2">&amp;</span>vector_typ,
-                    vector_contents,
+                    result_ids[<span class="number">1</span>],
                     <span class="prelude-val">Some</span>(vector),
                     dfg,
-                    SemanticLength(<span class="number">0</span>),
+                    shift,
                 )<span class="question-mark">?</span>)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None

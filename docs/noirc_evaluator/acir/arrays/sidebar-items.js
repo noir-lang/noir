@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["array_has_constant_element_size","calculate_element_type_sizes_array","flattened_value_size"]};
+window.SIDEBAR_ITEMS = {"enum":["ElementTypeSizesArrayShift"],"fn":["array_has_constant_element_size","calculate_element_type_sizes_array","flattened_value_size"]};

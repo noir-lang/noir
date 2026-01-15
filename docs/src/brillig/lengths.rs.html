@@ -171,7 +171,14 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     iter::Sum,
     ops::{Add, AddAssign, Div, Mul},
 };
@@ -189,6 +196,13 @@
     <span class="doccomment">/// Computes the sum of two semantic lengths.
     </span><span class="kw">fn </span>add(<span class="self">self</span>, rhs: SemanticLength) -&gt; <span class="self">Self</span>::Output {
         SemanticLength(<span class="self">self</span>.<span class="number">0 </span>+ rhs.<span class="number">0</span>)
+    }
+}
+
+<span class="kw">impl </span>AddAssign <span class="kw">for </span>SemanticLength {
+    <span class="doccomment">/// Adds another semantic length to this one.
+    </span><span class="kw">fn </span>add_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: <span class="self">Self</span>) {
+        <span class="self">self</span>.<span class="number">0 </span>+= rhs.<span class="number">0</span>;
     }
 }
 
