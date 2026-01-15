@@ -22,7 +22,7 @@ impl Parser<'_> {
         let attributes = self.validate_secondary_attributes(attributes);
         let is_global_let = true;
 
-        let Some(ident) = self.eat_ident() else {
+        let Some(ident) = self.eat_non_underscore_ident() else {
             self.eat_semicolon();
             let location = self.location_at_previous_token_end();
             let ident = self.unknown_ident_at_previous_token_end();

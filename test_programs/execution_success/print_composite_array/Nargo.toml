@@ -1,5 +1,6 @@
 [package]
-name = "comptime_return_minus_one_as_i32"
+name = "print_composite_array"
+version = "0.1.0"
 type = "bin"
 authors = [""]
 

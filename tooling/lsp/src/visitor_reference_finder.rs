@@ -122,6 +122,10 @@ impl<'a> VisitorReferenceFinder<'a> {
                 self.args.crate_graph,
             );
             for link in links {
+                let Some(target) = link.target else {
+                    continue;
+                };
+
                 let line = start_line + link.line as u32;
                 let start =
                     if link.line == 0 { start_char + link.start as u32 } else { link.start as u32 };
@@ -131,7 +135,7 @@ impl<'a> VisitorReferenceFinder<'a> {
                     && start <= byte_lsp_location.range.start.character
                     && byte_lsp_location.range.start.character <= end
                 {
-                    let reference = match link.target {
+                    let reference = match target {
                         LinkTarget::TopLevelItem(module_def_id) => {
                             module_def_id_to_reference_id(module_def_id)
                         }

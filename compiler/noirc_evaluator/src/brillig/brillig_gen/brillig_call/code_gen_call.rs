@@ -212,7 +212,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let element_size = dfg.type_of_value(source_id).element_size();
 
         let source_size_register =
-            self.brillig_context.make_usize_constant_instruction(source_array.size.into());
+            self.brillig_context.make_usize_constant_instruction(source_array.size.0.into());
 
         // We need to explicitly set the destination_len_variable to be the semantic length, which is not flattened.
         self.brillig_context.codegen_usize_op(

@@ -13,7 +13,9 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
-use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
+use crate::node_interner::{
+    FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
+};
 use crate::{Shared, Type, TypeAlias};
 
 use super::Elaborator;
@@ -80,22 +82,54 @@ impl PathResolutionItem {
         }
     }
 
-    pub(crate) fn description(&self) -> &'static str {
+    pub(crate) fn description(&self, interner: &NodeInterner) -> String {
         match self {
-            PathResolutionItem::Module(..) => "module",
-            PathResolutionItem::Type(..) => "type",
-            PathResolutionItem::TypeAlias(..) => "type alias",
-            PathResolutionItem::PrimitiveType(..) => "primitive type",
-            PathResolutionItem::Trait(..) => "trait",
-            PathResolutionItem::TraitAssociatedType(..) => "associated type",
-            PathResolutionItem::Global(..) => "global",
-            PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::Method(..)
-            | PathResolutionItem::SelfMethod(..)
-            | PathResolutionItem::TypeAliasFunction(..)
-            | PathResolutionItem::TraitFunction(..)
-            | PathResolutionItem::TypeTraitFunction(..)
-            | PathResolutionItem::PrimitiveFunction(..) => "function",
+            PathResolutionItem::Module(module) => {
+                let module_data = interner.try_module_attributes(*module);
+                module_data
+                    .map(|data| format!("module `{}`", data.name))
+                    .unwrap_or_else(|| "module".to_string())
+            }
+            PathResolutionItem::Type(type_id) => {
+                let datatype = interner.get_type(*type_id);
+                let datatype = datatype.borrow();
+                if datatype.is_enum() {
+                    format!("enum `{}`", datatype.name)
+                } else {
+                    format!("struct `{}`", datatype.name)
+                }
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) => {
+                let type_alias = interner.get_type_alias(*type_alias_id);
+                let type_alias = type_alias.borrow();
+                format!("type alias `{}`", type_alias.name)
+            }
+            PathResolutionItem::PrimitiveType(kind) => {
+                format!("primitive type `{}`", kind.name())
+            }
+            PathResolutionItem::Trait(trait_id) => {
+                let trait_ = interner.get_trait(*trait_id);
+                format!("trait `{}`", trait_.name)
+            }
+            PathResolutionItem::TraitAssociatedType(id) => {
+                let associated_type = interner.get_trait_associated_type(*id);
+                let trait_ = interner.get_trait(associated_type.trait_id);
+                format!("associated type `{}::{}`", trait_.name, associated_type.name)
+            }
+            PathResolutionItem::Global(id) => {
+                let global = interner.get_global_definition(*id);
+                format!("global `{}`", global.name)
+            }
+            PathResolutionItem::ModuleFunction(func_id)
+            | PathResolutionItem::Method(_, _, func_id)
+            | PathResolutionItem::SelfMethod(func_id)
+            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+            | PathResolutionItem::TraitFunction(_, _, func_id)
+            | PathResolutionItem::TypeTraitFunction(_, _, func_id)
+            | PathResolutionItem::PrimitiveFunction(_, _, func_id) => {
+                let name = interner.function_name(func_id);
+                format!("function `{name}`")
+            }
         }
     }
 }

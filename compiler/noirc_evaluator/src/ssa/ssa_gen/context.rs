@@ -637,9 +637,11 @@ impl<'a> FunctionContext<'a> {
     ///                  construct the larger value as needed until we can `store` to the nearest
     ///                  allocation.
     ///
+    /// ```text
     /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
     /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
     /// store v5 in v0                   ; and store the result in the only mutable reference
+    /// ```
     ///
     /// The returned `LValueRef` tracks the current value at each step of the lvalue.
     /// This is later used by `assign_new_value` to construct a new updated value that
