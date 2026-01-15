@@ -1518,9 +1518,10 @@ impl<'interner> Monomorphizer<'interner> {
                 );
             };
 
-            // The type of the expression on the RHS itself might be a `Forall` or contain unbound `NamedGeneric` that
-            // cannot be unified with some bound `TypeVariable` variable we have on the LHS (because that's not something we do).
-            // Still, we want to generate the expression specific to the LHS, so use it as a target type.
+            // The type of the expression on the RHS itself might be a `Forall` and/or contain unbound `NamedGeneric`s,
+            // while the type of the type on the LHS has bound `TypeVariable` variables. We cannot bind them,
+            // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
+            // into expression specific to the LHS, so we are using it as the target type.
             let expr = self.expr_with_target_type(expr, Some(&typ))?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
@@ -1628,7 +1629,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
-                // This uses to default to Field, but doing so could result in an invalid SSA.
+                // This used to default to Field, but doing so could result in an invalid SSA.
                 return Err(MonomorphizationError::NoDefaultType { location });
             }
 
