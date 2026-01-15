@@ -91,7 +91,8 @@ pub fn show_info_report(info_report: InfoReport, json: bool) {
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"]);
+            let mut program_table =
+                table!([Fm->"Package", Fm->"Function", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"]);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();

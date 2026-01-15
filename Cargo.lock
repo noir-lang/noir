@@ -3669,6 +3669,7 @@ name = "noir_inspector"
 version = "1.0.0-beta.18"
 dependencies = [
  "acir",
+ "assert_cmd",
  "clap",
  "color-eyre",
  "const_format",
