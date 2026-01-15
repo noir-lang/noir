@@ -39,7 +39,7 @@ impl Monomorphizer<'_> {
     ) -> Result<Option<FuncId>, MonomorphizationError> {
         let Some(opcode) = HandledOpcode::parse(opcode_string) else { return Ok(None) };
 
-        // Monomorphized function types are paires of (constrained, unconstrained) individual function types.
+        // Monomorphized function types are pairs of (constrained, unconstrained) individual function types.
         let (parameter_types, return_type) = match Self::convert_type(typ, location)? {
             ast::Type::Tuple(mut fields) if fields.len() == 2 => match fields.pop().unwrap() {
                 ast::Type::Function(parameters, ret, _, _) => (parameters, *ret),
