@@ -10,6 +10,7 @@
 
 use acvm::acir::{
     AcirField, BlackBoxFunc,
+    brillig::lengths::FlattenedLength,
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
@@ -24,10 +25,13 @@ use num_integer::Integer;
 use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
-use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use crate::{
     ErrorType,
     errors::{InternalError, RuntimeError},
+};
+use crate::{
+    brillig::assert_usize,
+    ssa::ir::{instruction::Endian, types::NumericType},
 };
 
 mod black_box;
@@ -369,8 +373,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
-                let outputs =
-                    self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1, None)?;
+                let outputs = self.black_box_function(
+                    BlackBoxFunc::XOR,
+                    inputs,
+                    Some(bit_size),
+                    FlattenedLength(1),
+                    None,
+                )?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -405,8 +414,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
-                let outputs =
-                    self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1, None)?;
+                let outputs = self.black_box_function(
+                    BlackBoxFunc::AND,
+                    inputs,
+                    Some(bit_size),
+                    FlattenedLength(1),
+                    None,
+                )?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -1271,7 +1285,7 @@ impl<F: AcirField> AcirContext<F> {
                 Ok(values)
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                try_vecmap(0..len, |i| {
+                try_vecmap(0..assert_usize(len.0), |i| {
                     let index_var = self.add_constant(i);
 
                     Ok::<(AcirVar, NumericType), InternalError>((
@@ -1359,10 +1373,11 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn initialize_array(
         &mut self,
         block_id: BlockId,
-        len: usize,
+        len: FlattenedLength,
         optional_value: Option<AcirValue>,
         databus: BlockType,
     ) -> Result<(), InternalError> {
+        let len = assert_usize(len.0);
         let initialized_values = match optional_value {
             None => {
                 let zero = self.add_constant(F::zero());
@@ -1397,7 +1412,7 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                for i in 0..len {
+                for i in 0..assert_usize(len.0) {
                     let index_var = self.add_constant(i);
                     let read = self.read_from_memory(block_id, &index_var)?;
                     let typ = value_types[i % value_types.len()];
@@ -1413,9 +1428,11 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         id: AcirFunctionId,
         inputs: Vec<AcirValue>,
-        output_count: usize,
+        output_count: FlattenedLength,
         predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let output_count = assert_usize(output_count.0);
+
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs
             .iter()

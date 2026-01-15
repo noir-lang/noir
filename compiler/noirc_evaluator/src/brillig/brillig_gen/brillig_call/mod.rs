@@ -2,12 +2,12 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength};
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
-use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
+use crate::brillig::{BrilligBlock, assert_u32};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -133,8 +133,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 match element_type {
                     Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
-                        let size: SemiFlattenedLength =
-                            ElementsLength::from(items.as_ref()) * SemanticLength(*nested_size);
+                        let size: SemiFlattenedLength = ElementTypesLength(assert_u32(items.len()))
+                            * SemanticLength(*nested_size);
                         let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.

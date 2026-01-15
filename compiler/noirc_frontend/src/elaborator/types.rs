@@ -742,10 +742,22 @@ impl Elaborator<'_> {
                 self.check_type_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
-                if let Some(suffix) = suffix {
-                    self.check_kind(suffix.as_kind(), expected_kind, location);
+                let suffix_kind = if let Some(suffix) = suffix {
+                    suffix.as_kind()
+                } else {
+                    let integer_or_field_var =
+                        self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+                    Kind::Numeric(Box::new(integer_or_field_var))
+                };
+
+                if !suffix_kind.unifies(expected_kind) {
+                    self.push_err(TypeCheckError::ExpectingOtherError {
+                        message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                        location,
+                    });
                 }
-                Type::Constant(int, expected_kind.clone())
+
+                Type::Constant(int, suffix_kind)
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
