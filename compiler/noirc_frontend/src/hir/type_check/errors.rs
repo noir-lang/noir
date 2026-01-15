@@ -263,6 +263,8 @@ pub enum TypeCheckError {
     TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
     #[error("Expecting another error: {message}")]
     ExpectingOtherError { message: String, location: Location },
+    #[error("Cannot call `std::verify_proof_with_type` in unconstrained context")]
+    VerifyProofWithTypeInBrillig { location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -357,7 +359,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
-            | TypeCheckError::ExpectingOtherError { location, .. } => *location,
+            | TypeCheckError::ExpectingOtherError { location, .. }
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => *location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
@@ -533,7 +536,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
-            | TypeCheckError::InvalidShiftSize { location } => {
+            | TypeCheckError::InvalidShiftSize { location }
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::InvalidBoolInfixOp { op, location } => {

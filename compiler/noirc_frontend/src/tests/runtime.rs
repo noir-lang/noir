@@ -432,3 +432,30 @@ fn regression_10413() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn user_defined_verify_proof_with_type_is_allowed_in_brillig() {
+    // User-defined functions having verify_proof_with_type name should not error.
+    // The lint only applies to std::verify_proof_with_type from the standard library.
+    let src = r#"
+    unconstrained fn main() {
+        let verification_key: [Field; 114] = [0; 114];
+        let proof: [Field; 94] = [0; 94];
+        let public_inputs: [Field; 1] = [0];
+        let key_hash: Field = 0;
+        let proof_type: u32 = 0;
+
+        // This is OK: it's a user-defined function, not std::verify_proof_with_type
+        verify_proof_with_type(verification_key, proof, public_inputs, key_hash, proof_type);
+    }
+
+    fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+        _verification_key: [Field; N],
+        _proof: [Field; M],
+        _public_inputs: [Field; K],
+        _key_hash: Field,
+        _proof_type: u32,
+    ) {}
+    "#;
+    assert_no_errors(src);
+}
