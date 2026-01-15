@@ -120,8 +120,8 @@ pub struct Monomorphizer<'interner> {
     /// Globals are keyed by their unique ID and their type, which should create a single global
     /// instance per generic combination.
     ///
-    /// The alternative would be to use defaults any unused generic parameters, but that could
-    /// fail during SSA validation.
+    /// The alternative would be to use default types for unused generic parameters,
+    /// but that could fail during SSA validation.
     globals: HashMap<node_interner::GlobalId, HashMap<HirType, GlobalId>>,
 
     finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
