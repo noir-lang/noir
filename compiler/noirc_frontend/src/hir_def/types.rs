@@ -1515,9 +1515,7 @@ impl Type {
     /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match self {
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
-            }
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.has_cyclic_alias(aliases),
             Type::TypeVariable(var) => var.has_cyclic_alias(aliases),
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.has_cyclic_alias(&mut aliases.clone()) || rhs.has_cyclic_alias(aliases)

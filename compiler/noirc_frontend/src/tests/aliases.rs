@@ -641,7 +641,7 @@ fn ensure_repeated_aliases_in_tuples_arent_detected_as_cyclic_aliases() {
 }
 
 #[test]
-fn ensure_repeated_aliases_in_arrays_arent_detected_as_cyclic_aliases() {
+fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
     let src = r#"
     pub type TReturnElem = [Field; 3];
     pub type TReturn = [TReturnElem; 2];
