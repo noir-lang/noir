@@ -478,7 +478,6 @@ pub fn convert_generated_acir_into_circuit(
     debug_types: DebugTypes,
 ) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
-    let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
         location_map,
@@ -499,7 +498,6 @@ pub fn convert_generated_acir_into_circuit(
 
     let circuit = Circuit {
         function_name: name.clone(),
-        current_witness_index,
         opcodes,
         private_parameters,
         public_parameters,

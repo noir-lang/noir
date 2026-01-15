@@ -447,7 +447,6 @@ mod tests {
     /// Helper to create a simple circuit with the given opcodes
     fn make_circuit(opcodes: Vec<Opcode<FieldElement>>) -> Circuit<FieldElement> {
         Circuit {
-            current_witness_index: 10,
             opcodes,
             private_parameters: Default::default(),
             public_parameters: PublicInputs::default(),

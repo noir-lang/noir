@@ -3460,7 +3460,6 @@ namespace Acir {
 
     struct Circuit {
         std::string function_name;
-        uint32_t current_witness_index;
         std::vector<Acir::Opcode> opcodes;
         std::vector<Acir::Witness> private_parameters;
         Acir::PublicInputs public_parameters;
@@ -3474,7 +3473,6 @@ namespace Acir {
             if (o.type == msgpack::type::MAP) {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
@@ -3483,12 +3481,11 @@ namespace Acir {
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "function_name", function_name, 0);
-                Helpers::conv_fld_from_array(array, name, "current_witness_index", current_witness_index, 1);
-                Helpers::conv_fld_from_array(array, name, "opcodes", opcodes, 2);
-                Helpers::conv_fld_from_array(array, name, "private_parameters", private_parameters, 3);
-                Helpers::conv_fld_from_array(array, name, "public_parameters", public_parameters, 4);
-                Helpers::conv_fld_from_array(array, name, "return_values", return_values, 5);
-                Helpers::conv_fld_from_array(array, name, "assert_messages", assert_messages, 6);
+                Helpers::conv_fld_from_array(array, name, "opcodes", opcodes, 1);
+                Helpers::conv_fld_from_array(array, name, "private_parameters", private_parameters, 2);
+                Helpers::conv_fld_from_array(array, name, "public_parameters", public_parameters, 3);
+                Helpers::conv_fld_from_array(array, name, "return_values", return_values, 4);
+                Helpers::conv_fld_from_array(array, name, "assert_messages", assert_messages, 5);
             } else {
                 throw_or_abort("expected MAP or ARRAY for " + name);
             }
@@ -5808,7 +5805,6 @@ namespace Acir {
 
     inline bool operator==(const Circuit &lhs, const Circuit &rhs) {
         if (!(lhs.function_name == rhs.function_name)) { return false; }
-        if (!(lhs.current_witness_index == rhs.current_witness_index)) { return false; }
         if (!(lhs.opcodes == rhs.opcodes)) { return false; }
         if (!(lhs.private_parameters == rhs.private_parameters)) { return false; }
         if (!(lhs.public_parameters == rhs.public_parameters)) { return false; }
@@ -5824,7 +5820,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::Circuit>::serialize(const Acir::Circuit &obj, Serializer &serializer) {
     serializer.increase_container_depth();
     serde::Serializable<decltype(obj.function_name)>::serialize(obj.function_name, serializer);
-    serde::Serializable<decltype(obj.current_witness_index)>::serialize(obj.current_witness_index, serializer);
     serde::Serializable<decltype(obj.opcodes)>::serialize(obj.opcodes, serializer);
     serde::Serializable<decltype(obj.private_parameters)>::serialize(obj.private_parameters, serializer);
     serde::Serializable<decltype(obj.public_parameters)>::serialize(obj.public_parameters, serializer);
@@ -5839,7 +5834,6 @@ Acir::Circuit serde::Deserializable<Acir::Circuit>::deserialize(Deserializer &de
     deserializer.increase_container_depth();
     Acir::Circuit obj;
     obj.function_name = serde::Deserializable<decltype(obj.function_name)>::deserialize(deserializer);
-    obj.current_witness_index = serde::Deserializable<decltype(obj.current_witness_index)>::deserialize(deserializer);
     obj.opcodes = serde::Deserializable<decltype(obj.opcodes)>::deserialize(deserializer);
     obj.private_parameters = serde::Deserializable<decltype(obj.private_parameters)>::deserialize(deserializer);
     obj.public_parameters = serde::Deserializable<decltype(obj.public_parameters)>::deserialize(deserializer);
