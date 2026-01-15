@@ -627,7 +627,7 @@
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        <span class="macro">debug_assert!</span>(<span class="macro">matches!</span>(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         <span class="self">self</span>.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, <span class="number">1</span>);
     }
 

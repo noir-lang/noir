@@ -783,7 +783,7 @@
             ));
         }
 
-        <span class="macro">debug_assert_eq!</span>(
+        <span class="macro">assert_eq!</span>(
             destinations.len(),
             destination_value_types.len(),
             <span class="string">"Number of destinations must match number of value types"</span>,
@@ -857,7 +857,7 @@
                             <span class="kw-2">&amp;mut </span>flatten_values_idx,
                             value_type,
                         )<span class="question-mark">?</span>;
-                        <span class="macro">debug_assert_eq!</span>(
+                        <span class="macro">assert_eq!</span>(
                             flatten_values_idx,
                             output_fields.len(),
                             <span class="string">"Not all values were written to memory"

@@ -116,11 +116,7 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a></pre></div><pre class="rust"><code><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -215,11 +211,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>batch_insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: <span class="kw-2">&amp;</span>[ValueId], to: <span class="kw-2">&amp;</span>[ValueId]) {
-        <span class="macro">debug_assert_eq!</span>(
-            from.len(),
-            to.len(),
-            <span class="string">"Lengths of arrays of values being mapped must match"
-        </span>);
+        <span class="macro">assert_eq!</span>(from.len(), to.len(), <span class="string">"Lengths of arrays of values being mapped must match"</span>);
         <span class="kw">for </span>(from_value, to_value) <span class="kw">in </span>from.iter().zip(to) {
             <span class="self">self</span>.insert(<span class="kw-2">*</span>from_value, <span class="kw-2">*</span>to_value);
         }

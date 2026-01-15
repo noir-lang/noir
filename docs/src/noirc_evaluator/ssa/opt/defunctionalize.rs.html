@@ -2843,7 +2843,7 @@
     caller_runtime: RuntimeType,
     function_ids: Vec&lt;(FunctionId, RuntimeType)&gt;,
 ) -&gt; FunctionId {
-    <span class="macro">debug_assert!</span>(
+    <span class="macro">assert!</span>(
         function_ids.len() &gt; <span class="number">1</span>,
         <span class="string">"create_apply_function is expected to be called with two or more FunctionIds"
     </span>);

@@ -1502,7 +1502,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="comment">// Initialize return_data using provided witnesses
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data {
-            <span class="macro">debug_assert!</span>(!witnesses.is_empty(), <span class="string">"return data cannot be empty"</span>);
+            <span class="macro">assert!</span>(!witnesses.is_empty(), <span class="string">"return data cannot be empty"</span>);
 
             <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(return_data);
             <span class="kw">let </span>already_initialized = <span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>block_id);

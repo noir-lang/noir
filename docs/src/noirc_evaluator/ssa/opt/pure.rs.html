@@ -1139,7 +1139,7 @@
             // Therefore inserting into func_to_scc here is safe, and there will
             // be no overwrites.
             </span><span class="kw">let </span>inserted = func_to_scc.insert(func, i);
-            <span class="macro">debug_assert!</span>(inserted.is_none(), <span class="string">"Function appears in multiple SCCs"</span>);
+            <span class="macro">assert!</span>(inserted.is_none(), <span class="string">"Function appears in multiple SCCs"</span>);
         }
     }
 

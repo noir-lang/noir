@@ -928,7 +928,7 @@
     ) {
         <span class="comment">// TODO: enable this check for all block_types
         </span><span class="kw">if </span>block_type == BlockType::ReturnData {
-            <span class="macro">debug_assert!</span>(!init.is_empty(), <span class="string">"Cannot initialize memory with empty init"</span>);
+            <span class="macro">assert!</span>(!init.is_empty(), <span class="string">"Cannot initialize memory with empty init"</span>);
         }
         <span class="self">self</span>.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }

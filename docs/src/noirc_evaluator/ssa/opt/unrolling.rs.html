@@ -2775,7 +2775,7 @@
         // NB we have not checked that these are actual pairs.
         </span><span class="kw">let </span>load_and_store = <span class="self">self</span>.loads.min(<span class="self">self</span>.stores) * <span class="number">2</span>;
         <span class="kw">let </span>total_boilerplate = <span class="self">self</span>.increments + load_and_store + boilerplate;
-        <span class="macro">debug_assert!</span>(
+        <span class="macro">assert!</span>(
             total_boilerplate &lt;= <span class="self">self</span>.all_instructions,
             <span class="string">"Boilerplate instructions exceed total instructions in loop"
         </span>);

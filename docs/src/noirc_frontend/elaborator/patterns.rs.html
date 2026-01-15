@@ -1399,7 +1399,7 @@
         resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; Vec&lt;Type&gt; {
-        <span class="macro">debug_assert_eq!</span>(
+        <span class="macro">assert_eq!</span>(
             generics.len(),
             item_generic_kinds.len(),
             <span class="string">"ICE: generics count should match the expected kinds"

@@ -735,10 +735,7 @@
 <a href="#734" id="734">734</a>
 <a href="#735" id="735">735</a>
 <a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#737" id="737">737</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -896,10 +893,7 @@
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             };
             <span class="comment">// Retain the lower 'width' bits
-            </span><span class="macro">debug_assert!</span>(
-                <span class="kw-2">*</span>width &lt;= <span class="number">128</span>,
-                <span class="string">"We don't currently support unsigned integers larger than u128"
-            </span>);
+            </span><span class="macro">assert!</span>(<span class="kw-2">*</span>width &lt;= <span class="number">128</span>, <span class="string">"We don't currently support unsigned integers larger than u128"</span>);
             <span class="kw">let </span><span class="kw-2">mut </span>uint_cast = f.to_u128();
             <span class="kw">if </span><span class="kw-2">*</span>width != <span class="number">128 </span>{
                 uint_cast &amp;= (<span class="number">1 </span>&lt;&lt; width) - <span class="number">1</span>;

@@ -1911,7 +1911,7 @@
         </span><span class="kw">if </span>expression.to_const().is_none() {
             <span class="self">self</span>.mark_variables_equivalent(var, witness_var)<span class="question-mark">?</span>;
         }
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.var_to_expression(witness_var)<span class="question-mark">?</span>.to_witness().is_some());
+        <span class="macro">assert!</span>(<span class="self">self</span>.var_to_expression(witness_var)<span class="question-mark">?</span>.to_witness().is_some());
 
         <span class="prelude-val">Ok</span>(witness_var)
     }

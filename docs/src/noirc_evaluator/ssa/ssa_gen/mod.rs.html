@@ -1900,7 +1900,7 @@
             // to assert that the index fits in the relevant number of bits.
             </span><span class="kw">let </span>array_len_constant = array_len_constant.expect(<span class="string">"array checked to be constant"</span>);
             <span class="kw">let </span>array_len_bits = array_len_constant.ilog2();
-            <span class="macro">debug_assert_eq!</span>(<span class="number">2u32</span>.pow(array_len_bits), array_len_constant);
+            <span class="macro">assert_eq!</span>(<span class="number">2u32</span>.pow(array_len_bits), array_len_constant);
             <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
             // There's an optimization here that we should find automatically.
             </span><span class="kw">let </span>index_as_field = <span class="self">self</span>.builder.insert_cast(index, NumericType::NativeField);

@@ -723,7 +723,7 @@
         condition: SingleAddrVariable,
         assert_message: <span class="prelude-ty">Option</span>&lt;String&gt;,
     ) {
-        <span class="macro">debug_assert!</span>(condition.bit_size == <span class="number">1</span>);
+        <span class="macro">assert!</span>(condition.bit_size == <span class="number">1</span>);
 
         <span class="comment">// Compute error selector if we have a message
         </span><span class="kw">let </span>error_selector = assert_message.map(|message| {

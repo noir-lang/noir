@@ -791,7 +791,7 @@
     ///
     /// Entering a context resets the current section to 0 and the next section to 1.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enter_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>, label: Label) {
-        <span class="macro">debug_assert!</span>(label.section.is_none(), <span class="string">"new context should have no section"</span>);
+        <span class="macro">assert!</span>(label.section.is_none(), <span class="string">"new context should have no section"</span>);
         <span class="self">self</span>.debug_show.enter_context(label.to_string());
         <span class="self">self</span>.context_label = label.clone();
         <span class="comment">// Add a context label to the next opcode

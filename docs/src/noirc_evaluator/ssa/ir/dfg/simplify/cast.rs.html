@@ -207,7 +207,7 @@
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
 ) -&gt; SimplifyResult {
     <span class="kw">use </span>SimplifyResult::<span class="kw-2">*</span>;
-    <span class="macro">debug_assert!</span>(
+    <span class="macro">assert!</span>(
         dfg.type_of_value(value).is_numeric(),
         <span class="string">"Can only cast numeric types, got {:?}"</span>,
         dfg.type_of_value(value)

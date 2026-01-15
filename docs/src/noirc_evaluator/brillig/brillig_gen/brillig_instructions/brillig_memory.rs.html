@@ -932,7 +932,7 @@
         <span class="comment">// Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         </span><span class="kw">match </span>new_variable {
             BrilligVariable::BrilligArray(brillig_array) =&gt; {
-                <span class="macro">debug_assert_eq!</span>(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
+                <span class="macro">assert_eq!</span>(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
                 <span class="self">self</span>.brillig_context.codegen_initialize_array(brillig_array);
             }
             BrilligVariable::BrilligVector(vector) =&gt; {

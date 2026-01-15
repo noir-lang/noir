@@ -828,11 +828,11 @@
 
         <span class="kw">let </span>definition = <span class="kw">match </span>global_id {
             <span class="prelude-val">None </span>=&gt; {
-                <span class="macro">debug_assert!</span>(!let_stmt.is_global_let);
+                <span class="macro">assert!</span>(!let_stmt.is_global_let);
                 DefinitionKind::Local(<span class="prelude-val">Some</span>(expression))
             }
             <span class="prelude-val">Some</span>(id) =&gt; {
-                <span class="macro">debug_assert!</span>(let_stmt.is_global_let);
+                <span class="macro">assert!</span>(let_stmt.is_global_let);
                 DefinitionKind::Global(id)
             }
         };
