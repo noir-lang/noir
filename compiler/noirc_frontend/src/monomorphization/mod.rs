@@ -873,7 +873,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(expr)
     }
 
-    /// Return a the target type if given, or the type of the expression if the target is empty.
+    /// Return the target type if given, or the type of the expression if the target is empty.
     ///
     /// This is used in cases where the target type might have more bound generic type variables
     /// than the expression, and unification is not feasible because the expression uses unbound
@@ -1488,7 +1488,7 @@ impl<'interner> Monomorphizer<'interner> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
 
-        // Follow bindings otherwise it's not safe to it as a hash map key.
+        // Follow bindings otherwise it's not safe to use it as a hash map key.
         let typ = typ.follow_bindings();
 
         let expr = if let Some(seen_global) = self.globals.get(&id).and_then(|m| m.get(&typ)) {
@@ -1518,7 +1518,7 @@ impl<'interner> Monomorphizer<'interner> {
                 );
             };
 
-            // Type type of the expression on the RHS itself might be a `Forall` or contain unbound `NamedGeneric` that
+            // The type of the expression on the RHS itself might be a `Forall` or contain unbound `NamedGeneric` that
             // cannot be unified with some bound `TypeVariable` variable we have on the LHS (because that's not something we do).
             // Still, we want to generate the expression specific to the LHS, so use it as a target type.
             let expr = self.expr_with_target_type(expr, Some(&typ))?;
