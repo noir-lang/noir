@@ -6,7 +6,9 @@ use color_eyre::eyre;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program_with_profiling};
 use noir_artifact_cli::Artifact;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
-use noirc_artifacts_info::{FunctionInfo, InfoReport, ProgramInfo, count_opcodes_and_gates_in_program, show_info_report};
+use noirc_artifacts_info::{
+    FunctionInfo, InfoReport, ProgramInfo, count_opcodes_and_gates_in_program, show_info_report,
+};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InfoCommand {
@@ -41,7 +43,10 @@ pub(crate) struct InfoCommand {
 /// 1. Explicit --input-file argument
 /// 2. <artifact_name>.toml in same directory as artifact
 /// 3. <artifact_name>.json in same directory as artifact
-fn resolve_input_file(artifact_path: &Path, explicit_input: Option<&PathBuf>) -> eyre::Result<PathBuf> {
+fn resolve_input_file(
+    artifact_path: &Path,
+    explicit_input: Option<&PathBuf>,
+) -> eyre::Result<PathBuf> {
     if let Some(input_path) = explicit_input {
         if !input_path.exists() {
             return Err(eyre::eyre!("Input file not found: {}", input_path.display()));
@@ -50,11 +55,11 @@ fn resolve_input_file(artifact_path: &Path, explicit_input: Option<&PathBuf>) ->
     }
 
     // Try to find input file next to artifact
-    let artifact_dir = artifact_path.parent()
-        .ok_or_else(|| eyre::eyre!("Cannot determine artifact directory"))?;
+    let artifact_dir =
+        artifact_path.parent().ok_or_else(|| eyre::eyre!("Cannot determine artifact directory"))?;
 
-    let artifact_stem = artifact_path.file_stem()
-        .ok_or_else(|| eyre::eyre!("Cannot determine artifact name"))?;
+    let artifact_stem =
+        artifact_path.file_stem().ok_or_else(|| eyre::eyre!("Cannot determine artifact name"))?;
 
     // Try .toml first
     let toml_path = artifact_dir.join(artifact_stem).with_extension("toml");
