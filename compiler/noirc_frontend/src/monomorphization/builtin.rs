@@ -10,6 +10,7 @@ use crate::{
         ast::{self, Definition, FuncId, Function, InlineType, LocalId},
         errors::MonomorphizationError,
     },
+    node_interner,
     shared::{Signedness, Visibility},
     signed_field::SignedField,
     token::FmtStrFragment,
@@ -30,17 +31,22 @@ enum HandledOpcode {
 impl Monomorphizer<'_> {
     /// Try to evaluate certain builtin functions given their type. All builtins are function
     /// types, so the evaluated result will always be a new function or None.
+    ///
+    /// Prerequisite: `typ = typ.follow_bindings()`
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
     pub(super) fn try_evaluate_builtin(
         &mut self,
         opcode_string: &str,
-        typ: &Type,
+        typ: Type,
+        turbofish_generics: Vec<Type>,
         is_unconstrained: bool,
+        id: node_interner::FuncId,
         location: Location,
     ) -> Result<Option<FuncId>, MonomorphizationError> {
         let Some(opcode) = HandledOpcode::parse(opcode_string) else { return Ok(None) };
 
         // Monomorphized function types are paires of (constrained, unconstrained) individual function types.
-        let (parameter_types, return_type) = match Self::convert_type(typ, location)? {
+        let (parameter_types, return_type) = match Self::convert_type(&typ, location)? {
             ast::Type::Tuple(mut fields) if fields.len() == 2 => match fields.pop().unwrap() {
                 ast::Type::Function(parameters, ret, _, _) => (parameters, *ret),
                 other => unreachable!("Expected built-in to be a function, found {other:?}"),
@@ -110,6 +116,7 @@ impl Monomorphizer<'_> {
                 func_sig: Default::default(),
             },
         );
+        self.define_function(id, typ, turbofish_generics, is_unconstrained, new_function_id);
         Ok(Some(new_function_id))
     }
 

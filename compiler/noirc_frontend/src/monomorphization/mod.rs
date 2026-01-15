@@ -419,8 +419,10 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = opcode.to_string();
                         match self.try_evaluate_builtin(
                             &opcode,
-                            &typ,
+                            typ,
+                            turbofish_generics,
                             is_unconstrained,
+                            id,
                             location,
                         )? {
                             Some(id) => Definition::Function(id),
