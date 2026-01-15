@@ -905,7 +905,7 @@ impl BoilerplateStats {
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
         let total_boilerplate = self.increments + load_and_store + boilerplate;
-        debug_assert!(
+        assert!(
             total_boilerplate <= self.all_instructions,
             "Boilerplate instructions exceed total instructions in loop"
         );

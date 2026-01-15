@@ -261,7 +261,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             ));
         }
 
-        debug_assert_eq!(
+        assert_eq!(
             destinations.len(),
             destination_value_types.len(),
             "Number of destinations must match number of value types",
@@ -335,7 +335,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             &mut flatten_values_idx,
                             value_type,
                         )?;
-                        debug_assert_eq!(
+                        assert_eq!(
                             flatten_values_idx,
                             output_fields.len(),
                             "Not all values were written to memory"
