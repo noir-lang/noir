@@ -59,9 +59,8 @@ fn resolve_input_file(
     let artifact_dir =
         artifact_path.parent().ok_or_else(|| eyre::eyre!("Cannot determine artifact directory"))?;
 
-    let program_dir = artifact_dir
-        .parent()
-        .ok_or_else(|| eyre::eyre!("Cannot determine program directory"))?;
+    let program_dir =
+        artifact_dir.parent().ok_or_else(|| eyre::eyre!("Cannot determine program directory"))?;
 
     // Try Prover.toml first
     let toml_path = program_dir.join("Prover.toml");
