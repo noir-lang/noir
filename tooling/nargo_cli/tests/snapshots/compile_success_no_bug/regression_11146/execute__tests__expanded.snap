@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+enum Foo<let N: u32> {
+    A([u32; N]),
+    B,
+}
+
+fn main() {
+    let _: Foo<1> = Foo::<N>::B;
+    let fb2: Foo<2> = Foo::<N>::B;
+    let fa2: Foo<2> = Foo::A([1_u32, 2_u32]);
+    foo(fb2);
+    foo(fa2);
+}
+
+fn foo(_f: Foo<2>) {}
