@@ -766,7 +766,12 @@
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
 <a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a></pre></div><pre class="rust"><code><span class="doccomment">//! Handles LSP semantic tokens requests.
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a></pre></div><pre class="rust"><code><span class="doccomment">//! Handles LSP semantic tokens requests.
 //!
 //! Semantic tokens in Noir are provided in two contexts:
 //! - links inside doc comments. For example,a doc comment that has `[println]` in it will
@@ -790,7 +795,7 @@
         Visitor,
     },
     elaborator::PrimitiveType,
-    hir::def_map::ModuleDefId,
+    hir::def_map::{ModuleDefId, ModuleId},
     lexer::Lexer,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
@@ -861,6 +866,11 @@
     }
 
     <span class="kw">fn </span>collect(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parsed_module: <span class="kw-2">&amp;</span>noirc_frontend::ParsedModule) -&gt; Vec&lt;SemanticToken&gt; {
+        <span class="comment">// Also process doc comments for the crate root module
+        </span><span class="kw">let </span>local_module_id = <span class="self">self</span>.args.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.args.crate_id].root();
+        <span class="kw">let </span>module_id = ModuleId { krate: <span class="self">self</span>.args.crate_id, local_id: local_module_id };
+        <span class="self">self</span>.process_reference_id(ReferenceId::Module(module_id));
+
         parsed_module.accept(<span class="self">self</span>);
         std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.tokens)
     }

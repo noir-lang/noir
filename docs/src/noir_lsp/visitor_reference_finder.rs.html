@@ -311,7 +311,10 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>nargo_doc::links::{LinkFinder, LinkTarget};
 <span class="kw">use </span>noirc_errors::Span;
@@ -384,6 +387,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         parsed_module: <span class="kw-2">&amp;</span>ParsedModule,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(ReferenceId, <span class="prelude-ty">Option</span>&lt;lsp_types::Location&gt;)&gt; {
+        <span class="comment">// Find in the doc comments on the crate root
+        </span><span class="self">self</span>.find_in_reference_doc_comments(ReferenceId::Module(<span class="self">self</span>.module_id));
+
         parsed_module.accept(<span class="self">self</span>);
 
         std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.reference_id)

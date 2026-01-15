@@ -64,7 +64,12 @@
 <a href="#63" id="63">63</a>
 <a href="#64" id="64">64</a>
 <a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo_doc::links::CurrentType;
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo_doc::links::CurrentType;
 <span class="kw">use </span>noirc_frontend::hir::def_map::ModuleDefId;
 <span class="kw">use </span>noirc_frontend::modules::get_parent_module;
 <span class="kw">use </span>noirc_frontend::{Type, hir::def_map::ModuleId, node_interner::ReferenceId};
@@ -80,8 +85,13 @@
     <span class="kw">match </span>id {
         ReferenceId::Module(module_id) =&gt; {
             <span class="kw">let </span>parent_module =
-                get_parent_module(ModuleDefId::ModuleId(module_id), args.interner, args.def_maps)<span class="question-mark">?</span>;
-            <span class="prelude-val">Some</span>((parent_module, <span class="prelude-val">None</span>))
+                get_parent_module(ModuleDefId::ModuleId(module_id), args.interner, args.def_maps);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(parent_module) = parent_module {
+                <span class="prelude-val">Some</span>((parent_module, <span class="prelude-val">None</span>))
+            } <span class="kw">else </span>{
+                <span class="comment">// If there's no parent module, it means we are in the crate root module
+                </span><span class="prelude-val">Some</span>((module_id, <span class="prelude-val">None</span>))
+            }
         }
         ReferenceId::Type(type_id)
         | ReferenceId::StructMember(type_id, <span class="kw">_</span>)
