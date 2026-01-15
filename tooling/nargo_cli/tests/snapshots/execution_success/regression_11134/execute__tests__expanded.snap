@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u64) {
-    let a: fn() -> [Field] = std::hint::black_box(|| -> [Field] { @[1_Field, 2_Field, 3_Field] });
+    let a: fn() -> [Field] = std::hint::black_box(|| -> [Field] @[1_Field, 2_Field, 3_Field]);
     let vector: [Field] = if x > 2_u64 { a() } else { @[4_Field, 5_Field] };
     assert(vector[0_u32] == 1_Field);
 }
