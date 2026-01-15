@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
 
+use crate::token::FmtStrFragment;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
@@ -11,7 +12,6 @@ use crate::{
     signed_field::SignedField,
     token::Attributes,
 };
-use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
@@ -516,7 +516,7 @@ pub struct Function {
     pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
-    pub func_sig: FunctionSignature,
+    pub is_entry_point: bool,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:
@@ -560,13 +560,36 @@ impl Type {
             _ => None,
         }
     }
+
+    /// Returns the number of field elements required to represent the type once encoded
+    /// as a parameter to an entry point function.
+    ///
+    /// Panics if the type is not valid as a parameter to main.
+    pub fn entry_point_field_count(&self) -> u32 {
+        match self {
+            Type::Field | Type::Integer(..) | Type::Bool => 1,
+            Type::Array(length, typ) => {
+                let typ = typ.as_ref();
+                length.checked_mul(typ.entry_point_field_count()).expect("Array length overflow")
+            }
+            Type::String(length) => *length,
+            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
+                acc.checked_add(field_typ.entry_point_field_count()).expect("Tuple size overflow")
+            }),
+            Type::Function(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Vector(_)
+            | Type::Reference(_, _) => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
-    pub function_signatures: Vec<FunctionSignature>,
-    pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
@@ -578,8 +601,6 @@ impl Program {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
-        function_signatures: Vec<FunctionSignature>,
-        main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
@@ -588,8 +609,6 @@ impl Program {
     ) -> Program {
         Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location,
             globals,
             debug_variables,
@@ -627,6 +646,10 @@ impl Program {
 
     pub fn return_visibility(&self) -> Visibility {
         self.main().return_visibility
+    }
+
+    pub fn main_function_parameters(&self) -> &Parameters {
+        &self.main().parameters
     }
 }
 
