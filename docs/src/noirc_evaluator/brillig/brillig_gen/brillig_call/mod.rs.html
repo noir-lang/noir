@@ -422,12 +422,12 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_vector_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
-<span class="kw">use </span>acvm::acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength};
+<span class="kw">use </span>acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 <span class="kw">use </span>acvm::brillig_vm::offsets;
 <span class="kw">use </span>iter_extended::vecmap;
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::BrilligBlock;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{BrilligBlock, assert_u32};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::FunctionId;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{InstructionId, Intrinsic};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -553,8 +553,8 @@
                 <span class="kw">match </span>element_type {
                     Type::Array(items, nested_size) =&gt; {
                         <span class="comment">// Allocate a pointer for an array on the stack.
-                        </span><span class="kw">let </span>size: SemiFlattenedLength =
-                            ElementsLength::from(items.as_ref()) * SemanticLength(<span class="kw-2">*</span>nested_size);
+                        </span><span class="kw">let </span>size: SemiFlattenedLength = ElementTypesLength(assert_u32(items.len()))
+                            * SemanticLength(<span class="kw-2">*</span>nested_size);
                         <span class="kw">let </span>inner_array = <span class="self">self</span>.brillig_context.allocate_brillig_array(size);
 
                         <span class="comment">// Recursively allocate memory for the inner array on the heap.

@@ -298,14 +298,19 @@
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
 <a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
-    function::RuntimeType,
-    types::{NumericType, Type},
-    value::{ValueId, ValueMapping},
+<span class="kw">use crate</span>::{
+    brillig::assert_usize,
+    ssa::ir::{
+        function::RuntimeType,
+        types::{NumericType, Type},
+        value::{ValueId, ValueMapping},
+    },
 };
-<span class="kw">use </span>acvm::FieldElement;
+<span class="kw">use </span>acvm::{FieldElement, acir::brillig::lengths::FlattenedLength};
 <span class="kw">use </span>noirc_frontend::hir_def::function::FunctionSignature;
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -574,15 +579,14 @@
         ssa_params: <span class="kw-2">&amp;</span>[ValueId],
         <span class="kw-2">mut </span>flattened_params_databus_visibility: Vec&lt;DatabusVisibility&gt;,
     ) -&gt; Vec&lt;DatabusVisibility&gt; {
-        <span class="kw">let </span>ssa_param_sizes: Vec&lt;usize&gt; = ssa_params
+        <span class="kw">let </span>ssa_param_sizes: Vec&lt;FlattenedLength&gt; = ssa_params
             .iter()
-            .map(|ssa_param| {
-                <span class="self">self</span>.current_function.dfg[<span class="kw-2">*</span>ssa_param].get_type().flattened_size() <span class="kw">as </span>usize
-            })
+            .map(|ssa_param| <span class="self">self</span>.current_function.dfg[<span class="kw-2">*</span>ssa_param].get_type().flattened_size())
             .collect();
 
         <span class="kw">let </span><span class="kw-2">mut </span>is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
         <span class="kw">for </span>size <span class="kw">in </span>ssa_param_sizes {
+            <span class="kw">let </span>size = assert_usize(size.<span class="number">0</span>);
             <span class="kw">let </span>visibilities: Vec&lt;DatabusVisibility&gt; =
                 flattened_params_databus_visibility.drain(<span class="number">0</span>..size).collect();
             <span class="kw">let </span>visibility = visibilities.first().copied().unwrap_or(DatabusVisibility::None);

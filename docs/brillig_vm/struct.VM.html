@@ -31,7 +31,7 @@ The list is appended onto by the caller upon reaching a <a href="enum.VMStatus.h
 </div><span id="structfield.black_box_solver" class="structfield section-header"><a href="#structfield.black_box_solver" class="anchor field">§</a><code>black_box_solver: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.reference.html">&amp;'a B</a></code></span><div class="docblock"><p>The solver for blackbox functions.</p>
 </div><span id="structfield.profiling_active" class="structfield section-header"><a href="#structfield.profiling_active" class="anchor field">§</a><code>profiling_active: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></code></span><span id="structfield.profiling_samples" class="structfield section-header"><a href="#structfield.profiling_samples" class="anchor field">§</a><code>profiling_samples: <a class="type" href="type.BrilligProfilingSamples.html" title="type brillig_vm::BrilligProfilingSamples">BrilligProfilingSamples</a></code></span><span id="structfield.fuzzing_trace" class="structfield section-header"><a href="#structfield.fuzzing_trace" class="anchor field">§</a><code>fuzzing_trace: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="fuzzing/struct.FuzzingTrace.html" title="struct brillig_vm::fuzzing::FuzzingTrace">FuzzingTrace</a>&gt;</code></span><div class="docblock"><p>Fuzzing trace structure.
 If the field is <code>None</code> then fuzzing is inactive.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-VM%3C'_,+F,+B%3E" class="impl"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#17-504">Source</a><a href="#impl-VM%3C'_,+F,+B%3E" class="anchor">§</a><h3 class="code-header">impl&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; <a class="struct" href="struct.VM.html" title="struct brillig_vm::VM">VM</a>&lt;'_, F, B&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.process_foreign_call" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#49-129">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.process_foreign_call" class="fn">process_foreign_call</a>(
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-VM%3C'_,+F,+B%3E" class="impl"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#17-505">Source</a><a href="#impl-VM%3C'_,+F,+B%3E" class="anchor">§</a><h3 class="code-header">impl&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; <a class="struct" href="struct.VM.html" title="struct brillig_vm::VM">VM</a>&lt;'_, F, B&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.process_foreign_call" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#49-129">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.process_foreign_call" class="fn">process_foreign_call</a>(
     &amp;mut self,
     function: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.str.html">str</a>,
     destinations: &amp;[ValueOrArray],
@@ -79,12 +79,12 @@ They are listed again below:</p>
 <li>If <code>inputs</code> and <code>input_value_types</code> lengths do not match.</li>
 <li>If <code>destinations</code> and <code>destination_value_types</code> lengths do not match.</li>
 </ul>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.get_memory_values" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#132-173">Source</a><h4 class="code-header">fn <a href="#method.get_memory_values" class="fn">get_memory_values</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.get_memory_values" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#132-174">Source</a><h4 class="code-header">fn <a href="#method.get_memory_values" class="fn">get_memory_values</a>(
     &amp;self,
     input: ValueOrArray,
     value_type: &amp;HeapValueType,
 ) -&gt; ForeignCallParam&lt;F&gt;</h4></section></summary><div class="docblock"><p>Get input data from memory to pass to foreign calls.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.read_slice_of_values_from_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#180-226">Source</a><h4 class="code-header">fn <a href="#method.read_slice_of_values_from_memory" class="fn">read_slice_of_values_from_memory</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.read_slice_of_values_from_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#181-227">Source</a><h4 class="code-header">fn <a href="#method.read_slice_of_values_from_memory" class="fn">read_slice_of_values_from_memory</a>(
     &amp;self,
     start: MemoryAddress,
     size: SemiFlattenedLength,
@@ -93,13 +93,13 @@ They are listed again below:</p>
 nested arrays/vectors according to the sequence of value types.</p>
 <p>The given <code>size</code> is the total number of <code>HeapValueType</code>s to read, which must
 be a multiple of the length of <code>value_types</code> (unless <code>value_types.len()</code> is 0).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.wait_for_foreign_call" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#230-236">Source</a><h4 class="code-header">fn <a href="#method.wait_for_foreign_call" class="fn">wait_for_foreign_call</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.wait_for_foreign_call" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#231-237">Source</a><h4 class="code-header">fn <a href="#method.wait_for_foreign_call" class="fn">wait_for_foreign_call</a>(
     &amp;mut self,
     function: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>,
     inputs: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;ForeignCallParam&lt;F&gt;&gt;,
 ) -&gt; &amp;<a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</h4></section></summary><div class="docblock"><p>Sets the status of the VM to <code>ForeignCallWait</code>.
 Indicating that the VM is now waiting for a foreign call to be resolved.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.write_foreign_call_result" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#246-382">Source</a><h4 class="code-header">fn <a href="#method.write_foreign_call_result" class="fn">write_foreign_call_result</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.write_foreign_call_result" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#247-383">Source</a><h4 class="code-header">fn <a href="#method.write_foreign_call_result" class="fn">write_foreign_call_result</a>(
     &amp;mut self,
     destinations: &amp;[ValueOrArray],
     destination_value_types: &amp;[HeapValueType],
@@ -111,19 +111,19 @@ They are either a single integer value or a vector of integer values (field elem
 Therefore, nested arrays returned from foreign call results are flattened.
 If the expected array sizes do not match the actual size, we reconstruct the nested
 structure from the flat output array.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.write_value_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#385-401">Source</a><h4 class="code-header">fn <a href="#method.write_value_to_memory" class="fn">write_value_to_memory</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.write_value_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#386-402">Source</a><h4 class="code-header">fn <a href="#method.write_value_to_memory" class="fn">write_value_to_memory</a>(
     &amp;mut self,
     destination: MemoryAddress,
     value: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.reference.html">&amp;F</a>,
     value_bit_size: BitSize,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;</h4></section></summary><div class="docblock"><p>Write a single numeric value to the destination address, ensuring that the bit size matches the expectation.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.write_values_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#404-435">Source</a><h4 class="code-header">fn <a href="#method.write_values_to_memory" class="fn">write_values_to_memory</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.write_values_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#405-436">Source</a><h4 class="code-header">fn <a href="#method.write_values_to_memory" class="fn">write_values_to_memory</a>(
     &amp;mut self,
     pointer: MemoryAddress,
     values: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.slice.html">[F]</a>,
     value_types: &amp;[HeapValueType],
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;</h4></section></summary><div class="docblock"><p>Write the <code>values</code> of an array or vector to an address stored under the <code>pointer</code>.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.write_flattened_values_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#442-503">Source</a><h4 class="code-header">fn <a href="#method.write_flattened_values_to_memory" class="fn">write_flattened_values_to_memory</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.write_flattened_values_to_memory" class="method"><a class="src rightside" href="../src/brillig_vm/foreign_call.rs.html#443-504">Source</a><h4 class="code-header">fn <a href="#method.write_flattened_values_to_memory" class="fn">write_flattened_values_to_memory</a>(
     &amp;mut self,
     destination: MemoryAddress,
     values: &amp;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;F&gt;,

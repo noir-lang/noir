@@ -519,14 +519,15 @@
 <a href="#518" id="518">518</a>
 <a href="#519" id="519">519</a>
 <a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
         lengths::{
-            ElementsFlattenedLength, ElementsLength, FlattenedLength, SemanticLength,
+            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
             SemiFlattenedLength,
         },
     },
@@ -664,7 +665,8 @@
                 HeapValueType::Array { value_types, size: type_size },
             ) =&gt; {
                 <span class="comment">// The array's semi-flattened size must match the expected size
-                </span><span class="kw">let </span>semi_flattened_size = <span class="kw-2">*</span>type_size * ElementsLength::from(value_types);
+                </span><span class="kw">let </span>semi_flattened_size =
+                    <span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len()));
                 <span class="macro">assert_eq!</span>(semi_flattened_size, size);
 
                 <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
@@ -729,7 +731,7 @@
                             <span class="kw">let </span>array_address =
                                 ArrayAddress::from(<span class="self">self</span>.memory.read_ref(value_address));
                             <span class="kw">let </span>semi_flattened_size =
-                                <span class="kw-2">*</span>type_size * ElementsLength::from(value_types);
+                                <span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len()));
 
                             <span class="self">self</span>.read_slice_of_values_from_memory(
                                 array_address.items_start(),
@@ -818,7 +820,7 @@
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) =&gt; {
-                    <span class="kw">if </span><span class="kw-2">*</span>type_size * ElementsLength::from(value_types) != <span class="kw-2">*</span>size {
+                    <span class="kw">if </span><span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len())) != <span class="kw-2">*</span>size {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
                             <span class="string">"Destination array size of {size} does not match the type size of {type_size}"
                         </span>));

@@ -407,7 +407,15 @@
 <a href="#406" id="406">406</a>
 <a href="#407" id="407">407</a>
 <a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+    FieldElement,
+    acir::{AcirField, brillig::lengths::FlattenedLength},
+};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -675,15 +683,17 @@
     /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flattened_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flattened_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FlattenedLength {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Array(elements, len) =&gt; {
-                elements.iter().fold(<span class="number">0</span>, |sum, elem| sum + (elem.flattened_size() * len))
+                <span class="kw">let </span>sum: u32 =
+                    elements.iter().fold(<span class="number">0</span>, |sum, elem| sum + (elem.flattened_size().<span class="number">0 </span>* len));
+                FlattenedLength(sum)
             }
             Type::Vector(<span class="kw">_</span>) =&gt; {
                 <span class="macro">unimplemented!</span>(<span class="string">"ICE: cannot fetch flattened vector size"</span>);
             }
-            <span class="kw">_ </span>=&gt; <span class="number">1</span>,
+            <span class="kw">_ </span>=&gt; FlattenedLength(<span class="number">1</span>),
         }
     }
 

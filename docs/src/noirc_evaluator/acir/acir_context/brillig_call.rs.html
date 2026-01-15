@@ -238,7 +238,7 @@
 };
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::GeneratedBrillig;
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{assert_usize, brillig_ir::artifact::GeneratedBrillig};
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 
 <span class="kw">use </span><span class="kw">super</span>::generated_acir::{BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
@@ -396,7 +396,7 @@
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len {
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..assert_usize(len.<span class="number">0</span>) {
                     <span class="comment">// We generate witnesses corresponding to the array values
                     </span><span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
 

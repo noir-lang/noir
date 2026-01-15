@@ -309,8 +309,21 @@
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
-<span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<span class="kw">use </span>acvm::acir::brillig::lengths::{
+    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+    SemiFlattenedLength,
+};
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::ssa::SsaReport;
@@ -412,10 +425,8 @@
         }
 
         <span class="kw">let </span>inputs = vecmap(arguments, |arg| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>arg, dfg));
-        <span class="kw">let </span>output_count: usize = result_ids
-            .iter()
-            .map(|result_id| dfg.type_of_value(<span class="kw-2">*</span>result_id).flattened_size() <span class="kw">as </span>usize)
-            .sum();
+        <span class="kw">let </span>output_count: FlattenedLength =
+            result_ids.iter().map(|result_id| dfg.type_of_value(<span class="kw-2">*</span>result_id).flattened_size()).sum();
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(acir_function_id) = ssa.get_entry_point_index(func_id) <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(
@@ -508,21 +519,30 @@
                             <span class="comment">// len holds the flattened length of all elements in the vector,
                             // so to get the no-flattened length we need to divide by the flattened
                             // length of a single vector entry
-                            </span><span class="kw">let </span>sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            <span class="kw">if </span>sum == <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ <span class="kw-2">*</span>len / sum <span class="kw">as </span>usize }
+                            </span><span class="kw">let </span>sum: FlattenedLength =
+                                item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            <span class="kw">if </span>sum.<span class="number">0 </span>== <span class="number">0 </span>{
+                                SemanticLength(<span class="number">0</span>)
+                            } <span class="kw">else </span>{
+                                <span class="kw-2">*</span>len / ElementsFlattenedLength::from(sum)
+                            }
                         }
                         AcirValue::Array(array) =&gt; {
-                            <span class="comment">// len holds the non-flattened length of all elements in the vector,
-                            // so here we need to divide by the non-flattened length of a single
-                            // vector entry
-                            </span><span class="kw">if </span>item_types.is_empty() { <span class="number">0 </span>} <span class="kw">else </span>{ array.len() / item_types.len() }
+                            <span class="kw">if </span>item_types.is_empty() {
+                                SemanticLength(<span class="number">0</span>)
+                            } <span class="kw">else </span>{
+                                <span class="comment">// len holds the semi-flattened length of all elements in the vector,
+                                // so here we need to divide by elements length of the item types
+                                </span><span class="kw">let </span>len = SemiFlattenedLength(assert_u32(array.len()));
+                                len / ElementTypesLength(assert_u32(item_types.len()))
+                            }
                         }
                         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Vector value is not an array"</span>),
                     };
 
                     BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
-                        SemanticLength(assert_u32(len)),
+                        len,
                     )
                 } <span class="kw">else </span>{
                     FunctionContext::ssa_type_to_parameter(<span class="kw-2">&amp;</span>typ)
@@ -543,7 +563,7 @@
                 <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(array_id);
                 <span class="kw">let </span>array_typ = dfg.type_of_value(array_id);
                 <span class="kw">let </span>len = <span class="kw">if </span><span class="macro">matches!</span>(array_typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)) {
-                    array_typ.flattened_size() <span class="kw">as </span>usize
+                    array_typ.flattened_size()
                 } <span class="kw">else </span>{
                     arrays::flattened_value_size(<span class="kw-2">&amp;</span>output)
                 };

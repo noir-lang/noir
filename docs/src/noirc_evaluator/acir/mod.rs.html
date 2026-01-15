@@ -962,8 +962,8 @@
 </span><span class="kw">mod </span>tests;
 <span class="kw">mod </span>types;
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::Brillig;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::gen_brillig_for;
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{Brillig, assert_usize};
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1028,7 +1028,7 @@
 
     <span class="doccomment">/// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
     /// non-homogenous arrays end up having the same type sizes layout.
-    </span>type_sizes_to_blocks: HashMap&lt;Vec&lt;usize&gt;, BlockId&gt;,
+    </span>type_sizes_to_blocks: HashMap&lt;Vec&lt;u32&gt;, BlockId&gt;,
 
     <span class="doccomment">/// Number of the next BlockId, it is used to construct
     /// a new BlockId
@@ -1277,7 +1277,7 @@
                 AcirValue::Array(<span class="kw">_</span>) =&gt; {
                     <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(param_id);
                     <span class="kw">let </span>len = <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)) {
-                        typ.flattened_size() <span class="kw">as </span>usize
+                        typ.flattened_size()
                     } <span class="kw">else </span>{
                         <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
                             expected: <span class="string">"Block params should be an array"</span>.to_owned(),
@@ -1530,9 +1530,9 @@
             }
         };
 
-        return_values
-            .iter()
-            .fold(<span class="number">0</span>, |acc, value_id| acc + dfg.type_of_value(<span class="kw-2">*</span>value_id).flattened_size() <span class="kw">as </span>usize)
+        return_values.iter().fold(<span class="number">0</span>, |acc, value_id| {
+            acc + assert_usize(dfg.type_of_value(<span class="kw-2">*</span>value_id).flattened_size().<span class="number">0</span>)
+        })
     }
 
     <span class="doccomment">/// Converts an SSA terminator's return values into their ACIR representations

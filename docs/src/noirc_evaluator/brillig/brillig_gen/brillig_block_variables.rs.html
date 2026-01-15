@@ -202,7 +202,10 @@
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
 //! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
@@ -216,15 +219,18 @@
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
 </span><span class="kw">use </span>acvm::{
     FieldElement,
-    acir::brillig::lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
 };
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
-    brillig::brillig_ir::{
-        BrilligContext,
-        brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
-        registers::{Allocated, RegisterAllocator},
+    brillig::{
+        assert_u32,
+        brillig_ir::{
+            BrilligContext,
+            brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
+            registers::{Allocated, RegisterAllocator},
+        },
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -375,7 +381,7 @@
     item_typ: <span class="kw-2">&amp;</span>CompositeType,
     elem_count: SemanticLength,
 ) -&gt; SemiFlattenedLength {
-    ElementsLength::from(item_typ) * elem_count
+    ElementTypesLength(assert_u32(item_typ.len())) * elem_count
 }
 
 <span class="doccomment">/// For a given [ValueId], allocates the necessary registers to hold it.

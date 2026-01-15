@@ -269,9 +269,11 @@
 <a href="#268" id="268">268</a>
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Debug;
 
-<span class="kw">use </span>acvm::acir::circuit::opcodes::BlockId;
+<span class="kw">use </span>acvm::acir::{brillig::lengths::FlattenedLength, circuit::opcodes::BlockId};
 
 <span class="kw">use crate</span>::{
     errors::InternalError,
@@ -350,7 +352,7 @@
     /// This is essentially a ACIR pointer to the array
     </span><span class="kw">pub</span>(<span class="kw">super</span>) block_id: BlockId,
     <span class="doccomment">/// Flattened length of the elements in the array
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) len: usize,
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) len: FlattenedLength,
     <span class="doccomment">/// An ACIR dynamic array is a flat structure, so we use
     /// the inner structure of an `AcirType::NumericType` directly.
     /// Some usages of ACIR arrays (e.g. black box functions) require the bit size
@@ -414,6 +416,8 @@
     /// return values: []
     /// BRILLIG CALL func: 0, inputs: [[w0, w1, w2]], outputs: []
     /// ```
+    ///
+    /// The length of the inner vector is a [acvm::acir::brillig::lengths::SemiFlattenedLength].
     ///
     /// Compare this with `DynamicArray` below.
     </span>Array(im::Vector&lt;AcirValue&gt;),

@@ -485,7 +485,8 @@
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
@@ -501,7 +502,7 @@
     AcirField,
     brillig::{
         HeapVector, MemoryAddress,
-        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+        lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
     },
 };
 
@@ -643,7 +644,7 @@
                 }
                 BrilligParameter::Array(items, size) =&gt; {
                     <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength::from(items) * <span class="kw-2">*</span>size;
+                        ElementTypesLength(assert_u32(items.len())) * <span class="kw-2">*</span>size;
 
                     <span class="self">self</span>.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
@@ -699,7 +700,8 @@
         flattened_array_pointer: MemoryAddress,
         is_vector: bool,
     ) -&gt; Allocated&lt;MemoryAddress, Stack&gt; {
-        <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+        <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength =
+            item_count * ElementTypesLength(assert_u32(item_type.len()));
 
         <span class="kw">let </span>deflattened_array_pointer = <span class="self">self</span>.allocate_register();
         <span class="kw">let </span>deflattened_size_variable =
@@ -812,7 +814,7 @@
                 }
                 BrilligParameter::Array(item_types, item_count) =&gt; {
                     <span class="kw">let </span>semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength::from(item_types) * <span class="kw-2">*</span>item_count;
+                        ElementTypesLength(assert_u32(item_types.len())) * <span class="kw-2">*</span>item_count;
                     <span class="self">self</span>.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot return vectors"</span>),

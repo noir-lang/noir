@@ -831,11 +831,22 @@
 <a href="#830" id="830">830</a>
 <a href="#831" id="831">831</a>
 <a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::acir::types::{flat_element_types, flat_numeric_types};
 <span class="kw">use </span><span class="kw">crate</span>::acir::{AcirDynamicArray, AcirValue};
+<span class="kw">use </span><span class="kw">crate</span>::brillig::{assert_u32, assert_usize};
 <span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
+<span class="kw">use </span>acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span><span class="kw">super</span>::Context;
@@ -909,7 +920,7 @@
             // push_back corresponding dummy zero values to the AcirValues vector.
             </span><span class="kw">for </span>(elem, ssa_typ) <span class="kw">in </span>elements_to_push.iter().zip(vector_types.to_vec()) {
                 <span class="kw">let </span>element = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>elem, dfg);
-                element_size += <span class="kw">super</span>::arrays::flattened_value_size(<span class="kw-2">&amp;</span>element);
+                element_size += assert_usize(<span class="kw">super</span>::arrays::flattened_value_size(<span class="kw-2">&amp;</span>element).<span class="number">0</span>);
                 <span class="kw">match </span>element {
                     AcirValue::Var(acir_var, acir_type) =&gt; {
                         new_vector.push_back(AcirValue::Var(zero, acir_type));
@@ -945,7 +956,7 @@
                         <span class="prelude-val">Some</span>(new_vector_array.clone()),
                         dfg,
                         <span class="comment">// We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        </span><span class="number">0</span>,
+                        </span>SemanticLength(<span class="number">0</span>),
                     )<span class="question-mark">?</span>)
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
@@ -1121,8 +1132,9 @@
         <span class="kw">let </span>vector_type = dfg.type_of_value(vector_contents);
         <span class="kw">let </span>item_size = vector_type.element_types();
         <span class="comment">// Must read from the flattened last index of the vector in case the vector contains nested arrays.
-        </span><span class="kw">let </span>flat_item_size: u32 = item_size.iter().map(|typ| typ.flattened_size()).sum();
-        <span class="kw">let </span>item_size = <span class="self">self</span>.acir_context.add_constant(flat_item_size);
+        </span><span class="kw">let </span>flat_item_size: FlattenedLength =
+            item_size.iter().map(|typ| typ.flattened_size()).sum();
+        <span class="kw">let </span>item_size = <span class="self">self</span>.acir_context.add_constant(flat_item_size.<span class="number">0</span>);
         var_index = <span class="self">self</span>.acir_context.mul_var(var_index, item_size)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>popped_elements = Vec::new();
@@ -1337,7 +1349,7 @@
         <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
         <span class="kw">let </span>new_vector_length = <span class="self">self</span>.acir_context.add_var(vector_length, one)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>vector_size = <span class="kw">super</span>::arrays::flattened_value_size(<span class="kw-2">&amp;</span>vector);
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_size: FlattenedLength = <span class="kw">super</span>::arrays::flattened_value_size(<span class="kw-2">&amp;</span>vector);
 
         <span class="kw">let </span>elements_to_insert = <span class="kw-2">&amp;</span>arguments[<span class="number">3</span>..];
 
@@ -1349,22 +1361,22 @@
 
         <span class="comment">// Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>inner_elem_size_usize = <span class="number">0</span>;
+        </span><span class="kw">let </span><span class="kw-2">mut </span>inner_elem_size: FlattenedLength = FlattenedLength(<span class="number">0</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>flattened_elements = Vec::new();
         <span class="kw">for </span>elem <span class="kw">in </span>elements_to_insert {
             <span class="kw">let </span>element = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>elem, dfg);
             <span class="comment">// Flatten into (AcirVar, NumericType) pairs
             </span><span class="kw">let </span>flat_element = <span class="self">self</span>.flatten(<span class="kw-2">&amp;</span>element)<span class="question-mark">?</span>;
-            <span class="kw">let </span>elem_size = flat_element.len();
-            inner_elem_size_usize += elem_size;
+            <span class="kw">let </span>elem_size = FlattenedLength(assert_u32(flat_element.len()));
+            inner_elem_size += elem_size;
             vector_size += elem_size;
-            <span class="kw">for </span>var <span class="kw">in </span>flat_element {
-                flattened_elements.push(var);
-            }
+            flattened_elements.extend(flat_element);
         }
-        <span class="kw">let </span>inner_elem_size = <span class="self">self</span>.acir_context.add_constant(inner_elem_size_usize);
+
+        <span class="kw">let </span>inner_elem_size_var = <span class="self">self</span>.acir_context.add_constant(inner_elem_size.<span class="number">0</span>);
         <span class="comment">// Set the maximum flattened index at which a new element should be inserted.
-        </span><span class="kw">let </span>max_flat_user_index = <span class="self">self</span>.acir_context.add_var(flat_user_index, inner_elem_size)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>max_flat_user_index =
+            <span class="self">self</span>.acir_context.add_var(flat_user_index, inner_elem_size_var)<span class="question-mark">?</span>;
 
         <span class="comment">// Go through the entire vector argument and determine what value should be written to the new vector.
         // 1. If we are below the starting insertion index we should insert the value that was already
@@ -1377,11 +1389,14 @@
         <span class="self">self</span>.initialize_array(result_block_id, vector_size, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>current_insert_index = <span class="number">0</span>;
 
+        <span class="kw">let </span>vector_size_usize = assert_usize(vector_size.<span class="number">0</span>);
+        <span class="kw">let </span>inner_elem_size_usize = assert_usize(inner_elem_size.<span class="number">0</span>);
+
         <span class="comment">// This caches each `is_after_insert` var for each index for an optimization that is
         // explained below, above `is_after_insert`.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>cached_is_after_inserts = Vec::with_capacity(vector_size);
+        </span><span class="kw">let </span><span class="kw-2">mut </span>cached_is_after_inserts = Vec::with_capacity(vector_size_usize);
 
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..vector_size {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..vector_size_usize {
             <span class="kw">let </span>current_index = <span class="self">self</span>.acir_context.add_constant(i);
 
             <span class="comment">// Check that we are above the lower bound of the insertion index
@@ -1459,7 +1474,7 @@
                     result_ids[<span class="number">1</span>],
                     <span class="prelude-val">Some</span>(vector),
                     dfg,
-                    <span class="number">1</span>,
+                    SemanticLength(<span class="number">1</span>),
                 )<span class="question-mark">?</span>)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -1572,7 +1587,7 @@
         <span class="kw">let </span>flat_vector = <span class="self">self</span>.flatten(<span class="kw-2">&amp;</span>vector)<span class="question-mark">?</span>;
         <span class="comment">// Compiler sanity check
         </span><span class="macro">assert_eq!</span>(
-            flat_vector.len(),
+            FlattenedLength(assert_u32(flat_vector.len())),
             vector_size,
             <span class="string">"ICE: The read flattened vector should match the computed size"
         </span>);
@@ -1589,7 +1604,7 @@
         // As we fetch the values we can determine the size of the removed values
         // which we will later use for writing the correct resulting vector.
         </span><span class="kw">let </span><span class="kw-2">mut </span>popped_elements = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>popped_elements_size = <span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>popped_elements_size: FlattenedLength = FlattenedLength(<span class="number">0</span>);
         <span class="comment">// Set a temp index just for fetching from the original vector as `array_get_value` mutates
         // the index internally.
         </span><span class="kw">let </span><span class="kw-2">mut </span>temp_index = flat_user_index;
@@ -1602,6 +1617,8 @@
             popped_elements.push(element);
         }
 
+        <span class="kw">let </span>popped_elements_size = popped_elements_size.<span class="number">0</span>;
+
         <span class="comment">// Go through the entire vector argument and determine what value should be written to the new vector.
         // 1. If the current index is greater than the removal index we must write the next value
         //    from the original vector to the current index
@@ -1611,12 +1628,13 @@
         </span><span class="kw">let </span>result_block_id = <span class="self">self</span>.block_id(result_ids[<span class="number">1</span>]);
         <span class="comment">// We expect a preceding check to have been laid down that the remove index is within bounds.
         // In practice `popped_elements_size` should never exceed the `vector_size` but we do a saturating sub to be safe.
-        </span><span class="kw">let </span>result_size = vector_size.saturating_sub(popped_elements_size);
+        </span><span class="kw">let </span>result_size = FlattenedLength(vector_size.<span class="number">0</span>.saturating_sub(popped_elements_size));
         <span class="self">self</span>.initialize_array(result_block_id, result_size, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
-        <span class="kw">for </span>(i, current_value) <span class="kw">in </span>flat_vector.iter().enumerate().take(result_size) {
+        <span class="kw">for </span>(i, current_value) <span class="kw">in </span>flat_vector.iter().enumerate().take(assert_usize(result_size.<span class="number">0</span>)) {
             <span class="kw">let </span>current_index = <span class="self">self</span>.acir_context.add_constant(i);
 
-            <span class="kw">let </span>shifted_index = <span class="self">self</span>.acir_context.add_constant(i + popped_elements_size);
+            <span class="kw">let </span>shifted_index =
+                <span class="self">self</span>.acir_context.add_constant(i + assert_usize(popped_elements_size));
 
             <span class="comment">// Fetch the value from the initial vector
             </span><span class="kw">let </span>value_shifted_index =
@@ -1642,7 +1660,7 @@
                     vector_contents,
                     <span class="prelude-val">Some</span>(vector),
                     dfg,
-                    <span class="number">0</span>,
+                    SemanticLength(<span class="number">0</span>),
                 )<span class="question-mark">?</span>)
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
