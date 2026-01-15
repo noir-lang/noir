@@ -1069,7 +1069,16 @@
 <a href="#1068" id="1068">1068</a>
 <a href="#1069" id="1069">1069</a>
 <a href="#1070" id="1070">1070</a>
-<a href="#1071" id="1071">1071</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+
+<span class="kw">use crate</span>::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -1924,11 +1933,16 @@
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(global_info.definition_id);
 
                 <span class="comment">// Special case: the global is an enum value
-                </span><span class="kw">let </span>typ = <span class="kw">if let </span>Type::Forall(<span class="kw">_</span>, typ) = typ { <span class="kw-2">*</span>typ } <span class="kw">else </span>{ typ };
-                <span class="kw">if let </span>Type::DataType(data_type, _generics) = <span class="kw-2">&amp;</span>typ {
+                </span><span class="kw">let </span>typ = typ.as_monotype();
+                <span class="kw">if let </span>Type::DataType(data_type, _generics) = typ {
                     <span class="kw">let </span>data_type = data_type.borrow();
                     <span class="kw">if </span>data_type.is_enum() {
-                        <span class="self">self</span>.show_type_name_as_data_type(<span class="kw-2">&amp;</span>typ);
+                        <span class="comment">// The enum expression may have unbound named generics, while the ident itself has them bound.
+                        </span><span class="kw">let </span>typ = <span class="kw">match </span>expr_id {
+                            <span class="prelude-val">Some</span>(id) =&gt; Cow::Owned(<span class="self">self</span>.interner.id_type(id)),
+                            <span class="prelude-val">None </span>=&gt; Cow::Borrowed(typ),
+                        };
+                        <span class="self">self</span>.show_type_name_as_data_type(typ.as_ref());
                         <span class="self">self</span>.push_str(<span class="string">"::"</span>);
                         <span class="self">self</span>.push_str(global_info.ident.as_str());
                         <span class="kw">return</span>;

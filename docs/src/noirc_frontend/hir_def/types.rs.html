@@ -3245,7 +3245,8 @@
 <a href="#3244" id="3244">3244</a>
 <a href="#3245" id="3245">3245</a>
 <a href="#3246" id="3246">3246</a>
-<a href="#3247" id="3247">3247</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3247" id="3247">3247</a>
+<a href="#3248" id="3248">3248</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -4684,8 +4685,8 @@
         Type::Forall(polymorphic_type_vars, Box::new(<span class="self">self</span>))
     }
 
-    <span class="doccomment">/// Return this type as a monomorphic type - without a `Type::Forall` if there is one.
-    /// This is only a shallow check since Noir's type system prohibits `Type::Forall` anywhere
+    <span class="doccomment">/// Return this type as a monomorphic type - without a [Type::Forall] if there is one.
+    /// This is only a shallow check since Noir's type system prohibits [Type::Forall] anywhere
     /// inside other types.
     </span><span class="kw">pub fn </span>as_monotype(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Type {
         <span class="kw">match </span><span class="self">self </span>{
@@ -4694,8 +4695,9 @@
         }
     }
 
-    <span class="doccomment">/// Return the generics and type within this `Type::Forall`.
-    /// Panics if `self` is not `Type::Forall`
+    <span class="doccomment">/// Return the generics and type within this [Type::Forall].
+    ///
+    /// Returns an empty list of type variables and the type itself if it's not a [Type::Forall].
     </span><span class="kw">pub fn </span>unwrap_forall(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Cow&lt;GenericTypeVars&gt;, <span class="kw-2">&amp;</span>Type) {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Forall(generics, typ) =&gt; (Cow::Borrowed(generics), typ.as_ref()),

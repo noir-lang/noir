@@ -3278,7 +3278,43 @@
 <a href="#3277" id="3277">3277</a>
 <a href="#3278" id="3278">3278</a>
 <a href="#3279" id="3279">3279</a>
-<a href="#3280" id="3280">3280</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3280" id="3280">3280</a>
+<a href="#3281" id="3281">3281</a>
+<a href="#3282" id="3282">3282</a>
+<a href="#3283" id="3283">3283</a>
+<a href="#3284" id="3284">3284</a>
+<a href="#3285" id="3285">3285</a>
+<a href="#3286" id="3286">3286</a>
+<a href="#3287" id="3287">3287</a>
+<a href="#3288" id="3288">3288</a>
+<a href="#3289" id="3289">3289</a>
+<a href="#3290" id="3290">3290</a>
+<a href="#3291" id="3291">3291</a>
+<a href="#3292" id="3292">3292</a>
+<a href="#3293" id="3293">3293</a>
+<a href="#3294" id="3294">3294</a>
+<a href="#3295" id="3295">3295</a>
+<a href="#3296" id="3296">3296</a>
+<a href="#3297" id="3297">3297</a>
+<a href="#3298" id="3298">3298</a>
+<a href="#3299" id="3299">3299</a>
+<a href="#3300" id="3300">3300</a>
+<a href="#3301" id="3301">3301</a>
+<a href="#3302" id="3302">3302</a>
+<a href="#3303" id="3303">3303</a>
+<a href="#3304" id="3304">3304</a>
+<a href="#3305" id="3305">3305</a>
+<a href="#3306" id="3306">3306</a>
+<a href="#3307" id="3307">3307</a>
+<a href="#3308" id="3308">3308</a>
+<a href="#3309" id="3309">3309</a>
+<a href="#3310" id="3310">3310</a>
+<a href="#3311" id="3311">3311</a>
+<a href="#3312" id="3312">3312</a>
+<a href="#3313" id="3313">3313</a>
+<a href="#3314" id="3314">3314</a>
+<a href="#3315" id="3315">3315</a>
+<a href="#3316" id="3316">3316</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3330,7 +3366,7 @@
 //! which shouldn't leave the current context.
 </span><span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
-<span class="kw">use </span><span class="kw">crate</span>::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
+<span class="kw">use </span><span class="kw">crate</span>::hir::type_check::NoMatchingImplFoundError;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 <span class="kw">use </span><span class="kw">crate</span>::shared::{Signedness, Visibility};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -3352,6 +3388,7 @@
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_printable_type::PrintableType;
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -3396,8 +3433,12 @@
     /// confuse users.
     </span>locals: HashMap&lt;node_interner::DefinitionId, LocalId&gt;,
 
-    <span class="doccomment">/// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
-    </span>globals: HashMap&lt;node_interner::GlobalId, GlobalId&gt;,
+    <span class="doccomment">/// Globals are keyed by their unique ID and their type, which should create a single global
+    /// instance per generic combination.
+    ///
+    /// The alternative would be to use default types for unused generic parameters,
+    /// but that could fail during SSA validation.
+    </span>globals: HashMap&lt;node_interner::GlobalId, HashMap&lt;HirType, GlobalId&gt;&gt;,
 
     finished_globals: HashMap&lt;GlobalId, (String, ast::Type, ast::Expression)&gt;,
 
@@ -3904,6 +3945,19 @@
 
     <span class="doccomment">/// Monomorphize an expression.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: ExprId) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="self">self</span>.expr_with_target_type(expr, <span class="prelude-val">None</span>)
+    }
+
+    <span class="doccomment">/// Monomorphize an expression with a target type.
+    ///
+    /// This can be used when we have a type that contains bound type variables on the LHS,
+    /// and a type with unbound named generic on the RHS, and we don't want the unbound
+    /// types to be converted to default values.
+    </span><span class="kw">fn </span>expr_with_target_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        expr: ExprId,
+        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">use </span>ast::Expression::Literal;
         <span class="kw">use </span>ast::Literal::<span class="kw-2">*</span>;
 
@@ -4092,7 +4146,10 @@
                 <span class="kw">let </span>fields = try_vecmap(fields, |id| <span class="self">self</span>.expr(id))<span class="question-mark">?</span>;
                 ast::Expression::Tuple(fields)
             }
-            HirExpression::Constructor(constructor) =&gt; <span class="self">self</span>.constructor(constructor, expr)<span class="question-mark">?</span>,
+            HirExpression::Constructor(constructor) =&gt; {
+                <span class="kw">let </span>typ = <span class="self">self</span>.expr_or_target_type(expr, target_type);
+                <span class="self">self</span>.constructor(constructor, expr, typ.as_ref())<span class="question-mark">?
+            </span>}
 
             HirExpression::Lambda(lambda) =&gt; <span class="self">self</span>.lambda(lambda, expr)<span class="question-mark">?</span>,
 
@@ -4102,11 +4159,28 @@
                 <span class="macro">unreachable!</span>(<span class="string">"unquote expression remaining in runtime code"</span>)
             }
             HirExpression::EnumConstructor(constructor) =&gt; {
-                <span class="self">self</span>.enum_constructor(constructor, expr)<span class="question-mark">?
+                <span class="kw">let </span>typ = <span class="self">self</span>.expr_or_target_type(expr, target_type);
+                <span class="self">self</span>.enum_constructor(constructor, expr, typ.as_ref())<span class="question-mark">?
             </span>}
         };
 
         <span class="prelude-val">Ok</span>(expr)
+    }
+
+    <span class="doccomment">/// Return the target type if given, or the type of the expression if the target is empty.
+    ///
+    /// This is used in cases where the target type might have more bound generic type variables
+    /// than the expression, and unification is not feasible because the expression uses unbound
+    /// named generics, which don't get unified.
+    </span><span class="kw">fn </span>expr_or_target_type&lt;<span class="lifetime">'a</span>&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        expr: ExprId,
+        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Type&gt;,
+    ) -&gt; Cow&lt;<span class="lifetime">'a</span>, HirType&gt; {
+        <span class="kw">match </span>target_type {
+            <span class="prelude-val">Some</span>(typ) =&gt; Cow::Borrowed(typ),
+            <span class="prelude-val">None </span>=&gt; Cow::Owned(<span class="self">self</span>.interner.id_type(expr)),
+        }
     }
 
     <span class="doccomment">/// True if a value of the given type contains a reference value.
@@ -4313,11 +4387,11 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constructor: HirConstructorExpression,
         id: ExprId,
+        typ: <span class="kw-2">&amp;</span>Type,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>id);
 
-        <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(id);
-        <span class="kw">let </span>field_types = unwrap_struct_type(<span class="kw-2">&amp;</span>typ, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>field_types = unwrap_struct_type(typ, location)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>field_type_map =
             btree_map(<span class="kw-2">&amp;</span>field_types, |(name, typ, <span class="kw">_</span>)| (name.to_string(), typ.clone()));
@@ -4383,10 +4457,10 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constructor: HirEnumConstructorExpression,
         id: ExprId,
+        typ: <span class="kw-2">&amp;</span>Type,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>id);
-        <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(id);
-        <span class="kw">let </span>variants = unwrap_enum_type(<span class="kw-2">&amp;</span>typ, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>variants = unwrap_enum_type(typ, location)<span class="question-mark">?</span>;
 
         <span class="comment">// Fill in each field of the translated enum tuple.
         // For most fields this will be simply `std::mem::zeroed::&lt;T&gt;()`,
@@ -4707,8 +4781,12 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>global = <span class="self">self</span>.interner.get_global(global_id);
         <span class="kw">let </span>id = global.id;
-        <span class="kw">let </span>expr = <span class="kw">if let </span><span class="prelude-val">Some</span>(seen_global) = <span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>id) {
-            <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(typ, location)<span class="question-mark">?</span>;
+
+        <span class="comment">// Follow bindings otherwise it's not safe to use it as a hash map key.
+        </span><span class="kw">let </span>typ = typ.follow_bindings();
+
+        <span class="kw">let </span>expr = <span class="kw">if let </span><span class="prelude-val">Some</span>(seen_global) = <span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>id).and_then(|m| m.get(<span class="kw-2">&amp;</span>typ)) {
+            <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>typ, location)<span class="question-mark">?</span>;
             <span class="kw">let </span>ident = ast::Ident {
                 location: <span class="prelude-val">Some</span>(location),
                 definition: Definition::Global(<span class="kw-2">*</span>seen_global),
@@ -4719,7 +4797,8 @@
             };
             ast::Expression::Ident(ident)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>(expr, contains_function) = <span class="kw">if let </span>GlobalValue::Resolved(value) =
+            <span class="comment">// Globals have been evaluated with the comptime interpreter. Convert that value to HIR.
+            </span><span class="kw">let </span>(expr, contains_function) = <span class="kw">if let </span>GlobalValue::Resolved(value) =
                 global.value.clone()
             {
                 <span class="kw">let </span>contains_function = value.contains_function_or_closure();
@@ -4733,7 +4812,11 @@
                 </span>);
             };
 
-            <span class="kw">let </span>expr = <span class="self">self</span>.expr(expr)<span class="question-mark">?</span>;
+            <span class="comment">// The type of the expression on the RHS itself might be a `Forall` and/or contain unbound `NamedGeneric`s,
+            // while the type of the type on the LHS has bound `TypeVariable` variables. We cannot bind them,
+            // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
+            // into expression specific to the LHS, so we are using it as the target type.
+            </span><span class="kw">let </span>expr = <span class="self">self</span>.expr_with_target_type(expr, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>typ))<span class="question-mark">?</span>;
 
             <span class="comment">// Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
@@ -4744,8 +4827,8 @@
             // placing a closure in the global context to change the final result of the program.
             </span><span class="kw">if </span>!contains_function {
                 <span class="kw">let </span>new_id = <span class="self">self</span>.next_global_id();
-                <span class="self">self</span>.globals.insert(id, new_id);
-                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(typ, location)<span class="question-mark">?</span>;
+                <span class="self">self</span>.globals.entry(id).or_default().insert(typ.clone(), new_id);
+                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>typ, location)<span class="question-mark">?</span>;
                 <span class="self">self</span>.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 <span class="kw">let </span>ident = ast::Ident {
                     location: <span class="prelude-val">Some</span>(location),
@@ -4793,9 +4876,6 @@
             HirType::String(size) =&gt; {
                 <span class="kw">let </span>size = <span class="kw">match </span>size.evaluate_to_u32(location) {
                     <span class="prelude-val">Ok</span>(size) =&gt; size,
-                    <span class="comment">// This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
-                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
-                    </span><span class="prelude-val">Err</span>(TypeCheckError::NonConstantEvaluated { .. }) =&gt; <span class="number">0</span>,
                     <span class="prelude-val">Err</span>(err) =&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
                     }
@@ -4805,9 +4885,6 @@
             HirType::FmtString(size, fields) =&gt; {
                 <span class="kw">let </span>size = <span class="kw">match </span>size.evaluate_to_u32(location) {
                     <span class="prelude-val">Ok</span>(size) =&gt; size,
-                    <span class="comment">// This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
-                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
-                    </span><span class="prelude-val">Err</span>(TypeCheckError::NonConstantEvaluated { .. }) =&gt; <span class="number">0</span>,
                     <span class="prelude-val">Err</span>(err) =&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::UnknownArrayLength { location, err });
                     }
@@ -4846,13 +4923,8 @@
                 <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>type_var.borrow() {
                     <span class="kw">return </span><span class="self">Self</span>::convert_type_helper(binding, location, seen_types);
                 }
-
-                <span class="comment">// Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                </span>type_var.bind(HirType::default_int_or_field_type());
-                <span class="comment">// FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
-                </span>ast::Type::Field
+                <span class="comment">// This used to default to Field, but doing so could result in an invalid SSA.
+                </span><span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NoDefaultType { location });
             }
 
             HirType::CheckedCast { from, to } =&gt; {
@@ -6242,7 +6314,7 @@
     typ: <span class="kw-2">&amp;</span>HirType,
     location: Location,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(String, Vec&lt;HirType&gt;)&gt;, MonomorphizationError&gt; {
-    <span class="kw">match </span>typ.unwrap_forall().<span class="number">1</span>.follow_bindings() {
+    <span class="kw">match </span>typ.as_monotype().follow_bindings() {
         HirType::DataType(def, args) =&gt; {
             <span class="comment">// Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>args {
