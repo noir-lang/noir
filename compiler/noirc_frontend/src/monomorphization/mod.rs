@@ -1628,12 +1628,8 @@ impl<'interner> Monomorphizer<'interner> {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                type_var.bind(HirType::default_int_or_field_type());
-                // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
-                ast::Type::Field
+                // This uses to default to Field, but doing so could result in an invalid SSA.
+                return Err(MonomorphizationError::NoDefaultType { location });
             }
 
             HirType::CheckedCast { from, to } => {
