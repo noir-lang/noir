@@ -1,10 +1,10 @@
 enum Foo<T> {
     A(T),
-    B
+    B,
 }
 
 struct Bar<T> {
-    value: Foo<T>
+    value: Foo<T>,
 }
 
 fn main() {
@@ -21,7 +21,7 @@ fn main() {
     bar(b);
 
     let fs: [Foo<str<5>>; 2] = [Foo::B; 2];
-    for i in 0 .. 2 {
+    for i in 0..2 {
         foo(fs[i]);
     }
 }

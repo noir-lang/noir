@@ -1,6 +1,6 @@
 enum Foo<let N: u32> {
     A([u32; N]),
-    B
+    B,
 }
 
 fn main() {
