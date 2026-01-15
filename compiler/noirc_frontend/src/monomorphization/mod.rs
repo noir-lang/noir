@@ -851,7 +851,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
                 ast::Expression::Tuple(fields)
             }
-            HirExpression::Constructor(constructor) => self.constructor(constructor, expr)?,
+            HirExpression::Constructor(constructor) => {
+                let typ = target_type.cloned().unwrap_or_else(|| self.interner.id_type(expr));
+                self.constructor(constructor, expr, &typ)?
+            }
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
@@ -1073,11 +1076,11 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         constructor: HirConstructorExpression,
         id: ExprId,
+        typ: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
 
-        let typ = self.interner.id_type(id);
-        let field_types = unwrap_struct_type(&typ, location)?;
+        let field_types = unwrap_struct_type(typ, location)?;
 
         let field_type_map =
             btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
