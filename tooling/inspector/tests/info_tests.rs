@@ -8,10 +8,33 @@ fn inspector_command() -> Command {
     Command::new(env!("CARGO_BIN_EXE_noir-inspector"))
 }
 
-/// Path to a existing test program
+/// Get test program artifact path, compiling it if needed
 fn test_artifact_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../test_programs/execution_success/assert_statement/target/assert_statement.json")
+    let program_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../test_programs/execution_success/assert_statement");
+    let artifact = program_dir.join("target/assert_statement.json");
+
+    // Compile if artifact doesn't exist
+    if !artifact.exists() {
+        let output = Command::new("nargo")
+            .current_dir(&program_dir)
+            .arg("compile")
+            .arg("--force-brillig")
+            .output()
+            .expect("Failed to run nargo compile");
+
+        if !output.status.success() {
+            panic!(
+                "Failed to compile test program:\nstdout: {}\nstderr: {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        assert!(artifact.exists(), "Artifact still doesn't exist after compilation: {artifact:?}");
+    }
+
+    artifact
 }
 
 #[test]
