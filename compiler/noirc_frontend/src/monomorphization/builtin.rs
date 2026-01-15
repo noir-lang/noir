@@ -50,14 +50,14 @@ impl Monomorphizer<'_> {
             other => unreachable!("Expected built-in to be a function, found {other:?}"),
         };
 
-        let converted_return_type = Self::convert_type(return_type, location.clone())?;
+        let converted_return_type = Self::convert_type(return_type, location)?;
 
         let mut parameters = Vec::new();
         let body = match opcode {
             HandledOpcode::CheckedTransmute => {
                 assert_eq!(parameter_types.len(), 1);
                 let parameter_id = self.next_local_id();
-                let parameter_type = Self::convert_type(&parameter_types[0], location.clone())?;
+                let parameter_type = Self::convert_type(&parameter_types[0], location)?;
                 parameters = vec![(
                     parameter_id,
                     false,
@@ -66,7 +66,7 @@ impl Monomorphizer<'_> {
                     Visibility::Private,
                 )];
 
-                self.check_transmute(&parameter_types[0], &return_type, location)?;
+                self.check_transmute(&parameter_types[0], return_type, location)?;
 
                 ast::Expression::Ident(ast::Ident {
                     location: Some(location),
@@ -140,7 +140,7 @@ impl Monomorphizer<'_> {
         Expression::Literal(Literal::Vector(arr_literal))
     }
 
-    /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed
+    /// Implements `std::mem::zeroed` by returning an appropriate zeroed
     /// ast literal or collection node for the given type. Note that for functions
     /// there is no obvious zeroed value so this should be considered unsafe to use.
     pub(super) fn zeroed_value_of_type(

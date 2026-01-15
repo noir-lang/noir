@@ -387,6 +387,7 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         turbofish_generics: &[HirType],
         trait_method: Option<TraitItemId>,
+        evaluate_builtin: bool,
     ) -> Result<Definition, MonomorphizationError> {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
@@ -417,16 +418,21 @@ impl<'interner> Monomorphizer<'interner> {
                         );
                         let location = self.interner.expr_location(&expr_id);
                         let opcode = opcode.to_string();
-                        match self.try_evaluate_builtin(
-                            &opcode,
-                            typ,
-                            turbofish_generics,
-                            is_unconstrained,
-                            id,
-                            location,
-                        )? {
-                            Some(id) => Definition::Function(id),
-                            None => Definition::Builtin(opcode),
+
+                        if evaluate_builtin {
+                            match self.try_evaluate_builtin(
+                                &opcode,
+                                typ,
+                                turbofish_generics,
+                                is_unconstrained,
+                                id,
+                                location,
+                            )? {
+                                Some(id) => Definition::Function(id),
+                                None => Definition::Builtin(opcode),
+                            }
+                        } else {
+                            Definition::Builtin(opcode)
                         }
                     }
                     FunctionKind::Normal | FunctionKind::TraitFunctionWithoutBody => {
@@ -663,7 +669,9 @@ impl<'interner> Monomorphizer<'interner> {
         use ast::Literal::*;
 
         let expr = match self.interner.expression(&expr) {
-            HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics, false)?,
+            HirExpression::Ident(ident, generics) => {
+                self.ident(ident, expr, generics, false, true)?
+            }
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(fragments, idents, _length)) => {
                 let fields = try_vecmap(idents, |ident| self.expr(ident))?;
@@ -1302,6 +1310,10 @@ impl<'interner> Monomorphizer<'interner> {
         // of both (constrained, unconstrained). This is used only as an optimization to avoid
         // unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
+        // If true, evaluate some builtins to function values. This is disabled when codegening the
+        // function in a function call since we can avoid creating a new function and instead
+        // inline the body directly which keeps some minimal SSA pass tests working.
+        evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
@@ -1345,6 +1357,7 @@ impl<'interner> Monomorphizer<'interner> {
                             expr_id,
                             &typ,
                             generics,
+                            evaluate_builtin,
                         )
                     },
                 )
@@ -1410,9 +1423,16 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: ExprId,
         typ: &Type,
         generics: Option<Vec<HirType>>,
+        evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let definition =
-            self.lookup_function(func_id, expr_id, typ, &generics.unwrap_or_default(), None)?;
+        let definition = self.lookup_function(
+            func_id,
+            expr_id,
+            typ,
+            &generics.unwrap_or_default(),
+            None,
+            evaluate_builtin,
+        )?;
         let typ = Self::convert_type(typ, location)?;
         let location = Some(location);
         let id = self.next_ident_id();
@@ -1963,6 +1983,7 @@ impl<'interner> Monomorphizer<'interner> {
             &function_type,
             &[],
             Some(trait_item_id),
+            true,
         )? {
             Definition::Function(func_id) => func_id,
             _ => unreachable!(),
@@ -2719,7 +2740,7 @@ impl<'interner> Monomorphizer<'interner> {
         if let HirExpression::Ident(ident, generics) = self.interner.expression(&function) {
             // Check if this directly refers to a function
             if matches!(self.interner.definition(ident.id).kind, DefinitionKind::Function(_)) {
-                return self.ident(ident, function, generics, true);
+                return self.ident(ident, function, generics, true, false);
             }
         }
 
