@@ -239,6 +239,11 @@ pub enum BlackBoxFuncCall<F> {
         proof_type: u32,
         /// A predicate (true or false) to disable the recursive verification
         predicate: FunctionInput<F>,
+        /// Output witnesses for the return_data commitment from the verified proof.
+        /// This is a G1 point represented as 4 field elements (x_lo, x_hi, y_lo, y_hi).
+        /// This commitment binds to the data that flows into the verifying circuit's
+        /// corresponding call_data column via the databus consistency check.
+        output: Vec<Witness>,
     },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
@@ -318,9 +323,10 @@ impl<F> BlackBoxFuncCall<F> {
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
                 vec![outputs.0, outputs.1, outputs.2]
             }
-            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
+            BlackBoxFuncCall::RANGE { .. } => {
                 vec![]
             }
+            BlackBoxFuncCall::RecursiveAggregation { output, .. } => output.to_vec(),
         }
     }
 }
@@ -388,6 +394,7 @@ impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
                 key_hash,
                 proof_type: _,
                 predicate,
+                output: _,
             } => [key.as_slice(), proof, public_inputs, &[*key_hash], &[*predicate]].concat(),
         }
     }
@@ -504,13 +511,15 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
                 key_hash,
                 proof_type,
                 predicate,
+                output,
             } => {
                 let verification_key = slice_to_string(verification_key);
                 let proof = slice_to_string(proof);
                 let public_inputs = slice_to_string(public_inputs);
+                let output = slice_to_string(output);
                 write!(
                     f,
-                    "verification_key: {verification_key}, proof: {proof}, public_inputs: {public_inputs}, key_hash: {key_hash}, proof_type: {proof_type}, predicate: {predicate}"
+                    "verification_key: {verification_key}, proof: {proof}, public_inputs: {public_inputs}, key_hash: {key_hash}, proof_type: {proof_type}, predicate: {predicate}, output: {output}"
                 )?;
             }
             BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
@@ -753,9 +762,10 @@ mod arb {
                 input.clone(),
                 any::<u32>(),
                 input.clone(),
+                witness_vec.clone(),
             )
                 .prop_map(
-                    |(verification_key, proof, public_inputs, key_hash, proof_type, predicate)| {
+                    |(verification_key, proof, public_inputs, key_hash, proof_type, predicate, output)| {
                         BlackBoxFuncCall::RecursiveAggregation {
                             verification_key,
                             proof,
@@ -763,6 +773,7 @@ mod arb {
                             key_hash,
                             proof_type,
                             predicate,
+                            output,
                         }
                     },
                 );

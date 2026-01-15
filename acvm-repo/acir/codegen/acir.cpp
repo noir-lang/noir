@@ -2383,6 +2383,7 @@ namespace Acir {
             Acir::FunctionInput key_hash;
             uint32_t proof_type;
             Acir::FunctionInput predicate;
+            std::vector<Acir::Witness> output;
 
             friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
 
@@ -2396,6 +2397,7 @@ namespace Acir {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "verification_key", verification_key, 0);
@@ -2404,6 +2406,7 @@ namespace Acir {
                     Helpers::conv_fld_from_array(array, name, "key_hash", key_hash, 3);
                     Helpers::conv_fld_from_array(array, name, "proof_type", proof_type, 4);
                     Helpers::conv_fld_from_array(array, name, "predicate", predicate, 5);
+                    Helpers::conv_fld_from_array(array, name, "output", output, 6);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
                 }
@@ -4535,6 +4538,7 @@ namespace Acir {
         if (!(lhs.key_hash == rhs.key_hash)) { return false; }
         if (!(lhs.proof_type == rhs.proof_type)) { return false; }
         if (!(lhs.predicate == rhs.predicate)) { return false; }
+        if (!(lhs.output == rhs.output)) { return false; }
         return true;
     }
 
@@ -4549,6 +4553,7 @@ void serde::Serializable<Acir::BlackBoxFuncCall::RecursiveAggregation>::serializ
     serde::Serializable<decltype(obj.key_hash)>::serialize(obj.key_hash, serializer);
     serde::Serializable<decltype(obj.proof_type)>::serialize(obj.proof_type, serializer);
     serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
+    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
 }
 
 template <>
@@ -4561,6 +4566,7 @@ Acir::BlackBoxFuncCall::RecursiveAggregation serde::Deserializable<Acir::BlackBo
     obj.key_hash = serde::Deserializable<decltype(obj.key_hash)>::deserialize(deserializer);
     obj.proof_type = serde::Deserializable<decltype(obj.proof_type)>::deserialize(deserializer);
     obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
+    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
 

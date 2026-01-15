@@ -530,6 +530,9 @@ impl<'a> Parser<'a> {
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
+                self.eat_comma_or_error()?;
+
+                let output = self.parse_blackbox_outputs()?;
 
                 BlackBoxFuncCall::RecursiveAggregation {
                     verification_key,
@@ -538,6 +541,7 @@ impl<'a> Parser<'a> {
                     key_hash,
                     proof_type,
                     predicate,
+                    output,
                 }
             }
             BlackBoxFunc::EmbeddedCurveAdd => {

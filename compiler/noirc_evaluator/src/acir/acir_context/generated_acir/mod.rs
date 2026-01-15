@@ -319,6 +319,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                     key_hash,
                     proof_type: proof_type.to_u128() as u32,
                     predicate,
+                    output: outputs,
                 }
             }
             BlackBoxFunc::Poseidon2Permutation => {
@@ -743,8 +744,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // will be 3 field elements representing the point, i.e. (x,y,infinite)
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
 
-        // Recursive aggregation has a variable number of outputs
-        BlackBoxFunc::RecursiveAggregation => None,
+        // Recursive aggregation outputs 8 field elements representing the return_data commitment
+        // as a G1 point in bigfield format: [x_0, x_1, x_2, x_3, y_0, y_1, y_2, y_3]
+        BlackBoxFunc::RecursiveAggregation => Some(8),
 
         // AES encryption returns a variable number of outputs
         BlackBoxFunc::AES128Encrypt => None,

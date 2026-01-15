@@ -470,12 +470,14 @@ where
                 key_hash,
                 proof_type: _,
                 predicate,
+                output,
             } => {
                 self.fold_inputs(verification_key.as_slice());
                 self.fold_inputs(proof.as_slice());
                 self.fold_inputs(public_inputs.as_slice());
                 self.fold_input(key_hash);
                 self.fold_input(predicate);
+                self.fold_many(output.iter());
             }
             BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 self.fold_inputs(inputs.as_slice());

@@ -72,6 +72,14 @@ pub fn print<T>(input: T) {
 /// - proof_type: An identifier for the proving scheme used to generate the proof to be verified. This allows
 ///               for a single backend to support verifying multiple proving schemes.
 ///
+/// # Returns
+///
+/// Returns the `return_data` commitment from the verified proof as 8 field elements representing a G1 point
+/// in bigfield format: [x_0, x_1, x_2, x_3, y_0, y_1, y_2, y_3] where each coordinate uses 4 68-bit limbs.
+/// This commitment binds to the data that flows into the verifying circuit's corresponding `call_data` column
+/// via the databus consistency check. For circuits using the databus, this provides a cryptographic binding
+/// to the verified public inputs without additional hashing constraints.
+///
 /// # Constraining `key_hash`
 ///
 /// The Noir compiler does not by itself constrain that `key_hash` is a valid hash of `verification_key`.
@@ -84,11 +92,11 @@ pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     public_inputs: [Field; K],
     key_hash: Field,
     proof_type: u32,
-) {
+) -> [Field; 8] {
     if !crate::runtime::is_unconstrained() {
         crate::assert_constant(proof_type);
     }
-    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);
+    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type)
 }
 
 #[foreign(recursive_aggregation)]
@@ -98,7 +106,7 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
     public_inputs: [Field; K],
     key_hash: Field,
     proof_type: u32,
-) {}
+) -> [Field; 8] {}
 
 // Asserts that the given value is known at compile-time.
 // Useful for debugging for-loop bounds.

@@ -820,7 +820,7 @@ impl<'f> Validator<'f> {
                 //     public_inputs: [Field; K],
                 //     key_hash: Field,
                 //     proof_type: u32,
-                // ) {}
+                // ) -> [Field; 8] {}
                 assert_arguments_length(arguments, 5, "recursive_aggregation");
 
                 let verification_key = arguments[0];
@@ -846,7 +846,11 @@ impl<'f> Validator<'f> {
                 let proof_type_type = dfg.type_of_value(proof_type);
                 assert_u32(&proof_type_type, "recursive_aggregation proof_type");
 
-                self.assert_no_results(instruction, "recursive_aggregation");
+                // Returns [Field; 8] representing the return_data commitment as a G1 point
+                let result_type = self.assert_one_result(instruction, "recursive_aggregation");
+                let result_length =
+                    assert_field_array(&result_type, "recursive_aggregation result");
+                assert_array_length(result_length, 8, "recursive_aggregation result");
             }
             BlackBoxFunc::Sha256Compression => {
                 // fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
