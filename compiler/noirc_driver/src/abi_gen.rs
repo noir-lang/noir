@@ -156,9 +156,14 @@ pub(super) fn compute_function_abi(
 ) -> (Vec<AbiParameter>, Option<AbiType>) {
     let func_meta = context.def_interner.function_meta(func_id);
 
-    let (parameters, return_type) = func_meta.function_signature();
+    let parameters = func_meta.parameters.0.clone();
+    let return_type = match func_meta.return_type() {
+        Type::Unit => None,
+        other => Some(other),
+    };
+
     let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| abi_type_from_hir_type(context, &typ));
+    let return_type = return_type.map(|typ| abi_type_from_hir_type(context, typ));
     (parameters, return_type)
 }
 

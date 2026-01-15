@@ -71,6 +71,9 @@ impl<'a> VisitorReferenceFinder<'a> {
         &mut self,
         parsed_module: &ParsedModule,
     ) -> Option<(ReferenceId, Option<lsp_types::Location>)> {
+        // Find in the doc comments on the crate root
+        self.find_in_reference_doc_comments(ReferenceId::Module(self.module_id));
+
         parsed_module.accept(self);
 
         std::mem::take(&mut self.reference_id)

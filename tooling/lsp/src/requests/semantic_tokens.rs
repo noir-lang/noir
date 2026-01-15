@@ -22,7 +22,7 @@ use noirc_frontend::{
         Visitor,
     },
     elaborator::PrimitiveType,
-    hir::def_map::ModuleDefId,
+    hir::def_map::{ModuleDefId, ModuleId},
     lexer::Lexer,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
@@ -93,6 +93,11 @@ impl<'args> SemanticTokenCollector<'args> {
     }
 
     fn collect(&mut self, parsed_module: &noirc_frontend::ParsedModule) -> Vec<SemanticToken> {
+        // Also process doc comments for the crate root module
+        let local_module_id = self.args.def_maps[&self.args.crate_id].root();
+        let module_id = ModuleId { krate: self.args.crate_id, local_id: local_module_id };
+        self.process_reference_id(ReferenceId::Module(module_id));
+
         parsed_module.accept(self);
         std::mem::take(&mut self.tokens)
     }
