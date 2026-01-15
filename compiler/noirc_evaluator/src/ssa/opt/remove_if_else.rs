@@ -1,6 +1,8 @@
 //! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
+//! When vector size cannot be determined, some `Instruction::IfElse` may be left-over.
+//! The pass is run a second time later on to attempt to remove the remaining `Instruction::IfElse`
 //!
 //! ACIR/Brillig differences within this pass:
 //!   - This pass is strictly ACIR-only and never mutates brillig functions.
@@ -12,7 +14,8 @@
 //!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or vectors.
 //!     Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
-//!   - Postcondition: A program without any `IfElse` instructions.
+//!   - Postcondition: A program without `IfElse` instructions on arrays. Some may remain when vector
+//!     sizes could not be determined.
 //!
 //! Relevance to other passes:
 //!   - Flattening inserts `Instruction::IfElse` to merge array or vector values from an
@@ -21,6 +24,7 @@
 //!     and will cause a panic in the `remove_if_else` pass.
 //!   - Defunctionalize removes first-class function values from the program which eliminates the need
 //!     for remove-if-else to handle `Instruction::IfElse` returning function values.
+//!   - This pass must be run before Array Set Optimization pass which requires no `IfElse` instructions.
 //!
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
@@ -97,8 +101,6 @@
 //! the length of the merged vector resulting in a `make_array` instruction. This length will be the
 //! maximum length of the two input vectors. Note that the actual length of the merged vector should
 //! have been merged during flattening.
-
-use std::collections::hash_map::Entry;
 
 use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
@@ -190,8 +192,15 @@ impl Context {
                     let else_value = *else_value;
 
                     // Register values for the merger to use.
-                    self.ensure_capacity(context.dfg, then_value);
-                    self.ensure_capacity(context.dfg, else_value);
+                    // If we can't determine the capacity of either value, skip the instruction.
+                    if !self.ensure_capacity(context.dfg, then_value)
+                        || !self.ensure_capacity(context.dfg, else_value)
+                    {
+                        // Unable to determine vector sizes so the instructions cannot be merged.
+                        // Return Ok in order to skip this instruction. It will need to be handled
+                        // elsewhere.
+                        return Ok(());
+                    }
 
                     // Because the ValueMerger might produce some `array_get` instructions, we
                     // need those to always execute as otherwise they'll produce incorrect
@@ -285,39 +294,46 @@ impl Context {
     }
 
     /// Set the capacity of the new vector based on the capacity of the old array/vector.
+    /// Returns `false` if vector size could not be determined.
     fn set_capacity(
         &mut self,
         dfg: &DataFlowGraph,
         old: ValueId,
         new: ValueId,
         f: impl Fn(u32) -> u32,
-    ) {
+    ) -> bool {
         // No need to store the capacity of arrays, only vectors.
         if !matches!(dfg.type_of_value(new), Type::Vector(_)) {
-            return;
+            return true;
         }
-        let capacity = self.get_or_find_capacity(dfg, old);
-        self.vector_sizes.insert(new, f(capacity));
+        if let Some(capacity) = self.get_or_find_capacity(dfg, old) {
+            self.vector_sizes.insert(new, f(capacity));
+            return true;
+        }
+        false
     }
 
     /// Make sure the vector capacity is recorded.
-    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, vector: ValueId) {
-        self.set_capacity(dfg, vector, vector, |c| c);
+    /// Returns `false` if it could not set the capacity.
+    fn ensure_capacity(&mut self, dfg: &DataFlowGraph, vector: ValueId) -> bool {
+        self.set_capacity(dfg, vector, vector, |c| c)
     }
 
     /// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
-        match self.vector_sizes.entry(value) {
-            Entry::Occupied(entry) => *entry.get(),
-            Entry::Vacant(entry) => {
-                if let Some(length) = dfg.try_get_vector_capacity(value) {
-                    return *entry.insert(length);
-                }
-                // For non-constant vectors we can't tell the size, which would mean we can't merge it.
-                let dbg_value = &dfg[value];
-                unreachable!("ICE: No size for vector {value} = {dbg_value:?}")
-            }
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> Option<u32> {
+        // Check if already tracked
+        if let Some(&capacity) = self.vector_sizes.get(&value) {
+            return Some(capacity);
         }
+
+        // Try to get the capacity directly
+        if let Some(length) = dfg.try_get_vector_capacity(value) {
+            self.vector_sizes.insert(value, length);
+            return Some(length);
+        }
+
+        // For non-constant vectors we can't tell the size, which would mean we can't merge it.
+        None
     }
 
     /// If we have already determined a constant for the vector length, we can override the backing capacity
@@ -497,22 +513,31 @@ fn remove_if_else_pre_check(func: &Function) {
 ///
 /// Succeeds if:
 ///   - `func` is a Brillig function, OR
-///   - `func` does not contain any if-else instructions.
+///   - `func` does not contain any IfElse instructions on arrays.
+///
+/// IfElse instructions on vectors may remain if the vector size couldn't be determined
+/// (e.g., from black_box with unknown capacity).
 ///
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn remove_if_else_post_check(func: &Function) {
+    use crate::ssa::ir::types::Type;
+
     // Brillig functions should be unaffected.
     if func.runtime().is_brillig() {
         return;
     }
 
-    // Otherwise there should be no if-else instructions in any reachable block.
+    // There should be no IfElse instructions operating on arrays in any reachable block.
+    // IfElse on vectors may remain if the vector size couldn't be determined (e.g., from black_box).
     for block_id in func.reachable_blocks() {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
-            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
-                panic!("IfElse instruction still remains in ACIR function");
+            if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
+                let then_type = func.dfg.type_of_value(*then_value);
+                if matches!(then_type, Type::Array(_, _)) {
+                    panic!("IfElse instruction on array still remains in ACIR function");
+                }
             }
         }
     }
