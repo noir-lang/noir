@@ -237,7 +237,12 @@
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
@@ -395,9 +400,14 @@
 ) -&gt; (Vec&lt;AbiParameter&gt;, <span class="prelude-ty">Option</span>&lt;AbiType&gt;) {
     <span class="kw">let </span>func_meta = context.def_interner.function_meta(func_id);
 
-    <span class="kw">let </span>(parameters, return_type) = func_meta.function_signature();
+    <span class="kw">let </span>parameters = func_meta.parameters.<span class="number">0</span>.clone();
+    <span class="kw">let </span>return_type = <span class="kw">match </span>func_meta.return_type() {
+        Type::Unit =&gt; <span class="prelude-val">None</span>,
+        other =&gt; <span class="prelude-val">Some</span>(other),
+    };
+
     <span class="kw">let </span>parameters = into_abi_params(context, parameters);
-    <span class="kw">let </span>return_type = return_type.map(|typ| abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ));
+    <span class="kw">let </span>return_type = return_type.map(|typ| abi_type_from_hir_type(context, typ));
     (parameters, return_type)
 }
 

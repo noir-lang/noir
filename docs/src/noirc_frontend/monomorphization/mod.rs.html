@@ -3278,29 +3278,7 @@
 <a href="#3277" id="3277">3277</a>
 <a href="#3278" id="3278">3278</a>
 <a href="#3279" id="3279">3279</a>
-<a href="#3280" id="3280">3280</a>
-<a href="#3281" id="3281">3281</a>
-<a href="#3282" id="3282">3282</a>
-<a href="#3283" id="3283">3283</a>
-<a href="#3284" id="3284">3284</a>
-<a href="#3285" id="3285">3285</a>
-<a href="#3286" id="3286">3286</a>
-<a href="#3287" id="3287">3287</a>
-<a href="#3288" id="3288">3288</a>
-<a href="#3289" id="3289">3289</a>
-<a href="#3290" id="3290">3290</a>
-<a href="#3291" id="3291">3291</a>
-<a href="#3292" id="3292">3292</a>
-<a href="#3293" id="3293">3293</a>
-<a href="#3294" id="3294">3294</a>
-<a href="#3295" id="3295">3295</a>
-<a href="#3296" id="3296">3296</a>
-<a href="#3297" id="3297">3297</a>
-<a href="#3298" id="3298">3298</a>
-<a href="#3299" id="3299">3299</a>
-<a href="#3300" id="3300">3300</a>
-<a href="#3301" id="3301">3301</a>
-<a href="#3302" id="3302">3302</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3280" id="3280">3280</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3362,7 +3340,7 @@
     debug::DebugInstrumenter,
     hir_def::{
         expr::<span class="kw-2">*</span>,
-        function::{FunctionSignature, Parameters},
+        function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{<span class="self">self</span>, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
@@ -3505,10 +3483,10 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
     <span class="kw">let </span>debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
-    <span class="kw">let </span>function_sig = monomorphizer.compile_main(main)<span class="question-mark">?</span>;
+    monomorphizer.compile_main(main)<span class="question-mark">?</span>;
 
     monomorphizer.process_queue()<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(monomorphizer.into_program(function_sig))
+    <span class="prelude-val">Ok</span>(monomorphizer.into_program())
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'interner</span>&gt; Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {
@@ -3615,31 +3593,19 @@
     ///
     /// This will also run the ownership and proxies passes on the resulting
     /// program.
-    </span><span class="kw">pub fn </span>into_program(<span class="self">self</span>, function_sig: FunctionSignature) -&gt; Program {
-        <span class="kw">let </span>force_unconstrained = <span class="self">self</span>.force_unconstrained;
-        <span class="kw">let </span>func_sigs = <span class="self">self
-            </span>.finished_functions
-            .iter()
-            .flat_map(|(<span class="kw">_</span>, f)| {
-                <span class="kw">if </span>(!force_unconstrained &amp;&amp; f.inline_type.is_entry_point())
-                    || f.id == Program::main_id()
-                {
-                    <span class="prelude-val">Some</span>(f.func_sig.clone())
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
-            })
-            .collect();
-
-        <span class="kw">let </span>functions = vecmap(<span class="self">self</span>.finished_functions, |(<span class="kw">_</span>, f)| f);
+    </span><span class="kw">pub fn </span>into_program(<span class="self">self</span>) -&gt; Program {
+        <span class="kw">let </span><span class="kw-2">mut </span>functions = vecmap(<span class="self">self</span>.finished_functions, |(<span class="kw">_</span>, f)| f);
         <span class="kw">let </span>globals = <span class="self">self</span>.finished_globals.into_iter().collect::&lt;BTreeMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;();
         <span class="kw">let </span>(debug_variables, debug_functions, debug_types) =
             <span class="self">self</span>.debug_type_tracker.extract_vars_and_types();
 
+        <span class="kw">for </span>f <span class="kw">in </span>functions.iter_mut() {
+            <span class="kw">let </span>is_acir_entry_point = !<span class="self">self</span>.force_unconstrained &amp;&amp; f.inline_type.is_entry_point();
+            f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
+        }
+
         Program::new(
             functions,
-            func_sigs,
-            function_sig,
             <span class="self">self</span>.return_location,
             globals,
             debug_variables,
@@ -3767,13 +3733,12 @@
     <span class="doccomment">/// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
     ///
     /// Sets the `return_location` expected by `into_program` later.
-    /// Returns the [FunctionSignature] of `main`, expected to be passed to `into_program`.
     ///
     /// Panics if some other function has already been monomorphized before.
     </span><span class="kw">pub fn </span>compile_main(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         main_id: node_interner::FuncId,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;FunctionSignature, MonomorphizationError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
         <span class="kw">let </span>new_main_id = <span class="self">self</span>.next_function_id();
         <span class="macro">assert_eq!</span>(new_main_id, Program::main_id(), <span class="string">"expected main to be monomorphized first"</span>);
 
@@ -3788,8 +3753,7 @@
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                 },
             );
-        <span class="kw">let </span>main_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>main_id);
-        <span class="prelude-val">Ok</span>(main_meta.function_signature())
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Monomorphizes the given function.
@@ -3814,14 +3778,6 @@
         }
 
         <span class="kw">let </span>meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>f).clone();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>func_sig = meta.function_signature();
-        <span class="comment">// Follow the bindings of the function signature for entry points
-        // which are not `main` such as foldable functions.
-        </span><span class="kw">for </span>param <span class="kw">in </span>func_sig.<span class="number">0</span>.iter_mut() {
-            param.<span class="number">1 </span>= param.<span class="number">1</span>.follow_bindings();
-        }
-        func_sig.<span class="number">1 </span>= func_sig.<span class="number">1</span>.map(|return_type| return_type.follow_bindings());
 
         <span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>f);
         <span class="kw">let </span>name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>f).to_owned();
@@ -3861,7 +3817,7 @@
             return_visibility,
             unconstrained,
             inline_type,
-            func_sig,
+            is_entry_point: <span class="bool-val">false</span>,
         };
 
         <span class="self">self</span>.push_function(id, function);
@@ -5764,7 +5720,7 @@
             return_visibility: Visibility::Private,
             unconstrained: <span class="self">self</span>.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: <span class="bool-val">false</span>,
         };
         <span class="self">self</span>.push_function(id, function);
 
@@ -5907,7 +5863,7 @@
             return_visibility: Visibility::Private,
             unconstrained: <span class="self">self</span>.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: <span class="bool-val">false</span>,
         };
         <span class="self">self</span>.push_function(id, function);
 
@@ -6103,7 +6059,7 @@
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: <span class="bool-val">false</span>,
         };
         <span class="self">self</span>.push_function(id, function);
 

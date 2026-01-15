@@ -1375,7 +1375,7 @@
 /// This function will generate the SSA but does not perform any optimizations on it.
 </span><span class="kw">pub fn </span>generate_ssa(program: Program) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
     <span class="comment">// see which parameter has call_data/return_data attribute
-    </span><span class="kw">let </span>is_databus = DataBusBuilder::is_databus(<span class="kw-2">&amp;</span>program.main_function_signature);
+    </span><span class="kw">let </span>is_databus = DataBusBuilder::is_databus(program.main_function_parameters());
 
     <span class="kw">let </span>is_return_data = <span class="macro">matches!</span>(program.return_visibility(), Visibility::ReturnData);
 

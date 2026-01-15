@@ -311,7 +311,7 @@
     },
 };
 <span class="kw">use </span>acvm::{FieldElement, acir::brillig::lengths::FlattenedLength};
-<span class="kw">use </span>noirc_frontend::hir_def::function::FunctionSignature;
+<span class="kw">use </span>noirc_frontend::monomorphization::ast::Parameters;
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -348,16 +348,16 @@
 
     <span class="doccomment">/// Generates a vector telling which flattened parameters from the given function signature
     /// are tagged with databus visibility
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_databus(main_signature: <span class="kw-2">&amp;</span>FunctionSignature) -&gt; Vec&lt;DatabusVisibility&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_databus(main_parameters: <span class="kw-2">&amp;</span>Parameters) -&gt; Vec&lt;DatabusVisibility&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>params_is_databus = Vec::new();
 
-        <span class="kw">for </span>param <span class="kw">in </span><span class="kw-2">&amp;</span>main_signature.<span class="number">0 </span>{
-            <span class="kw">let </span>is_databus = <span class="kw">match </span>param.<span class="number">2 </span>{
+        <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, visibility) <span class="kw">in </span>main_parameters {
+            <span class="kw">let </span>is_databus = <span class="kw">match </span>visibility {
                 Visibility::Public | Visibility::Private =&gt; DatabusVisibility::None,
-                Visibility::CallData(id) =&gt; DatabusVisibility::CallData(id),
+                Visibility::CallData(id) =&gt; DatabusVisibility::CallData(<span class="kw-2">*</span>id),
                 Visibility::ReturnData =&gt; DatabusVisibility::ReturnData,
             };
-            <span class="kw">let </span>len = param.<span class="number">1</span>.field_count(<span class="kw-2">&amp;</span>param.<span class="number">0</span>.location()) <span class="kw">as </span>usize;
+            <span class="kw">let </span>len = typ.entry_point_field_count() <span class="kw">as </span>usize;
             params_is_databus.extend(<span class="macro">vec!</span>[is_databus; len]);
         }
         params_is_databus

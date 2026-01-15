@@ -570,7 +570,9 @@
 <a href="#569" id="569">569</a>
 <a href="#570" id="570">570</a>
 <a href="#571" id="571">571</a>
-<a href="#572" id="572">572</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -593,14 +595,15 @@
 };
 
 <span class="kw">use </span>ir::instruction::ErrorType;
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::{
     debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
 };
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
-<span class="kw">use </span>noirc_frontend::shared::Visibility;
-<span class="kw">use </span>noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+<span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
+<span class="kw">use </span>noirc_frontend::{monomorphization::ast, shared::Visibility};
 <span class="kw">use </span>ssa_gen::Ssa;
 <span class="kw">use </span>tracing::{Level, span};
 
@@ -980,8 +983,8 @@
     <span class="kw">let </span>debug_types = program.debug_types.clone();
     <span class="kw">let </span>debug_functions = program.debug_functions.clone();
 
-    <span class="kw">let </span>arg_size_and_visibilities: Vec&lt;Vec&lt;(u32, Visibility)&gt;&gt; =
-        program.function_signatures.iter().map(resolve_function_signature).collect();
+    <span class="kw">let </span>entry_points = program.functions.iter().filter(|function| function.is_entry_point);
+    <span class="kw">let </span>arg_size_and_visibilities = vecmap(entry_points, resolve_function_signature);
 
     <span class="kw">let </span>artifacts = optimize_into_acir(program, options, passes, files)<span class="question-mark">?</span>;
 
@@ -1032,11 +1035,12 @@
     SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
-<span class="kw">fn </span>resolve_function_signature(func_sig: <span class="kw-2">&amp;</span>FunctionSignature) -&gt; Vec&lt;(u32, Visibility)&gt; {
-    func_sig
-        .<span class="number">0
-        </span>.iter()
-        .map(|(pattern, typ, visibility)| (typ.field_count(<span class="kw-2">&amp;</span>pattern.location()), <span class="kw-2">*</span>visibility))
+<span class="doccomment">/// Given a function, return each parameter's field count and visibility
+</span><span class="kw">fn </span>resolve_function_signature(function: <span class="kw-2">&amp;</span>ast::Function) -&gt; Vec&lt;(u32, Visibility)&gt; {
+    function
+        .parameters
+        .iter()
+        .map(|(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, visibility)| (typ.entry_point_field_count(), <span class="kw-2">*</span>visibility))
         .collect()
 }
 

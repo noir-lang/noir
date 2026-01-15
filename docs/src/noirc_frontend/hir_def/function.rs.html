@@ -222,17 +222,7 @@
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
@@ -322,8 +312,6 @@
         Parameters(vec)
     }
 }
-
-<span class="kw">pub type </span>FunctionSignature = (Vec&lt;Param&gt;, <span class="prelude-ty">Option</span>&lt;Type&gt;);
 
 <span class="doccomment">/// A FuncMeta contains the signature of the function and any associated meta data like
 /// the function's Location, FunctionKind, and attributes. If the function's body is
@@ -425,14 +413,6 @@
     /// an empty body, and we don't check for unused parameters.
     </span><span class="kw">pub fn </span>is_stub(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.kind.can_ignore_return_type()
-    }
-
-    <span class="kw">pub fn </span>function_signature(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FunctionSignature {
-        <span class="kw">let </span>return_type = <span class="kw">match </span><span class="self">self</span>.return_type() {
-            Type::Unit =&gt; <span class="prelude-val">None</span>,
-            typ =&gt; <span class="prelude-val">Some</span>(typ.clone()),
-        };
-        (<span class="self">self</span>.parameters.<span class="number">0</span>.clone(), return_type)
     }
 
     <span class="doccomment">/// Gives the (uninstantiated) return type of this function.

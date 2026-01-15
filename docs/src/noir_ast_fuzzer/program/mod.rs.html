@@ -598,16 +598,7 @@
 <a href="#597" id="597">597</a>
 <a href="#598" id="598">598</a>
 <a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#600" id="600">600</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -984,8 +975,8 @@
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
-            func_sig: decl.signature(),
-        };
+            is_entry_point: id == FuncId(<span class="number">0</span>), <span class="comment">// we only need main as an entry point
+        </span>};
         <span class="self">self</span>.functions.insert(id, func);
         <span class="prelude-val">Ok</span>(())
     }
@@ -1000,19 +991,10 @@
     <span class="doccomment">/// Return the generated [Program].
     </span><span class="kw">fn </span>finalize(<span class="self">self</span>) -&gt; Program {
         <span class="kw">let </span>functions = <span class="self">self</span>.functions.into_values().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-        <span class="comment">// The signatures should only contain entry functions. Currently that's just `main`.
-        </span><span class="kw">let </span>function_signatures =
-            functions.iter().take(<span class="number">1</span>).map(|f| f.func_sig.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-        <span class="kw">let </span>main_function_signature = function_signatures[<span class="number">0</span>].clone();
-
         <span class="kw">let </span>globals = <span class="self">self</span>.globals.into_iter().collect();
 
         <span class="kw">let </span>program = Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location: <span class="prelude-val">None</span>,
             globals,
             debug_variables: Default::default(),

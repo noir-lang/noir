@@ -707,12 +707,36 @@
 <a href="#706" id="706">706</a>
 <a href="#707" id="707">707</a>
 <a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 <span class="kw">use </span>noirc_errors::Location;
 
+<span class="kw">use </span><span class="kw">crate</span>::token::FmtStrFragment;
 <span class="kw">use crate</span>::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
@@ -720,7 +744,6 @@
     signed_field::SignedField,
     token::Attributes,
 };
-<span class="kw">use crate</span>::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 <span class="kw">use crate</span>::{shared::Visibility, token::FunctionAttributeKind};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -1225,7 +1248,7 @@
     <span class="kw">pub </span>return_visibility: Visibility,
     <span class="kw">pub </span>unconstrained: bool,
     <span class="kw">pub </span>inline_type: InlineType,
-    <span class="kw">pub </span>func_sig: FunctionSignature,
+    <span class="kw">pub </span>is_entry_point: bool,
 }
 
 <span class="doccomment">/// Compared to hir_def::types::Type, this monomorphized Type has:
@@ -1269,13 +1292,36 @@
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
+
+    <span class="doccomment">/// Returns the number of field elements required to represent the type once encoded
+    /// as a parameter to an entry point function.
+    ///
+    /// Panics if the type is not valid as a parameter to main.
+    </span><span class="kw">pub fn </span>entry_point_field_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="kw">match </span><span class="self">self </span>{
+            Type::Field | Type::Integer(..) | Type::Bool =&gt; <span class="number">1</span>,
+            Type::Array(length, typ) =&gt; {
+                <span class="kw">let </span>typ = typ.as_ref();
+                length.checked_mul(typ.entry_point_field_count()).expect(<span class="string">"Array length overflow"</span>)
+            }
+            Type::String(length) =&gt; <span class="kw-2">*</span>length,
+            Type::Tuple(fields) =&gt; fields.iter().fold(<span class="number">0</span>, |acc, field_typ| {
+                acc.checked_add(field_typ.entry_point_field_count()).expect(<span class="string">"Tuple size overflow"</span>)
+            }),
+            Type::Function(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Vector(<span class="kw">_</span>)
+            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main: {self:?}"</span>)
+            }
+        }
+    }
 }
 
 <span class="attr">#[derive(Debug, Clone, Hash, Default)]
 </span><span class="kw">pub struct </span>Program {
     <span class="kw">pub </span>functions: Vec&lt;Function&gt;,
-    <span class="kw">pub </span>function_signatures: Vec&lt;FunctionSignature&gt;,
-    <span class="kw">pub </span>main_function_signature: FunctionSignature,
     <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
     <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
     <span class="kw">pub </span>debug_variables: DebugVariables,
@@ -1287,8 +1333,6 @@
     <span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">pub fn </span>new(
         functions: Vec&lt;Function&gt;,
-        function_signatures: Vec&lt;FunctionSignature&gt;,
-        main_function_signature: FunctionSignature,
         return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
         globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
         debug_variables: DebugVariables,
@@ -1297,8 +1341,6 @@
     ) -&gt; Program {
         Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location,
             globals,
             debug_variables,
@@ -1336,6 +1378,10 @@
 
     <span class="kw">pub fn </span>return_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Visibility {
         <span class="self">self</span>.main().return_visibility
+    }
+
+    <span class="kw">pub fn </span>main_function_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Parameters {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.main().parameters
     }
 }
 

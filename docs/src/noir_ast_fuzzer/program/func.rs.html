@@ -2369,48 +2369,7 @@
 <a href="#2368" id="2368">2368</a>
 <a href="#2369" id="2369">2369</a>
 <a href="#2370" id="2370">2370</a>
-<a href="#2371" id="2371">2371</a>
-<a href="#2372" id="2372">2372</a>
-<a href="#2373" id="2373">2373</a>
-<a href="#2374" id="2374">2374</a>
-<a href="#2375" id="2375">2375</a>
-<a href="#2376" id="2376">2376</a>
-<a href="#2377" id="2377">2377</a>
-<a href="#2378" id="2378">2378</a>
-<a href="#2379" id="2379">2379</a>
-<a href="#2380" id="2380">2380</a>
-<a href="#2381" id="2381">2381</a>
-<a href="#2382" id="2382">2382</a>
-<a href="#2383" id="2383">2383</a>
-<a href="#2384" id="2384">2384</a>
-<a href="#2385" id="2385">2385</a>
-<a href="#2386" id="2386">2386</a>
-<a href="#2387" id="2387">2387</a>
-<a href="#2388" id="2388">2388</a>
-<a href="#2389" id="2389">2389</a>
-<a href="#2390" id="2390">2390</a>
-<a href="#2391" id="2391">2391</a>
-<a href="#2392" id="2392">2392</a>
-<a href="#2393" id="2393">2393</a>
-<a href="#2394" id="2394">2394</a>
-<a href="#2395" id="2395">2395</a>
-<a href="#2396" id="2396">2396</a>
-<a href="#2397" id="2397">2397</a>
-<a href="#2398" id="2398">2398</a>
-<a href="#2399" id="2399">2399</a>
-<a href="#2400" id="2400">2400</a>
-<a href="#2401" id="2401">2401</a>
-<a href="#2402" id="2402">2402</a>
-<a href="#2403" id="2403">2403</a>
-<a href="#2404" id="2404">2404</a>
-<a href="#2405" id="2405">2405</a>
-<a href="#2406" id="2406">2406</a>
-<a href="#2407" id="2407">2407</a>
-<a href="#2408" id="2408">2408</a>
-<a href="#2409" id="2409">2409</a>
-<a href="#2410" id="2410">2410</a>
-<a href="#2411" id="2411">2411</a>
-<a href="#2412" id="2412">2412</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2371" id="2371">2371</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -2421,11 +2380,7 @@
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
-    hir_def::{
-        <span class="self">self</span>,
-        expr::{Constructor, HirIdent},
-        stmt::HirPattern,
-    },
+    hir_def::expr::Constructor,
     monomorphization::{
         append_printable_type_info_for_type,
         ast::{
@@ -2434,7 +2389,6 @@
             Parameters, Program, Type, While,
         },
     },
-    node_interner::DefinitionId,
     shared::{Signedness, Visibility},
     signed_field::SignedField,
 };
@@ -2467,20 +2421,6 @@
 }
 
 <span class="kw">impl </span>FunctionDeclaration {
-    <span class="doccomment">/// Generate a HIR function signature.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>signature(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; hir_def::function::FunctionSignature {
-        <span class="kw">let </span>param_types = <span class="self">self
-            </span>.params
-            .iter()
-            .map(|(_id, mutable, _name, typ, vis)| hir_param(<span class="kw-2">*</span>mutable, typ, <span class="kw-2">*</span>vis))
-            .collect();
-
-        <span class="kw">let </span>return_type =
-            (!types::is_unit(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)).then(|| types::to_hir_type(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type));
-
-        (param_types, return_type)
-    }
-
     <span class="doccomment">/// Check if the return type contain a reference.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>returns_refs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         types::contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)
@@ -2496,28 +2436,6 @@
         <span class="self">self</span>.returns_refs()
             || <span class="self">self</span>.params.iter().any(|(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>)| types::contains_reference(typ))
     }
-}
-
-<span class="doccomment">/// HIR representation of a function parameter.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>hir_param(
-    mutable: bool,
-    typ: <span class="kw-2">&amp;</span>Type,
-    vis: Visibility,
-) -&gt; (HirPattern, hir_def::types::Type, Visibility) {
-    <span class="comment">// The pattern doesn't seem to be used in `ssa::create_program`,
-    // apart from its location, so it shouldn't matter what we put into it.
-    </span><span class="kw">let </span><span class="kw-2">mut </span>pat = HirPattern::Identifier(HirIdent {
-        location: Location::dummy(),
-        id: DefinitionId::dummy_id(),
-        impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-    });
-    <span class="kw">if </span>mutable {
-        pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-    }
-
-    <span class="kw">let </span>typ = types::to_hir_type(typ);
-
-    (pat, typ, vis)
 }
 
 <span class="doccomment">/// Help avoid infinite recursion by limiting which function can call which other one.

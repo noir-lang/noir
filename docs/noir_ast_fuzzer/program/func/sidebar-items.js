@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["CONSTRAIN_MSG_TYPE"],"fn":["can_call","hir_param","index_name","local_name"],"struct":["Flags","FunctionContext","FunctionDeclaration","LValueWithMeta"],"type":["TrackedExpression"]};
+window.SIDEBAR_ITEMS = {"constant":["CONSTRAIN_MSG_TYPE"],"fn":["can_call","index_name","local_name"],"struct":["Flags","FunctionContext","FunctionDeclaration","LValueWithMeta"],"type":["TrackedExpression"]};
