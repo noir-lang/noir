@@ -51,13 +51,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Emit overflow check for addition: traps if `lhs > result` (i.e., overflow occurred).
     /// Assumes the addition `result = lhs + rhs` has already been performed.
-    pub(crate) fn codegen_add_overflow_check(
-        &mut self,
-        lhs: MemoryAddress,
-        result: MemoryAddress,
-    ) {
+    pub(crate) fn codegen_add_overflow_check(&mut self, lhs: MemoryAddress, result: MemoryAddress) {
         let no_overflow = self.allocate_single_addr_bool();
-        self.memory_op_instruction(lhs, result, no_overflow.address, BrilligBinaryOp::LessThanEquals);
+        self.memory_op_instruction(
+            lhs,
+            result,
+            no_overflow.address,
+            BrilligBinaryOp::LessThanEquals,
+        );
         self.codegen_constrain(*no_overflow, Some("attempt to add with overflow".to_string()));
     }
 
@@ -78,9 +79,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             ctx.memory_op_instruction(result, rhs, quotient.address, BrilligBinaryOp::UnsignedDiv);
 
             let no_overflow = ctx.allocate_single_addr_bool();
-            ctx.memory_op_instruction(quotient.address, lhs, no_overflow.address, BrilligBinaryOp::Equals);
+            ctx.memory_op_instruction(
+                quotient.address,
+                lhs,
+                no_overflow.address,
+                BrilligBinaryOp::Equals,
+            );
 
-            ctx.codegen_constrain(*no_overflow, Some("attempt to multiply with overflow".to_string()));
+            ctx.codegen_constrain(
+                *no_overflow,
+                Some("attempt to multiply with overflow".to_string()),
+            );
         });
     }
 

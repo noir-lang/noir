@@ -75,7 +75,11 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     // The target size is the source size plus the number of items we are pushing.
     // Uses checked addition to trap on overflow.
     let target_size = brillig_context.allocate_single_addr_usize();
-    brillig_context.codegen_checked_add(source_size.address, item_push_count_arg, target_size.address);
+    brillig_context.codegen_checked_add(
+        source_size.address,
+        item_push_count_arg,
+        target_size.address,
+    );
 
     // The strategy is to reallocate first and then depending if it's push back or not, copy the items or not.
     reallocate_vector_for_insertion(
