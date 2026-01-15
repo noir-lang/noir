@@ -8,8 +8,8 @@ enum Foo<let N: u32> {
 }
 
 fn main() {
-    let _: Foo<1> = Foo::<N>::B;
-    let fb2: Foo<2> = Foo::<N>::B;
+    let _: Foo<1> = Foo::<1>::B;
+    let fb2: Foo<2> = Foo::<2>::B;
     let fa2: Foo<2> = Foo::A([1_u32, 2_u32]);
     foo(fb2);
     foo(fa2);

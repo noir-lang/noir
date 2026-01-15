@@ -12,16 +12,16 @@ struct Bar<T> {
 }
 
 fn main() {
-    let _: Foo<bool> = Foo::<T>::B;
+    let _: Foo<bool> = Foo::<bool>::B;
     let fa: Foo<str<5>> = Foo::A("hello");
-    let fb: Foo<str<5>> = Foo::<T>::B;
+    let fb: Foo<str<5>> = Foo::<str<5>>::B;
     foo(fa);
     foo(fb);
-    let mut b: Bar<bool> = Bar::<bool> { value: Foo::<T>::B };
-    b.value = Foo::<T>::B;
-    let b: Bar<str<5>> = Bar::<str<5>> { value: Foo::<T>::B };
+    let mut b: Bar<bool> = Bar::<bool> { value: Foo::<bool>::B };
+    b.value = Foo::<bool>::B;
+    let b: Bar<str<5>> = Bar::<str<5>> { value: Foo::<str<5>>::B };
     bar(b);
-    let fs: [Foo<str<5>>; 2] = [Foo::<T>::B; 2];
+    let fs: [Foo<str<5>>; 2] = [Foo::<str<5>>::B; 2];
     for i in 0_u32..2_u32 {
         foo(fs[i]);
     }
