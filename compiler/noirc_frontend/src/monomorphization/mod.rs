@@ -50,7 +50,7 @@
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
-use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
+use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
@@ -59,7 +59,7 @@ use crate::{
     debug::DebugInstrumenter,
     hir_def::{
         expr::*,
-        function::{FunctionSignature, Parameters},
+        function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
@@ -71,6 +71,7 @@ use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::borrow::Cow;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -116,8 +117,12 @@ pub struct Monomorphizer<'interner> {
     /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
-    /// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
-    globals: HashMap<node_interner::GlobalId, GlobalId>,
+    /// Globals are keyed by their unique ID and their type, which should create a single global
+    /// instance per generic combination.
+    ///
+    /// The alternative would be to use default types for unused generic parameters,
+    /// but that could fail during SSA validation.
+    globals: HashMap<node_interner::GlobalId, HashMap<HirType, GlobalId>>,
 
     finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
 
@@ -203,10 +208,10 @@ pub fn monomorphize_debug(
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
-    let function_sig = monomorphizer.compile_main(main)?;
+    monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
-    Ok(monomorphizer.into_program(function_sig))
+    Ok(monomorphizer.into_program())
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -313,31 +318,19 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// This will also run the ownership and proxies passes on the resulting
     /// program.
-    pub fn into_program(self, function_sig: FunctionSignature) -> Program {
-        let force_unconstrained = self.force_unconstrained;
-        let func_sigs = self
-            .finished_functions
-            .iter()
-            .flat_map(|(_, f)| {
-                if (!force_unconstrained && f.inline_type.is_entry_point())
-                    || f.id == Program::main_id()
-                {
-                    Some(f.func_sig.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let functions = vecmap(self.finished_functions, |(_, f)| f);
+    pub fn into_program(self) -> Program {
+        let mut functions = vecmap(self.finished_functions, |(_, f)| f);
         let globals = self.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
         let (debug_variables, debug_functions, debug_types) =
             self.debug_type_tracker.extract_vars_and_types();
 
+        for f in functions.iter_mut() {
+            let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
+            f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
+        }
+
         Program::new(
             functions,
-            func_sigs,
-            function_sig,
             self.return_location,
             globals,
             debug_variables,
@@ -484,13 +477,12 @@ impl<'interner> Monomorphizer<'interner> {
     /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
     ///
     /// Sets the `return_location` expected by `into_program` later.
-    /// Returns the [FunctionSignature] of `main`, expected to be passed to `into_program`.
     ///
     /// Panics if some other function has already been monomorphized before.
     pub fn compile_main(
         &mut self,
         main_id: node_interner::FuncId,
-    ) -> Result<FunctionSignature, MonomorphizationError> {
+    ) -> Result<(), MonomorphizationError> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id(), "expected main to be monomorphized first");
 
@@ -505,8 +497,7 @@ impl<'interner> Monomorphizer<'interner> {
                     _ => None,
                 },
             );
-        let main_meta = self.interner.function_meta(&main_id);
-        Ok(main_meta.function_signature())
+        Ok(())
     }
 
     /// Monomorphizes the given function.
@@ -531,14 +522,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
-
-        let mut func_sig = meta.function_signature();
-        // Follow the bindings of the function signature for entry points
-        // which are not `main` such as foldable functions.
-        for param in func_sig.0.iter_mut() {
-            param.1 = param.1.follow_bindings();
-        }
-        func_sig.1 = func_sig.1.map(|return_type| return_type.follow_bindings());
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -578,7 +561,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility,
             unconstrained,
             inline_type,
-            func_sig,
+            is_entry_point: false,
         };
 
         self.push_function(id, function);
@@ -665,6 +648,19 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
+        self.expr_with_target_type(expr, None)
+    }
+
+    /// Monomorphize an expression with a target type.
+    ///
+    /// This can be used when we have a type that contains bound type variables on the LHS,
+    /// and a type with unbound named generic on the RHS, and we don't want the unbound
+    /// types to be converted to default values.
+    fn expr_with_target_type(
+        &mut self,
+        expr: ExprId,
+        target_type: Option<&Type>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -855,7 +851,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
                 ast::Expression::Tuple(fields)
             }
-            HirExpression::Constructor(constructor) => self.constructor(constructor, expr)?,
+            HirExpression::Constructor(constructor) => {
+                let typ = self.expr_or_target_type(expr, target_type);
+                self.constructor(constructor, expr, typ.as_ref())?
+            }
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
@@ -865,11 +864,28 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("unquote expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
-                self.enum_constructor(constructor, expr)?
+                let typ = self.expr_or_target_type(expr, target_type);
+                self.enum_constructor(constructor, expr, typ.as_ref())?
             }
         };
 
         Ok(expr)
+    }
+
+    /// Return the target type if given, or the type of the expression if the target is empty.
+    ///
+    /// This is used in cases where the target type might have more bound generic type variables
+    /// than the expression, and unification is not feasible because the expression uses unbound
+    /// named generics, which don't get unified.
+    fn expr_or_target_type<'a>(
+        &self,
+        expr: ExprId,
+        target_type: Option<&'a Type>,
+    ) -> Cow<'a, HirType> {
+        match target_type {
+            Some(typ) => Cow::Borrowed(typ),
+            None => Cow::Owned(self.interner.id_type(expr)),
+        }
     }
 
     /// True if a value of the given type contains a reference value.
@@ -1076,11 +1092,11 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         constructor: HirConstructorExpression,
         id: ExprId,
+        typ: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
 
-        let typ = self.interner.id_type(id);
-        let field_types = unwrap_struct_type(&typ, location)?;
+        let field_types = unwrap_struct_type(typ, location)?;
 
         let field_type_map =
             btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
@@ -1146,10 +1162,10 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         constructor: HirEnumConstructorExpression,
         id: ExprId,
+        typ: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
-        let typ = self.interner.id_type(id);
-        let variants = unwrap_enum_type(&typ, location)?;
+        let variants = unwrap_enum_type(typ, location)?;
 
         // Fill in each field of the translated enum tuple.
         // For most fields this will be simply `std::mem::zeroed::<T>()`,
@@ -1482,8 +1498,12 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
-        let expr = if let Some(seen_global) = self.globals.get(&id) {
-            let typ = Self::convert_type(typ, location)?;
+
+        // Follow bindings otherwise it's not safe to use it as a hash map key.
+        let typ = typ.follow_bindings();
+
+        let expr = if let Some(seen_global) = self.globals.get(&id).and_then(|m| m.get(&typ)) {
+            let typ = Self::convert_type(&typ, location)?;
             let ident = ast::Ident {
                 location: Some(location),
                 definition: Definition::Global(*seen_global),
@@ -1494,6 +1514,7 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
+            // Globals have been evaluated with the comptime interpreter. Convert that value to HIR.
             let (expr, contains_function) = if let GlobalValue::Resolved(value) =
                 global.value.clone()
             {
@@ -1508,7 +1529,11 @@ impl<'interner> Monomorphizer<'interner> {
                 );
             };
 
-            let expr = self.expr(expr)?;
+            // The type of the expression on the RHS itself might be a `Forall` and/or contain unbound `NamedGeneric`s,
+            // while the type of the type on the LHS has bound `TypeVariable` variables. We cannot bind them,
+            // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
+            // into expression specific to the LHS, so we are using it as the target type.
+            let expr = self.expr_with_target_type(expr, Some(&typ))?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
@@ -1519,8 +1544,8 @@ impl<'interner> Monomorphizer<'interner> {
             // placing a closure in the global context to change the final result of the program.
             if !contains_function {
                 let new_id = self.next_global_id();
-                self.globals.insert(id, new_id);
-                let typ = Self::convert_type(typ, location)?;
+                self.globals.entry(id).or_default().insert(typ.clone(), new_id);
+                let typ = Self::convert_type(&typ, location)?;
                 self.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 let ident = ast::Ident {
                     location: Some(location),
@@ -1568,9 +1593,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
-                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
@@ -1580,9 +1602,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(size, fields) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
-                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
@@ -1621,13 +1640,8 @@ impl<'interner> Monomorphizer<'interner> {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                type_var.bind(HirType::default_int_or_field_type());
-                // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
-                ast::Type::Field
+                // This used to default to Field, but doing so could result in an invalid SSA.
+                return Err(MonomorphizationError::NoDefaultType { location });
             }
 
             HirType::CheckedCast { from, to } => {
@@ -2399,7 +2413,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
@@ -2542,7 +2556,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
@@ -2805,7 +2819,7 @@ fn unwrap_enum_type(
     typ: &HirType,
     location: Location,
 ) -> Result<Vec<(String, Vec<HirType>)>, MonomorphizationError> {
-    match typ.unwrap_forall().1.follow_bindings() {
+    match typ.as_monotype().follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {

@@ -97,7 +97,7 @@ impl Monomorphizer<'_> {
                 return_visibility: Visibility::Private,
                 unconstrained: is_unconstrained,
                 inline_type: InlineType::InlineAlways,
-                func_sig: Default::default(),
+                is_entry_point: false,
             },
         );
         self.define_function(id, typ, turbofish_generics, is_unconstrained, new_function_id);
@@ -240,7 +240,7 @@ impl Monomorphizer<'_> {
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
-            func_sig: Default::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
