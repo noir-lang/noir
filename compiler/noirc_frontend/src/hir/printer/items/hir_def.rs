@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
@@ -853,11 +855,16 @@ impl ItemPrinter<'_, '_> {
                 let typ = self.interner.definition_type(global_info.definition_id);
 
                 // Special case: the global is an enum value
-                let typ = if let Type::Forall(_, typ) = typ { *typ } else { typ };
-                if let Type::DataType(data_type, _generics) = &typ {
+                let typ = typ.as_monotype();
+                if let Type::DataType(data_type, _generics) = typ {
                     let data_type = data_type.borrow();
                     if data_type.is_enum() {
-                        self.show_type_name_as_data_type(&typ);
+                        // The enum expression may have unbound named generics, while the ident itself has them bound.
+                        let typ = match expr_id {
+                            Some(id) => Cow::Owned(self.interner.id_type(id)),
+                            None => Cow::Borrowed(typ),
+                        };
+                        self.show_type_name_as_data_type(typ.as_ref());
                         self.push_str("::");
                         self.push_str(global_info.ident.as_str());
                         return;
