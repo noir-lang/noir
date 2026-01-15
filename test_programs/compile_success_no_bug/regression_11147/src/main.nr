@@ -3,6 +3,7 @@ enum Foo<T> {
     B
 }
 fn main() {
+    let _: Foo<bool> = Foo::B;
     let fa: Foo<str<5>> = Foo::A("hello");
     let fb: Foo<str<5>> = Foo::B;
     foo(fa);

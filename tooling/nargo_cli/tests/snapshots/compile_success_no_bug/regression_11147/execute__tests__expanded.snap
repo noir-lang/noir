@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+enum Foo<T> {
+    A(T),
+    B,
+}
+
+fn main() {
+    let _: Foo<bool> = Foo::<T>::B;
+    let fa: Foo<str<5>> = Foo::A("hello");
+    let fb: Foo<str<5>> = Foo::<T>::B;
+    foo(fa);
+    foo(fb);
+}
+
+fn foo(_f: Foo<str<5>>) {}
