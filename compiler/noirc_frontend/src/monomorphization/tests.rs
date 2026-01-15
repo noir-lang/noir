@@ -528,12 +528,9 @@ fn unused_generic_becomes_field() {
     }
     "#;
 
-    // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
-    // Since variant-2 doesn't have a T value, even though we have u32 on the LHS it becomes Field.
-    // FIXME(#11147): The mismatch between data and the type is rejected by the SSA validation.
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
-    global B$g0: (Field, (Field,), ()) = (1, (0), ());
+    global B$g0: (Field, (u32,), ()) = (1, (0), ());
     fn main$f0() -> () {
         let _foo$l0 = B$g0
     }
@@ -541,7 +538,7 @@ fn unused_generic_becomes_field() {
 }
 
 #[test]
-fn unused_const_generic_becomes_zero() {
+fn unused_str_const_generic_inferred() {
     let src = r#"
     enum Foo<let N: u32> {
         A(str<N>),
@@ -549,20 +546,14 @@ fn unused_const_generic_becomes_zero() {
     }
 
     fn main() {
-        let _f: Foo<5> = Foo::B;
+        let _f: Foo<3> = Foo::B;
     }
     "#;
 
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
-    // Since variant-2 doesn't use the N value, even though we have 5 on the LHS it becomes 0.
-    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
+    // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @r#"
-    global B$g0: (Field, (str<5>,), ()) = (1, (""), ());
-    fn main$f0() -> () {
-        let _f$l0 = B$g0
-    }
-    "#);
+    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
 }
 
 #[test]
