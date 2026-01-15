@@ -72,6 +72,7 @@ use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::borrow::Cow;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -852,8 +853,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Tuple(fields)
             }
             HirExpression::Constructor(constructor) => {
-                let typ = target_type.cloned().unwrap_or_else(|| self.interner.id_type(expr));
-                self.constructor(constructor, expr, &typ)?
+                let typ = self.expr_or_target_type(expr, target_type);
+                self.constructor(constructor, expr, typ.as_ref())?
             }
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
@@ -864,12 +865,28 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("unquote expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
-                let typ = target_type.cloned().unwrap_or_else(|| self.interner.id_type(expr));
-                self.enum_constructor(constructor, expr, &typ)?
+                let typ = self.expr_or_target_type(expr, target_type);
+                self.enum_constructor(constructor, expr, typ.as_ref())?
             }
         };
 
         Ok(expr)
+    }
+
+    /// Return a the target type if given, or the type of the expression if the target is empty.
+    ///
+    /// This is used in cases where the target type might have more bound generic type variables
+    /// than the expression, and unification is not feasible because the expression uses unbound
+    /// named generics, which don't get unified.
+    fn expr_or_target_type<'a>(
+        &self,
+        expr: ExprId,
+        target_type: Option<&'a Type>,
+    ) -> Cow<'a, HirType> {
+        match target_type {
+            Some(typ) => Cow::Borrowed(typ),
+            None => Cow::Owned(self.interner.id_type(expr)),
+        }
     }
 
     /// True if a value of the given type contains a reference value.
