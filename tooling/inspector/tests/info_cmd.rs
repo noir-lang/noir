@@ -5,6 +5,7 @@ mod tests {
     use std::process::Command;
 
     fn get_test_artifact() -> PathBuf {
+        // use an existing test program
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let test_program_dir = PathBuf::from(manifest_dir)
             .parent()
@@ -13,7 +14,7 @@ mod tests {
             .unwrap()
             .join("test_programs/execution_success/assert_statement");
 
-        // Compile the test program first
+        // compile
         #[allow(deprecated)]
         let mut compile_cmd = Command::cargo_bin("nargo").unwrap();
         compile_cmd.arg("--program-dir").arg(&test_program_dir).arg("compile").arg("--force");
@@ -37,13 +38,13 @@ mod tests {
 
         let stdout = String::from_utf8(output.stdout).unwrap();
 
-        // Main assertion: "Expression Width" should NOT be in the output
+        // "Expression Width" should NOT be in the output
         assert!(
             !stdout.contains("Expression Width"),
             "Table should NOT have 'Expression Width' column"
         );
 
-        // Verify expected columns are present
+        // verify expected columns are present
         assert!(stdout.contains("Package"));
         assert!(stdout.contains("Function"));
         assert!(stdout.contains("ACIR Opcodes"));
@@ -67,7 +68,7 @@ mod tests {
         let programs = json["programs"].as_array().unwrap();
         let functions = programs[0]["functions"].as_array().unwrap();
 
-        // Verify concrete opcode count
+        // verify opcode count is valid
         let opcode_count = functions[0]["opcodes"].as_u64().unwrap();
         assert!(opcode_count > 0, "Should have at least 1 opcode");
         assert!(opcode_count < 100, "Simple program should have fewer than 100 opcodes");
