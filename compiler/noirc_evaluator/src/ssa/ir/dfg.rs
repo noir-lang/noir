@@ -656,9 +656,12 @@ impl DataFlowGraph {
     }
     pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<u32> {
         // For arrays we know the size statically
-        if let Some(length) = self.try_get_array_length(value) {
+        let array_typ = self.type_of_value(value);
+        if matches!(&array_typ, Type::Array(..)) {
+            let length = array_typ.flattened_size();
             return Some(length);
         }
+
 
         // Check if the value was made by a MakeArray instruction, which can create vectors as well.
         let (array, typ) = self.get_array_constant(value)?;

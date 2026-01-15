@@ -241,6 +241,7 @@ impl Context {
 
                         // self.vector_constant_size_override(context.dfg, intrinsic, arguments);
 
+                        // dbg!(element_stride);
                         match self.vector_capacity_change(
                             context.dfg,
                             intrinsic,
@@ -252,15 +253,17 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
+                                let element_stride: u32 = context.dfg.type_of_value(old).element_types().iter().map(|elem| elem.flattened_size()).sum();
                                 self.set_capacity(context.dfg, old, new, |c| {
                                     // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                                    c.checked_add(1).expect("Vector capacity overflow")
+                                    c.checked_add(element_stride).expect("Vector capacity overflow")
                                 });
                             }
                             SizeChange::Dec { old, new } => {
+                                let element_stride: u32 = context.dfg.type_of_value(old).element_types().iter().map(|elem| elem.flattened_size()).sum();
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                                 // would otherwise underflow.
-                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
+                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(element_stride));
                             }
                         }
                     }
@@ -289,9 +292,9 @@ impl Context {
             return;
         }
         let capacity = self.get_or_find_capacity(dfg, old);
-        dbg!(old);
-        dbg!(new);
-        dbg!(capacity);
+        // dbg!(old);
+        // dbg!(new);
+        // dbg!(capacity);
         self.vector_sizes.insert(new, f(capacity));
     }
 

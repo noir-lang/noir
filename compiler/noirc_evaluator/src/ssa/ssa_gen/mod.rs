@@ -545,6 +545,7 @@ impl FunctionContext<'_> {
                 let array_type = &self.builder.type_of_value(*value);
                 match array_type {
                     Type::Vector(_) => {
+                        // dbg!("in here");
                         // We expect the extract ident expression to
                         self.codegen_access_check(index_value, array_or_slice[i - 1]);
                     }
@@ -637,6 +638,7 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
+        dbg!("should not be here");
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -649,6 +651,7 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
+                dbg!(type_size_usize);
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
                 // except when the inner elements have no size, because the array access can be optimized out in that case.
                 // We then only need to inject it for brillig functions or for 'unit' elements.
@@ -702,6 +705,7 @@ impl FunctionContext<'_> {
     /// Check that the index being used to access an array/vector element
     /// is less than the (potentially dynamic) array/vector length.
     fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
+        // dbg!("got here");
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self.make_array_index(length);
@@ -713,7 +717,7 @@ impl FunctionContext<'_> {
             .dfg
             .get_numeric_constant(array_len)
             .and_then(|value| value.try_to_u32());
-
+        // dbg!(array_len_constant);
         // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
         let runtime = self.builder.current_function.runtime();
         if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {

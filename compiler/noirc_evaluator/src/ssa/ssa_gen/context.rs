@@ -1047,6 +1047,7 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
+                        dbg!(*len);
                         // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                         // We then only need to inject it for brillig functions.
                         if self.builder.current_function.runtime().is_brillig() {
@@ -1148,6 +1149,7 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Vector(_) => {
+                        dbg!("got here");
                         self.codegen_access_check(index, vector_values[0]);
                     }
                     _ => unreachable!("must have array or vector but got {array_type}"),

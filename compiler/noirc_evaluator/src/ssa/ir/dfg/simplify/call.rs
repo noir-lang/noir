@@ -8,11 +8,7 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
-    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+    basic_block::BasicBlockId, dfg::{simplify::value_merger::ValueMerger, DataFlowGraph}, instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic}, integer::IntegerConstant, types::{NumericType, Type}, value::{Value, ValueId}
 };
 
 use super::SimplifyResult;
@@ -111,8 +107,14 @@ pub(super) fn simplify_call(
                 // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
                 let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
+                dbg!(vector_length_value);
+                let length = array_type.array_size();
+                dbg!(length);
+                // let flat_elem_size: u32 = element_types.iter().map(|elem| elem.flattened_size()).sum();
+                // dbg!(flat_elem_size);
+                // let length = length * flat_elem_size;
                 let vector_length =
-                    dfg.make_constant(vector_length_value.into(), NumericType::length_type());
+                    dfg.make_constant(length.into(), NumericType::length_type());
                 let new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
@@ -126,34 +128,53 @@ pub(super) fn simplify_call(
                 // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
                 // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
                 if element_type.element_size() != 1 {
-                    // Old code before implementing multiple slice mergers
-                    for elem in &arguments[2..] {
-                        // TODO: Need to handle appropriately pushing back a nested array
-                        let typ = dfg.type_of_value(*elem);
-                        let is_acir = dfg.runtime().is_acir();
-                        match (&typ, is_acir) {
-                            (Type::Array(_, _), true) => {
-                                // let mut flat_elements = im::Vector::new();
-                                let flat_typ = typ.clone().flatten();
-                                for (my_index, typ) in flat_typ.into_iter().enumerate() {
-                                    let index = dfg
-                                        .make_constant(my_index.into(), NumericType::length_type());
-                                    assert!(matches!(typ, Type::Numeric(_)));
-                                    let get = Instruction::ArrayGet { array: *elem, index };
-                                    let typevars = Some(vec![typ]);
-                                    let res = dfg
-                                        .insert_instruction_and_results(
-                                            get, block, typevars, call_stack,
-                                        )
-                                        .first();
-                                    vector.push_back(res);
-                                }
+                    if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
+                        dfg.get_integer_constant(arguments[0])
+                    {
+                        // This simplification, which push back directly on the vector, only works if the real vector_len is the
+                        // the length of the vector.
+                        if vector_len as usize == vector.len() {
+                            // Old code before implementing multiple slice mergers
+                            for elem in &arguments[2..] {
+                                // TODO: Need to handle appropriately pushing back a nested array
+                                let typ = dfg.type_of_value(*elem);
+                                let is_acir = dfg.runtime().is_acir();
+                                match (&typ, is_acir) {
+                                    (Type::Array(_, _) | Type::Vector(_), true) => {
+                                        // let mut flat_elements = im::Vector::new();
+                                        let flat_typ = typ.clone().flatten();
+                                        for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                                            let index = dfg
+                                                .make_constant(my_index.into(), NumericType::length_type());
+                                            assert!(matches!(typ, Type::Numeric(_)));
+                                            let get = Instruction::ArrayGet { array: *elem, index };
+                                            let typevars = Some(vec![typ]);
+                                            let res = dfg
+                                                .insert_instruction_and_results(
+                                                    get, block, typevars, call_stack,
+                                                )
+                                                .first();
+                                            vector.push_back(res);
+                                        }
+                                    }
+                                    _ => {
+                                        vector.push_back(*elem);
+                                    }
+                                };
                             }
-                            _ => {
-                                vector.push_back(*elem);
-                            }
-                        };
+
+                            let new_vector_length =
+                                increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
+
+                            let new_vector =
+                                make_array(dfg, vector, element_type, block, call_stack);
+                            return SimplifyResult::SimplifiedToMultiple(vec![
+                                new_vector_length,
+                                new_vector,
+                            ]);
+                        }
                     }
+
                     return SimplifyResult::None;
                 }
 
@@ -170,7 +191,7 @@ pub(super) fn simplify_call(
                 }
 
                 let new_vector_length =
-                    increment_vector_length(arguments[0], dfg, block, call_stack);
+                    increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, element_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
@@ -211,7 +232,7 @@ pub(super) fn simplify_call(
                 });
 
                 let new_vector_length =
-                    decrement_vector_length(arguments[0], dfg, block, call_stack);
+                    decrement_vector_length(arguments[0], &typ, dfg, block, call_stack);
 
                 results.push(new_vector_length);
 
@@ -245,7 +266,7 @@ pub(super) fn simplify_call(
                 }
 
                 let new_vector_length =
-                    increment_vector_length(arguments[0], dfg, block, call_stack);
+                    increment_vector_length(arguments[0], &typ, dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
@@ -280,11 +301,11 @@ pub(super) fn simplify_call(
                     results.push(vector.remove(index));
                 }
 
+                let new_vector_length =
+                    decrement_vector_length(arguments[0], &typ, dfg, block, call_stack);
+
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 results.insert(0, new_vector);
-
-                let new_vector_length =
-                    decrement_vector_length(arguments[0], dfg, block, call_stack);
 
                 results.insert(0, new_vector_length);
 
@@ -471,11 +492,17 @@ fn make_array(
 /// and not a flattened length used internally to represent arrays of tuples.
 fn update_vector_length(
     vector_len: ValueId,
+    element_type: &Type,
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
+    // let flat_element_size = u128::from(element_type
+    //         .element_types()
+    //         .iter()
+    //         .map(|typ| typ.flattened_size())
+    //         .sum::<u32>());
     let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: vector_len, operator, rhs: one });
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
@@ -483,21 +510,23 @@ fn update_vector_length(
 
 fn increment_vector_length(
     vector_len: ValueId,
+    element_type: &Type,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    update_vector_length(vector_len, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
+    update_vector_length(vector_len, element_type, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
 }
 
 fn decrement_vector_length(
     vector_len: ValueId,
+    element_type: &Type,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
     // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
-    update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
+    update_vector_length(vector_len, element_type, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
 fn simplify_vector_push_back(
@@ -544,12 +573,12 @@ fn simplify_vector_push_back(
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
         .first();
 
-    let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length = increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
 
     for elem in &arguments[2..] {
         let typ = dfg.type_of_value(*elem);
         match (&typ, is_acir) {
-            (Type::Array(_, _), true) => {
+            (Type::Array(_, _) | Type::Vector(_), true) => {
                 let flat_typ = typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let index = dfg.make_constant(my_index.into(), NumericType::length_type());
@@ -615,7 +644,7 @@ fn simplify_vector_pop_back(
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length = decrement_vector_length(arguments[0], &vector_type, dfg, block, call_stack);
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
@@ -629,7 +658,7 @@ fn simplify_vector_pop_back(
     // We must pop multiple elements in the case of a vector of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        flattened_len = decrement_vector_length(flattened_len, dfg, block, call_stack);
+        flattened_len = decrement_vector_length(flattened_len, &vector_type, dfg, block, call_stack);
         let get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[1], index: flattened_len };
 

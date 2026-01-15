@@ -254,6 +254,12 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         instruction: InstructionId,
     ) -> Result<bool, RuntimeError> {
+        // dbg!(self.has_zero_length(array, dfg));
+
+        if self.has_zero_length(array, dfg) {
+            dbg!(array);
+        }
+        
         if !self.has_zero_length(array, dfg) {
             return Ok(false);
         }
@@ -855,8 +861,9 @@ impl Context<'_> {
         let len = self.flattened_size(array, dfg);
 
         let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
-            let acir_value = self.convert_value(array, dfg);
-            Some(self.init_element_type_sizes_array(&array_typ, array, Some(acir_value), dfg, 0)?)
+            // let acir_value = self.convert_value(array, dfg);
+            // Some(self.init_element_type_sizes_array(&array_typ, array, Some(acir_value), dfg, 0)?)
+            None
         } else {
             None
         };
@@ -1014,28 +1021,32 @@ impl Context<'_> {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
             //Array are already structured
             AcirValue::Array(vars) => Ok(vars),
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
                 // For vectors/arrays, reconstruct the structure based on the element type
                 let element_types = match array_typ {
                     Type::Vector(types) | Type::Array(types, _) => types.as_ref(),
                     _ => unreachable!("ICE: reading array into a non array type"),
                 };
 
-                // Calculate how many elements we have (number of outer array elements)
-                let element_flat_size: usize =
-                    element_types.iter().map(|t| t.flattened_size() as usize).sum();
-                assert_ne!(element_flat_size, 0, "ICE: array elements are empty");
-                let num_elements = len / element_flat_size;
+                // // Calculate how many elements we have (number of outer array elements)
+                // let element_flat_size: usize =
+                //     element_types.iter().map(|t| t.flattened_size() as usize).sum();
+                // assert_ne!(element_flat_size, 0, "ICE: array elements are empty");
+                // let num_elements = len / element_flat_size;
+                let num_elements = len;
 
                 let mut result = im::Vector::new();
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Reconstruct each element with its proper structure
-                for _ in 0..num_elements {
-                    for element_typ in element_types.iter() {
-                        let element =
-                            self.array_get_value(element_typ, block_id, &mut var_index)?;
-                        result.push_back(element);
-                    }
+                for i in 0..num_elements {
+                    // for element_typ in element_types.iter() {
+                    //     let element =
+                    //         self.array_get_value(element_typ, block_id, &mut var_index)?;
+                    //     result.push_back(element);
+                    // }
+                    let element =
+                            self.array_get_value(&&Type::Numeric(value_types[i % value_types.len()]), block_id, &mut var_index)?;
+                    result.push_back(element);
                 }
 
                 Ok(result)

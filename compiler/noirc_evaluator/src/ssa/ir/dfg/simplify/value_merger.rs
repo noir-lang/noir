@@ -233,8 +233,8 @@ impl<'a> ValueMerger<'a> {
             vector.len() as u32
         });
         let len = then_len.max(else_len);
-        dbg!(len);
-        dbg!(flat_element_types_size);
+        // dbg!(len);
+        // dbg!(flat_element_types_size);
         let composite_len = len / flat_element_types_size;
 
         // let flat_types_first: Vec<Type> = element_types.iter().cloned().flat_map(Type::flatten).collect();
@@ -246,12 +246,15 @@ impl<'a> ValueMerger<'a> {
             .flat_map(|_| element_types.iter().cloned().flat_map(Type::flatten))
             .collect();
 
-        dbg!(flat_types.len());
+        // dbg!(flat_types.len());
 
         for (my_index, typ) in flat_types.into_iter().enumerate() {
             let index_u32 = my_index as u32;
             let index = self.dfg.make_constant(my_index.into(), NumericType::length_type());
-            assert!(matches!(typ, Type::Numeric(_)));
+            if !matches!(typ, Type::Numeric(_) | Type::Reference(_)) {
+                dbg!(typ.clone());
+            }
+            assert!(matches!(typ, Type::Numeric(_)) || matches!(typ, Type::Reference(_)));
             let typevars = Some(vec![typ.clone()]);
 
             let mut get_element = |array, typevars: Option<Vec<Type>>, len| {
@@ -269,7 +272,7 @@ impl<'a> ValueMerger<'a> {
 
                 let res_typ = self.dfg.type_of_value(res);
                 assert!(
-                    matches!(res_typ, Type::Numeric(_)),
+                    matches!(res_typ, Type::Numeric(_)) | matches!(typ, Type::Reference(_)),
                     "ICE: Array get is returning a non-numeric type. All arrays in ACIR work upon flat memory. Got {res_typ}"
                 );
                 res

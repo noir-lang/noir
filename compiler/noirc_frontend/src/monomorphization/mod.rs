@@ -200,7 +200,7 @@ pub fn monomorphize_debug(
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
-    dbg!("got here");
+    // dbg!("got here");
     let function_sig = monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
