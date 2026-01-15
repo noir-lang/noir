@@ -636,8 +636,8 @@ pub(crate) mod tests {
             ..
         } = status
         else {
-            panic!("Expected 'Out of memory' error from allocation overflow, got: {:?}", status)
+            panic!("Expected 'Out of memory' error from allocation overflow, got: {status:?}")
         };
-        assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {}", message);
+        assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 }
