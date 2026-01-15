@@ -205,16 +205,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                let condition = self.brillig_context.allocate_single_addr_bool();
-                // Check that lhs <= result
-                self.brillig_context.binary_instruction(
-                    left,
-                    result,
-                    *condition,
-                    BrilligBinaryOp::LessThanEquals,
-                );
-                let msg = "attempt to add with overflow".to_string();
-                self.brillig_context.codegen_constrain(*condition, Some(msg));
+                self.brillig_context.codegen_add_overflow_check(left.address, result.address);
             }
             BinaryOp::Sub { unchecked: false } => {
                 let condition = self.brillig_context.allocate_single_addr_bool();
