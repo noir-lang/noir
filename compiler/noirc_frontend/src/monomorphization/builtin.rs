@@ -3,14 +3,14 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Type,
+    Type, TypeBindings,
     ast::IntegerBitSize,
     monomorphization::{
         Monomorphizer,
-        ast::{self, Definition, FuncId, Function, InlineType, LocalId},
+        ast::{self, Definition, FuncId, Function, InlineType},
         errors::MonomorphizationError,
     },
-    node_interner,
+    node_interner::{self, ExprId},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
     token::FmtStrFragment,
@@ -29,8 +29,8 @@ enum HandledOpcode {
 }
 
 impl Monomorphizer<'_> {
-    /// Try to evaluate certain builtin functions given their type. All builtins are function
-    /// types, so the evaluated result will always be a new function or None.
+    /// Try to evaluate certain builtin functions (just the function itself) given their type.
+    /// All builtins are function types, so the evaluated result will always be a new function or None.
     ///
     /// Prerequisite: `typ = typ.follow_bindings()`
     ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
@@ -45,60 +45,44 @@ impl Monomorphizer<'_> {
     ) -> Result<Option<FuncId>, MonomorphizationError> {
         let Some(opcode) = HandledOpcode::parse(opcode_string) else { return Ok(None) };
 
-        // Monomorphized function types are pairs of (constrained, unconstrained) individual function types.
-        let (parameter_types, return_type) = match Self::convert_type(&typ, location)? {
-            ast::Type::Tuple(mut fields) if fields.len() == 2 => match fields.pop().unwrap() {
-                ast::Type::Function(parameters, ret, _, _) => (parameters, *ret),
-                other => unreachable!("Expected built-in to be a function, found {other:?}"),
-            },
+        let (parameter_types, return_type) = match &typ {
+            Type::Function(parameters, ret, _, _) => (parameters, ret),
             other => unreachable!("Expected built-in to be a function, found {other:?}"),
         };
 
-        let (parameters, body) = match opcode {
+        let converted_return_type = Self::convert_type(return_type, location.clone())?;
+
+        let mut parameters = Vec::new();
+        let body = match opcode {
             HandledOpcode::CheckedTransmute => {
                 assert_eq!(parameter_types.len(), 1);
                 let parameter_id = self.next_local_id();
-                let parameters = vec![(
+                let parameter_type = Self::convert_type(&parameter_types[0], location.clone())?;
+                parameters = vec![(
                     parameter_id,
                     false,
                     "x".to_string(),
-                    parameter_types[0].clone(),
+                    parameter_type.clone(),
                     Visibility::Private,
                 )];
 
-                let body = self.checked_transmute(
-                    parameter_id,
-                    &parameter_types[0],
-                    &return_type,
-                    location,
-                )?;
-                (parameters, body)
+                self.check_transmute(&parameter_types[0], &return_type, location)?;
+
+                ast::Expression::Ident(ast::Ident {
+                    location: Some(location),
+                    definition: Definition::Local(parameter_id),
+                    mutable: false,
+                    name: "x".to_string(),
+                    typ: parameter_type,
+                    id: self.next_ident_id(),
+                })
             }
-            HandledOpcode::ModulusBeBits => {
-                let bits = FieldElement::modulus().to_radix_be(2);
-                (Vec::new(), self.modulus_vector_literal(bits, IntegerBitSize::One, location))
-            }
-            HandledOpcode::ModulusBeBytes => {
-                let bytes = FieldElement::modulus().to_bytes_be();
-                (Vec::new(), self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
-            }
-            HandledOpcode::ModulusLeBits => {
-                let bits = FieldElement::modulus().to_radix_le(2);
-                (Vec::new(), self.modulus_vector_literal(bits, IntegerBitSize::One, location))
-            }
-            HandledOpcode::ModulusLeBytes => {
-                let bytes = FieldElement::modulus().to_bytes_le();
-                (Vec::new(), self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
-            }
-            HandledOpcode::ModulusNumBits => {
-                let bits = FieldElement::max_num_bits();
-                let typ = ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                let bits = SignedField::positive(bits);
-                (Vec::new(), ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
-            }
-            HandledOpcode::Zeroed => {
-                (Vec::new(), self.zeroed_value_of_type(&return_type, location))
-            }
+            HandledOpcode::ModulusBeBits => self.modulus_be_bits(location),
+            HandledOpcode::ModulusBeBytes => self.modulus_be_bytes(location),
+            HandledOpcode::ModulusLeBits => self.modulus_le_bits(location),
+            HandledOpcode::ModulusLeBytes => self.modulus_le_bytes(location),
+            HandledOpcode::ModulusNumBits => Self::modulus_num_bits(location),
+            HandledOpcode::Zeroed => self.zeroed_value_of_type(&converted_return_type, location),
         };
 
         let new_function_id = self.next_function_id();
@@ -109,7 +93,7 @@ impl Monomorphizer<'_> {
                 name: opcode_string.to_string(),
                 parameters,
                 body,
-                return_type,
+                return_type: converted_return_type,
                 return_visibility: Visibility::Private,
                 unconstrained: is_unconstrained,
                 inline_type: InlineType::InlineAlways,
@@ -120,26 +104,19 @@ impl Monomorphizer<'_> {
         Ok(Some(new_function_id))
     }
 
-    fn checked_transmute(
+    /// Check the given type conversion that the types are equal, or issue an error if not.
+    fn check_transmute(
         &mut self,
-        parameter_id: LocalId,
-        parameter_type: &ast::Type,
-        return_type: &ast::Type,
+        actual: &Type,
+        expected: &Type,
         location: Location,
-    ) -> Result<ast::Expression, MonomorphizationError> {
-        if parameter_type != return_type {
-            let actual = parameter_type.to_string();
-            let expected = return_type.to_string();
-            Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
+    ) -> Result<(), MonomorphizationError> {
+        if actual.try_unify(expected, &mut TypeBindings::default()).is_ok() {
+            Ok(())
         } else {
-            Ok(ast::Expression::Ident(ast::Ident {
-                location: Some(location),
-                definition: Definition::Local(parameter_id),
-                mutable: false,
-                name: "x".to_string(),
-                typ: parameter_type.clone(),
-                id: self.next_ident_id(),
-            }))
+            let actual = actual.to_string();
+            let expected = expected.to_string();
+            Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
         }
     }
 
@@ -280,6 +257,68 @@ impl Monomorphizer<'_> {
             ),
             id: self.next_ident_id(),
         })
+    }
+
+    /// Try to call certain builtin functions with the given arguments, returning the result as an
+    /// expression.
+    pub(super) fn try_evaluate_builtin_call(
+        &mut self,
+        func: &ast::Expression,
+        expr_id: &ExprId,
+        arguments: &[ExprId],
+        argument_values: &[ast::Expression],
+        result_type: &ast::Type,
+    ) -> Result<Option<ast::Expression>, MonomorphizationError> {
+        if let ast::Expression::Ident(ident) = func {
+            if let Definition::Builtin(opcode) = &ident.definition {
+                let location = self.interner.expr_location(expr_id);
+
+                return Ok(Some(match HandledOpcode::parse(opcode) {
+                    Some(HandledOpcode::CheckedTransmute) => {
+                        assert_eq!(arguments.len(), 1);
+                        let parameter_type = self.interner.id_type(arguments[0]).follow_bindings();
+                        let result_type = self.interner.id_type(expr_id).follow_bindings();
+                        self.check_transmute(&parameter_type, &result_type, location)?;
+                        argument_values[0].clone()
+                    }
+                    Some(HandledOpcode::ModulusBeBits) => self.modulus_be_bits(location),
+                    Some(HandledOpcode::ModulusBeBytes) => self.modulus_be_bytes(location),
+                    Some(HandledOpcode::ModulusLeBits) => self.modulus_le_bits(location),
+                    Some(HandledOpcode::ModulusLeBytes) => self.modulus_le_bytes(location),
+                    Some(HandledOpcode::ModulusNumBits) => Self::modulus_num_bits(location),
+                    Some(HandledOpcode::Zeroed) => self.zeroed_value_of_type(result_type, location),
+                    None => return Ok(None),
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    fn modulus_be_bits(&self, location: Location) -> ast::Expression {
+        let bits = FieldElement::modulus().to_radix_be(2);
+        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+    }
+
+    fn modulus_be_bytes(&self, location: Location) -> ast::Expression {
+        let bytes = FieldElement::modulus().to_bytes_be();
+        self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location)
+    }
+
+    fn modulus_le_bits(&self, location: Location) -> ast::Expression {
+        let bits = FieldElement::modulus().to_radix_le(2);
+        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+    }
+
+    fn modulus_le_bytes(&self, location: Location) -> ast::Expression {
+        let bytes = FieldElement::modulus().to_bytes_le();
+        self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location)
+    }
+
+    fn modulus_num_bits(location: Location) -> ast::Expression {
+        let bits = FieldElement::max_num_bits();
+        let typ = ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
+        let bits = SignedField::positive(bits);
+        ast::Expression::Literal(ast::Literal::Integer(bits, typ, location))
     }
 }
 

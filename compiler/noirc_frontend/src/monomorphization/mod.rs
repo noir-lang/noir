@@ -2140,7 +2140,9 @@ impl<'interner> Monomorphizer<'interner> {
             original_func.clone()
         };
 
-        let call = ast::Expression::Call(ast::Call { func, arguments, return_type, location });
+        let call = self
+            .try_evaluate_builtin_call(&func, &id, &call.arguments, &arguments, &return_type)?
+            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
 
         if !block_expressions.is_empty() {
             block_expressions.push(call);

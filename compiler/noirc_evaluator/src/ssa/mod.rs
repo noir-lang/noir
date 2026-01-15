@@ -265,11 +265,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
-        // Some built-ins like `modulus_num_bits` are lowered by the monomorphizer as lambdas but
-        // we often use `static_assert` on them in the stdlib. This isn't normally an issue, but it
-        // does mean we need to ensure we inline in the minimal passes set, otherwise we'll be
-        // failing these static asserts.
-        SsaPass::new_try(Ssa::inline_simple_functions, "inline simple functions"),
         // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
