@@ -3246,7 +3246,78 @@
 <a href="#3245" id="3245">3245</a>
 <a href="#3246" id="3246">3246</a>
 <a href="#3247" id="3247">3247</a>
-<a href="#3248" id="3248">3248</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3248" id="3248">3248</a>
+<a href="#3249" id="3249">3249</a>
+<a href="#3250" id="3250">3250</a>
+<a href="#3251" id="3251">3251</a>
+<a href="#3252" id="3252">3252</a>
+<a href="#3253" id="3253">3253</a>
+<a href="#3254" id="3254">3254</a>
+<a href="#3255" id="3255">3255</a>
+<a href="#3256" id="3256">3256</a>
+<a href="#3257" id="3257">3257</a>
+<a href="#3258" id="3258">3258</a>
+<a href="#3259" id="3259">3259</a>
+<a href="#3260" id="3260">3260</a>
+<a href="#3261" id="3261">3261</a>
+<a href="#3262" id="3262">3262</a>
+<a href="#3263" id="3263">3263</a>
+<a href="#3264" id="3264">3264</a>
+<a href="#3265" id="3265">3265</a>
+<a href="#3266" id="3266">3266</a>
+<a href="#3267" id="3267">3267</a>
+<a href="#3268" id="3268">3268</a>
+<a href="#3269" id="3269">3269</a>
+<a href="#3270" id="3270">3270</a>
+<a href="#3271" id="3271">3271</a>
+<a href="#3272" id="3272">3272</a>
+<a href="#3273" id="3273">3273</a>
+<a href="#3274" id="3274">3274</a>
+<a href="#3275" id="3275">3275</a>
+<a href="#3276" id="3276">3276</a>
+<a href="#3277" id="3277">3277</a>
+<a href="#3278" id="3278">3278</a>
+<a href="#3279" id="3279">3279</a>
+<a href="#3280" id="3280">3280</a>
+<a href="#3281" id="3281">3281</a>
+<a href="#3282" id="3282">3282</a>
+<a href="#3283" id="3283">3283</a>
+<a href="#3284" id="3284">3284</a>
+<a href="#3285" id="3285">3285</a>
+<a href="#3286" id="3286">3286</a>
+<a href="#3287" id="3287">3287</a>
+<a href="#3288" id="3288">3288</a>
+<a href="#3289" id="3289">3289</a>
+<a href="#3290" id="3290">3290</a>
+<a href="#3291" id="3291">3291</a>
+<a href="#3292" id="3292">3292</a>
+<a href="#3293" id="3293">3293</a>
+<a href="#3294" id="3294">3294</a>
+<a href="#3295" id="3295">3295</a>
+<a href="#3296" id="3296">3296</a>
+<a href="#3297" id="3297">3297</a>
+<a href="#3298" id="3298">3298</a>
+<a href="#3299" id="3299">3299</a>
+<a href="#3300" id="3300">3300</a>
+<a href="#3301" id="3301">3301</a>
+<a href="#3302" id="3302">3302</a>
+<a href="#3303" id="3303">3303</a>
+<a href="#3304" id="3304">3304</a>
+<a href="#3305" id="3305">3305</a>
+<a href="#3306" id="3306">3306</a>
+<a href="#3307" id="3307">3307</a>
+<a href="#3308" id="3308">3308</a>
+<a href="#3309" id="3309">3309</a>
+<a href="#3310" id="3310">3310</a>
+<a href="#3311" id="3311">3311</a>
+<a href="#3312" id="3312">3312</a>
+<a href="#3313" id="3313">3313</a>
+<a href="#3314" id="3314">3314</a>
+<a href="#3315" id="3315">3315</a>
+<a href="#3316" id="3316">3316</a>
+<a href="#3317" id="3317">3317</a>
+<a href="#3318" id="3318">3318</a>
+<a href="#3319" id="3319">3319</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3538,6 +3609,14 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_normal_or_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, Kind::Normal | Kind::Any)
+    }
+
+    <span class="doccomment">/// See [`Type::has_cyclic_alias`] for more detail
+    </span><span class="kw">pub fn </span>has_cyclic_alias(<span class="kw-2">&amp;</span><span class="self">self</span>, aliases: <span class="kw-2">&amp;mut </span>HashSet&lt;TypeAliasId&gt;) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Numeric(typ) =&gt; typ.has_cyclic_alias(aliases),
+            <span class="self">Self</span>::Any | <span class="self">Self</span>::Normal | <span class="self">Self</span>::Integer | <span class="self">Self</span>::IntegerOrField =&gt; <span class="bool-val">false</span>,
+        }
     }
 }
 
@@ -4289,6 +4368,14 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_implicit_named_generic(<span class="self">self</span>, name: Rc&lt;String&gt;) -&gt; Type {
         Type::NamedGeneric(NamedGeneric { type_var: <span class="self">self</span>, name, implicit: <span class="bool-val">true </span>})
     }
+
+    <span class="doccomment">/// See [`Type::has_cyclic_alias`] for more detail
+    </span><span class="kw">pub fn </span>has_cyclic_alias(<span class="kw-2">&amp;</span><span class="self">self</span>, aliases: <span class="kw-2">&amp;mut </span>HashSet&lt;TypeAliasId&gt;) -&gt; bool {
+        <span class="kw">match </span><span class="kw-2">&amp;*</span><span class="self">self</span>.borrow() {
+            TypeBinding::Bound(typ) =&gt; typ.has_cyclic_alias(aliases),
+            TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+        }
+    }
 }
 
 <span class="doccomment">/// TypeBindings are the mutable insides of a TypeVariable.
@@ -4740,18 +4827,18 @@
     ///
     /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
     /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    ///
+    /// Note: cloning the `aliases` parameter when calling this function recursively in multiple
+    /// branches, e.g. as done with [`Type::InfixExpr`], can prevent tests like
+    /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
+    /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
+    /// due to the same non-cyclic alias being detected twice in different recursive calls
     </span><span class="kw">pub fn </span>has_cyclic_alias(<span class="kw-2">&amp;</span><span class="self">self</span>, aliases: <span class="kw-2">&amp;mut </span>HashSet&lt;TypeAliasId&gt;) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            Type::CheckedCast { to, .. } =&gt; to.has_cyclic_alias(aliases),
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
-                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
-            }
-            Type::TypeVariable(var) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
-                TypeBinding::Bound(typ) =&gt; typ.has_cyclic_alias(aliases),
-                TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-            },
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; type_var.has_cyclic_alias(aliases),
+            Type::TypeVariable(var) =&gt; var.has_cyclic_alias(aliases),
             Type::InfixExpr(lhs, _op, rhs, <span class="kw">_</span>) =&gt; {
-                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+                lhs.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()) || rhs.has_cyclic_alias(aliases)
             }
             Type::Alias(def, generics) =&gt; {
                 <span class="kw">let </span>alias_id = def.borrow().id;
@@ -4762,7 +4849,62 @@
                     def.borrow().get_type(generics).has_cyclic_alias(aliases)
                 }
             }
-            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            Type::TraitAsType(_id, _name, generics) =&gt; {
+                generics
+                    .ordered
+                    .iter()
+                    .any(|generic| generic.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()))
+                    || generics
+                        .named
+                        .iter()
+                        .any(|generic| generic.typ.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()))
+            }
+            Type::String(len) =&gt; len.has_cyclic_alias(aliases),
+            Type::Array(len, typ) =&gt; {
+                len.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()) || typ.has_cyclic_alias(aliases)
+            }
+            Type::Vector(typ) =&gt; typ.has_cyclic_alias(aliases),
+            Type::DataType(s, args) =&gt; {
+                <span class="kw">let </span>data_type = s.borrow();
+                data_type
+                    .get_fields(args)
+                    .unwrap_or_else(Vec::new)
+                    .iter()
+                    .any(|(_name, field, _visibility)| field.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()))
+                    || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
+                        |(_name, variant)| {
+                            variant.iter().any(|variant_field| {
+                                variant_field.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone())
+                            })
+                        },
+                    )
+            }
+            Type::Tuple(elements) =&gt; {
+                elements.iter().any(|element| element.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()))
+            }
+            Type::FmtString(len, elements) =&gt; {
+                len.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()) || (<span class="kw-2">*</span>elements).has_cyclic_alias(aliases)
+            }
+            Type::CheckedCast { to, from } =&gt; {
+                to.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()) || from.has_cyclic_alias(aliases)
+            }
+            Type::Constant(_x, kind) =&gt; kind.has_cyclic_alias(aliases),
+            Type::Forall(typevars, typ) =&gt; {
+                typevars.iter().any(|typevar| typevar.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()))
+                    || typ.has_cyclic_alias(aliases)
+            }
+            Type::Function(args, ret, env, _unconstrained) =&gt; {
+                args.iter().any(|arg| arg.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone()))
+                    || ret.has_cyclic_alias(<span class="kw-2">&amp;mut </span>aliases.clone())
+                    || env.has_cyclic_alias(aliases)
+            }
+            Type::Reference(element, _mutable) =&gt; element.has_cyclic_alias(aliases),
+            Type::FieldElement
+            | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         }
     }
 

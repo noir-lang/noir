@@ -13,7 +13,7 @@ which can be only known during monomorphization.</p>
     self,
     object_type: <a class="enum" href="../types/enum.Type.html" title="enum noirc_frontend::hir_def::types::Type">Type</a>,
     generics: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../types/enum.Type.html" title="enum noirc_frontend::hir_def::types::Type">Type</a>&gt;&gt;,
-    location: Location,
+    location: <a class="struct" href="../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
     interner: &amp;mut <a class="struct" href="../../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
 ) -&gt; (<a class="struct" href="../../node_interner/pusher/struct.PushedExpr.html" title="struct noirc_frontend::node_interner::pusher::PushedExpr">PushedExpr</a>&lt;<a class="struct" href="../../node_interner/pusher/struct.HasLocation.html" title="struct noirc_frontend::node_interner::pusher::HasLocation">HasLocation</a>&gt;, <a class="struct" href="struct.HirIdent.html" title="struct noirc_frontend::hir_def::expr::HirIdent">HirIdent</a>)</h4></section></summary><div class="docblock"><p>Looks up definition of a function and its implementation kind (a normal function or a trait method),
 and interns an identifier we can use to call the function.</p>
