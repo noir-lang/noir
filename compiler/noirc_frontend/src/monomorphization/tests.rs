@@ -557,6 +557,35 @@ fn unused_str_const_generic_in_enum_inferred() {
 }
 
 #[test]
+fn generic_enum_singleton_becomes_global_per_type() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B
+    }
+    fn main() {
+        let _: Foo<u32> = Foo::B;
+        let _: Foo<bool> = Foo::B;
+        // Repeat to make sure we only monomorphize them once.
+        let _: Foo<u32> = Foo::B;
+        let _: Foo<bool> = Foo::B;
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global B$g0: (Field, (u32,), ()) = (1, (0), ());
+    global B$g1: (Field, (bool,), ()) = (1, (false), ());
+    fn main$f0() -> () {
+        let _$l0 = B$g0;
+        let _$l1 = B$g1;
+        let _$l2 = B$g0;
+        let _$l3 = B$g1
+    }
+    ");
+}
+
+#[test]
 fn repeated_array() {
     let src = r#"
     fn main() {
