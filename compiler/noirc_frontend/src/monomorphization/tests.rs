@@ -517,7 +517,7 @@ fn return_impl_trait_becomes_underlying_type() {
 }
 
 #[test]
-fn unused_generic_becomes_field() {
+fn unused_generic_in_enum_inferred() {
     let src = r#"
     enum Foo<T> {
         A(T),
@@ -538,7 +538,7 @@ fn unused_generic_becomes_field() {
 }
 
 #[test]
-fn unused_str_const_generic_inferred() {
+fn unused_str_const_generic_in_enum_inferred() {
     let src = r#"
     enum Foo<let N: u32> {
         A(str<N>),
