@@ -416,8 +416,9 @@ impl Context<'_> {
         let array_typ = dfg.type_of_value(array_id);
         let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
+        let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
+        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
@@ -834,12 +835,13 @@ impl Context<'_> {
 
         let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
             let acir_value = self.convert_value(array, dfg);
+            let shift = ElementTypeSizesArrayShift::None;
             Some(self.init_element_type_sizes_array(
                 &array_typ,
                 array,
                 Some(acir_value),
                 dfg,
-                SemanticLength(0),
+                shift,
             )?)
         } else {
             None
@@ -870,7 +872,7 @@ impl Context<'_> {
         array_id: ValueId,
         supplied_acir_value: Option<AcirValue>,
         dfg: &DataFlowGraph,
-        additional_capacity: SemanticLength,
+        shift: ElementTypeSizesArrayShift,
     ) -> Result<BlockId, RuntimeError> {
         let element_type_sizes = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized
@@ -880,7 +882,9 @@ impl Context<'_> {
         // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
         // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
         // that is bigger than what is needed for the supplied type/value.
-        if self.initialized_arrays.contains(&element_type_sizes) && additional_capacity.0 == 0 {
+        if self.initialized_arrays.contains(&element_type_sizes)
+            && matches!(shift, ElementTypeSizesArrayShift::None)
+        {
             return Ok(element_type_sizes);
         }
 
@@ -908,13 +912,10 @@ impl Context<'_> {
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
         let flattened_len = flattened_value_size(&array_acir_value);
         match array_acir_value {
-            AcirValue::Array(_) => self.init_type_sizes_helper(
-                array_typ,
-                flattened_len,
-                additional_capacity,
-                element_type_sizes,
-            ),
-            AcirValue::DynamicArray(inner) if additional_capacity.0 == 0 => {
+            AcirValue::Array(_) => {
+                self.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
+            }
+            AcirValue::DynamicArray(inner) if matches!(shift, ElementTypeSizesArrayShift::None) => {
                 let inner_elem_type_sizes = inner.element_type_sizes;
                 let Some(inner_elem_type_sizes) = &inner_elem_type_sizes else {
                     return Err(InternalError::General {
@@ -934,14 +935,11 @@ impl Context<'_> {
                 self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
                 Ok(*inner_elem_type_sizes)
             }
-            AcirValue::DynamicArray(inner) if additional_capacity.0 != 0 => {
+            AcirValue::DynamicArray(inner)
+                if !matches!(shift, ElementTypeSizesArrayShift::None) =>
+            {
                 // Recalculate with additional capacity for growth operations
-                self.init_type_sizes_helper(
-                    array_typ,
-                    inner.len,
-                    additional_capacity,
-                    element_type_sizes,
-                )
+                self.init_type_sizes_helper(array_typ, inner.len, shift, element_type_sizes)
             }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
@@ -957,11 +955,11 @@ impl Context<'_> {
         &mut self,
         array_typ: &Type,
         flattened_length: FlattenedLength,
-        additional_capacity: SemanticLength,
+        shift: ElementTypeSizesArrayShift,
         element_type_sizes_block: BlockId,
     ) -> Result<BlockId, RuntimeError> {
         let flat_elem_type_sizes =
-            calculate_element_type_sizes_array(array_typ, flattened_length, additional_capacity);
+            calculate_element_type_sizes_array(array_typ, flattened_length, shift);
 
         // If there's already a block with these same sizes, reuse it. It's fine to do so
         // because the element type sizes array is never mutated.
@@ -1086,6 +1084,7 @@ impl Context<'_> {
     /// To reconcile this, each element's "flattened index" is computed relative to the array’s base pointer.
     /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
     /// array to calculate offsets when elements have a non-homogenous layout
+    ///
     /// See [self] for a more concrete example of how flattened indices are computed.
     pub(super) fn get_flattened_index(
         &mut self,
@@ -1093,18 +1092,14 @@ impl Context<'_> {
         array_id: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
+        shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
         if let Some(step_size) = array_has_constant_element_size(array_typ) {
             let step_size = self.acir_context.add_constant(step_size);
             self.acir_context.mul_var(var_index, step_size)
         } else {
-            let element_type_sizes = self.init_element_type_sizes_array(
-                array_typ,
-                array_id,
-                None,
-                dfg,
-                SemanticLength(0),
-            )?;
+            let element_type_sizes =
+                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
             let predicate_index =
                 self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
@@ -1234,6 +1229,17 @@ impl Context<'_> {
     }
 }
 
+/// Represents a shift in the size of the element type sizes array.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum ElementTypeSizesArrayShift {
+    /// No shift is needed.
+    None,
+    /// The element type sizes array needs to grow by one (semantic length).
+    /// This is used for vector insert operations.
+    Increase,
+    Decrease,
+}
+
 /// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
 ///
 /// # Parameters
@@ -1250,7 +1256,7 @@ impl Context<'_> {
 pub(super) fn calculate_element_type_sizes_array(
     array_typ: &Type,
     flattened_length: FlattenedLength,
-    additional_capacity: SemanticLength,
+    shift: ElementTypeSizesArrayShift,
 ) -> Vec<u32> {
     let element_types = match array_typ {
         Type::Array(types, _) | Type::Vector(types) => types,
@@ -1262,16 +1268,22 @@ pub(super) fn calculate_element_type_sizes_array(
 
     let element_flattened_size: FlattenedLength =
         element_types.iter().map(|typ| typ.flattened_size()).sum();
-    let non_flattened_elements =
+    let mut non_flattened_elements =
         flattened_length / ElementsFlattenedLength::from(element_flattened_size);
 
-    // The implementation for vector insert requires one additional slot as insertions
-    // are allowed at the vector's length.
-    let boundary = SemanticLength(1);
     // Capacity is the number of entries in element_type_sizes array
-    // One entry per field per logical element (+ boundary + additional)
-    let capacity = (non_flattened_elements + boundary + additional_capacity)
-        * ElementTypesLength(assert_u32(element_types.len()));
+    // One entry per field per logical element.
+    match shift {
+        ElementTypeSizesArrayShift::None => {}
+        ElementTypeSizesArrayShift::Increase => {
+            non_flattened_elements += SemanticLength(1);
+        }
+        ElementTypeSizesArrayShift::Decrease => {
+            non_flattened_elements = SemanticLength(non_flattened_elements.0.saturating_sub(1));
+        }
+    }
+
+    let capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
     let capacity = assert_usize(capacity.0);
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);

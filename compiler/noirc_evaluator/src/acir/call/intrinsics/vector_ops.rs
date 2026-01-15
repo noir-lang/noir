@@ -1,10 +1,11 @@
+use crate::acir::arrays::ElementTypeSizesArrayShift;
 use crate::acir::types::{flat_element_types, flat_numeric_types};
 use crate::acir::{AcirDynamicArray, AcirValue};
 use crate::brillig::{assert_u32, assert_usize};
 use crate::errors::RuntimeError;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
-use acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
+use acvm::acir::brillig::lengths::FlattenedLength;
 use acvm::{AcirField, FieldElement};
 
 use super::Context;
@@ -110,11 +111,11 @@ impl Context<'_> {
                 if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
                     Some(self.init_element_type_sizes_array(
                         &vector_typ,
-                        vector_contents,
+                        result_ids[1],
                         Some(new_vector_array.clone()),
                         dfg,
                         // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        SemanticLength(0),
+                        ElementTypeSizesArrayShift::None,
                     )?)
                 } else {
                     None
@@ -514,8 +515,12 @@ impl Context<'_> {
         // Fetch the flattened index from the user provided index argument.
         let item_size = self.acir_context.add_constant(elements_to_insert.len());
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
+
+        // Because the insert index might be at the end of the slice, the element type sizes we
+        // index here need to have room for this extra element.
+        let shift = ElementTypeSizesArrayShift::Increase;
         let flat_user_index =
-            self.get_flattened_index(&vector_typ, vector_contents, insert_index, dfg)?;
+            self.get_flattened_index(&vector_typ, vector_contents, insert_index, dfg, shift)?;
 
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
@@ -627,12 +632,14 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                // Note that here we pass `Some(vector)` as the supplied acir value. This is
+                // the input vector before insertion, so we still need an increase shift here.
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
                     result_ids[1],
                     Some(vector),
                     dfg,
-                    SemanticLength(1),
+                    shift,
                 )?)
             } else {
                 None
@@ -755,8 +762,13 @@ impl Context<'_> {
         let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
 
         // Fetch the flattened index from the user provided index argument.
-        let flat_user_index =
-            self.get_flattened_index(&vector_typ, vector_contents, remove_index, dfg)?;
+        let flat_user_index = self.get_flattened_index(
+            &vector_typ,
+            vector_contents,
+            remove_index,
+            dfg,
+            ElementTypeSizesArrayShift::None,
+        )?;
 
         // Fetch the values we are remove from the vector.
         // As we fetch the values we can determine the size of the removed values
@@ -813,12 +825,14 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                // The resulting vector has one less element than before
+                let shift = ElementTypeSizesArrayShift::Decrease;
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
-                    vector_contents,
+                    result_ids[1],
                     Some(vector),
                     dfg,
-                    SemanticLength(0),
+                    shift,
                 )?)
             } else {
                 None

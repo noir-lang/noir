@@ -19,6 +19,13 @@ impl Add<SemanticLength> for SemanticLength {
     }
 }
 
+impl AddAssign for SemanticLength {
+    /// Adds another semantic length to this one.
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
 impl Mul<ElementTypesLength> for SemanticLength {
     type Output = SemiFlattenedLength;
 
