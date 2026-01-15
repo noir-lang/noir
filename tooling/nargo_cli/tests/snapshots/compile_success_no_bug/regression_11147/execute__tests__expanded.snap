@@ -7,12 +7,21 @@ enum Foo<T> {
     B,
 }
 
+struct Bar<T> {
+    value: Foo<T>,
+}
+
 fn main() {
     let _: Foo<bool> = Foo::<T>::B;
     let fa: Foo<str<5>> = Foo::A("hello");
     let fb: Foo<str<5>> = Foo::<T>::B;
     foo(fa);
     foo(fb);
+    let _: Bar<bool> = Bar::<bool> { value: Foo::<T>::B };
+    let b: Bar<str<5>> = Bar::<str<5>> { value: Foo::<T>::B };
+    bar(b);
 }
 
 fn foo(_f: Foo<str<5>>) {}
+
+fn bar(_b: Bar<str<5>>) {}

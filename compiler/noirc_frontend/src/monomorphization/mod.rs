@@ -1468,8 +1468,11 @@ impl<'interner> Monomorphizer<'interner> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
 
-        let expr = if let Some(seen_global) = self.globals.get(&id).and_then(|m| m.get(typ)) {
-            let typ = Self::convert_type(typ, location)?;
+        // Follow bindings otherwise it's not safe to it as a hash map key.
+        let typ = typ.follow_bindings();
+
+        let expr = if let Some(seen_global) = self.globals.get(&id).and_then(|m| m.get(&typ)) {
+            let typ = Self::convert_type(&typ, location)?;
             let ident = ast::Ident {
                 location: Some(location),
                 definition: Definition::Global(*seen_global),
@@ -1498,7 +1501,7 @@ impl<'interner> Monomorphizer<'interner> {
             // Type type of the expression on the RHS itself might be a `Forall` or contain unbound `NamedGeneric` that
             // cannot be unified with some bound `TypeVariable` variable we have on the LHS (because that's not something we do).
             // Still, we want to generate the expression specific to the LHS, so use it as a target type.
-            let expr = self.expr_with_target_type(expr, Some(typ))?;
+            let expr = self.expr_with_target_type(expr, Some(&typ))?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
@@ -1510,7 +1513,7 @@ impl<'interner> Monomorphizer<'interner> {
             if !contains_function {
                 let new_id = self.next_global_id();
                 self.globals.entry(id).or_default().insert(typ.clone(), new_id);
-                let typ = Self::convert_type(typ, location)?;
+                let typ = Self::convert_type(&typ, location)?;
                 self.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 let ident = ast::Ident {
                     location: Some(location),
