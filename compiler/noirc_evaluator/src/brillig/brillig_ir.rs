@@ -615,7 +615,7 @@ pub(crate) mod tests {
         // Insert opcode to set free_memory_pointer near u32::MAX
         // This simulates what would happen if prior allocations exhausted memory
         let patch_opcode = BrilligOpcode::Const {
-            destination: MemoryAddress::direct(1), // FREE_MEMORY_POINTER_ADDRESS
+            destination: ReservedRegisters::free_memory_pointer(), // FREE_MEMORY_POINTER_ADDRESS
             value: FieldElement::from(u32::MAX - 10), // Near max, allocation will overflow
             bit_size: BitSize::Integer(IntegerBitSize::U32),
         };
