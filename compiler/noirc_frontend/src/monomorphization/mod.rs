@@ -50,7 +50,7 @@
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
-use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
+use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
@@ -1581,9 +1581,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
-                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
@@ -1593,9 +1590,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(size, fields) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // This happens when the variable is unused in within a larger generic type, e.g. an enum variant.
-                    // FIXME(#11146): The type vs data mismatch is rejected by the SSA validation.
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
                         return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
