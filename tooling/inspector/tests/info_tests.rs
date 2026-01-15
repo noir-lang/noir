@@ -3,48 +3,35 @@ use predicates::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Path to the noir-inspector binary, building it if needed
+/// Get noir-inspector command (binary is automatically built by cargo test)
 fn inspector_command() -> Command {
-    let bin_path = env!("CARGO_BIN_EXE_noir-inspector");
-    let bin = std::path::Path::new(bin_path);
-
-    if !bin.exists() {
-        Command::new("cargo")
-            .args(["build", "-p", "noir_inspector", "--bin", "noir-inspector"])
-            .output()
-            .expect("Failed to build noir-inspector");
-
-        assert!(bin.exists(), "Binary still doesn't exist after building: {bin:?}");
-    }
-
-    Command::new(bin_path)
+    #[allow(deprecated)]
+    Command::cargo_bin("noir-inspector").unwrap()
 }
 
-/// Get test program artifact path, compiling it if needed
+/// Get test program directory
+fn test_program_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../test_programs/execution_success/assert_statement")
+}
+
+/// Get test program artifact path, compiling if needed
 fn test_artifact_path() -> PathBuf {
-    let program_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../test_programs/execution_success/assert_statement");
+    let program_dir = test_program_dir();
     let artifact = program_dir.join("target/assert_statement.json");
 
     // Compile if artifact doesn't exist
     if !artifact.exists() {
-        let output = Command::new("cargo")
-            .args(["run", "-p", "nargo_cli", "--bin", "nargo", "--"])
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo
+            .arg("--program-dir")
+            .arg(&program_dir)
             .arg("compile")
-            .arg("--force-brillig")
-            .current_dir(&program_dir)
-            .output()
-            .expect("Failed to run nargo compile");
+            .arg("--force")
+            .arg("--force-brillig");
 
-        if !output.status.success() {
-            panic!(
-                "Failed to compile test program:\nstdout: {}\nstderr: {}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-
-        assert!(artifact.exists(), "Artifact still doesn't exist after compilation: {artifact:?}");
+        nargo.assert().success();
     }
 
     artifact
@@ -66,7 +53,7 @@ fn test_profile_execution() {
 #[test]
 fn test_profile_execution_with_explicit_input() {
     let artifact = test_artifact_path();
-    let input_file = artifact.parent().unwrap().parent().unwrap().join("Prover.toml");
+    let input_file = test_program_dir().join("Prover.toml");
 
     inspector_command()
         .arg("info")
