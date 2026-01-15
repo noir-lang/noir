@@ -626,7 +626,7 @@ fn regression_10352_mutable_reference() {
 }
 
 #[test]
-fn ensure_repeated_aliases_in_tuples_arent_detected_as_cyclic_aliases() {
+fn ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases() {
     let src = r#"
     type K = Field;
     type V = Field;
