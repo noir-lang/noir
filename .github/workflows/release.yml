@@ -78,6 +78,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
+
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
