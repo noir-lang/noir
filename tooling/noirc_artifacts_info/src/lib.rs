@@ -124,11 +124,11 @@ mod tests {
         ProgramInfo {
             package_name: package_name.to_string(),
             functions: (0..function_count)
-                .map(|i| FunctionInfo { name: format!("function_{}", i), opcodes: 100 + i * 10 })
+                .map(|i| FunctionInfo { name: format!("function_{i}"), opcodes: 100 + i * 10 })
                 .collect(),
             unconstrained_functions_opcodes: 500,
             unconstrained_functions: (0..unconstrained_count)
-                .map(|i| FunctionInfo { name: format!("unconstrained_{}", i), opcodes: 50 + i * 5 })
+                .map(|i| FunctionInfo { name: format!("unconstrained_{i}"), opcodes: 50 + i * 5 })
                 .collect(),
         }
     }
