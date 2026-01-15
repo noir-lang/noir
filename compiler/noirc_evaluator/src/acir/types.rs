@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use acvm::acir::{brillig::lengths::FlattenedLength, circuit::opcodes::BlockId};
+use acvm::acir::{
+    brillig::lengths::{FlattenedLength, SemanticLength},
+    circuit::opcodes::BlockId,
+};
 
 use crate::{
     errors::InternalError,
@@ -20,7 +23,7 @@ use noirc_errors::call_stack::CallStack;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AcirType {
     NumericType(NumericType),
-    Array(Vec<AcirType>, usize),
+    Array(Vec<AcirType>, SemanticLength),
 }
 
 impl From<SsaType> for AcirType {
@@ -35,7 +38,7 @@ impl From<&SsaType> for AcirType {
             SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
             SsaType::Array(elements, size) => {
                 let elements = elements.iter().map(|e| e.into()).collect();
-                AcirType::Array(elements, *size as usize)
+                AcirType::Array(elements, SemanticLength(*size))
             }
             _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }

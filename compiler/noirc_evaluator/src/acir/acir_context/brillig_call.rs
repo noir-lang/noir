@@ -1,5 +1,6 @@
 use acvm::acir::{
     AcirField,
+    brillig::lengths::SemanticLength,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
 };
@@ -179,9 +180,13 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
+    fn zeroed_array_output(
+        &mut self,
+        element_types: &[AcirType],
+        size: SemanticLength,
+    ) -> AcirValue {
         let mut array_values = im::Vector::new();
-        for _ in 0..size {
+        for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
                     AcirType::Array(nested_element_types, nested_size) => {
@@ -204,11 +209,11 @@ impl<F: AcirField> AcirContext<F> {
     fn brillig_array_output(
         &mut self,
         element_types: &[AcirType],
-        size: usize,
+        size: SemanticLength,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
         let mut array_values = im::Vector::new();
-        for _ in 0..size {
+        for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
                     AcirType::Array(nested_element_types, nested_size) => {
