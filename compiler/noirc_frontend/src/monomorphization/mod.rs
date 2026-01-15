@@ -60,7 +60,7 @@ use crate::{
     debug::DebugInstrumenter,
     hir_def::{
         expr::*,
-        function::{FunctionSignature, Parameters},
+        function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
@@ -203,10 +203,10 @@ pub fn monomorphize_debug(
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
-    let function_sig = monomorphizer.compile_main(main)?;
+    monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
-    Ok(monomorphizer.into_program(function_sig))
+    Ok(monomorphizer.into_program())
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -313,31 +313,19 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// This will also run the ownership and proxies passes on the resulting
     /// program.
-    pub fn into_program(self, function_sig: FunctionSignature) -> Program {
-        let force_unconstrained = self.force_unconstrained;
-        let func_sigs = self
-            .finished_functions
-            .iter()
-            .flat_map(|(_, f)| {
-                if (!force_unconstrained && f.inline_type.is_entry_point())
-                    || f.id == Program::main_id()
-                {
-                    Some(f.func_sig.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let functions = vecmap(self.finished_functions, |(_, f)| f);
+    pub fn into_program(self) -> Program {
+        let mut functions = vecmap(self.finished_functions, |(_, f)| f);
         let globals = self.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
         let (debug_variables, debug_functions, debug_types) =
             self.debug_type_tracker.extract_vars_and_types();
 
+        for f in functions.iter_mut() {
+            let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
+            f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
+        }
+
         Program::new(
             functions,
-            func_sigs,
-            function_sig,
             self.return_location,
             globals,
             debug_variables,
@@ -465,13 +453,12 @@ impl<'interner> Monomorphizer<'interner> {
     /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
     ///
     /// Sets the `return_location` expected by `into_program` later.
-    /// Returns the [FunctionSignature] of `main`, expected to be passed to `into_program`.
     ///
     /// Panics if some other function has already been monomorphized before.
     pub fn compile_main(
         &mut self,
         main_id: node_interner::FuncId,
-    ) -> Result<FunctionSignature, MonomorphizationError> {
+    ) -> Result<(), MonomorphizationError> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id(), "expected main to be monomorphized first");
 
@@ -486,8 +473,7 @@ impl<'interner> Monomorphizer<'interner> {
                     _ => None,
                 },
             );
-        let main_meta = self.interner.function_meta(&main_id);
-        Ok(main_meta.function_signature())
+        Ok(())
     }
 
     /// Monomorphizes the given function.
@@ -512,14 +498,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
-
-        let mut func_sig = meta.function_signature();
-        // Follow the bindings of the function signature for entry points
-        // which are not `main` such as foldable functions.
-        for param in func_sig.0.iter_mut() {
-            param.1 = param.1.follow_bindings();
-        }
-        func_sig.1 = func_sig.1.map(|return_type| return_type.follow_bindings());
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -559,7 +537,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility,
             unconstrained,
             inline_type,
-            func_sig,
+            is_entry_point: false,
         };
 
         self.push_function(id, function);
@@ -2462,7 +2440,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
@@ -2605,7 +2583,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
@@ -2801,7 +2779,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
