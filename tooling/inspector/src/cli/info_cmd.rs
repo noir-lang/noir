@@ -38,12 +38,11 @@ pub(crate) struct InfoCommand {
     pedantic_solving: bool,
 }
 
-/// Since we don't have a prover, we need to resolve the input file path for profiling.
 /// Resolves the input file path for profiling.
 /// Priority:
 /// 1. Explicit --input-file argument
-/// 2. <artifact_name>.toml in same directory as artifact
-/// 3. <artifact_name>.json in same directory as artifact
+/// 2. Prover.toml in program directory (parent of target/)
+/// 3. Prover.json in program directory
 fn resolve_input_file(
     artifact_path: &Path,
     explicit_input: Option<&PathBuf>,
@@ -55,21 +54,23 @@ fn resolve_input_file(
         return Ok(input_path.clone());
     }
 
-    // Try to find input file next to artifact
+    // Artifact is typically at: <program_dir>/target/<name>.json
+    // Input files are at: <program_dir>/Prover.toml
     let artifact_dir =
         artifact_path.parent().ok_or_else(|| eyre::eyre!("Cannot determine artifact directory"))?;
 
-    let artifact_stem =
-        artifact_path.file_stem().ok_or_else(|| eyre::eyre!("Cannot determine artifact name"))?;
+    let program_dir = artifact_dir
+        .parent()
+        .ok_or_else(|| eyre::eyre!("Cannot determine program directory"))?;
 
-    // Try .toml first
-    let toml_path = artifact_dir.join(artifact_stem).with_extension("toml");
+    // Try Prover.toml first
+    let toml_path = program_dir.join("Prover.toml");
     if toml_path.exists() {
         return Ok(toml_path);
     }
 
-    // Try .json
-    let json_path = artifact_dir.join(artifact_stem).with_extension("json");
+    // Try Prover.json
+    let json_path = program_dir.join("Prover.json");
     if json_path.exists() {
         return Ok(json_path);
     }
