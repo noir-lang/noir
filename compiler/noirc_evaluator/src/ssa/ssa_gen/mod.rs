@@ -510,8 +510,9 @@ impl FunctionContext<'_> {
                 // except when the inner elements have no size, because the array access can be optimized out in that case.
                 // We then only need to inject it for brillig functions or for 'unit' elements.
                 if runtime.is_brillig() || type_size_usize == 0 {
-                    let len =
-                        self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
+                    let len = self
+                        .builder
+                        .numeric_constant(u128::from(len.0), NumericType::length_type());
                     self.codegen_access_check(index, len);
                 }
             }

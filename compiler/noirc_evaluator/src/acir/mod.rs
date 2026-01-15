@@ -28,8 +28,8 @@ pub(crate) mod ssa;
 mod tests;
 mod types;
 
+use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
-use crate::brillig::{Brillig, assert_usize};
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
@@ -381,7 +381,7 @@ impl<'a> Context<'a> {
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
 
-                for _ in 0..*length {
+                for _ in 0..length.0 {
                     for element in element_types.iter() {
                         elements.push_back(self.create_value_from_type(element, make_var)?);
                     }
@@ -596,9 +596,9 @@ impl<'a> Context<'a> {
             }
         };
 
-        return_values.iter().fold(0, |acc, value_id| {
-            acc + assert_usize(dfg.type_of_value(*value_id).flattened_size().0)
-        })
+        return_values
+            .iter()
+            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations

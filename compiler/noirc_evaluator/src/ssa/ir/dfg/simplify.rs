@@ -8,7 +8,10 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::{AcirField as _, FieldElement};
+use acvm::{
+    AcirField as _, FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength},
+};
 use binary::simplify_binary;
 use call::simplify_call;
 use cast::simplify_cast;
@@ -116,8 +119,8 @@ pub(crate) fn simplify(
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
-            if matches!(array_or_vector_type, Type::Array(_, 1))
-                && array_or_vector_type.element_size() == 1
+            if matches!(array_or_vector_type, Type::Array(_, SemanticLength(1)))
+                && array_or_vector_type.element_size() == ElementTypesLength(1)
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
@@ -418,7 +421,7 @@ fn try_optimize_array_get_from_previous_set(
                 _ => (),
             }
         } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id] {
-            if target_index_u32 < *length {
+            if target_index_u32 < length.0 {
                 let index = dfg.make_constant(target_index, NumericType::length_type());
                 return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
                     array: array_id,

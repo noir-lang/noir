@@ -112,7 +112,7 @@ impl Context<'_> {
                 let Type::Array(_, vector_length) = array_type else {
                     unreachable!("Expected Array input for `as_vector` intrinsic");
                 };
-                let vector_length = self.acir_context.add_constant(vector_length);
+                let vector_length = self.acir_context.add_constant(vector_length.0);
                 let acir_value = self.convert_value(array_contents, dfg);
                 let result = self.read_array_with_type(acir_value, &array_type)?;
                 Ok(vec![

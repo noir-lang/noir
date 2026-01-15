@@ -4,10 +4,7 @@ use acvm::{
     FieldElement,
     acir::{
         AcirField,
-        brillig::{
-            BitSize,
-            lengths::{SemanticLength, SemiFlattenedLength},
-        },
+        brillig::{BitSize, lengths::SemiFlattenedLength},
     },
     brillig_vm::brillig::{HeapValueType, MemoryAddress},
 };
@@ -159,7 +156,7 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: SemanticLength(*size),
+            size: *size,
         },
         Type::Vector(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
@@ -194,7 +191,7 @@ mod tests {
     #[test]
     fn type_to_heap_value_type_flattened_size() {
         // typ = [(u32, bool); 3]
-        let typ = Type::Array(Arc::new(vec![Type::unsigned(32), Type::bool()]), 3);
+        let typ = Type::Array(Arc::new(vec![Type::unsigned(32), Type::bool()]), SemanticLength(3));
         let typ = type_to_heap_value_type(&typ);
         assert_eq!(typ.flattened_size(), Some(FlattenedLength(6)));
 
@@ -204,8 +201,8 @@ mod tests {
         assert_eq!(size, SemanticLength(3));
 
         // typ = [[u32; 4]; 2]
-        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), 4);
-        let typ = Type::Array(Arc::new(vec![arr]), 2);
+        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(4));
+        let typ = Type::Array(Arc::new(vec![arr]), SemanticLength(2));
         let typ = type_to_heap_value_type(&typ);
         assert_eq!(typ.flattened_size(), Some(FlattenedLength(8)));
 
@@ -215,8 +212,8 @@ mod tests {
         assert_eq!(size, SemanticLength(2));
 
         // typ = [([u32; 4], bool); 2]
-        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), 4);
-        let typ = Type::Array(Arc::new(vec![arr, Type::bool()]), 2);
+        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(4));
+        let typ = Type::Array(Arc::new(vec![arr, Type::bool()]), SemanticLength(2));
         let typ = type_to_heap_value_type(&typ);
         assert_eq!(typ.flattened_size(), Some(FlattenedLength(10)));
 

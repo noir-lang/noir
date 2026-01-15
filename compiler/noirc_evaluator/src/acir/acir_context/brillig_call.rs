@@ -6,7 +6,7 @@ use acvm::acir::{
 };
 use iter_extended::{try_vecmap, vecmap};
 
-use crate::brillig::{assert_usize, brillig_ir::artifact::GeneratedBrillig};
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 
 use super::generated_acir::{BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
@@ -164,7 +164,7 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                for i in 0..assert_usize(len.0) {
+                for i in 0..len.to_usize() {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(i);
 

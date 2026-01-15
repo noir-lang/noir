@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use acvm::acir::BlackBoxFunc;
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::blackbox_solver::sha256_compression;
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
 use im::Vector;
@@ -61,7 +62,8 @@ fn constant_point_result_helper(
     let result_is_infinity = dfg.make_constant(is_infinity, NumericType::bool());
 
     let elements = im::vector![result_x, result_y, result_is_infinity];
-    let typ = Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
+    let typ =
+        Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), SemanticLength(1));
     Instruction::MakeArray { elements, typ }
 }
 
@@ -150,7 +152,10 @@ fn simplify_msm_helper(
         let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
 
         let elements = im::vector![result_x, result_y, result_is_infinity];
-        let typ = Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
+        let typ = Type::Array(
+            Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+            SemanticLength(1),
+        );
         let instruction = Instruction::MakeArray { elements, typ };
         let result_array = dfg.insert_instruction_and_results(instruction, block, None, call_stack);
 
@@ -179,9 +184,11 @@ fn simplify_msm_helper(
         var_points.push(result_is_infinity);
     }
 
+    assert!(var_points.len() % 3 == 0, "Points array length must be a multiple of 3");
+
     let points_typ = Type::Array(
         Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-        var_points.len() as u32 / 3,
+        SemanticLength(var_points.len() as u32 / 3),
     );
 
     if result_is_infinity.is_one()
@@ -197,8 +204,12 @@ fn simplify_msm_helper(
 
     // Construct the simplified MSM expression
 
-    let scalars_typ =
-        Type::Array(Arc::new(vec![Type::field(), Type::field()]), var_scalars.len() as u32 / 2);
+    assert!(var_scalars.len() % 2 == 0, "Scalars array length must be a multiple of 2");
+
+    let scalars_typ = Type::Array(
+        Arc::new(vec![Type::field(), Type::field()]),
+        SemanticLength(var_scalars.len() as u32 / 2),
+    );
     let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ: scalars_typ };
     let scalars = dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
 

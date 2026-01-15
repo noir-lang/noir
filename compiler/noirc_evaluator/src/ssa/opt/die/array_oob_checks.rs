@@ -85,7 +85,7 @@ impl Context {
                 (false_const, true_const)
             } else {
                 let array_typ = function.dfg.type_of_value(*array);
-                let element_size = array_typ.element_size() as u32;
+                let element_size = array_typ.element_size();
                 let len = match array_typ {
                     Type::Array(_, len) => len,
                     _ => panic!("Expected an array"),
@@ -111,8 +111,7 @@ impl Context {
                     call_stack,
                 );
                 let index = index.first();
-                let array_length =
-                    function.dfg.make_constant(u128::from(array_length).into(), length_type);
+                let array_length = function.dfg.make_constant(array_length.0.into(), length_type);
 
                 let is_index_in_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
@@ -201,7 +200,7 @@ fn handle_array_get_group(
         return;
     };
 
-    let element_size = function.dfg.type_of_value(*array).element_size();
+    let element_size = function.dfg.type_of_value(*array).element_size().to_usize();
     if element_size <= 1 {
         // Not a composite type
         return;

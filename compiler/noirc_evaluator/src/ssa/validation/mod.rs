@@ -15,7 +15,13 @@
 use core::panic;
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use acvm::{
+    AcirField, FieldElement,
+    acir::{
+        BlackBoxFunc,
+        brillig::lengths::{ElementTypesLength, SemiFlattenedLength},
+    },
+};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
@@ -209,12 +215,15 @@ impl<'f> Validator<'f> {
 
                 let composite_type = match result_type {
                     Type::Array(composite_type, length) => {
-                        let array_flattened_length = composite_type.len() * length as usize;
-                        if elements.len() != array_flattened_length {
+                        let types_length =
+                            ElementTypesLength(crate::brillig::assert_u32(composite_type.len()));
+                        let array_semi_flattened_length = types_length * length;
+                        let elements_length =
+                            SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
+                        if elements_length != array_semi_flattened_length {
                             panic!(
                                 "MakeArray returns an array of flattened length {}, but it has {} elements",
-                                array_flattened_length,
-                                elements.len()
+                                array_semi_flattened_length, elements_length
                             );
                         }
                         composite_type
@@ -1106,7 +1115,7 @@ fn assert_array<'a>(typ: &'a Type, object: &str) -> (&'a Arc<Vec<Type>>, u32) {
     let Type::Array(elements, length) = typ else {
         panic!("{object} must be an array");
     };
-    (elements, *length)
+    (elements, length.0)
 }
 
 fn assert_u1_array(typ: &Type, object: &str) -> u32 {

@@ -53,7 +53,8 @@ impl Function {
             };
 
             let [original_vector_length, _] = context.dfg.instruction_result(instruction_id);
-            let known_length = context.dfg.make_constant(length.into(), NumericType::length_type());
+            let known_length =
+                context.dfg.make_constant(length.0.into(), NumericType::length_type());
             context.replace_value(original_vector_length, known_length);
         });
     }

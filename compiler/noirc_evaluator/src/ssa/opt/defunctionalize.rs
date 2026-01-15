@@ -742,7 +742,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
         Type::Numeric(numeric_type) => function_builder.numeric_constant(0_u128, *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(make_dummy_return_data(function_builder, typ));
                 }

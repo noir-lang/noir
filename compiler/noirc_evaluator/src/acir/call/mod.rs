@@ -301,7 +301,7 @@ impl Context<'_> {
         match result_type {
             Type::Array(elements, size) => {
                 let mut element_values = im::Vector::new();
-                for _ in 0..*size {
+                for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);
                         element_values.push_back(element);

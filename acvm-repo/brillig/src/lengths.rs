@@ -10,6 +10,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct SemanticLength(pub u32);
 
+impl SemanticLength {
+    pub fn to_usize(self) -> usize {
+        assert_usize(self.0)
+    }
+}
+
 impl Add<SemanticLength> for SemanticLength {
     type Output = SemanticLength;
 
@@ -50,6 +56,12 @@ impl std::fmt::Display for SemanticLength {
 /// 3. [u32; 4]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct ElementTypesLength(pub u32);
+
+impl ElementTypesLength {
+    pub fn to_usize(self) -> usize {
+        assert_usize(self.0)
+    }
+}
 
 impl Mul<SemanticLength> for ElementTypesLength {
     type Output = SemiFlattenedLength;
@@ -95,6 +107,12 @@ impl std::fmt::Display for ElementTypesLength {
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct SemiFlattenedLength(pub u32);
 
+impl SemiFlattenedLength {
+    pub fn to_usize(self) -> usize {
+        assert_usize(self.0)
+    }
+}
+
 impl std::fmt::Display for SemiFlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -105,6 +123,12 @@ impl Div<ElementTypesLength> for SemiFlattenedLength {
     type Output = SemanticLength;
 
     fn div(self, rhs: ElementTypesLength) -> Self::Output {
+        if self.0 % rhs.0 != 0 {
+            panic!(
+                "Division of SemiFlattenedLength {} by ElementTypesLength {} has remainder",
+                self.0, rhs.0
+            );
+        }
         SemanticLength(self.0 / rhs.0)
     }
 }
@@ -116,6 +140,12 @@ impl Div<ElementTypesLength> for SemiFlattenedLength {
 /// 3. [u32; 4] (4)
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct ElementsFlattenedLength(pub u32);
+
+impl ElementsFlattenedLength {
+    pub fn to_usize(self) -> usize {
+        assert_usize(self.0)
+    }
+}
 
 impl std::fmt::Display for ElementsFlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -144,6 +174,12 @@ impl From<FlattenedLength> for ElementsFlattenedLength {
 /// For example in the array `[(u8, u16, [u32; 4]); 8]` the flattened length is 48: 8 * (1 + 1 + 4).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct FlattenedLength(pub u32);
+
+impl FlattenedLength {
+    pub fn to_usize(self) -> usize {
+        assert_usize(self.0)
+    }
+}
 
 impl std::fmt::Display for FlattenedLength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -175,6 +211,18 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
     type Output = SemanticLength;
 
     fn div(self, rhs: ElementsFlattenedLength) -> Self::Output {
+        if self.0 % rhs.0 != 0 {
+            panic!(
+                "Division of FlattenedLength {} by ElementsFlattenedLength {} has remainder",
+                self.0, rhs.0
+            );
+        }
+
         SemanticLength(self.0 / rhs.0)
     }
+}
+
+/// Converts a u32 value to usize, panicking if the conversion fails.
+fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
 }

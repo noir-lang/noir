@@ -4,7 +4,6 @@ use acvm::acir::{
 use iter_extended::vecmap;
 
 use crate::{
-    brillig::assert_usize,
     errors::{InternalError, RuntimeError},
     ssa::ir::types::NumericType,
 };
@@ -22,7 +21,7 @@ impl<F: AcirField> AcirContext<F> {
         output_count: FlattenedLength,
         predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
-        let output_count = assert_usize(output_count.0);
+        let output_count = output_count.to_usize();
         // Separate out any arguments that should be constants
         let constant_inputs = match name {
             BlackBoxFunc::AES128Encrypt => {
@@ -30,7 +29,7 @@ impl<F: AcirField> AcirContext<F> {
                 let input_size: usize = match inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
                     AcirValue::DynamicArray(dyn_array) => {
-                        Ok::<usize, RuntimeError>(assert_usize(dyn_array.len.0))
+                        Ok::<usize, RuntimeError>(dyn_array.len.to_usize())
                     }
                     _ => {
                         return Err(RuntimeError::InternalError(InternalError::General {

@@ -2,18 +2,27 @@ use noirc_errors::call_stack::CallStackId;
 use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
-use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
+use acvm::{
+    AcirField as _, FieldElement,
+    acir::{
+        BlackBoxFunc,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
-    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-    integer::IntegerConstant,
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+use crate::{
+    brillig::assert_u32,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
+        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        integer::IntegerConstant,
+        types::{NumericType, Type},
+        value::{Value, ValueId},
+    },
 };
 
 use super::SimplifyResult;
@@ -55,7 +64,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                simplify_constant_to_radix(endian, field, 2, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, 2, limb_count.0, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -78,7 +87,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                simplify_constant_to_radix(endian, field, radix, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, radix, limb_count.0, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -94,7 +103,7 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             let length = match dfg.type_of_value(arguments[0]) {
                 Type::Array(_, length) => {
-                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
+                    dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
                     assert!(matches!(dfg.type_of_value(arguments[1]), Type::Vector(_)));
@@ -113,7 +122,7 @@ pub(super) fn simplify_call(
                 let inner_element_types = array_type.element_types();
                 let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
                 let vector_length =
-                    dfg.make_constant(vector_length_value.into(), NumericType::length_type());
+                    dfg.make_constant(vector_length_value.0.into(), NumericType::length_type());
                 let new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
@@ -126,7 +135,7 @@ pub(super) fn simplify_call(
             if let Some((mut vector, element_type)) = vector {
                 // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
                 // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-                if element_type.element_size() != 1 {
+                if element_type.element_size() != ElementTypesLength(1) {
                     if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
                         dfg.get_integer_constant(arguments[0])
                     {
@@ -201,7 +210,7 @@ pub(super) fn simplify_call(
                 let element_count = typ.element_size();
 
                 // We must pop multiple elements in the case of a vector of tuples
-                let mut results = vecmap(0..element_count, |_| {
+                let mut results = vecmap(0..element_count.to_usize(), |_| {
                     vector.pop_front().expect("There are no elements in this vector to be removed")
                 });
 
@@ -259,7 +268,7 @@ pub(super) fn simplify_call(
             let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
-                let element_count = typ.element_size();
+                let element_count = typ.element_size().to_usize();
                 let mut results = Vec::with_capacity(element_count + 1);
                 let index = index.to_u128() as usize * element_count;
 
@@ -345,7 +354,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::DerivePedersenGenerators => {
             if let Some(Type::Array(_, len)) = return_type.clone() {
-                simplify_derive_generators(dfg, arguments, len, block, call_stack)
+                simplify_derive_generators(dfg, arguments, len.0, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
             }
@@ -442,7 +451,10 @@ fn make_constant_array(
     let result_constants: im::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
-    let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
+    let typ = Type::Array(
+        Arc::new(vec![Type::Numeric(typ)]),
+        SemanticLength(assert_u32(result_constants.len())),
+    );
     make_array(dfg, result_constants, typ, block, call_stack)
 }
 
@@ -520,8 +532,8 @@ fn simplify_vector_push_back(
     for elem in &arguments[2..] {
         vector.push_back(*elem);
     }
-    let vector_size = vector.len() as u32;
-    let element_size = element_type.element_size() as u32;
+    let vector_size = SemiFlattenedLength(assert_u32(vector.len()));
+    let element_size = element_type.element_size();
     let new_vector = make_array(dfg, vector, element_type, block, call_stack);
 
     let set_last_vector_value_instr = Instruction::ArraySet {
@@ -766,8 +778,14 @@ fn simplify_derive_generators(
                 results.push(is_infinite);
             }
             let len = results.len() as u32;
-            let typ =
-                Type::Array(vec![Type::field(), Type::field(), Type::unsigned(1)].into(), len / 3);
+            assert!(
+                len % 3 == 0,
+                "The number of results from derive_generators must be a multiple of 3"
+            );
+            let typ = Type::Array(
+                vec![Type::field(), Type::field(), Type::unsigned(1)].into(),
+                SemanticLength(len / 3),
+            );
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {

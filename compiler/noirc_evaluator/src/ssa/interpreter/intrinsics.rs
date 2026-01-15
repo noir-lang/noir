@@ -446,7 +446,7 @@ impl<W: Write> Interpreter<'_, W> {
                     }));
                 };
 
-                let generators = derive_generators(&inputs, n, index);
+                let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in generators.iter() {
                     let x_big: BigUint = generator.x.into();
@@ -523,7 +523,8 @@ impl<W: Write> Interpreter<'_, W> {
             }));
         };
 
-        let Some(limbs) = dfg::simplify::constant_to_radix(endian, field, radix, limb_count) else {
+        let Some(limbs) = dfg::simplify::constant_to_radix(endian, field, radix, limb_count.0)
+        else {
             return Err(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 

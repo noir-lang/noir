@@ -1,7 +1,7 @@
 use crate::acir::arrays::ElementTypeSizesArrayShift;
 use crate::acir::types::{flat_element_types, flat_numeric_types};
 use crate::acir::{AcirDynamicArray, AcirValue};
-use crate::brillig::{assert_u32, assert_usize};
+use crate::brillig::assert_u32;
 use crate::errors::RuntimeError;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
@@ -79,7 +79,7 @@ impl Context<'_> {
             // push_back corresponding dummy zero values to the AcirValues vector.
             for (elem, ssa_typ) in elements_to_push.iter().zip(vector_types.to_vec()) {
                 let element = self.convert_value(*elem, dfg);
-                element_size += assert_usize(super::arrays::flattened_value_size(&element).0);
+                element_size += super::arrays::flattened_value_size(&element).to_usize();
                 match element {
                     AcirValue::Var(acir_var, acir_type) => {
                         new_vector.push_back(AcirValue::Var(zero, acir_type));
@@ -377,7 +377,7 @@ impl Context<'_> {
 
             let element_size = vector_typ.element_size();
             // For pop_front, results order is: [popped_elements..., new_len, new_vector]
-            for result_id in &result_ids[..element_size] {
+            for result_id in &result_ids[..element_size.to_usize()] {
                 let result_type = dfg.type_of_value(*result_id);
                 let result_zero = self.array_zero_value(&result_type)?;
                 results.push(result_zero);
@@ -418,7 +418,7 @@ impl Context<'_> {
         // Fetch the values we are popping off of the vector.
         // In the case of non-nested vector the logic is simple as we do not
         // need to account for the internal vector sizes or flattening the index.
-        for res in &result_ids[..element_size] {
+        for res in &result_ids[..element_size.to_usize()] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
             popped_elements.push(element);
@@ -552,8 +552,8 @@ impl Context<'_> {
         self.initialize_array(result_block_id, vector_size, None)?;
         let mut current_insert_index = 0;
 
-        let vector_size_usize = assert_usize(vector_size.0);
-        let inner_elem_size_usize = assert_usize(inner_elem_size.0);
+        let vector_size_usize = vector_size.to_usize();
+        let inner_elem_size_usize = inner_elem_size.to_usize();
 
         // This caches each `is_after_insert` var for each index for an optimization that is
         // explained below, above `is_after_insert`.
@@ -757,7 +757,7 @@ impl Context<'_> {
             "ICE: The read flattened vector should match the computed size"
         );
 
-        let item_size = vector_typ.element_size();
+        let item_size = vector_typ.element_size().to_usize();
         let item_size = self.acir_context.add_constant(item_size);
         let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
 
@@ -778,7 +778,7 @@ impl Context<'_> {
         // Set a temp index just for fetching from the original vector as `array_get_value` mutates
         // the index internally.
         let mut temp_index = flat_user_index;
-        let element_size = vector_typ.element_size();
+        let element_size = vector_typ.element_size().to_usize();
         for res in &result_ids[2..(2 + element_size)] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
@@ -787,7 +787,7 @@ impl Context<'_> {
             popped_elements.push(element);
         }
 
-        let popped_elements_size = popped_elements_size.0;
+        let popped_elements_size = popped_elements_size;
 
         // Go through the entire vector argument and determine what value should be written to the new vector.
         // 1. If the current index is greater than the removal index we must write the next value
@@ -798,13 +798,12 @@ impl Context<'_> {
         let result_block_id = self.block_id(result_ids[1]);
         // We expect a preceding check to have been laid down that the remove index is within bounds.
         // In practice `popped_elements_size` should never exceed the `vector_size` but we do a saturating sub to be safe.
-        let result_size = FlattenedLength(vector_size.0.saturating_sub(popped_elements_size));
+        let result_size = FlattenedLength(vector_size.0.saturating_sub(popped_elements_size.0));
         self.initialize_array(result_block_id, result_size, None)?;
-        for (i, current_value) in flat_vector.iter().enumerate().take(assert_usize(result_size.0)) {
+        for (i, current_value) in flat_vector.iter().enumerate().take(result_size.to_usize()) {
             let current_index = self.acir_context.add_constant(i);
 
-            let shifted_index =
-                self.acir_context.add_constant(i + assert_usize(popped_elements_size));
+            let shifted_index = self.acir_context.add_constant(i + popped_elements_size.to_usize());
 
             // Fetch the value from the initial vector
             let value_shifted_index =

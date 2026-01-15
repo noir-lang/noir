@@ -38,7 +38,7 @@ impl From<&SsaType> for AcirType {
             SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
             SsaType::Array(elements, size) => {
                 let elements = elements.iter().map(|e| e.into()).collect();
-                AcirType::Array(elements, SemanticLength(*size))
+                AcirType::Array(elements, *size)
             }
             _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
@@ -246,7 +246,7 @@ fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<Num
         }
         SsaType::Array(types, len) => {
             // For arrays, multiply by length to get the fully flattened representation
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in types.iter() {
                     collect_fully_flattened_numeric_types(typ, flat_types);
                 }

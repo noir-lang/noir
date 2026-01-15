@@ -8,7 +8,10 @@ use crate::{
         value::{ValueId, ValueMapping},
     },
 };
-use acvm::{FieldElement, acir::brillig::lengths::FlattenedLength};
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{FlattenedLength, SemanticLength},
+};
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;
@@ -168,21 +171,21 @@ impl FunctionBuilder {
                 databus.map.insert(value, databus.index);
 
                 let mut index = 0;
-                for _i in 0..len {
+                for _i in 0..len.0 {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
                         let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index as i128);
+                        let index_var = FieldElement::from(index);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
                         // If we do not check for an empty array we will have an unused array get
                         // as an array of length zero will not be actually added to the databus' values.
-                        if let Type::Array(_, 0) = subitem_typ {
+                        if let Type::Array(_, SemanticLength(0)) = subitem_typ {
                             continue;
                         }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
-                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size(),
+                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size().0,
                             Type::Numeric(_) => 1,
                             _ => unreachable!("Unsupported type for databus"),
                         };
@@ -212,7 +215,7 @@ impl FunctionBuilder {
 
         let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
             .then(|| {
-                let array_type = Type::Array(Arc::new(vec![Type::field()]), len);
+                let array_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(len));
                 self.insert_make_array(databus.values, array_type)
             });
 
