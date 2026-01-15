@@ -108,7 +108,7 @@ fn format_info_report(info_report: &InfoReport, json: bool) -> String {
 
 pub fn show_info_report(info_report: InfoReport, json: bool) {
     let output = format_info_report(&info_report, json);
-    println!("{}", output);
+    println!("{output}");
 }
 
 #[cfg(test)]
