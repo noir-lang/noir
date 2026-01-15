@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768433675667,
+  "lastUpdate": 1768477132495,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23221,48 +23221,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "da65d90d812d7b93b2323b6a00bb7b29a6acfb1a",
-          "message": "fix(ACIR): check vector length is not zero before pop_front (#11107)",
-          "timestamp": "2026-01-08T12:58:50Z",
-          "tree_id": "a0d7c998fed81e9ac188b603c39e09933421f0ae",
-          "url": "https://github.com/noir-lang/noir/commit/da65d90d812d7b93b2323b6a00bb7b29a6acfb1a"
-        },
-        "date": 1767878424764,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253558,
-            "range": "± 1018",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222679,
-            "range": "± 2372",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790316,
-            "range": "± 2920",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c96ca7ac4e4e07268ecc21fb6f1f034c7f4659f1",
           "message": "fix(fmt): format the old vector syntax into the new one (#11128)",
           "timestamp": "2026-01-08T13:34:17Z",
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2805822,
             "range": "± 1721",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c94d40988331dad3abb44c17b1a870ece12ed6c",
+          "message": "chore(ACIR): use strong types for lengths (#11213)",
+          "timestamp": "2026-01-15T11:12:12Z",
+          "tree_id": "eb391e440e7e0e17baa0e8efdf31e5bd08945b44",
+          "url": "https://github.com/noir-lang/noir/commit/3c94d40988331dad3abb44c17b1a870ece12ed6c"
+        },
+        "date": 1768477096288,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267697,
+            "range": "± 1026",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237182,
+            "range": "± 5435",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2807643,
+            "range": "± 3511",
             "unit": "ns/iter"
           }
         ]
