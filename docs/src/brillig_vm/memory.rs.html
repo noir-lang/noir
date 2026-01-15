@@ -585,13 +585,7 @@
 <a href="#584" id="584">584</a>
 <a href="#585" id="585">585</a>
 <a href="#586" id="586">586</a>
-<a href="#587" id="587">587</a>
-<a href="#588" id="588">588</a>
-<a href="#589" id="589">589</a>
-<a href="#590" id="590">590</a>
-<a href="#591" id="591">591</a>
-<a href="#592" id="592">592</a>
-<a href="#593" id="593">593</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
+<a href="#587" id="587">587</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation of the VM's memory.
 </span><span class="kw">use </span>acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
@@ -887,12 +881,6 @@
 <span class="kw">impl</span>&lt;F: AcirField&gt; From&lt;u8&gt; <span class="kw">for </span>MemoryValue&lt;F&gt; {
     <span class="kw">fn </span>from(value: u8) -&gt; <span class="self">Self </span>{
         MemoryValue::U8(value)
-    }
-}
-
-<span class="kw">impl</span>&lt;F: AcirField&gt; From&lt;usize&gt; <span class="kw">for </span>MemoryValue&lt;F&gt; {
-    <span class="kw">fn </span>from(value: usize) -&gt; <span class="self">Self </span>{
-        MemoryValue::U32(value <span class="kw">as </span>u32)
     }
 }
 

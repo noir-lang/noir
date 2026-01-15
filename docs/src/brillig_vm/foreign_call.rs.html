@@ -885,7 +885,7 @@
                         <span class="comment">// Set the size in the size address.
                         // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
                         // instead we expect the post-call codegen will copy it to the heap.
-                        </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, values.len().into());
+                        </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, assert_u32(values.len()).into());
                         <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                     } <span class="kw">else </span>{
                         <span class="macro">unimplemented!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
