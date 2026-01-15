@@ -3,9 +3,21 @@ use predicates::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Path to the noir-inspector binary
+/// Path to the noir-inspector binary, building it if needed
 fn inspector_command() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_noir-inspector"))
+    let bin_path = env!("CARGO_BIN_EXE_noir-inspector");
+    let bin = std::path::Path::new(bin_path);
+
+    if !bin.exists() {
+        Command::new("cargo")
+            .args(["build", "-p", "noir_inspector", "--bin", "noir-inspector"])
+            .output()
+            .expect("Failed to build noir-inspector");
+
+        assert!(bin.exists(), "Binary still doesn't exist after building: {bin:?}");
+    }
+
+    Command::new(bin_path)
 }
 
 /// Get test program artifact path, compiling it if needed
@@ -16,10 +28,11 @@ fn test_artifact_path() -> PathBuf {
 
     // Compile if artifact doesn't exist
     if !artifact.exists() {
-        let output = Command::new("nargo")
-            .current_dir(&program_dir)
+        let output = Command::new("cargo")
+            .args(["run", "-p", "nargo_cli", "--bin", "nargo", "--"])
             .arg("compile")
             .arg("--force-brillig")
+            .current_dir(&program_dir)
             .output()
             .expect("Failed to run nargo compile");
 
