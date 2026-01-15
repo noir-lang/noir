@@ -1433,8 +1433,8 @@ impl Type {
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
-    /// Return this type as a monomorphic type - without a `Type::Forall` if there is one.
-    /// This is only a shallow check since Noir's type system prohibits `Type::Forall` anywhere
+    /// Return this type as a monomorphic type - without a [Type::Forall] if there is one.
+    /// This is only a shallow check since Noir's type system prohibits [Type::Forall] anywhere
     /// inside other types.
     pub fn as_monotype(&self) -> &Type {
         match self {
@@ -1443,8 +1443,9 @@ impl Type {
         }
     }
 
-    /// Return the generics and type within this `Type::Forall`.
-    /// Panics if `self` is not `Type::Forall`
+    /// Return the generics and type within this [Type::Forall].
+    ///
+    /// Returns an empty list of type variables and the type itself if it's not a [Type::Forall].
     pub fn unwrap_forall(&self) -> (Cow<GenericTypeVars>, &Type) {
         match self {
             Type::Forall(generics, typ) => (Cow::Borrowed(generics), typ.as_ref()),
