@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use acvm::{FieldElement, acir::brillig::lengths::FlattenedLength};
-use noirc_frontend::hir_def::function::FunctionSignature;
+use noirc_frontend::monomorphization::ast::Parameters;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
@@ -46,16 +46,16 @@ impl DataBusBuilder {
 
     /// Generates a vector telling which flattened parameters from the given function signature
     /// are tagged with databus visibility
-    pub(crate) fn is_databus(main_signature: &FunctionSignature) -> Vec<DatabusVisibility> {
+    pub(crate) fn is_databus(main_parameters: &Parameters) -> Vec<DatabusVisibility> {
         let mut params_is_databus = Vec::new();
 
-        for param in &main_signature.0 {
-            let is_databus = match param.2 {
+        for (_, _, _, typ, visibility) in main_parameters {
+            let is_databus = match visibility {
                 Visibility::Public | Visibility::Private => DatabusVisibility::None,
-                Visibility::CallData(id) => DatabusVisibility::CallData(id),
+                Visibility::CallData(id) => DatabusVisibility::CallData(*id),
                 Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
-            let len = param.1.field_count(&param.0.location()) as usize;
+            let len = typ.entry_point_field_count() as usize;
             params_is_databus.extend(vec![is_databus; len]);
         }
         params_is_databus
