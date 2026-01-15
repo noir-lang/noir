@@ -324,10 +324,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 self.storage[self.len + i] = vec.get_unchecked(i);
             }
         } else {
-            let mut exceeded_len = false;
             for i in 0..Len {
-                exceeded_len |= i == append_len;
-                if !exceeded_len {
+                if i < append_len {
                     self.storage[self.len + i] = vec.get_unchecked(i);
                 }
             }
