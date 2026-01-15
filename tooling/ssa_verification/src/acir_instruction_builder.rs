@@ -268,7 +268,6 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
 
         private_params.extend(ret_values.iter().cloned());
         let circuit: Circuit<FieldElement> = Circuit {
-            current_witness_index: acir_func.current_witness_index().witness_index(),
             opcodes: acir_func.opcodes.clone(),
             private_parameters: private_params.clone(),
             ..Circuit::<FieldElement>::default()
