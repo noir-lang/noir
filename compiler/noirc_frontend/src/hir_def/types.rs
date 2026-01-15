@@ -1510,8 +1510,8 @@ impl Type {
     ///
     /// Note: cloning the `aliases` parameter when calling this function recursively in multiple
     /// branches, e.g. as done with [`Type::InfixExpr`], can prevent tests like
-    /// `ensure_repeated_aliases_in_tuples_arent_detected_as_cyclic_aliases` and
-    /// `ensure_repeated_aliases_in_arrays_arent_detected_as_cyclic_aliases` from failing
+    /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
+    /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
     /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match self {
