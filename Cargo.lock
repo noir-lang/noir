@@ -3889,6 +3889,7 @@ dependencies = [
  "acir",
  "acvm",
  "clap",
+ "insta",
  "iter-extended",
  "noirc_artifacts",
  "prettytable-rs",

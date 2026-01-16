@@ -20,3 +20,6 @@ rayon.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 iter-extended.workspace = true
 prettytable-rs = "0.10"
+
+[dev-dependencies]
+insta.workspace = true
