@@ -216,7 +216,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
                 // check if index is in bound
                 if let (Some(index), Some(len)) = (dfg.get_numeric_constant(*index), dfg.try_get_array_length(*array)) {
                     // The index is in-bounds
-                    if index.to_u128() < u128::from(len) {
+                    if index.to_u128() < u128::from(len.0) {
                         in_bound = true;
                     }
                 }
