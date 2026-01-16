@@ -267,7 +267,9 @@
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for native (black box) function calls.
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for native (black box) function calls.
 </span><span class="kw">use </span>acvm::{
     AcirField,
     acir::{BlackBoxFunc, brillig::BlackBoxOp},
@@ -466,7 +468,9 @@
         BlackBoxFunc::RANGE =&gt; <span class="macro">unreachable!</span>(
             <span class="string">"ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
         </span>),
-        BlackBoxFunc::RecursiveAggregation =&gt; {}
+        BlackBoxFunc::RecursiveAggregation =&gt; <span class="macro">unreachable!</span>(
+            <span class="string">"ICE: `BlackBoxFunc::RecursiveAggregation` calls are disallowed in Brillig"
+        </span>),
         BlackBoxFunc::Poseidon2Permutation =&gt; {
             <span class="kw">if let </span>(
                 [BrilligVariable::BrilligArray(message)],

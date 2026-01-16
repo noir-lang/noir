@@ -354,7 +354,26 @@
 <a href="#353" id="353">353</a>
 <a href="#354" id="354">354</a>
 <a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
 //! for generating Brillig bytecode from [Ssa].
 //!
 //! # Usage
@@ -708,6 +727,25 @@
         <span class="kw">let </span>options2 = BrilligOptions { layout, ..Default::default() };
 
         compiles_to_equivalent_bytecode(<span class="kw-2">&amp;</span>ssa, options1, options2);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic = <span class="string">"ICE: `BlackBoxFunc::RecursiveAggregation` calls are disallowed in Brillig"</span>]
+    </span><span class="kw">fn </span>disallows_compiling_recursive_aggregation_instructions() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: u32):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 0] : [Field; 1]
+                v3 = make_array [Field 0] : [Field; 1]
+                call recursive_aggregation(v1, v2, v3, Field 0, u32 0)
+                return
+            }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+
+        <span class="kw">let _ </span>= ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
     }
 }
 </code></pre></div></section></main></body></html>

@@ -35,7 +35,7 @@ of the cast.</p>
 <p>Compared to <code>self.insert_cast</code>, this version will automatically truncate <code>value</code> to be a valid <code>typ</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.numeric_constant" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/expand_signed_checks.rs.html#393-395">Source</a><h4 class="code-header">fn <a href="#method.numeric_constant" class="fn">numeric_constant</a>(
     &amp;mut self,
-    value: impl <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;FieldElement&gt;,
+    value: impl <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;,
     typ: <a class="enum" href="../../ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert a numeric constant into the current function</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.insert_binary" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/expand_signed_checks.rs.html#399-402">Source</a><h4 class="code-header">fn <a href="#method.insert_binary" class="fn">insert_binary</a>(

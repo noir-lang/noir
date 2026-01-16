@@ -490,7 +490,12 @@
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
 <a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 <span class="kw">use </span>acvm::acir::brillig::lengths::SemiFlattenedLength;
@@ -577,6 +582,11 @@
     ///
     /// For complex types (e.g., tuples), multiple memory writes happen per loop iteration.
     /// For primitive type (e.g., `u32`, `Field`), a single memory write happens per loop iteration.
+    ///
+    /// # Safety
+    /// The loop iterator cannot overflow because `pointer` comes from heap allocation,
+    /// which is protected by `process_free_memory_op` in the VM. If allocation succeeds,
+    /// both `pointer` and `end_pointer` are guaranteed to be &lt; 2^32.
     </span><span class="kw">fn </span>initialize_constant_array_runtime(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         item_types: Arc&lt;Vec&lt;Type&gt;&gt;,

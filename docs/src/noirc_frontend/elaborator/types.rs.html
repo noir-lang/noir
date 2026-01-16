@@ -2761,7 +2761,14 @@
 <a href="#2760" id="2760">2760</a>
 <a href="#2761" id="2761">2761</a>
 <a href="#2762" id="2762">2762</a>
-<a href="#2763" id="2763">2763</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2763" id="2763">2763</a>
+<a href="#2764" id="2764">2764</a>
+<a href="#2765" id="2765">2765</a>
+<a href="#2766" id="2766">2766</a>
+<a href="#2767" id="2767">2767</a>
+<a href="#2768" id="2768">2768</a>
+<a href="#2769" id="2769">2769</a>
+<a href="#2770" id="2770">2770</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -5118,6 +5125,13 @@
         });
 
         <span class="kw">let </span>is_current_func_constrained = <span class="self">self</span>.in_constrained_function();
+        <span class="kw">if </span>!is_current_func_constrained {
+            <span class="comment">// Check if we're calling verify_proof_with_type in an unconstrained context
+            </span><span class="self">self</span>.run_lint(|elaborator| {
+                lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
+                    .map(Into::into)
+            });
+        }
 
         <span class="kw">let </span>func_type_is_unconstrained =
             <span class="kw">if let </span>Type::Function(_args, _ret, _env, unconstrained) = <span class="kw-2">&amp;</span>func_type {

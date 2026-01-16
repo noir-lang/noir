@@ -425,7 +425,16 @@
 <a href="#424" id="424">424</a>
 <a href="#425" id="425">425</a>
 <a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::{
         brillig::{
@@ -489,6 +498,11 @@
 
     <span class="doccomment">/// This codegen will issue a loop for (let iterator_register = loop_start; i &lt; loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
+    ///
+    /// # Safety
+    /// Iterator increment uses wrapping 32-bit arithmetic. Callers must ensure the iterator
+    /// reaches the bound before wrapping. For `loop_start=0, step=1`, this requires
+    /// `loop_bound &lt;= u32::MAX`. For pointer iteration, VM allocation checks ensure safety.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_for_loop(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         loop_start: <span class="prelude-ty">Option</span>&lt;MemoryAddress&gt;,
@@ -538,8 +552,12 @@
         );
     }
 
-    <span class="doccomment">/// This codegen will issue a loop that will iterate from 0 to iteration_count
+    <span class="doccomment">/// This codegen will issue a loop that will iterate from 0 to iteration_count.
     /// The body of the loop should be issued by the caller in the on_iteration closure.
+    ///
+    /// # Safety
+    /// `iteration_count` value must not exceed u32::MAX for correct behavior.
+    /// See [BrilligContext::codegen_for_loop] for more information.     
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_loop(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         iteration_count: MemoryAddress,
