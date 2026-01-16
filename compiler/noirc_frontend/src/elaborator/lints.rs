@@ -291,6 +291,28 @@ pub(super) fn unconstrained_function_return(
     }
 }
 
+/// Errors if func_expr_id is `std::verify_proof_with_type`
+pub(super) fn error_if_verify_proof_with_type(
+    interner: &NodeInterner,
+    func_expr_id: ExprId,
+) -> Option<TypeCheckError> {
+    // Called function
+    let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
+    let func_name = interner.function_name(&func_id);
+
+    // Check if it is verify_proof_with_type and is from the standard library
+    if func_name == "verify_proof_with_type" {
+        let module_id = interner.function_module(func_id);
+        if module_id.krate.is_stdlib() {
+            // Get the function location for the error
+            let location = interner.expr_location(&func_expr_id);
+            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
+        }
+    }
+
+    None
+}
+
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.
 ///
 /// Application of `pub` to other functions is not meaningful and is a mistake.

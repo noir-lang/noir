@@ -197,7 +197,9 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         BlackBoxFunc::RANGE => unreachable!(
             "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
         ),
-        BlackBoxFunc::RecursiveAggregation => {}
+        BlackBoxFunc::RecursiveAggregation => unreachable!(
+            "ICE: `BlackBoxFunc::RecursiveAggregation` calls are disallowed in Brillig"
+        ),
         BlackBoxFunc::Poseidon2Permutation => {
             if let (
                 [BrilligVariable::BrilligArray(message)],
