@@ -342,16 +342,7 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_block::{BrilligBlock, type_of_binary_operation};
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_fn::FunctionContext;
@@ -558,16 +549,7 @@
 
         <span class="kw">match </span>binary.operator {
             BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
-                <span class="comment">// Check that lhs &lt;= result
-                </span><span class="self">self</span>.brillig_context.binary_instruction(
-                    left,
-                    result,
-                    <span class="kw-2">*</span>condition,
-                    BrilligBinaryOp::LessThanEquals,
-                );
-                <span class="kw">let </span>msg = <span class="string">"attempt to add with overflow"</span>.to_string();
-                <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, <span class="prelude-val">Some</span>(msg));
+                <span class="self">self</span>.brillig_context.codegen_add_overflow_check(left, result);
             }
             BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
                 <span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();

@@ -624,7 +624,9 @@
 <a href="#623" id="623">623</a>
 <a href="#624" id="624">624</a>
 <a href="#625" id="625">625</a>
-<a href="#626" id="626">626</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     brillig_vm::offsets,
@@ -1069,13 +1071,15 @@
     ///
     /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
     /// Such a vector with a semantic length of 3 would have a flattened size of 6.
+    ///
+    /// Uses checked multiplication to trap on overflow (length × item_size &gt; u32::MAX).
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_vector_flattened_size(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         destination: MemoryAddress,
         length: MemoryAddress,
         item_size: MemoryAddress,
     ) {
-        <span class="self">self</span>.memory_op_instruction(length, item_size, destination, BrilligBinaryOp::Mul);
+        <span class="self">self</span>.codegen_checked_mul(length, item_size, destination);
     }
 
     <span class="doccomment">/// Returns a pointer to the items of a given array.
