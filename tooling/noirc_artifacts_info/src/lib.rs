@@ -142,7 +142,7 @@ mod tests {
 
         let output = format_info_report(&info_report, true);
 
-        assert_snapshot!(output, @r#"{"programs":[{"package_name":"test_package","functions":[{"name":"function_0","opcodes":100},{"name":"function_1","opcodes":110}],"unconstrained_functions":[{"name":"unconstrained_0","opcodes":50}]}]}"#)
+        assert_snapshot!(output, @r#"{"programs":[{"package_name":"test_package","functions":[{"name":"function_0","opcodes":100},{"name":"function_1","opcodes":110}],"unconstrained_functions":[{"name":"unconstrained_0","opcodes":50}]}]}"#);
     }
 
     #[test]
@@ -160,6 +160,6 @@ mod tests {
         +------------+-----------------+--------------+-----------------+
         | my_package | unconstrained_0 | N/A          | 50              |
         +------------+-----------------+--------------+-----------------+
-        ")
+        ");
     }
 }
