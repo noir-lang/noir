@@ -122,7 +122,7 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
                 let Some(tag) = tag else {
                     return Err(serde::de::Error::custom("Git dependencies must have a `tag` key"));
                 };
-                Ok(DependencyConfig::Github { git, tag, directory })
+                Ok(DependencyConfig::Git { git, tag, directory })
             }
             (None, Some(path)) => Ok(DependencyConfig::Path { path }),
             (Some(..), Some(..)) => Err(serde::de::Error::custom(

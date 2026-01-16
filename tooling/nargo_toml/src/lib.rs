@@ -317,7 +317,7 @@ pub struct PackageMetadata {
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 pub enum DependencyConfig {
-    Github { git: String, tag: String, directory: Option<String> },
+    Git { git: String, tag: String, directory: Option<String> },
     Path { path: String },
 }
 
@@ -328,7 +328,7 @@ impl DependencyConfig {
         processed: &mut Vec<String>,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
-            Self::Github { git, tag, directory } => {
+            Self::Git { git, tag, directory } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
                 let project_path = if let Some(directory) = directory {
                     let internal_path = dir_path.join(directory).normalize();
