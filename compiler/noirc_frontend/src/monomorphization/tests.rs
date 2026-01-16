@@ -1316,43 +1316,37 @@ fn evaluates_builtin_checked_transmute() {
         let _a$l0 = foo$f1([1, 2, 3])
     }
     fn foo$f1(a$l1: [u32; 3]) -> [u32; 3] {
-        {
-            a$l1
-        }
+        a$l1
     }
     ");
 }
 
 #[test]
-fn does_not_evaluate_aliased_functions() {
+fn wraps_aliased_builtin_functions() {
     let src = r#"
-    fn main() -> pub Field {
-        let a = 1;
-        let f = checked_transmute;
-        let b = f(a);
-        b
+    fn main() {
+        let f = modulus_num_bits;
+        let _ = f();
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
 
-    // We are using `checked_transmute` as a function value, so monomorphization will create
-    // proxies for it to forward the call, but note that this code would crash during SSA
-    // generation, as there is no intrinsic `checked_transmute` function.
+    // We are using `modulus_num_bits` as a function value.
+    // The monomorphizer creates a function that returns a comptime value,
+    // because there is no such builtin to be called from SSA.
     insta::assert_snapshot!(program, @r"
-    fn main$f0() -> pub Field {
-        let a$l0 = 1;
-        let f$l1 = (checked_transmute$f1, checked_transmute$f2);
-        let b$l2 = f$l1.0(a$l0);
-        b$l2
+    fn main$f0() -> () {
+        let f$l0 = (modulus_num_bits$f1, modulus_num_bits$f2);
+        let _$l1 = f$l0.0()
     }
     #[inline_always]
-    fn checked_transmute_proxy$f1(p0$l0: Field) -> Field {
-        checked_transmute$checked_transmute(p0$l0)
+    fn modulus_num_bits$f1() -> u64 {
+        254
     }
     #[inline_always]
-    unconstrained fn checked_transmute_proxy$f2(p0$l0: Field) -> Field {
-        checked_transmute$checked_transmute(p0$l0)
+    unconstrained fn modulus_num_bits$f2() -> u64 {
+        254
     }
     ");
 }
