@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768514867898,
+  "lastUpdate": 1768533126037,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2c73480cdfa6522e93f9d50e9996e2e600c222fa",
-          "message": "chore: fix clippy issues (#11135)",
-          "timestamp": "2026-01-09T13:16:27Z",
-          "tree_id": "af622257732d61fabae3beaf5c9e2d329720fff8",
-          "url": "https://github.com/noir-lang/noir/commit/2c73480cdfa6522e93f9d50e9996e2e600c222fa"
-        },
-        "date": 1767964737373,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258450,
-            "range": "± 1271",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231101,
-            "range": "± 3650",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795027,
-            "range": "± 1635",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2260423,
             "range": "± 3464",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80026cfca7b7480bc1ad1277f68710e167226216",
+          "message": "fix: Evaluate monomorphizer builtins in variable case, not calls (#11214)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-01-16T02:49:49Z",
+          "tree_id": "0bca978209023d89e05a1f298a3aac7699e63e53",
+          "url": "https://github.com/noir-lang/noir/commit/80026cfca7b7480bc1ad1277f68710e167226216"
+        },
+        "date": 1768533088277,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260004,
+            "range": "± 792",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230143,
+            "range": "± 8755",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790149,
+            "range": "± 21497",
             "unit": "ns/iter"
           }
         ]
