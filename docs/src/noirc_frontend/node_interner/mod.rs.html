@@ -1544,7 +1544,14 @@
 <a href="#1543" id="1543">1543</a>
 <a href="#1544" id="1544">1544</a>
 <a href="#1545" id="1545">1545</a>
-<a href="#1546" id="1546">1546</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -2409,14 +2416,21 @@
     <span class="doccomment">/// Returns the type of the definition, unless it's a function returning an `impl Trait`,
     /// in which case it looks up the type of its body and returns a new function type with
     /// the type fo the body substituted to its return type.
-    </span><span class="kw">pub fn </span>id_type_substitute_trait_as_type(<span class="kw-2">&amp;</span><span class="self">self</span>, def_id: DefinitionId) -&gt; Type {
+    ///
+    /// Returns:
+    /// * `Ok` if it was able to substitute the type, either because it's not an `impl Trait`
+    ///    or because the type of the body of the function is already known
+    /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
+    </span><span class="kw">pub fn </span>id_type_substitute_trait_as_type(<span class="kw-2">&amp;</span><span class="self">self</span>, def_id: DefinitionId) -&gt; <span class="prelude-ty">Result</span>&lt;Type, FuncId&gt; {
         <span class="kw">let </span>typ = <span class="self">self</span>.definition_type(def_id);
         <span class="kw">if let </span>Type::Function(args, ret, env, unconstrained) = <span class="kw-2">&amp;</span>typ {
             <span class="kw">let </span>def = <span class="self">self</span>.definition(def_id);
             <span class="kw">if let </span>Type::TraitAsType(..) = ret.as_ref() {
                 <span class="kw">if let </span>DefinitionKind::Function(func_id) = def.kind {
-                    <span class="kw">let </span>f = <span class="self">self</span>.function(<span class="kw-2">&amp;</span>func_id);
-                    <span class="kw">let </span>func_body = f.as_expr();
+                    <span class="kw">let </span>func = <span class="self">self</span>.function(<span class="kw-2">&amp;</span>func_id);
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(func_body) = func.try_as_expr() <span class="kw">else </span>{
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(func_id);
+                    };
                     <span class="kw">let </span>ret_type = <span class="self">self</span>.id_type(func_body);
                     <span class="kw">let </span>new_type = Type::Function(
                         args.clone(),
@@ -2424,11 +2438,11 @@
                         env.clone(),
                         <span class="kw-2">*</span>unconstrained,
                     );
-                    <span class="kw">return </span>new_type;
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(new_type);
                 }
             }
         }
-        typ
+        <span class="prelude-val">Ok</span>(typ)
     }
 
     <span class="doccomment">/// Returns the span of an item stored in the Interner

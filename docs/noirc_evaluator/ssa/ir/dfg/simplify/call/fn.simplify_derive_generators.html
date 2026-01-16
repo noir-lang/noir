@@ -3,7 +3,7 @@
     arguments: &amp;[<a class="type" href="../../../value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     num_generators: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.u32.html">u32</a>,
     block: <a class="type" href="../../../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
-    call_stack: CallStackId,
+    call_stack: <a class="struct" href="../../../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
 ) -&gt; <a class="enum" href="../enum.SimplifyResult.html" title="enum noirc_evaluator::ssa::ir::dfg::simplify::SimplifyResult">SimplifyResult</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Replaces a call to <code>derive_pedersen_generators</code> with the results of the computation.</p>
 <p>It only works if the arguments to the call are both constants, which means that the
 function which contains this call needs to be inlined into its caller, where the

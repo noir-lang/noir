@@ -4,7 +4,7 @@
     dfg: &amp;mut <a class="struct" href="../../struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     block: <a class="type" href="../../../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     ctrl_typevars: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../../types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>&gt;&gt;,
-    call_stack: CallStackId,
+    call_stack: <a class="struct" href="../../../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
 ) -&gt; <a class="enum" href="../enum.SimplifyResult.html" title="enum noirc_evaluator::ssa::ir::dfg::simplify::SimplifyResult">SimplifyResult</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Try to simplify this call instruction. If the instruction can be simplified to a known value,
 that value is returned. Otherwise None is returned.</p>
 <p>The <code>block</code> parameter indicates the block any new instructions that are part of a call’s
