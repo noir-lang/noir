@@ -87,7 +87,9 @@ fn to_u32_array<const N: usize, F: AcirField>(
         let witness_value = input_to_value(initial_witness, *input)?;
         *it = witness_value
             .try_into_u128()
-            .expect("expected the 'witness_value' to fit into a u128") as u32;
+            .expect("expected the 'witness_value' to fit into a u128")
+            .try_into()
+            .expect("expected the 'witness_value' to fit into a u32");
     }
     Ok(result)
 }
