@@ -92,7 +92,6 @@ impl Context<'_, '_> {
         file_manager: &'file_manager FileManager,
         parsed_files: &'parsed_files ParsedFiles,
     ) -> Context<'file_manager, 'parsed_files> {
-        // TODO: deduplicate with Context::new ?
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),

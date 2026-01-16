@@ -152,7 +152,6 @@ impl<'context> Elaborator<'context> {
 
         self.errors.extend(errors);
         self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
-
         result
     }
 
