@@ -353,4 +353,24 @@ mod memory_layout {
 
         compiles_to_equivalent_bytecode(&ssa, options1, options2);
     }
+
+
+    #[test]
+    #[should_panic = "ICE: `BlackBoxFunc::RecursiveAggregation` calls are disallowed in Brillig"]
+    fn disallows_compiling_recursive_aggregation_instructions() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: u32):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 0] : [Field; 1]
+                v3 = make_array [Field 0] : [Field; 1]
+                call recursive_aggregation(v1, v2, v3, Field 0, u32 0)
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let _ = ssa.to_brillig(&BrilligOptions::default());
+    }
 }
