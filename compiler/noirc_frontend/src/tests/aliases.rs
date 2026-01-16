@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
@@ -429,6 +429,257 @@ fn regression_10429_with_trait() {
 
     fn main() {
         let _alias: Alias = <Alias as Foo>::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10352_parameter() {
+    let src = r#"
+    type Alias = Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_tuple() {
+    let src = r#"
+    type Alias = (Alias,);
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_struct() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    type Alias = Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_enum() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    type Alias = Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_array() {
+    let src = r#"
+    type Alias = [Alias; 3];
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_slice() {
+    let src = r#"
+    type Alias = [Alias];
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_trait_as_type() {
+    let src = r#"
+    trait Foo<T> {}
+
+    type Alias = impl Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10352_string() {
+    let src = r#"
+    type Alias = str<Alias>;
+    
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_format_string_len() {
+    let src = r#"
+    type Alias = fmtstr<Alias, ()>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_format_string_env() {
+    let src = r#"
+    type Alias = fmtstr<0, (Alias,)>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_parameter() {
+    let src = r#"
+    type Alias = fn(Alias);
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_return() {
+    let src = r#"
+    type Alias = fn() -> Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_env() {
+    let src = r#"
+    type Alias = fn[(Alias,)]();
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_immutable_reference() {
+    let src = r#"
+    type Alias = &Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn regression_10352_mutable_reference() {
+    let src = r#"
+    type Alias = &mut Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases() {
+    let src = r#"
+    type K = Field;
+    type V = Field;
+
+    fn field_lt(_x: Field, _y: Field) -> bool { true }
+
+    pub global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| field_lt(a.0, b.0);
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
+    let src = r#"
+    pub type TReturnElem = [Field; 3];
+    pub type TReturn = [TReturnElem; 2];
+
+    pub fn t_return_elem() -> TReturnElem {
+        [0; 3]
+    }
+
+    pub fn t_return() -> TReturn {
+        [t_return_elem(); 2]
+    }
+
+    pub unconstrained fn two_nested_return_unconstrained() -> (Field, TReturn, Field, TReturn) {
+        (0, t_return(), 0, t_return())
+    }
+
+    pub unconstrained fn foo_return_unconstrained() -> (Field, TReturn, TestTypeFoo) {
+        (0, t_return(), test_type_foo())
+    }
+
+    pub struct TestTypeFoo {
+        a: Field,
+        b: [[[Field; 3]; 4]; 2],
+        c: [TReturnElem; 2],
+        d: TReturnElem,
+    }
+
+    pub fn test_type_foo() -> TestTypeFoo {
+        TestTypeFoo {
+            a: 0,
+            b: [[[0; 3]; 4]; 2],
+            c: [t_return_elem(); 2],
+            d: t_return_elem(),
+        }
+    }
+
+    pub unconstrained fn complex_struct_return() {
+        let _: (Field, [[Field; 3]; 2], TestTypeFoo) = foo_return_unconstrained();
     }
     "#;
     assert_no_errors(src);

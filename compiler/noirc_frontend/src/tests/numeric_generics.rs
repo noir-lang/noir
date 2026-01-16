@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn numeric_generic_in_function_signature() {
@@ -622,5 +622,232 @@ fn no_panic_on_numeric_generic_parse_error() {
 
         fn main() { foo::<3>(); }
     ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10555() {
+    let src = "
+    trait Trait {
+        fn foo<let X: u32>();
+        fn bar<X>();
+        fn baz<let X: u32>();
+    }
+
+    impl Trait for i32 {
+        fn foo<X>() {}
+               ^ Expected type, found numeric generic
+               ~ not a type
+        fn bar<let X: u32>() {}
+                   ^^^^^^ Type provided when a numeric generic was expected
+                   ~~~~~~ the numeric generic is not of type `u32`
+        fn baz<let X: u8>() {}
+                   ^^^^^ The numeric generic is not of type `u8`
+                   ~~~~~ expected `u8`, found `u32`
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_struct_impl() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_impl() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_struct_function_parameter() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    pub fn foo(_x: Foo<1>) {}
+                       ^ Expected type, found numeric generic
+                       ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_function_parameter() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    pub fn foo(_x: Foo<1>) {}
+                       ^ Expected type, found numeric generic
+                       ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_struct_function_return() {
+    let src = r#"
+    pub struct Foo<T> { }
+
+    pub fn foo() -> Foo<1> {
+                        ^ Expected type, found numeric generic
+                        ~ not a type
+        Foo {}
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_function_return() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    pub fn foo() -> Foo<1> {
+                        ^ Expected type, found numeric generic
+                        ~ not a type
+        Foo::Baz
+             ^^^ Type annotation needed
+             ~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
+    }
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_struct_trait_impl() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    trait Bar {}
+    impl Bar for Foo<1> {}
+                     ^ Expected type, found numeric generic
+                     ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_trait_impl() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    trait Bar {}
+    impl Bar for Foo<1> {}
+                     ^ Expected type, found numeric generic
+                     ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_enum() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_function_turbofish() {
+    let src = r#"
+    fn main() {
+        foo::<1>();
+              ^ Expected type, found numeric generic
+              ~ not a type
+    }
+
+    fn foo<T>() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_type_alias() {
+    let src = r#"
+    pub type Foo<T> = [T; 0];
+    pub type Bar = Foo<1>;
+                       ^ Expected type, found numeric generic
+                       ~ not a type
+
+    fn main() { }
+    "#;
     check_errors(src);
 }

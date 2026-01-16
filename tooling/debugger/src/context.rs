@@ -890,7 +890,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     ) {
         if let Some(solver) = self.brillig_solver.as_mut() {
             solver.write_memory_at(
-                ptr,
+                ptr.try_into().expect("Pointer is too large"),
                 MemoryValue::new_checked(value, bit_size)
                     .expect("Invalid value for the given bit size"),
             );

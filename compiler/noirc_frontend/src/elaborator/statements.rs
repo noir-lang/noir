@@ -145,11 +145,11 @@ impl Elaborator<'_> {
 
         let definition = match global_id {
             None => {
-                debug_assert!(!let_stmt.is_global_let);
+                assert!(!let_stmt.is_global_let);
                 DefinitionKind::Local(Some(expression))
             }
             Some(id) => {
-                debug_assert!(let_stmt.is_global_let);
+                assert!(let_stmt.is_global_let);
                 DefinitionKind::Global(id)
             }
         };
@@ -447,7 +447,7 @@ impl Elaborator<'_> {
                             self.push_err(ResolverError::Expected {
                                 location,
                                 expected: "value",
-                                got: result.item.description(),
+                                found: result.item.description(self.interner),
                             });
                         } else {
                             self.push_err(error);

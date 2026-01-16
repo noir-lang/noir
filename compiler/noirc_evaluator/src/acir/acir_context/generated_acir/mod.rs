@@ -116,7 +116,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         // TODO: enable this check for all block_types
         if block_type == BlockType::ReturnData {
-            debug_assert!(!init.is_empty(), "Cannot initialize memory with empty init");
+            assert!(!init.is_empty(), "Cannot initialize memory with empty init");
         }
         self.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }

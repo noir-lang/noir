@@ -1,4 +1,7 @@
-use crate::black_box::BlackBoxOp;
+use crate::{
+    black_box::BlackBoxOp,
+    lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
+};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
@@ -23,23 +26,21 @@ pub enum MemoryAddress {
 
 impl MemoryAddress {
     /// Create a `Direct` address.
-    pub fn direct(address: usize) -> Self {
-        MemoryAddress::Direct(address.try_into().expect("exceeded max brillig vm address"))
+    pub fn direct(address: u32) -> Self {
+        MemoryAddress::Direct(address)
     }
 
     /// Create a `Relative` address.
-    pub fn relative(offset: usize) -> Self {
-        MemoryAddress::Relative(offset.try_into().expect("exceeded max brillig vm address"))
+    pub fn relative(offset: u32) -> Self {
+        MemoryAddress::Relative(offset)
     }
 
     /// Return the index in a `Direct` address.
     ///
     /// Panics if it's `Relative`.
-    pub fn unwrap_direct(self) -> usize {
+    pub fn unwrap_direct(self) -> u32 {
         match self {
-            MemoryAddress::Direct(address) => {
-                address.try_into().expect("failed conversion from u32 to usize")
-            }
+            MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
         }
     }
@@ -47,24 +48,18 @@ impl MemoryAddress {
     /// Return the index in a `Relative` address.
     ///
     /// Panics if it's `Direct`.
-    pub fn unwrap_relative(self) -> usize {
+    pub fn unwrap_relative(self) -> u32 {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
-            MemoryAddress::Relative(offset) => {
-                offset.try_into().expect("Failed conversion from u32 to usize")
-            }
+            MemoryAddress::Relative(offset) => offset,
         }
     }
 
     /// Return the index in the address.
-    pub fn to_usize(self) -> usize {
+    pub fn to_u32(self) -> u32 {
         match self {
-            MemoryAddress::Direct(address) => {
-                address.try_into().expect("failed conversion from u32 to usize")
-            }
-            MemoryAddress::Relative(offset) => {
-                offset.try_into().expect("failed conversion from u32 to usize")
-            }
+            MemoryAddress::Direct(address) => address,
+            MemoryAddress::Relative(offset) => offset,
         }
     }
 
@@ -82,7 +77,7 @@ impl MemoryAddress {
     /// Offset a `Direct` address by `amount`.
     ///
     /// Panics if called on a `Relative` address.
-    pub fn offset(&self, amount: usize) -> Self {
+    pub fn offset(&self, amount: u32) -> Self {
         // We disallow offsetting relatively addresses as this is not expected to be meaningful.
         let address = self.unwrap_direct();
         MemoryAddress::direct(address + amount)
@@ -106,7 +101,7 @@ pub enum HeapValueType {
     /// The value read should be interpreted as a pointer to a [HeapArray], which
     /// consists of a pointer to a slice of memory of size elements, and a
     /// reference count, to avoid cloning arrays that are not shared.
-    Array { value_types: Vec<HeapValueType>, size: u32 },
+    Array { value_types: Vec<HeapValueType>, size: SemanticLength },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
@@ -127,17 +122,16 @@ impl HeapValueType {
     /// Returns the total number of field elements required to represent this type in memory.
     ///
     /// Returns `None` for `Vector`, as their size is not statically known.
-    pub fn flattened_size(&self) -> Option<usize> {
+    pub fn flattened_size(&self) -> Option<FlattenedLength> {
         match self {
-            HeapValueType::Simple(_) => Some(1),
+            HeapValueType::Simple(_) => Some(FlattenedLength(1)),
             HeapValueType::Array { value_types, size } => {
-                let element_size =
-                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<usize>>();
-
-                // Multiply element size by number of elements.
-                element_size.map(|element_size| {
-                    element_size
-                        * usize::try_from(*size).expect("Failed conversion from u32 to usize")
+                // This is the flattened length of a single entry in the array (all of `value_types`)
+                let elements_flattened_size =
+                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
+                // Next we multiply it by the size of the array
+                elements_flattened_size.map(|elements_flattened_size| {
+                    ElementsFlattenedLength::from(elements_flattened_size) * *size
                 })
             }
             HeapValueType::Vector { .. } => {
@@ -195,12 +189,12 @@ pub struct HeapArray {
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
     pub pointer: MemoryAddress,
     /// Statically known size of the array.
-    pub size: u32,
+    pub size: SemiFlattenedLength,
 }
 
 impl Default for HeapArray {
     fn default() -> Self {
-        Self { pointer: MemoryAddress::direct(0), size: 0 }
+        Self { pointer: MemoryAddress::direct(0), size: SemiFlattenedLength(0) }
     }
 }
 
@@ -712,7 +706,7 @@ mod tests {
         assert!(IntegerBitSize::try_from(256).is_err());
     }
 
-    /// Test that BitSize roundtrips correctly through to_u32/try_from_u32
+    /// Test that BitSize round-trips correctly through to_u32/try_from_u32
     #[test]
     fn test_bitsize_roundtrip() {
         // Test all integer bit sizes
@@ -787,6 +781,8 @@ mod prop_tests {
     use proptest::arbitrary::Arbitrary;
     use proptest::prelude::*;
 
+    use crate::lengths::SemanticLength;
+
     use super::{BitSize, HeapValueType};
 
     // Need to define recursive strategy for `HeapValueType`
@@ -799,7 +795,9 @@ mod prop_tests {
             leaf.prop_recursive(2, 3, 2, |inner| {
                 prop_oneof![
                     (prop::collection::vec(inner.clone(), 1..3), any::<u32>()).prop_map(
-                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                        |(value_types, size)| {
+                            HeapValueType::Array { value_types, size: SemanticLength(size) }
+                        }
                     ),
                     (prop::collection::vec(inner.clone(), 1..3))
                         .prop_map(|value_types| { HeapValueType::Vector { value_types } }),

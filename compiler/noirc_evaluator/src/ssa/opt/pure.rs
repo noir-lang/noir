@@ -240,7 +240,7 @@ fn analyze_call_graph(
             // Therefore inserting into func_to_scc here is safe, and there will
             // be no overwrites.
             let inserted = func_to_scc.insert(func, i);
-            debug_assert!(inserted.is_none(), "Function appears in multiple SCCs");
+            assert!(inserted.is_none(), "Function appears in multiple SCCs");
         }
     }
 

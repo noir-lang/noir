@@ -82,7 +82,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let bits_register = self.make_constant_instruction(output_bits.into(), 1);
         self.codegen_initialize_array(target_array);
         let pointer = self.codegen_make_array_items_pointer(target_array);
-        let num_limbs = self.make_usize_constant_instruction(target_array.size.into());
+        let num_limbs = self.make_usize_constant_instruction(target_array.size.0.into());
 
         // Perform big-endian ToRadix
         self.black_box_op_instruction(BlackBoxOp::ToRadix {

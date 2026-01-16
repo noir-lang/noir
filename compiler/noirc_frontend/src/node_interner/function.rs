@@ -167,6 +167,11 @@ impl NodeInterner {
         self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
     }
 
+    /// Removes the interned meta data corresponding to `func_id`
+    pub fn remove_function_meta(&mut self, func_id: &FuncId) -> FuncMeta {
+        self.func_meta.remove(func_id).expect("ice: all function ids should have metadata")
+    }
+
     pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
         self.func_meta.get(func_id)
     }

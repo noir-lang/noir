@@ -52,7 +52,7 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// This function will generate the SSA but does not perform any optimizations on it.
 pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
-    let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
+    let is_databus = DataBusBuilder::is_databus(program.main_function_parameters());
 
     let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
@@ -577,7 +577,7 @@ impl FunctionContext<'_> {
             // to assert that the index fits in the relevant number of bits.
             let array_len_constant = array_len_constant.expect("array checked to be constant");
             let array_len_bits = array_len_constant.ilog2();
-            debug_assert_eq!(2u32.pow(array_len_bits), array_len_constant);
+            assert_eq!(2u32.pow(array_len_bits), array_len_constant);
             // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
             // There's an optimization here that we should find automatically.
             let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);

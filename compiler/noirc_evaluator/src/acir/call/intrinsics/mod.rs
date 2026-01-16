@@ -1,3 +1,4 @@
+use acvm::acir::brillig::lengths::FlattenedLength;
 use iter_extended::vecmap;
 
 use crate::errors::RuntimeError;
@@ -47,9 +48,10 @@ impl Context<'_> {
 
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
-                    sum + dfg.type_of_value(*result_id).flattened_size() as usize
-                });
+                let output_count: FlattenedLength = result_ids
+                    .iter()
+                    .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
+                    .sum();
 
                 let vars = self.acir_context.black_box_function(
                     black_box,

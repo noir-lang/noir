@@ -22,7 +22,7 @@ use noirc_frontend::{
         Visitor,
     },
     elaborator::PrimitiveType,
-    hir::def_map::ModuleDefId,
+    hir::def_map::{ModuleDefId, ModuleId},
     lexer::Lexer,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
@@ -93,6 +93,11 @@ impl<'args> SemanticTokenCollector<'args> {
     }
 
     fn collect(&mut self, parsed_module: &noirc_frontend::ParsedModule) -> Vec<SemanticToken> {
+        // Also process doc comments for the crate root module
+        let local_module_id = self.args.def_maps[&self.args.crate_id].root();
+        let module_id = ModuleId { krate: self.args.crate_id, local_id: local_module_id };
+        self.process_reference_id(ReferenceId::Module(module_id));
+
         parsed_module.accept(self);
         std::mem::take(&mut self.tokens)
     }
@@ -158,7 +163,11 @@ impl<'args> SemanticTokenCollector<'args> {
                 self.args.crate_graph,
             );
             for link in links {
-                let Some(token_type) = self.link_target_token_type(&link.target) else {
+                let Some(target) = link.target else {
+                    continue;
+                };
+
+                let Some(token_type) = self.link_target_token_type(target) else {
                     continue;
                 };
                 let token_type = self.token_types[&token_type] as u32;
@@ -372,12 +381,12 @@ impl<'args> SemanticTokenCollector<'args> {
         self.push_token(sematic_token);
     }
 
-    fn link_target_token_type(&self, target: &LinkTarget) -> Option<SemanticTokenType> {
+    fn link_target_token_type(&self, target: LinkTarget) -> Option<SemanticTokenType> {
         let token_type = match target {
             LinkTarget::TopLevelItem(module_def_id) => match module_def_id {
                 ModuleDefId::ModuleId(_) => SemanticTokenType::NAMESPACE,
                 ModuleDefId::FunctionId(func_id) => {
-                    let func_meta = self.args.interner.function_meta(func_id);
+                    let func_meta = self.args.interner.function_meta(&func_id);
                     if func_meta.self_type.is_some() {
                         SemanticTokenType::METHOD
                     } else {

@@ -1,12 +1,18 @@
 use acvm::{
     AcirField,
     acir::{
-        brillig::{HeapVector, MemoryAddress},
+        brillig::{
+            HeapVector, MemoryAddress,
+            lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        },
         circuit::ErrorSelector,
     },
 };
 
-use crate::{brillig::brillig_ir::registers::Allocated, ssa::ir::instruction::ErrorType};
+use crate::{
+    brillig::{assert_u32, assert_usize, brillig_ir::registers::Allocated},
+    ssa::ir::instruction::ErrorType,
+};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -290,7 +296,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        debug_assert!(condition.bit_size == 1);
+        assert!(condition.bit_size == 1);
 
         // Compute error selector if we have a message
         let error_selector = assert_message.map(|message| {
@@ -315,7 +321,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligParameter::Array(item_types, item_count)
             | BrilligParameter::Vector(item_types, item_count) => {
                 let item_size: usize = item_types.iter().map(Self::flattened_size).sum();
-                item_count * item_size
+                assert_usize(item_count.0) * item_size
             }
         }
     }
@@ -334,7 +340,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     pub(super) fn flatten_array(
         &mut self,
         item_type: &[BrilligParameter],
-        item_count: usize,
+        item_count: SemanticLength,
         flattened_array_pointer: MemoryAddress,
         deflattened_items_pointer: MemoryAddress,
     ) {
@@ -342,11 +348,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let movement_register = self.allocate_register();
 
             let source_item_size = item_type.len();
-            let target_item_size: usize = item_type.iter().map(Self::flattened_size).sum();
+            let target_item_size = Self::flattened_tuple_size(item_type);
 
-            for item_index in 0..item_count {
-                let source_item_base_index = item_index * source_item_size;
-                let target_item_base_index = item_index * target_item_size;
+            for item_index in 0..item_count.0 {
+                let source_item_base_index = assert_usize(item_index) * source_item_size;
+                let target_item_base_index = assert_usize(item_index) * target_item_size;
 
                 let mut target_offset = 0;
 
@@ -370,14 +376,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                                 *target_index,
                                 *movement_register,
                             );
-                            target_offset += 1;
                         }
                         BrilligParameter::Array(
                             nested_array_item_type,
                             nested_array_item_count,
                         ) => {
-                            let deflattened_nested_array =
-                                self.allocate_brillig_array(*nested_array_item_count);
+                            // Usually we need to pass a semi-flattened length to `allocate_brillig_array`.
+                            // However, since we are deflattening arrays, we need to allocate as many elements
+                            // as there are in this particular nested array, which is its semantic length.
+                            let deflattened_nested_array = self.allocate_brillig_array(
+                                SemiFlattenedLength(nested_array_item_count.0),
+                            );
 
                             self.codegen_load_with_offset(
                                 deflattened_items_pointer,
@@ -401,16 +410,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                                 *flattened_nested_array_pointer,
                                 *deflattened_nested_array_items,
                             );
-
-                            target_offset += Self::flattened_size(subitem);
                         }
                         BrilligParameter::Vector(..) => unreachable!("ICE: Cannot flatten vectors"),
                     }
+
+                    target_offset += Self::flattened_size(subitem);
                 }
             }
         } else {
-            let item_count =
-                self.make_usize_constant_instruction((item_count * item_type.len()).into());
+            let size: SemiFlattenedLength =
+                item_count * ElementTypesLength(assert_u32(item_type.len()));
+            let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }
     }

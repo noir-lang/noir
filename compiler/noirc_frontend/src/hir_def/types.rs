@@ -34,6 +34,10 @@ pub(crate) mod validity;
 
 pub use unification::UnificationError;
 
+/// Arbitrary recursion limit when following type variables or recurring on types some other way.
+/// Types form trees but are not likely to be more deep than just a few levels in real code.
+pub const TYPE_RECURSION_LIMIT: u32 = 100;
+
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
     /// A primitive Field type
@@ -286,6 +290,14 @@ impl Kind {
 
     pub(crate) fn is_normal_or_any(&self) -> bool {
         matches!(self, Kind::Normal | Kind::Any)
+    }
+
+    /// See [`Type::has_cyclic_alias`] for more detail
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match self {
+            Self::Numeric(typ) => typ.has_cyclic_alias(aliases),
+            Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
+        }
     }
 }
 
@@ -1037,6 +1049,14 @@ impl TypeVariable {
     pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
         Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
     }
+
+    /// See [`Type::has_cyclic_alias`] for more detail
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match &*self.borrow() {
+            TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
+            TypeBinding::Unbound(_, _) => false,
+        }
+    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1433,8 +1453,8 @@ impl Type {
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
-    /// Return this type as a monomorphic type - without a `Type::Forall` if there is one.
-    /// This is only a shallow check since Noir's type system prohibits `Type::Forall` anywhere
+    /// Return this type as a monomorphic type - without a [Type::Forall] if there is one.
+    /// This is only a shallow check since Noir's type system prohibits [Type::Forall] anywhere
     /// inside other types.
     pub fn as_monotype(&self) -> &Type {
         match self {
@@ -1443,8 +1463,9 @@ impl Type {
         }
     }
 
-    /// Return the generics and type within this `Type::Forall`.
-    /// Panics if `self` is not `Type::Forall`
+    /// Return the generics and type within this [Type::Forall].
+    ///
+    /// Returns an empty list of type variables and the type itself if it's not a [Type::Forall].
     pub fn unwrap_forall(&self) -> (Cow<GenericTypeVars>, &Type) {
         match self {
             Type::Forall(generics, typ) => (Cow::Borrowed(generics), typ.as_ref()),
@@ -1487,18 +1508,18 @@ impl Type {
     ///
     /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
     /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    ///
+    /// Note: cloning the `aliases` parameter when calling this function recursively in multiple
+    /// branches, e.g. as done with [`Type::InfixExpr`], can prevent tests like
+    /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
+    /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
+    /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match self {
-            Type::CheckedCast { to, .. } => to.has_cyclic_alias(aliases),
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
-            }
-            Type::TypeVariable(var) => match &*var.borrow() {
-                TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
-                TypeBinding::Unbound(_, _) => false,
-            },
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.has_cyclic_alias(aliases),
+            Type::TypeVariable(var) => var.has_cyclic_alias(aliases),
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+                lhs.has_cyclic_alias(&mut aliases.clone()) || rhs.has_cyclic_alias(aliases)
             }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
@@ -1509,7 +1530,62 @@ impl Type {
                     def.borrow().get_type(generics).has_cyclic_alias(aliases)
                 }
             }
-            _ => false,
+            Type::TraitAsType(_id, _name, generics) => {
+                generics
+                    .ordered
+                    .iter()
+                    .any(|generic| generic.has_cyclic_alias(&mut aliases.clone()))
+                    || generics
+                        .named
+                        .iter()
+                        .any(|generic| generic.typ.has_cyclic_alias(&mut aliases.clone()))
+            }
+            Type::String(len) => len.has_cyclic_alias(aliases),
+            Type::Array(len, typ) => {
+                len.has_cyclic_alias(&mut aliases.clone()) || typ.has_cyclic_alias(aliases)
+            }
+            Type::Vector(typ) => typ.has_cyclic_alias(aliases),
+            Type::DataType(s, args) => {
+                let data_type = s.borrow();
+                data_type
+                    .get_fields(args)
+                    .unwrap_or_else(Vec::new)
+                    .iter()
+                    .any(|(_name, field, _visibility)| field.has_cyclic_alias(&mut aliases.clone()))
+                    || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
+                        |(_name, variant)| {
+                            variant.iter().any(|variant_field| {
+                                variant_field.has_cyclic_alias(&mut aliases.clone())
+                            })
+                        },
+                    )
+            }
+            Type::Tuple(elements) => {
+                elements.iter().any(|element| element.has_cyclic_alias(&mut aliases.clone()))
+            }
+            Type::FmtString(len, elements) => {
+                len.has_cyclic_alias(&mut aliases.clone()) || (*elements).has_cyclic_alias(aliases)
+            }
+            Type::CheckedCast { to, from } => {
+                to.has_cyclic_alias(&mut aliases.clone()) || from.has_cyclic_alias(aliases)
+            }
+            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases),
+            Type::Forall(typevars, typ) => {
+                typevars.iter().any(|typevar| typevar.has_cyclic_alias(&mut aliases.clone()))
+                    || typ.has_cyclic_alias(aliases)
+            }
+            Type::Function(args, ret, env, _unconstrained) => {
+                args.iter().any(|arg| arg.has_cyclic_alias(&mut aliases.clone()))
+                    || ret.has_cyclic_alias(&mut aliases.clone())
+                    || env.has_cyclic_alias(aliases)
+            }
+            Type::Reference(element, _mutable) => element.has_cyclic_alias(aliases),
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_) => false,
         }
     }
 
@@ -1565,61 +1641,6 @@ impl Type {
         }
 
         Self::InfixExpr(lhs, op, rhs, inversion)
-    }
-
-    /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self, location: &Location) -> u32 {
-        match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u32(*location)
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                let typ = typ.as_ref();
-                length.checked_mul(typ.field_count(location)).expect("Array length overflow")
-            }
-            Type::DataType(def, args) => {
-                let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    let mut size: u32 = 1; // start with the tag size
-                    for (_, args) in variants {
-                        for arg in args {
-                            size = size
-                                .checked_add(arg.field_count(location))
-                                .expect("Variant size overflow");
-                        }
-                    }
-                    size
-                } else {
-                    0
-                }
-            }
-            Type::CheckedCast { to, .. } => to.field_count(location),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
-                acc.checked_add(field_typ.field_count(location)).expect("Tuple size overflow")
-            }),
-            Type::String(size) => size
-                .evaluate_to_u32(*location)
-                .expect("Cannot have variable sized strings as a parameter to main"),
-            Type::FmtString(_, _)
-            | Type::Unit
-            | Type::TypeVariable(_)
-            | Type::TraitAsType(..)
-            | Type::NamedGeneric(_)
-            | Type::Function(_, _, _, _)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            | Type::Constant(_, _)
-            | Type::Quoted(_)
-            | Type::Vector(_)
-            | Type::InfixExpr(..)
-            | Type::Error => {
-                unreachable!("This type cannot exist as a parameter to main: {self:?}")
-            }
-        }
     }
 
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
@@ -2461,87 +2482,103 @@ impl Type {
     ///
     /// Expected to be called on an instantiated type (with no Type::Foralls)
     pub fn follow_bindings(&self) -> Type {
-        use Type::*;
-        match self {
-            Array(size, elem) => {
-                Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
+        fn helper(this: &Type, i: u32) -> Type {
+            if i >= TYPE_RECURSION_LIMIT {
+                panic!("Type recursion limit reached - types are too large")
             }
-            Vector(elem) => Vector(Box::new(elem.follow_bindings())),
-            String(size) => String(Box::new(size.follow_bindings())),
-            FmtString(size, args) => {
-                let size = Box::new(size.follow_bindings());
-                let args = Box::new(args.follow_bindings());
-                FmtString(size, args)
-            }
-            DataType(def, args) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                DataType(def.clone(), args)
-            }
-            Alias(def, args) => {
-                // We don't need to vecmap(args, follow_bindings) since we're recursively
-                // calling follow_bindings here already.
-                def.borrow().get_type(args).follow_bindings()
-            }
-            Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
-            CheckedCast { from, to } => {
-                let from = Box::new(from.follow_bindings());
-                let to = Box::new(to.follow_bindings());
-                CheckedCast { from, to }
-            }
-            TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    return typ.follow_bindings();
+            let recur = |typ| helper(typ, i);
+
+            use Type::*;
+            match this {
+                Array(size, elem) => Array(Box::new(recur(size)), Box::new(recur(elem))),
+                Vector(elem) => Vector(Box::new(recur(elem))),
+                String(size) => String(Box::new(recur(size))),
+                FmtString(size, args) => {
+                    let size = Box::new(recur(size));
+                    let args = Box::new(recur(args));
+                    FmtString(size, args)
                 }
-                self.clone()
-            }
-            Function(args, ret, env, unconstrained) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                let ret = Box::new(ret.follow_bindings());
-                let env = Box::new(env.follow_bindings());
-                Function(args, ret, env, *unconstrained)
-            }
+                DataType(def, args) => {
+                    let args = vecmap(args, recur);
+                    DataType(def.clone(), args)
+                }
+                Alias(def, args) => {
+                    // We don't need to vecmap(args, recur) since we're recursively
+                    // calling recur here already.
+                    recur(&def.borrow().get_type(args))
+                }
+                Tuple(args) => Tuple(vecmap(args, recur)),
+                CheckedCast { from, to } => {
+                    let from = Box::new(recur(from));
+                    let to = Box::new(recur(to));
+                    CheckedCast { from, to }
+                }
+                TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) => {
+                    if let TypeBinding::Bound(typ) = &*var.borrow() {
+                        return recur(typ);
+                    }
+                    this.clone()
+                }
+                Function(args, ret, env, unconstrained) => {
+                    let args = vecmap(args, recur);
+                    let ret = Box::new(recur(ret));
+                    let env = Box::new(recur(env));
+                    Function(args, ret, env, *unconstrained)
+                }
 
-            Reference(element, mutable) => Reference(Box::new(element.follow_bindings()), *mutable),
+                Reference(element, mutable) => Reference(Box::new(recur(element)), *mutable),
 
-            TraitAsType(s, name, args) => {
-                let ordered = vecmap(&args.ordered, |arg| arg.follow_bindings());
-                let named = vecmap(&args.named, |arg| NamedType {
-                    name: arg.name.clone(),
-                    typ: arg.typ.follow_bindings(),
-                });
-                TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
-            }
-            InfixExpr(lhs, op, rhs, inversion) => {
-                let lhs = lhs.follow_bindings();
-                let rhs = rhs.follow_bindings();
-                InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
-            }
+                TraitAsType(s, name, args) => {
+                    let ordered = vecmap(&args.ordered, recur);
+                    let named = vecmap(&args.named, |arg| NamedType {
+                        name: arg.name.clone(),
+                        typ: recur(&arg.typ),
+                    });
+                    TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
+                }
+                InfixExpr(lhs, op, rhs, inversion) => {
+                    let lhs = recur(lhs);
+                    let rhs = recur(rhs);
+                    InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
+                }
 
-            // Expect that this function should only be called on instantiated types
-            Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
-                self.clone()
+                // Expect that this function should only be called on instantiated types
+                Forall(..) => unreachable!(),
+                FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
+                    this.clone()
+                }
             }
         }
+        helper(self, 0)
     }
 
     /// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
     pub fn follow_bindings_shallow(&self) -> Cow<Type> {
-        match self {
-            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
-                    return Cow::Owned(typ.follow_bindings_shallow().into_owned());
+        let mut this = Cow::Borrowed(self);
+        for _ in 0..TYPE_RECURSION_LIMIT {
+            match this.as_ref() {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                    let binding = var.borrow();
+                    if let TypeBinding::Bound(typ) = &*binding {
+                        let typ = typ.clone();
+                        drop(binding);
+                        this = Cow::Owned(typ);
+                    } else {
+                        drop(binding);
+                        return this;
+                    };
                 }
-                Cow::Borrowed(self)
-            }
-            Type::Alias(alias_def, generics) => {
-                let typ = alias_def.borrow().get_type(generics);
-                Cow::Owned(typ.follow_bindings_shallow().into_owned())
-            }
-            other => Cow::Borrowed(other),
+                Type::Alias(alias_def, generics) => {
+                    let typ = alias_def.borrow().get_type(generics);
+                    this = Cow::Owned(typ);
+                }
+                _ => return this,
+            };
         }
+        panic!("Type recursion limit reached - types are too large")
     }
 
     pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {
