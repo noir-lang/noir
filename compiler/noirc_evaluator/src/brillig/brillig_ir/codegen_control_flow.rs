@@ -296,7 +296,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        debug_assert!(condition.bit_size == 1);
+        assert!(condition.bit_size == 1);
 
         // Compute error selector if we have a message
         let error_selector = assert_message.map(|message| {

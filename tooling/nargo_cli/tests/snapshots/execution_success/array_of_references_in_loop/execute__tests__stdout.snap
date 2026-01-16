@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[array_of_references_in_loop] Circuit output: true

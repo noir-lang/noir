@@ -599,7 +599,7 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
-        debug_assert_eq!(
+        assert_eq!(
             generics.len(),
             item_generic_kinds.len(),
             "ICE: generics count should match the expected kinds"

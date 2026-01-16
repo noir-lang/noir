@@ -218,7 +218,7 @@ impl<F: AcirField> AcirContext<F> {
         if expression.to_const().is_none() {
             self.mark_variables_equivalent(var, witness_var)?;
         }
-        debug_assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
+        assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
 
         Ok(witness_var)
     }
