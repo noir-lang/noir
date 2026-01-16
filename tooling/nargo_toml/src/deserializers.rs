@@ -1,6 +1,5 @@
 //! Includes custom serde deserializers for Nargo.toml types that could be implemented
 //! using `serde(untagged)` but are not because using that leads to very poor error messages.
-//! See https://github.com/noir-lang/noir/issues/11088
 
 use std::collections::BTreeMap;
 
