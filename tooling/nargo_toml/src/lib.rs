@@ -158,14 +158,11 @@ impl PackageConfig {
         processed: &mut Vec<String>,
         assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
     ) -> Result<Package, ManifestError> {
-        let name: CrateName = if let Some(name) = &self.package.name {
-            name.parse().map_err(|_| ManifestError::InvalidPackageName {
-                toml: root_dir.join("Nargo.toml"),
-                name: name.into(),
-            })?
-        } else {
-            return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
-        };
+        let name = &self.package.name;
+        let name: CrateName = name.parse().map_err(|_| ManifestError::InvalidPackageName {
+            toml: root_dir.join("Nargo.toml"),
+            name: name.into(),
+        })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
@@ -296,7 +293,7 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
-    pub name: Option<String>,
+    pub name: String,
     pub version: Option<String>,
     #[serde(alias = "type")]
     pub package_type: Option<String>,
