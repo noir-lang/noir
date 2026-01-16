@@ -127,10 +127,49 @@
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{ItemVisibility, TypeAlias, UnresolvedType, UnresolvedTypeData},
+    parser::ParserErrorReason,
     token::Token,
 };
 
@@ -176,7 +215,20 @@
             }
         } <span class="kw">else </span>{
             expr_location = <span class="self">self</span>.current_token_location;
-            <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_type_expression().unwrap_or(UnresolvedType {
+            <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_type_expression();
+            <span class="kw">if </span>num_typ.is_none()
+                &amp;&amp; <span class="macro">matches!</span>(
+                    typ,
+                    <span class="prelude-val">Some</span>(UnresolvedType { typ: UnresolvedTypeData::Expression(..), .. })
+                )
+            {
+                <span class="self">self</span>.push_error(
+                    ParserErrorReason::UnexpectedTypeExpressionInTypeAlias,
+                    typ.as_ref().unwrap().location,
+                );
+            }
+
+            <span class="kw">let </span>typ = typ.unwrap_or(UnresolvedType {
                 typ: UnresolvedTypeData::Error,
                 location: expr_location,
             });
@@ -203,7 +255,12 @@
     <span class="kw">use crate</span>::{
         ast::{TypeAlias, UnresolvedType, UnresolvedTypeData},
         parse_program_with_dummy_file,
-        parser::{ItemKind, parser::tests::expect_no_errors},
+        parser::{
+            ItemKind, ParserErrorReason,
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
+        },
     };
 
     <span class="kw">fn </span>parse_type_alias_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; TypeAlias {
@@ -250,10 +307,29 @@
         <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
         <span class="kw">let </span>item = module.items.remove(<span class="number">0</span>);
         <span class="kw">let </span>ItemKind::TypeAlias(alias) = item.kind <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected global"</span>);
+            <span class="macro">panic!</span>(<span class="string">"Expected type alias"</span>);
         };
         <span class="macro">assert_eq!</span>(alias.name.to_string(), <span class="string">"Foo"</span>);
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(alias.typ, UnresolvedType { typ: UnresolvedTypeData::Error, .. }));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_numeric_type_alias_without_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        type Foo = 1 + 2;
+                   ^^^^^
+        "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span>(<span class="kw-2">mut </span>module, errors) = parse_program_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="macro">assert!</span>(!errors.is_empty());
+        <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
+        <span class="kw">let </span>item = module.items.remove(<span class="number">0</span>);
+        <span class="kw">let </span>ItemKind::TypeAlias(alias) = item.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected type alias"</span>);
+        };
+        <span class="macro">assert_eq!</span>(alias.name.to_string(), <span class="string">"Foo"</span>);
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::UnexpectedTypeExpressionInTypeAlias));
     }
 }
 </code></pre></div></section></main></body></html>

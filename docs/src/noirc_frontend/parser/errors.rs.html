@@ -341,7 +341,11 @@
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -464,6 +468,10 @@
     </span>MissingIfCondition,
     <span class="attr">#[error(<span class="string">"expected an identifier, found reserved identifier `_`"</span>)]
     </span>ExpectedIdentifierGotUnderscore,
+    <span class="attr">#[error(
+        <span class="string">"type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: &lt;type&gt;`"
+    </span>)]
+    </span>UnexpectedTypeExpressionInTypeAlias,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.
