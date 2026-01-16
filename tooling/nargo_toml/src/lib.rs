@@ -316,8 +316,7 @@ pub struct PackageMetadata {
     pub expression_width: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 pub enum DependencyConfig {
