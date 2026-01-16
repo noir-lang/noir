@@ -1718,7 +1718,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn check_remaining_stack_memory(&self, location: Location) -> IResult<()> {
-        let base_minimum_remaining_stack = 6000;
+        let base_minimum_remaining_stack = 10000;
         let minimum_remaining_stack =
             base_minimum_remaining_stack + base_minimum_remaining_stack / 10;
         let insufficient_stack_remaining =
