@@ -1,11 +1,12 @@
 use acvm::acir::{
     AcirField,
+    brillig::lengths::SemanticLength,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
 
-use crate::brillig::{assert_usize, brillig_ir::artifact::GeneratedBrillig};
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 
 use super::generated_acir::{BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
@@ -163,7 +164,7 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                for i in 0..assert_usize(len.0) {
+                for i in 0..len.to_usize() {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(i);
 
@@ -179,9 +180,13 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
+    fn zeroed_array_output(
+        &mut self,
+        element_types: &[AcirType],
+        size: SemanticLength,
+    ) -> AcirValue {
         let mut array_values = im::Vector::new();
-        for _ in 0..size {
+        for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
                     AcirType::Array(nested_element_types, nested_size) => {
@@ -204,11 +209,11 @@ impl<F: AcirField> AcirContext<F> {
     fn brillig_array_output(
         &mut self,
         element_types: &[AcirType],
-        size: usize,
+        size: SemanticLength,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
         let mut array_values = im::Vector::new();
-        for _ in 0..size {
+        for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
                     AcirType::Array(nested_element_types, nested_size) => {

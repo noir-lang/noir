@@ -1,13 +1,18 @@
 use acvm::{
     FieldElement,
-    acir::{AcirField, brillig::lengths::FlattenedLength},
+    acir::{
+        AcirField,
+        brillig::lengths::{
+            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+        },
+    },
 };
 use iter_extended::vecmap;
 use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::ssa::ssa_gen::SSA_WORD_SIZE;
+use crate::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 
 /// A numeric type in the Intermediate representation
 /// Note: we class NativeField as a numeric type
@@ -147,7 +152,7 @@ pub enum Type {
     Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Arc<CompositeType>, u32),
+    Array(Arc<CompositeType>, SemanticLength),
 
     /// An immutable vector value with a given element type
     Vector(Arc<CompositeType>),
@@ -189,7 +194,7 @@ impl Type {
 
     /// Creates the `str<N>` type, of the given length N
     pub fn str(length: u32) -> Type {
-        Type::Array(Arc::new(vec![Type::char()]), length)
+        Type::Array(Arc::new(vec![Type::char()]), SemanticLength(length))
     }
 
     /// Creates the native field type.
@@ -235,9 +240,11 @@ impl Type {
     /// Equivalent to `self.element_types().len()`.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
-    pub(crate) fn element_size(&self) -> usize {
+    pub(crate) fn element_size(&self) -> ElementTypesLength {
         match self {
-            Type::Array(elements, _) | Type::Vector(elements) => elements.len(),
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                ElementTypesLength(assert_u32(elements.len()))
+            }
             other => panic!("element_size: Expected array or vector, found {other}"),
         }
     }
@@ -272,9 +279,9 @@ impl Type {
     pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
-                let sum: u32 =
-                    elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size().0 * len));
-                FlattenedLength(sum)
+                let elements_flattened_length: FlattenedLength =
+                    elements.iter().map(|elem| elem.flattened_size()).sum();
+                ElementsFlattenedLength::from(elements_flattened_length) * *len
             }
             Type::Vector(_) => {
                 unimplemented!("ICE: cannot fetch flattened vector size");
