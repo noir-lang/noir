@@ -443,13 +443,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
     /// Such a vector with a semantic length of 3 would have a flattened size of 6.
+    ///
+    /// Uses checked multiplication to trap on overflow (length × item_size > u32::MAX).
     pub(crate) fn codegen_vector_flattened_size(
         &mut self,
         destination: MemoryAddress,
         length: MemoryAddress,
         item_size: MemoryAddress,
     ) {
-        self.memory_op_instruction(length, item_size, destination, BrilligBinaryOp::Mul);
+        self.codegen_checked_mul(length, item_size, destination);
     }
 
     /// Returns a pointer to the items of a given array.
