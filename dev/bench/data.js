@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768578758437,
+  "lastUpdate": 1768579215798,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "77422e5ef048af891ce5493bd64ea4ac44d7bec1",
-          "message": "chore: check in memop operation for witnesses (#11148)",
-          "timestamp": "2026-01-09T17:45:03Z",
-          "tree_id": "f9ffa97ffce2fcb378f906749a01610fcdbb9828",
-          "url": "https://github.com/noir-lang/noir/commit/77422e5ef048af891ce5493bd64ea4ac44d7bec1"
-        },
-        "date": 1767981971545,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253028,
-            "range": "± 257",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222977,
-            "range": "± 17636",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792740,
-            "range": "± 18869",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791641,
             "range": "± 3817",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6ef0e228bd649e8c43330354d704a6ec04dff225",
+          "message": "fix: better error messages on malformed Nargo.toml (#11240)",
+          "timestamp": "2026-01-16T15:37:50Z",
+          "tree_id": "fe7d5d6f8ffffa6b4de7e584a38642967379cd63",
+          "url": "https://github.com/noir-lang/noir/commit/6ef0e228bd649e8c43330354d704a6ec04dff225"
+        },
+        "date": 1768579176718,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256082,
+            "range": "± 621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227799,
+            "range": "± 9880",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785965,
+            "range": "± 1433",
             "unit": "ns/iter"
           }
         ]
