@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -250,7 +251,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element).flatten();
-                Type::Array(Arc::new(element_types), *len)
+                Type::Array(Arc::new(element_types), SemanticLength(*len))
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
@@ -793,7 +794,7 @@ impl<'a> FunctionContext<'a> {
                         if self.builder.current_function.runtime().is_brillig() {
                             let len = self
                                 .builder
-                                .numeric_constant(u128::from(*len), NumericType::length_type());
+                                .numeric_constant(u128::from(len.0), NumericType::length_type());
                             self.codegen_access_check(index, len);
                         }
                     }
@@ -867,7 +868,7 @@ impl<'a> FunctionContext<'a> {
 
     fn element_size(&self, array: ValueId) -> FieldElement {
         let size = self.builder.type_of_value(array).element_size();
-        FieldElement::from(size as u128)
+        FieldElement::from(size.0)
     }
 
     /// Given an lhs containing only references, create a store instruction to store each value of
