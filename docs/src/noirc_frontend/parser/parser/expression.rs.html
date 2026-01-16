@@ -2301,7 +2301,29 @@
 <a href="#2300" id="2300">2300</a>
 <a href="#2301" id="2301">2301</a>
 <a href="#2302" id="2302">2302</a>
-<a href="#2303" id="2303">2303</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2303" id="2303">2303</a>
+<a href="#2304" id="2304">2304</a>
+<a href="#2305" id="2305">2305</a>
+<a href="#2306" id="2306">2306</a>
+<a href="#2307" id="2307">2307</a>
+<a href="#2308" id="2308">2308</a>
+<a href="#2309" id="2309">2309</a>
+<a href="#2310" id="2310">2310</a>
+<a href="#2311" id="2311">2311</a>
+<a href="#2312" id="2312">2312</a>
+<a href="#2313" id="2313">2313</a>
+<a href="#2314" id="2314">2314</a>
+<a href="#2315" id="2315">2315</a>
+<a href="#2316" id="2316">2316</a>
+<a href="#2317" id="2317">2317</a>
+<a href="#2318" id="2318">2318</a>
+<a href="#2319" id="2319">2319</a>
+<a href="#2320" id="2320">2320</a>
+<a href="#2321" id="2321">2321</a>
+<a href="#2322" id="2322">2322</a>
+<a href="#2323" id="2323">2323</a>
+<a href="#2324" id="2324">2324</a>
+<a href="#2325" id="2325">2325</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -3393,6 +3415,7 @@
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp,
         },
+        lexer::errors::LexerErrorKind,
         parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
@@ -4602,6 +4625,27 @@
 
         <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(reason, ParserErrorReason::MissingIfCondition));
+    }
+
+    <span class="doccomment">/// When an integer is too large, the lexer will issue an error instead of an integer token.
+    /// The parser in this case recovers by filling in extra integers in place of these errors.
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>only_one_error_on_array_with_too_large_integers() {
+        <span class="comment">// The fifth integer here should overflow bn254
+        </span><span class="kw">let </span>src = <span class="string">"
+            @[0, 1, 23, 3444, 21888242871839275222246405745257275088548364400416034343698204186575808495617, 43, 2, 32, 4]
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let </span>expression = parser.parse_expression_or_error();
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(expression.kind, ExpressionKind::Literal(Literal::Vector(<span class="kw">_</span>))));
+
+        <span class="kw">let </span>reason = get_single_error_reason(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+            reason,
+            ParserErrorReason::Lexer(LexerErrorKind::IntegerLiteralTooLarge { .. })
+        ));
     }
 }
 </code></pre></div></section></main></body></html>
