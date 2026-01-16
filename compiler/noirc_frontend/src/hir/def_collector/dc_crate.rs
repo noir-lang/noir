@@ -216,13 +216,40 @@ impl CompilationError {
         CustomDiagnostic::from(self).is_error()
     }
 
-    pub(crate) fn is_expecting_other_error_error(&self) -> bool {
+    fn is_expecting_other_error_error(&self) -> bool {
         matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
     }
 
-    // TODO: WIP
-    pub(crate) fn is_error_node_reached(&self) -> bool {
-        matches!(self, CompilationError::ResolverError(ResolverError::ErrorNodeReached { .. }))
+    fn is_error_node_encountered(&self) -> bool {
+        matches!(
+            self,
+            CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. })
+        )
+    }
+
+    fn is_parser_maximum_recursion_depth_exceeded(&self) -> bool {
+        match self {
+            CompilationError::ParseError(error) => error.is_maximum_recursion_depth_exceeded(),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn skip_some_errors_if_other_error_is_present(errors: &mut Vec<CompilationError>) {
+        // skipping [`TypeCheckError::ExpectingOtherError`] if another error type is present
+        let mut any_expecting_other_errors = false;
+        // skipping [`InterpreterError::ErrorNodeEncountered`] if [`ParserError`]
+        // with reason [`ParserErrorReason::MaximumRecursionDepthExceeded`] is present
+        let mut any_parser_maximum_recursion_depth_exceeded = false;
+        for error in errors.iter() {
+            any_expecting_other_errors |= !error.is_expecting_other_error_error();
+            any_parser_maximum_recursion_depth_exceeded |=
+                error.is_parser_maximum_recursion_depth_exceeded();
+        }
+        if any_expecting_other_errors || any_parser_maximum_recursion_depth_exceeded {
+            errors.retain(|error| {
+                !error.is_expecting_other_error_error() && !error.is_error_node_encountered()
+            });
+        }
     }
 
     pub(crate) fn should_be_filtered(&self) -> bool {
@@ -522,13 +549,7 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        // TODO: WIP
-        // if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-        //     errors.retain(|error| !error.is_expecting_other_error_error());
-        // }
-        if errors.iter().any(|error| !error.is_expecting_other_error_error() && !error.is_error_node_reached()) {
-            errors.retain(|error| !error.is_expecting_other_error_error() && !error.is_error_node_reached());
-        }
+        CompilationError::skip_some_errors_if_other_error_is_present(&mut errors);
         errors
     }
 

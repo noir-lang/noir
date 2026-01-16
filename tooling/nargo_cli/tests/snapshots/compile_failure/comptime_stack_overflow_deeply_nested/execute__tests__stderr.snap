@@ -25,13 +25,6 @@ error: expected type u32, found type ()
     │ ╰─────' () returned here
     │  
 
-error: Internal Compiler Error: Error node encountered
-    ┌─ src/main.nr:307:6
-    │
-307 │     )
-    │      - This is a bug, please report this if found!
-    │
-
 error: Maximum recursion depth exceeded while parsing expression
     ┌─ src/main.nr:101:404
     │
@@ -53,4 +46,4 @@ error: Expected a '{' but found '}'
     │ -
     │
 
-Aborting due to 5 previous errors
+Aborting due to 4 previous errors

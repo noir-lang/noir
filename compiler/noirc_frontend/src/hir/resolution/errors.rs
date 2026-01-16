@@ -204,9 +204,6 @@ pub enum ResolverError {
     DataBusOnNonEntryPoint { visibility: String, ident: Ident },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
-    // TODO: WIP
-    #[error("Unexpected error node reached")]
-    ErrorNodeReached { location: Location },
 }
 
 impl ResolverError {
@@ -276,10 +273,7 @@ impl ResolverError {
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
-            // TODO: WIP
-            // | ResolverError::BuiltinWithBody { location } => *location,
-            | ResolverError::BuiltinWithBody { location }
-            | ResolverError::ErrorNodeReached { location } => *location,
+            | ResolverError::BuiltinWithBody { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -909,14 +903,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     ident.location(),
                 )
             },
-            // TODO: WIP
-            ResolverError::ErrorNodeReached { location } => {
-                Diagnostic::simple_error(
-                    "Unexpected error node reached".to_string(),
-                    "".to_string(),
-                    *location,
-                )
-            }
         }
     }
 }

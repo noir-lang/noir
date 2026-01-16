@@ -65,6 +65,7 @@ pub(crate) fn with_interpreter<T>(
         ElaboratorOptions::test_default(),
     );
 
+    CompilationError::skip_some_errors_if_other_error_is_present(&mut elaborator.errors);
     let errors = elaborator.errors.clone();
 
     let mut interpreter = elaborator.setup_interpreter();
@@ -415,9 +416,10 @@ fn regression_10863() {
         let has_type_mismatch_with_source = errors.iter().any(|e| {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
-        assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
-        // TODO: WIP
-        // assert_eq!(errors.len(), 1, "Expected exactly one error");
+        assert!(
+            has_type_mismatch_with_source,
+            "Expected a TypeMismatchWithSource error, but found:\n{errors:?}"
+        );
         assert_eq!(errors.len(), 1, "Expected exactly one error, but found:\n{errors:?}");
     });
 }
@@ -441,9 +443,10 @@ fn regression_10861() {
         let has_type_mismatch_with_source = errors.iter().any(|e| {
             matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
         });
-        assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
-        // TODO: WIP
-        // assert_eq!(errors.len(), 1, "Expected exactly one error");
+        assert!(
+            has_type_mismatch_with_source,
+            "Expected a TypeMismatchWithSource error, but found:\n{errors:?}"
+        );
         assert_eq!(errors.len(), 1, "Expected exactly one error, but found:\n{errors:?}");
     });
 }

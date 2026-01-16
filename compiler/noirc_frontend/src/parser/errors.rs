@@ -207,6 +207,10 @@ impl ParserError {
         let diagnostic: Diagnostic = self.into();
         diagnostic.is_warning()
     }
+
+    pub(crate) fn is_maximum_recursion_depth_exceeded(&self) -> bool {
+        matches!(self.reason, Some(ParserErrorReason::MaximumRecursionDepthExceeded))
+    }
 }
 
 impl std::fmt::Display for ParserError {

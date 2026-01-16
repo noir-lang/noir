@@ -117,16 +117,9 @@ impl Elaborator<'_> {
             ExpressionKind::InternedStatement(id) => {
                 return self.elaborate_interned_statement_as_expr(id, expr.location);
             }
-            // TODO: WIP
-            // ExpressionKind::Error => (HirExpression::Error, Type::Error),
-            ExpressionKind::Error => {
-                self.push_err(ResolverError::ErrorNodeReached { location: expr.location });
-                (HirExpression::Error, Type::Error)
-            }
+            ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { location: expr.location });
-                // TODO: WIP
-                assert!(self.errors.iter().any(|error|error.is_error()));
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
@@ -643,12 +636,7 @@ impl Elaborator<'_> {
         if is_macro_call && !self.in_comptime_context() {
             return self
                 .call_macro(hir_call.func, hir_call.arguments, location, typ)
-                // TODO: WIP
-                // .unwrap_or((HirExpression::Error, Type::Error));
-                .unwrap_or_else(|| {
-                    self.push_err(ResolverError::ErrorNodeReached { location });
-                    (HirExpression::Error, Type::Error)
-                });
+                .unwrap_or((HirExpression::Error, Type::Error));
         }
 
         // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
@@ -730,12 +718,7 @@ impl Elaborator<'_> {
             let args = function_call.arguments;
             return self
                 .call_macro(function_call.func, args, location, typ)
-                // TODO: WIP
-                // .unwrap_or((HirExpression::Error, Type::Error));
-                .unwrap_or_else(|| {
-                    self.push_err(ResolverError::ErrorNodeReached { location });
-                    (HirExpression::Error, Type::Error)
-                });
+                .unwrap_or((HirExpression::Error, Type::Error));
         }
 
         // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
@@ -770,8 +753,6 @@ impl Elaborator<'_> {
         );
         let Some(method_ref) = method_ref else {
             // Return a dummy call expression with Error type
-            // TODO: WIP
-            self.push_err(ResolverError::ErrorNodeReached { location });
             let error_func =
                 self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
             let error_call = HirCallExpression {
@@ -986,8 +967,6 @@ impl Elaborator<'_> {
                 typ: typ.to_string(),
                 location,
             });
-            // TODO: WIP
-            assert!(self.errors.iter().any(|error|error.is_error()));
             return (HirExpression::Error, Type::Error);
         };
 
@@ -1002,8 +981,6 @@ impl Elaborator<'_> {
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
-            // TODO: WIP
-            self.push_err(ResolverError::ErrorNodeReached { location });
             return (HirExpression::Error, Type::Error);
         };
 
@@ -1028,8 +1005,6 @@ impl Elaborator<'_> {
                     typ: typ.to_string(),
                     location,
                 });
-                // TODO: WIP
-                assert!(self.errors.iter().any(|error|error.is_error()));
                 return (HirExpression::Error, Type::Error);
             }
         };
@@ -1552,8 +1527,6 @@ impl Elaborator<'_> {
             (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
         } else {
             self.push_err(ResolverError::QuoteInRuntimeCode { location });
-            // TODO: WIP
-            assert!(self.errors.iter().any(|error|error.is_error()));
             (HirExpression::Error, Type::Quoted(QuotedType::Quoted))
         }
     }
@@ -1596,19 +1569,7 @@ impl Elaborator<'_> {
 
         let value = match value {
             Ok(value) => value,
-            // TODO: WIP
-            // Err(error) => return make_error(self, error),
-            Err(error) => {
-                // TODO: WIP
-                let compilation_error: CompilationError = error.clone().into();
-                if !compilation_error.is_error() {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: format!("inline_comptime_value: expecting an error, but found {compilation_error}"),
-                        location: error.location(),
-                    });
-                }
-                return make_error(self, error)
-            }
+            Err(error) => return make_error(self, error),
         };
 
         match value.into_expression(self, location) {
@@ -1623,19 +1584,7 @@ impl Elaborator<'_> {
                 self.silence_field_visibility_errors -= 1;
                 value
             }
-            // TODO: WIP
-            // Err(error) => make_error(self, error),
-            Err(error) => {
-                // TODO: WIP
-                let compilation_error: CompilationError = error.clone().into();
-                if !compilation_error.is_error() {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: format!("inline_comptime_value: expecting an error, but found {compilation_error}"),
-                        location: error.location(),
-                    });
-                }
-                make_error(self, error)
-            }
+            Err(error) => make_error(self, error),
         }
     }
 
@@ -1727,11 +1676,8 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
-            // TODO: WIP (update comment?)
-            // resolve_trait_bound only returns None if it has already issued an error, so don't
-            // issue another here.
-            // TODO: WIP
-            self.push_err(ResolverError::ErrorNodeReached { location });
+            // // resolve_trait_bound only returns None if it has already issued an error, so don't
+            // // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
             return (error, Type::Error);
         };
@@ -1749,8 +1695,6 @@ impl Elaborator<'_> {
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();
             self.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
-            // TODO: WIP
-            assert!(self.errors.iter().any(|error|error.is_error()));
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
             return (error, Type::Error);
         };

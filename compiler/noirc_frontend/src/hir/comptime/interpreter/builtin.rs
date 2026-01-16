@@ -924,15 +924,18 @@ fn quoted_as_module(
     let path =
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
-    let option_value = path.and_then(|path| {
+    let option_value = if let Some(path) = path {
         let path = interpreter.elaborator.validate_path(path);
         let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
-        let module =
-            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-                elaborator.resolve_module_by_path(path)
-            });
-        module.map(Value::ModuleDefinition)
-    });
+        let module = interpreter.elaborate_in_function(
+            interpreter.current_function,
+            reason,
+            |elaborator| elaborator.resolve_module_by_path(path),
+        )?;
+        Ok(module.map(Value::ModuleDefinition))
+    } else {
+        Ok(None)
+    }?;
 
     Ok(option(return_type, option_value, location))
 }
@@ -955,7 +958,7 @@ fn quoted_as_trait_constraint(
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.use_trait_bound(&trait_bound)
-        })
+        })?
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
     Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
@@ -974,7 +977,7 @@ fn quoted_as_type(
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.use_type(typ, wildcard_allowed)
-        });
+        })?;
     Ok(Value::Type(typ))
 }
 
@@ -2429,34 +2432,39 @@ fn expr_resolve(
     };
 
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
-    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
-    {
-        ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, location: self_argument_location };
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-        }
-        ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, location: self_argument_location };
-            let (stmt_id, _) = elaborator.elaborate_statement(statement);
-            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-        }
-        ExprValue::LValue(lvalue) => {
-            let expr = lvalue.as_expression();
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-        }
-        ExprValue::Pattern(pattern) => {
-            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                let (expr_id, _) = elaborator.elaborate_expression(expression);
+    interpreter.elaborate_in_function(
+        function_to_resolve_in,
+        reason,
+        |elaborator| match expr_value {
+            ExprValue::Expression(expression_kind) => {
+                let expr = Expression { kind: expression_kind, location: self_argument_location };
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
                 Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            } else {
-                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
-                let location = self_argument_location;
-                Err(InterpreterError::CannotResolveExpression { location, expression })
             }
-        }
-    })
+            ExprValue::Statement(statement_kind) => {
+                let statement =
+                    Statement { kind: statement_kind, location: self_argument_location };
+                let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+            }
+            ExprValue::LValue(lvalue) => {
+                let expr = lvalue.as_expression();
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            }
+            ExprValue::Pattern(pattern) => {
+                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                    let (expr_id, _) = elaborator.elaborate_expression(expression);
+                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                } else {
+                    let expression =
+                        Value::pattern(pattern).display(elaborator.interner).to_string();
+                    let location = self_argument_location;
+                    Err(InterpreterError::CannotResolveExpression { location, expression })
+                }
+            }
+        },
+    )?
 }
 
 fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
@@ -2596,7 +2604,7 @@ fn function_def_as_typed_expr(
                 bindings,
                 push_required_type_variables,
             )
-        });
+        })?;
     let expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
@@ -2803,16 +2811,17 @@ fn function_def_set_parameters(
         let reason =
             ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
         let reason = Some(reason);
-        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
-            elaborator.elaborate_pattern_and_store_ids(
-                parameter_pattern,
-                parameter_type.clone(),
-                DefinitionKind::Local(None),
-                &mut parameter_idents,
-                true, // warn_if_unused
-                &mut parameter_names_in_list,
-            )
-        });
+        let hir_pattern =
+            interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
+                elaborator.elaborate_pattern_and_store_ids(
+                    parameter_pattern,
+                    parameter_type.clone(),
+                    DefinitionKind::Local(None),
+                    &mut parameter_idents,
+                    true, // warn_if_unused
+                    &mut parameter_names_in_list,
+                )
+            })?;
 
         parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));
         parameter_types.push(parameter_type);
@@ -2940,7 +2949,7 @@ fn module_add_item(
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
         }
-    });
+    })?;
 
     Ok(Value::Unit)
 }

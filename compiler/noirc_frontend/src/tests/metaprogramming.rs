@@ -1134,7 +1134,6 @@ fn regression_11016() {
     check_errors(src);
 }
 
-// TODO: WIP
 #[test]
 fn regression_10352() {
     let src = "
@@ -1149,13 +1148,13 @@ fn regression_10352() {
     fn main() {}
     ";
     let (_, _context, errors) = get_program(src);
-    // TODO: WIP
-    // assert_eq!(errors.len(), 76);
     for error in errors {
         assert!(
-            matches!(error, CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { .. })),
-            "Expected a ComptimeError::ErrorRunningAttribute, but found: {:?}",
-            error
+            matches!(
+                error,
+                CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { .. })
+            ),
+            "Expected a ComptimeError::ErrorRunningAttribute, but found: {error:?}",
         );
     }
 }

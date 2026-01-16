@@ -152,6 +152,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
+        self.check_remaining_stack_memory(location)?;
         let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
         // To match the monomorphizer, we need to call follow_bindings on each of
@@ -257,7 +258,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
-                    });
+                    })?;
 
                     // Recursive call - this will now hit the Some(body) branch
                     self.get_function_body(function, location)
@@ -277,12 +278,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         function: Option<FuncId>,
         reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
-    ) -> T {
+    ) -> IResult<T> {
+        if let Some(func_id) = function {
+            let location = self.elaborator.interner.function_meta(&func_id).location;
+            self.check_remaining_stack_memory(location)?;
+        }
         // Why do we only unbind generics from the previous function here?
         self.unbind_generics_from_previous_function();
         let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
         self.rebind_generics_from_previous_function();
-        result
+        Ok(result)
     }
 
     /// Run the given function with an elaborator in the context of the given module.
@@ -292,11 +297,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         module: ModuleId,
         reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
-    ) -> T {
+    ) -> IResult<T> {
+        let location = self.elaborator.interner.module_attributes(module).location;
+        self.check_remaining_stack_memory(location)?;
         self.unbind_generics_from_previous_function();
         let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
         self.rebind_generics_from_previous_function();
-        result
+        Ok(result)
     }
 
     /// Calls a builtin, foreign, or oracle function (not all oracles are supported).
@@ -623,6 +630,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluate an expression and return the result.
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+        let location = self.elaborator.interner.expr_location(&id);
+        self.check_remaining_stack_memory(location)?;
         // If comptime evaluation has been halted, don't execute anything
         if self.elaborator.comptime_evaluation_halted {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
@@ -1155,7 +1164,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let expr =
                         self.elaborate_in_function(self.current_function, None, |elaborator| {
                             elaborator.elaborate_expression(expr).0
-                        });
+                        })?;
                     result = self.evaluate(expr)?;
 
                     // Macro calls are typed as type variables during type checking.
@@ -1267,6 +1276,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+        let location = self.elaborator.interner.id_location(statement);
+        self.check_remaining_stack_memory(location)?;
         // If comptime evaluation has been halted, don't execute anything
         if self.elaborator.comptime_evaluation_halted {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
@@ -1300,6 +1311,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(crate) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+        let location = self.elaborator.interner.expr_location(&let_.expression);
+        self.check_remaining_stack_memory(location)?;
         let rhs = self.evaluate(let_.expression)?;
         let location = self.elaborator.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
@@ -1704,6 +1717,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         Ok(Value::Unit)
+    }
+
+    fn check_remaining_stack_memory(&self, location: Location) -> IResult<()> {
+        let base_minimum_remaining_stack = 6000;
+        let minimum_remaining_stack =
+            base_minimum_remaining_stack + base_minimum_remaining_stack / 10;
+        let insufficient_stack_remaining =
+            stacker::remaining_stack().map(|x| x < minimum_remaining_stack).unwrap_or(false);
+        if insufficient_stack_remaining {
+            Err(InterpreterError::StackOverflow {
+                location,
+                call_stack: self.elaborator.interpreter_call_stack().clone(),
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 
