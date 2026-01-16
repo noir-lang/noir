@@ -119,6 +119,8 @@ pub enum ParserErrorReason {
     MaximumRecursionDepthExceeded,
     #[error("missing condition for `if` expression")]
     MissingIfCondition,
+    #[error("expected an identifier, found reserved identifier `_`")]
+    ExpectedIdentifierGotUnderscore,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

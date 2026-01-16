@@ -66,7 +66,8 @@ impl Formatter<'_> {
             }
             FunctionAttributeKind::Fold
             | FunctionAttributeKind::NoPredicates
-            | FunctionAttributeKind::InlineAlways => {
+            | FunctionAttributeKind::InlineAlways
+            | FunctionAttributeKind::InlineNever => {
                 self.format_no_args_attribute();
             }
         }

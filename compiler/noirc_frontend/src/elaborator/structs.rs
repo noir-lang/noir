@@ -82,8 +82,7 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            let previous_item =
-                std::mem::replace(&mut this.current_item, Some(DependencyId::Struct(struct_id)));
+            let previous_item = this.current_item.replace(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
 

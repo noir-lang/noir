@@ -130,10 +130,12 @@ impl NodeInterner {
                 }
                 Some(DefinitionKind::Global(global_id)) => {
                     let info = self.get_global(*global_id);
-                    let HirStatement::Let(HirLetStatement { expression, .. }) =
-                        self.statement(&info.let_statement)
-                    else {
-                        unreachable!("global refers to a let statement");
+                    let expression = match self.statement(&info.let_statement) {
+                        HirStatement::Let(HirLetStatement { expression, .. })
+                        | HirStatement::Expression(expression) => expression,
+                        other => unreachable!(
+                            "Expected global to be a let statement or expression but found: {other:?}"
+                        ),
                     };
                     self.lookup_function_from_expr(&expression)
                 }
@@ -163,6 +165,11 @@ impl NodeInterner {
 
     pub fn function_meta_mut(&mut self, func_id: &FuncId) -> &mut FuncMeta {
         self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
+    }
+
+    /// Removes the interned meta data corresponding to `func_id`
+    pub fn remove_function_meta(&mut self, func_id: &FuncId) -> FuncMeta {
+        self.func_meta.remove(func_id).expect("ice: all function ids should have metadata")
     }
 
     pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {

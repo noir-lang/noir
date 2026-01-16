@@ -1,4 +1,4 @@
-global G_C: [bool] = &[true, false, true];
+global G_C: [bool] = [true, false, true].as_vector();
 fn main(a: bool) {
     println(func_1(a, G_C));
     println(G_C);

@@ -87,7 +87,7 @@ impl Parser<'_> {
         allow_optional_body: bool,
         allow_self: bool,
     ) -> FunctionDefinitionWithOptionalBody {
-        let name = if let Some(name) = self.eat_ident() {
+        let name = if let Some(name) = self.eat_non_underscore_ident() {
             name
         } else if self.at(Token::LeftParen) || self.at(Token::Less) {
             // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function

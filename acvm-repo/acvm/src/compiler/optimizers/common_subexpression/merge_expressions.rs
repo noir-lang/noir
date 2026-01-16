@@ -200,14 +200,15 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             Opcode::BlackBoxFuncCall(bb_func) => {
                 let mut witnesses = bb_func.get_input_witnesses();
                 witnesses.extend(bb_func.get_outputs_vec());
-
+                if let Some(w) = bb_func.get_predicate() {
+                    witnesses.insert(w);
+                }
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op } => {
-                //index and value
-                let witnesses = CircuitSimulator::expr_witness(&op.index);
-                witnesses.chain(CircuitSimulator::expr_witness(&op.value)).collect()
-            }
+            Opcode::MemoryOp { block_id: _, op } => CircuitSimulator::expr_witness(&op.operation)
+                .chain(CircuitSimulator::expr_witness(&op.index))
+                .chain(CircuitSimulator::expr_witness(&op.value))
+                .collect(),
 
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 init.iter().cloned().collect()

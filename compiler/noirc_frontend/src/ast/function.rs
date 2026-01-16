@@ -109,6 +109,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttributeKind::Fold) => FunctionKind::Normal,
             Some(FunctionAttributeKind::NoPredicates) => FunctionKind::Normal,
             Some(FunctionAttributeKind::InlineAlways) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::InlineNever) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

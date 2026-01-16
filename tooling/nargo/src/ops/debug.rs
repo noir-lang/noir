@@ -56,7 +56,7 @@ pub fn get_test_function_for_debug(
     };
 
     let test_function_has_arguments =
-        !context.def_interner.function_meta(&test_function.id).function_signature().0.is_empty();
+        !context.def_interner.function_meta(&test_function.id).parameters.is_empty();
 
     if test_function_has_arguments {
         return Err(String::from("Cannot debug tests with arguments"));

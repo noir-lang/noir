@@ -261,6 +261,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eats an identifier. If it's `_`, pushes an error but still returns it as an identifier.
+    fn eat_non_underscore_ident(&mut self) -> Option<Ident> {
+        let ident = self.eat_ident()?;
+        if ident.as_str() == "_" {
+            self.push_error(ParserErrorReason::ExpectedIdentifierGotUnderscore, ident.location());
+        }
+        Some(ident)
+    }
+
     fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
             match token.into_token() {

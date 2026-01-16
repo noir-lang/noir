@@ -151,7 +151,7 @@ mod entry_point {
         12: @70 = sp[1]
         13: sp[2] = const u32 70
         14: sp[3] = const u32 1
-        15: stop &[sp[2]; sp[3]]
+        15: stop @[sp[2]; sp[3]]
         16: return
         17: call 24
         18: sp[3] = u32 add sp[1], sp[2]
@@ -164,10 +164,10 @@ mod entry_point {
         25: @3 = u32 lt @0, @4
         26: jump if @3 to 29
         27: @1 = indirect const u64 15764276373176857197
-        28: trap &[@1; @2]
+        28: trap @[@1; @2]
         29: return
         30: @1 = indirect const u64 14990209321349310352
-        31: trap &[@1; @2]
+        31: trap @[@1; @2]
         32: return
         ");
     }

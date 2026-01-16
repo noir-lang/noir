@@ -135,7 +135,7 @@ Example:
 struct Foo { x: Field }
 
 comptime fn mangle_fields(s: TypeDefinition) {
-    s.set_fields(&[
+    s.set_fields(@[
         (quote { a }, quote { u32 }.as_type(), quote { pub }),
         (quote { b }, quote { i8 }.as_type(), quote {}),
     ]);

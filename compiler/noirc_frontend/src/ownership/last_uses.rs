@@ -1,6 +1,5 @@
 //! This module contains the last use analysis pass which is run on each function before
-//! the ownership pass when the experimental ownership scheme is enabled. This pass does
-//! not run without this experimental flag - and if it did its results would go unused.
+//! the ownership pass.
 //!
 //! The purpose of this pass is to find which instance of a variable is the variable's
 //! last use. Note that a variable may have multiple last uses. This can happen if the
@@ -53,22 +52,29 @@ use super::Context;
 /// ```
 #[derive(Debug, Clone)]
 pub(super) enum Branches {
-    /// No use in this branch or there is no branch
+    /// No (last) use in this branch or there is no branch.
     None,
     Direct(IdentId),
     IfOrMatch(IfOrMatchId, HashMap<BranchId, Branches>),
 }
 
 impl Branches {
-    /// Collect all IdentIds from this tree
+    /// Collect all `IdentId`s from this tree.
     fn flatten_uses(self) -> Vec<IdentId> {
-        match self {
-            Branches::None => Vec::new(),
-            Branches::Direct(ident_id) => vec![ident_id],
-            Branches::IfOrMatch(_, cases) => {
-                cases.into_values().flat_map(Self::flatten_uses).collect()
+        fn go(branches: Branches, acc: &mut Vec<IdentId>) {
+            match branches {
+                Branches::None => {}
+                Branches::Direct(ident_id) => acc.push(ident_id),
+                Branches::IfOrMatch(_, cases) => {
+                    for case in cases.into_values() {
+                        go(case, acc);
+                    }
+                }
             }
         }
+        let mut acc = Vec::new();
+        go(self, &mut acc);
+        acc
     }
 
     fn get_if_or_match_id(&self) -> Option<IfOrMatchId> {
@@ -91,12 +97,12 @@ impl Branches {
 /// This is used by the context to keep track of where we currently are within a function.
 type BranchesPath = Vec<(IfOrMatchId, BranchId)>;
 
-/// The Id of an `if` or `match`, used to distinguish multiple sequential ifs/matches
+/// The ID of an `if` or `match`, used to distinguish multiple sequential ifs/matches
 /// from each other.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct IfOrMatchId(u32);
 
-/// The Id for a single branch of an if or match
+/// The ID for a single branch of an if or match.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct BranchId(u32);
 
@@ -106,9 +112,10 @@ struct LastUseContext {
     /// As a whole, this tracks the current control-flow of the function we're in.
     current_loop_and_branch: Vec<BranchesPath>,
 
+    /// Next `if` or `match` ID.
     next_id: u32,
 
-    /// Stores the location of each variable's last use
+    /// Stores the location of each variable's last use.
     ///
     /// Map from each local variable to the last instance of that variable. Separate uses of
     /// the same variable are differentiated by that identifier's `IdentId` which is always
@@ -116,7 +123,7 @@ struct LastUseContext {
     /// identifier referring to the same underlying definition.
     ///
     /// Each definition is mapped to a loop index and a Branches enumeration.
-    /// - The loop index tracks how many loops the variable was declared within. It may be moved
+    /// - The loop index tracks how many loops deep the variable was declared at. It may be moved
     ///   within the same loop but cannot be moved within a nested loop. E.g:
     ///   ```noir
     ///   fn foo() {
@@ -177,6 +184,7 @@ impl LastUseContext {
         self.current_loop_and_branch.pop().expect("No loop to pop");
     }
 
+    /// Push a branch to the current loop.
     fn branch(&mut self, id: IfOrMatchId, branch_id: u32) {
         let path =
             self.current_loop_and_branch.last_mut().expect("We should always have at least 1 path");
@@ -190,16 +198,24 @@ impl LastUseContext {
         IfOrMatchId(id)
     }
 
+    /// Pop the latest branch of the current loop.
     fn unbranch(&mut self) {
         let path =
             self.current_loop_and_branch.last_mut().expect("We should always have at least 1 path");
         path.pop().expect("No branch to unbranch");
     }
 
+    /// The current loop index.
+    ///
+    /// Returns 0 for the outermost layer, which is not in a loop.
     fn loop_index(&self) -> usize {
-        self.current_loop_and_branch.len() - 1
+        self.current_loop_and_branch
+            .len()
+            .checked_sub(1)
+            .expect("We should always have at least 1 path")
     }
 
+    /// Insert the last use of a local variable, defined in the current loop with no branching.
     fn declare_variable(&mut self, id: LocalId) {
         let loop_index = self.loop_index();
         self.last_uses.insert(id, (loop_index, Branches::None));
@@ -215,7 +231,7 @@ impl LastUseContext {
     /// within the same loop.
     fn remember_use_of_variable(&mut self, id: LocalId, variable: IdentId) {
         let path =
-            self.current_loop_and_branch.last().expect("We should always have at least 1 scope");
+            self.current_loop_and_branch.last().expect("We should always have at least 1 path");
         let loop_index = self.loop_index();
 
         if let Some((variable_loop_index, uses)) = self.last_uses.get_mut(&id) {
@@ -227,11 +243,18 @@ impl LastUseContext {
         }
     }
 
+    /// Given the `branches` in which a local variable is used, update the last use with the latest
+    /// `variable` identifier at the current `path`.
+    ///
+    /// This is only called when the local variable was created in the current loop, so it never
+    /// considers a use in a loop body as a last use for something defined outside the loop.
     fn remember_use_of_variable_rec(
         branches: &mut Branches,
         path: &[(IfOrMatchId, BranchId)],
         variable: IdentId,
     ) {
+        // Replace the current last use of a variable with an empty IfOrMatch using the current ID,
+        // then recursively add the current branch to it.
         let reset_branch_and_recur = |branch: &mut Branches, if_or_match_id, branch_id| {
             let empty_branch = [(branch_id, Branches::None)].into_iter().collect();
             *branch = Branches::IfOrMatch(if_or_match_id, empty_branch);
@@ -239,20 +262,22 @@ impl LastUseContext {
         };
 
         match (branches, path) {
-            // Path is direct, overwrite the last use entirely
+            // Path is direct; overwrite the last use entirely.
             (branch, []) => {
                 *branch = Branches::Direct(variable);
             }
             // Our path says we need to enter an if or match but the variable's last
             // use was direct. So we need to overwrite the last use with an empty IfOrMatch
-            // and write to the relevant branch of that
+            // and write to the relevant branch of that.
             (
                 branch @ (Branches::None | Branches::Direct { .. }),
                 [(if_or_match_id, branch_id), ..],
             ) => {
-                // The branch doesn't exist for this variable; create it
+                // The branch doesn't exist for this variable; create it.
                 reset_branch_and_recur(branch, *if_or_match_id, *branch_id);
             }
+            // The variable was last use within a branch. If it's a different branch of the same if/match,
+            // we extend it with the new last use, otherwise replace it with the new if/match and branch.
             (branches @ Branches::IfOrMatch(..), [(new_if_id, branch_id), rest @ ..]) => {
                 if branches.get_if_or_match_id() == Some(*new_if_id) {
                     let nested = branches.get_branches_map().expect("We know this is a IfOrMatch");
@@ -265,6 +290,7 @@ impl LastUseContext {
         }
     }
 
+    /// Collect the last use(s) of every local variable.
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         self.last_uses
             .into_iter()
@@ -352,8 +378,11 @@ impl LastUseContext {
     }
 
     fn track_variables_in_while(&mut self, while_expr: &ast::While) {
+        self.push_loop_scope();
+        // The condition is evaluated on every iteration of the loop and thus must be included in the loop scope.
         self.track_variables_in_expression(&while_expr.condition);
-        self.track_variables_in_loop(&while_expr.body);
+        self.track_variables_in_expression(&while_expr.body);
+        self.pop_loop_scope();
     }
 
     fn track_variables_in_loop(&mut self, loop_body: &Expression) {
@@ -442,14 +471,18 @@ impl LastUseContext {
     /// index in an array expression `a[i] = ...` is an arbitrary expression that
     /// is actually in an rvalue position and can thus be moved.
     ///
-    /// Subtle point: since we don't track identifier uses here at all this means
-    /// if the last use of one was just before it is assigned, it can actually be
-    /// moved before it is assigned. This should be fine because we move out of the
-    /// binding, and the binding isn't used until it is set to a new value.
+    /// Subtle point: if the last use of an identifier was just before it is assigned,
+    /// it can actually be moved before it is assigned. This should be fine for top level
+    /// identifiers, because we move out of the binding, and the binding isn't used until
+    /// it is set to a new value. However, for identifiers used in indexing or member
+    /// access, we don't want the identifier to be moved before assignment, as we still
+    /// need access to the "rest" of it without potential modification, which brings us
+    /// to the `nested` parameter.
     ///
-    /// The `nested` parameter indicates whether this l-value is nested inside another l-value.
+    /// The `nested` parameter indicates whether this lvalue is nested inside another lvalue.
     /// For top-level identifiers there's nothing to track, but for an identifier happening
-    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as moved.
+    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as used,
+    /// which should preclude any previous last uses that could result in it being moved.
     fn track_variables_in_lvalue(&mut self, lvalue: &ast::LValue, nested: bool) {
         match lvalue {
             // All identifiers in lvalues are implicitly `&mut ident` and thus aren't moved

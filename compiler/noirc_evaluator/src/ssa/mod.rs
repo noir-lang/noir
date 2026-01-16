@@ -21,14 +21,15 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
+use iter_extended::vecmap;
 use noirc_artifacts::{
     debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
 };
 use noirc_errors::call_stack::CallStackId;
 
-use noirc_frontend::shared::Visibility;
-use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{monomorphization::ast, shared::Visibility};
 use ssa_gen::Ssa;
 use tracing::{Level, span};
 
@@ -408,8 +409,8 @@ pub fn create_program_with_passes(
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
 
-    let arg_size_and_visibilities: Vec<Vec<(u32, Visibility)>> =
-        program.function_signatures.iter().map(resolve_function_signature).collect();
+    let entry_points = program.functions.iter().filter(|function| function.is_entry_point);
+    let arg_size_and_visibilities = vecmap(entry_points, resolve_function_signature);
 
     let artifacts = optimize_into_acir(program, options, passes, files)?;
 
@@ -460,11 +461,12 @@ pub fn combine_artifacts(
     SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
-fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
-    func_sig
-        .0
+/// Given a function, return each parameter's field count and visibility
+fn resolve_function_signature(function: &ast::Function) -> Vec<(u32, Visibility)> {
+    function
+        .parameters
         .iter()
-        .map(|(pattern, typ, visibility)| (typ.field_count(&pattern.location()), *visibility))
+        .map(|(_, _, _, typ, visibility)| (typ.entry_point_field_count(), *visibility))
         .collect()
 }
 

@@ -107,6 +107,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -241,28 +242,10 @@ impl Context {
 
                         self.vector_constant_size_override(context.dfg, intrinsic, arguments);
 
-                        match self.vector_capacity_change(
-                            context.dfg,
-                            intrinsic,
-                            arguments,
-                            results,
-                        ) {
-                            SizeChange::None => (),
-                            SizeChange::SetTo { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| c);
-                            }
-                            SizeChange::Inc { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| {
-                                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                                    c.checked_add(1).expect("Vector capacity overflow")
-                                });
-                            }
-                            SizeChange::Dec { old, new } => {
-                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
-                                // would otherwise underflow.
-                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
-                            }
-                        }
+                        let size_change =
+                            self.vector_capacity_change(context.dfg, intrinsic, arguments, results);
+
+                        self.change_size(size_change, context);
                     }
                 }
                 // Track vector sizes through array set instructions
@@ -274,6 +257,31 @@ impl Context {
             }
             Ok(())
         })
+    }
+
+    fn change_size(&mut self, size_change: SizeChange, context: &mut SimpleOptimizationContext) {
+        match size_change {
+            SizeChange::None => (),
+            SizeChange::SetTo { old, new } => {
+                self.set_capacity(context.dfg, old, new, |c| c);
+            }
+            SizeChange::Inc { old, new } => {
+                self.set_capacity(context.dfg, old, new, |c| {
+                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
+                    c.checked_add(1).expect("Vector capacity overflow")
+                });
+            }
+            SizeChange::Dec { old, new } => {
+                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
+                // would otherwise underflow.
+                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
+            }
+            SizeChange::Many(changes) => {
+                for change in changes {
+                    self.change_size(change, context);
+                }
+            }
+        }
     }
 
     /// Set the capacity of the new vector based on the capacity of the old array/vector.
@@ -398,20 +406,21 @@ impl Context {
                     arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
                 let results_types =
                     results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+
                 assert_eq!(arguments_types, results_types);
-                let old =
-                    *arguments.last().expect("expected at least one argument to Hint::BlackBox");
-                if self.vector_sizes.contains_key(&old) {
-                    if arguments.len() != 1 {
-                        assert!(arguments.len() == 2);
-                        assert!(matches!(arguments_types[0], Type::Numeric(_)));
+
+                let mut changes = Vec::new();
+                for (i, argument) in arguments.iter().enumerate() {
+                    if self.vector_sizes.contains_key(argument)
+                        && matches!(arguments_types[i], Type::Vector(_))
+                    {
+                        assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                        let new = results[i];
+                        changes.push(SizeChange::SetTo { old: *argument, new });
                     }
-                    assert!(matches!(arguments_types.last().unwrap(), Type::Vector(_)));
-                    let new = *results.last().unwrap();
-                    SizeChange::SetTo { old, new }
-                } else {
-                    SizeChange::None
                 }
+
+                SizeChange::Many(changes)
             }
 
             // These cases don't affect vector capacities
@@ -451,6 +460,7 @@ enum SizeChange {
         old: ValueId,
         new: ValueId,
     },
+    Many(Vec<SizeChange>),
 }
 
 #[cfg(debug_assertions)]

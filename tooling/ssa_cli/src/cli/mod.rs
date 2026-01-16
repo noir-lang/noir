@@ -1,7 +1,7 @@
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, command};
+use clap::{Args, Parser, Subcommand};
 use color_eyre::eyre::{self, Context, bail};
 use const_format::formatcp;
 use noir_artifact_cli::commands::parse_and_normalize_path;

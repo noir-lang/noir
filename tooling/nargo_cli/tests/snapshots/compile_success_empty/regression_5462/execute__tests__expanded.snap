@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let empty_vector: [u8] = &[];
-    if empty_vector != &[] {
+    let empty_vector: [u8] = [].as_vector();
+    if empty_vector != [].as_vector() {
         let _: (u8, [u8]) = empty_vector.pop_front();
     };
     if empty_vector.len() != 0_u32 {

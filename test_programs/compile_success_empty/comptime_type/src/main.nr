@@ -70,7 +70,7 @@ fn main() {
         // Check Type::as_vector
         assert(u8_type.as_vector().is_none());
 
-        let vector = &[1];
+        let vector = [1].as_vector();
         let vector_type = type_of(vector);
         let vector_type_element_type = vector_type.as_vector().unwrap();
         assert_eq(vector_type_element_type, field_type_1);

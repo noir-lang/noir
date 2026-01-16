@@ -6,14 +6,14 @@ use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, Hasher}};
 
 comptime mut global REGISTRY: UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> = UHashMap::<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> {
     _len: 1,
-    _table: &[
+    _table: @[
         std::collections::umap::Slot::<Module, [FunctionDefinition]> {
             _is_deleted: false,
             _key_value: Option::<(Module, [FunctionDefinition])> {
                 _is_some: true,
                 _value: (
                     panic(f"comptime value that cannot be represented with code"),
-                    &[panic(f"comptime value that cannot be represented with code")],
+                    @[panic(f"comptime value that cannot be represented with code")],
                 ),
             },
         },
@@ -21,7 +21,7 @@ comptime mut global REGISTRY: UHashMap<Module, [FunctionDefinition], BuildHasher
             _is_deleted: false,
             _key_value: Option::<(Module, [FunctionDefinition])> {
                 _is_some: false,
-                _value: (crate::mem::zeroed(), &[]),
+                _value: (crate::mem::zeroed(), @[]),
             },
         },
     ],
@@ -37,7 +37,7 @@ comptime fn add_to_registry(
     let functions_to_insert: [FunctionDefinition] = if current_functions.is_some() {
         current_functions.unwrap().push_back(f)
     } else {
-        &[f]
+        [f].as_vector()
     };
     registry.insert(module, functions_to_insert);
 }

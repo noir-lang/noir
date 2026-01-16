@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(val: str<3>, flag: bool, val2: str<1>) {
+    std::hint::black_box(());
+    example2(val, flag);
+    example3(val2);
+}
+
+fn example2(val: str<3>, flag: bool) {
+    let b: [u8; 3] = val.as_bytes();
+    let s: [u8] = b.as_vector();
+    let (_, s1): (u8, [u8]) = s.pop_front();
+    let (s2, _): ([u8], u8) = s.pop_back();
+    let (s3, s4, _): ([u8], [u8], Field) = std::hint::black_box((s1, s2, 1_Field));
+    let _: [u8] = if flag { s3 } else { s4 };
+}
+
+fn example3(val: str<1>) {
+    let b: [u8; 1] = val.as_bytes();
+    let s: [u8] = b.as_vector();
+    let _: (Field, [u8]) = std::hint::black_box((1_Field, s));
+}

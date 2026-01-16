@@ -7,7 +7,7 @@ global GLOBAL_THREE: Field = GLOBAL_ONE + GLOBAL_TWO;
 // contents known at compile time
 // length known at compile time
 global GLOBAL_ARRAY_PAIR: [Field; 2] = [GLOBAL_ONE, GLOBAL_TWO];
-global GLOBAL_VECTOR_PAIR: [Field] = &[GLOBAL_ONE, GLOBAL_TWO];
+global GLOBAL_VECTOR_PAIR: [Field] = [GLOBAL_ONE, GLOBAL_TWO].as_vector();
 
 pub struct Foo {
     field: Field,
@@ -22,7 +22,7 @@ fn main(
     // contents unknown at compile time
     // length known at compile time
     let dynamic_array_pair = [dynamic_one, dynamic_two];
-    let dynamic_vector_pair = &[dynamic_one, dynamic_two];
+    let dynamic_vector_pair = [dynamic_one, dynamic_two].as_vector();
 
     static_assert(true, "");
 

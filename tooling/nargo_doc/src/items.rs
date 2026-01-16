@@ -38,11 +38,12 @@ pub enum ItemKind {
 /// - `[name]` (`path` will be the same as `name`)
 /// - `[name][path]`
 /// - `[name](path)`
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     pub name: String,
     pub path: String,
-    pub target: LinkTarget,
+    /// The link target. If None it means this is a broken link.
+    pub target: Option<LinkTarget>,
     /// The line number in the comments where this link occurs (0-based).
     pub line: usize,
     /// The start byte in the line where the link occurs.
@@ -51,7 +52,7 @@ pub struct Link {
     pub end: usize,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LinkTarget {
     TopLevelItem(ItemId),
     Method(ItemId, String),

@@ -65,7 +65,7 @@ fn multiple_brillig_calls_one_bytecode() {
     10: @70 = sp[1]
     11: sp[2] = const u32 70
     12: sp[3] = const u32 1
-    13: stop &[sp[2]; sp[3]]
+    13: stop @[sp[2]; sp[3]]
     14: return
     15: call 23
     16: sp[3] = field eq sp[1], sp[2]
@@ -73,13 +73,13 @@ fn multiple_brillig_calls_one_bytecode() {
     18: sp[4] = bool eq sp[3], sp[2]
     19: jump if sp[4] to 22
     20: sp[5] = const u32 0
-    21: trap &[@1; sp[5]]
+    21: trap @[@1; sp[5]]
     22: return
     23: @4 = const u32 30791
     24: @3 = u32 lt @0, @4
     25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
-    27: trap &[@1; @2]
+    27: trap @[@1; @2]
     28: return
     unconstrained func 1: foo
      0: @2 = const u32 1
@@ -95,7 +95,7 @@ fn multiple_brillig_calls_one_bytecode() {
     10: @70 = sp[1]
     11: sp[2] = const u32 70
     12: sp[3] = const u32 1
-    13: stop &[sp[2]; sp[3]]
+    13: stop @[sp[2]; sp[3]]
     14: return
     15: call 23
     16: sp[3] = field eq sp[1], sp[2]
@@ -103,13 +103,13 @@ fn multiple_brillig_calls_one_bytecode() {
     18: sp[4] = bool eq sp[3], sp[2]
     19: jump if sp[4] to 22
     20: sp[5] = const u32 0
-    21: trap &[@1; sp[5]]
+    21: trap @[@1; sp[5]]
     22: return
     23: @4 = const u32 30791
     24: @3 = u32 lt @0, @4
     25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
-    27: trap &[@1; @2]
+    27: trap @[@1; @2]
     28: return
     ");
 }
@@ -178,7 +178,7 @@ fn multiple_brillig_stdlib_calls() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -187,7 +187,7 @@ fn multiple_brillig_stdlib_calls() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -276,7 +276,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     12: @70 = sp[1]
     13: sp[2] = const u32 70
     14: sp[3] = const u32 1
-    15: stop &[sp[2]; sp[3]]
+    15: stop @[sp[2]; sp[3]]
     16: return
     17: call 25
     18: sp[3] = u32 eq sp[1], sp[2]
@@ -284,13 +284,13 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     20: sp[4] = bool eq sp[3], sp[2]
     21: jump if sp[4] to 24
     22: sp[5] = const u32 0
-    23: trap &[@1; sp[5]]
+    23: trap @[@1; sp[5]]
     24: return
     25: @4 = const u32 30791
     26: @3 = u32 lt @0, @4
     27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
-    29: trap &[@1; @2]
+    29: trap @[@1; @2]
     30: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
@@ -301,7 +301,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -310,7 +310,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -423,7 +423,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     12: @70 = sp[1]
     13: sp[2] = const u32 70
     14: sp[3] = const u32 1
-    15: stop &[sp[2]; sp[3]]
+    15: stop @[sp[2]; sp[3]]
     16: return
     17: call 25
     18: sp[3] = u32 eq sp[1], sp[2]
@@ -431,13 +431,13 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     20: sp[4] = bool eq sp[3], sp[2]
     21: jump if sp[4] to 24
     22: sp[5] = const u32 0
-    23: trap &[@1; sp[5]]
+    23: trap @[@1; sp[5]]
     24: return
     25: @4 = const u32 30791
     26: @3 = u32 lt @0, @4
     27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
-    29: trap &[@1; @2]
+    29: trap @[@1; @2]
     30: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
@@ -448,7 +448,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -457,6 +457,6 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }

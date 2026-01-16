@@ -17,6 +17,7 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
+use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
     ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
@@ -51,7 +52,7 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// This function will generate the SSA but does not perform any optimizations on it.
 pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
-    let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
+    let is_databus = DataBusBuilder::is_databus(program.main_function_parameters());
 
     let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
@@ -576,7 +577,7 @@ impl FunctionContext<'_> {
             // to assert that the index fits in the relevant number of bits.
             let array_len_constant = array_len_constant.expect("array checked to be constant");
             let array_len_bits = array_len_constant.ilog2();
-            debug_assert_eq!(2u32.pow(array_len_bits), array_len_constant);
+            assert_eq!(2u32.pow(array_len_bits), array_len_constant);
             // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
             // There's an optimization here that we should find automatically.
             let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
@@ -1083,8 +1084,19 @@ impl FunctionContext<'_> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
+        // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
+        let can_modify_args = !is_pure_builtin_func(&call.func) && !is_oracle_func(&call.func);
+
         for argument in &call.arguments {
-            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            // The ownership pass inserts `Clone` around call arguments, however if we know that
+            // we are calling a builtin function that will not modify the argument, then we can
+            // skip generating an `IncrementRc` for cloned arrays.
+            // The purity information isn't currently available to the ownership pass.
+            let arg = match argument {
+                Expression::Clone(arg) if !can_modify_args => arg.as_ref(),
+                other => other,
+            };
+            let mut values = self.codegen_expression(arg)?.into_value_list(self);
             arguments.append(&mut values);
         }
 
@@ -1288,4 +1300,24 @@ impl FunctionContext<'_> {
             Err(err) => Err(err),
         }
     }
+}
+
+/// Return whether the expression refers to a pure builtin or low level function.
+fn is_pure_builtin_func(expr: &Expression) -> bool {
+    let Expression::Ident(ident) = expr else {
+        return false;
+    };
+    let (ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = &ident.definition
+    else {
+        return false;
+    };
+    let Some(intrinsic) = Intrinsic::lookup(name) else {
+        return false;
+    };
+    matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+}
+
+/// Return whether the expression refers to a foreign function.
+fn is_oracle_func(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
 }

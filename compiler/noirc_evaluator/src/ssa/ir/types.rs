@@ -1,4 +1,7 @@
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{AcirField, brillig::lengths::FlattenedLength},
+};
 use iter_extended::vecmap;
 use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
@@ -266,15 +269,17 @@ impl Type {
     /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
-    pub(crate) fn flattened_size(&self) -> u32 {
+    pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
-                elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
+                let sum: u32 =
+                    elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size().0 * len));
+                FlattenedLength(sum)
             }
             Type::Vector(_) => {
                 unimplemented!("ICE: cannot fetch flattened vector size");
             }
-            _ => 1,
+            _ => FlattenedLength(1),
         }
     }
 

@@ -5,8 +5,8 @@ expression: stderr
 error: Argument is not constant
   ┌─ src/main.nr:4:5
   │
-4 │     assert_constant(&[dynamic_one]);
-  │     -------------------------------
+4 │     assert_constant([dynamic_one].as_vector());
+  │     ------------------------------------------
   │
   = Call stack:
     1. src/main.nr:4:5

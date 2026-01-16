@@ -62,7 +62,7 @@ struct Foo<T> {
 
 fn main() {
     let foo1 = Foo::default();
-    let foo2 = Foo { x: 0, y: &[0] };
+    let foo2 = Foo { x: 0, y: @[0] };
     assert_eq(foo1, foo2);
 }
 ```

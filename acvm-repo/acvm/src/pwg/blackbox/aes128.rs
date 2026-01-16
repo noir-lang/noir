@@ -16,12 +16,7 @@ pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     key: &[FunctionInput<F>; 16],
     outputs: &[Witness],
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let scalars = to_u8_vec(initial_witness, inputs)?;
-
-    let iv = to_u8_array(initial_witness, iv)?;
-    let key = to_u8_array(initial_witness, key)?;
-
-    let ciphertext = aes128_encrypt(&scalars, iv, key)?;
+    let ciphertext = execute_aes128_encryption_opcode(initial_witness, inputs, iv, key)?;
 
     // Write witness assignments
     for (output_witness, value) in outputs.iter().zip(ciphertext.into_iter()) {
@@ -29,6 +24,22 @@ pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     }
 
     Ok(())
+}
+
+pub(crate) fn execute_aes128_encryption_opcode<F: AcirField>(
+    initial_witness: &WitnessMap<F>,
+    inputs: &[FunctionInput<F>],
+    iv: &[FunctionInput<F>; 16],
+    key: &[FunctionInput<F>; 16],
+) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
+    let scalars = to_u8_vec(initial_witness, inputs)?;
+
+    let iv = to_u8_array(initial_witness, iv)?;
+    let key = to_u8_array(initial_witness, key)?;
+
+    let ciphertext = aes128_encrypt(&scalars, iv, key)?;
+
+    Ok(ciphertext)
 }
 
 #[cfg(test)]

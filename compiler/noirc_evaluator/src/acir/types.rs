@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use acvm::acir::circuit::opcodes::BlockId;
+use acvm::acir::{brillig::lengths::FlattenedLength, circuit::opcodes::BlockId};
 
 use crate::{
     errors::InternalError,
@@ -79,7 +79,7 @@ pub(super) struct AcirDynamicArray {
     /// This is essentially a ACIR pointer to the array
     pub(super) block_id: BlockId,
     /// Flattened length of the elements in the array
-    pub(super) len: usize,
+    pub(super) len: FlattenedLength,
     /// An ACIR dynamic array is a flat structure, so we use
     /// the inner structure of an `AcirType::NumericType` directly.
     /// Some usages of ACIR arrays (e.g. black box functions) require the bit size
@@ -143,6 +143,8 @@ pub(crate) enum AcirValue {
     /// return values: []
     /// BRILLIG CALL func: 0, inputs: [[w0, w1, w2]], outputs: []
     /// ```
+    ///
+    /// The length of the inner vector is a [acvm::acir::brillig::lengths::SemiFlattenedLength].
     ///
     /// Compare this with `DynamicArray` below.
     Array(im::Vector<AcirValue>),

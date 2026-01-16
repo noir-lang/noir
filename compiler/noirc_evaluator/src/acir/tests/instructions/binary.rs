@@ -93,7 +93,7 @@ fn div_field() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -130,7 +130,7 @@ fn eq_field() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -278,7 +278,7 @@ fn div_u8_no_predicate_by_witness() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -287,7 +287,7 @@ fn div_u8_no_predicate_by_witness() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -328,7 +328,7 @@ fn div_u8_no_predicate_by_constant() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -383,7 +383,7 @@ fn div_u8_with_predicate() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -392,7 +392,7 @@ fn div_u8_with_predicate() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -435,7 +435,7 @@ fn mod_u8_no_predicate() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -444,7 +444,7 @@ fn mod_u8_no_predicate() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -482,7 +482,7 @@ fn eq_u8() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -529,7 +529,7 @@ fn lt_u8() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -674,5 +674,73 @@ fn xor_u8() {
     BLACKBOX::RANGE input: w1, bits: 8
     BLACKBOX::XOR lhs: w0, rhs: w1, output: w3, bits: 8
     ASSERT w2 = w3
+    ");
+}
+
+#[test]
+fn div_divisor_overflow_with_side_effects_enabled() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8):
+        enable_side_effects u1 1
+        v1 = div v0, u8 256
+        return v0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT 0 = 1
+    ASSERT w1 = w0
+    ");
+}
+
+#[test]
+fn div_divisor_overflow_without_side_effects_enabled() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8):
+        enable_side_effects u1 0
+        v1 = div v0, u8 256
+        return v0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT w1 = w0
+    ");
+}
+
+#[test]
+fn div_divisor_overflow_with_dynamic_side_effects_enabled() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u1):
+        enable_side_effects v1
+        v2 = div v0, u8 256
+        return v0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 8
+    ASSERT w1 = 0
+    ASSERT w2 = w0
     ");
 }

@@ -207,8 +207,14 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftRight => match_integer! {
             (lhs_value as lhs ">>" rhs_value as rhs) {
                 int: {
-                    #[allow(clippy::cast_lossless)]
-                    lhs.checked_shr(rhs as u32)
+                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::unnecessary_fallible_conversions)]
+                    let rhs: Result<u32, _> = rhs.try_into();
+                    #[allow(irrefutable_let_patterns)]
+                    let Ok(rhs) = rhs else {
+                        return Err(shr_overflow());
+                    };
+                    lhs.checked_shr(rhs)
                 },
                 u1: if rhs { return Err(shr_overflow())} else { Some(lhs) },
             }
@@ -217,8 +223,14 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) {
                 int: {
-                    #[allow(clippy::cast_lossless)]
-                    lhs.checked_shl(rhs as u32)
+                    #[allow(clippy::useless_conversion)]
+                    #[allow(clippy::unnecessary_fallible_conversions)]
+                    let rhs: Result<u32, _> = rhs.try_into();
+                    #[allow(irrefutable_let_patterns)]
+                    let Ok(rhs) = rhs else {
+                        return Err(shr_overflow());
+                    };
+                    lhs.checked_shl(rhs)
                 },
                 u1: if rhs { return Err(shl_overflow())} else { Some(lhs) },
             }
@@ -457,5 +469,27 @@ mod tests {
         "#;
         let result = interpret(src);
         assert_eq!(result, Value::Unit);
+    }
+
+    #[test]
+    fn shift_right_by_negative_number() {
+        let src = r#"
+            comptime fn main() {
+                let _ = 1 >> -4294967296_i64;
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
+    }
+
+    #[test]
+    fn shift_left_by_negative_number() {
+        let src = r#"
+            comptime fn main() {
+                let _ = 1 << -4294967296_i64;
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 }

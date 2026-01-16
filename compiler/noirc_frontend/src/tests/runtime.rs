@@ -294,6 +294,19 @@ fn deny_fold_attribute_on_unconstrained() {
 }
 
 #[test]
+fn deny_inline_never_attribute_on_constrained() {
+    let src = r#"
+        #[inline_never]
+        ^^^^^^^^^^^^^^^ misplaced #[inline_never] attribute on constrained function foo. Only allowed on unconstrained functions
+        ~~~~~~~~~~~~~~~ misplaced #[inline_never] attribute
+        pub fn foo(x: Field, y: Field) {
+            assert(x != y);
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_no_predicates_attribute_on_entry_point() {
     let src = r#"
         #[no_predicates]

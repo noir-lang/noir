@@ -570,16 +570,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_program_bincode_roundtrip() {
-            run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = bincode_serialize(&program)?;
-                let de = bincode_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_program_msgpack_roundtrip() {
             run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
                 let bz = msgpack_serialize(&program, compact)?;
@@ -600,16 +590,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_stack_bincode_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = bincode_serialize(&witness)?;
-                let de = bincode_deserialize(&bz)?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_witness_stack_msgpack_roundtrip() {
             run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
                 let bz = msgpack_serialize(&witness, compact)?;
@@ -624,16 +604,6 @@ mod tests {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
                 let bz = witness.serialize()?;
                 let de = WitnessStack::deserialize(bz.as_slice())?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
-        fn prop_witness_map_bincode_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = bincode_serialize(&witness)?;
-                let de = bincode_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
