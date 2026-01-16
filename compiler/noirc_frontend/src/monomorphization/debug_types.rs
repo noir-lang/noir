@@ -10,7 +10,7 @@ use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
 
 /// We keep a collection of the debug variables and their types in this
-/// structure. The source_var_id refers to the ID given by the debug
+/// structure. The `source_var_id` refers to the ID given by the debug
 /// instrumenter. This variable does not have a type yet and hence it
 /// can be instantiated for multiple types if it's in the context of a generic
 /// variable. The var_id refers to the ID of the instantiated variable which
@@ -24,7 +24,7 @@ pub struct DebugTypeTracker {
     source_field_names: HashMap<SourceFieldId, String>,
 
     // Current instances of tracked variables from the ID given during
-    // instrumentation. The tracked var_id will change for each source_var_id
+    // instrumentation. The tracked var_id will change for each `source_var_id`
     // when compiling generic functions.
     source_to_debug_vars: HashMap<SourceVarId, DebugVarId>,
 

@@ -22,6 +22,7 @@ use acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
 pub use optimizers::optimize;
 mod optimizers;
 mod simulator;
+pub mod validator;
 
 pub use simulator::CircuitSimulator;
 

@@ -162,7 +162,7 @@ fn match_no_shadow_global() {
         fn main() {
             match 2 {
                 crate::foo => (),
-                ^^^^^^^^^^ Expected a struct, enum, or literal pattern, but found a function
+                ^^^^^^^^^^ Expected a struct, enum, or literal pattern, but found function `foo`
             }
         }
 

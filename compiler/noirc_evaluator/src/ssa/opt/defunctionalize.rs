@@ -557,7 +557,7 @@ fn create_apply_function(
     caller_runtime: RuntimeType,
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
-    debug_assert!(
+    assert!(
         function_ids.len() > 1,
         "create_apply_function is expected to be called with two or more FunctionIds"
     );

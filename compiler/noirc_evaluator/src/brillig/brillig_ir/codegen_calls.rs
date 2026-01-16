@@ -1,6 +1,6 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
-use crate::ssa::ir::function::FunctionId;
+use crate::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -85,7 +85,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         for (destination_index, return_variable) in return_variables.iter().enumerate() {
             // In case we have fewer return registers than indices to write to, ensure we've allocated this register.
-            let destination_register = MemoryAddress::relative(Stack::start() + destination_index);
+            let destination_register =
+                MemoryAddress::relative(assert_u32(Stack::start() + destination_index));
             self.registers_mut().ensure_register_is_allocated(destination_register);
             destinations.push(destination_register);
             sources.push(return_variable.extract_register());

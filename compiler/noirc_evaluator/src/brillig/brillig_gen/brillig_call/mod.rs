@@ -2,11 +2,12 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
-use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
+use crate::brillig::{BrilligBlock, assert_u32};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -130,10 +131,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         for _ in 0..*size {
             for element_type in types.iter() {
                 match element_type {
-                    Type::Array(_, nested_size) => {
+                    Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
-                        let inner_array =
-                            self.brillig_context.allocate_brillig_array(*nested_size as usize);
+                        let size: SemiFlattenedLength = ElementTypesLength(assert_u32(items.len()))
+                            * SemanticLength(*nested_size);
+                        let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.
                         // This sets the pointer on the stack to point at the heap.
@@ -205,7 +207,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        debug_assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
+        assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 

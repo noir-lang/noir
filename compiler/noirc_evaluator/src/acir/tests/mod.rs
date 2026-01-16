@@ -49,7 +49,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
             let param_size: u32 = function
                 .parameters()
                 .iter()
-                .map(|param| function.dfg.type_of_value(*param).flattened_size())
+                .map(|param| function.dfg.type_of_value(*param).flattened_size().0)
                 .sum();
             vec![(param_size, Visibility::Private)]
         })
@@ -392,6 +392,25 @@ fn databus() {
     BLACKBOX::RANGE input: w3, bits: 32
     ASSERT w2 = w3
     ");
+}
+
+#[test]
+fn blake3_slice_regression() {
+    // Sanity check for blake3 black box call brillig codegen.
+    let src = "
+    brillig(inline) predicate_pure fn main f0 {
+      b0(v0: [u8; 1]):
+        v3 = call blake3(v0) -> [u8; 32]
+        return
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    execute_ssa(
+        ssa,
+        WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(104u128))])),
+        None,
+    );
 }
 
 /// Convert the SSA input into ACIR and use ACVM to execute it

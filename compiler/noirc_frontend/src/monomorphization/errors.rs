@@ -7,14 +7,14 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
+    UnknownArrayLength { err: TypeCheckError, location: Location },
     UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: Type, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
@@ -59,14 +59,16 @@ impl MonomorphizationError {
 impl From<MonomorphizationError> for CustomDiagnostic {
     fn from(error: MonomorphizationError) -> CustomDiagnostic {
         let message = match &error {
-            MonomorphizationError::UnknownArrayLength { length, err, .. } => {
-                format!("Could not determine array length `{length}`, encountered error: `{err}`")
+            MonomorphizationError::UnknownArrayLength { err, location } => {
+                let message = "Invalid array length".into();
+                let secondary = err.to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
-                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
+                format!("checked_transmute failed: expected `{expected}` but found `{actual}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")

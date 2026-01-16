@@ -899,10 +899,12 @@ pub mod test_utils {
             Location::dummy(),
         ) {
             Err(e) => return Err(ElaboratorError::Interpret(e)),
-            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
-                Err(e) => return Err(ElaboratorError::HIRConvert(e)),
-                Ok(expr_id) => expr_id,
-            },
+            Ok(value) => {
+                match value.into_runtime_hir_expression(elaborator.interner, Location::dummy()) {
+                    Err(e) => return Err(ElaboratorError::HIRConvert(e)),
+                    Ok(expr_id) => expr_id,
+                }
+            }
         };
 
         let mut monomorphizer =

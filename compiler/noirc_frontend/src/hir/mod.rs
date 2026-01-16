@@ -164,7 +164,8 @@ impl Context<'_, '_> {
     /// - Panics if no main function is found
     pub fn get_main_function(&self, crate_id: &CrateId) -> Option<FuncId> {
         // Find the local crate, one should always be present
-        let local_crate = self.def_map(crate_id).unwrap();
+        let local_crate =
+            self.def_map(crate_id).expect("cannot find the crate of the main function");
 
         local_crate.main_function()
     }
