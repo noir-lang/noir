@@ -32,7 +32,7 @@ impl Ssa {
 impl Function {
     pub(crate) fn as_vector_optimization(&mut self) {
         let as_vector = self.dfg.get_intrinsic(Intrinsic::AsVector).copied();
-        let is_acir = !self.runtime().is_brillig();
+        let is_acir = self.runtime().is_acir();
 
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
