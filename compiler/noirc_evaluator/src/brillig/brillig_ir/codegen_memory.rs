@@ -377,7 +377,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// This should only be called upon a vector that has already been heap allocated.
     ///
-    /// The addition `vector.pointer + [offsets::VECTOR_ITEMS] cannot overflow because:
+    /// The addition `vector.pointer + [offsets::VECTOR_ITEMS]` cannot overflow because:
     /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [offsets::VECTOR_META_COUNT] (3)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
     /// - Since [offsets::VECTOR_ITEMS] == [offsets::VECTOR_META_COUNT] == 3, if allocation succeeded,

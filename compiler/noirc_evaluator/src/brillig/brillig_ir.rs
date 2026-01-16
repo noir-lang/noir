@@ -344,7 +344,6 @@ pub(crate) mod tests {
     use acvm::brillig_vm::{VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::brillig_gen::gen_brillig_for;
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::brillig::{BrilligOptions, assert_u32, assert_usize, brillig_gen::gen_brillig_for};
     use crate::ssa::ir::function::FunctionId;
