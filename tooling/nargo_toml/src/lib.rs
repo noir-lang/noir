@@ -16,6 +16,7 @@ use nargo::{
 use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
+mod deserializers;
 mod errors;
 mod flock;
 mod git;
@@ -252,20 +253,13 @@ impl PackageConfig {
 }
 
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
-    Package {
-        #[serde(flatten)]
-        package_config: PackageConfig,
-    },
+    Package { package_config: PackageConfig },
     /// Represents a `Nargo.toml` with workspace fields.
-    Workspace {
-        #[serde(alias = "workspace")]
-        workspace_config: WorkspaceConfig,
-    },
+    Workspace { workspace_config: WorkspaceConfig },
 }
 
 impl TryFrom<String> for Config {
