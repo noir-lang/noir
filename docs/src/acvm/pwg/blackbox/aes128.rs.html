@@ -192,7 +192,17 @@
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -211,6 +221,12 @@
     outputs: <span class="kw-2">&amp;</span>[Witness],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span>ciphertext = execute_aes128_encryption_opcode(initial_witness, inputs, iv, key)<span class="question-mark">?</span>;
+
+    <span class="macro">assert_eq!</span>(
+        outputs.len(),
+        ciphertext.len(),
+        <span class="string">"Number of outputs does not match number of ciphertext bytes"
+    </span>);
 
     <span class="comment">// Write witness assignments
     </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip(ciphertext.into_iter()) {
@@ -354,8 +370,10 @@
             (Witness(<span class="number">95</span>), FieldElement::from(<span class="number">0x37u128</span>)),
             (Witness(<span class="number">96</span>), FieldElement::from(<span class="number">0x10u128</span>)),
         ]));
+        <span class="kw">const </span>INPUT_LENGTH: usize = <span class="number">64</span>;
+
         <span class="kw">let </span><span class="kw-2">mut </span>inputs = [FunctionInput::Witness(Witness(<span class="number">0</span>)); <span class="number">64</span>];
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">64 </span>{
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..INPUT_LENGTH {
             inputs[i] = FunctionInput::Witness(Witness(<span class="number">33 </span>+ i <span class="kw">as </span>u32));
         }
         <span class="kw">let </span><span class="kw-2">mut </span>iv = [FunctionInput::Witness(Witness(<span class="number">0</span>)); <span class="number">16</span>];
@@ -366,22 +384,24 @@
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">16 </span>{
             key[i] = FunctionInput::Witness(Witness(<span class="number">1 </span>+ i <span class="kw">as </span>u32));
         }
+        <span class="kw">const </span>OUTPUT_LENGTH: usize = INPUT_LENGTH + <span class="number">16 </span>- (INPUT_LENGTH % <span class="number">16</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>outputs = <span class="macro">vec!</span>[];
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">97</span>..<span class="number">161 </span>{
-            outputs.push(Witness(i));
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">97</span>..<span class="number">97 </span>+ OUTPUT_LENGTH {
+            outputs.push(Witness(i <span class="kw">as </span>u32));
         }
 
         solve_aes128_encryption_opcode(<span class="kw-2">&amp;mut </span>initial_witness, <span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>iv, <span class="kw-2">&amp;</span>key, <span class="kw-2">&amp;</span>outputs).unwrap();
-        <span class="kw">let </span>expected_output: [u128; <span class="number">64</span>] = [
+        <span class="kw">let </span>expected_output: [u128; OUTPUT_LENGTH] = [
             <span class="number">0x76</span>, <span class="number">0x49</span>, <span class="number">0xab</span>, <span class="number">0xac</span>, <span class="number">0x81</span>, <span class="number">0x19</span>, <span class="number">0xb2</span>, <span class="number">0x46</span>, <span class="number">0xce</span>, <span class="number">0xe9</span>, <span class="number">0x8e</span>, <span class="number">0x9b</span>, <span class="number">0x12</span>, <span class="number">0xe9</span>,
             <span class="number">0x19</span>, <span class="number">0x7d</span>, <span class="number">0x50</span>, <span class="number">0x86</span>, <span class="number">0xcb</span>, <span class="number">0x9b</span>, <span class="number">0x50</span>, <span class="number">0x72</span>, <span class="number">0x19</span>, <span class="number">0xee</span>, <span class="number">0x95</span>, <span class="number">0xdb</span>, <span class="number">0x11</span>, <span class="number">0x3a</span>,
             <span class="number">0x91</span>, <span class="number">0x76</span>, <span class="number">0x78</span>, <span class="number">0xb2</span>, <span class="number">0x73</span>, <span class="number">0xbe</span>, <span class="number">0xd6</span>, <span class="number">0xb8</span>, <span class="number">0xe3</span>, <span class="number">0xc1</span>, <span class="number">0x74</span>, <span class="number">0x3b</span>, <span class="number">0x71</span>, <span class="number">0x16</span>,
             <span class="number">0xe6</span>, <span class="number">0x9e</span>, <span class="number">0x22</span>, <span class="number">0x22</span>, <span class="number">0x95</span>, <span class="number">0x16</span>, <span class="number">0x3f</span>, <span class="number">0xf1</span>, <span class="number">0xca</span>, <span class="number">0xa1</span>, <span class="number">0x68</span>, <span class="number">0x1f</span>, <span class="number">0xac</span>, <span class="number">0x09</span>,
-            <span class="number">0x12</span>, <span class="number">0x0e</span>, <span class="number">0xca</span>, <span class="number">0x30</span>, <span class="number">0x75</span>, <span class="number">0x86</span>, <span class="number">0xe1</span>, <span class="number">0xa7</span>,
+            <span class="number">0x12</span>, <span class="number">0x0e</span>, <span class="number">0xca</span>, <span class="number">0x30</span>, <span class="number">0x75</span>, <span class="number">0x86</span>, <span class="number">0xe1</span>, <span class="number">0xa7</span>, <span class="number">0x8c</span>, <span class="number">0xb8</span>, <span class="number">0x28</span>, <span class="number">0x07</span>, <span class="number">0x23</span>, <span class="number">0x0e</span>,
+            <span class="number">0x13</span>, <span class="number">0x21</span>, <span class="number">0xd3</span>, <span class="number">0xfa</span>, <span class="number">0xe0</span>, <span class="number">0x0d</span>, <span class="number">0x18</span>, <span class="number">0xcc</span>, <span class="number">0x20</span>, <span class="number">0x12</span>,
         ];
         <span class="kw">let </span>expected_output = expected_output.map(FieldElement::from);
         <span class="kw">let </span>expected_output: Vec&lt;<span class="kw-2">&amp;</span>FieldElement&gt; = expected_output.iter().collect();
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">64 </span>{
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..OUTPUT_LENGTH {
             <span class="macro">assert_eq!</span>(initial_witness[<span class="kw-2">&amp;</span>Witness(<span class="number">97 </span>+ i <span class="kw">as </span>u32)], <span class="kw-2">*</span>expected_output[i]);
         }
     }

@@ -99,7 +99,15 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -133,6 +141,14 @@
     scalars: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;],
     predicate: FunctionInput&lt;F&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(F, F, F), OpcodeResolutionError&lt;F&gt;&gt; {
+    <span class="macro">assert!</span>(scalars.len() % <span class="number">2 </span>== <span class="number">0</span>, <span class="string">"Number of scalars must be even"</span>);
+    <span class="macro">assert!</span>(points.len() % <span class="number">3 </span>== <span class="number">0</span>, <span class="string">"Number of points must be a multiple of 3"</span>);
+    <span class="macro">assert_eq!</span>(
+        scalars.len() / <span class="number">2</span>,
+        points.len() / <span class="number">3</span>,
+        <span class="string">"Number of scalars must be the same as the number of points"
+    </span>);
+
     <span class="kw">let </span>points: <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt; =
         points.iter().map(|input| input_to_value(initial_witness, <span class="kw-2">*</span>input)).collect();
     <span class="kw">let </span>points: Vec&lt;<span class="kw">_</span>&gt; = points<span class="question-mark">?</span>.into_iter().collect();

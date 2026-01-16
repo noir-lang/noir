@@ -240,7 +240,9 @@
 <a href="#239" id="239">239</a>
 <a href="#240" id="240">240</a>
 <a href="#241" id="241">241</a>
-<a href="#242" id="242">242</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
@@ -329,7 +331,9 @@
         <span class="kw">let </span>witness_value = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?</span>;
         <span class="kw-2">*</span>it = witness_value
             .try_into_u128()
-            .expect(<span class="string">"expected the 'witness_value' to fit into a u128"</span>) <span class="kw">as </span>u32;
+            .expect(<span class="string">"expected the 'witness_value' to fit into a u128"</span>)
+            .try_into()
+            .expect(<span class="string">"expected the 'witness_value' to fit into a u32"</span>);
     }
     <span class="prelude-val">Ok</span>(result)
 }

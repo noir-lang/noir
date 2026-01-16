@@ -45,7 +45,7 @@
     <span class="kw">for </span>(it, input) <span class="kw">in </span>result.iter_mut().zip(inputs) {
         <span class="kw">let </span>byte: u8 = input_to_value(initial_witness, <span class="kw-2">*</span>input)<span class="question-mark">?
             </span>.try_into_u128()
-            .expect(<span class="string">"expected input to fit into a u8"</span>)
+            .expect(<span class="string">"expected input to fit into a u128"</span>)
             .try_into()
             .expect(<span class="string">"expected input to fit into a u8"</span>);
         <span class="kw-2">*</span>it = byte;
