@@ -970,7 +970,7 @@ mod tests {
         let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
 
         let src = "
-        CALL func: 0, inputs: [w1], outputs: [w2]
+        CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]
         ";
         let opcodes = parse_opcodes(src).unwrap();
 
