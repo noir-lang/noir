@@ -1457,7 +1457,7 @@
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
 <span class="kw">use </span><span class="kw">crate</span>::acir::types::flat_numeric_types;
-<span class="kw">use </span><span class="kw">crate</span>::brillig::{assert_u32, assert_usize};
+<span class="kw">use </span><span class="kw">crate</span>::brillig::assert_u32;
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -1846,7 +1846,7 @@
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
                 <span class="macro">assert_eq!</span>(
-                    assert_usize(len.<span class="number">0</span>),
+                    len.to_usize(),
                     dummy_values.len(),
                     <span class="string">"ICE: The store value and dummy must have the same number of inner values"
                 </span>);
@@ -1881,7 +1881,7 @@
             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="self">self</span>.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>result = im::Vector::new();
-                <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..<span class="kw-2">*</span>len {
+                <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..len.<span class="number">0 </span>{
                     <span class="kw">for </span>sub_type <span class="kw">in </span>arc.iter() {
                         <span class="kw">let </span>element = <span class="self">self</span>.get_from_call_data(offset, call_data_block, sub_type)<span class="question-mark">?</span>;
                         result.push_back(element);
@@ -2002,7 +2002,7 @@
             }
             Type::Array(element_types, len) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>values = im::Vector::new();
-                <span class="kw">for _ in </span><span class="number">0</span>..len {
+                <span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
                     <span class="kw">for </span>typ <span class="kw">in </span>element_types.as_ref() {
                         values.push_back(<span class="self">self</span>.array_get_value(typ, block_id, var_index)<span class="question-mark">?</span>);
                     }
@@ -2028,7 +2028,7 @@
             }
             Type::Array(element_types, len) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>values = im::Vector::new();
-                <span class="kw">for _ in </span><span class="number">0</span>..len {
+                <span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
                     <span class="kw">for </span>typ <span class="kw">in </span>element_types.as_ref() {
                         values.push_back(<span class="self">self</span>.array_zero_value(typ)<span class="question-mark">?</span>);
                     }
@@ -2126,7 +2126,7 @@
                 value_types,
                 ..
             }) =&gt; {
-                <span class="kw">let </span>values = try_vecmap(<span class="number">0</span>..assert_usize(len.<span class="number">0</span>), |i| {
+                <span class="kw">let </span>values = try_vecmap(<span class="number">0</span>..len.to_usize(), |i| {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.acir_context.add_constant(i);
 
                     <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(<span class="kw-2">*</span>inner_block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
@@ -2385,7 +2385,7 @@
         array_len: FlattenedLength,
         value_types: <span class="kw-2">&amp;</span>[NumericType],
     ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt;&gt; {
-        (<span class="number">0</span>..assert_usize(array_len.<span class="number">0</span>)).map(<span class="kw">move </span>|i| {
+        (<span class="number">0</span>..array_len.to_usize()).map(<span class="kw">move </span>|i| {
             <span class="kw">let </span>index_var = <span class="self">self</span>.acir_context.add_constant(i);
 
             <span class="kw">let </span>read = <span class="self">self</span>.acir_context.read_from_memory(source, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
@@ -2470,7 +2470,7 @@
     /// access its elements.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>has_zero_length(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
         <span class="kw">if let </span>Type::Array(<span class="kw">_</span>, size) = dfg.type_of_value(array) {
-            size == <span class="number">0
+            size.<span class="number">0 </span>== <span class="number">0
         </span>} <span class="kw">else </span>{
             <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[array] {
                 Value::Instruction { .. } | Value::Param { .. } =&gt; {
@@ -2615,7 +2615,7 @@
     }
 
     <span class="kw">let </span>capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
-    <span class="kw">let </span>capacity = assert_usize(capacity.<span class="number">0</span>);
+    <span class="kw">let </span>capacity = capacity.to_usize();
 
     <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::with_capacity(capacity);
     <span class="kw">let </span><span class="kw-2">mut </span>total_size = <span class="number">0</span>;

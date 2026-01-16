@@ -1420,7 +1420,9 @@
 <a href="#1419" id="1419">1419</a>
 <a href="#1420" id="1420">1420</a>
 <a href="#1421" id="1421">1421</a>
-<a href="#1422" id="1422">1422</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
@@ -1548,24 +1550,27 @@
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 </span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>acvm::{AcirField, FieldElement};
+<span class="kw">use </span>acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        function::{Function, FunctionId},
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+<span class="kw">use crate</span>::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::{Function, FunctionId},
+            instruction::{
+                Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
+                binary::{BinaryEvaluationResult, eval_constant_binary_op},
+            },
+            types::{NumericType, Type},
+            value::{Value, ValueId},
         },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+        opt::simple_optimization::SimpleOptimizationContext,
+        ssa_gen::Ssa,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
-    ssa_gen::Ssa,
 };
 
 <span class="kw">impl </span>Ssa {
@@ -1728,17 +1733,16 @@
                                 <span class="kw">return</span>;
                             };
                             <span class="comment">// The index check expects `len` to be the logical length, like for arrays,
-                            // not the flattened size, so we need to divide by the number of items.
-                            </span>(elements.len() / typ.element_size()) <span class="kw">as </span>u32
+                            // not the semi flattened size, so we need to divide by the number of items.
+                            </span>SemiFlattenedLength(assert_u32(elements.len())) / typ.element_size()
                         }
                         <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
                     };
 
-                    <span class="kw">let </span>array_op_always_fails = len == <span class="number">0
+                    <span class="kw">let </span>array_op_always_fails = len.<span class="number">0 </span>== <span class="number">0
                         </span>|| context.dfg.get_numeric_constant(<span class="kw-2">*</span>index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap())
-                                &gt;= (array_type.element_size() <span class="kw">as </span>u32 * len)
-                        });
+                            (index.try_to_u32().unwrap()) &gt;= (array_type.element_size() * len).<span class="number">0
+                        </span>});
                     <span class="kw">if </span>!array_op_always_fails {
                         <span class="kw">return</span>;
                     }
@@ -1882,7 +1886,7 @@
         Type::Numeric(numeric_type) =&gt; dfg.make_constant(FieldElement::zero(), <span class="kw-2">*</span>numeric_type),
         Type::Array(element_types, len) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>array = im::Vector::new();
-            <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>len {
+            <span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
                 <span class="kw">for </span>typ <span class="kw">in </span>element_types.iter() {
                     array.push_back(zeroed_value(dfg, func_id, block_id, typ));
                 }

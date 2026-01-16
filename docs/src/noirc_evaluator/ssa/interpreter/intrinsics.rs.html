@@ -907,7 +907,8 @@
 <a href="#906" id="906">906</a>
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{hash::BuildHasher, io::Write};
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{hash::BuildHasher, io::Write};
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -1355,7 +1356,7 @@
                     }));
                 };
 
-                <span class="kw">let </span>generators = derive_generators(<span class="kw-2">&amp;</span>inputs, n, index);
+                <span class="kw">let </span>generators = derive_generators(<span class="kw-2">&amp;</span>inputs, n.<span class="number">0</span>, index);
                 <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::with_capacity(inputs.len());
                 <span class="kw">for </span>generator <span class="kw">in </span>generators.iter() {
                     <span class="kw">let </span>x_big: BigUint = generator.x.into();
@@ -1432,7 +1433,8 @@
             }));
         };
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(limbs) = dfg::simplify::constant_to_radix(endian, field, radix, limb_count) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(limbs) = dfg::simplify::constant_to_radix(endian, field, radix, limb_count.<span class="number">0</span>)
+        <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 

@@ -3700,7 +3700,8 @@
 <a href="#3699" id="3699">3699</a>
 <a href="#3700" id="3700">3700</a>
 <a href="#3701" id="3701">3701</a>
-<a href="#3702" id="3702">3702</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3702" id="3702">3702</a>
+<a href="#3703" id="3703">3703</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -4445,7 +4446,7 @@
                 <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>array);
                 <span class="kw">let </span>upper_bound = <span class="self">self</span>.outer_induction_variables.get(index).map(|bounds| bounds.<span class="number">1</span>);
                 <span class="kw">if let </span>(Type::Array(<span class="kw">_</span>, len), <span class="prelude-val">Some</span>(upper_bound)) = (array_typ, upper_bound) {
-                    upper_bound.apply(|i| i &lt;= len.into(), |i| i &lt;= len.into())
+                    upper_bound.apply(|i| i &lt;= len.<span class="number">0</span>.into(), |i| i &lt;= len.<span class="number">0</span>.into())
                 } <span class="kw">else </span>{
                     <span class="comment">// We're dealing with a loop that doesn't have a fixed upper bound.
                     </span><span class="bool-val">false
@@ -4616,6 +4617,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::pure::Purity;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     <span class="kw">use </span>acvm::AcirField;
+    <span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
     <span class="kw">use </span>test_case::test_case;
 
@@ -6146,7 +6148,7 @@
 
         <span class="kw">let </span>instruction = Instruction::MakeArray {
             elements: Default::default(),
-            typ: Type::Array(Arc::new(<span class="macro">vec!</span>[]), <span class="number">0</span>),
+            typ: Type::Array(Arc::new(<span class="macro">vec!</span>[]), SemanticLength(<span class="number">0</span>)),
         };
 
         <span class="macro">assert_eq!</span>(can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="kw-2">&amp;</span>function.dfg), result);

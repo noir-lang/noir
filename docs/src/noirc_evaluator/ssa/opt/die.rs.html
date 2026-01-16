@@ -1317,7 +1317,8 @@
 <a href="#1316" id="1316">1316</a>
 <a href="#1317" id="1317">1317</a>
 <a href="#1318" id="1318">1318</a>
-<a href="#1319" id="1319">1319</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1881,6 +1882,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::sync::Arc;
 
+    <span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
     <span class="kw">use </span>im::vector;
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 
@@ -2021,7 +2023,7 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
         <span class="kw">let </span>zero = builder.numeric_constant(<span class="number">0u128</span>, NumericType::unsigned(<span class="number">32</span>));
-        <span class="kw">let </span>array_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>)]), <span class="number">2</span>);
+        <span class="kw">let </span>array_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>)]), SemanticLength(<span class="number">2</span>));
         <span class="kw">let </span>v1 = builder.insert_make_array(<span class="macro">vector!</span>[zero, zero], array_type.clone());
         <span class="kw">let </span>v2 = builder.insert_allocate(array_type.clone());
         builder.increment_array_reference_count(v1);

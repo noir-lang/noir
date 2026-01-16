@@ -1207,7 +1207,10 @@
 <a href="#1206" id="1206">1206</a>
 <a href="#1207" id="1207">1207</a>
 <a href="#1208" id="1208">1208</a>
-<a href="#1209" id="1209">1209</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#1209" id="1209">1209</a>
+<a href="#1210" id="1210">1210</a>
+<a href="#1211" id="1211">1211</a>
+<a href="#1212" id="1212">1212</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1309,6 +1312,7 @@
 
 </span><span class="kw">use </span>std::collections::hash_map::Entry;
 
+<span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -1377,7 +1381,7 @@
     /// Note: as this pass operates on a single block, which is an entry block,
     /// and because vectors are disallowed in entry blocks, all vector lengths
     /// should be known at this point.
-    </span>vector_sizes: HashMap&lt;ValueId, u32&gt;,
+    </span>vector_sizes: HashMap&lt;ValueId, SemanticLength&gt;,
 }
 
 <span class="kw">impl </span>Context {
@@ -1477,13 +1481,13 @@
             SizeChange::Inc { old, new } =&gt; {
                 <span class="self">self</span>.set_capacity(context.dfg, old, new, |c| {
                     <span class="comment">// Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                    </span>c.checked_add(<span class="number">1</span>).expect(<span class="string">"Vector capacity overflow"</span>)
+                    </span>SemanticLength(c.<span class="number">0</span>.checked_add(<span class="number">1</span>).expect(<span class="string">"Vector capacity overflow"</span>))
                 });
             }
             SizeChange::Dec { old, new } =&gt; {
                 <span class="comment">// We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                 // would otherwise underflow.
-                </span><span class="self">self</span>.set_capacity(context.dfg, old, new, |c| c.saturating_sub(<span class="number">1</span>));
+                </span><span class="self">self</span>.set_capacity(context.dfg, old, new, |c| SemanticLength(c.<span class="number">0</span>.saturating_sub(<span class="number">1</span>)));
             }
             SizeChange::Many(changes) =&gt; {
                 <span class="kw">for </span>change <span class="kw">in </span>changes {
@@ -1499,7 +1503,7 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         old: ValueId,
         new: ValueId,
-        f: <span class="kw">impl </span>Fn(u32) -&gt; u32,
+        f: <span class="kw">impl </span>Fn(SemanticLength) -&gt; SemanticLength,
     ) {
         <span class="comment">// No need to store the capacity of arrays, only vectors.
         </span><span class="kw">if </span>!<span class="macro">matches!</span>(dfg.type_of_value(new), Type::Vector(<span class="kw">_</span>)) {
@@ -1515,7 +1519,7 @@
     }
 
     <span class="doccomment">/// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
-    </span><span class="kw">fn </span>get_or_find_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value: ValueId) -&gt; u32 {
+    </span><span class="kw">fn </span>get_or_find_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value: ValueId) -&gt; SemanticLength {
         <span class="kw">match </span><span class="self">self</span>.vector_sizes.entry(value) {
             Entry::Occupied(entry) =&gt; <span class="kw-2">*</span>entry.get(),
             Entry::Vacant(entry) =&gt; {
@@ -1547,8 +1551,10 @@
             | Intrinsic::VectorRemove
             | Intrinsic::VectorPopFront =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(const_len) = dfg.get_numeric_constant(arguments[<span class="number">0</span>]) {
-                    <span class="self">self</span>.vector_sizes
-                        .insert(arguments[<span class="number">1</span>], const_len.try_to_u32().expect(<span class="string">"Type should be u32"</span>));
+                    <span class="self">self</span>.vector_sizes.insert(
+                        arguments[<span class="number">1</span>],
+                        SemanticLength(const_len.try_to_u32().expect(<span class="string">"Type should be u32"</span>)),
+                    );
                 }
             }
             <span class="kw">_ </span>=&gt; {}

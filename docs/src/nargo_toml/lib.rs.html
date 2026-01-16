@@ -751,17 +751,7 @@
 <a href="#750" id="750">750</a>
 <a href="#751" id="751">751</a>
 <a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#753" id="753">753</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -779,6 +769,7 @@
 <span class="kw">use </span>noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 <span class="kw">use </span>serde::Deserialize;
 
+<span class="kw">mod </span>deserializers;
 <span class="kw">mod </span>errors;
 <span class="kw">mod </span>flock;
 <span class="kw">mod </span>git;
@@ -920,14 +911,11 @@
         processed: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
         assume_default_entry: bool, <span class="comment">// assume that the 'default_entry_path' exists, e.g. src/main.nr
     </span>) -&gt; <span class="prelude-ty">Result</span>&lt;Package, ManifestError&gt; {
-        <span class="kw">let </span>name: CrateName = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="kw-2">&amp;</span><span class="self">self</span>.package.name {
-            name.parse().map_err(|<span class="kw">_</span>| ManifestError::InvalidPackageName {
-                toml: root_dir.join(<span class="string">"Nargo.toml"</span>),
-                name: name.into(),
-            })<span class="question-mark">?
-        </span>} <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(ManifestError::MissingNameField { toml: root_dir.join(<span class="string">"Nargo.toml"</span>) });
-        };
+        <span class="kw">let </span>name = <span class="kw-2">&amp;</span><span class="self">self</span>.package.name;
+        <span class="kw">let </span>name: CrateName = name.parse().map_err(|<span class="kw">_</span>| ManifestError::InvalidPackageName {
+            toml: root_dir.join(<span class="string">"Nargo.toml"</span>),
+            name: name.into(),
+        })<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>dependencies: BTreeMap&lt;CrateName, Dependency&gt; = BTreeMap::new();
         <span class="kw">for </span>(name, dep_config) <span class="kw">in </span><span class="self">self</span>.dependencies.iter() {
@@ -1015,20 +1003,13 @@
 }
 
 <span class="doccomment">/// Contains all the information about a package, as loaded from a `Nargo.toml`.
-</span><span class="attr">#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+</span><span class="attr">#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 </span><span class="kw">pub enum </span>Config {
     <span class="doccomment">/// Represents a `Nargo.toml` with package fields.
-    </span>Package {
-        <span class="attr">#[serde(flatten)]
-        </span>package_config: PackageConfig,
-    },
+    </span>Package { package_config: PackageConfig },
     <span class="doccomment">/// Represents a `Nargo.toml` with workspace fields.
-    </span>Workspace {
-        <span class="attr">#[serde(alias = <span class="string">"workspace"</span>)]
-        </span>workspace_config: WorkspaceConfig,
-    },
+    </span>Workspace { workspace_config: WorkspaceConfig },
 }
 
 <span class="kw">impl </span>TryFrom&lt;String&gt; <span class="kw">for </span>Config {
@@ -1065,7 +1046,7 @@
 <span class="attr">#[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 </span><span class="kw">pub struct </span>PackageMetadata {
-    <span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>version: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[serde(alias = <span class="string">"type"</span>)]
     </span><span class="kw">pub </span>package_type: <span class="prelude-ty">Option</span>&lt;String&gt;,
@@ -1085,12 +1066,11 @@
     <span class="kw">pub </span>expression_width: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
-<span class="attr">#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+<span class="attr">#[derive(Debug, Clone)]
 </span><span class="doccomment">/// Enum representing the different types of ways to
 /// supply a source for the dependency
 </span><span class="kw">pub enum </span>DependencyConfig {
-    Github { git: String, tag: String, directory: <span class="prelude-ty">Option</span>&lt;String&gt; },
+    Git { git: String, tag: String, directory: <span class="prelude-ty">Option</span>&lt;String&gt; },
     Path { path: String },
 }
 
@@ -1101,7 +1081,7 @@
         processed: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Dependency, ManifestError&gt; {
         <span class="kw">let </span>dep = <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::Github { git, tag, directory } =&gt; {
+            <span class="self">Self</span>::Git { git, tag, directory } =&gt; {
                 <span class="kw">let </span>dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)<span class="question-mark">?</span>;
                 <span class="kw">let </span>project_path = <span class="kw">if let </span><span class="prelude-val">Some</span>(directory) = directory {
                     <span class="kw">let </span>internal_path = dir_path.join(directory).normalize();

@@ -349,7 +349,7 @@
             }
         },
         Type::Array(items, length) =&gt; {
-            AbiType::Array { length: <span class="kw-2">*</span>length, typ: Box::new(abi_type_from_multi_ssa(items)) }
+            AbiType::Array { length: length.<span class="number">0</span>, typ: Box::new(abi_type_from_multi_ssa(items)) }
         }
         Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"refs do not appear in SSA ABI"</span>),
         Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"functions do not appear in SSA ABI"</span>),

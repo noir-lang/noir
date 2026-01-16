@@ -1128,7 +1128,11 @@
 <a href="#1127" id="1127">1127</a>
 <a href="#1128" id="1128">1128</a>
 <a href="#1129" id="1129">1129</a>
-<a href="#1130" id="1130">1130</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
 //! arithmetic instructions since ACIR doesn't directly support bit shifts.
 //!
 //! In all cases, if the shift amount is equal to or exceeds the operand's number of bits,
@@ -1192,7 +1196,10 @@
 //! This case is similar to unsigned shift-left.
 </span><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
-<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<span class="kw">use </span>acvm::{
+    FieldElement,
+    acir::{AcirField, brillig::lengths::SemanticLength},
+};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -1465,7 +1472,8 @@
             </span>);
             exponent_bit_size.ilog2()
         };
-        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), max_exponent_bits)];
+        <span class="kw">let </span>result_types =
+            <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), SemanticLength(max_exponent_bits))];
 
         <span class="comment">// A call to ToBits can only be done with a field argument (exponent is always u8 here)
         </span><span class="kw">let </span>exponent_as_field = <span class="self">self</span>.insert_cast(exponent, NumericType::NativeField);

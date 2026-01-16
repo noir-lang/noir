@@ -358,8 +358,7 @@
 <a href="#357" id="357">357</a>
 <a href="#358" id="358">358</a>
 <a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#360" id="360">360</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -446,7 +445,7 @@
                 (false_const, true_const)
             } <span class="kw">else </span>{
                 <span class="kw">let </span>array_typ = function.dfg.type_of_value(<span class="kw-2">*</span>array);
-                <span class="kw">let </span>element_size = array_typ.element_size() <span class="kw">as </span>u32;
+                <span class="kw">let </span>element_size = array_typ.element_size();
                 <span class="kw">let </span>len = <span class="kw">match </span>array_typ {
                     Type::Array(<span class="kw">_</span>, len) =&gt; len,
                     <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected an array"</span>),
@@ -472,8 +471,7 @@
                     call_stack,
                 );
                 <span class="kw">let </span>index = index.first();
-                <span class="kw">let </span>array_length =
-                    function.dfg.make_constant(u128::from(array_length).into(), length_type);
+                <span class="kw">let </span>array_length = function.dfg.make_constant(array_length.<span class="number">0</span>.into(), length_type);
 
                 <span class="kw">let </span>is_index_in_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
@@ -562,7 +560,7 @@
         </span><span class="kw">return</span>;
     };
 
-    <span class="kw">let </span>element_size = function.dfg.type_of_value(<span class="kw-2">*</span>array).element_size();
+    <span class="kw">let </span>element_size = function.dfg.type_of_value(<span class="kw-2">*</span>array).element_size().to_usize();
     <span class="kw">if </span>element_size &lt;= <span class="number">1 </span>{
         <span class="comment">// Not a composite type
         </span><span class="kw">return</span>;

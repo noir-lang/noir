@@ -1321,7 +1321,8 @@
 <a href="#1320" id="1320">1320</a>
 <a href="#1321" id="1321">1321</a>
 <a href="#1322" id="1322">1322</a>
-<a href="#1323" id="1323">1323</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1833,8 +1834,9 @@
                 // except when the inner elements have no size, because the array access can be optimized out in that case.
                 // We then only need to inject it for brillig functions or for 'unit' elements.
                 </span><span class="kw">if </span>runtime.is_brillig() || type_size_usize == <span class="number">0 </span>{
-                    <span class="kw">let </span>len =
-                        <span class="self">self</span>.builder.numeric_constant(u128::from(<span class="kw-2">*</span>len), NumericType::length_type());
+                    <span class="kw">let </span>len = <span class="self">self
+                        </span>.builder
+                        .numeric_constant(u128::from(len.<span class="number">0</span>), NumericType::length_type());
                     <span class="self">self</span>.codegen_access_check(index, len);
                 }
             }

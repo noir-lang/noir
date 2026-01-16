@@ -2000,7 +2000,16 @@
 <a href="#1999" id="1999">1999</a>
 <a href="#2000" id="2000">2000</a>
 <a href="#2001" id="2001">2001</a>
-<a href="#2002" id="2002">2002</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2017,7 +2026,13 @@
 </span><span class="kw">use </span>core::panic;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+<span class="kw">use </span>acvm::{
+    AcirField, FieldElement,
+    acir::{
+        BlackBoxFunc,
+        brillig::lengths::{ElementTypesLength, SemiFlattenedLength},
+    },
+};
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>dynamic_array_indices;
@@ -2211,12 +2226,15 @@
 
                 <span class="kw">let </span>composite_type = <span class="kw">match </span>result_type {
                     Type::Array(composite_type, length) =&gt; {
-                        <span class="kw">let </span>array_flattened_length = composite_type.len() * length <span class="kw">as </span>usize;
-                        <span class="kw">if </span>elements.len() != array_flattened_length {
+                        <span class="kw">let </span>types_length =
+                            ElementTypesLength(<span class="kw">crate</span>::brillig::assert_u32(composite_type.len()));
+                        <span class="kw">let </span>array_semi_flattened_length = types_length * length;
+                        <span class="kw">let </span>elements_length =
+                            SemiFlattenedLength(<span class="kw">crate</span>::brillig::assert_u32(elements.len()));
+                        <span class="kw">if </span>elements_length != array_semi_flattened_length {
                             <span class="macro">panic!</span>(
                                 <span class="string">"MakeArray returns an array of flattened length {}, but it has {} elements"</span>,
-                                array_flattened_length,
-                                elements.len()
+                                array_semi_flattened_length, elements_length
                             );
                         }
                         composite_type
@@ -3108,7 +3126,7 @@
     <span class="kw">let </span>Type::Array(elements, length) = typ <span class="kw">else </span>{
         <span class="macro">panic!</span>(<span class="string">"{object} must be an array"</span>);
     };
-    (elements, <span class="kw-2">*</span>length)
+    (elements, length.<span class="number">0</span>)
 }
 
 <span class="kw">fn </span>assert_u1_array(typ: <span class="kw-2">&amp;</span>Type, object: <span class="kw-2">&amp;</span>str) -&gt; u32 {

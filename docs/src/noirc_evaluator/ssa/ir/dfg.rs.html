@@ -988,12 +988,17 @@
 <a href="#987" id="987">987</a>
 <a href="#988" id="988">988</a>
 <a href="#989" id="989">989</a>
-<a href="#990" id="990">990</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    function_builder::data_bus::DataBus,
-    ir::instruction::ArrayOffset,
-    opt::pure::{FunctionPurities, Purity},
+<span class="kw">use crate</span>::{
+    brillig::assert_u32,
+    ssa::{
+        function_builder::data_bus::DataBus,
+        ir::instruction::ArrayOffset,
+        opt::pure::{FunctionPurities, Purity},
+    },
 };
 
 <span class="kw">use super</span>::{
@@ -1008,7 +1013,13 @@
     value::{Value, ValueId, ValueMapping},
 };
 
-<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<span class="kw">use </span>acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -1638,13 +1649,13 @@
 
     <span class="doccomment">/// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_array_length(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_array_length(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;SemanticLength&gt; {
         <span class="kw">match </span><span class="self">self</span>.type_of_value(value) {
             Type::Array(<span class="kw">_</span>, length) =&gt; <span class="prelude-val">Some</span>(length),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_vector_capacity(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_get_vector_capacity(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;SemanticLength&gt; {
         <span class="comment">// For arrays we know the size statically
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(length) = <span class="self">self</span>.try_get_array_length(value) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(length);
@@ -1654,20 +1665,13 @@
         </span><span class="kw">let </span>(array, typ) = <span class="self">self</span>.get_array_constant(value)<span class="question-mark">?</span>;
         <span class="kw">let </span>elements_size = typ.element_size();
 
-        <span class="kw">let </span>length = <span class="kw">if </span>elements_size == <span class="number">0 </span>{
-            array.len()
+        <span class="kw">let </span>length = <span class="kw">if </span>elements_size.<span class="number">0 </span>== <span class="number">0 </span>{
+            SemanticLength(assert_u32(array.len()))
         } <span class="kw">else </span>{
-            <span class="comment">// Compute the vector length by dividing the flattened
-            // array length by the size of each array element
-            </span><span class="macro">assert_eq!</span>(
-                array.len() % elements_size,
-                <span class="number">0</span>,
-                <span class="string">"expected array length to be multiple of its elements size"
-            </span>);
-            array.len() / elements_size
+            SemiFlattenedLength(assert_u32(array.len())) / elements_size
         };
 
-        <span class="prelude-val">Some</span>(length <span class="kw">as </span>u32)
+        <span class="prelude-val">Some</span>(length)
     }
 
     <span class="doccomment">/// If this value points to an array of constant bytes, returns a string
@@ -1692,11 +1696,11 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_safe_index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: ValueId, array: ValueId) -&gt; bool {
         <span class="attr">#[allow(clippy::match_like_matches_macro)]
         </span><span class="kw">match </span>(<span class="self">self</span>.type_of_value(array), <span class="self">self</span>.get_numeric_constant(index)) {
-            (Type::Array(elements, len), <span class="prelude-val">Some</span>(index))
-                <span class="kw">if </span>index.to_u128() &lt; (u128::from(len) * elements.len() <span class="kw">as </span>u128) =&gt;
-            {
-                <span class="bool-val">true
-            </span>}
+            (Type::Array(elements, len), <span class="prelude-val">Some</span>(index)) =&gt; {
+                <span class="kw">let </span>elements_length = ElementTypesLength(assert_u32(elements.len()));
+                <span class="kw">let </span>semi_flattened_length = len * elements_length;
+                index.to_u128() &lt; u128::from(semi_flattened_length.<span class="number">0</span>)
+            }
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }

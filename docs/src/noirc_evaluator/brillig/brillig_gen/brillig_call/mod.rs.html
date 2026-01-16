@@ -422,7 +422,7 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>brillig_vector_ops;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>code_gen_call;
 
-<span class="kw">use </span>acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
+<span class="kw">use </span>acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength};
 <span class="kw">use </span>acvm::brillig_vm::offsets;
 <span class="kw">use </span>iter_extended::vecmap;
 
@@ -548,13 +548,13 @@
         // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
         // We add one since array.pointer points to [RC, ...items]
         </span><span class="kw">let </span><span class="kw-2">mut </span>index = offsets::ARRAY_ITEMS;
-        <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>size {
+        <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
             <span class="kw">for </span>element_type <span class="kw">in </span>types.iter() {
                 <span class="kw">match </span>element_type {
                     Type::Array(items, nested_size) =&gt; {
                         <span class="comment">// Allocate a pointer for an array on the stack.
-                        </span><span class="kw">let </span>size: SemiFlattenedLength = ElementTypesLength(assert_u32(items.len()))
-                            * SemanticLength(<span class="kw-2">*</span>nested_size);
+                        </span><span class="kw">let </span>size: SemiFlattenedLength =
+                            ElementTypesLength(assert_u32(items.len())) * <span class="kw-2">*</span>nested_size;
                         <span class="kw">let </span>inner_array = <span class="self">self</span>.brillig_context.allocate_brillig_array(size);
 
                         <span class="comment">// Recursively allocate memory for the inner array on the heap.
@@ -668,7 +668,7 @@
         <span class="kw">let </span>source_len = source_len.extract_single_addr();
 
         <span class="kw">let </span>vector_id = arguments[<span class="number">1</span>];
-        <span class="kw">let </span>element_size = dfg.type_of_value(vector_id).element_size();
+        <span class="kw">let </span>element_size = dfg.type_of_value(vector_id).element_size().to_usize();
         <span class="kw">let </span>source_vector = <span class="self">self</span>.convert_ssa_value(vector_id, dfg).extract_vector();
 
         <span class="kw">let </span>results = dfg.instruction_results(instruction_id);

@@ -3028,7 +3028,7 @@
         Type::Numeric(numeric_type) =&gt; function_builder.numeric_constant(<span class="number">0_u128</span>, <span class="kw-2">*</span>numeric_type),
         Type::Array(element_types, len) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>array = im::Vector::new();
-            <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>len {
+            <span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
                 <span class="kw">for </span>typ <span class="kw">in </span>element_types.iter() {
                     array.push_back(make_dummy_return_data(function_builder, typ));
                 }

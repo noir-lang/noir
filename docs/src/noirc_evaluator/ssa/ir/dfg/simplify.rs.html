@@ -776,7 +776,10 @@
 <a href="#775" id="775">775</a>
 <a href="#776" id="776">776</a>
 <a href="#777" id="777">777</a>
-<a href="#778" id="778">778</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::simplify::value_merger::ValueMerger,
     instruction::{
@@ -786,7 +789,10 @@
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-<span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<span class="kw">use </span>acvm::{
+    AcirField <span class="kw">as _</span>, FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength},
+};
 <span class="kw">use </span>binary::simplify_binary;
 <span class="kw">use </span>call::simplify_call;
 <span class="kw">use </span>cast::simplify_cast;
@@ -894,9 +900,9 @@
             }
 
             <span class="kw">let </span>array_or_vector_type = dfg.type_of_value(<span class="kw-2">*</span>array);
-            <span class="kw">if </span><span class="macro">matches!</span>(array_or_vector_type, Type::Array(<span class="kw">_</span>, <span class="number">1</span>))
-                &amp;&amp; array_or_vector_type.element_size() == <span class="number">1
-            </span>{
+            <span class="kw">if </span><span class="macro">matches!</span>(array_or_vector_type, Type::Array(<span class="kw">_</span>, SemanticLength(<span class="number">1</span>)))
+                &amp;&amp; array_or_vector_type.element_size() == ElementTypesLength(<span class="number">1</span>)
+            {
                 <span class="comment">// If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
                 </span>optimize_length_one_array_read(dfg, block, call_stack, <span class="kw-2">*</span>array, <span class="kw-2">*</span>index)
@@ -1196,7 +1202,7 @@
                 <span class="kw">_ </span>=&gt; (),
             }
         } <span class="kw">else if let </span>Value::Param { typ: Type::Array(<span class="kw">_</span>, length), .. } = <span class="kw-2">&amp;</span>dfg[array_id] {
-            <span class="kw">if </span>target_index_u32 &lt; <span class="kw-2">*</span>length {
+            <span class="kw">if </span>target_index_u32 &lt; length.<span class="number">0 </span>{
                 <span class="kw">let </span>index = dfg.make_constant(target_index, NumericType::length_type());
                 <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
                     array: array_id,

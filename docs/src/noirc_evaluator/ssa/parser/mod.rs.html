@@ -1321,7 +1321,14 @@
 <a href="#1320" id="1320">1320</a>
 <a href="#1321" id="1321">1321</a>
 <a href="#1322" id="1322">1322</a>
-<a href="#1323" id="1323">1323</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Debug, Formatter},
     str::FromStr,
     sync::Arc,
@@ -1336,7 +1343,7 @@
     opt::pure::Purity,
 };
 
-<span class="kw">use </span>acvm::FieldElement;
+<span class="kw">use </span>acvm::{FieldElement, acir::brillig::lengths::SemanticLength};
 <span class="kw">use </span>ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -1350,9 +1357,12 @@
 <span class="kw">use </span>thiserror::Error;
 <span class="kw">use </span>token::{Keyword, SpannedToken, Token};
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    ir::{function::RuntimeType, instruction::ArrayOffset},
-    parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+<span class="kw">use crate</span>::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{function::RuntimeType, instruction::ArrayOffset},
+        parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+    },
 };
 
 <span class="kw">mod </span>ast;
@@ -2077,7 +2087,8 @@
             ParsedMakeArray { elements, typ }
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(string) = <span class="self">self</span>.eat_byte_str()<span class="question-mark">? </span>{
             <span class="kw">let </span>u8 = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>});
-            <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[u8.clone()]), string.len() <span class="kw">as </span>u32);
+            <span class="kw">let </span>typ =
+                Type::Array(Arc::new(<span class="macro">vec!</span>[u8.clone()]), SemanticLength(assert_u32(string.len())));
             <span class="kw">let </span>elements = string
                 .bytes()
                 .map(|byte| {
@@ -2300,7 +2311,10 @@
             <span class="kw">if </span><span class="self">self</span>.eat(Token::Semicolon)<span class="question-mark">? </span>{
                 <span class="kw">let </span>length = <span class="self">self</span>.eat_int_or_error()<span class="question-mark">?</span>;
                 <span class="self">self</span>.eat_or_error(Token::RightBracket)<span class="question-mark">?</span>;
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(Type::Array(
+                    Arc::new(element_types),
+                    SemanticLength(length.try_to_unsigned().unwrap()),
+                ));
             } <span class="kw">else </span>{
                 <span class="self">self</span>.eat_or_error(Token::RightBracket)<span class="question-mark">?</span>;
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(Type::Vector(Arc::new(element_types)));

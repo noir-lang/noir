@@ -492,7 +492,7 @@
                 <span class="self">self</span>.brillig_context.codegen_usize_op_in_place(
                     length_addr,
                     BrilligBinaryOp::UnsignedDiv,
-                    element_size,
+                    element_size.to_usize(),
                 );
             } <span class="kw">else </span>{
                 <span class="macro">unreachable!</span>(<span class="string">"ICE: a vector must be preceded by a register containing its length"</span>);
@@ -619,7 +619,7 @@
             source_size_register.address,
             destination_len_variable.address,
             BrilligBinaryOp::UnsignedDiv,
-            element_size,
+            element_size.to_usize(),
         );
 
         <span class="comment">// Initialize the vector with the flattened size.

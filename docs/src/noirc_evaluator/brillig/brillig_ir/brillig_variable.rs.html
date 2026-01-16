@@ -223,19 +223,13 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Deref;
+<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Deref;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         AcirField,
-        brillig::{
-            BitSize,
-            lengths::{SemanticLength, SemiFlattenedLength},
-        },
+        brillig::{BitSize, lengths::SemiFlattenedLength},
     },
     brillig_vm::brillig::{HeapValueType, MemoryAddress},
 };
@@ -387,7 +381,7 @@
         ),
         Type::Array(elem_type, size) =&gt; HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: SemanticLength(<span class="kw-2">*</span>size),
+            size: <span class="kw-2">*</span>size,
         },
         Type::Vector(elem_type) =&gt; HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
@@ -422,7 +416,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>type_to_heap_value_type_flattened_size() {
         <span class="comment">// typ = [(u32, bool); 3]
-        </span><span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>), Type::bool()]), <span class="number">3</span>);
+        </span><span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>), Type::bool()]), SemanticLength(<span class="number">3</span>));
         <span class="kw">let </span>typ = type_to_heap_value_type(<span class="kw-2">&amp;</span>typ);
         <span class="macro">assert_eq!</span>(typ.flattened_size(), <span class="prelude-val">Some</span>(FlattenedLength(<span class="number">6</span>)));
 
@@ -432,8 +426,8 @@
         <span class="macro">assert_eq!</span>(size, SemanticLength(<span class="number">3</span>));
 
         <span class="comment">// typ = [[u32; 4]; 2]
-        </span><span class="kw">let </span>arr = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>)]), <span class="number">4</span>);
-        <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[arr]), <span class="number">2</span>);
+        </span><span class="kw">let </span>arr = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>)]), SemanticLength(<span class="number">4</span>));
+        <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[arr]), SemanticLength(<span class="number">2</span>));
         <span class="kw">let </span>typ = type_to_heap_value_type(<span class="kw-2">&amp;</span>typ);
         <span class="macro">assert_eq!</span>(typ.flattened_size(), <span class="prelude-val">Some</span>(FlattenedLength(<span class="number">8</span>)));
 
@@ -443,8 +437,8 @@
         <span class="macro">assert_eq!</span>(size, SemanticLength(<span class="number">2</span>));
 
         <span class="comment">// typ = [([u32; 4], bool); 2]
-        </span><span class="kw">let </span>arr = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>)]), <span class="number">4</span>);
-        <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[arr, Type::bool()]), <span class="number">2</span>);
+        </span><span class="kw">let </span>arr = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">32</span>)]), SemanticLength(<span class="number">4</span>));
+        <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[arr, Type::bool()]), SemanticLength(<span class="number">2</span>));
         <span class="kw">let </span>typ = type_to_heap_value_type(<span class="kw-2">&amp;</span>typ);
         <span class="macro">assert_eq!</span>(typ.flattened_size(), <span class="prelude-val">Some</span>(FlattenedLength(<span class="number">10</span>)));
 

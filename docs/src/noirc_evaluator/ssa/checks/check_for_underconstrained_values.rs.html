@@ -1691,7 +1691,7 @@
                 // of the resulting sets for future reference
                 </span><span class="prelude-val">Some</span>(length) =&gt; {
                     array_elements.insert(<span class="kw-2">*</span>result, <span class="macro">vec!</span>[]);
-                    <span class="kw">for _ in </span><span class="number">0</span>..length {
+                    <span class="kw">for _ in </span><span class="number">0</span>..length.<span class="number">0 </span>{
                         array_elements[result].push(results_status.len());
                         results_status
                             .push(ResultStatus::Unconstrained { descendants: HashSet::new() });

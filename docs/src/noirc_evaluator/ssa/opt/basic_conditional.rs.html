@@ -794,7 +794,7 @@
                 <span class="comment">// check if index is in bound
                 </span><span class="kw">if let </span>(<span class="prelude-val">Some</span>(index), <span class="prelude-val">Some</span>(len)) = (dfg.get_numeric_constant(<span class="kw-2">*</span>index), dfg.try_get_array_length(<span class="kw-2">*</span>array)) {
                     <span class="comment">// The index is in-bounds
-                    </span><span class="kw">if </span>index.to_u128() &lt; u128::from(len) {
+                    </span><span class="kw">if </span>index.to_u128() &lt; u128::from(len.<span class="number">0</span>) {
                         in_bound = <span class="bool-val">true</span>;
                     }
                 }

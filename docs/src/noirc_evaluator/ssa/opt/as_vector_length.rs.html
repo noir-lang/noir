@@ -110,7 +110,8 @@
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, Intrinsic},
@@ -165,7 +166,8 @@
             };
 
             <span class="kw">let </span>[original_vector_length, <span class="kw">_</span>] = context.dfg.instruction_result(instruction_id);
-            <span class="kw">let </span>known_length = context.dfg.make_constant(length.into(), NumericType::length_type());
+            <span class="kw">let </span>known_length =
+                context.dfg.make_constant(length.<span class="number">0</span>.into(), NumericType::length_type());
             context.replace_value(original_vector_length, known_length);
         });
     }

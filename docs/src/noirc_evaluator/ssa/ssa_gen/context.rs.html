@@ -1047,9 +1047,11 @@
 <a href="#1046" id="1046">1046</a>
 <a href="#1047" id="1047">1047</a>
 <a href="#1048" id="1048">1048</a>
-<a href="#1049" id="1049">1049</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
+<span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1299,7 +1301,7 @@
             ast::Type::Field =&gt; Type::field(),
             ast::Type::Array(len, element) =&gt; {
                 <span class="kw">let </span>element_types = <span class="self">Self</span>::convert_type(element).flatten();
-                Type::Array(Arc::new(element_types), <span class="kw-2">*</span>len)
+                Type::Array(Arc::new(element_types), SemanticLength(<span class="kw-2">*</span>len))
             }
             ast::Type::Integer(Signedness::Signed, bits) =&gt; Type::signed((<span class="kw-2">*</span>bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) =&gt; Type::unsigned((<span class="kw-2">*</span>bits).into()),
@@ -1842,7 +1844,7 @@
                         </span><span class="kw">if </span><span class="self">self</span>.builder.current_function.runtime().is_brillig() {
                             <span class="kw">let </span>len = <span class="self">self
                                 </span>.builder
-                                .numeric_constant(u128::from(<span class="kw-2">*</span>len), NumericType::length_type());
+                                .numeric_constant(u128::from(len.<span class="number">0</span>), NumericType::length_type());
                             <span class="self">self</span>.codegen_access_check(index, len);
                         }
                     }
@@ -1916,7 +1918,7 @@
 
     <span class="kw">fn </span>element_size(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId) -&gt; FieldElement {
         <span class="kw">let </span>size = <span class="self">self</span>.builder.type_of_value(array).element_size();
-        FieldElement::from(size <span class="kw">as </span>u128)
+        FieldElement::from(size.<span class="number">0</span>)
     }
 
     <span class="doccomment">/// Given an lhs containing only references, create a store instruction to store each value of

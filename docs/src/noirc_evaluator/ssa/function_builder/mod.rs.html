@@ -609,7 +609,10 @@
 <a href="#608" id="608">608</a>
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -1186,7 +1189,10 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::sync::Arc;
 
-    <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+    <span class="kw">use </span>acvm::{
+        FieldElement,
+        acir::{AcirField, brillig::lengths::SemanticLength},
+    };
 
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
         instruction::{Endian, Intrinsic},
@@ -1209,7 +1215,7 @@
         <span class="kw">let </span>to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         <span class="kw">let </span>input = builder.field_constant(FieldElement::from(<span class="number">7_u128</span>));
         <span class="kw">let </span>length = builder.field_constant(FieldElement::from(<span class="number">8_u128</span>));
-        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), <span class="number">8</span>)];
+        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), SemanticLength(<span class="number">8</span>))];
         <span class="kw">let </span>call_results =
             builder.insert_call(to_bits_id, <span class="macro">vec!</span>[input, length], result_types).into_owned();
 

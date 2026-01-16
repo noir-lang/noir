@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ElementTypesLength","ElementsFlattenedLength","FlattenedLength","SemanticLength","SemiFlattenedLength"]};
+window.SIDEBAR_ITEMS = {"fn":["assert_usize"],"struct":["ElementTypesLength","ElementsFlattenedLength","FlattenedLength","SemanticLength","SemiFlattenedLength"]};

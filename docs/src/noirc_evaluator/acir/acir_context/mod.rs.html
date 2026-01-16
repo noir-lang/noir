@@ -1688,10 +1688,7 @@
 <a href="#1687" id="1687">1687</a>
 <a href="#1688" id="1688">1688</a>
 <a href="#1689" id="1689">1689</a>
-<a href="#1690" id="1690">1690</a>
-<a href="#1691" id="1691">1691</a>
-<a href="#1692" id="1692">1692</a>
-<a href="#1693" id="1693">1693</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1690" id="1690">1690</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -1703,7 +1700,7 @@
 
 </span><span class="kw">use </span>acvm::acir::{
     AcirField, BlackBoxFunc,
-    brillig::lengths::FlattenedLength,
+    brillig::lengths::{FlattenedLength, SemanticLength},
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
@@ -1718,13 +1715,10 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::borrow::Cow;
 
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::Endian, types::NumericType};
 <span class="kw">use crate</span>::{
     ErrorType,
     errors::{InternalError, RuntimeError},
-};
-<span class="kw">use crate</span>::{
-    brillig::assert_usize,
-    ssa::ir::{instruction::Endian, types::NumericType},
 };
 
 <span class="kw">mod </span>black_box;
@@ -2914,7 +2908,7 @@
         endian: Endian,
         input_var: AcirVar,
         radix_var: AcirVar,
-        limb_count: u32,
+        limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">let </span>radix = <span class="kw">match </span><span class="self">self</span>.vars[<span class="kw-2">&amp;</span>radix_var].as_constant() {
@@ -2954,7 +2948,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         endian: Endian,
         input_var: AcirVar,
-        limb_count: u32,
+        limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
         <span class="kw">let </span>two_var = <span class="self">self</span>.add_constant(<span class="number">2_u128</span>);
@@ -2978,7 +2972,7 @@
                 <span class="prelude-val">Ok</span>(values)
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-                try_vecmap(<span class="number">0</span>..assert_usize(len.<span class="number">0</span>), |i| {
+                try_vecmap(<span class="number">0</span>..len.to_usize(), |i| {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
 
                     <span class="prelude-val">Ok</span>::&lt;(AcirVar, NumericType), InternalError&gt;((
@@ -3070,7 +3064,7 @@
         optional_value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
         databus: BlockType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
-        <span class="kw">let </span>len = assert_usize(len.<span class="number">0</span>);
+        <span class="kw">let </span>len = len.to_usize();
         <span class="kw">let </span>initialized_values = <span class="kw">match </span>optional_value {
             <span class="prelude-val">None </span>=&gt; {
                 <span class="kw">let </span>zero = <span class="self">self</span>.add_constant(F::zero());
@@ -3105,7 +3099,7 @@
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..assert_usize(len.<span class="number">0</span>) {
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len.to_usize() {
                     <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
                     <span class="kw">let </span>read = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
                     <span class="kw">let </span>typ = value_types[i % value_types.len()];
@@ -3124,7 +3118,7 @@
         output_count: FlattenedLength,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
-        <span class="kw">let </span>output_count = assert_usize(output_count.<span class="number">0</span>);
+        <span class="kw">let </span>output_count = output_count.to_usize();
 
         <span class="kw">let </span>inputs = <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>inputs = inputs

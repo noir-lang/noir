@@ -958,22 +958,49 @@
 <a href="#957" id="957">957</a>
 <a href="#958" id="958">958</a>
 <a href="#959" id="959">959</a>
-<a href="#960" id="960">960</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
-<span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement, acir::BlackBoxFunc};
+<span class="kw">use </span>acvm::{
+    AcirField <span class="kw">as _</span>, FieldElement,
+    acir::{
+        BlackBoxFunc,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>num_bigint::BigUint;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
-    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-    integer::IntegerConstant,
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+<span class="kw">use crate</span>::{
+    brillig::assert_u32,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
+        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        integer::IntegerConstant,
+        types::{NumericType, Type},
+        value::{Value, ValueId},
+    },
 };
 
 <span class="kw">use </span><span class="kw">super</span>::SimplifyResult;
@@ -1015,7 +1042,7 @@
                 } <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: Intrinsic::ToRadix return type must be array"</span>)
                 };
-                simplify_constant_to_radix(endian, field, <span class="number">2</span>, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, <span class="number">2</span>, limb_count.<span class="number">0</span>, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -1038,7 +1065,7 @@
                 } <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"ICE: Intrinsic::ToRadix return type must be array"</span>)
                 };
-                simplify_constant_to_radix(endian, field, radix, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, radix, limb_count.<span class="number">0</span>, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -1054,7 +1081,7 @@
         Intrinsic::ArrayLen =&gt; {
             <span class="kw">let </span>length = <span class="kw">match </span>dfg.type_of_value(arguments[<span class="number">0</span>]) {
                 Type::Array(<span class="kw">_</span>, length) =&gt; {
-                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
+                    dfg.make_constant(FieldElement::from(length.<span class="number">0</span>), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}) =&gt; {
                     <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(arguments[<span class="number">1</span>]), Type::Vector(<span class="kw">_</span>)));
@@ -1073,7 +1100,7 @@
                 </span><span class="kw">let </span>inner_element_types = array_type.element_types();
                 <span class="kw">let </span>vector_length_value = dfg.try_get_vector_capacity(arguments[<span class="number">0</span>]).unwrap();
                 <span class="kw">let </span>vector_length =
-                    dfg.make_constant(vector_length_value.into(), NumericType::length_type());
+                    dfg.make_constant(vector_length_value.<span class="number">0</span>.into(), NumericType::length_type());
                 <span class="kw">let </span>new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[vector_length, new_vector])
@@ -1086,7 +1113,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, element_type)) = vector {
                 <span class="comment">// TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
                 // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-                </span><span class="kw">if </span>element_type.element_size() != <span class="number">1 </span>{
+                </span><span class="kw">if </span>element_type.element_size() != ElementTypesLength(<span class="number">1</span>) {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(IntegerConstant::Unsigned { value: vector_len, .. }) =
                         dfg.get_integer_constant(arguments[<span class="number">0</span>])
                     {
@@ -1161,7 +1188,7 @@
                 <span class="kw">let </span>element_count = typ.element_size();
 
                 <span class="comment">// We must pop multiple elements in the case of a vector of tuples
-                </span><span class="kw">let </span><span class="kw-2">mut </span>results = vecmap(<span class="number">0</span>..element_count, |<span class="kw">_</span>| {
+                </span><span class="kw">let </span><span class="kw-2">mut </span>results = vecmap(<span class="number">0</span>..element_count.to_usize(), |<span class="kw">_</span>| {
                     vector.pop_front().expect(<span class="string">"There are no elements in this vector to be removed"</span>)
                 });
 
@@ -1219,7 +1246,7 @@
             <span class="kw">let </span>vector = dfg.get_array_constant(arguments[<span class="number">1</span>]);
             <span class="kw">let </span>index = dfg.get_numeric_constant(arguments[<span class="number">2</span>]);
             <span class="kw">if let </span>(<span class="prelude-val">Some</span>((<span class="kw-2">mut </span>vector, typ)), <span class="prelude-val">Some</span>(index)) = (vector, index) {
-                <span class="kw">let </span>element_count = typ.element_size();
+                <span class="kw">let </span>element_count = typ.element_size().to_usize();
                 <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::with_capacity(element_count + <span class="number">1</span>);
                 <span class="kw">let </span>index = index.to_u128() <span class="kw">as </span>usize * element_count;
 
@@ -1305,7 +1332,7 @@
         }
         Intrinsic::DerivePedersenGenerators =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Array(<span class="kw">_</span>, len)) = return_type.clone() {
-                simplify_derive_generators(dfg, arguments, len, block, call_stack)
+                simplify_derive_generators(dfg, arguments, len.<span class="number">0</span>, block, call_stack)
             } <span class="kw">else </span>{
                 <span class="macro">unreachable!</span>(<span class="string">"Derive Pedersen Generators must return an array"</span>);
             }
@@ -1402,7 +1429,10 @@
     <span class="kw">let </span>result_constants: im::Vector&lt;<span class="kw">_</span>&gt; =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
-    <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(typ)]), result_constants.len() <span class="kw">as </span>u32);
+    <span class="kw">let </span>typ = Type::Array(
+        Arc::new(<span class="macro">vec!</span>[Type::Numeric(typ)]),
+        SemanticLength(assert_u32(result_constants.len())),
+    );
     make_array(dfg, result_constants, typ, block, call_stack)
 }
 
@@ -1480,8 +1510,8 @@
     <span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..] {
         vector.push_back(<span class="kw-2">*</span>elem);
     }
-    <span class="kw">let </span>vector_size = vector.len() <span class="kw">as </span>u32;
-    <span class="kw">let </span>element_size = element_type.element_size() <span class="kw">as </span>u32;
+    <span class="kw">let </span>vector_size = SemiFlattenedLength(assert_u32(vector.len()));
+    <span class="kw">let </span>element_size = element_type.element_size();
     <span class="kw">let </span>new_vector = make_array(dfg, vector, element_type, block, call_stack);
 
     <span class="kw">let </span>set_last_vector_value_instr = Instruction::ArraySet {
@@ -1726,8 +1756,14 @@
                 results.push(is_infinite);
             }
             <span class="kw">let </span>len = results.len() <span class="kw">as </span>u32;
-            <span class="kw">let </span>typ =
-                Type::Array(<span class="macro">vec!</span>[Type::field(), Type::field(), Type::unsigned(<span class="number">1</span>)].into(), len / <span class="number">3</span>);
+            <span class="macro">assert!</span>(
+                len % <span class="number">3 </span>== <span class="number">0</span>,
+                <span class="string">"The number of results from derive_generators must be a multiple of 3"
+            </span>);
+            <span class="kw">let </span>typ = Type::Array(
+                <span class="macro">vec!</span>[Type::field(), Type::field(), Type::unsigned(<span class="number">1</span>)].into(),
+                SemanticLength(len / <span class="number">3</span>),
+            );
             <span class="kw">let </span>result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } <span class="kw">else </span>{

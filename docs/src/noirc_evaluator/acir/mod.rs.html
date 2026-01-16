@@ -962,8 +962,8 @@
 </span><span class="kw">mod </span>tests;
 <span class="kw">mod </span>types;
 
+<span class="kw">use </span><span class="kw">crate</span>::brillig::Brillig;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::gen_brillig_for;
-<span class="kw">use </span><span class="kw">crate</span>::brillig::{Brillig, assert_usize};
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1315,7 +1315,7 @@
             Type::Array(element_types, length) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
 
-                <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>length {
+                <span class="kw">for _ in </span><span class="number">0</span>..length.<span class="number">0 </span>{
                     <span class="kw">for </span>element <span class="kw">in </span>element_types.iter() {
                         elements.push_back(<span class="self">self</span>.create_value_from_type(element, make_var)<span class="question-mark">?</span>);
                     }
@@ -1530,9 +1530,9 @@
             }
         };
 
-        return_values.iter().fold(<span class="number">0</span>, |acc, value_id| {
-            acc + assert_usize(dfg.type_of_value(<span class="kw-2">*</span>value_id).flattened_size().<span class="number">0</span>)
-        })
+        return_values
+            .iter()
+            .fold(<span class="number">0</span>, |acc, value_id| acc + dfg.type_of_value(<span class="kw-2">*</span>value_id).flattened_size().to_usize())
     }
 
     <span class="doccomment">/// Converts an SSA terminator's return values into their ACIR representations

@@ -223,14 +223,12 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField, BlackBoxFunc, brillig::lengths::FlattenedLength, circuit::opcodes::FunctionInput,
 };
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
-    brillig::assert_usize,
     errors::{InternalError, RuntimeError},
     ssa::ir::types::NumericType,
 };
@@ -248,7 +246,7 @@
         output_count: FlattenedLength,
         predicate: <span class="prelude-ty">Option</span>&lt;AcirVar&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
-        <span class="kw">let </span>output_count = assert_usize(output_count.<span class="number">0</span>);
+        <span class="kw">let </span>output_count = output_count.to_usize();
         <span class="comment">// Separate out any arguments that should be constants
         </span><span class="kw">let </span>constant_inputs = <span class="kw">match </span>name {
             BlackBoxFunc::AES128Encrypt =&gt; {
@@ -256,7 +254,7 @@
                 <span class="kw">let </span>input_size: usize = <span class="kw">match </span>inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) =&gt; <span class="prelude-val">Ok</span>::&lt;usize, RuntimeError&gt;(values.len()),
                     AcirValue::DynamicArray(dyn_array) =&gt; {
-                        <span class="prelude-val">Ok</span>::&lt;usize, RuntimeError&gt;(assert_usize(dyn_array.len.<span class="number">0</span>))
+                        <span class="prelude-val">Ok</span>::&lt;usize, RuntimeError&gt;(dyn_array.len.to_usize())
                     }
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::InternalError(InternalError::General {

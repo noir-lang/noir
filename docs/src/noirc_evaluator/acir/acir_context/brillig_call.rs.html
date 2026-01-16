@@ -231,14 +231,20 @@
 <a href="#230" id="230">230</a>
 <a href="#231" id="231">231</a>
 <a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
+    brillig::lengths::SemanticLength,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
 };
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
-<span class="kw">use </span><span class="kw">crate</span>::brillig::{assert_usize, brillig_ir::artifact::GeneratedBrillig};
+<span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::GeneratedBrillig;
 <span class="kw">use </span><span class="kw">crate</span>::errors::{InternalError, RuntimeError};
 
 <span class="kw">use </span><span class="kw">super</span>::generated_acir::{BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
@@ -396,7 +402,7 @@
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..assert_usize(len.<span class="number">0</span>) {
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len.to_usize() {
                     <span class="comment">// We generate witnesses corresponding to the array values
                     </span><span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
 
@@ -412,9 +418,13 @@
     }
 
     <span class="doccomment">/// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    </span><span class="kw">fn </span>zeroed_array_output(<span class="kw-2">&amp;mut </span><span class="self">self</span>, element_types: <span class="kw-2">&amp;</span>[AcirType], size: usize) -&gt; AcirValue {
+    </span><span class="kw">fn </span>zeroed_array_output(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        element_types: <span class="kw-2">&amp;</span>[AcirType],
+        size: SemanticLength,
+    ) -&gt; AcirValue {
         <span class="kw">let </span><span class="kw-2">mut </span>array_values = im::Vector::new();
-        <span class="kw">for _ in </span><span class="number">0</span>..size {
+        <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
             <span class="kw">for </span>element_type <span class="kw">in </span>element_types {
                 <span class="kw">match </span>element_type {
                     AcirType::Array(nested_element_types, nested_size) =&gt; {
@@ -437,11 +447,11 @@
     </span><span class="kw">fn </span>brillig_array_output(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         element_types: <span class="kw-2">&amp;</span>[AcirType],
-        size: usize,
+        size: SemanticLength,
     ) -&gt; (AcirValue, Vec&lt;Witness&gt;) {
         <span class="kw">let </span><span class="kw-2">mut </span>witnesses = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>array_values = im::Vector::new();
-        <span class="kw">for _ in </span><span class="number">0</span>..size {
+        <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
             <span class="kw">for </span>element_type <span class="kw">in </span>element_types {
                 <span class="kw">match </span>element_type {
                     AcirType::Array(nested_element_types, nested_size) =&gt; {

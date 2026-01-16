@@ -100,10 +100,7 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>nargo::package::PackageType;
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
@@ -130,7 +127,7 @@
     </span>InvalidPackageType(PathBuf, String),
 
     <span class="doccomment">/// Package manifest is unreadable.
-    </span><span class="attr">#[error(<span class="string">"Nargo.toml is badly formed, could not parse.\n\n {0}"</span>)]
+    </span><span class="attr">#[error(<span class="string">"Nargo.toml is badly formed, could not parse.\n\n{}"</span>, .<span class="number">0</span>.message())]
     </span>MalformedFile(<span class="attr">#[from] </span>toml::de::Error),
 
     <span class="attr">#[error(
@@ -167,9 +164,6 @@
 
     <span class="attr">#[error(<span class="string">"Package `{0}` has type `bin` but you cannot depend on binary packages"</span>)]
     </span>BinaryDependency(CrateName),
-
-    <span class="attr">#[error(<span class="string">"Missing `name` field in {toml}"</span>)]
-    </span>MissingNameField { toml: PathBuf },
 
     <span class="attr">#[error(<span class="string">"No common ancestor between {root} and {current}"</span>)]
     </span>NoCommonAncestor { root: PathBuf, current: PathBuf },

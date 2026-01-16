@@ -300,7 +300,10 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
 <span class="kw">use crate</span>::{
     brillig::assert_usize,
@@ -310,7 +313,10 @@
         value::{ValueId, ValueMapping},
     },
 };
-<span class="kw">use </span>acvm::{FieldElement, acir::brillig::lengths::FlattenedLength};
+<span class="kw">use </span>acvm::{
+    FieldElement,
+    acir::brillig::lengths::{FlattenedLength, SemanticLength},
+};
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Parameters;
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -470,21 +476,21 @@
                 databus.map.insert(value, databus.index);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
-                <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..len {
+                <span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..len.<span class="number">0 </span>{
                     <span class="kw">for </span>subitem_typ <span class="kw">in </span>typ.iter() {
                         <span class="comment">// load each element of the array, and add it to the databus
                         </span><span class="kw">let </span>length_type = NumericType::length_type();
-                        <span class="kw">let </span>index_var = FieldElement::from(index <span class="kw">as </span>i128);
+                        <span class="kw">let </span>index_var = FieldElement::from(index);
                         <span class="kw">let </span>index_var =
                             <span class="self">self</span>.current_function.dfg.make_constant(index_var, length_type);
                         <span class="comment">// If we do not check for an empty array we will have an unused array get
                         // as an array of length zero will not be actually added to the databus' values.
-                        </span><span class="kw">if let </span>Type::Array(<span class="kw">_</span>, <span class="number">0</span>) = subitem_typ {
+                        </span><span class="kw">if let </span>Type::Array(<span class="kw">_</span>, SemanticLength(<span class="number">0</span>)) = subitem_typ {
                             <span class="kw">continue</span>;
                         }
                         <span class="kw">let </span>element = <span class="self">self</span>.insert_array_get(value, index_var, subitem_typ.clone());
                         index += <span class="kw">match </span>subitem_typ {
-                            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>) =&gt; subitem_typ.element_size(),
+                            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>) =&gt; subitem_typ.element_size().<span class="number">0</span>,
                             Type::Numeric(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
                             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Unsupported type for databus"</span>),
                         };
@@ -514,7 +520,7 @@
 
         <span class="kw">let </span>array = (len &gt; <span class="number">0 </span>&amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.current_function.runtime(), RuntimeType::Acir(<span class="kw">_</span>)))
             .then(|| {
-                <span class="kw">let </span>array_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field()]), len);
+                <span class="kw">let </span>array_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field()]), SemanticLength(len));
                 <span class="self">self</span>.insert_make_array(databus.values, array_type)
             });
 

@@ -296,7 +296,9 @@
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
+<span class="kw">use </span>libfuzzer_sys::arbitrary;
 <span class="kw">use </span>libfuzzer_sys::arbitrary::Arbitrary;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType <span class="kw">as </span>SsaNumericType, Type <span class="kw">as </span>SsaType};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::{map::Id, value::Value};
@@ -534,7 +536,7 @@
             }
             SsaType::Array(element_types, length) =&gt; Type::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
-                length,
+                length.<span class="number">0</span>,
             ),
             SsaType::Reference(element_type) =&gt; {
                 Type::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()))
@@ -553,7 +555,7 @@
             Type::Numeric(numeric_type) =&gt; SsaType::Numeric(numeric_type.into()),
             Type::Array(element_types, length) =&gt; SsaType::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
-                length,
+                SemanticLength(length),
             ),
             Type::Reference(element_type) =&gt; {
                 SsaType::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()))

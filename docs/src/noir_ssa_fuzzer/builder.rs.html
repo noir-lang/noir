@@ -998,8 +998,13 @@
 <a href="#997" id="997">997</a>
 <a href="#998" id="998">998</a>
 <a href="#999" id="999">999</a>
-<a href="#1000" id="1000">1000</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 <span class="kw">use </span>acvm::FieldElement;
+<span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <span class="kw">use </span>noirc_driver::CompileOptions;
@@ -1771,12 +1776,15 @@
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                <span class="number">1</span>,
+                SemanticLength(<span class="number">1</span>),
             ),
         );
         <span class="kw">let </span>scalar_id = <span class="self">self</span>.builder.insert_make_array(
             <span class="macro">vec!</span>[scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
-            SsaType::Array(Arc::new(<span class="macro">vec!</span>[field_type.clone().into(), field_type.clone().into()]), <span class="number">1</span>),
+            SsaType::Array(
+                Arc::new(<span class="macro">vec!</span>[field_type.clone().into(), field_type.clone().into()]),
+                SemanticLength(<span class="number">1</span>),
+            ),
         );
         <span class="kw">let </span>return_type = Type::Array(
             Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone(), boolean_type.clone()]),
@@ -1845,14 +1853,14 @@
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                points.len() <span class="kw">as </span>u32,
+                SemanticLength(points.len() <span class="kw">as </span>u32),
             ),
         );
         <span class="kw">let </span>scalar_ids_array = <span class="self">self</span>.builder.insert_make_array(
             scalar_ids.into_iter().collect(),
             SsaType::Array(
                 Arc::new(<span class="macro">vec!</span>[field_type.clone().into(), field_type.clone().into()]),
-                scalars.len() <span class="kw">as </span>u32,
+                SemanticLength(scalars.len() <span class="kw">as </span>u32),
             ),
         );
         <span class="kw">let </span>return_type = Type::Array(

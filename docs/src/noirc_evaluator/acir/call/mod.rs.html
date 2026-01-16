@@ -622,7 +622,7 @@
         <span class="kw">match </span>result_type {
             Type::Array(elements, size) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
-                <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>size {
+                <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
                     <span class="kw">for </span>element_type <span class="kw">in </span>elements.iter() {
                         <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, vars);
                         element_values.push_back(element);

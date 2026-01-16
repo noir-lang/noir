@@ -426,11 +426,13 @@
 <a href="#425" id="425">425</a>
 <a href="#426" id="426">426</a>
 <a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
 
+<span class="kw">use </span>acir::brillig::lengths::SemanticLength;
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -779,7 +781,7 @@
     <span class="kw">match </span>typ {
         AbiType::Field =&gt; types.push(Type::field()),
         AbiType::Array { length, typ } =&gt; {
-            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), <span class="kw-2">*</span>length));
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), SemanticLength(<span class="kw-2">*</span>length)));
         }
         AbiType::Integer { sign: Sign::Signed, width } =&gt; types.push(Type::signed(<span class="kw-2">*</span>width)),
         AbiType::Integer { sign: Sign::Unsigned, width } =&gt; types.push(Type::unsigned(<span class="kw-2">*</span>width)),
@@ -797,7 +799,7 @@
             }
         }
         AbiType::String { length } =&gt; {
-            types.push(Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)]), <span class="kw-2">*</span>length));
+            types.push(Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)]), SemanticLength(<span class="kw-2">*</span>length)));
         }
     }
 }

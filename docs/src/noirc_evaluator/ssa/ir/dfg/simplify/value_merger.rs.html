@@ -270,10 +270,15 @@
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
+    brillig::assert_u32,
     errors::{RtResult, RuntimeError},
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -290,7 +295,7 @@
 
     <span class="doccomment">/// Maps SSA array values with a vector type to their size.
     /// This must be computed before merging values.
-    </span>vector_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, u32&gt;,
+    </span>vector_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, SemanticLength&gt;,
 
     call_stack: CallStackId,
 }
@@ -299,7 +304,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         dfg: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>DataFlowGraph,
         block: BasicBlockId,
-        vector_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, u32&gt;,
+        vector_sizes: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;ValueId, SemanticLength&gt;,
         call_stack: CallStackId,
     ) -&gt; <span class="self">Self </span>{
         ValueMerger { dfg, block, vector_sizes, call_stack }
@@ -426,7 +431,7 @@
 
         <span class="kw">let </span>element_count = element_types.len() <span class="kw">as </span>u32;
 
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len.<span class="number">0 </span>{
             <span class="kw">for </span>(element_index, element_type) <span class="kw">in </span>element_types.iter().enumerate() {
                 <span class="kw">let </span>index = u128::from(i * element_count + element_index <span class="kw">as </span>u32).into();
                 <span class="kw">let </span>index = <span class="self">self</span>.dfg.make_constant(index, NumericType::length_type());
@@ -482,21 +487,21 @@
         });
 
         <span class="kw">let </span>len = then_len.max(else_len);
-        <span class="kw">let </span>element_count = element_types.len() <span class="kw">as </span>u32;
+        <span class="kw">let </span>element_count = ElementTypesLength(assert_u32(element_types.len()));
 
-        <span class="kw">let </span>flat_then_length = then_len * element_types.len() <span class="kw">as </span>u32;
-        <span class="kw">let </span>flat_else_length = else_len * element_types.len() <span class="kw">as </span>u32;
+        <span class="kw">let </span>semi_flat_then_length = then_len * element_count;
+        <span class="kw">let </span>semi_flat_else_length = else_len * element_count;
 
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len.<span class="number">0 </span>{
             <span class="kw">for </span>(element_index, element_type) <span class="kw">in </span>element_types.iter().enumerate() {
-                <span class="kw">let </span>index_u32 = i * element_count + element_index <span class="kw">as </span>u32;
+                <span class="kw">let </span>index_u32 = i * element_count.<span class="number">0 </span>+ element_index <span class="kw">as </span>u32;
                 <span class="kw">let </span>index_value = u128::from(index_u32).into();
                 <span class="kw">let </span>index = <span class="self">self</span>.dfg.make_constant(index_value, NumericType::length_type());
 
                 <span class="kw">let </span>typevars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type.clone()]);
 
-                <span class="kw">let </span><span class="kw-2">mut </span>get_element = |array, typevars, len| {
-                    <span class="macro">assert!</span>(index_u32 &lt; len, <span class="string">"get_element invoked with an out of bounds index"</span>);
+                <span class="kw">let </span><span class="kw-2">mut </span>get_element = |array, typevars, len: SemiFlattenedLength| {
+                    <span class="macro">assert!</span>(index_u32 &lt; len.<span class="number">0</span>, <span class="string">"get_element invoked with an out of bounds index"</span>);
                     <span class="kw">let </span>get = Instruction::ArrayGet { array, index };
                     <span class="kw">let </span>results = <span class="self">self</span>.dfg.insert_instruction_and_results(
                         get,
@@ -510,21 +515,22 @@
                 <span class="comment">// If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
                 // We can use that value directly as accessing it is always checked against the actual
                 // vector length.
-                </span><span class="kw">if </span>index_u32 &gt;= flat_then_length {
-                    <span class="kw">let </span>else_element = get_element(else_value_id, typevars, flat_else_length);
+                </span><span class="kw">if </span>index_u32 &gt;= semi_flat_then_length.<span class="number">0 </span>{
+                    <span class="kw">let </span>else_element = get_element(else_value_id, typevars, semi_flat_else_length);
                     merged.push_back(else_element);
                     <span class="kw">continue</span>;
                 }
 
                 <span class="comment">// Same for if it's out of bounds for the "else" vector.
-                </span><span class="kw">if </span>index_u32 &gt;= flat_else_length {
-                    <span class="kw">let </span>then_element = get_element(then_value_id, typevars, flat_then_length);
+                </span><span class="kw">if </span>index_u32 &gt;= semi_flat_else_length.<span class="number">0 </span>{
+                    <span class="kw">let </span>then_element = get_element(then_value_id, typevars, semi_flat_then_length);
                     merged.push_back(then_element);
                     <span class="kw">continue</span>;
                 }
 
-                <span class="kw">let </span>then_element = get_element(then_value_id, typevars.clone(), flat_then_length);
-                <span class="kw">let </span>else_element = get_element(else_value_id, typevars, flat_else_length);
+                <span class="kw">let </span>then_element =
+                    get_element(then_value_id, typevars.clone(), semi_flat_then_length);
+                <span class="kw">let </span>else_element = get_element(else_value_id, typevars, semi_flat_else_length);
 
                 merged.push_back(<span class="self">self</span>.merge_values(
                     then_condition,
