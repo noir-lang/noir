@@ -354,7 +354,6 @@ mod memory_layout {
         compiles_to_equivalent_bytecode(&ssa, options1, options2);
     }
 
-
     #[test]
     #[should_panic = "ICE: `BlackBoxFunc::RecursiveAggregation` calls are disallowed in Brillig"]
     fn disallows_compiling_recursive_aggregation_instructions() {
