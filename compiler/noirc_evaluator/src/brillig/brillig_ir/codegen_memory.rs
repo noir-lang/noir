@@ -374,10 +374,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Writes the pointer to the items of a given vector to the `result`.
     ///
     /// # Safety
+    /// 
+    /// This should only be called upon a vector that has already been heap allocated.
+    /// 
     /// The addition `vector.pointer + [offsets::VECTOR_ITEMS] cannot overflow because:
     /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [offsets::VECTOR_META_COUNT] (3)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
-    /// - Since [offsets::VECTOR_ITEMS] == [offsets::VECTOR_META_COUNT] == 3`, if allocation succeeded,
+    /// - Since [offsets::VECTOR_ITEMS] == [offsets::VECTOR_META_COUNT] == 3, if allocation succeeded,
     ///   `vector.pointer + 3` is guaranteed safe
     pub(crate) fn codegen_vector_items_pointer(
         &mut self,
@@ -464,10 +467,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Returns a pointer to the items of a given array.
     ///
     /// # Safety
+    /// 
+    /// This should only be called upon an array that has already been heap allocated.
+    /// 
     /// The addition `array.pointer + [offsets::ARRAY_ITEMS]` cannot overflow because:
     /// - [Array allocation][Self::codegen_initialize_array] size is at least [offsets::ARRAY_META_COUNT] (1)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
-    /// - Since [offsets::ARRAY_ITEMS] == [offsets::ARRAY_META_COUNT] == 1`, if allocation succeeded,
+    /// - Since [offsets::ARRAY_ITEMS] == [offsets::ARRAY_META_COUNT] == 1, if allocation succeeded,
     ///   `array.pointer + 1` is guaranteed safe
     pub(crate) fn codegen_make_array_items_pointer(
         &mut self,
