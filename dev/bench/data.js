@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768585102663,
+  "lastUpdate": 1768585187718,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ba063537a20e3361e488ccf1ec534c35a2290146",
-          "message": "feat: improve invalid array error message (#11153)",
-          "timestamp": "2026-01-12T11:13:44Z",
-          "tree_id": "6e089213c7d46d08142ae6c8c9e06351d5e07a71",
-          "url": "https://github.com/noir-lang/noir/commit/ba063537a20e3361e488ccf1ec534c35a2290146"
-        },
-        "date": 1768217704755,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257726,
-            "range": "± 1261",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225641,
-            "range": "± 13222",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787785,
-            "range": "± 11507",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c3dae93ef23aa0d15693c4c75c9382f58157f2b8",
           "message": "fix: several varargs checks (#11152)",
           "timestamp": "2026-01-12T11:29:41Z",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2260054,
             "range": "± 6367",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7eef3ab0a4c273f1efff870b8133686be89ef781",
+          "message": "fix: error when calling verify_proof_with_type in brillig (#11227)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-16T17:11:45Z",
+          "tree_id": "d4673a3ab316fe8877f546ae21985a46a3eead4c",
+          "url": "https://github.com/noir-lang/noir/commit/7eef3ab0a4c273f1efff870b8133686be89ef781"
+        },
+        "date": 1768585151856,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256108,
+            "range": "± 615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228107,
+            "range": "± 2284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786656,
+            "range": "± 2604",
             "unit": "ns/iter"
           }
         ]
