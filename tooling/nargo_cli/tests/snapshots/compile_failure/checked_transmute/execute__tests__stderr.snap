@@ -6,7 +6,7 @@ error: checked_transmute failed: expected `[Field; 2]` but found `[Field; 1]`
   ┌─ src/main.nr:8:5
   │
 8 │     checked_transmute(x)
-  │     -----------------
+  │     --------------------
   │
 
 Aborting due to 1 previous error
