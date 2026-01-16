@@ -22,7 +22,6 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir_def::function::FunctionSignature,
     monomorphization::{
         ast::{
             Call, Definition, Expression, FuncId, Function, Ident, IdentId, InlineType, LocalId,
@@ -237,9 +236,6 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         (id, mutable, name, typ, vis)
     });
 
-    // The function signature only matters for entry points.
-    let func_sig = FunctionSignature::default();
-
     let call = {
         let func = Ident {
             id: next_ident_id(),
@@ -280,7 +276,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,
-        func_sig,
+        is_entry_point: false, // This only matters for creating artifacts
     }
 }
 

@@ -3,14 +3,14 @@ use acvm::{
     acir::{
         brillig::{
             HeapVector, MemoryAddress,
-            lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+            lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
         },
         circuit::ErrorSelector,
     },
 };
 
 use crate::{
-    brillig::{assert_usize, brillig_ir::registers::Allocated},
+    brillig::{assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::instruction::ErrorType,
 };
 
@@ -296,7 +296,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        debug_assert!(condition.bit_size == 1);
+        assert!(condition.bit_size == 1);
 
         // Compute error selector if we have a message
         let error_selector = assert_message.map(|message| {
@@ -418,7 +418,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 }
             }
         } else {
-            let size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+            let size: SemiFlattenedLength =
+                item_count * ElementTypesLength(assert_u32(item_type.len()));
             let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }
