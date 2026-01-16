@@ -23,7 +23,7 @@ impl<'de> Visitor<'de> for ConfigMapVisitor {
     type Value = Config;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("A map")
+        formatter.write_str("a map with either a [package] or a [workspace] section")
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -82,7 +82,9 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
     type Value = DependencyConfig;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("A map")
+        formatter.write_str(
+            "a dependency to be either `{ git = \"...\", tag = \"...\" }` or `{ path = \"...\" }`",
+        )
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -124,10 +126,10 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
             }
             (None, Some(path)) => Ok(DependencyConfig::Path { path }),
             (Some(..), Some(..)) => Err(serde::de::Error::custom(
-                "Dependency must have either `git` or `path` keys, not both",
+                "Dependency must have either a `git` or a `path` key, not both",
             )),
             (None, None) => Err(serde::de::Error::custom(
-                "Dependency must be have either `git` or `path` keys, but neither were found",
+                "Dependency must have either a `git` or a `path` key, but neither was found",
             )),
         }
     }
