@@ -344,9 +344,11 @@ pub(crate) mod tests {
     use acvm::brillig_vm::{VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
+    use crate::brillig::brillig_gen::gen_brillig_for;
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::brillig::{BrilligOptions, assert_u32, assert_usize};
     use crate::ssa::ir::function::FunctionId;
+    use crate::ssa::ssa_gen::Ssa;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
     use super::procedures::compile_procedure;
@@ -546,5 +548,96 @@ pub(crate) mod tests {
         // The equality check should succeed
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    }
+
+    /// Test proving that empty array allocation near heap limit triggers OOM.
+    ///
+    /// This demonstrates that [BrilligContext::codegen_make_array_items_pointer] is transitively protected
+    /// from overflow. Even an empty array allocates [offsets::ARRAY_META_COUNT] slot for metadata,
+    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// before we ever compute the items pointer.
+    #[test]
+    fn empty_array_allocation_near_heap_limit_triggers_oom() {
+        // SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [Field; 0]
+                return
+            }
+        "#;
+        assert_allocation_near_heap_limit_triggers_oom(src);
+    }
+
+    /// Test proving that empty vector allocation near heap limit triggers OOM.
+    ///
+    /// This demonstrates that [BrilligContext::codegen_vector_items_pointer] is transitively protected
+    /// from overflow. Even an empty vector allocates [offsets::VECTOR_META_COUNT] slots for metadata,
+    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// before we ever compute the items pointer.
+    #[test]
+    fn empty_vector_allocation_near_heap_limit_triggers_oom() {
+        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [Field]
+                return
+            }
+        "#;
+        assert_allocation_near_heap_limit_triggers_oom(src);
+    }
+
+    /// Helper to test that allocation near heap limit triggers OOM.
+    ///
+    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to u32::MAX
+    /// just before the first allocation, and asserts the VM fails with "Out of memory".
+    fn assert_allocation_near_heap_limit_triggers_oom(ssa_src: &str) {
+        use acvm::acir::brillig::BinaryIntOp;
+
+        let ssa = Ssa::from_str(ssa_src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let mut generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
+        // and insert a patch just before it.
+        // Patching the FMP lets us simulate prior allocations exhausting memory without
+        // having to actually allocate GBs of memory for this test.
+        let insert_pos = generated
+            .byte_code
+            .iter()
+            .position(|opcode| {
+                matches!(
+                    opcode,
+                    BrilligOpcode::BinaryIntOp {
+                        destination,
+                        op: BinaryIntOp::Add,
+                        ..
+                    } if *destination == ReservedRegisters::free_memory_pointer()
+                )
+            })
+            .expect("Should find BinaryIntOp::Add to free_memory_pointer");
+
+        // Patch FMP to u32::MAX so any allocation overflows
+        let patch_opcode = BrilligOpcode::Const {
+            destination: ReservedRegisters::free_memory_pointer(),
+            value: FieldElement::from(u32::MAX),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        };
+        generated.byte_code.insert(insert_pos, patch_opcode);
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+
+        let VMStatus::Failure {
+            reason: acvm::brillig_vm::FailureReason::RuntimeError { message },
+            ..
+        } = status
+        else {
+            panic!("Expected 'Out of memory' error from allocation overflow, got: {status:?}")
+        };
+        assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 }
