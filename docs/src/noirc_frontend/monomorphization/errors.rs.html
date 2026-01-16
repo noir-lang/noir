@@ -170,7 +170,7 @@
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: Type, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
@@ -224,7 +224,7 @@
                 <span class="string">"Could not resolve constant"</span>.to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } =&gt; {
-                <span class="macro">format!</span>(<span class="string">"checked_transmute failed: `{actual:?}` != `{expected:?}`"</span>)
+                <span class="macro">format!</span>(<span class="string">"checked_transmute failed: expected `{expected}` but found `{actual}`"</span>)
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } =&gt; {
                 <span class="macro">format!</span>(<span class="string">"Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`"</span>)

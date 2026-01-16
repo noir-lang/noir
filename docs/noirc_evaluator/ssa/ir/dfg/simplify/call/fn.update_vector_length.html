@@ -3,7 +3,7 @@
     dfg: &amp;mut <a class="struct" href="../../struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     operator: <a class="enum" href="../../../instruction/binary/enum.BinaryOp.html" title="enum noirc_evaluator::ssa::ir::instruction::binary::BinaryOp">BinaryOp</a>,
     block: <a class="type" href="../../../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
-    call_stack: <a class="struct" href="../../../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../../value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Vectors have a tuple structure (vector length, vector contents) to enable logic
 that uses dynamic vector lengths (such as with merging vectors in the flattening pass).
 This method codegens an update to the vector length.</p>
