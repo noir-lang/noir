@@ -594,20 +594,28 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        let call_data_info = self.data_bus.call_data.iter().find_map(|cd| {
-            cd.index_map.get(&array).map(|idx| (cd.array_id, *idx, cd.index_map.len()))
-        });
-        if let Some((array_id, bus_index, index_map_len)) = call_data_info {
+        let call_data_info = self
+            .data_bus
+            .call_data
+            .iter()
+            .find_map(|cd| cd.index_map.get(&array).map(|idx| (cd.array_id, *idx)));
+        if let Some((array_id, bus_index)) = call_data_info {
+            // Get the length of the array we want to read:
+            let array_typ = dfg.type_of_value(array);
+            let flattened_len = array_typ.flattened_size();
+            // Get the total call_data array length
+            let call_data_typ = dfg.type_of_value(array_id);
+            let call_data_len = call_data_typ.flattened_size();
+            let is_last_in_call_data =
+                bus_index + flattened_len.0 as usize == call_data_len.0 as usize;
+
             // Check index for out of bounds in the call_data because
             // the databus aggregates them into the call_data array.
             // This is not needed when we access the last element, because
             // we can benefit from the out-of-bound on call data.
-            if bus_index < index_map_len - 1 {
-                // Get the length of the array we want to read:
-                let array_typ = dfg.type_of_value(array);
-                let flattened_len = array_typ.flattened_size();
+            if !is_last_in_call_data {
                 let length_var =
-                    self.acir_context.add_constant(FieldElement::from(i128::from(flattened_len)));
+                    self.acir_context.add_constant(FieldElement::from(i128::from(flattened_len.0)));
                 // Compute out-of-bounds value:
                 let in_bound = self.acir_context.less_than_var(var_index, length_var, 32)?;
                 // Add the out-of-bounds check:
