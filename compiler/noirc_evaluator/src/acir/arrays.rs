@@ -126,7 +126,7 @@ use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
 use crate::acir::types::flat_numeric_types;
-use crate::brillig::{assert_u32, assert_usize};
+use crate::brillig::assert_u32;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
@@ -515,7 +515,7 @@ impl Context<'_> {
                     .collect::<Vec<_>>();
 
                 assert_eq!(
-                    assert_usize(len.0),
+                    len.to_usize(),
                     dummy_values.len(),
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
@@ -550,7 +550,7 @@ impl Context<'_> {
             Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
                 let mut result = im::Vector::new();
-                for _i in 0..*len {
+                for _i in 0..len.0 {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
                         result.push_back(element);
@@ -671,7 +671,7 @@ impl Context<'_> {
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
-                for _ in 0..len {
+                for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
                     }
@@ -697,7 +697,7 @@ impl Context<'_> {
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
-                for _ in 0..len {
+                for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_zero_value(typ)?);
                     }
@@ -795,7 +795,7 @@ impl Context<'_> {
                 value_types,
                 ..
             }) => {
-                let values = try_vecmap(0..assert_usize(len.0), |i| {
+                let values = try_vecmap(0..len.to_usize(), |i| {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
@@ -1054,7 +1054,7 @@ impl Context<'_> {
         array_len: FlattenedLength,
         value_types: &[NumericType],
     ) -> impl Iterator<Item = Result<AcirValue, RuntimeError>> {
-        (0..assert_usize(array_len.0)).map(move |i| {
+        (0..array_len.to_usize()).map(move |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
@@ -1139,7 +1139,7 @@ impl Context<'_> {
     /// access its elements.
     pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
         if let Type::Array(_, size) = dfg.type_of_value(array) {
-            size == 0
+            size.0 == 0
         } else {
             match &dfg[array] {
                 Value::Instruction { .. } | Value::Param { .. } => {
@@ -1284,7 +1284,7 @@ pub(super) fn calculate_element_type_sizes_array(
     }
 
     let capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
-    let capacity = assert_usize(capacity.0);
+    let capacity = capacity.to_usize();
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;

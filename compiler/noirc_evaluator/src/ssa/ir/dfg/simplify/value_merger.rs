@@ -1,7 +1,9 @@
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 use noirc_errors::call_stack::CallStackId;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    brillig::assert_u32,
     errors::{RtResult, RuntimeError},
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -18,7 +20,7 @@ pub(crate) struct ValueMerger<'a> {
 
     /// Maps SSA array values with a vector type to their size.
     /// This must be computed before merging values.
-    vector_sizes: &'a HashMap<ValueId, u32>,
+    vector_sizes: &'a HashMap<ValueId, SemanticLength>,
 
     call_stack: CallStackId,
 }
@@ -27,7 +29,7 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        vector_sizes: &'a HashMap<ValueId, u32>,
+        vector_sizes: &'a HashMap<ValueId, SemanticLength>,
         call_stack: CallStackId,
     ) -> Self {
         ValueMerger { dfg, block, vector_sizes, call_stack }
@@ -154,7 +156,7 @@ impl<'a> ValueMerger<'a> {
 
         let element_count = element_types.len() as u32;
 
-        for i in 0..len {
+        for i in 0..len.0 {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index = u128::from(i * element_count + element_index as u32).into();
                 let index = self.dfg.make_constant(index, NumericType::length_type());
@@ -210,21 +212,21 @@ impl<'a> ValueMerger<'a> {
         });
 
         let len = then_len.max(else_len);
-        let element_count = element_types.len() as u32;
+        let element_count = ElementTypesLength(assert_u32(element_types.len()));
 
-        let flat_then_length = then_len * element_types.len() as u32;
-        let flat_else_length = else_len * element_types.len() as u32;
+        let semi_flat_then_length = then_len * element_count;
+        let semi_flat_else_length = else_len * element_count;
 
-        for i in 0..len {
+        for i in 0..len.0 {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index_u32 = i * element_count + element_index as u32;
+                let index_u32 = i * element_count.0 + element_index as u32;
                 let index_value = u128::from(index_u32).into();
                 let index = self.dfg.make_constant(index_value, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
-                let mut get_element = |array, typevars, len| {
-                    assert!(index_u32 < len, "get_element invoked with an out of bounds index");
+                let mut get_element = |array, typevars, len: SemiFlattenedLength| {
+                    assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
                     let get = Instruction::ArrayGet { array, index };
                     let results = self.dfg.insert_instruction_and_results(
                         get,
@@ -238,21 +240,22 @@ impl<'a> ValueMerger<'a> {
                 // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
                 // We can use that value directly as accessing it is always checked against the actual
                 // vector length.
-                if index_u32 >= flat_then_length {
-                    let else_element = get_element(else_value_id, typevars, flat_else_length);
+                if index_u32 >= semi_flat_then_length.0 {
+                    let else_element = get_element(else_value_id, typevars, semi_flat_else_length);
                     merged.push_back(else_element);
                     continue;
                 }
 
                 // Same for if it's out of bounds for the "else" vector.
-                if index_u32 >= flat_else_length {
-                    let then_element = get_element(then_value_id, typevars, flat_then_length);
+                if index_u32 >= semi_flat_else_length.0 {
+                    let then_element = get_element(then_value_id, typevars, semi_flat_then_length);
                     merged.push_back(then_element);
                     continue;
                 }
 
-                let then_element = get_element(then_value_id, typevars.clone(), flat_then_length);
-                let else_element = get_element(else_value_id, typevars, flat_else_length);
+                let then_element =
+                    get_element(then_value_id, typevars.clone(), semi_flat_then_length);
+                let else_element = get_element(else_value_id, typevars, semi_flat_else_length);
 
                 merged.push_back(self.merge_values(
                     then_condition,
