@@ -32,6 +32,14 @@ pub(crate) fn execute_multi_scalar_mul<F: AcirField>(
     scalars: &[FunctionInput<F>],
     predicate: FunctionInput<F>,
 ) -> Result<(F, F, F), OpcodeResolutionError<F>> {
+    assert!(scalars.len() % 2 == 0, "Number of scalars must be even");
+    assert!(points.len() % 3 == 0, "Number of points must be a multiple of 3");
+    assert_eq!(
+        scalars.len() / 2,
+        points.len() / 3,
+        "Number of scalars must be the same as the number of points"
+    );
+
     let points: Result<Vec<_>, _> =
         points.iter().map(|input| input_to_value(initial_witness, *input)).collect();
     let points: Vec<_> = points?.into_iter().collect();

@@ -374,9 +374,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Writes the pointer to the items of a given vector to the `result`.
     ///
     /// # Safety
-    /// 
+    ///
     /// This should only be called upon a vector that has already been heap allocated.
-    /// 
+    ///
     /// The addition `vector.pointer + [offsets::VECTOR_ITEMS] cannot overflow because:
     /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [offsets::VECTOR_META_COUNT] (3)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
@@ -467,9 +467,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Returns a pointer to the items of a given array.
     ///
     /// # Safety
-    /// 
+    ///
     /// This should only be called upon an array that has already been heap allocated.
-    /// 
+    ///
     /// The addition `array.pointer + [offsets::ARRAY_ITEMS]` cannot overflow because:
     /// - [Array allocation][Self::codegen_initialize_array] size is at least [offsets::ARRAY_META_COUNT] (1)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
