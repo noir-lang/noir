@@ -1329,7 +1329,32 @@
 <a href="#1328" id="1328">1328</a>
 <a href="#1329" id="1329">1329</a>
 <a href="#1330" id="1330">1330</a>
-<a href="#1331" id="1331">1331</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1931,6 +1956,31 @@
             .iter()
             .find_map(|cd| cd.index_map.get(<span class="kw-2">&amp;</span>array).map(|idx| (cd.array_id, <span class="kw-2">*</span>idx)));
         <span class="kw">if let </span><span class="prelude-val">Some</span>((array_id, bus_index)) = call_data_info {
+            <span class="comment">// Get the length of the array we want to read:
+            </span><span class="kw">let </span>array_typ = dfg.type_of_value(array);
+            <span class="kw">let </span>flattened_len = array_typ.flattened_size();
+            <span class="comment">// Get the total call_data array length
+            </span><span class="kw">let </span>call_data_typ = dfg.type_of_value(array_id);
+            <span class="kw">let </span>call_data_len = call_data_typ.flattened_size();
+            <span class="kw">let </span>is_last_in_call_data =
+                bus_index + flattened_len.<span class="number">0 </span><span class="kw">as </span>usize == call_data_len.<span class="number">0 </span><span class="kw">as </span>usize;
+
+            <span class="comment">// Check index for out of bounds in the call_data because
+            // the databus aggregates them into the call_data array.
+            // This is not needed when we access the last element, because
+            // we can benefit from the out-of-bound on call data.
+            </span><span class="kw">if </span>!is_last_in_call_data {
+                <span class="kw">let </span>length_var =
+                    <span class="self">self</span>.acir_context.add_constant(FieldElement::from(i128::from(flattened_len.<span class="number">0</span>)));
+                <span class="comment">// Compute out-of-bounds value:
+                </span><span class="kw">let </span>in_bound = <span class="self">self</span>.acir_context.less_than_var(var_index, length_var, <span class="number">32</span>)<span class="question-mark">?</span>;
+                <span class="comment">// Add the out-of-bounds check:
+                </span><span class="kw">let </span>assert_message = <span class="string">"Index out of bounds"</span>.to_string();
+                <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
+                <span class="kw">let </span>message = <span class="self">self</span>.acir_context.generate_assertion_message_payload(assert_message);
+                <span class="self">self</span>.acir_context.assert_eq_var(in_bound, one, <span class="prelude-val">Some</span>(message))<span class="question-mark">?</span>;
+            }
+
             <span class="kw">let </span>call_data_block = <span class="self">self</span>.ensure_array_is_initialized(array_id, dfg)<span class="question-mark">?</span>;
             <span class="kw">let </span>bus_index = <span class="self">self</span>.acir_context.add_constant(FieldElement::from(bus_index <span class="kw">as </span>i128));
             <span class="kw">let </span><span class="kw-2">mut </span>current_index = <span class="self">self</span>.acir_context.add_var(bus_index, var_index)<span class="question-mark">?</span>;
