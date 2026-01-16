@@ -669,22 +669,19 @@ fn turbofish_on_primitive_fmtstr() {
     check_errors(src);
 }
 
-// TODO: WIP
 #[test]
 fn regression_10363() {
     let src = r#"
-    // TODO: WIP
-    struct Bar {}
-
     pub trait Trait {
         fn foo();
     }
 
     pub fn foo<T: Trait>() {
         let _ = T::<i32, i32>::foo();
+                 ^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on named generics
     }
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
