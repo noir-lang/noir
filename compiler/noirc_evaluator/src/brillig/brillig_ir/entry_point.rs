@@ -190,15 +190,26 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             // cSpell:disable-next-line
             // Calldatacopy tags everything with field type, so when downcast when necessary
             if bit_size < F::max_num_bits() {
-                self.cast_instruction(
-                    SingleAddrVariable::new(
-                        MemoryAddress::direct(assert_u32(self.calldata_start_offset() + i)),
-                        bit_size,
-                    ),
-                    SingleAddrVariable::new_field(MemoryAddress::direct(assert_u32(
-                        self.calldata_start_offset() + i,
-                    ))),
+                let addr = MemoryAddress::direct(assert_u32(self.calldata_start_offset() + i));
+                let source = SingleAddrVariable::new_field(addr);
+                let destination = SingleAddrVariable::new(addr, bit_size);
+
+                // Range check the inputs
+                let max_value = self.make_constant_instruction(
+                    F::from(2u128).pow(&F::from(bit_size)) - F::one(),
+                    F::max_num_bits(),
                 );
+                let condition = self.allocate_single_addr_bool();
+                self.binary_instruction(source, *max_value, *condition, BrilligBinaryOp::LessThan);
+                self.codegen_constrain(
+                    *condition,
+                    Some(
+                        "Input does not fit in expected bit size ".to_string()
+                            + &bit_size.to_string(),
+                    ),
+                );
+
+                self.cast_instruction(destination, source);
             }
         }
     }
