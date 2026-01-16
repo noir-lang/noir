@@ -2,7 +2,7 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength};
 use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
@@ -128,13 +128,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
         // We add one since array.pointer points to [RC, ...items]
         let mut index = offsets::ARRAY_ITEMS;
-        for _ in 0..*size {
+        for _ in 0..size.0 {
             for element_type in types.iter() {
                 match element_type {
                     Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
-                        let size: SemiFlattenedLength = ElementTypesLength(assert_u32(items.len()))
-                            * SemanticLength(*nested_size);
+                        let size: SemiFlattenedLength =
+                            ElementTypesLength(assert_u32(items.len())) * *nested_size;
                         let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.
@@ -248,7 +248,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_len = source_len.extract_single_addr();
 
         let vector_id = arguments[1];
-        let element_size = dfg.type_of_value(vector_id).element_size();
+        let element_size = dfg.type_of_value(vector_id).element_size().to_usize();
         let source_vector = self.convert_ssa_value(vector_id, dfg).extract_vector();
 
         let results = dfg.instruction_results(instruction_id);

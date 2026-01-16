@@ -198,7 +198,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context
-            .allocate_brillig_array(compute_array_length(&item_typ, SemanticLength(elem_count)))
+            .allocate_brillig_array(compute_array_length(&item_typ, elem_count))
             .map(BrilligVariable::BrilligArray),
         Type::Vector(_) => {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
