@@ -171,7 +171,7 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
-            debug_assert!(!witnesses.is_empty(), "return data cannot be empty");
+            assert!(!witnesses.is_empty(), "return data cannot be empty");
 
             let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);

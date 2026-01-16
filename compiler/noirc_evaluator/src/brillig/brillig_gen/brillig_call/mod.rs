@@ -207,7 +207,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        debug_assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
+        assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 

@@ -14,7 +14,7 @@ pub enum MonomorphizationError {
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: Type, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
@@ -68,7 +68,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
-                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
+                format!("checked_transmute failed: expected `{expected}` but found `{actual}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
