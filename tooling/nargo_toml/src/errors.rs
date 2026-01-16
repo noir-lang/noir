@@ -25,7 +25,7 @@ pub enum ManifestError {
     InvalidPackageType(PathBuf, String),
 
     /// Package manifest is unreadable.
-    #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
+    #[error("Nargo.toml is badly formed, could not parse.\n\n{}", .0.message())]
     MalformedFile(#[from] toml::de::Error),
 
     #[error(
