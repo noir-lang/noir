@@ -36,3 +36,8 @@ fn exported_function_bar(my_struct: NestedStruct<1, 2, 3, u64>) -> (u64) {
 fn exported_function_baz() -> u64 {
     1
 }
+
+#[export]
+fn exported_function_void(x: u64) {
+    assert(x > 0);
+}
