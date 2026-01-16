@@ -205,7 +205,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                self.brillig_context.codegen_add_overflow_check(left.address, result.address);
+                self.brillig_context.codegen_add_overflow_check(left, result);
             }
             BinaryOp::Sub { unchecked: false } => {
                 let condition = self.brillig_context.allocate_single_addr_bool();

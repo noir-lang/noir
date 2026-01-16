@@ -51,14 +51,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Emit overflow check for addition: traps if `lhs > result` (i.e., overflow occurred).
     /// Assumes the addition `result = lhs + rhs` has already been performed.
-    pub(crate) fn codegen_add_overflow_check(&mut self, lhs: MemoryAddress, result: MemoryAddress) {
+    pub(crate) fn codegen_add_overflow_check(
+        &mut self,
+        lhs: SingleAddrVariable,
+        result: SingleAddrVariable,
+    ) {
         let no_overflow = self.allocate_single_addr_bool();
-        self.memory_op_instruction(
-            lhs,
-            result,
-            no_overflow.address,
-            BrilligBinaryOp::LessThanEquals,
-        );
+        // Check that lhs <= result (if overflow occurred, result wrapped and result < lhs)
+        self.binary_instruction(lhs, result, *no_overflow, BrilligBinaryOp::LessThanEquals);
         self.codegen_constrain(*no_overflow, Some("attempt to add with overflow".to_string()));
     }
 
@@ -93,7 +93,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    /// Checked addition: `destination = lhs + rhs`, traps on overflow.
+    /// Checked usize addition: `destination = lhs + rhs`, traps on overflow.
+    /// Uses 32-bit (usize) arithmetic for memory addressing operations.
     pub(crate) fn codegen_checked_add(
         &mut self,
         lhs: MemoryAddress,
@@ -101,7 +102,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destination: MemoryAddress,
     ) {
         self.memory_op_instruction(lhs, rhs, destination, BrilligBinaryOp::Add);
-        self.codegen_add_overflow_check(lhs, destination);
+        self.codegen_add_overflow_check(
+            SingleAddrVariable::new_usize(lhs),
+            SingleAddrVariable::new_usize(destination),
+        );
     }
 
     /// Checked multiplication: `destination = lhs * rhs`, traps on overflow.
