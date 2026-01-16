@@ -653,7 +653,19 @@ pub(crate) mod tests {
             "Loop exit condition should be immediately true when num_elements=0"
         );
 
-        let status = vm.process_opcodes();
+        // We will process a JmpIf based upon the condition which will immediately jump us to a Stop
+        for _ in less_than_idx..(less_than_idx + 2) {
+            let opcode = &bytecode[vm.program_counter()];
+            match opcode {
+                BrilligOpcode::Load { .. } | BrilligOpcode::Store { .. } => {
+                    panic!("We are performing a mem copy when it should have been skipped");
+                }
+                _ => {}
+            };
+            vm.process_opcode();
+        }
+
+        let status = vm.get_status();
         // The VM successfully finished executing
         assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
     }
