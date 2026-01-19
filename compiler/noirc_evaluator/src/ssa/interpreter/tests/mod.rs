@@ -1881,3 +1881,24 @@ fn call_stack_is_cleared_between_entry_calls() {
     interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
     assert_eq!(interpreter.call_stack.len(), 1, "should clear the previous leftover");
 }
+
+#[test]
+fn infinite_recursion() {
+    let src = r#"
+    acir(inline) predicate_pure fn main f0 {
+    b0():
+      call f1()
+      return
+    }
+    brillig(inline) predicate_pure fn recur f1 {
+      b0():
+        call f1()
+        return
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![]);
+    let Err(InterpreterError::StackOverflow { .. }) = result else {
+        panic!("unexpected result: {result:?}")
+    };
+}
