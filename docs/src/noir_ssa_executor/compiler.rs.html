@@ -110,8 +110,7 @@
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::Program;
+<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::Program;
 <span class="kw">use </span>base64::Engine;
 <span class="kw">use </span>noirc_abi::Abi;
 <span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
@@ -203,7 +202,6 @@
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: noirc_driver::DEFAULT_EXPRESSION_WIDTH,
     }
 }
 

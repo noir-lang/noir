@@ -597,9 +597,7 @@
 <a href="#596" id="596">596</a>
 <a href="#597" id="597">597</a>
 <a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
+<a href="#599" id="599">599</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::HashSet};
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -612,8 +610,6 @@
 
 <span class="doccomment">/// A transformer which processes any [`Expression`]s to break them up such that they
 /// fit within the backend's width.
-///
-/// This transformer is only used when targeting the [`Bounded`][acir::circuit::ExpressionWidth::Bounded] configuration.
 ///
 /// This is done by creating intermediate variables to hold partial calculations and then combining them
 /// to calculate the original expression.

@@ -97,10 +97,7 @@
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#99" id="99">99</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>nargo::package::PackageType;
 <span class="kw">use </span>noirc_frontend::graph::CrateName;
@@ -173,9 +170,6 @@
 
     <span class="attr">#[error(<span class="string">"Cyclic package dependency found when processing {cycle}"</span>)]
     </span>CyclicDependency { cycle: String },
-
-    <span class="attr">#[error(<span class="string">"Failed to parse expression width with the following error: {0}"</span>)]
-    </span>ParseExpressionWidth(String),
 }
 
 <span class="attr">#[allow(clippy::enum_variant_names)]

@@ -273,8 +273,7 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::circuit::Opcode;
 <span class="kw">use </span>acir::circuit::OpcodeLocation;
@@ -523,7 +522,6 @@
             },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: acir::circuit::ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file

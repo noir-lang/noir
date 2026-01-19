@@ -87,17 +87,9 @@
 <a href="#86" id="86">86</a>
 <a href="#87" id="87">87</a>
 <a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#89" id="89">89</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::FieldElement;
-<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>acvm::acir::circuit::Program;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_abi::Abi;
@@ -136,8 +128,6 @@
 
     <span class="doccomment">/// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     </span><span class="kw">pub </span>file_map: BTreeMap&lt;FileId, DebugFile&gt;,
-    <span class="doccomment">/// Maximum width of the expressions which will be constrained
-    </span><span class="kw">pub </span>expression_width: ExpressionWidth,
 }
 
 <span class="kw">impl </span>From&lt;CompiledProgram&gt; <span class="kw">for </span>ProgramArtifact {
@@ -149,7 +139,6 @@
             bytecode: compiled_program.program,
             debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
             file_map: compiled_program.file_map,
-            expression_width: compiled_program.expression_width,
         }
     }
 }
@@ -164,7 +153,6 @@
             debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: <span class="macro">vec!</span>[],
-            expression_width: program.expression_width,
         }
     }
 }
@@ -187,7 +175,5 @@
     <span class="kw">pub </span>debug: Vec&lt;DebugInfo&gt;,
     <span class="kw">pub </span>file_map: BTreeMap&lt;FileId, DebugFile&gt;,
     <span class="kw">pub </span>warnings: Vec&lt;SsaReport&gt;,
-    <span class="doccomment">/// Maximum width of the expressions which will be constrained
-    </span><span class="kw">pub </span>expression_width: ExpressionWidth,
 }
 </code></pre></div></section></main></body></html>

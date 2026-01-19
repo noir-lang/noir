@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ExpressionOrMemory","ExpressionWidth","OpcodeLocation","OpcodeLocationFromStrError"],"mod":["black_box_functions","brillig","opcodes"],"struct":["AcirOpcodeLocation","AssertionPayload","BrilligOpcodeLocation","Circuit","ErrorSelector","Program","PublicInputs"]};
+window.SIDEBAR_ITEMS = {"enum":["ExpressionOrMemory","OpcodeLocation","OpcodeLocationFromStrError"],"mod":["black_box_functions","brillig","opcodes"],"struct":["AcirOpcodeLocation","AssertionPayload","BrilligOpcodeLocation","Circuit","ErrorSelector","Program","PublicInputs"]};

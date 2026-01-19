@@ -970,22 +970,12 @@
 <a href="#969" id="969">969</a>
 <a href="#970" id="970">970</a>
 <a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a>
-<a href="#973" id="973">973</a>
-<a href="#974" id="974">974</a>
-<a href="#975" id="975">975</a>
-<a href="#976" id="976">976</a>
-<a href="#977" id="977">977</a>
-<a href="#978" id="978">978</a>
-<a href="#979" id="979">979</a>
-<a href="#980" id="980">980</a>
-<a href="#981" id="981">981</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#972" id="972">972</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
 
 <span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
-<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1690,7 +1680,6 @@
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -1802,12 +1791,6 @@
     file_map
 }
 
-<span class="doccomment">/// Default expression width used for Noir compilation.
-/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
-/// while we can sometimes expect the compilation target width to change.
-/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
-</span><span class="kw">pub const </span>DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: <span class="number">4 </span>};
-
 <span class="doccomment">/// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
@@ -1892,7 +1875,6 @@
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 

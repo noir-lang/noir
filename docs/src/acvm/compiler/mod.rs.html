@@ -122,9 +122,7 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `compiler` module contains several passes to transform an ACIR program.
+<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `compiler` module contains several passes to transform an ACIR program.
 //! Roughly, the passes are separated into the `optimizers` which try to reduce the number of opcodes
 //! and the `transformers` which adapt the opcodes to the proving backend.
 //!
@@ -132,9 +130,7 @@
 //! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
 //! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
 //! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
-//!
-//! # Transformers
-//! - CSAT: create intermediate variables so that AssertZero opcodes have the correct Circuit's `ExpressionWidth`.
+//! - CommonSubexpressionOptimizer: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
 //!
 //! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an `Artifacts` type.

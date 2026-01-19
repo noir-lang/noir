@@ -296,9 +296,7 @@
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acir::circuit::brillig::BrilligFunctionId;
@@ -453,7 +451,7 @@
     <span class="kw">use </span>acir::{
         FieldElement,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, Program,
+            Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
     };
@@ -507,7 +505,6 @@
             },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file
@@ -572,7 +569,6 @@
             },
             debug_symbols: ProgramDebugInfo { debug_infos: <span class="macro">vec!</span>[DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: ExpressionWidth::Bounded { width: <span class="number">4 </span>},
         };
 
         <span class="comment">// Write the artifact to a file
