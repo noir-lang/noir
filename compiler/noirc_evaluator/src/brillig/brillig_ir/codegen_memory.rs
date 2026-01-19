@@ -145,6 +145,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// starting from the end, moving backwards.
     ///
     /// By moving back-to-front, it can shift items backwards, modifying a vector in-place to make room in the front.
+    ///
+    /// # Safety
+    /// When `num_elements = 0`, the subtraction `num_elements - 1` underflows to `2^32 - 1`.
+    /// This is safe because:
+    /// 1. `source_pointer = source_start + (2^32 - 1)` wraps to `source_start - 1`
+    /// 2. The loop exit condition `source_pointer < source_start` becomes `true` immediately
+    /// 3. The loop exits without any iterations, which is correct for 0 elements
+    ///
+    /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this                                                             
+    /// invariant because they pass heap pointers (from vector metadata), and heap allocations                                                             
+    /// always produce pointers > 0 since the heap starts after reserved registers and the stack.   
     pub(crate) fn codegen_mem_copy_from_the_end(
         &mut self,
         source_start: MemoryAddress,
