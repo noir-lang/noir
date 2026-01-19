@@ -92,7 +92,8 @@ pub fn show_info_report(info_report: InfoReport, json: bool) {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
             let mut program_table = Table::new();
-            let titles = row![Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"];
+            let titles =
+                row![Fm->"Package", Fm->"Function", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"];
             let num_titles = titles.len();
             program_table.set_titles(titles);
 
