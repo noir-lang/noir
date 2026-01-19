@@ -1353,7 +1353,7 @@ fn out_of_order_globals() {
     global BAR: fn(u32) -> u32 = bar;
 
     fn main(x: u32) -> pub u32 {
-        BAR(x) + BAZ
+        BAR(x) + BAZ + FOO
     }
 
     fn bar(x: u32) -> u32 { x + FOO }
@@ -1365,7 +1365,7 @@ fn out_of_order_globals() {
     global BAZ$g0: u32 = 3;
     global FOO$g1: u32 = 1;
     fn main$f0(x$l0: u32) -> pub u32 {
-        (bar$f1(x$l0) + BAZ$g0)
+        ((bar$f1(x$l0) + BAZ$g0) + FOO$g1)
     }
     fn bar$f1(x$l1: u32) -> u32 {
         (x$l1 + FOO$g1)
