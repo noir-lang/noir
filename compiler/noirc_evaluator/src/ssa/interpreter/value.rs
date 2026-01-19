@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{
+    AcirField, FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 
-use crate::ssa::ir::{
-    function::FunctionId,
-    instruction::Intrinsic,
-    is_printable_byte,
-    types::{CompositeType, NumericType, Type},
-    value::ValueId,
+use crate::{
+    brillig::{assert_u32, assert_usize},
+    ssa::ir::{
+        function::FunctionId,
+        instruction::Intrinsic,
+        is_printable_byte,
+        types::{CompositeType, NumericType, Type},
+        value::ValueId,
+    },
 };
 
 use super::IResult;
@@ -148,8 +154,15 @@ impl Value {
                 Type::Vector(array.element_types.clone())
             }
             Value::ArrayOrVector(array) => {
-                let len = array.elements.borrow().len().checked_div(array.element_types.len());
-                let len = len.unwrap_or(0) as u32;
+                let element_types_length =
+                    ElementTypesLength(assert_u32(array.element_types.len()));
+                let len = if element_types_length.0 == 0 {
+                    SemanticLength(0)
+                } else {
+                    let semi_flattened_length =
+                        SemiFlattenedLength(assert_u32(array.elements.borrow().len()));
+                    semi_flattened_length / element_types_length
+                };
                 Type::Array(array.element_types.clone(), len)
             }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
@@ -304,7 +317,7 @@ impl Value {
             Type::Array(element_types, length) => {
                 let first_elements =
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
-                let elements = std::iter::repeat_n(first_elements, *length as usize);
+                let elements = std::iter::repeat_n(first_elements, assert_usize(length.0));
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
             }

@@ -743,7 +743,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
-                    upper_bound.apply(|i| i <= len.into(), |i| i <= len.into())
+                    upper_bound.apply(|i| i <= len.0.into(), |i| i <= len.0.into())
                 } else {
                     // We're dealing with a loop that doesn't have a fixed upper bound.
                     false
@@ -914,6 +914,7 @@ mod tests {
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use acvm::AcirField;
+    use acvm::acir::brillig::lengths::SemanticLength;
     use noirc_frontend::monomorphization::ast::InlineType;
     use test_case::test_case;
 
@@ -2444,7 +2445,7 @@ mod tests {
 
         let instruction = Instruction::MakeArray {
             elements: Default::default(),
-            typ: Type::Array(Arc::new(vec![]), 0),
+            typ: Type::Array(Arc::new(vec![]), SemanticLength(0)),
         };
 
         assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);

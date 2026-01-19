@@ -172,7 +172,7 @@ impl BrilligTaintedIds {
                 // of the resulting sets for future reference
                 Some(length) => {
                     array_elements.insert(*result, vec![]);
-                    for _ in 0..length {
+                    for _ in 0..length.0 {
                         array_elements[result].push(results_status.len());
                         results_status
                             .push(ResultStatus::Unconstrained { descendants: HashSet::new() });
