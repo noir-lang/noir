@@ -1081,12 +1081,29 @@ impl<F: AcirField> AcirContext<F> {
         message: Option<String>,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        // If `variable` is constant then we don't need to add a constraint.
-        // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+        let mut return_zero = false;
         if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+            // If `variable` is constant and fits in the bit_size range
+            // then we don't need to add a constraint.
             if constant.num_bits() <= bit_size {
                 return Ok(variable);
             }
+            // If `variable` is constant and does not fits in the bit_size range
+            // then we can fail at compile time if the predicate is one.
+            if let Some(predicate_const) = self.var_to_expression(predicate)?.to_const() {
+                if predicate_const.is_one() {
+                    // Range check is failing at compile time, so we return an error.
+                    let message =
+                        message.unwrap_or_else(|| "value does not fit in range".to_string());
+                    return Err(RuntimeError::StaticAssertFailed {
+                        message,
+                        call_stack: self.get_call_stack(),
+                    });
+                }
+            }
+            // The range check is ensured to fail, unless the predicate is false.
+            // In both cases, the return value does not matter and we can return 0.
+            return_zero = true;
         }
         // Under a predicate, a range check must not fail, so we
         // range check `predicate * variable` instead.
@@ -1100,7 +1117,12 @@ impl<F: AcirField> AcirContext<F> {
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
-        Ok(predicate_range)
+        if return_zero {
+            let zero = self.add_constant(F::zero());
+            Ok(zero)
+        } else {
+            Ok(predicate_range)
+        }
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}

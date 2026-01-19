@@ -1,6 +1,7 @@
 use acvm::assert_circuit_snapshot;
 
-use crate::acir::tests::ssa_to_acir_program;
+use crate::acir::tests::{ssa_to_acir_program, try_ssa_to_acir};
+use crate::errors::RuntimeError;
 
 mod binary;
 
@@ -360,4 +361,29 @@ fn truncate_underflow() {
     }
     ";
     let _ = ssa_to_acir_program(src);
+}
+
+/// Ensure we get the overflow error first, and not a xor black box input error.
+#[test]
+fn regression_11249() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = sub u64 162, u64 7089289267698293936
+        v1 = xor v0, u64 12326866836579951866
+        return v1
+    }
+    ";
+    let result = try_ssa_to_acir(src);
+    match result {
+        Err(RuntimeError::StaticAssertFailed { message, .. }) => {
+            assert!(
+                message.contains("overflow"),
+                "Expected overflow error message, got: {message}"
+            );
+        }
+        _ => {
+            panic!("Expected compilation to fail with overflow error");
+        }
+    }
 }

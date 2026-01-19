@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use crate::{
     acir::{acir_context::BrilligStdLib, ssa::codegen_acir},
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
+    errors::RuntimeError,
     ssa::{
         ArtifactsAndWarnings, combine_artifacts, interpreter::value::Value, ir::types::NumericType,
         ssa_gen::Ssa,
@@ -36,6 +37,11 @@ fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
 }
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {
+    try_ssa_to_acir(src).expect("Should compile manually written SSA into ACIR")
+}
+
+/// Attempts to convert SSA to ACIR, returning the error if compilation fails.
+fn try_ssa_to_acir(src: &str) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
@@ -57,10 +63,8 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, _) = ssa
-        .generate_entry_point_index()
-        .into_acir(&brillig, &BrilligOptions::default())
-        .expect("Should compile manually written SSA into ACIR");
+    let (acir_functions, brillig_functions, _) =
+        ssa.generate_entry_point_index().into_acir(&brillig, &BrilligOptions::default())?;
 
     let artifacts =
         ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
@@ -73,7 +77,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
     );
     let program = program_artifact.program;
     let debug = program_artifact.debug;
-    (program, debug)
+    Ok((program, debug))
 }
 
 #[test]
