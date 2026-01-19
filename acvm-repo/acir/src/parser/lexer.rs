@@ -14,7 +14,6 @@ use super::token::{SpannedToken, Token};
 pub(super) struct Lexer<'a> {
     chars: CharIndices<'a>,
     position: Position,
-    done: bool,
     max_integer: BigInt,
 }
 
@@ -23,7 +22,6 @@ impl<'a> Lexer<'a> {
         Lexer {
             chars: src.char_indices(),
             position: 0,
-            done: false,
             max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
                 - BigInt::one(),
         }
@@ -33,7 +31,6 @@ impl<'a> Lexer<'a> {
         let ch = match self.next_char() {
             Some(ch) => ch,
             None => {
-                self.done = true;
                 return Ok(Token::Eof.into_single_span(self.position));
             }
         };
