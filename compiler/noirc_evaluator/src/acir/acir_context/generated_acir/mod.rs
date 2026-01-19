@@ -234,12 +234,12 @@ impl<F: AcirField> GeneratedAcir<F> {
             BlackBoxFunc::Blake2s => {
                 let [inputs] = expect_into(function_inputs);
                 let outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 => {
                 let [inputs] = expect_into(function_inputs);
                 let outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 => {
                 let [public_key_x, public_key_y, signature, hashed_message, predicate] =
