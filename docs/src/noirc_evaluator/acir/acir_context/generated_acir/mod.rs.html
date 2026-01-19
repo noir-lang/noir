@@ -812,7 +812,12 @@
 <a href="#811" id="811">811</a>
 <a href="#812" id="812">812</a>
 <a href="#813" id="813">813</a>
-<a href="#814" id="814">814</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `generated_acir` module is responsible for the lowest level tracking of ACIR-gen.
 //!
 //! This module defines the `GeneratedAcir` which is constructed as part of the ACIR-gen pass
 //! to accumulate all of the ACIR. This tracks properties such as which witnesses form part of the circuit interface
@@ -1027,28 +1032,33 @@
             }
             BlackBoxFunc::AND =&gt; {
                 <span class="kw">let </span>[lhs, rhs] = expect_into(function_inputs);
+                <span class="kw">let </span>[lhs] = expect_into(lhs);
+                <span class="kw">let </span>[rhs] = expect_into(rhs);
                 <span class="kw">let </span>num_bits = num_bits.expect(<span class="string">"missing num_bits"</span>);
-                BlackBoxFuncCall::AND { lhs: lhs[<span class="number">0</span>], rhs: rhs[<span class="number">0</span>], num_bits, output: outputs[<span class="number">0</span>] }
+                BlackBoxFuncCall::AND { lhs, rhs, num_bits, output: outputs[<span class="number">0</span>] }
             }
             BlackBoxFunc::XOR =&gt; {
                 <span class="kw">let </span>[lhs, rhs] = expect_into(function_inputs);
+                <span class="kw">let </span>[lhs] = expect_into(lhs);
+                <span class="kw">let </span>[rhs] = expect_into(rhs);
                 <span class="kw">let </span>num_bits = num_bits.expect(<span class="string">"missing num_bits"</span>);
-                BlackBoxFuncCall::XOR { lhs: lhs[<span class="number">0</span>], rhs: rhs[<span class="number">0</span>], num_bits, output: outputs[<span class="number">0</span>] }
+                BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output: outputs[<span class="number">0</span>] }
             }
             BlackBoxFunc::RANGE =&gt; {
                 <span class="kw">let </span>[input] = expect_into(function_inputs);
+                <span class="kw">let </span>[input] = expect_into(input);
                 <span class="kw">let </span>num_bits = num_bits.expect(<span class="string">"missing num_bits"</span>);
-                BlackBoxFuncCall::RANGE { input: input[<span class="number">0</span>], num_bits }
+                BlackBoxFuncCall::RANGE { input, num_bits }
             }
             BlackBoxFunc::Blake2s =&gt; {
                 <span class="kw">let </span>[inputs] = expect_into(function_inputs);
                 <span class="kw">let </span>outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 =&gt; {
                 <span class="kw">let </span>[inputs] = expect_into(function_inputs);
                 <span class="kw">let </span>outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 =&gt; {
                 <span class="kw">let </span>[public_key_x, public_key_y, signature, hashed_message, predicate] =
