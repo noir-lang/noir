@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768831705450,
+  "lastUpdate": 1768831707004,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -30185,105 +30185,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "604a51c0e8351e92f618eda9a2f672300672d7eb",
-          "message": "chore: bump external pinned commits (#11157)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-01-12T14:34:51Z",
-          "tree_id": "45c09cf3c35dcb46b88167e362e26d8bc7262705",
-          "url": "https://github.com/noir-lang/noir/commit/604a51c0e8351e92f618eda9a2f672300672d7eb"
-        },
-        "date": 1768230352087,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 20088,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 80496,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 8554,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1082,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 967,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2169,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1902,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1819274,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1820467,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 49245,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 302291,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 257976,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1302,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -35053,6 +34954,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0b434779a3e0006f50ec9727d2ed22bbcc396ff8"
         },
         "date": 1768829372196,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 20631,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 86626,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 9073,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1082,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 969,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2173,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1716,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1831644,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1832840,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2464,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 302291,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 257974,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1304,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "41313a3641d354fd3202867fee09f7381b98430e",
+          "message": "fix(cli): Remove 'Expression Width' from the info table (#11254)",
+          "timestamp": "2026-01-19T13:36:43Z",
+          "tree_id": "a19a338732b20622679dcb89b256c5177028ce4f",
+          "url": "https://github.com/noir-lang/noir/commit/41313a3641d354fd3202867fee09f7381b98430e"
+        },
+        "date": 1768831667481,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
