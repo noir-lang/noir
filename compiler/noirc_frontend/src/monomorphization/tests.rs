@@ -4,62 +4,10 @@ use crate::{
     monomorphization::errors::MonomorphizationError,
     test_utils::{
         GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
-        get_monomorphized_with_stdlib,
+        get_monomorphized_with_stdlib, stdlib_src,
     },
     tests::check_monomorphization_error_using_features,
 };
-
-mod stdlib_src {
-    pub(super) const ZEROED: &str = "
-        #[builtin(zeroed)]
-        pub fn zeroed<T>() -> T {}
-    ";
-
-    pub(super) const EQ: &str = "
-        pub trait Eq {
-            fn eq(self, other: Self) -> bool;
-        }
-    ";
-
-    pub(super) const NEG: &str = "
-        pub trait Neg {
-            fn neg(self) -> Self;
-        }
-    ";
-
-    pub(super) const ARRAY_LEN: &str = "
-        impl<T, let N: u32> [T; N] {
-            #[builtin(array_len)]
-            pub fn len(self) -> u32 {}
-        }
-    ";
-
-    pub(super) const CHECKED_TRANSMUTE: &str = "
-        #[builtin(checked_transmute)]
-        pub fn checked_transmute<T, U>(value: T) -> U {}
-    ";
-
-    // Note that in the stdlib these are all comptime functions, which I thought meant
-    // that the comptime interpreter was used to evaluate them, however they do seem to
-    // hit the `try_evaluate_call::try_evaluate_call`.
-    // To make sure they are handled here, I removed the `comptime` for these tests.
-    pub(super) const MODULUS: &str = "
-        #[builtin(modulus_num_bits)]
-        pub fn modulus_num_bits() -> u64 {}
-
-        #[builtin(modulus_be_bits)]
-        pub fn modulus_be_bits() -> [u1] {}
-
-        #[builtin(modulus_le_bits)]
-        pub fn modulus_le_bits() -> [u1] {}
-
-        #[builtin(modulus_be_bytes)]
-        pub fn modulus_be_bytes() -> [u8] {}
-
-        #[builtin(modulus_le_bytes)]
-        pub fn modulus_le_bytes() -> [u8] {}
-    ";
-}
 
 #[test]
 fn bounded_recursive_type_errors() {

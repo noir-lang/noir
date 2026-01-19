@@ -4,7 +4,7 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::{get_monomorphized, get_monomorphized_with_stdlib};
+use crate::test_utils::{get_monomorphized, get_monomorphized_with_stdlib, stdlib_src};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -406,12 +406,6 @@ fn clone_nested_array_in_lvalue() {
 
 #[test]
 fn pure_builtin_args_get_cloned() {
-    let stdlib_src = "
-    impl<T, let N: u32> [T; N] {
-        #[builtin(array_len)]
-        pub fn len(self) -> u32 {}
-    }";
-
     let src = "
     unconstrained fn main() -> pub u32 {
         let a = [1, 2, 3];
@@ -421,7 +415,7 @@ fn pure_builtin_args_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
 
     // The ownership pass doesn't know which builtin functions are pure and which ones
     // modifies the arguments, so this optimization is deferred to the SSA generation.

@@ -175,3 +175,56 @@ pub(crate) fn get_program_with_options(
 
     (program, context, errors)
 }
+
+/// These snippets can be used in conjunction with `get_program_with_stdlib`.
+pub mod stdlib_src {
+    pub const ZEROED: &str = "
+        #[builtin(zeroed)]
+        pub fn zeroed<T>() -> T {}
+    ";
+
+    pub const EQ: &str = "
+        pub trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+    ";
+
+    pub const NEG: &str = "
+        pub trait Neg {
+            fn neg(self) -> Self;
+        }
+    ";
+
+    pub const ARRAY_LEN: &str = "
+        impl<T, let N: u32> [T; N] {
+            #[builtin(array_len)]
+            pub fn len(self) -> u32 {}
+        }
+    ";
+
+    pub const CHECKED_TRANSMUTE: &str = "
+        #[builtin(checked_transmute)]
+        pub fn checked_transmute<T, U>(value: T) -> U {}
+    ";
+
+    // Note that in the stdlib these are all comptime functions, which I thought meant
+    // that the comptime interpreter was used to evaluate them, however they do seem to
+    // hit the `try_evaluate_call::try_evaluate_call`.
+    // To make sure they are handled here, I removed the `comptime` for these tests.
+    pub const MODULUS: &str = "
+        #[builtin(modulus_num_bits)]
+        pub fn modulus_num_bits() -> u64 {}
+
+        #[builtin(modulus_be_bits)]
+        pub fn modulus_be_bits() -> [u1] {}
+
+        #[builtin(modulus_le_bits)]
+        pub fn modulus_le_bits() -> [u1] {}
+
+        #[builtin(modulus_be_bytes)]
+        pub fn modulus_be_bytes() -> [u8] {}
+
+        #[builtin(modulus_le_bytes)]
+        pub fn modulus_le_bytes() -> [u8] {}
+    ";
+}
