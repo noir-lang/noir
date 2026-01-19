@@ -103,9 +103,14 @@
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::program::ProgramArtifact;
-<span class="kw">use </span>prettytable::{Row, row, table};
+<span class="kw">use </span>prettytable::{Row, Table, row};
 <span class="kw">use </span>rayon::iter::{IntoParallelIterator, ParallelIterator};
 <span class="kw">use </span>serde::Serialize;
 
@@ -196,11 +201,16 @@
     } <span class="kw">else </span>{
         <span class="comment">// Otherwise print human-readable table.
         </span><span class="kw">if </span>!info_report.programs.is_empty() {
-            <span class="kw">let </span><span class="kw-2">mut </span>program_table = <span class="macro">table!</span>([Fm-&gt;<span class="string">"Package"</span>, Fm-&gt;<span class="string">"Function"</span>, Fm-&gt;<span class="string">"Expression Width"</span>, Fm-&gt;<span class="string">"ACIR Opcodes"</span>, Fm-&gt;<span class="string">"Brillig Opcodes"</span>]);
+            <span class="kw">let </span><span class="kw-2">mut </span>program_table = Table::new();
+            <span class="kw">let </span>titles =
+                <span class="macro">row!</span>[Fm-&gt;<span class="string">"Package"</span>, Fm-&gt;<span class="string">"Function"</span>, Fm-&gt;<span class="string">"ACIR Opcodes"</span>, Fm-&gt;<span class="string">"Brillig Opcodes"</span>];
+            <span class="kw">let </span>num_titles = titles.len();
+            program_table.set_titles(titles);
 
             <span class="kw">for </span>program_info <span class="kw">in </span>info_report.programs {
                 <span class="kw">let </span>program_rows: Vec&lt;Row&gt; = program_info.into();
                 <span class="kw">for </span>row <span class="kw">in </span>program_rows {
+                    <span class="macro">assert_eq!</span>(row.len(), num_titles, <span class="string">"wrong number of columns"</span>);
                     program_table.add_row(row);
                 }
             }
