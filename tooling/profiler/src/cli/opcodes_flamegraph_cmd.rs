@@ -156,6 +156,7 @@ mod tests {
             Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
+        native_types::Expression,
     };
     use color_eyre::eyre;
     use fm::codespan_files::Files;
@@ -234,19 +235,19 @@ mod tests {
                 id: BrilligFunctionId(0),
                 inputs: vec![],
                 outputs: vec![],
-                predicate: None,
+                predicate: Expression::one(),
             },
             Opcode::BrilligCall {
                 id: BrilligFunctionId(1),
                 inputs: vec![],
                 outputs: vec![],
-                predicate: None,
+                predicate: Expression::one(),
             },
             Opcode::BrilligCall {
                 id: BrilligFunctionId(2),
                 inputs: vec![],
                 outputs: vec![],
-                predicate: None,
+                predicate: Expression::one(),
             },
         ];
 

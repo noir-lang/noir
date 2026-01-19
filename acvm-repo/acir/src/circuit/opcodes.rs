@@ -128,8 +128,8 @@ pub enum Opcode<F: AcirField> {
         /// Outputs to the function call
         outputs: Vec<BrilligOutputs>,
         /// Predicate of the Brillig execution - when the predicate evaluates to 0, execution is skipped.
-        /// When the predicate evaluates to 1 or is None, execution proceeds.
-        predicate: Option<Expression<F>>,
+        /// When the predicate evaluates to 1, execution proceeds.
+        predicate: Expression<F>,
     },
 
     /// Calls to functions represented as a separate circuit. A call opcode allows us
@@ -143,8 +143,8 @@ pub enum Opcode<F: AcirField> {
         /// Outputs of the function call
         outputs: Vec<Witness>,
         /// Predicate of the circuit execution - when the predicate evaluates to 0, execution is skipped.
-        /// When the predicate evaluates to 1 or is None, execution proceeds.
-        predicate: Option<Expression<F>>,
+        /// When the predicate evaluates to 1, execution proceeds.
+        predicate: Expression<F>,
     },
 }
 
@@ -194,9 +194,7 @@ pub(super) fn display_opcode<F: AcirField>(
         // are distinct in their functionality and we should maintain this separation for debugging.
         Opcode::BrilligCall { id, inputs, outputs, predicate } => {
             write!(f, "BRILLIG CALL func: {id}, ")?;
-            if let Some(pred) = predicate {
-                write!(f, "predicate: {pred}, ")?;
-            }
+            write!(f, "predicate: {predicate}, ")?;
 
             let inputs =
                 inputs.iter().map(|input| format!("{input}")).collect::<Vec<String>>().join(", ");
@@ -211,9 +209,7 @@ pub(super) fn display_opcode<F: AcirField>(
         }
         Opcode::Call { id, inputs, outputs, predicate } => {
             write!(f, "CALL func: {id}, ")?;
-            if let Some(pred) = predicate {
-                write!(f, "predicate: {pred}, ")?;
-            }
+            write!(f, "predicate: {predicate}, ")?;
             let inputs = inputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
             let outputs =
                 outputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");

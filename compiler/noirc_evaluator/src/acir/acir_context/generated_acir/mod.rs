@@ -432,7 +432,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let outputs = vec![BrilligOutputs::Array(limb_witnesses.clone())];
 
         self.brillig_call(
-            None,
+            Expression::one(),
             &le_bytes_code,
             inputs,
             outputs,
@@ -459,7 +459,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig_call(
-            None,
+            Expression::one(),
             &inverse_code,
             inputs,
             outputs,
@@ -600,7 +600,7 @@ impl<F: AcirField> GeneratedAcir<F> {
 
     pub(crate) fn brillig_call(
         &mut self,
-        predicate: Option<Expression<F>>,
+        predicate: Expression<F>,
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<BrilligInputs<F>>,
         outputs: Vec<BrilligOutputs>,
