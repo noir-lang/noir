@@ -125,6 +125,7 @@ impl<'context> Elaborator<'context> {
             self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
+            self.unresolved_globals,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
