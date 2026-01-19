@@ -90,7 +90,6 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: noirc_driver::DEFAULT_EXPRESSION_WIDTH,
     }
 }
 

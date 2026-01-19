@@ -4,10 +4,13 @@ use acvm::{
     brillig_vm::offsets,
 };
 
-use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{BrilligBinaryOp, registers::Allocated},
+};
 
 use super::{
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters, assert_usize,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
@@ -142,6 +145,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// starting from the end, moving backwards.
     ///
     /// By moving back-to-front, it can shift items backwards, modifying a vector in-place to make room in the front.
+    ///
+    /// # Safety
+    /// When `num_elements = 0`, the subtraction `num_elements - 1` underflows to `2^32 - 1`.
+    /// This is safe because:
+    /// 1. `source_pointer = source_start + (2^32 - 1)` wraps to `source_start - 1`
+    /// 2. The loop exit condition `source_pointer < source_start` becomes `true` immediately
+    /// 3. The loop exits without any iterations, which is correct for 0 elements
+    ///
+    /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this                                                             
+    /// invariant because they pass heap pointers (from vector metadata), and heap allocations                                                             
+    /// always produce pointers > 0 since the heap starts after reserved registers and the stack.   
     pub(crate) fn codegen_mem_copy_from_the_end(
         &mut self,
         source_start: MemoryAddress,
@@ -440,13 +454,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
     /// Such a vector with a semantic length of 3 would have a flattened size of 6.
+    ///
+    /// Uses checked multiplication to trap on overflow (length × item_size > u32::MAX).
     pub(crate) fn codegen_vector_flattened_size(
         &mut self,
         destination: MemoryAddress,
         length: MemoryAddress,
         item_size: MemoryAddress,
     ) {
-        self.memory_op_instruction(length, item_size, destination, BrilligBinaryOp::Mul);
+        self.codegen_checked_mul(length, item_size, destination);
     }
 
     /// Returns a pointer to the items of a given array.

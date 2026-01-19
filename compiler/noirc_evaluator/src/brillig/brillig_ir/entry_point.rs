@@ -1,8 +1,5 @@
 use crate::{
-    brillig::{
-        BrilligOptions,
-        brillig_ir::{assert_usize, registers::Allocated},
-    },
+    brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
 
@@ -17,7 +14,7 @@ use acvm::acir::{
     AcirField,
     brillig::{
         HeapVector, MemoryAddress,
-        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+        lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
     },
 };
 
@@ -116,7 +113,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
                         single_address.address,
-                        MemoryAddress::direct(current_calldata_pointer),
+                        MemoryAddress::direct(assert_u32(current_calldata_pointer)),
                     );
                 }
                 (
@@ -159,7 +156,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(items, size) => {
                     let semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength::from(items) * *size;
+                        ElementTypesLength(assert_u32(items.len())) * *size;
 
                     self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
@@ -174,7 +171,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let calldata_size = Self::flattened_tuple_size(arguments);
 
         self.calldata_copy_instruction(
-            MemoryAddress::direct(self.calldata_start_offset()),
+            MemoryAddress::direct(assert_u32(self.calldata_start_offset())),
             calldata_size,
             0,
         );
@@ -195,12 +192,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             if bit_size < F::max_num_bits() {
                 self.cast_instruction(
                     SingleAddrVariable::new(
-                        MemoryAddress::direct(self.calldata_start_offset() + i),
+                        MemoryAddress::direct(assert_u32(self.calldata_start_offset() + i)),
                         bit_size,
                     ),
-                    SingleAddrVariable::new_field(MemoryAddress::direct(
+                    SingleAddrVariable::new_field(MemoryAddress::direct(assert_u32(
                         self.calldata_start_offset() + i,
-                    )),
+                    ))),
                 );
             }
         }
@@ -215,7 +212,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         flattened_array_pointer: MemoryAddress,
         is_vector: bool,
     ) -> Allocated<MemoryAddress, Stack> {
-        let semi_flattened_size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+        let semi_flattened_size: SemiFlattenedLength =
+            item_count * ElementTypesLength(assert_u32(item_type.len()));
 
         let deflattened_array_pointer = self.allocate_register();
         let deflattened_size_variable =
@@ -328,7 +326,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(item_types, item_count) => {
                     let semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength::from(item_types) * *item_count;
+                        ElementTypesLength(assert_u32(item_types.len())) * *item_count;
                     self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(..) => unreachable!("ICE: Cannot return vectors"),
@@ -347,7 +345,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             match return_param {
                 BrilligParameter::SingleAddr(_) => {
                     self.mov_instruction(
-                        MemoryAddress::direct(return_data_index),
+                        MemoryAddress::direct(assert_u32(return_data_index)),
                         returned_variable.extract_single_addr().address,
                     );
                 }

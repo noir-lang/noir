@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 use acvm::acir::{
     AcirField, BlackBoxFunc,
+    brillig::lengths::SemanticLength,
     circuit::{
         AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
@@ -116,7 +117,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         // TODO: enable this check for all block_types
         if block_type == BlockType::ReturnData {
-            debug_assert!(!init.is_empty(), "Cannot initialize memory with empty init");
+            assert!(!init.is_empty(), "Cannot initialize memory with empty init");
         }
         self.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }
@@ -348,7 +349,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         &mut self,
         input_expr: &Expression<F>,
         radix: u128,
-        limb_count: u32,
+        limb_count: SemanticLength,
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_range = 2..=256;
@@ -399,8 +400,9 @@ impl<F: AcirField> GeneratedAcir<F> {
         &mut self,
         expr: &Expression<F>,
         radix: u128,
-        limb_count: u32,
+        limb_count: SemanticLength,
     ) -> Vec<Witness> {
+        let limb_count = limb_count.0;
         // Create the witness for the result
         let limb_witnesses = vecmap(0..limb_count, |_| self.next_witness_index());
 

@@ -153,7 +153,7 @@ mod tests {
     use acir::{
         FieldElement,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, Program,
+            Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
         native_types::Expression,
@@ -208,7 +208,6 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file
@@ -273,7 +272,6 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file

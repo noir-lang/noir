@@ -1090,6 +1090,7 @@ mod tests {
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp,
         },
+        lexer::errors::LexerErrorKind,
         parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
@@ -2299,5 +2300,26 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
+    }
+
+    /// When an integer is too large, the lexer will issue an error instead of an integer token.
+    /// The parser in this case recovers by filling in extra integers in place of these errors.
+    #[test]
+    fn only_one_error_on_array_with_too_large_integers() {
+        // The fifth integer here should overflow bn254
+        let src = "
+            @[0, 1, 23, 3444, 21888242871839275222246405745257275088548364400416034343698204186575808495617, 43, 2, 32, 4]
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert!(matches!(expression.kind, ExpressionKind::Literal(Literal::Vector(_))));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(
+            reason,
+            ParserErrorReason::Lexer(LexerErrorKind::IntegerLiteralTooLarge { .. })
+        ));
     }
 }
