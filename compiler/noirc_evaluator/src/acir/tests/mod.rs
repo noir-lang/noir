@@ -49,7 +49,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
             let param_size: u32 = function
                 .parameters()
                 .iter()
-                .map(|param| function.dfg.type_of_value(*param).flattened_size())
+                .map(|param| function.dfg.type_of_value(*param).flattened_size().0)
                 .sum();
             vec![(param_size, Visibility::Private)]
         })

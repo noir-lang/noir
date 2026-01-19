@@ -10,6 +10,7 @@
 
 use acvm::acir::{
     AcirField, BlackBoxFunc,
+    brillig::lengths::{FlattenedLength, SemanticLength},
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
@@ -214,7 +215,7 @@ impl<F: AcirField> AcirContext<F> {
         if expression.to_const().is_none() {
             self.mark_variables_equivalent(var, witness_var)?;
         }
-        debug_assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
+        assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
 
         Ok(witness_var)
     }
@@ -369,8 +370,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
-                let outputs =
-                    self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1, None)?;
+                let outputs = self.black_box_function(
+                    BlackBoxFunc::XOR,
+                    inputs,
+                    Some(bit_size),
+                    FlattenedLength(1),
+                    None,
+                )?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -405,8 +411,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
-                let outputs =
-                    self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1, None)?;
+                let outputs = self.black_box_function(
+                    BlackBoxFunc::AND,
+                    inputs,
+                    Some(bit_size),
+                    FlattenedLength(1),
+                    None,
+                )?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -1207,7 +1218,7 @@ impl<F: AcirField> AcirContext<F> {
         endian: Endian,
         input_var: AcirVar,
         radix_var: AcirVar,
-        limb_count: u32,
+        limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
@@ -1247,7 +1258,7 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         endian: Endian,
         input_var: AcirVar,
-        limb_count: u32,
+        limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
         let two_var = self.add_constant(2_u128);
@@ -1271,7 +1282,7 @@ impl<F: AcirField> AcirContext<F> {
                 Ok(values)
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                try_vecmap(0..len, |i| {
+                try_vecmap(0..len.to_usize(), |i| {
                     let index_var = self.add_constant(i);
 
                     Ok::<(AcirVar, NumericType), InternalError>((
@@ -1359,10 +1370,11 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn initialize_array(
         &mut self,
         block_id: BlockId,
-        len: usize,
+        len: FlattenedLength,
         optional_value: Option<AcirValue>,
         databus: BlockType,
     ) -> Result<(), InternalError> {
+        let len = len.to_usize();
         let initialized_values = match optional_value {
             None => {
                 let zero = self.add_constant(F::zero());
@@ -1397,7 +1409,7 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                for i in 0..len {
+                for i in 0..len.to_usize() {
                     let index_var = self.add_constant(i);
                     let read = self.read_from_memory(block_id, &index_var)?;
                     let typ = value_types[i % value_types.len()];
@@ -1413,9 +1425,11 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         id: AcirFunctionId,
         inputs: Vec<AcirValue>,
-        output_count: usize,
+        output_count: FlattenedLength,
         predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let output_count = output_count.to_usize();
+
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs
             .iter()

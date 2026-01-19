@@ -14,7 +14,7 @@ use acvm::acir::{
     AcirField,
     brillig::{
         HeapVector, MemoryAddress,
-        lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+        lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
     },
 };
 
@@ -156,7 +156,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(items, size) => {
                     let semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength::from(items) * *size;
+                        ElementTypesLength(assert_u32(items.len())) * *size;
 
                     self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
@@ -212,7 +212,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         flattened_array_pointer: MemoryAddress,
         is_vector: bool,
     ) -> Allocated<MemoryAddress, Stack> {
-        let semi_flattened_size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+        let semi_flattened_size: SemiFlattenedLength =
+            item_count * ElementTypesLength(assert_u32(item_type.len()));
 
         let deflattened_array_pointer = self.allocate_register();
         let deflattened_size_variable =
@@ -325,7 +326,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
                 BrilligParameter::Array(item_types, item_count) => {
                     let semi_flattened_size: SemiFlattenedLength =
-                        ElementsLength::from(item_types) * *item_count;
+                        ElementTypesLength(assert_u32(item_types.len())) * *item_count;
                     self.allocate_brillig_array(semi_flattened_size).map(BrilligVariable::from)
                 }
                 BrilligParameter::Vector(..) => unreachable!("ICE: Cannot return vectors"),

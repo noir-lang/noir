@@ -5,7 +5,7 @@ use acir::{
         BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
         MemoryAddress, ValueOrArray,
         lengths::{
-            ElementsFlattenedLength, ElementsLength, FlattenedLength, SemanticLength,
+            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
             SemiFlattenedLength,
         },
     },
@@ -143,7 +143,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) => {
                 // The array's semi-flattened size must match the expected size
-                let semi_flattened_size = *type_size * ElementsLength::from(value_types);
+                let semi_flattened_size =
+                    *type_size * ElementTypesLength(assert_u32(value_types.len()));
                 assert_eq!(semi_flattened_size, size);
 
                 let start = self.memory.read_ref(pointer);
@@ -208,7 +209,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             let array_address =
                                 ArrayAddress::from(self.memory.read_ref(value_address));
                             let semi_flattened_size =
-                                *type_size * ElementsLength::from(value_types);
+                                *type_size * ElementTypesLength(assert_u32(value_types.len()));
 
                             self.read_slice_of_values_from_memory(
                                 array_address.items_start(),
@@ -260,7 +261,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             ));
         }
 
-        debug_assert_eq!(
+        assert_eq!(
             destinations.len(),
             destination_value_types.len(),
             "Number of destinations must match number of value types",
@@ -297,7 +298,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) => {
-                    if *type_size * ElementsLength::from(value_types) != *size {
+                    if *type_size * ElementTypesLength(assert_u32(value_types.len())) != *size {
                         return Err(format!(
                             "Destination array size of {size} does not match the type size of {type_size}"
                         ));
@@ -334,7 +335,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             &mut flatten_values_idx,
                             value_type,
                         )?;
-                        debug_assert_eq!(
+                        assert_eq!(
                             flatten_values_idx,
                             output_fields.len(),
                             "Not all values were written to memory"
@@ -362,7 +363,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         // Set the size in the size address.
                         // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
                         // instead we expect the post-call codegen will copy it to the heap.
-                        self.memory.write(*size_addr, values.len().into());
+                        self.memory.write(*size_addr, assert_u32(values.len()).into());
                         self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
                         unimplemented!("deflattening heap vectors from foreign calls");
