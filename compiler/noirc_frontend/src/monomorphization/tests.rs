@@ -1343,3 +1343,35 @@ fn does_not_evaluate_array_len() {
     }
     ");
 }
+
+#[test]
+fn out_of_order_globals() {
+    // FOO;BAZ;BAR was fine, but BAZ;FOO;BAR gave type error.
+    let src = r#"
+    global BAZ: u32 = BAR(2);
+    global FOO: u32 = 1;
+    global BAR: fn(u32) -> u32 = bar;
+
+    fn main(x: u32) -> pub u32 {
+        BAR(x) + BAZ
+    }
+
+    fn bar(x: u32) -> u32 { x + FOO }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    global BAZ$g0: u32 = 3;
+    global FOO$g1: u32 = 1;
+    fn main$f0(x$l0: u32) -> pub u32 {
+        (bar$f1(x$l0) + BAZ$g0)
+    }
+    fn bar$f1(x$l1: u32) -> u32 {
+        (x$l1 + FOO$g1)
+    }
+    unconstrained fn bar$f2(x$l2: u32) -> u32 {
+        (x$l2 + FOO$g1)
+    }
+    ");
+}
