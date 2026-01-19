@@ -334,6 +334,11 @@ impl GlobalSpace {
         }
     }
 
+    /// The maximum address occupied by global variables *after* initialization.
+    ///
+    /// Note that during initialization temporary variables may be allocated beyond this address,
+    /// so it is important that the memory after the globals is not populated with data before
+    /// the globals have been initialized, or that data could be overwritten by the init.
     pub(super) fn max_memory_address(&self) -> usize {
         self.max_memory_address
     }
