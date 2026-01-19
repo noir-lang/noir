@@ -912,7 +912,9 @@
 <a href="#911" id="911">911</a>
 <a href="#912" id="912">912</a>
 <a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1098,6 +1100,11 @@
 
     required_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
 
+    <span class="doccomment">/// These are the globals that have yet to be elaborated.
+    /// This map is used to lazily evaluate these globals if they're encountered before
+    /// they are elaborated (e.g. in a function's type or another global's RHS).
+    </span>unresolved_globals: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>BTreeMap&lt;GlobalId, UnresolvedGlobal&gt;,
+
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: <span class="prelude-ty">Option</span>&lt;Loop&gt;,
 
@@ -1166,11 +1173,6 @@
 
     crate_id: CrateId,
 
-    <span class="doccomment">/// These are the globals that have yet to be elaborated.
-    /// This map is used to lazily evaluate these globals if they're encountered before
-    /// they are elaborated (e.g. in a function's type or another global's RHS).
-    </span>unresolved_globals: BTreeMap&lt;GlobalId, UnresolvedGlobal&gt;,
-
     interpreter_call_stack: im::Vector&lt;Location&gt;,
 
     <span class="doccomment">/// If greater than 0, field visibility errors won't be reported.
@@ -1223,6 +1225,7 @@
         crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>CrateGraph,
         interpreter_output: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
         required_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
+        unresolved_globals: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>BTreeMap&lt;GlobalId, UnresolvedGlobal&gt;,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector&lt;Location&gt;,
         options: ElaboratorOptions&lt;<span class="lifetime">'context</span>&gt;,
@@ -1237,6 +1240,7 @@
             crate_graph,
             interpreter_output,
             required_unstable_features,
+            unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: <span class="prelude-val">None</span>,
             generics: Vec::new(),
@@ -1249,7 +1253,6 @@
             trait_bounds: Vec::new(),
             function_context: <span class="macro">vec!</span>[FunctionContext::default()],
             current_trait_impl: <span class="prelude-val">None</span>,
-            unresolved_globals: BTreeMap::new(),
             current_trait: <span class="prelude-val">None</span>,
             interpreter_call_stack,
             in_comptime_context: <span class="bool-val">false</span>,
@@ -1286,6 +1289,7 @@
             <span class="kw-2">&amp;</span>context.crate_graph,
             <span class="kw-2">&amp;</span>context.interpreter_output,
             <span class="kw-2">&amp;</span>context.required_unstable_features,
+            <span class="kw-2">&amp;mut </span>context.unresolved_globals,
             crate_id,
             im::Vector::new(),
             options,

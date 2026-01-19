@@ -823,7 +823,8 @@
 <a href="#822" id="822">822</a>
 <a href="#823" id="823">823</a>
 <a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a></pre></div><pre class="rust"><code><span class="doccomment">//! Comptime expression evaluation and macro expansion via the interpreter.
 //!
 //! This module handles the execution of compile-time code and attributes in Noir.
 //!
@@ -950,6 +951,7 @@
             <span class="self">self</span>.crate_graph,
             <span class="self">self</span>.interpreter_output,
             <span class="self">self</span>.required_unstable_features,
+            <span class="self">self</span>.unresolved_globals,
             <span class="self">self</span>.crate_id,
             <span class="self">self</span>.interpreter_call_stack.clone(),
             <span class="self">self</span>.options,
