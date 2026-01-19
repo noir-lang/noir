@@ -54,6 +54,7 @@ use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
+use crate::token::FunctionAttributeKind;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -2013,6 +2014,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let crossing_runtime_boundaries =
             !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+        let is_oracle = self.function_is_oracle(call.func);
 
         if crossing_runtime_boundaries {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
@@ -2057,6 +2059,10 @@ impl<'interner> Monomorphizer<'interner> {
 
         if crossing_runtime_boundaries {
             self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
+        }
+
+        if is_oracle {
+            self.check_return_type_returned_from_oracle(&return_type, location)?;
         }
 
         let return_type = Self::convert_type(&return_type, location)?;
@@ -2169,6 +2175,19 @@ impl<'interner> Monomorphizer<'interner> {
                 typ,
                 location,
             });
+        }
+
+        Ok(())
+    }
+
+    fn check_return_type_returned_from_oracle(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if return_type.contains_reference() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
         }
 
         Ok(())
@@ -2728,6 +2747,23 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
+        false
+    }
+
+    fn function_is_oracle(&self, function: ExprId) -> bool {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
+            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+                return self
+                    .interner
+                    .function_modifiers(&func_id)
+                    .attributes
+                    .function
+                    .as_ref()
+                    .is_some_and(|(attribute, _)| {
+                        matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
+                    });
+            }
+        }
         false
     }
 }
