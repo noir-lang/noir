@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Expect"],"fn":["get_monomorphized","get_monomorphized_with_options","get_program","get_program_with_options","has_parser_error","remove_experimental_warnings"],"struct":["GetProgramOptions"]};
+window.SIDEBAR_ITEMS = {"enum":["Expect"],"fn":["get_monomorphized","get_monomorphized_with_options","get_monomorphized_with_stdlib","get_program","get_program_with_options","has_parser_error","remove_experimental_warnings"],"mod":["stdlib_src"],"struct":["GetProgramOptions"]};

@@ -505,7 +505,7 @@
     <span class="doccomment">/// Get or create a replacement proxy for the function definition in the [Ident],
     /// and replace the definition with the ID of the new global proxy function.
     </span><span class="kw">fn </span>redirect_to_proxy(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: <span class="kw-2">&amp;mut </span>Ident, <span class="kw-2">mut </span>unconstrained: bool) {
-        <span class="comment">// If we are calling an oracle, there is no reason to create an unconstrained proxy,
+        <span class="comment">// If we are calling an oracle, there is no reason to create a constrained proxy,
         // since such a call would be rejected by the SSA validation.
         </span>unconstrained |= <span class="macro">matches!</span>(ident.definition, Definition::Oracle(<span class="kw">_</span>));
 
