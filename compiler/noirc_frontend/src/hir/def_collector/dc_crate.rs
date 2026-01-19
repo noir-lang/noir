@@ -391,8 +391,44 @@ impl DefCollector {
             inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
         }
 
-        let mut collected_imports = std::mem::take(&mut def_collector.imports);
+        let collected_imports = std::mem::take(&mut def_collector.imports);
+        Self::process_imports(collected_imports, crate_id, context, &mut errors);
 
+        let debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
+            let file = context.file_manager.find_by_path_suffix(file_suffix);
+            file.unwrap_or_else(|error| {
+                let location = Location::new(Span::empty(0), root_file_id);
+                errors.push(CompilationError::DebugComptimeScopeNotFound(error, location));
+                None
+            })
+        });
+
+        let cli_options = crate::elaborator::ElaboratorOptions {
+            debug_comptime_in_file,
+            pedantic_solving: options.pedantic_solving,
+            enabled_unstable_features: options.enabled_unstable_features,
+            disable_required_unstable_features: options.disable_required_unstable_features,
+        };
+
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
+
+        errors.append(&mut more_errors);
+
+        Self::check_unused_items(context, crate_id, &mut errors);
+
+        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
+        errors
+    }
+
+    fn process_imports(
+        mut collected_imports: Vec<ImportDirective>,
+        crate_id: CrateId,
+        context: &mut Context,
+        errors: &mut Vec<CompilationError>,
+    ) {
         // Resolve unresolved imports collected from the crate, one by one.
         // Imports that cannot be resolved don't error right away. Instead, they are put in
         // `import_with_errors`. After trying to resolve all imports, we'll try to resolve, once
@@ -542,34 +578,6 @@ impl DefCollector {
                 break;
             }
         }
-
-        let debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
-            let file = context.file_manager.find_by_path_suffix(file_suffix);
-            file.unwrap_or_else(|error| {
-                let location = Location::new(Span::empty(0), root_file_id);
-                errors.push(CompilationError::DebugComptimeScopeNotFound(error, location));
-                None
-            })
-        });
-
-        let cli_options = crate::elaborator::ElaboratorOptions {
-            debug_comptime_in_file,
-            pedantic_solving: options.pedantic_solving,
-            enabled_unstable_features: options.enabled_unstable_features,
-            disable_required_unstable_features: options.disable_required_unstable_features,
-        };
-
-        let mut more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
-
-        errors.append(&mut more_errors);
-
-        Self::check_unused_items(context, crate_id, &mut errors);
-
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        }
-        errors
     }
 
     fn check_unused_items(
