@@ -834,7 +834,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let frontend_type = self.interner.id_type(expr);
                 let typ = Self::convert_type(&frontend_type, location)?;
 
-                if !self.in_unconstrained_function && Self::contains_reference(&frontend_type) {
+                if !self.in_unconstrained_function && frontend_type.contains_reference() {
                     let typ = frontend_type.to_string();
                     return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
                         typ,
@@ -885,62 +885,6 @@ impl<'interner> Monomorphizer<'interner> {
         match target_type {
             Some(typ) => Cow::Borrowed(typ),
             None => Cow::Owned(self.interner.id_type(expr)),
-        }
-    }
-
-    /// True if a value of the given type contains a reference value.
-    ///
-    /// Note that the above wording excludes function types with reference parameters.
-    fn contains_reference(typ: &Type) -> bool {
-        match typ {
-            Type::FieldElement
-            | Type::Bool
-            | Type::String(_)
-            | Type::Integer(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
-
-            Type::Reference(_, _) => true,
-
-            Type::Array(_len, element) => Self::contains_reference(element),
-            Type::Vector(element) => Self::contains_reference(element),
-            Type::FmtString(_, environment) => Self::contains_reference(environment),
-            Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
-            Type::DataType(datatype, generics) => {
-                let datatype = datatype.borrow();
-                if let Some(fields) = datatype.get_fields(generics) {
-                    fields.iter().any(|(_, field, _)| Self::contains_reference(field))
-                } else if let Some(variants) = datatype.get_variants(generics) {
-                    variants
-                        .iter()
-                        .any(|(_, variant_args)| variant_args.iter().any(Self::contains_reference))
-                } else {
-                    false
-                }
-            }
-            Type::Alias(alias, generics) => {
-                Self::contains_reference(&alias.borrow().get_type(generics))
-            }
-            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::CheckedCast { to, .. } => Self::contains_reference(to),
-            Type::Function(_args, _ret, env, _unconstrained) => {
-                // Only the environment of a function is counted as an actual reference value.
-                // Otherwise we can't return functions accepting references as arguments from if
-                // expressions.
-                Self::contains_reference(env)
-            }
-            Type::Forall(_, typ) => Self::contains_reference(typ),
         }
     }
 
@@ -2328,7 +2272,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.interner.id_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
-        if !self.in_unconstrained_function && Self::contains_reference(&expression_type) {
+        if !self.in_unconstrained_function && expression_type.contains_reference() {
             let typ = expression_type.to_string();
             return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
         }
@@ -2593,7 +2537,7 @@ impl<'interner> Monomorphizer<'interner> {
         let result_type = self.interner.id_type(expr_id);
         let location = self.interner.expr_location(&expr_id);
 
-        if !self.in_unconstrained_function && Self::contains_reference(&result_type) {
+        if !self.in_unconstrained_function && result_type.contains_reference() {
             let typ = result_type.to_string();
             return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
         }
