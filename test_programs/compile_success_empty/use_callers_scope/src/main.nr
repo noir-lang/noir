@@ -8,7 +8,7 @@ fn main() {}
 
 mod bar {
     #[use_callers_scope]
-    pub comptime fn struct_attr(_: StructDefinition) {
+    pub comptime fn struct_attr(_: TypeDefinition) {
         let _ = quote { Bar }.as_type();
     }
 
@@ -19,7 +19,7 @@ mod bar {
 
         // Ensure closures can still access Bar even
         // though `map` separates them from `fn_attr`.
-        let _ = &[1, 2, 3].map(|_| quote { Bar }.as_type());
+        let _ = [1, 2, 3].as_vector().map(|_| quote { Bar }.as_type());
     }
 
     // use_callers_scope should also work nested

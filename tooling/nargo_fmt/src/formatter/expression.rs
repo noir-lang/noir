@@ -4,9 +4,8 @@ use noirc_frontend::{
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
-        UnresolvedTypeData,
     },
-    token::{Keyword, Token},
+    token::{Keyword, Token, TokenKind},
 };
 
 use crate::chunks::{Chunk, ChunkFormatter, ChunkGroup, GroupKind, GroupTag, TextChunk};
@@ -19,9 +18,21 @@ struct FormattedLambda {
     first_line_width: usize,
 }
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
-        group.leading_comment(self.skip_comments_and_whitespace_chunk());
+        group.leading_comment(self.chunk(|formatter| {
+            // Doc comments for an expression could come before a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments_checking_safety();
+            }
+
+            formatter.skip_comments_and_whitespace();
+
+            // Or doc comments could come after a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments_checking_safety();
+            }
+        }));
 
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal, group),
@@ -86,17 +97,17 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                     false, // force multiple lines
                 ));
             }
-            ExpressionKind::Unsafe(block_expression, _span) => {
+            ExpressionKind::Unsafe(unsafe_expression) => {
                 group.group(self.format_unsafe_expression(
-                    block_expression,
+                    unsafe_expression.block,
                     false, // force multiple lines
                 ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                group.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
+                group.text(self.chunk(|formatter| formatter.format_as_trait_path(*as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) => {
-                group.group(self.format_type_path(type_path));
+                group.group(self.format_type_path(*type_path));
             }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
@@ -112,7 +123,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 formatter.write_right_paren();
             })),
             Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
-                group.text(self.chunk(|formatter| {
+                group.verbatim(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
                 }));
@@ -127,23 +138,29 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             })),
             Literal::Array(array_literal) => group.group(self.format_array_literal(
                 array_literal,
-                false, // is slice
+                false, // is vector
             )),
-            Literal::Slice(array_literal) => {
+            Literal::Vector(array_literal) => {
                 group.group(self.format_array_literal(
                     array_literal,
-                    true, // is slice
+                    true, // is vector
                 ));
             }
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> ChunkGroup {
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_vector: bool) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if is_slice {
-                formatter.write_token(Token::Ampersand);
+            if is_vector {
+                if formatter.is_at(Token::DeprecatedVectorStart) {
+                    // Support the old vector syntax `&[1, 2, 3]`
+                    formatter.bump();
+                    formatter.write("@");
+                } else {
+                    formatter.write_token(Token::At);
+                }
             }
             formatter.write_left_bracket();
         }));
@@ -206,21 +223,28 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut group = ChunkGroup::new();
 
-        let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+        let lambda_has_return_type = lambda.return_type.is_some();
 
         let params_and_return_type_chunk = self.chunk(|formatter| {
+            if lambda.unconstrained {
+                formatter.write_keyword(Keyword::Unconstrained);
+                formatter.write_space();
+            }
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
                 if index > 0 {
                     formatter.write_comma();
                     formatter.write_space();
                 }
-                formatter.format_pattern(pattern);
-                if typ.typ != UnresolvedTypeData::Unspecified {
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_type(typ);
+                let mut pattern_and_type_group = formatter.format_pattern(pattern);
+                if let Some(typ) = typ {
+                    pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }));
                 }
+                formatter.format_chunk_group(pattern_and_type_group);
             }
             formatter.skip_comments_and_whitespace();
             if formatter.is_at(Token::Comma) {
@@ -228,10 +252,10 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            if lambda_has_return_type {
+            if let Some(return_type) = lambda.return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
-                formatter.format_type(lambda.return_type);
+                formatter.format_type(return_type);
                 formatter.write_space();
             }
         });
@@ -251,23 +275,16 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         let comments_count_before_body = self.written_comments_count;
         self.format_expression(lambda.body, &mut body_group);
 
-        body_group.kind = GroupKind::LambdaBody {
-            block_statement_count,
-            has_comments: self.written_comments_count > comments_count_before_body,
-            lambda_has_return_type,
-        };
+        let has_comments = self.written_comments_count > comments_count_before_body;
+        body_group.kind =
+            GroupKind::LambdaBody { block_statement_count, has_comments, lambda_has_return_type };
 
         group.group(body_group);
 
-        let first_line_width = params_and_return_type_chunk_width
-            + (if block_statement_count.is_some() {
-                // 1 because we already have `|param1, param2, ..., paramN| ` (including the space)
-                // so all that's left is a `{`.
-                1
-            } else {
-                // The body is not a block so we can write it right away
-                0
-            });
+        // We assume that if we'll split the lambda into multiple lines, we'll always
+        // format the lambda expression as a block, so we add 1 to account the added `{`,
+        // so `first_line_width` is the width of `|...| {`.
+        let first_line_width = params_and_return_type_chunk_width + 1;
 
         FormattedLambda { group, first_line_width }
     }
@@ -333,7 +350,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             '(' => ')',
             '{' => '}',
             '[' => ']',
-            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+            _ => panic!("Unexpected delimiter: {delimiter_start}"),
         };
 
         // We use the current token rather than the Tokens we got from `Token::Quote` because
@@ -349,7 +366,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.write_space();
             formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
-                formatter.write_source_span(token.to_span());
+                formatter.write_source_span(token.span());
             }
             formatter.write(&delimiter_end.to_string());
         }));
@@ -377,7 +394,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_outer_doc_comments();
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
@@ -388,7 +404,17 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(super) fn format_type_path(&mut self, type_path: TypePath) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
+            let nameless = formatter.is_at(Token::Less);
+            if nameless {
+                formatter.write_token(Token::Less);
+            }
+
             formatter.format_type(type_path.typ);
+
+            if nameless {
+                formatter.write_token(Token::Greater);
+            }
+
             formatter.write_token(Token::DoubleColon);
             formatter.write_identifier(type_path.item);
             if let Some(turbofish) = type_path.turbofish {
@@ -704,7 +730,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     fn format_prefix(&mut self, prefix: PrefixExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            if let UnaryOp::MutableReference = prefix.operator {
+            if let UnaryOp::Reference { mutable: true } = prefix.operator {
                 formatter.write_current_token();
                 formatter.bump();
                 formatter.skip_comments_and_whitespace();
@@ -947,6 +973,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
             // Add a trailing comma regardless of whether the user specified one or not
             group.text(self.chunk(|formatter| {
+                formatter.skip_comments_and_whitespace();
                 if formatter.token == Token::Comma {
                     formatter.write_current_token_and_bump();
                 } else {
@@ -1156,7 +1183,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             ConstrainKind::Assert => Keyword::Assert,
             ConstrainKind::AssertEq => Keyword::AssertEq,
             ConstrainKind::Constrain => {
-                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+                unreachable!(
+                    "constrain always produces an error, and the formatter doesn't run when there are errors"
+                )
             }
         };
 
@@ -1309,7 +1338,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 }
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_empty_block_contents(&mut self) {
         if let Some(chunks) = self.chunk_formatter().empty_block_contents_chunk() {
             self.format_chunk_group(chunks);
@@ -1331,7 +1360,7 @@ fn force_if_chunks_to_multiple_lines(group: &mut ChunkGroup, group_tag: GroupTag
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
+    use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
 
     #[test]
     fn format_unit() {
@@ -1365,6 +1394,13 @@ mod tests {
     fn format_negative_integer() {
         let src = "global x =  - 42 ;";
         let expected = "global x = -42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_double_negative_integer() {
+        let src = "global x =  - - 42 ;";
+        let expected = "global x = --42;\n";
         assert_format(src, expected);
     }
 
@@ -1404,9 +1440,16 @@ mod tests {
     }
 
     #[test]
-    fn format_standard_slice() {
-        let src = "global x = & [ 1 , 2 , 3 , ] ;";
-        let expected = "global x = &[1, 2, 3];\n";
+    fn format_standard_vector() {
+        let src = "global x = @ [ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_old_vector_syntax() {
+        let src = "global x = &[ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
         assert_format(src, expected);
     }
 
@@ -1869,7 +1912,7 @@ global y = 1;
     }
 
     #[test]
-    fn format_method_call_chain() {
+    fn format_method_call_chain_1() {
         let src = "global x =  bar . baz ( 1, 2 ) . qux ( 1 , 2, 3) . one ( 5, 6)  ;";
         let expected = "global x = bar
     .baz(1, 2)
@@ -1894,9 +1937,9 @@ global y = 1;
 
     #[test]
     fn format_method_call_chain_3() {
-        let src = "fn foo() {     assert(p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
+        let src = "fn foo() {     assert(p4_affine.eq(Something::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
         let expected = "fn foo() {
-    assert(p4_affine.eq(Gaffine::new(
+    assert(p4_affine.eq(Something::new(
         6890855772600357754907169075114257697580319025794532037257385534741338397365,
         4338620300185947561074059802482547481416142213883829469920100239455078257889,
     )));
@@ -1932,7 +1975,7 @@ global y = 1;
     fn format_nested_method_call_with_maximum_width_2() {
         let src = "fn foo() {
     assert(
-        p4_affine.eq(Gaffine::new(
+        p4_affine.eq(Something::new(
             6890855772600357754907169075114257697580319025794532037257385534741338397365,
             4338620300185947561074059802482547481416142213883829469920100239455078257889,
         )),
@@ -1940,7 +1983,7 @@ global y = 1;
 }
 ";
         let expected = "fn foo() {
-    assert(p4_affine.eq(Gaffine::new(
+    assert(p4_affine.eq(Something::new(
         6890855772600357754907169075114257697580319025794532037257385534741338397365,
         4338620300185947561074059802482547481416142213883829469920100239455078257889,
     )));
@@ -2033,15 +2076,34 @@ global y = 1;
     }
 
     #[test]
-    fn format_unsafe_with_doc_comment() {
+    fn format_unsafe_with_comment() {
         let src = "fn foo() {
-        /// Comment 
+        // Comment 
         unsafe { 1  } }";
         let expected = "fn foo() {
-    /// Comment
+    // Comment
     unsafe {
         1
     }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unsafe_with_doc_comment() {
+        let src = "fn foo() {
+        assert(
+        /// Safety: comment
+        /// More comments...
+        unsafe { 1  }
+        ); } ";
+        let expected = "fn foo() {
+    assert(
+        // Safety: comment
+        // More comments...
+        unsafe { 1 },
+    );
 }
 ";
         assert_format(src, expected);
@@ -2097,6 +2159,13 @@ global y = 1;
     fn format_type_path_with_turbofish() {
         let src = "global x = Field :: max :: < i32 > ;";
         let expected = "global x = Field::max::<i32>;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_type_path_with_array_type() {
+        let src = "global x = < [ i32 ; 3 ] > :: max  ;";
+        let expected = "global x = <[i32; 3]>::max;\n";
         assert_format(src, expected);
     }
 
@@ -2216,6 +2285,13 @@ global y = 1;
     fn format_lambda_no_parameters() {
         let src = "global x = | |  1 ;";
         let expected = "global x = || 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unconstrained_lambda_no_parameters() {
+        let src = "global x =  unconstrained  | |  1 ;";
+        let expected = "global x = unconstrained || 1;\n";
         assert_format(src, expected);
     }
 
@@ -2432,7 +2508,7 @@ global y = 1;
 
     #[test]
     fn format_match() {
-        let src = "fn main() {  match  x  {  A=>B,C  =>  {D}E=>(),  } }";
+        let src = "fn main() {  match  x  {  A=>B  ,  C  =>  {D}E=>()  ,  } }";
         // We should remove the block on D for single expressions in the future,
         // unless D is an if or match.
         let expected = "fn main() {
@@ -2443,5 +2519,156 @@ global y = 1;
     }
 }\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_last_assignment_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        x = 1
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_break_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        break
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn format_last_continue_in_block_without_semicolon() {
+        let src = "fn main() {
+    let mut x: Field = 0;
+    {
+        continue
+    }
+    assert_eq(x, 1);
+}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn does_not_add_extra_spaces_to_fmtstr() {
+        let src = r#"fn main() {
+    let multiline_string: str<22> = "{
+        \"key\": \"value\"
+}";
+}
+"#;
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn joins_comma_with_verbatim() {
+        let src = r#"fn main() {
+    foo(1, ["(", "I", " ", "x" , "b"]);
+}
+"#;
+        let expected = r#"fn main() {
+    foo(
+        1,
+        [
+            "(", "I", " ",
+            "x", "b",
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, expected, 30);
+    }
+
+    #[test]
+    fn lambda_in_method_call_that_exceeds_max_width_because_of_curly_1() {
+        let src = r#"fn foo() {
+    let _ = foo.bar().x(|y| {
+        y.qux()
+    });
+}
+"#;
+        let expected = r#"fn foo() {
+    let _ = foo
+        .bar()
+        .x(|y| y.qux());
+}
+"#;
+        assert_format_with_max_width(src, expected, 28);
+    }
+
+    #[test]
+    fn lambda_in_method_call_that_exceeds_max_width_because_of_curly_2() {
+        let src = r#"fn foo() {
+    let _ = foo.bar().x(
+        |y| y.qux(),
+    );
+}
+"#;
+        let expected = r#"fn foo() {
+    let _ = foo
+        .bar()
+        .x(|y| y.qux());
+}
+"#;
+        assert_format_with_max_width(src, expected, 28);
+    }
+
+    #[test]
+    fn lambda_in_method_call_that_exceeds_max_width_because_of_curly_3() {
+        let src = r#"fn foo() {
+    let _ = foo
+        .bar()
+        .x(|y| y.qux());
+}
+"#;
+        assert_format_with_max_width(src, src, 28);
+    }
+
+    #[test]
+    fn cast_broken_to_two_lines_inside_array() {
+        let src = r#"fn foo() {
+    bar(
+        "",
+        [
+            (private_call_timestamp)
+                 as i32,
+            2,
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, src, 40);
+    }
+
+    #[test]
+    fn regression_9556() {
+        let src = r#"fn foo() {
+    let x = a()
+        .bcde(fghijk
+            );
+    x
+}
+"#;
+        assert_format_with_max_width(src, src, 20);
+    }
+
+    #[test]
+    fn turbofish_with_negative_literal() {
+        let src = r#"fn main() {
+    foo::<-128>();
+}
+"#;
+        assert_format(src, src);
     }
 }

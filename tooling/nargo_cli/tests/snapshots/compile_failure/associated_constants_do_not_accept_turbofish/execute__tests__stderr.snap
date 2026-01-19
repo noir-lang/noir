@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Could not resolve 'Self' in path
+  ┌─ src/main.nr:4:25
+  │
+4 │     fn foo() -> [Field; Self::N::<i32>] {
+  │                         ----
+  │
+
+error: Could not resolve 'Self' in path
+  ┌─ src/main.nr:5:13
+  │
+5 │         [0; Self::N::<i32>]
+  │             ----
+  │
+
+Aborting due to 2 previous errors

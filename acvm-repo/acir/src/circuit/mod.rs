@@ -1,8 +1,15 @@
+//! Native structures for representing ACIR
+
 pub mod black_box_functions;
 pub mod brillig;
 pub mod opcodes;
 
-use crate::native_types::{Expression, Witness};
+use crate::{
+    SerializationFormat,
+    circuit::opcodes::display_opcode,
+    native_types::{Expression, Witness},
+    serialization::{self, deserialize_any_format, serialize_with_format},
+};
 use acir_field::AcirField;
 pub use opcodes::Opcode;
 use thiserror::Error;
@@ -11,44 +18,39 @@ use std::{io::prelude::*, num::ParseIntError, str::FromStr};
 
 use base64::Engine;
 use flate2::Compression;
-use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as DeserializationError};
 
 use std::collections::BTreeSet;
 
 use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
-/// Specifies the maximum width of the expressions which will be constrained.
-///
-/// Unbounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports R1CS.
-///
-/// Bounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports PLONK, where arithmetic expressions have a
-/// finite fan-in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-pub enum ExpressionWidth {
-    #[default]
-    Unbounded,
-    Bounded {
-        width: usize,
-    },
-}
-
-/// A program represented by multiple ACIR circuits. The execution trace of these
+/// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-pub struct Program<F> {
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+pub struct Program<F: AcirField> {
     pub functions: Vec<Circuit<F>>,
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
+/// Representation of a single ACIR circuit. The execution trace of this structure
+/// is dictated by the construction of a [crate::native_types::WitnessMap]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-pub struct Circuit<F> {
-    // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
-    // will take on this value. (The value is cached here as an optimization.)
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+pub struct Circuit<F: AcirField> {
+    /// Name of the function represented by this circuit.
+    #[serde(default)] // For backwards compatibility
+    pub function_name: String,
+    /// The current highest witness index in the circuit.
+    ///
+    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
+    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
     pub current_witness_index: u32,
+    /// The circuit opcodes representing the relationship between witness values.
+    ///
+    /// The opcodes should be further converted into a backend-specific circuit representation.
+    /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     pub opcodes: Vec<Opcode<F>>,
-    pub expression_width: ExpressionWidth,
 
     /// The set of private inputs to the circuit.
     pub private_parameters: BTreeSet<Witness>,
@@ -69,18 +71,32 @@ pub struct Circuit<F> {
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
+/// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionOrMemory<F> {
     Expression(Expression<F>),
     Memory(BlockId),
 }
 
+/// Payload tied to an assertion failure.
+/// This data allows users to specify feedback upon a constraint not being satisfied in the circuit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct AssertionPayload<F> {
+    /// Selector that maps a hash of either a constant string or an internal compiler error type
+    /// to an ABI type. The ABI type should then be used to appropriately resolve the payload data.
     pub error_selector: u64,
+    /// The dynamic payload data.
+    ///
+    /// Upon fetching the appropriate ABI type from the `error_selector`, the values
+    /// in this payload can be decoded into the given ABI type.
+    /// The payload is expected to be empty in the case of a constant string
+    /// as the string can be contained entirely within the error type and ABI type.
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
+/// Value for differentiating error types. Used internally by an [AssertionPayload].
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct ErrorSelector(u64);
 
@@ -114,29 +130,8 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct RawAssertionPayload<F> {
-    pub selector: ErrorSelector,
-    pub data: Vec<F>,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ResolvedAssertionPayload<F> {
-    String(String),
-    Raw(RawAssertionPayload<F>),
-}
-
-#[derive(Debug, Copy, Clone)]
-/// The opcode location for a call to a separate ACIR circuit
-/// This includes the function index of the caller within a [program][Program]
-/// and the index in the callers ACIR to the specific call opcode.
-/// This is only resolved and set during circuit execution.
-pub struct ResolvedOpcodeLocation {
-    pub acir_function_index: usize,
-    pub opcode_location: OpcodeLocation,
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
@@ -146,6 +141,26 @@ pub enum OpcodeLocation {
     Brillig { acir_index: usize, brillig_index: usize },
 }
 
+/// Opcodes are locatable so that callers can
+/// map opcodes to debug information related to their context.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct AcirOpcodeLocation(usize);
+impl std::fmt::Display for AcirOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AcirOpcodeLocation {
+    pub fn new(index: usize) -> Self {
+        AcirOpcodeLocation(index)
+    }
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
+/// Index of Brillig opcode within a list of Brillig opcodes.
+/// To be used by callers for resolving debug information.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BrilligOpcodeLocation(pub usize);
 
@@ -218,11 +233,7 @@ impl std::fmt::Display for BrilligOpcodeLocation {
     }
 }
 
-impl<F> Circuit<F> {
-    pub fn num_vars(&self) -> u32 {
-        self.current_witness_index + 1
-    }
-
+impl<F: AcirField> Circuit<F> {
     /// Returns all witnesses which are required to execute the circuit successfully.
     pub fn circuit_arguments(&self) -> BTreeSet<Witness> {
         self.private_parameters.union(&self.public_parameters.0).cloned().collect()
@@ -237,22 +248,31 @@ impl<F> Circuit<F> {
     }
 }
 
-impl<F: Serialize> Program<F> {
-    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode::serialize(self).unwrap();
-        let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
+impl<F: Serialize + AcirField> Program<F> {
+    /// Compress a serialized [Program].
+    fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
+        let mut compressed: Vec<u8> = Vec::new();
+        // Compress the data, which should help with formats that uses field names.
+        let mut encoder = flate2::write::GzEncoder::new(&mut compressed, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
-        Ok(())
+        Ok(compressed)
     }
 
+    /// Serialize and compress a [Program] into bytes, using the given format.
+    pub fn serialize_program_with_format(program: &Self, format: serialization::Format) -> Vec<u8> {
+        let program_bytes =
+            serialize_with_format(program, format).expect("expected circuit to be serializable");
+        Self::compress(program_bytes).expect("expected circuit to compress")
+    }
+
+    /// Serialize and compress a [Program] into bytes, using the format from the environment, or the default format.
     pub fn serialize_program(program: &Self) -> Vec<u8> {
-        let mut program_bytes: Vec<u8> = Vec::new();
-        program.write(&mut program_bytes).expect("expected circuit to be serializable");
-        program_bytes
+        let format = SerializationFormat::from_env().expect("invalid format");
+        Self::serialize_program_with_format(program, format.unwrap_or_default())
     }
 
-    // Serialize and base64 encode program
+    /// Serialize, compress then base64 encode a [Program], using the format from the environment, or the default format,
     pub fn serialize_program_base64<S>(program: &Self, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -263,20 +283,22 @@ impl<F: Serialize> Program<F> {
     }
 }
 
-impl<F: for<'a> Deserialize<'a>> Program<F> {
+impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+    /// Decompress and deserialize bytes into a [Program].
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
-        let mut buf_d = Vec::new();
-        gz_decoder.read_to_end(&mut buf_d)?;
-        bincode::deserialize(&buf_d)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+        let mut buf = Vec::new();
+        gz_decoder.read_to_end(&mut buf)?;
+        let program = deserialize_any_format(&buf)?;
+        Ok(program)
     }
 
+    /// Deserialize bytecode.
     pub fn deserialize_program(serialized_circuit: &[u8]) -> std::io::Result<Self> {
         Program::read(serialized_circuit)
     }
 
-    // Deserialize and base64 decode program
+    /// Deserialize and base64 decode program
     pub fn deserialize_program_base64<'de, D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -292,13 +314,11 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness index : {}", self.current_witness_index)?;
-
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
                 for (index, witness_index) in indices.iter().enumerate() {
-                    write!(f, "{witness_index}")?;
+                    write!(f, "w{witness_index}")?;
                     if index != indices.len() - 1 {
                         write!(f, ", ")?;
                     }
@@ -306,7 +326,7 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 writeln!(f, "]")
             };
 
-        write!(f, "private parameters indices : ")?;
+        write!(f, "private parameters: ")?;
         write_witness_indices(
             f,
             &self
@@ -316,14 +336,15 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 .collect::<Vec<_>>(),
         )?;
 
-        write!(f, "public parameters indices : ")?;
+        write!(f, "public parameters: ")?;
         write_witness_indices(f, &self.public_parameters.indices())?;
 
-        write!(f, "return value indices : ")?;
+        write!(f, "return values: ")?;
         write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
-            writeln!(f, "{opcode}")?;
+            display_opcode(opcode, Some(&self.return_values), f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -338,12 +359,15 @@ impl<F: AcirField> std::fmt::Debug for Circuit<F> {
 impl<F: AcirField> std::fmt::Display for Program<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (func_index, function) in self.functions.iter().enumerate() {
-            writeln!(f, "func {}", func_index)?;
-            writeln!(f, "{}", function)?;
+            writeln!(f, "func {func_index}")?;
+            writeln!(f, "{function}")?;
         }
         for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
-            writeln!(f, "unconstrained func {}", func_index)?;
-            writeln!(f, "{:?}", function.bytecode)?;
+            writeln!(f, "unconstrained func {func_index}: {}", function.function_name)?;
+            let width = function.bytecode.len().to_string().len();
+            for (index, opcode) in function.bytecode.iter().enumerate() {
+                writeln!(f, "{index:>width$}: {opcode}")?;
+            }
         }
         Ok(())
     }
@@ -356,6 +380,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
 impl PublicInputs {
@@ -371,52 +396,21 @@ impl PublicInputs {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
-    use super::{
-        opcodes::{BlackBoxFuncCall, FunctionInput},
-        Circuit, Compression, Opcode, PublicInputs,
-    };
-    use crate::{
-        circuit::{ExpressionWidth, Program},
-        native_types::Witness,
-    };
+    use super::{Circuit, Compression};
+    use crate::circuit::Program;
     use acir_field::{AcirField, FieldElement};
     use serde::{Deserialize, Serialize};
 
-    fn and_opcode<F: AcirField>() -> Opcode<F> {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-            lhs: FunctionInput::witness(Witness(1), 4),
-            rhs: FunctionInput::witness(Witness(2), 4),
-            output: Witness(3),
-        })
-    }
-
-    fn range_opcode<F: AcirField>() -> Opcode<F> {
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(Witness(1), 8),
-        })
-    }
-
-    fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
-        let inputs: Box<[FunctionInput<F>; 25]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
-        let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
-
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
-    }
-
     #[test]
     fn serialization_roundtrip() {
-        let circuit = Circuit {
-            current_witness_index: 5,
-            expression_width: ExpressionWidth::Unbounded,
-            opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
-            assert_messages: Default::default(),
-        };
+        let src = "
+        private parameters: []
+        public parameters: [w2, w12]
+        return values: [w4, w12]
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::RANGE input: w1, bits: 8
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField>(
@@ -433,24 +427,16 @@ mod tests {
 
     #[test]
     fn test_serialize() {
-        let circuit = Circuit {
-            current_witness_index: 0,
-            expression_width: ExpressionWidth::Unbounded,
-            opcodes: vec![
-                Opcode::AssertZero(crate::native_types::Expression {
-                    mul_terms: vec![],
-                    linear_combinations: vec![],
-                    q_c: FieldElement::from(8u128),
-                }),
-                range_opcode(),
-                and_opcode(),
-                keccakf1600_opcode(),
-            ],
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            assert_messages: Default::default(),
-        };
+        let src = "
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
         let json = serde_json::to_string_pretty(&program).unwrap();
@@ -475,5 +461,154 @@ mod tests {
         let deserialization_result: Result<Program<FieldElement>, _> =
             Program::deserialize_program(&zipped_bad_circuit);
         assert!(deserialization_result.is_err());
+    }
+
+    #[test]
+    fn circuit_display_snapshot() {
+        let src = "
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+
+        // All witnesses are expected to be formatted as `w{witness_index}`.
+        insta::assert_snapshot!(
+            circuit.to_string(),
+            @r"
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        ASSERT 0 = 2*w1 + 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::AND lhs: w1, rhs: w2, output: w3, bits: 4
+        BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
+        "
+        );
+    }
+
+    /// Property based testing for serialization
+    mod props {
+        use acir_field::FieldElement;
+        use proptest::prelude::*;
+        use proptest::test_runner::{TestCaseResult, TestRunner};
+
+        use crate::circuit::Program;
+        use crate::native_types::{WitnessMap, WitnessStack};
+        use crate::serialization::*;
+
+        // It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var,
+        // because e.g. the `VecStrategy` uses `Config::default().max_default_size_range`. On top of that,
+        // `Config::default()` reads a static `DEFAULT_CONFIG`, which gets the env vars only once at the
+        // beginning, so we can't override this on a test-by-test basis, unless we use `fork`,
+        // which is a feature that is currently disabled, because it doesn't work with Wasm.
+        // We could add it as a `dev-dependency` just for this crate, but when I tried it just crashed.
+        // For now using a const so it's obvious we can't set it to different values for different tests.
+        const MAX_SIZE_RANGE: usize = 5;
+        const SIZE_RANGE_KEY: &str = "PROPTEST_MAX_DEFAULT_SIZE_RANGE";
+
+        // Define a wrapper around field so we can implement `Arbitrary`.
+        // NB there are other methods like `arbitrary_field_elements` around the codebase,
+        // but for `proptest_derive::Arbitrary` we need `F: AcirField + Arbitrary`.
+        acir_field::field_wrapper!(TestField, FieldElement);
+
+        impl Arbitrary for TestField {
+            type Parameters = ();
+            type Strategy = BoxedStrategy<Self>;
+
+            fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+                any::<u128>().prop_map(|v| Self(FieldElement::from(v))).boxed()
+            }
+        }
+
+        /// Override the maximum size of collections created by `proptest`.
+        #[allow(unsafe_code)]
+        fn run_with_max_size_range<T, F>(cases: u32, f: F)
+        where
+            T: Arbitrary,
+            F: Fn(T) -> TestCaseResult,
+        {
+            let orig_size_range = std::env::var(SIZE_RANGE_KEY).ok();
+            // The defaults are only read once. If they are already set, leave them be.
+            if orig_size_range.is_none() {
+                unsafe {
+                    std::env::set_var(SIZE_RANGE_KEY, MAX_SIZE_RANGE.to_string());
+                }
+            }
+
+            let mut runner = TestRunner::new(ProptestConfig { cases, ..Default::default() });
+            let result = runner.run(&any::<T>(), f);
+
+            // Restore the original.
+            unsafe {
+                std::env::set_var(SIZE_RANGE_KEY, orig_size_range.unwrap_or_default());
+            }
+
+            result.unwrap();
+        }
+
+        #[test]
+        fn prop_program_msgpack_roundtrip() {
+            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
+                let bz = msgpack_serialize(&program, compact)?;
+                let de = msgpack_deserialize(&bz)?;
+                prop_assert_eq!(program, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_program_roundtrip() {
+            run_with_max_size_range(10, |program: Program<TestField>| {
+                let bz = Program::serialize_program(&program);
+                let de = Program::deserialize_program(&bz)?;
+                prop_assert_eq!(program, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_stack_msgpack_roundtrip() {
+            run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
+                let bz = msgpack_serialize(&witness, compact)?;
+                let de = msgpack_deserialize(&bz)?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_stack_roundtrip() {
+            run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
+                let bz = witness.serialize()?;
+                let de = WitnessStack::deserialize(bz.as_slice())?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_map_msgpack_roundtrip() {
+            run_with_max_size_range(10, |(witness, compact): (WitnessMap<TestField>, bool)| {
+                let bz = msgpack_serialize(&witness, compact)?;
+                let de = msgpack_deserialize(&bz)?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_map_roundtrip() {
+            run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
+                let bz = witness.serialize()?;
+                let de = WitnessMap::deserialize(bz.as_slice())?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
     }
 }

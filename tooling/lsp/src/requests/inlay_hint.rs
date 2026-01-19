@@ -1,33 +1,32 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
     TextDocumentPositionParams, TextEdit,
 };
+use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    self,
+    self, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
-        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
-        UnresolvedTypeData, Visitor,
+        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl, Visitor,
     },
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ParsedSubModule},
-    Kind, Type, TypeBinding, TypeVariable,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
-use super::{process_request, to_lsp_location, InlayHintsOptions};
+use super::{InlayHintsOptions, process_request, to_lsp_location};
 
 pub(crate) fn on_inlay_hint_request(
     state: &mut LspState,
     params: InlayHintParams,
-) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
@@ -36,20 +35,18 @@ pub(crate) fn on_inlay_hint_request(
     let options = state.options.inlay_hints;
 
     let result = process_request(state, text_document_position_params, |args| {
-        let path = PathString::from_path(params.text_document.uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).map(|file_id| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_moduled, _errors) = noirc_frontend::parse_program(source);
+        let file_id = args.location.file;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let span = utils::range_to_byte_span(args.files, file_id, &params.range)
-                .map(|range| Span::from(range.start as u32..range.end as u32));
+        let span = utils::range_to_byte_span(args.files, file_id, &params.range)
+            .map(|range| Span::from(range.start as u32..range.end as u32));
 
-            let mut collector =
-                InlayHintCollector::new(args.files, file_id, args.interner, span, options);
-            parsed_moduled.accept(&mut collector);
-            collector.inlay_hints
-        })
+        let mut collector =
+            InlayHintCollector::new(args.files, file_id, args.interner, span, options);
+        parsed_module.accept(&mut collector);
+        Some(collector.inlay_hints)
     });
     future::ready(result)
 }
@@ -111,6 +108,7 @@ impl<'a> InlayHintCollector<'a> {
                     ReferenceId::Module(_)
                     | ReferenceId::Type(_)
                     | ReferenceId::Trait(_)
+                    | ReferenceId::TraitAssociatedType(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)
                     | ReferenceId::Reference(..) => (),
@@ -143,7 +141,7 @@ impl<'a> InlayHintCollector<'a> {
             text_edits: if editable {
                 Some(vec![TextEdit {
                     range: Range { start: location.range.end, end: location.range.end },
-                    new_text: format!(": {}", typ),
+                    new_text: format!(": {typ}"),
                 }])
             } else {
                 None
@@ -191,7 +189,7 @@ impl<'a> InlayHintCollector<'a> {
 
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
-                    to_lsp_location(self.files, self.file_id, call_argument.span)
+                    to_lsp_location(self.files, self.file_id, call_argument.location.span)
                 else {
                     continue;
                 };
@@ -234,7 +232,7 @@ impl<'a> InlayHintCollector<'a> {
 
     fn collect_method_call_chain_hints(&mut self, method: &MethodCallExpression) {
         let Some(object_lsp_location) =
-            to_lsp_location(self.files, self.file_id, method.object.span)
+            to_lsp_location(self.files, self.file_id, method.object.location.span)
         else {
             return;
         };
@@ -249,14 +247,14 @@ impl<'a> InlayHintCollector<'a> {
             return;
         }
 
-        let object_location = Location::new(method.object.span, self.file_id);
+        let object_location = method.object.location;
         let Some(typ) = self.interner.type_at_location(object_location) else {
             return;
         };
 
         self.push_type_hint(
             object_lsp_location,
-            &typ,
+            typ,
             false, // not editable
             false, // don't include colon
         );
@@ -274,7 +272,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn push_parameter_hint(&mut self, position: Position, str: &str) {
-        self.push_text_hint(position, format!("{}: ", str));
+        self.push_text_hint(position, format!("{str}: "));
     }
 
     fn push_text_hint(&mut self, position: Position, str: String) {
@@ -302,7 +300,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn intersects_span(&self, other_span: Span) -> bool {
-        self.span.map_or(true, |span| span.intersects(&other_span))
+        self.span.is_none_or(|span| span.intersects(&other_span))
     }
 
     fn show_closing_brace_hint<F>(&mut self, span: Span, f: F)
@@ -320,14 +318,14 @@ impl<'a> InlayHintCollector<'a> {
     }
 }
 
-impl<'a> Visitor for InlayHintCollector<'a> {
+impl Visitor for InlayHintCollector<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        self.intersects_span(item.span)
+        self.intersects_span(item.location.span)
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
         self.show_closing_brace_hint(span, || {
-            format!(" impl {} for {}", noir_trait_impl.trait_name, noir_trait_impl.object_type)
+            format!(" impl {} for {}", noir_trait_impl.r#trait, noir_trait_impl.object_type)
         });
 
         true
@@ -358,12 +356,12 @@ impl<'a> Visitor for InlayHintCollector<'a> {
     }
 
     fn visit_statement(&mut self, statement: &Statement) -> bool {
-        self.intersects_span(statement.span)
+        self.intersects_span(statement.location.span)
     }
 
     fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
         // Only show inlay hints for let variables that don't have an explicit type annotation
-        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+        if let_statement.r#type.is_none() {
             let_statement.pattern.accept(self);
         };
 
@@ -378,13 +376,13 @@ impl<'a> Visitor for InlayHintCollector<'a> {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> bool {
-        self.intersects_span(expression.span)
+        self.intersects_span(expression.location.span)
     }
 
     fn visit_call_expression(&mut self, call_expression: &CallExpression, _: Span) -> bool {
         self.collect_call_parameter_names(
             get_expression_name(&call_expression.func),
-            call_expression.func.span,
+            call_expression.func.location.span,
             &call_expression.arguments,
         );
 
@@ -411,7 +409,8 @@ impl<'a> Visitor for InlayHintCollector<'a> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (pattern, typ) in &lambda.parameters {
-            if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+            // Only show inlay hints for parameters that don't have an explicit type annotation
+            if typ.is_none() {
                 pattern.accept(self);
             }
         }
@@ -452,7 +451,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             push_type_parts(size, parts, files);
             parts.push(string_part("]"));
         }
-        Type::Slice(typ) => {
+        Type::Vector(typ) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("]"));
@@ -464,6 +463,9 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 if index != types.len() - 1 {
                     parts.push(string_part(", "));
                 }
+            }
+            if types.len() == 1 {
+                parts.push(string_part(","));
             }
             parts.push(string_part(")"));
         }
@@ -497,37 +499,53 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 parts.push(string_part(">"));
             }
         }
-        Type::Function(args, return_type, _env, unconstrained) => {
+        Type::Function(args, return_type, env, unconstrained) => {
             if *unconstrained {
                 parts.push(string_part("unconstrained "));
             }
 
-            parts.push(string_part("fn("));
+            if matches!(**env, Type::Unit) {
+                parts.push(string_part("fn("));
+            } else {
+                parts.push(string_part("fn["));
+                push_type_parts(env, parts, files);
+                parts.push(string_part("]("));
+            }
+
             for (index, arg) in args.iter().enumerate() {
                 push_type_parts(arg, parts, files);
                 if index != args.len() - 1 {
                     parts.push(string_part(", "));
                 }
             }
-            parts.push(string_part(") -> "));
-            push_type_parts(return_type, parts, files);
+
+            if matches!(**return_type, Type::Unit) {
+                parts.push(string_part(")"));
+            } else {
+                parts.push(string_part(") -> "));
+                push_type_parts(return_type, parts, files);
+            }
         }
-        Type::MutableReference(typ) => {
+        Type::Reference(typ, false) => {
+            parts.push(string_part("&"));
+            push_type_parts(typ, parts, files);
+        }
+        Type::Reference(typ, true) => {
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }
-        Type::TypeVariable(binding) => {
-            if let TypeBinding::Unbound(_, kind) = &*binding.borrow() {
-                match kind {
-                    Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
-                    Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
-                    Kind::IntegerOrField => parts.push(string_part("Field")),
-                    Kind::Numeric(ref typ) => push_type_parts(typ, parts, files),
+        Type::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Unbound(_, kind) => match kind {
+                Kind::Any | Kind::Normal | Kind::Numeric(..) => {
+                    push_type_variable_parts(binding, parts, files);
                 }
-            } else {
+                Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
+                Kind::IntegerOrField => parts.push(string_part("Field")),
+            },
+            _ => {
                 push_type_variable_parts(binding, parts, files);
             }
-        }
+        },
         Type::CheckedCast { to, .. } => push_type_parts(to, parts, files),
 
         Type::FieldElement
@@ -606,7 +624,7 @@ mod inlay_hints_tests {
     };
 
     use super::*;
-    use lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
+    use async_lsp::lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
     use tokio::test;
 
     async fn get_inlay_hints(
@@ -850,6 +868,42 @@ mod inlay_hints_tests {
     }
 
     #[test]
+    async fn test_fn_no_env_no_return_type_hint() {
+        let inlay_hints = get_inlay_hints(131, 133, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 132, character: 9 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            let label = labels.iter().map(|label| label.value.clone()).collect::<String>();
+            assert_eq!(label, ": fn()");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_fn_env_return_type_hint() {
+        let inlay_hints = get_inlay_hints(136, 138, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 137, character: 9 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            let label = labels.iter().map(|label| label.value.clone()).collect::<String>();
+            assert_eq!(label, ": fn[(i32,)]() -> i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
     async fn test_do_not_panic_when_given_line_is_too_big() {
         let inlay_hints = get_inlay_hints(0, 100000, type_hints()).await;
         assert!(!inlay_hints.is_empty());
@@ -919,8 +973,8 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name(
-    ) {
+    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name()
+     {
         let inlay_hints = get_inlay_hints(64, 67, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }

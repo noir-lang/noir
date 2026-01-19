@@ -11,14 +11,16 @@ jobs:
   publish:
     name: Publish in order
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
 
       # These steps are in a specific order so crate dependencies are updated first
       - name: Publish acir_field

@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
@@ -20,11 +20,16 @@ pub struct ModuleData {
     pub child_declaration_order: Vec<LocalModuleId>,
 
     /// Contains all definitions visible to the current module. This includes
-    /// all definitions in self.definitions as well as all imported definitions.
+    /// all definitions in `self.definitions` as well as all imported definitions.
     scope: ItemScope,
 
     /// Contains only the definitions directly defined in the current module
     definitions: ItemScope,
+
+    /// All traits in scope, either from `use` imports or `trait` declarations.
+    /// The Ident value is the trait name or the `use` alias, if any.
+    /// This is stored separately from `scope` to quickly check if a trait is in scope.
+    traits_in_scope: HashMap<TraitId, Ident>,
 
     pub location: Location,
 
@@ -55,6 +60,7 @@ impl ModuleData {
             child_declaration_order: Vec::new(),
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
+            traits_in_scope: HashMap::new(),
             location,
             is_contract,
             is_type,
@@ -144,7 +150,17 @@ impl ModuleData {
         visibility: ItemVisibility,
         id: TraitId,
     ) -> Result<(), (Ident, Ident)> {
+        self.traits_in_scope.insert(id, name.clone());
+
         self.declare(name, visibility, ModuleDefId::TraitId(id), None)
+    }
+
+    pub fn declare_trait_associated_type(
+        &mut self,
+        name: Ident,
+        id: TraitAssociatedTypeId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, ItemVisibility::Public, id.into(), None)
     }
 
     pub fn declare_child_module(
@@ -167,11 +183,24 @@ impl ModuleData {
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
+        if let ModuleDefId::TraitId(trait_id) = id {
+            self.traits_in_scope.insert(trait_id, name.clone());
+        }
+
         self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
+    /// Find an [Ident] in the types and values in scope.
+    ///
+    /// Returns the preferred, unambiguous result in both.
     pub fn find_name(&self, name: &Ident) -> PerNs {
         self.scope.find_name(name)
+    }
+
+    /// Finds a trait in scope and returns its name
+    /// (either the trait name, or a `use` alias if it was brought to scope like that)
+    pub fn find_trait_in_scope(&self, trait_id: TraitId) -> Option<&Ident> {
+        self.traits_in_scope.get(&trait_id)
     }
 
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {

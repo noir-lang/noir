@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let x: u64 = 0_u64;
+    let f: fn(u64) -> Field = <Field as From<u64>>::from;
+    let _: Field = f(x);
+    let _: str<3> = str::<3>::from([1_u8, 2_u8, 3_u8]);
+}

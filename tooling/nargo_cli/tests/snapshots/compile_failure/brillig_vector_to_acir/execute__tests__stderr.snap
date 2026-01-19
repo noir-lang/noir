@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable i
+   ┌─ src/main.nr:10:9
+   │
+10 │     for i in 0..y {
+   │         - unused variable
+   │
+
+warning: unused variable x
+  ┌─ src/main.nr:8:24
+  │
+8 │ unconstrained fn clear(x: [u32; DEPTH], y: u32) -> [u32] {
+  │                        - unused variable
+  │
+
+error: Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+  ┌─ src/main.nr:5:13
+  │
+5 │     new_x = clear(x, y);
+  │             -----------
+  │
+
+error: Vectors cannot be returned from an unconstrained runtime to a constrained runtime
+  ┌─ src/main.nr:5:13
+  │
+5 │     new_x = clear(x, y);
+  │             -----------
+  │
+
+error: Cannot assign an expression of type [u32] to a value of type [_; 0]
+  ┌─ src/main.nr:5:13
+  │
+5 │     new_x = clear(x, y);
+  │             -----------
+  │
+
+error: Type annotation needed
+  ┌─ src/main.nr:4:21
+  │
+4 │     let mut new_x = [];
+  │                     -- Could not determine the type of the array
+  │
+
+error: No method named 'push_back' found for type '[u32; 0]'
+   ┌─ src/main.nr:11:13
+   │
+11 │         a = a.push_back(x[i]);
+   │             -----------------
+   │
+
+Aborting due to 5 previous errors

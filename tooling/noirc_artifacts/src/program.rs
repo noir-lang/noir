@@ -1,22 +1,26 @@
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Program;
 use acvm::FieldElement;
+use acvm::acir::circuit::Program;
 use fm::FileId;
 use noirc_abi::Abi;
-use noirc_driver::CompiledProgram;
-use noirc_driver::DebugFile;
-use noirc_errors::debug_info::ProgramDebugInfo;
 use serde::{Deserialize, Serialize};
+
+use crate::debug::DebugFile;
+use crate::debug::DebugInfo;
+use crate::debug::ProgramDebugInfo;
+use crate::ssa::SsaReport;
+
+use super::{deserialize_hash, serialize_hash};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ProgramArtifact {
     pub noir_version: String,
 
-    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`ProgramArtifact`]
-    /// was compiled.
+    /// Hash of the monomorphized program from which this [`ProgramArtifact`] was compiled.
     ///
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
     pub hash: u64,
 
     pub abi: Abi,
@@ -35,10 +39,6 @@ pub struct ProgramArtifact {
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     pub file_map: BTreeMap<FileId, DebugFile>,
-
-    pub names: Vec<String>,
-    /// Names of the unconstrained functions in the program.
-    pub brillig_names: Vec<String>,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {
@@ -50,8 +50,6 @@ impl From<CompiledProgram> for ProgramArtifact {
             bytecode: compiled_program.program,
             debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
             file_map: compiled_program.file_map,
-            names: compiled_program.names,
-            brillig_names: compiled_program.brillig_names,
         }
     }
 }
@@ -66,8 +64,26 @@ impl From<ProgramArtifact> for CompiledProgram {
             debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: vec![],
-            names: program.names,
-            brillig_names: program.brillig_names,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
+pub struct CompiledProgram {
+    pub noir_version: String,
+    /// Hash of the Program (noirc_frontend::monomorphization::ast::Program) from which this [`CompiledProgram`]
+    /// was compiled.
+    ///
+    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    pub hash: u64,
+
+    #[serde(
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
+    )]
+    pub program: Program<FieldElement>,
+    pub abi: Abi,
+    pub debug: Vec<DebugInfo>,
+    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
 }

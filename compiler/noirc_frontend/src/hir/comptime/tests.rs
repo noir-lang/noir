@@ -1,72 +1,68 @@
 #![cfg(test)]
 
-use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
-use noirc_arena::Index;
 use noirc_errors::Location;
 
+use super::Interpreter;
 use super::errors::InterpreterError;
 use super::value::Value;
-use super::Interpreter;
-use crate::elaborator::Elaborator;
+use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
+use crate::hir::def_map::{CrateDefMap, ModuleData};
+use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
+use crate::signed_field::SignedField;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
 /// The stdlib is not made available as a dependency.
 pub(crate) fn with_interpreter<T>(
     src: &str,
-    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
 ) -> T {
     let file = FileId::default();
 
-    // Can't use Index::test_new here for some reason, even with #[cfg(test)].
-    let module_id = LocalModuleId(Index::unsafe_zeroed());
-    let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(
+    let root_module = ModuleData::new(
         None,
         location,
         Vec::new(),
         Vec::new(),
         false, // is contract
         false, // is struct
-    )));
-    assert_eq!(root, module_id);
+    );
 
     let file_manager = FileManager::new(&PathBuf::new());
     let parsed_files = ParsedFiles::new();
     let mut context = Context::new(file_manager, parsed_files);
+    context.enable_pedantic_solving();
     context.def_interner.populate_dummy_operator_traits();
 
     let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
-    let (module, errors) = parse_program(src);
+    let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 
-    let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
 
-    let pedantic_solving = true;
     let mut elaborator = Elaborator::elaborate_and_return_self(
         &mut context,
         krate,
         collector.items,
-        None,
-        pedantic_solving,
+        ElaboratorOptions::test_default(),
     );
 
     let errors = elaborator.errors.clone();
@@ -81,17 +77,17 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     with_interpreter(src, |interpreter, main, errors| {
         assert_eq!(errors.len(), 0);
         let no_location = Location::dummy();
-        interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
+        interpreter.call_function(main, Vec::new(), Default::default(), no_location)
     })
 }
 
-fn interpret(src: &str) -> Value {
+pub(super) fn interpret(src: &str) -> Value {
     interpret_helper(src).unwrap_or_else(|error| {
         panic!("Expected interpreter to exit successfully, but found {error:?}")
     })
 }
 
-fn interpret_expect_error(src: &str) -> InterpreterError {
+pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
     interpret_helper(src).expect_err("Expected interpreter to error")
 }
 
@@ -99,7 +95,7 @@ fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::Field(3u128.into()));
+    assert_eq!(result, Value::Field(SignedField::positive(3u128)));
 }
 
 #[test]
@@ -319,4 +315,131 @@ fn generic_functions() {
     ";
     let result = interpret(program);
     assert_eq!(result, Value::U8(2));
+}
+
+#[test]
+fn capture_variables_by_copy() {
+    let program = "
+    fn main() {
+        comptime {
+            let mut x = 4;
+            let closure_capturing_mutable = |y| y + x;
+            assert(closure_capturing_mutable(1) == 5);
+            x += 1;
+            assert(closure_capturing_mutable(1) == 5);
+        }
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Unit);
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10896
+fn regression_10896() {
+    let program = "
+    fn main() -> pub Field {
+        comptime {
+            let i: i8 = -1;
+            let xs = [1, 2, 3];
+            xs[i]
+        }
+    }
+    ";
+    // This program produces a type mismatch error because the index is i8 but should be u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+fn regression_10896_with_valid_index() {
+    let program = "
+    fn main() -> pub Field {
+        comptime {
+            let i: u8 = 1;
+            let xs = [1, 2, 3];
+            xs[i]
+        }
+    }
+    ";
+    // Even if the index is valid (1), the program should still produce a type mismatch error
+    // because the index is not u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10684
+fn regression_10684() {
+    let program = "
+    fn main() {
+        comptime {
+            let array = [1, 2, 3];
+            let _ = array[-1_i32];
+        }
+    }
+    ";
+    // Even if the index is valid (1), the program should still produce a type mismatch error
+    // because the index is not u32
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatchWithSource error for negative index");
+    });
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10863
+fn regression_10863() {
+    let program = "
+    fn main() {
+        comptime {
+            let x: i8 = -1;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+        }
+    }
+    ";
+    // The type error is detected during elaboration, so comptime evaluation is skipped.
+    // We only get the TypeMismatchWithSource error (not the interpreter error).
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch_with_source = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
+        assert_eq!(errors.len(), 1, "Expected exactly one error");
+    });
+}
+
+#[test]
+// Regression for issue https://github.com/noir-lang/noir/issues/10861
+fn regression_10861() {
+    let program = "
+    fn main() {
+        comptime {
+            // u32::MAX + 1
+            let x: Field = 4294967296;
+            let array = [1, 2, 3];
+            assert_eq(array[x], 1);
+        }
+    }
+    ";
+    // The type error is detected during elaboration, so comptime evaluation is skipped.
+    // We only get the TypeMismatchWithSource error (not the interpreter error).
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch_with_source = errors.iter().any(|e| {
+            matches!(e, CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }))
+        });
+        assert!(has_type_mismatch_with_source, "Expected a TypeMismatchWithSource error");
+        assert_eq!(errors.len(), 1, "Expected exactly one error");
+    });
 }

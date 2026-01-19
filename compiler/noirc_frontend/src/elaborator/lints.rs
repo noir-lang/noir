@@ -1,22 +1,26 @@
+//! Lint checks for function attributes, visibility, and usage restrictions.
+
 use crate::{
-    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    NamedGeneric, Type, TypeBinding,
+    ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
     hir_def::{
-        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral},
+        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral, HirMatch},
         function::FuncMeta,
         stmt::HirStatement,
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
-    Type,
+    shared::{Signedness, Visibility},
+    token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
 
-use noirc_errors::{Span, Spanned};
+use noirc_errors::Location;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -34,43 +38,62 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
         name: interner.definition_name(id).to_string(),
         note,
-        span: location.span,
+        location,
     })
 }
 
-/// Inline attributes are only relevant for constrained functions
-/// as all unconstrained functions are not inlined and so
-/// associated attributes are disallowed.
+/// Validate inline-related attributes based on whether the function is constrained or unconstrained.
+/// - Constrained functions: disallow `#[inline_never]`
+/// - Unconstrained functions: disallow `#[no_predicates]` and `#[fold]`
 pub(super) fn inlining_attributes(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
-        if modifiers.attributes.is_no_predicates() {
-            let ident = func_meta_name_ident(func, modifiers);
-            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident })
-        } else if modifiers.attributes.is_foldable() {
-            let ident = func_meta_name_ident(func, modifiers);
-            Some(ResolverError::FoldAttributeOnUnconstrained { ident })
-        } else {
-            None
+    let attribute = modifiers.attributes.function()?;
+    let location = attribute.location;
+    let ident = func_meta_name_ident(func, modifiers);
+
+    match &attribute.kind {
+        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
+            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-    } else {
-        None
+        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
+            Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
+        }
+        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+            Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
+        }
+        _ => None,
     }
+}
+
+/// The `#[no_predicates]` attribute is not allowed on entry point functions
+/// since it's meant to control inlining into the entry point.
+pub(super) fn no_predicates_on_entry_point(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    (func.is_entry_point && attribute.kind.is_no_predicates()).then(|| {
+        ResolverError::NoPredicatesAttributeOnEntryPoint {
+            ident: func_meta_name_ident(func, modifiers),
+            location: attribute.location,
+        }
+    })
 }
 
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
-    func: &FuncMeta,
     modifiers: &FunctionModifiers,
     crate_id: CrateId,
 ) -> Option<ResolverError> {
-    let is_low_level_function =
-        modifiers.attributes.function().map_or(false, |func| func.is_low_level());
-    if !crate_id.is_stdlib() && is_low_level_function {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
+    if crate_id.is_stdlib() {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_low_level() {
+        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { location: attribute.location })
     } else {
         None
     }
@@ -81,32 +104,140 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function = modifiers.attributes.function().map_or(false, |func| func.is_oracle());
-    if is_oracle_function && !modifiers.is_unconstrained {
+    if modifiers.is_unconstrained {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_oracle() {
         let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleMarkedAsConstrained { ident })
+        let location = attribute.location;
+        Some(ResolverError::OracleMarkedAsConstrained { ident, location })
     } else {
         None
     }
 }
 
-/// Oracle functions may not be called by constrained functions directly.
+/// Oracle functions cannot return more than 1 vector in their output.
 ///
-/// In order for a constrained function to call an oracle it must first call through an unconstrained function.
-pub(super) fn oracle_called_from_constrained_function(
-    interner: &NodeInterner,
-    called_func: &FuncId,
-    calling_from_constrained_runtime: bool,
-    span: Span,
+/// This is currently a limitation with the AVM: to return multiple vectors
+/// of unknown length, it would need to support allocating memory for
+/// them in the call handler, and return their final address. Currently
+/// only the Brillig codegen knows about the Free Memory Pointer, and
+/// the VM writes to whatever address is in the destination, so we
+/// can only safely deal with one vector.
+pub(super) fn oracle_returns_multiple_vectors(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if !calling_from_constrained_runtime {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
         return None;
     }
 
-    let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
-    if is_oracle_call {
-        Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
+    fn vector_count(typ: &Type) -> usize {
+        match typ {
+            Type::Array(_, item) => vector_count(item),
+            Type::Vector(typ) => 1 + vector_count(typ),
+            Type::FmtString(_, item) => vector_count(item),
+            Type::Tuple(items) => items.iter().map(vector_count).sum(),
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                if let Some(fields) = struct_type.get_fields(args) {
+                    fields.iter().map(|(_, typ, _)| vector_count(typ)).sum()
+                } else if let Some(variants) = struct_type.get_variants(args) {
+                    variants.iter().flat_map(|(_, types)| types).map(vector_count).sum()
+                } else {
+                    0
+                }
+            }
+            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args)),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => vector_count(binding),
+                    TypeBinding::Unbound(_, _) => 0,
+                }
+            }
+            Type::Forall(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Reference(_, _)
+            | Type::Function(_, _, _, _)
+            | Type::CheckedCast { .. }
+            | Type::TraitAsType(_, _, _)
+            | Type::Error
+            | Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit => 0,
+        }
+    }
+
+    if vector_count(func.return_type()) > 1 {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
+    } else {
+        None
+    }
+}
+
+/// Oracle functions cannot return references
+pub(super) fn oracle_returns_reference(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    fn contains_reference(typ: &Type) -> bool {
+        match typ {
+            Type::Reference(_, _) => true,
+            Type::Array(_, item) => contains_reference(item),
+            Type::Vector(typ) => contains_reference(typ),
+            Type::Tuple(items) => items.iter().any(contains_reference),
+            Type::DataType(def, args) => {
+                let struct_type = def.borrow();
+                if let Some(fields) = struct_type.get_fields(args) {
+                    fields.iter().any(|(_, typ, _)| contains_reference(typ))
+                } else if let Some(variants) = struct_type.get_variants(args) {
+                    variants.iter().flat_map(|(_, types)| types).any(contains_reference)
+                } else {
+                    false
+                }
+            }
+            Type::Alias(def, args) => contains_reference(&def.borrow().get_type(args)),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => contains_reference(binding),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::Forall(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Function(_, _, _, _)
+            | Type::CheckedCast { .. }
+            | Type::TraitAsType(_, _, _)
+            | Type::Error
+            | Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit => false,
+        }
+    }
+
+    if contains_reference(func.return_type()) {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleReturnsReference { location: ident.location() })
     } else {
         None
     }
@@ -115,7 +246,7 @@ pub(super) fn oracle_called_from_constrained_function(
 /// `pub` is required on return types for entry point functions
 pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
     if func.is_entry_point
-        && func.return_type() != &Type::Unit
+        && func.return_type().follow_bindings() != Type::Unit
         && func.return_visibility == Visibility::Private
     {
         let ident = func_meta_name_ident(func, modifiers);
@@ -127,13 +258,13 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
 
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
-    function_args: &[(Type, ExprId, Span)],
+    function_args: &[(Type, ExprId, Location)],
 ) -> Vec<TypeCheckError> {
     function_args
         .iter()
-        .filter_map(|(typ, _, span)| {
+        .filter_map(|(typ, _, location)| {
             if !typ.is_valid_for_unconstrained_boundary() {
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { location: *location })
             } else {
                 None
             }
@@ -141,18 +272,45 @@ pub(super) fn unconstrained_function_args(
         .collect()
 }
 
-/// Check that we are not passing a slice from an unconstrained runtime to a constrained runtime.
+/// Check that that a type returned from an unconstrained to a constrained runtime is safe:
+/// * cannot return vectors
+/// * cannot return functions
+/// * cannot return types which in general cannot be passed between runtimes, e.g. references
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
-    span: Span,
+    location: Location,
 ) -> Option<TypeCheckError> {
-    if return_type.contains_slice() {
-        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
+    if return_type.contains_vector() {
+        Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
+    } else if return_type.contains_function() {
+        Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {
-        Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
+        Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
     }
+}
+
+/// Errors if func_expr_id is `std::verify_proof_with_type`
+pub(super) fn error_if_verify_proof_with_type(
+    interner: &NodeInterner,
+    func_expr_id: ExprId,
+) -> Option<TypeCheckError> {
+    // Called function
+    let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
+    let func_name = interner.function_name(&func_id);
+
+    // Check if it is verify_proof_with_type and is from the standard library
+    if func_name == "verify_proof_with_type" {
+        let module_id = interner.function_module(func_id);
+        if module_id.krate.is_stdlib() {
+            // Get the function location for the error
+            let location = interner.expr_location(&func_expr_id);
+            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
+        }
+    }
+
+    None
 }
 
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.
@@ -189,67 +347,101 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
-/// Check if an assignment is overflowing with respect to `annotated_type`
-/// in a declaration statement where `annotated_type` is a signed or unsigned integer
-pub(crate) fn overflowing_int(
-    interner: &NodeInterner,
-    rhs_expr: &ExprId,
-    annotated_type: &Type,
-) -> Vec<TypeCheckError> {
-    let expr = interner.expression(rhs_expr);
-    let span = interner.expr_span(rhs_expr);
+/// call_data and return_data visibility modifiers are only allowed on entry point functions.
+pub(super) fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    if !is_entry_point {
+        match visibility {
+            Visibility::CallData(_) | Visibility::ReturnData => {
+                Some(ResolverError::DataBusOnNonEntryPoint {
+                    ident: func.name_ident().clone(),
+                    visibility: visibility.to_string(),
+                })
+            }
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
 
-    let mut errors = Vec::with_capacity(2);
+pub(crate) fn check_varargs(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let secondary_attributes = &modifiers.attributes.secondary;
+    let varargs_attribute = secondary_attributes
+        .iter()
+        .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Varargs))?;
+    let location = varargs_attribute.location;
+    if !modifiers.is_comptime {
+        return Some(ResolverError::VarargsOnNonComptimeFunction { location });
+    }
+
+    let Some((pattern, typ, _)) = func.parameters.0.last() else {
+        return Some(ResolverError::VarargsOnFunctionWithNoParameters { location });
+    };
+    if !matches!(typ.follow_bindings(), Type::Vector(..)) {
+        let location = pattern.location();
+        return Some(ResolverError::VarargsLastParameterIsNotAVector { location });
+    }
+
+    None
+}
+
+/// Checks if an ExprId, which has to be an integer literal, fits in its type.
+pub(crate) fn check_integer_literal_fits_its_type(
+    interner: &NodeInterner,
+    expr_id: &ExprId,
+) -> Option<TypeCheckError> {
+    let expr = interner.expression(expr_id);
+    let typ = interner.id_type(expr_id).follow_bindings();
+    let location = interner.expr_location(expr_id);
+
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
-            Type::Integer(Signedness::Unsigned, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
-                let max = 2u128.pow(bit_count) - 1;
-                if value > max.into() || negative {
-                    errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
-                        ty: annotated_type.clone(),
-                        range: format!("0..={}", max),
-                        span,
+        HirExpression::Literal(HirLiteral::Integer(value)) => match typ {
+            Type::Integer(Signedness::Unsigned, bit_size) => {
+                let bit_size: u32 = bit_size.into();
+                let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
+                if value.absolute_value() > max.into() || value.is_negative() {
+                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: value,
+                        ty: typ.clone(),
+                        range: format!("0..={max}"),
+                        location,
                     });
                 }
             }
             Type::Integer(Signedness::Signed, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
+                let bit_count: u32 = bit_count.into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (negative && value > min.into()) || (!negative && value > max.into()) {
-                    errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
-                        ty: annotated_type.clone(),
-                        range: format!("-{}..={}", min, max),
-                        span,
+
+                let is_negative = value.is_negative();
+                let abs = value.absolute_value();
+
+                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
+                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: value,
+                        ty: typ.clone(),
+                        range: format!("-{min}..={max}"),
+                        location,
                     });
                 }
             }
             _ => (),
         },
-        HirExpression::Prefix(expr) => {
-            overflowing_int(interner, &expr.rhs, annotated_type);
-            if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
-                errors.push(TypeCheckError::InvalidUnaryOp {
-                    kind: annotated_type.to_string(),
-                    span,
-                });
-            }
-        }
-        HirExpression::Infix(expr) => {
-            errors.extend(overflowing_int(interner, &expr.lhs, annotated_type));
-            errors.extend(overflowing_int(interner, &expr.rhs, annotated_type));
-        }
-        _ => {}
+        _ => panic!("Expected an integer literal"),
     }
 
-    errors
+    None
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Spanned::from(func.name.location.span, modifiers.name.clone()))
+    Ident::new(modifiers.name.clone(), func.name.location)
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.
@@ -257,13 +449,13 @@ pub(crate) fn unbounded_recursion<'a>(
     interner: &'a NodeInterner,
     func_id: FuncId,
     func_name: impl FnOnce() -> &'a str,
-    func_span: Span,
+    func_location: Location,
     body_id: ExprId,
 ) -> Option<ResolverError> {
     if !can_return_without_recursing(interner, func_id, body_id) {
         Some(ResolverError::UnconditionalRecursion {
             name: func_name().to_string(),
-            span: func_span,
+            location: func_location,
         })
     } else {
         None
@@ -283,6 +475,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             // Rust doesn't seem to check the for loop body (it's bounds might mean it's never called).
             HirStatement::For(e) => check(e.start_range) && check(e.end_range),
             HirStatement::Loop(e) => check(e),
+            HirStatement::While(condition, block) => check(condition) && check(block),
             HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
@@ -296,11 +489,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
                 return true;
             }
             let definition = interner.definition(ident.id);
-            if let DefinitionKind::Function(id) = definition.kind {
-                func_id != id
-            } else {
-                true
-            }
+            if let DefinitionKind::Function(id) = definition.kind { func_id != id } else { true }
         }
         HirExpression::Block(b) => check_block(b),
         HirExpression::Prefix(e) => check(e.rhs),
@@ -308,12 +497,12 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
         HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
             check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
         }
+        HirExpression::Match(e) => can_return_without_recursing_match(interner, func_id, &e),
         HirExpression::Tuple(e) => e.iter().cloned().all(check),
         HirExpression::Unsafe(b) => check_block(b),
         // Rust doesn't check the lambda body (it might not be called).
@@ -323,7 +512,25 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
-        | HirExpression::Comptime(_)
         | HirExpression::Error => true,
+    }
+}
+
+fn can_return_without_recursing_match(
+    interner: &NodeInterner,
+    func_id: FuncId,
+    match_expr: &HirMatch,
+) -> bool {
+    let check_match = |e| can_return_without_recursing_match(interner, func_id, e);
+    let check = |e| can_return_without_recursing(interner, func_id, e);
+
+    match match_expr {
+        HirMatch::Success(expr) => check(*expr),
+        HirMatch::Failure { .. } => true,
+        HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
+        HirMatch::Switch(_, cases, otherwise) => {
+            cases.iter().all(|case| check_match(&case.body))
+                && otherwise.as_ref().is_none_or(|case| check_match(case))
+        }
     }
 }

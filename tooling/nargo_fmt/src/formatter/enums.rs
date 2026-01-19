@@ -6,7 +6,7 @@ use noirc_frontend::{
 use super::Formatter;
 use crate::chunks::ChunkGroup;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_enum(&mut self, noir_enum: NoirEnumeration) {
         self.format_secondary_attributes(noir_enum.attributes);
         self.write_indentation();

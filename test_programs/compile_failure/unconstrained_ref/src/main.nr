@@ -4,6 +4,6 @@ unconstrained fn uncon_ref() -> &mut Field {
 }
 
 fn main() {
-    /// Safety: testing context
+    // Safety: testing context
     let e = unsafe { uncon_ref() };
 }

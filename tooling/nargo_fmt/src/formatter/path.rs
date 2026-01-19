@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_path(&mut self, path: Path) {
         self.skip_comments_and_whitespace();
 
@@ -23,6 +23,7 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::Super);
                 self.write_token(Token::DoubleColon);
             }
+            PathKind::Resolved(_) => unreachable!("$crate should be unreachable here"),
         }
 
         for (index, segment) in path.segments.into_iter().enumerate() {

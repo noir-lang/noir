@@ -3,10 +3,10 @@ name: deny
 on:
   push:
     branches: [master]
-    paths: [Cargo.lock]
+    paths: [Cargo.lock, .github/workflows/deny.yml]
   pull_request:
     branches: [master]
-    paths: [Cargo.lock]
+    paths: [Cargo.lock, .github/workflows/deny.yml]
   merge_group:
 
 env:
@@ -19,8 +19,10 @@ jobs:
   deny:
     name: deny
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: actions/checkout@v6
+      - uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979
         with:
           command: check all

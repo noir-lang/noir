@@ -19,17 +19,19 @@ workspace = true
 [[bin]]
 name = "acvm"
 path = "src/main.rs"
+doc = false # Avoid conflicts with the `acvm` library when documenting. We just want to document the `acvm` library.
 
 [dependencies]
-thiserror.workspace = true
-toml.workspace = true
 color-eyre.workspace = true
 clap.workspace = true
-acvm.workspace = true
-nargo.workspace = true
 const_format.workspace = true
-bn254_blackbox_solver.workspace = true
+toml.workspace = true
+
 acir.workspace = true
+acvm.workspace = true
+bn254_blackbox_solver.workspace = true
+nargo.workspace = true
+noir_artifact_cli.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
@@ -38,4 +40,3 @@ tracing-appender = "0.2.3"
 [dev-dependencies]
 rand.workspace = true
 proptest = "1.2.0"
-paste = "1.0.14"

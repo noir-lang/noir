@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use dependency::Point;
+
+fn main() {
+    let point: Point = Point { x: 1_Field, y: 2_Field };
+    let _: Field = point.x;
+    let Point { x, y }: Point = point;
+    let _: (Field, Field) = (x, y);
+}

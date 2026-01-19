@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(predicate: bool) {
+    let num1: &mut Field = &mut 0_Field;
+    let array: [&mut Field; 1] = if predicate { [num1] } else { [num1] };
+    *array[0_u32] = 9_Field;
+    assert(*array[0_u32] == 9_Field);
+}

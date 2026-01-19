@@ -56,6 +56,13 @@ impl Buffer {
         }
     }
 
+    /// Trim multiple newlines from the end of the buffer, keeping at most one.
+    pub(crate) fn trim_multiple_newlines(&mut self) {
+        while self.buffer.ends_with("\n\n") {
+            self.buffer.truncate(self.buffer.len() - 1);
+        }
+    }
+
     pub(crate) fn contents(self) -> String {
         self.buffer
     }

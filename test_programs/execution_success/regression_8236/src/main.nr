@@ -1,0 +1,16 @@
+global G_A: [u16; 3] = [33700, 47314, 35095];
+global G_B: [u16; 3] = [59890, 17417, 14409];
+fn main(a: [u16; 3], b: [bool; 1]) -> pub bool {
+    // Safety: testing context
+    let res = unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)];
+    if res {
+        // Safety: testing context
+        let c = unsafe { func_1(a, b[0]) };
+        b[0]
+    } else {
+        ((a[((a[0] as u32) % 3)] as u32) > ((24993 % G_A[1]) as u32))
+    }
+}
+unconstrained fn func_1(a: [u16; 3], b: bool) -> [bool; 1] {
+    [false]
+}

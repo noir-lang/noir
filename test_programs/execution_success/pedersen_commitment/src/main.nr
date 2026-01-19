@@ -5,4 +5,3 @@ fn main(x: Field, y: Field, expected_commitment: std::embedded_curve_ops::Embedd
     assert_eq(commitment.y, expected_commitment.y);
 }
 // docs:end:pedersen-commitment
-

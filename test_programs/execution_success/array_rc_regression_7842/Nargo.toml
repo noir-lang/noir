@@ -1,0 +1,6 @@
+[package]
+name = "array_rc_regression_7842"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -6,13 +6,14 @@ use crate::{
 use super::Parser;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 pub enum StatementOrExpressionOrLValue {
     Statement(Statement),
     Expression(Expression),
     LValue(LValue),
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Parses either a statement, an expression or an LValue. Returns `StatementKind::Error`
     /// if none can be parsed, recording an error if so.
     ///
@@ -20,13 +21,13 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_statement_or_expression_or_lvalue(
         &mut self,
     ) -> StatementOrExpressionOrLValue {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         // First check if it's an interned LValue
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
-                    let lvalue = LValue::Interned(lvalue, self.span_since(start_span));
+                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
 
                     // If it is, it could be something like `lvalue = expr`: check that.
                     if self.eat(Token::Assign) {
@@ -34,7 +35,7 @@ impl<'a> Parser<'a> {
                         let kind = StatementKind::Assign(AssignStatement { lvalue, expression });
                         return StatementOrExpressionOrLValue::Statement(Statement {
                             kind,
-                            span: self.span_since(start_span),
+                            location: self.location_since(start_location),
                         });
                     } else {
                         return StatementOrExpressionOrLValue::LValue(lvalue);

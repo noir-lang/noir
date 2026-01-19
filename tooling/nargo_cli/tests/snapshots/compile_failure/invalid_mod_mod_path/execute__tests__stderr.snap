@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected an identifier but found 'crate'
+  ┌─ src/main.nr:1:5
+  │
+1 │ mod crate::mod;
+  │     -----
+  │
+
+error: Expected an item but found '::'
+  ┌─ src/main.nr:1:10
+  │
+1 │ mod crate::mod;
+  │          --
+  │
+
+error: Expected an identifier but found ';'
+  ┌─ src/main.nr:1:15
+  │
+1 │ mod crate::mod;
+  │               -
+  │
+
+Aborting due to 3 previous errors

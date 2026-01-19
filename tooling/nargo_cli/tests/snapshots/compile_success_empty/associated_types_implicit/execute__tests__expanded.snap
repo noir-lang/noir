@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    type Bar;
+
+    fn foo(self) -> Bar;
+}
+
+impl Foo for u64 {
+    type Bar = u8;
+
+    fn foo(self) -> u8 {
+        self as u8
+    }
+}
+
+impl<T> Foo for Option<T>
+where
+    T: Foo,
+    <T as Foo>::Bar: Eq,
+{
+    type Bar = <T as Foo>::Bar;
+
+    fn foo(self) -> <T as Foo>::Bar {
+        self.unwrap().foo()
+    }
+}
+
+fn main() {
+    let three: u64 = 3_u64;
+    call_foo(three);
+    let x: Option<Option<u64>> = Option::<Option<u64>>::some(Option::<u64>::some(0_u64));
+    let x_foo: u8 = x.foo();
+    assert(x_foo == x_foo);
+    assert(x.foo() == 0_u8);
+}
+
+fn call_foo<T>(x: T)
+where
+    T: Foo,
+    <T as Foo>::Bar: Eq,
+{
+    let y: <T as Foo>::Bar = x.foo();
+    assert(y == y);
+}

@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(v0: i8, cond: bool) {
+    if cond {
+        let v4: i8 = v0 / -1_i8;
+        let v5: bool = v0 < v4;
+        assert(v5);
+    };
+    if cond {
+        let v8: i8 = v0 / -1_i8;
+        let v9: bool = v0 < v8;
+        assert(v9);
+    }
+}

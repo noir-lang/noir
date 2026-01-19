@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable self
+   ┌─ src/main.nr:10:31
+   │
+10 │     unconstrained fn crash_fn(self) {}
+   │                               ---- unused variable
+   │
+
+error: Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+   ┌─ src/main.nr:17:14
+   │
+17 │     unsafe { foo.crash_fn() };
+   │              ---
+   │
+
+Aborting due to 1 previous error

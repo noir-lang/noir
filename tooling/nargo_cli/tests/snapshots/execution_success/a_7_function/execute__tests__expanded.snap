@@ -1,0 +1,138 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn f1(mut x: Field) -> Field {
+    x = x + 1_Field;
+    x = f2(x);
+    x
+}
+
+fn f2(mut x: Field) -> Field {
+    x = x + 2_Field;
+    x
+}
+
+fn test0(mut a: Field) {
+    a = f2(a);
+    assert(a == 3_Field);
+}
+
+fn test1(mut a: Field) {
+    a = f1(a);
+    assert(a == 4_Field);
+}
+
+fn test2(z: Field, t: u32) {
+    let a: Field = z + (t as Field);
+    assert(a == 64_Field);
+    let e: Field = pow(z, t as Field);
+    assert(e == 714924299_Field);
+}
+
+fn pow(base: Field, exponent: Field) -> Field {
+    let mut r: Field = 1_Field as Field;
+    let b: [u1; 32] = exponent.to_le_bits();
+    for i in 1_u32..33_u32 {
+        r = r * r;
+        r = ((b[32_u32 - i] as Field) * (r * base)) + ((1_Field - (b[32_u32 - i] as Field)) * r);
+    }
+    r
+}
+
+fn test3(x: [u8; 3]) -> [u8; 3] {
+    let mut buffer: [u8; 3] = [0_Field as u8; 3];
+    for i in 0_u32..3_u32 {
+        buffer[i] = x[i];
+    }
+    assert(buffer == x);
+    buffer
+}
+
+fn test_multiple(x: u32, y: u32) -> (u32, u32) {
+    (y, x)
+}
+
+fn test_multiple2() -> my_struct {
+    my_struct { a: 5_Field as u32, b: 7_Field as u32 }
+}
+
+fn test_multiple3(x: u32, y: u32) {
+    assert(x == y);
+}
+
+struct my_struct {
+    a: u32,
+    b: u32,
+}
+
+struct my2 {
+    aa: my_struct,
+    bb: my_struct,
+}
+
+fn test_multiple4(s: my_struct) {
+    assert(s.a == (s.b + 2_u32));
+}
+
+fn test_multiple5(a: (u32, u32)) {
+    assert(a.0 == (a.1 + 2_u32));
+}
+
+fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
+    test_multiple4(a.aa);
+    test_multiple5((b.a, b.b));
+    assert(c.0.aa.a == c.1.a);
+}
+
+fn foo<let N: u32>(a: [Field; N]) -> [Field; N] {
+    a
+}
+
+fn bar() -> [Field; 1] {
+    foo([0_Field])
+}
+
+fn main(x: u32, y: u32, a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
+    let mut ss: my_struct = my_struct { b: x, a: x + 2_u32 };
+    test_multiple4(ss);
+    test_multiple5((ss.a, ss.b));
+    let my: my2 = my2 { aa: ss, bb: ss };
+    ss.a = 61_u32;
+    test_multiple6(my, ss, (my, ss));
+    let my_block: (u32, Field) = {
+        let mut ab: Field = f2(a);
+        ab = ab + a;
+        (x, ab)
+    };
+    assert(my_block.1 == 4_Field);
+    test0(a);
+    test1(a);
+    test2(x as Field, y);
+    assert(bar()[0_u32] == 0_Field);
+    let mut b: [u8; 3] = [0_Field as u8, 5_Field as u8, 2_Field as u8];
+    let c: [u8; 3] = test3(b);
+    assert(b == c);
+    b[0_u32] = 1_Field as u8;
+    let cc: [u8; 3] = test3(b);
+    assert(c != cc);
+    let e: (u32, u32) = test_multiple(x, y);
+    assert(e.1 == (e.0 + (54_Field as u32)));
+    let d: my_struct = test_multiple2();
+    assert(d.b == (d.a + (2_Field as u32)));
+    test_multiple3(y, y);
+    let result: [Field; 9] = first(arr_to_field(arr1), arr_to_field(arr2));
+    assert(result[0_u32] == (arr1[0_u32] as Field));
+}
+
+fn arr_to_field(arr: [u32; 9]) -> [Field; 9] {
+    let mut as_field: [Field; 9] = [0_Field as Field; 9];
+    for i in 0_u32..9_u32 {
+        as_field[i] = arr[i] as Field;
+    }
+    as_field
+}
+
+fn first(a: [Field; 9], _b: [Field; 9]) -> [Field; 9] {
+    a
+}

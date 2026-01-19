@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(six_as_u32: u32) {
+    assert(loop_excl(4_u32) == six_as_u32);
+    assert(loop_incl(3_u32) == six_as_u32);
+    assert(plain_loop() == six_as_u32);
+    assert(never_loop() == 0_u32);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(basic_break() == true)
+    }
+}
+
+fn loop_excl(x: u32) -> u32 {
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..x {
+        sum = sum + i;
+    }
+    sum
+}
+
+fn loop_incl(x: u32) -> u32 {
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..x + 1_u32 {
+        sum = sum + i;
+    }
+    sum
+}
+
+fn plain_loop() -> u32 {
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..4_u32 {
+        sum = sum + i;
+    }
+    sum
+}
+
+fn never_loop() -> u32 {
+    let mut sum: u32 = 0_u32;
+    for i in 4_u32..0_u32 {
+        sum = sum + i;
+    }
+    sum
+}
+
+unconstrained fn basic_break() -> bool {
+    for idx_e in 0_u32..5_u32 {
+        if idx_e < 5_u32 { break; };
+    }
+    true
+}

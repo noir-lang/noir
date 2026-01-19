@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(x: u32, y: pub u32) {
+    intermediate_function(x, y);
+}
+
+fn intermediate_function(x: u32, y: u32) {
+    basic_checks(x, y);
+}
+
+#[no_predicates]
+fn basic_checks(x: u32, y: u32) {
+    if x > y {
+        assert(x == 10_u32);
+    } else {
+        assert(y == 20_u32);
+    }
+}

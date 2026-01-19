@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: SSA validation error: Trying to pass a reference from ACIR function 'foo f1' to unconstrained 'bar f4' in argument v1: &mut Field
+ = Set the NOIR_SHOW_INVALID_SSA env var to see the SSA.
+
+Aborting due to 1 previous error

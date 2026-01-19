@@ -1,5 +1,6 @@
 ---
 title: HashMap
+description: A bounded key–value map with fixed capacity and Poseidon-compatible hashing—APIs for insert, get, iteration, and more.
 keywords: [noir, map, hash, hashmap]
 sidebar_position: 1
 ---
@@ -16,7 +17,7 @@ Example:
 ```rust
 // Create a mapping from Fields to u32s with a maximum length of 12
 // using a poseidon2 hasher
-use std::hash::poseidon2::Poseidon2Hasher;
+use poseidon::poseidon2::Poseidon2Hasher;
 let mut map: HashMap<Field, u32, 12, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 
 map.insert(1, 2);

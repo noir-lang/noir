@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime fn world(f: FunctionDefinition) {
+    let name: Quoted = f.name();
+    println(f"hello {name}");
+}
+
+fn main() {}

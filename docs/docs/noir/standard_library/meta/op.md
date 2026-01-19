@@ -1,5 +1,6 @@
 ---
 title: UnaryOp and BinaryOp
+description: Represent and inspect operators at compile time—check kinds, and emit quoted operator tokens.
 ---
 
 `std::meta::op` contains the `UnaryOp` and `BinaryOp` types as well as methods on them.

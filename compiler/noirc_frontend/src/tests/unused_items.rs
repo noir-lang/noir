@@ -1,9 +1,4 @@
-use crate::{
-    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-    tests::assert_no_errors,
-};
-
-use super::get_program_errors;
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn errors_on_unused_private_import() {
@@ -17,6 +12,8 @@ fn errors_on_unused_private_import() {
     }
 
     use foo::bar;
+             ^^^ unused import bar
+             ~~~ unused import
     use foo::baz;
     use foo::Foo;
 
@@ -27,17 +24,7 @@ fn errors_on_unused_private_import() {
         baz();
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "bar");
-    assert_eq!(item.item_type(), "import");
+    check_errors(src);
 }
 
 #[test]
@@ -52,6 +39,8 @@ fn errors_on_unused_pub_crate_import() {
     }
 
     pub(crate) use foo::bar;
+                        ^^^ unused import bar
+                        ~~~ unused import
     use foo::baz;
     use foo::Foo;
 
@@ -62,17 +51,7 @@ fn errors_on_unused_pub_crate_import() {
         baz();
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "bar");
-    assert_eq!(item.item_type(), "import");
+    check_errors(src);
 }
 
 #[test]
@@ -88,51 +67,37 @@ fn errors_on_unused_function() {
 
 
     fn foo() {
+       ^^^ unused function foo
+       ~~~ unused function
         bar();
     }
 
     fn bar() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(item.item_type(), "function");
+    check_errors(src);
 }
 
 #[test]
 fn errors_on_unused_struct() {
     let src = r#"
     struct Foo {}
+           ^^^ struct `Foo` is never constructed
+           ~~~ struct is never constructed
     struct Bar {}
 
     fn main() {
         let _ = Bar {};
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "Foo");
-    assert_eq!(item.item_type(), "struct");
+    check_errors(src);
 }
 
 #[test]
 fn errors_on_unused_trait() {
     let src = r#"
     trait Foo {}
+          ^^^ unused trait Foo
+          ~~~ unused trait
     trait Bar {}
 
     pub struct Baz {
@@ -143,17 +108,7 @@ fn errors_on_unused_trait() {
     fn main() {
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "Foo");
-    assert_eq!(item.item_type(), "trait");
+    check_errors(src);
 }
 
 #[test]
@@ -171,44 +126,27 @@ fn silences_unused_variable_warning() {
 fn errors_on_unused_type_alias() {
     let src = r#"
     type Foo = Field;
+         ^^^ unused type alias Foo
+         ~~~ unused type alias
     type Bar = Field;
     pub fn bar(_: Bar) {}
-    fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item error");
-    };
-
-    assert_eq!(ident.to_string(), "Foo");
-    assert_eq!(item.item_type(), "type alias");
+    check_errors(src);
 }
 
 #[test]
 fn warns_on_unused_global() {
     let src = r#"
     global foo: u32 = 1;
+           ^^^ unused global foo
+           ~~~ unused global
     global bar: Field = 1;
 
     fn main() {
         let _ = bar;
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::UnusedItem { ident, item }) = &errors[0].0
-    else {
-        panic!("Expected an unused item warning");
-    };
-
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(item.item_type(), "global");
+    check_errors(src);
 }
 
 #[test]
@@ -218,8 +156,6 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
         #[abi(notes)]
         global bar: u64 = 1;
     }
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -229,8 +165,6 @@ fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     let src = r#"
     #[abi(dummy)]
     struct Foo { bar: u8 }
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -240,8 +174,6 @@ fn does_not_warn_on_unused_function_if_it_has_an_export_attribute() {
     let src = r#"
     #[export]
     fn foo() {}
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -262,9 +194,7 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
         assert_eq(foos[0].a, 10);
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -274,8 +204,6 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     struct Foo {
         a: Field,
     }
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -291,8 +219,6 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     struct Foo {
         bar: Bar,
     }
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
@@ -331,8 +257,167 @@ fn resolves_trait_where_clause_in_the_correct_module() {
     where
         T: Foo,
     {}
-
-    fn main() {}
     "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn considers_struct_as_constructed_if_impl_method_is_called() {
+    let src = "
+    struct Bar {}
+
+    impl Bar {
+        fn foo() {}
+    }
+
+    pub fn main() {
+        Bar::foo()
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn considers_struct_as_constructed_if_trait_method_is_called() {
+    let src = "
+    struct Bar {}
+
+    pub trait Foo {
+        fn foo();
+    }
+
+    impl Foo for Bar {
+        fn foo() {}
+    }
+
+    pub fn main() {
+        Bar::foo()
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn considers_struct_as_constructed_if_mentioned_in_let_type() {
+    let src = "
+    struct Bar {}
+
+    fn foo(array: [Bar; 1]) {
+        let _: Bar = array[0];
+    }
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn considers_struct_as_constructed_if_mentioned_in_return_type() {
+    let src = "
+    struct Bar {}
+
+    fn foo(array: [Bar; 1]) -> Bar {
+        array[0]
+    }
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn considers_struct_as_constructed_if_passed_in_generic_args_in_constructor() {
+    let src = "
+    struct Bar {}
+
+    struct Generic<T> {}
+
+    fn main() {
+        let _ = Generic::<Bar> {};
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn considers_struct_as_constructed_if_passed_in_generic_args_in_function_call() {
+    let src = "
+    struct Bar {}
+
+    fn foo<T>() {}
+
+    fn main() {
+        let _ = foo::<Bar>();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
+    let src = "
+    struct Bar {}
+           ^^^ struct `Bar` is never constructed
+           ~~~ struct is never constructed
+
+    fn foo(_: [Bar; 1]) {}
+
+    fn main() {
+        foo();
+        ^^^^^ Function expects 1 parameter but 0 were given
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn allow_dead_code_on_unused_function() {
+    let src = "
+    #[allow(dead_code)]
+    fn foo() {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn allow_dead_code_on_unused_struct() {
+    let src = "
+    #[allow(dead_code)]
+    struct Foo {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn allow_dead_code_on_unused_trait() {
+    let src = "
+    #[allow(dead_code)]
+    trait Foo {}
+
+    fn main() {
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn allow_dead_code_on_unused_enum() {
+    let src = "
+    #[allow(dead_code)]
+    enum Foo {}
+
+    fn main() {
+    }
+    ";
     assert_no_errors(src);
 }

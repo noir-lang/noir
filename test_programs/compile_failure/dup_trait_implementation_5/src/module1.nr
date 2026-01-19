@@ -1,2 +1,2 @@
-trait MyTrait {
+pub(crate) trait MyTrait {
 }

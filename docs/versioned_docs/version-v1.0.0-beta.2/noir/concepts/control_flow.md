@@ -79,13 +79,13 @@ The iteration variable `i` is still increased by one as normal when `continue` i
 
 ## Loops
 
-In unconstrained code, `loop` is allowed for loops that end with a `break`. 
-A `loop` must have at least one `break` in it.
+In unconstrained code, `loop` is allowed for loops that end with a `break`.
+A `loop` must contain at least one `break` statement that is reachable during execution.
 This is only allowed in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
 a loop may have.
 
 ```rust
-let mut i = 10
+let mut i = 10;
 loop {
     println(i);
     i -= 1;
@@ -95,4 +95,3 @@ loop {
     }
 }
 ```
-

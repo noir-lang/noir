@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let array: [Field; 3] = [1_Field, 2_Field, 3_Field];
+    let one: fmtstr<30, ([Field; 3],)> = f"pre array ({array}) post array";
+    println(one);
+    let two: fmtstr<24, (fmtstr<30, ([Field; 3],)>,)> = f"pre one ({one}) post one";
+    println(two);
+    let three: fmtstr<32, (fmtstr<24, (fmtstr<30, ([Field; 3],)>,)>, fmtstr<24, (fmtstr<30, ([Field; 3],)>,)>)> =
+        f"pre two ({two}) ({two}) post two";
+    println(three);
+    println(f"pre three ({three} {three} {three}) post three");
+}

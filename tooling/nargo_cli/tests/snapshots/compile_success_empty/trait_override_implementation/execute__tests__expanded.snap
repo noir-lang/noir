@@ -1,0 +1,87 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait MyDefault {
+    fn my_default(x: Field, y: Field) -> Self;
+
+    fn method2(x: Field) -> Field {
+        x
+    }
+}
+
+struct Foo {
+    bar: Field,
+    array: [Field; 2],
+}
+
+impl MyDefault for Foo {
+    fn my_default(x: Field, y: Field) -> Self {
+        Self { bar: x, array: [x, y] }
+    }
+
+    fn method2(x: Field) -> Field {
+        x * 3_Field
+    }
+}
+
+trait F {
+    fn f1(self) -> Field;
+
+    fn f2(_self: Self) -> Field {
+        2_Field
+    }
+
+    fn f3(_self: Self) -> Field {
+        3_Field
+    }
+
+    fn f4(_self: Self) -> Field {
+        4_Field
+    }
+
+    fn f5(_self: Self) -> Field {
+        5_Field
+    }
+}
+
+struct Bar {}
+
+impl F for Bar {
+    fn f1(_self: Self) -> Field {
+        10_Field
+    }
+
+    fn f2(_self: Self) -> Field {
+        2_Field
+    }
+
+    fn f3(_self: Self) -> Field {
+        30_Field
+    }
+
+    fn f4(_self: Self) -> Field {
+        4_Field
+    }
+
+    fn f5(_self: Self) -> Field {
+        50_Field
+    }
+}
+
+fn main(x: Field) {
+    let first: Field = Foo::method2(x);
+    assert(first == (3_Field * x));
+    let bar: Bar = Bar {};
+    assert(bar.f1() == 10_Field, "1");
+    assert(bar.f2() == 2_Field, "2");
+    assert(bar.f3() == 30_Field, "3");
+    assert(bar.f4() == 4_Field, "4");
+    assert(bar.f5() == 50_Field, "5");
+    let mut bar_mut: Bar = Bar {};
+    assert(bar_mut.f1() == 10_Field, "10");
+    assert(bar_mut.f2() == 2_Field, "12");
+    assert(bar_mut.f3() == 30_Field, "13");
+    assert(bar_mut.f4() == 4_Field, "14");
+    assert(bar_mut.f5() == 50_Field, "15");
+}

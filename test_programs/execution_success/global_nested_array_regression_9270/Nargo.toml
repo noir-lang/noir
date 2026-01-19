@@ -1,0 +1,6 @@
+[package]
+name = "global_nested_array_regression_9270"
+type = "bin"
+authors = [""]
+
+[dependencies]

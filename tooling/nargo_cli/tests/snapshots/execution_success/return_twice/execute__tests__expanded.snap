@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(in0: Field) -> pub (Field, Field) {
+    let out0: Field = in0 * in0;
+    let out1: Field = in0 * in0;
+    (out0, out1)
+}

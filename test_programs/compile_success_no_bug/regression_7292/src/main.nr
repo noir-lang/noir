@@ -3,7 +3,7 @@ unconstrained fn foo<T>(_x: T) -> Field {
 }
 
 fn main() {
-    /// Safety: test
+    // Safety: test
     unsafe {
         assert(foo(0) == 0);
     }

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to / with overflow
+  ┌─ src/main.nr:2:24
+  │
+2 │     let _ = comptime { -128_i8 / -1 };
+  │                        ------------
+  │
+
+Aborting due to 1 previous error

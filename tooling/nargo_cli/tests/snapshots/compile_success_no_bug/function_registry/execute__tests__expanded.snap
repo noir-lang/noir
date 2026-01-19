@@ -1,0 +1,69 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, Hasher}};
+
+comptime mut global REGISTRY: UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> = UHashMap::<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> {
+    _len: 1,
+    _table: @[
+        std::collections::umap::Slot::<Module, [FunctionDefinition]> {
+            _is_deleted: false,
+            _key_value: Option::<(Module, [FunctionDefinition])> {
+                _is_some: true,
+                _value: (
+                    panic(f"comptime value that cannot be represented with code"),
+                    @[panic(f"comptime value that cannot be represented with code")],
+                ),
+            },
+        },
+        std::collections::umap::Slot::<Module, [FunctionDefinition]> {
+            _is_deleted: false,
+            _key_value: Option::<(Module, [FunctionDefinition])> {
+                _is_some: false,
+                _value: (crate::mem::zeroed(), @[]),
+            },
+        },
+    ],
+    _build_hasher: BuildHasherDefault::<DummyHasher> {},
+};
+
+comptime fn add_to_registry(
+    registry: &mut UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>>,
+    f: FunctionDefinition,
+) {
+    let module: Module = f.module();
+    let current_functions: Option<[FunctionDefinition]> = registry.get(module);
+    let functions_to_insert: [FunctionDefinition] = if current_functions.is_some() {
+        current_functions.unwrap().push_back(f)
+    } else {
+        [f].as_vector()
+    };
+    registry.insert(module, functions_to_insert);
+}
+
+struct DummyHasher {}
+
+impl Hasher for DummyHasher {
+    fn finish(self) -> Field {
+        0_Field
+    }
+
+    fn write(&mut self, _input: Field) {}
+}
+
+impl Default for DummyHasher {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+comptime fn example_attribute(function: FunctionDefinition) {
+    add_to_registry(&mut REGISTRY, function);
+}
+
+pub fn foo() {}
+
+fn main() {
+    ()
+}

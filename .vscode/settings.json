@@ -8,5 +8,11 @@
     "[javascript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
+    "[markdown]": {
+        "files.trimTrailingWhitespace": true
+    },
+    "[yaml]": {
+        "files.trimTrailingWhitespace": true
+    },
     "rust-analyzer.server.extraEnv": { "RUSTUP_TOOLCHAIN": "stable" }
 }

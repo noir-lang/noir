@@ -1,6 +1,6 @@
 use acvm::{
-    brillig_vm::brillig::{ForeignCallParam, ForeignCallResult},
     FieldElement,
+    brillig_vm::brillig::{ForeignCallParam, ForeignCallResult},
 };
 use wasm_bindgen::JsValue;
 
@@ -19,7 +19,7 @@ fn decode_foreign_call_output(output: JsValue) -> Result<ForeignCallParam<FieldE
         }
         Ok(ForeignCallParam::Array(values))
     } else {
-        return Err("Non-string-or-array element in foreign_call_handler return".into());
+        Err("Non-string-or-array element in foreign_call_handler return".into())
     }
 }
 

@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    assert(true);
+    assert(store_through_outer_pointer());
+    assert(true);
+    assert(store_through_middle_pointer());
+}
+
+fn store_through_outer_pointer() -> bool {
+    let a: &mut ((bool,),) = &mut ((false,),);
+    let b: &mut bool = &mut a.0.0;
+    *a = ((true,),);
+    println(*b);
+    *b
+}
+
+fn store_through_middle_pointer() -> bool {
+    let a: &mut ((bool,),) = &mut ((false,),);
+    let b: &mut bool = &mut a.0.0;
+    a.0 = (true,);
+    println(*b);
+    *b
+}

@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
-use acvm::{AcirField, FieldElement};
-use noirc_errors::Span;
+use noirc_errors::Location;
 
-use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
+use crate::{BinaryTypeOperator, Type, TypeBinding, signed_field::SignedField};
 
 impl Type {
     /// Try to canonicalize the representation of this type.
@@ -30,10 +29,20 @@ impl Type {
         }
     }
 
+    pub(crate) fn canonicalize_with_simplifications(&self, run_simplifications: bool) -> Type {
+        self.follow_bindings().canonicalize_helper(false, run_simplifications)
+    }
+
     /// Only simplify constants and drop/skip any CheckedCast's
     pub(crate) fn canonicalize_checked(&self) -> Type {
+        self.follow_bindings().canonicalize_checked_helper()
+    }
+
+    /// Only simplify constants and drop/skip any CheckedCast's
+    fn canonicalize_checked_helper(&self) -> Type {
         let found_checked_cast = true;
         let skip_simplifications = false;
+        // We expect `self` to have already called `follow_bindings`
         self.canonicalize_helper(found_checked_cast, skip_simplifications)
     }
 
@@ -41,35 +50,36 @@ impl Type {
     fn canonicalize_unchecked(&self) -> Type {
         let found_checked_cast = true;
         let run_simplifications = true;
+        // We expect `self` to have already called `follow_bindings`
         self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
-    /// If found_checked_cast, then drop additional CheckedCast's
+    /// If `found_checked_cast`, then drop additional CheckedCast's
     ///
-    /// If run_simplifications is false, then only:
+    /// If `run_simplifications` is false, then only:
     /// - Attempt to evaluate each sub-expression to a constant
     /// - Drop nested CheckedCast's
     ///
     /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
     /// and other simplifications
-    pub(crate) fn canonicalize_helper(
-        &self,
-        found_checked_cast: bool,
-        run_simplifications: bool,
-    ) -> Type {
-        match self.follow_bindings() {
+    fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
+        match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let kind = lhs.infix_kind(&rhs);
-                let dummy_span = Span::default();
+                let kind = lhs.infix_kind(rhs);
+                let dummy_location = Location::dummy();
+
+                let evaluate = |typ: &Type| {
+                    typ.evaluate_to_signed_field_helper(&kind, dummy_location, run_simplifications)
+                };
+                let lhs_evaluated = evaluate(lhs);
+                let rhs_evaluated = evaluate(rhs);
+
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) =
-                    lhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications)
-                {
-                    if let Ok(rhs_value) =
-                        rhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications)
-                    {
-                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_span) {
+                if let Ok(lhs_value) = lhs_evaluated {
+                    if let Ok(rhs_value) = rhs_evaluated {
+                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                        {
                             return Type::Constant(result, kind);
                         }
                     }
@@ -78,29 +88,47 @@ impl Type {
                 let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
-                if !run_simplifications {
-                    return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion);
+                // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
+                if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
+                    if let Ok(rhs_value) = rhs_evaluated {
+                        if rhs_value.is_one() {
+                            return lhs;
+                        }
+                    }
                 }
 
-                if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs) {
+                // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
+                if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
+                    if let Ok(rhs_value) = rhs_evaluated {
+                        if rhs_value.is_zero() {
+                            return lhs;
+                        }
+                    }
+                }
+
+                if !run_simplifications {
+                    return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);
+                }
+
+                if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, *op, &rhs) {
                     return result.canonicalize_unchecked();
                 }
 
-                if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, op, &rhs) {
+                if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, *op, &rhs) {
                     return result.canonicalize_unchecked();
                 }
 
                 // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-                if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
+                if let Some(result) = Self::try_simplify_partial_constants(&lhs, *op, &rhs) {
                     return result.canonicalize_unchecked();
                 }
 
                 if op.is_commutative() {
-                    return Self::sort_commutative(&lhs, op, &rhs);
+                    return Self::sort_commutative(&lhs, *op, &rhs);
                 }
 
-                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion)
+                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
             }
             Type::CheckedCast { from, to } => {
                 let inner_found_checked_cast = true;
@@ -114,7 +142,13 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            other => other,
+            Type::TypeVariable(type_var) => match &*type_var.borrow() {
+                TypeBinding::Bound(binding) => {
+                    binding.canonicalize_helper(found_checked_cast, run_simplifications)
+                }
+                TypeBinding::Unbound(_, _) => Type::TypeVariable(type_var.clone()),
+            },
+            other => other.clone(),
         }
     }
 
@@ -125,9 +159,9 @@ impl Type {
         let mut sorted = BTreeMap::new();
 
         let zero_value = if op == BinaryTypeOperator::Addition {
-            FieldElement::zero()
+            SignedField::zero()
         } else {
-            FieldElement::one()
+            SignedField::one()
         };
         let mut constant = zero_value;
 
@@ -139,9 +173,9 @@ impl Type {
                     queue.push(*rhs_inner);
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
-                    let dummy_span = Span::default();
+                    let dummy_location = Location::dummy();
                     if let Ok(result) =
-                        op.function(constant, new_constant, &new_constant_kind, dummy_span)
+                        op.function(constant, new_constant, &new_constant_kind, dummy_location)
                     {
                         constant = result;
                     } else {
@@ -192,24 +226,24 @@ impl Type {
         op: BinaryTypeOperator,
         rhs: &Type,
     ) -> Option<Type> {
-        match lhs.follow_bindings() {
+        match lhs {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
-                let from = Type::infix_expr(from, op, Box::new(rhs.clone()));
-                let to = Self::try_simplify_non_constants_in_lhs(&to, op, rhs)?;
+                let from = Type::infix_expr(from.clone(), op, Box::new(rhs.clone()));
+                let to = Self::try_simplify_non_constants_in_lhs(to, op, rhs)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(l_lhs, l_op, l_rhs, _) => {
                 // Note that this is exact, syntactic equality, not unification.
                 // `rhs` is expected to already be in canonical form.
                 if l_op.approx_inverse() != Some(op)
-                    || l_op == BinaryTypeOperator::Division
+                    || *l_op == BinaryTypeOperator::Division
                     || l_rhs.canonicalize_unchecked() != *rhs
                 {
                     return None;
                 }
 
-                Some(*l_lhs)
+                Some(*l_lhs.clone())
             }
             _ => None,
         }
@@ -229,17 +263,17 @@ impl Type {
         op: BinaryTypeOperator,
         rhs: &Type,
     ) -> Option<Type> {
-        match rhs.follow_bindings() {
+        match rhs {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
-                let from = Type::infix_expr(Box::new(lhs.clone()), op, from);
-                let to = Self::try_simplify_non_constants_in_rhs(lhs, op, &to)?;
+                let from = Type::infix_expr(Box::new(lhs.clone()), op, from.clone());
+                let to = Self::try_simplify_non_constants_in_rhs(lhs, op, to)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(r_lhs, r_op, r_rhs, _) => {
                 // `N / (M * N)` should be simplified to `1 / M`, but we only handle
                 // simplifying to `M` in this function.
-                if op == BinaryTypeOperator::Division && r_op == BinaryTypeOperator::Multiplication
+                if op == BinaryTypeOperator::Division && *r_op == BinaryTypeOperator::Multiplication
                 {
                     return None;
                 }
@@ -250,7 +284,7 @@ impl Type {
                     return None;
                 }
 
-                Some(*r_lhs)
+                Some(*r_lhs.clone())
             }
             _ => None,
         }
@@ -266,17 +300,16 @@ impl Type {
     fn parse_partial_constant_expr(
         lhs: &Type,
         rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
+    ) -> Option<(Box<Type>, BinaryTypeOperator, SignedField, SignedField)> {
         let kind = lhs.infix_kind(rhs);
-        let dummy_span = Span::default();
-        let rhs = rhs.evaluate_to_field_element(&kind, dummy_span).ok()?;
+        let dummy_location = Location::dummy();
+        let rhs = rhs.evaluate_to_signed_field(&kind, dummy_location).ok()?;
 
         let Type::InfixExpr(l_type, l_op, l_rhs, _) = lhs.follow_bindings() else {
             return None;
         };
 
-        let dummy_span = Span::default();
-        let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_span).ok()?;
+        let l_rhs = l_rhs.evaluate_to_signed_field(&kind, dummy_location).ok()?;
         Some((l_type, l_op, l_rhs, rhs))
     }
 
@@ -301,24 +334,31 @@ impl Type {
                 if l_op == Subtraction {
                     op = op.inverse()?;
                 }
-                let dummy_span = Span::default();
+                let dummy_location = Location::dummy();
                 let result =
-                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_span).ok()?;
+                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
-                // We need to ensure the result divides evenly to preserve integer division semantics
-                let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
-                    && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
+                // We ensure the result divides evenly to preserve integer division semantics
+                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
+                // also in case of Field elements
+                let l_128: Option<i128> = l_const.try_to_signed();
+                let r_128: Option<i128> = r_const.try_to_signed();
+                let divides_evenly = if let (Some(l_128), Some(r_128)) = (l_128, r_128) {
+                    l_128.checked_rem(r_128) == Some(0)
+                } else {
+                    false
+                };
 
                 // If op is a division we need to ensure it divides evenly
-                if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
+                if op == Division && (r_const.is_zero() || !divides_evenly) {
                     None
                 } else {
-                    let dummy_span = Span::default();
+                    let dummy_location = Location::dummy();
                     let result =
-                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_span).ok()?;
+                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
                     Some(Type::infix_expr(l_type, l_op, constant))
                 }
@@ -326,82 +366,63 @@ impl Type {
             _ => None,
         }
     }
-
-    /// Try to unify equations like `(..) + 3 = (..) + 1`
-    /// by transforming them to `(..) + 2 =  (..)`
-    pub(super) fn try_unify_by_moving_constant_terms(
-        &self,
-        other: &Type,
-        bindings: &mut TypeBindings,
-    ) -> Result<(), UnificationError> {
-        if let Type::InfixExpr(lhs_a, op_a, rhs_a, _) = self {
-            if let Some(inverse) = op_a.approx_inverse() {
-                let kind = lhs_a.infix_kind(rhs_a);
-                let dummy_span = Span::default();
-                if let Ok(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind, dummy_span) {
-                    let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
-                    let new_other =
-                        Type::inverted_infix_expr(Box::new(other.clone()), inverse, rhs_a);
-
-                    let mut tmp_bindings = bindings.clone();
-                    if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
-                }
-            }
-        }
-
-        if let Type::InfixExpr(lhs_b, op_b, rhs_b, inversion) = other {
-            if let Some(inverse) = op_b.approx_inverse() {
-                let kind = lhs_b.infix_kind(rhs_b);
-                let dummy_span = Span::default();
-                if let Ok(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind, dummy_span) {
-                    let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));
-                    let new_self =
-                        Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b, !inversion);
-
-                    let mut tmp_bindings = bindings.clone();
-                    if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
-                }
-            }
-        }
-
-        Err(UnificationError)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use acvm::{AcirField, FieldElement};
+    use crate::{
+        NamedGeneric,
+        hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+        signed_field::SignedField,
+    };
 
-    use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+    impl std::ops::Add for Type {
+        type Output = Type;
+
+        fn add(self, rhs: Type) -> Self::Output {
+            Type::infix_expr(Box::new(self), BinaryTypeOperator::Addition, Box::new(rhs))
+        }
+    }
+
+    impl std::ops::Sub for Type {
+        type Output = Type;
+
+        fn sub(self, rhs: Type) -> Self::Output {
+            Type::infix_expr(Box::new(self), BinaryTypeOperator::Subtraction, Box::new(rhs))
+        }
+    }
+
+    impl std::ops::Mul for Type {
+        type Output = Type;
+
+        fn mul(self, rhs: Type) -> Self::Output {
+            Type::infix_expr(Box::new(self), BinaryTypeOperator::Multiplication, Box::new(rhs))
+        }
+    }
+
+    impl std::ops::Div for Type {
+        type Output = Type;
+
+        fn div(self, rhs: Type) -> Self::Output {
+            Type::infix_expr(Box::new(self), BinaryTypeOperator::Division, Box::new(rhs))
+        }
+    }
 
     #[test]
     fn solves_n_minus_one_plus_one_through_checked_casts() {
         // We want to test that the inclusion of a `CheckedCast` won't prevent us from canonicalizing
         // the expression `(N - 1) + 1` to `N` if there exists a `CheckedCast` on the `N - 1` term.
 
-        let n = Type::NamedGeneric(
-            TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
-            std::rc::Rc::new("N".to_owned()),
-        );
-        let n_minus_one = Type::infix_expr(
-            Box::new(n.clone()),
-            BinaryTypeOperator::Subtraction,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
-        );
+        let n = Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
+            name: std::rc::Rc::new("N".to_owned()),
+            implicit: false,
+        });
+        let n_minus_one: Type = n.clone() - 1u32.into();
         let checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
 
-        let n_minus_one_plus_one = Type::infix_expr(
-            Box::new(checked_cast_n_minus_one.clone()),
-            BinaryTypeOperator::Addition,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
-        );
+        let n_minus_one_plus_one = checked_cast_n_minus_one.clone() + 1u32.into();
 
         let canonicalized_typ = n_minus_one_plus_one.canonicalize();
 
@@ -409,12 +430,7 @@ mod tests {
 
         // We also want to check that if the `CheckedCast` is on the RHS then we'll still be able to canonicalize
         // the expression `1 + (N - 1)` to `N`.
-
-        let one_plus_n_minus_one = Type::infix_expr(
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
-            BinaryTypeOperator::Addition,
-            Box::new(checked_cast_n_minus_one),
-        );
+        let one_plus_n_minus_one = Type::from(1u32) + checked_cast_n_minus_one;
 
         let canonicalized_typ = one_plus_n_minus_one.canonicalize();
 
@@ -426,22 +442,16 @@ mod tests {
         let field_element_kind = Kind::numeric(Type::FieldElement);
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
-        let one = Type::Constant(FieldElement::one(), field_element_kind.clone());
 
-        let lhs = Type::infix_expr(
-            Box::new(x_type.clone()),
-            BinaryTypeOperator::Addition,
-            Box::new(one.clone()),
-        );
-        let rhs =
-            Type::infix_expr(Box::new(one), BinaryTypeOperator::Addition, Box::new(x_type.clone()));
+        let lhs = x_type.clone() + SignedField::one().into();
+        let rhs = Type::from(SignedField::one()) + x_type.clone();
 
         // canonicalize
         let lhs = lhs.canonicalize();
         let rhs = rhs.canonicalize();
 
         // bind vars
-        let two = Type::Constant(FieldElement::from(2u128), field_element_kind.clone());
+        let two = Type::Constant(SignedField::from(2u128), field_element_kind.clone());
         x_var.bind(two);
 
         // canonicalize (expect constant)
@@ -459,29 +469,86 @@ mod tests {
         // ensure results are the same
         assert_eq!(lhs, rhs);
     }
+
+    #[test]
+    fn negative_u32_difference() {
+        let infix = Type::from(0u32) - Type::from(1u32);
+        let infix_canonicalized = infix.canonicalize();
+        assert_eq!(infix_canonicalized, infix);
+    }
+
+    #[test]
+    fn zero_divided_by_zero() {
+        let infix = Type::from(0u8) / Type::from(0u8);
+        let infix_canonicalized = infix.canonicalize();
+        assert_eq!(infix_canonicalized, infix);
+    }
+
+    #[should_panic(expected = "`left == right` failed")]
+    #[test]
+    fn exact_division_simplifying() {
+        let infix = (Type::from(2u8) * Type::from(160u8)) / (Type::from(91u8) - Type::from(86u8));
+        let infix_canonicalized = infix.canonicalize();
+        let expected_result = (Type::from(2u8) * Type::from(160u8)) / Type::from(5u8);
+        assert_eq!(infix_canonicalized, expected_result);
+    }
+
+    #[test]
+    fn exact_division_simplifying_with_checked_cast() {
+        let infix = (Type::from(2u8) * Type::from(160u8)) / (Type::from(91u8) - Type::from(86u8));
+        let infix = Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) };
+
+        let infix_canonicalized = infix.canonicalize();
+        let infix_canonicalized = match infix_canonicalized {
+            Type::CheckedCast { from, .. } => *from,
+            infix_canonicalized => infix_canonicalized,
+        };
+
+        let expected_result = (Type::from(2u8) * Type::from(160u8)) / Type::from(5u8);
+        assert_eq!(infix_canonicalized, expected_result);
+    }
 }
 
 #[cfg(test)]
 mod proptests {
+    use std::{collections::HashMap, path::Path};
 
     use acvm::{AcirField, FieldElement};
-    use proptest::arbitrary::any;
-    use proptest::collection;
-    use proptest::prelude::*;
-    use proptest::result::maybe_ok;
-    use proptest::strategy;
+    use fm::FileManager;
+    use proptest::{arbitrary::any, collection, prelude::*, result::maybe_ok};
 
-    use crate::ast::{IntegerBitSize, Signedness};
-    use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
+    use crate::{
+        ast::{Expression, ExpressionKind, InfixExpression, IntegerBitSize, Literal},
+        elaborator::{Elaborator, ElaboratorOptions},
+        graph::CrateId,
+        hir::{
+            Context,
+            comptime::{Interpreter, Value},
+        },
+        hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+        shared::Signedness,
+        signed_field::SignedField,
+    };
+
+    use noirc_errors::{Located, Location};
 
     prop_compose! {
         // maximum_size must be non-zero
         fn arbitrary_u128_field_element(maximum_size: u128)
             (u128_value in any::<u128>())
-            -> FieldElement
+            -> SignedField
         {
             assert!(maximum_size != 0);
-            FieldElement::from(u128_value % maximum_size)
+            SignedField::from(u128_value % maximum_size)
+        }
+    }
+
+    prop_compose! {
+        fn arbitrary_i128_field_element(minimum_size:i128, maximum_size: i128)
+            (i128_value in any::<i128>())
+            -> SignedField
+        {
+            SignedField::from(i128_value.clamp(minimum_size, maximum_size))
         }
     }
 
@@ -490,26 +557,38 @@ mod proptests {
         // Use both `u128` and hex proptest strategies
         fn arbitrary_field_element()
             (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"))
-            -> FieldElement
+            -> SignedField
         {
             match u128_or_hex {
-                Ok(number) => FieldElement::from(number),
-                Err(hex) => FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"),
+                Ok(number) => SignedField::from(number),
+                Err(hex) => FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string").into(),
             }
         }
     }
 
-    // Generate (arbitrary_unsigned_type, generator for that type)
-    fn arbitrary_unsigned_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<FieldElement>)>
+    // Generate (arbitrary_numeric_type, generator for that type)
+    fn arbitrary_numeric_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<SignedField>)>
     {
         prop_oneof![
-            strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
+            Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
                 let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
-            strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),
+            any::<IntegerBitSize>().prop_map(|bit_size| {
+                let bit_size = match bit_size {
+                    // I1 is rejected
+                    IntegerBitSize::One => IntegerBitSize::Eight,
+                    // I128 is rejected
+                    IntegerBitSize::HundredTwentyEight => IntegerBitSize::SixtyFour,
+                    bit_size => bit_size,
+                };
+                let typ = Type::Integer(Signedness::Signed, bit_size);
+                let minimum_size = typ.integral_maximum_size().unwrap().to_i128();
+                let maximum_size = typ.integral_maximum_size().unwrap().to_i128();
+                (typ, arbitrary_i128_field_element(minimum_size, maximum_size).boxed())
+            }),
         ]
         .boxed()
     }
@@ -534,9 +613,50 @@ mod proptests {
         })
     }
 
-    fn arbitrary_infix_expr(
+    fn infix_expr_helper(lhs_op_rhs: (Type, BinaryTypeOperator, Type)) -> Type {
+        let (lhs, op, rhs) = lhs_op_rhs;
+        assert_eq!(lhs.kind(), rhs.kind());
+        let op = if lhs.kind().integral_maximum_size().is_none()
+            && matches!(op, BinaryTypeOperator::Modulo)
+        {
+            // `Field` does not currently support modulo
+            BinaryTypeOperator::Addition
+        } else {
+            op
+        };
+        Type::infix_expr(Box::new(lhs), op, Box::new(rhs))
+    }
+
+    fn arbitrary_infix_expr_without_variables_helper(
         typ: Type,
-        arbitrary_value: BoxedStrategy<FieldElement>,
+        arbitrary_value: BoxedStrategy<SignedField>,
+    ) -> impl Strategy<Value = Type> {
+        let leaf = prop_oneof![
+            arbitrary_value
+                .prop_map(move |value| Type::Constant(value, Kind::numeric(typ.clone()))),
+        ];
+
+        leaf.prop_recursive(
+            8,   // 8 levels deep maximum
+            256, // Shoot for maximum size of 256 nodes
+            10,  // We put up to 10 items per collection
+            |inner| (inner.clone(), any::<BinaryTypeOperator>(), inner).prop_map(infix_expr_helper),
+        )
+    }
+
+    prop_compose! {
+        fn arbitrary_infix_expr()
+            (type_and_gen in arbitrary_numeric_type_with_generator())
+            (infix_expr in arbitrary_infix_expr_without_variables_helper(type_and_gen.clone().0, type_and_gen.clone().1), type_and_gen in Just(type_and_gen))
+        -> (Type, Type) {
+            let (typ, _value_generator) = type_and_gen;
+            (infix_expr, typ)
+        }
+    }
+
+    fn arbitrary_infix_expr_with_variables(
+        typ: Type,
+        arbitrary_value: BoxedStrategy<SignedField>,
         num_variables: usize,
     ) -> impl Strategy<Value = Type> {
         let leaf = prop_oneof![
@@ -549,19 +669,16 @@ mod proptests {
             8,   // 8 levels deep maximum
             256, // Shoot for maximum size of 256 nodes
             10,  // We put up to 10 items per collection
-            |inner| {
-                (inner.clone(), any::<BinaryTypeOperator>(), inner)
-                    .prop_map(|(lhs, op, rhs)| Type::infix_expr(Box::new(lhs), op, Box::new(rhs)))
-            },
+            |inner| (inner.clone(), any::<BinaryTypeOperator>(), inner).prop_map(infix_expr_helper),
         )
     }
 
     prop_compose! {
         // (infix_expr, type, generator)
         fn arbitrary_infix_expr_type_gen(num_variables: usize)
-            (type_and_gen in arbitrary_unsigned_type_with_generator())
-            (infix_expr in arbitrary_infix_expr(type_and_gen.clone().0, type_and_gen.clone().1, num_variables), type_and_gen in Just(type_and_gen))
-        -> (Type, Type, BoxedStrategy<FieldElement>) {
+            (type_and_gen in arbitrary_numeric_type_with_generator())
+            (infix_expr in arbitrary_infix_expr_with_variables(type_and_gen.clone().0, type_and_gen.clone().1, num_variables), type_and_gen in Just(type_and_gen))
+        -> (Type, Type, BoxedStrategy<SignedField>) {
             let (typ, value_generator) = type_and_gen;
             (infix_expr, typ, value_generator)
         }
@@ -594,11 +711,51 @@ mod proptests {
         }
     }
 
+    fn convert_infix_type_expr_to_expr(infix_expr: &Type) -> Expression {
+        let kind = match infix_expr {
+            Type::InfixExpr(lhs, op, rhs, _inversion) => {
+                let lhs = convert_infix_type_expr_to_expr(lhs);
+                let rhs = convert_infix_type_expr_to_expr(rhs);
+                let binary_op_kind = op.operator_to_binary_op_kind_helper();
+                let location = Location::dummy();
+                let operator = Located::from(location, binary_op_kind);
+                ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
+            }
+            Type::Constant(value, kind) => {
+                let integer_type_suffix = match kind {
+                    Kind::Numeric(typ) => {
+                        typ.as_integer_type_suffix().expect("ICE: unexpected numeric type {typ:?}")
+                    }
+                    kind => unimplemented!(
+                        "convert_infix_type_expr_to_expr: unexpected non-numeric kind: {kind}"
+                    ),
+                };
+                let literal = Literal::Integer(*value, Some(integer_type_suffix));
+                ExpressionKind::Literal(literal)
+            }
+            Type::TypeVariable(type_var) => unimplemented!(
+                "convert_infix_type_expr_to_expr: unexpected type variable {type_var:?}"
+            ),
+            infix_expr => unimplemented!("unexpected infix expression type: {infix_expr:?}"),
+        };
+        let location = Location::dummy();
+        Expression { kind, location }
+    }
+
+    // Convert a numeric Value to a `Type::Constant` or panic if `Value::to_signed_field` fails
+    // (expected to happen when it's not numeric)
+    fn numeric_value_to_type(value: Value) -> Type {
+        let kind_type = value.get_type();
+        let kind = Kind::numeric(kind_type.into_owned());
+        let value = value.to_signed_field().expect("ICE: numeric_value_to_type: expected a ");
+        Type::Constant(value, kind)
+    }
+
     proptest! {
-        #[test]
-        // Expect cases that don't resolve to constants, e.g. see
+        // Expecting cases that don't resolve to constants, e.g. see
         // `arithmetic_generics_checked_cast_indirect_zeros`
-        #[should_panic(expected = "matches!(infix, Type :: Constant(..))")]
+        #[should_panic(expected = "expected an InfixExpr, but found: ")]
+        #[test]
         fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 
@@ -606,25 +763,25 @@ mod proptests {
             let infix_canonicalized = infix.canonicalize();
 
             // bind vars
-            for (var, binding) in bindings {
-                var.bind(binding);
+            for (var, binding) in &bindings {
+                var.bind(binding.clone());
             }
 
             // attempt to canonicalize to a constant
             let infix = infix.canonicalize();
             let infix_canonicalized = infix_canonicalized.canonicalize();
 
-            // ensure we've canonicalized to constants
-            prop_assert!(matches!(infix, Type::Constant(..)));
-            prop_assert!(matches!(infix_canonicalized, Type::Constant(..)));
+            if matches!(infix, Type::InfixExpr(..)) {
+                prop_assert!(matches!(infix_canonicalized, Type::InfixExpr(..)), "expected an InfixExpr, but found: {infix_canonicalized:?}");
+            } else {
+                // ensure result kinds are the same as the original kind
+                let kind = Kind::numeric(typ);
+                prop_assert_eq!(infix.kind(), kind.clone());
+                prop_assert_eq!(infix_canonicalized.kind(), kind);
 
-            // ensure result kinds are the same as the original kind
-            let kind = Kind::numeric(typ);
-            prop_assert_eq!(infix.kind(), kind.clone());
-            prop_assert_eq!(infix_canonicalized.kind(), kind);
-
-            // ensure results are the same
-            prop_assert_eq!(infix, infix_canonicalized);
+                // ensure results are the same
+                prop_assert_eq!(infix, infix_canonicalized);
+            }
         }
 
         #[test]
@@ -658,7 +815,7 @@ mod proptests {
             match (&infix, &infix_canonicalized) {
                 (Type::CheckedCast { from, to }, Type::CheckedCast { from: from_canonicalized, to: to_canonicalized }) => {
                     // ensure from's are the same
-                    prop_assert_eq!(from, from_canonicalized);
+                    prop_assert_eq!(from.canonicalize(), from_canonicalized.canonicalize());
 
                     // ensure to's have the same kinds
                     prop_assert_eq!(to.kind(), kind.clone());
@@ -669,5 +826,105 @@ mod proptests {
                 }
             }
         }
+
+        #[test]
+        fn compare_to_comptime(infix_type in arbitrary_infix_expr()) {
+            let (infix, typ) = infix_type;
+            let kind = Kind::numeric(typ.clone());
+            let expr = convert_infix_type_expr_to_expr(&infix);
+
+            let root = Path::new(".");
+            let file_manager = FileManager::new(root);
+            let parsed_files = HashMap::new();
+            let mut context = Context::from_ref_file_manager(
+                &file_manager,
+                &parsed_files,
+            );
+            let options = ElaboratorOptions {
+                debug_comptime_in_file: None,
+                pedantic_solving: true,
+                enabled_unstable_features: &[],
+                disable_required_unstable_features: false,
+            };
+            let mut elaborator = Elaborator::from_context(
+                &mut context,
+                CrateId::Root(0),
+                options,
+            );
+            let (expr_id, expr_type) = elaborator.elaborate_expression(expr);
+
+            assert_eq!(elaborator.errors, vec![]);
+            assert_eq!(typ, expr_type);
+
+            let current_function = None;
+            let mut interpreter = Interpreter::new(
+                &mut elaborator,
+                current_function,
+            );
+
+            let result_value = interpreter.evaluate(expr_id);
+            assert_eq!(elaborator.errors, vec![]);
+
+            let result_type = match result_value {
+                Ok(result_value) => numeric_value_to_type(result_value),
+                Err(_) => Type::Error,
+            };
+
+            let infix = Type::CheckedCast {
+                from: Box::new(infix.clone()),
+                to: Box::new(infix)
+            };
+
+            let infix_canonicalized = infix.canonicalize();
+            prop_assert_eq!(infix_canonicalized.kind(), kind);
+            prop_assert!(infix.kind().unifies(&result_type.kind()));
+
+            let infix_canonicalized = match infix_canonicalized {
+                Type::CheckedCast { from, .. } => {
+                    *from
+                }
+                _ => infix_canonicalized,
+            };
+
+            // expect an error from the interpreter when canonicalize does not produce a constant
+            if matches!(infix_canonicalized, Type::Constant(..)) {
+                prop_assert_eq!(infix_canonicalized, result_type);
+            } else {
+                prop_assert!(matches!(result_type, Type::Error));
+            }
+        }
+    }
+
+    #[test]
+    fn try_simplify_partial_constants_does_not_simplify_large_field_elements() {
+        // TODO(https://github.com/noir-lang/noir/issues/11013): This test demonstrates that
+        // try_simplify_partial_constants() does not simplify expressions with FieldElements
+        // that don't fit in 128 bits, although this case should be handled.
+        use crate::{TypeVariableId, signed_field::SignedField};
+        use acvm::FieldElement;
+
+        let typ = Type::FieldElement;
+        let kind = Kind::numeric(typ.clone());
+
+        // Create a type variable N
+        let var_n = TypeVariable::unbound(TypeVariableId(0), kind.clone());
+        let n = Type::TypeVariable(var_n);
+
+        // large_field ≈ 2^200
+        let large_field = SignedField::positive(FieldElement::from_be_bytes_reduce(&[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]));
+
+        let mul_expr = n.clone() * large_field.into();
+        let div_expr = mul_expr.clone() / SignedField::from(2u8).into();
+
+        // Canonicalize the expression
+        let canonicalized = div_expr.canonicalize();
+
+        // The expression should remain unchanged because try_simplify_partial_constants
+        // cannot simplify it when field elements don't fit in 128 bits
+        assert_eq!(canonicalized, div_expr);
     }
 }

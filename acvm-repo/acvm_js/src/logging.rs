@@ -1,6 +1,6 @@
 use js_sys::{Error, JsString};
-use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 use tracing_web::MakeWebConsoleWriter;
 use wasm_bindgen::prelude::*;
 

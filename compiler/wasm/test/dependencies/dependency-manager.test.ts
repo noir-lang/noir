@@ -54,7 +54,6 @@ describe('DependencyManager', () => {
 });
 
 class TestDependencyResolver implements DependencyResolver {
-  // eslint-disable-next-line require-await
   public async resolveDependency(pkg: Package, dep: DependencyConfig): Promise<Dependency | null> {
     if (!('path' in dep)) {
       return null;

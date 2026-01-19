@@ -1,9 +1,4 @@
-use crate::hir::{
-    def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind},
-    resolution::{errors::ResolverError, import::PathResolutionError},
-};
-
-use super::{assert_no_errors, get_program_errors};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn use_super() {
@@ -17,25 +12,19 @@ fn use_super() {
             some_func();
         }
     }
+
+    fn main() { }
     "#;
     assert_no_errors(src);
 }
 
 #[test]
 fn no_super() {
-    let src = "use super::some_func;";
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(span.start(), 4);
-    assert_eq!(span.end(), 9);
+    let src = "
+    use super::some_func;
+        ^^^^^ There is no super module
+    ";
+    check_errors(src);
 }
 
 #[test]
@@ -48,39 +37,10 @@ fn use_super_in_path() {
             super::some_func();
         }
     }
+
+    fn main() { }
     "#;
     assert_no_errors(src);
-}
-
-#[test]
-fn warns_on_use_of_private_exported_item() {
-    let src = r#"
-    mod foo {
-        mod bar {
-            pub fn baz() {}
-        }
-
-        use bar::baz;
-
-        pub fn qux() {
-            baz();
-        }
-    }
-
-    fn main() {
-        foo::baz();
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0].0,
-        CompilationError::ResolverError(ResolverError::PathResolutionError(
-            PathResolutionError::Private(..),
-        ))
-    ));
 }
 
 #[test]
@@ -110,22 +70,15 @@ fn warns_on_re_export_of_item_with_less_visibility() {
         }
 
         pub use bar::baz;
+                     ^^^ cannot re-export baz because it has less visibility than this use statement
+                     ~~~ consider marking baz as pub
     }
 
     fn main() {
         foo::baz();
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0].0,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
-        )
-    ));
+    check_errors(src);
 }
 
 #[test]
@@ -136,21 +89,10 @@ fn errors_if_using_alias_in_import() {
     }
 
     use foo::bar::baz;
+             ^^^ bar is a type alias, not a module
 
     fn main() {
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NotAModule { ident, kind },
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'not a module' error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(ident.to_string(), "bar");
-    assert_eq!(*kind, "type alias");
+    check_errors(src);
 }

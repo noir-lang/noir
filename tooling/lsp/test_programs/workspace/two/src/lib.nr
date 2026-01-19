@@ -7,13 +7,13 @@ pub fn function_two() {
 use one::subone;
 
 fn use_struct() {
-    let _ = subone::SubOneStruct { some_field: 0, some_other_field: 2 };
+    let _ = subone::SubOneStruct { some_field: 0, some_other_field: 123 };
 }
 
 use one::subone::SomeTrait;
 
-fn use_global() {
-    let _ = one::subone::some_global;
+fn use_invalid_global() {
+    let _ = one::subone::invalid_global;
 }
 
 fn use_struct_method() {
@@ -108,4 +108,17 @@ enum Color {
 
 fn test_enum() -> Color {
     Color::Red(1)
+}
+
+fn negative_integer() -> i32 {
+    -8
+}
+
+global array: [Field; 3] = [1, 2 + 3, 4];
+
+/// See [one::subone::SubOneStruct]
+fn doc_comments_test() {}
+
+fn use_invalid_global() {
+    let _ = one::subone::valid_global;
 }

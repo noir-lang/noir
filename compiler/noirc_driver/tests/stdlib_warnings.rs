@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use noirc_driver::{file_manager_with_stdlib, prepare_crate, ErrorsAndWarnings};
-use noirc_frontend::hir::{def_map::parse_file, Context};
+use noirc_driver::{ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
+use noirc_frontend::hir::{Context, def_map::parse_file};
 
 #[test]
 fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> {

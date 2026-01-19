@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+Cannot find file src/foobarbaz.nr which was specified as the `entry` field in Nargo.toml

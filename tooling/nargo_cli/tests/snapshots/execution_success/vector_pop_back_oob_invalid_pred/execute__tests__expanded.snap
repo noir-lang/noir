@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(dummy_val: u32, dummy_arr: [u32; 1], x: u32, y: u32) {
+    let mut vector: [u32] = dummy_arr.as_vector();
+    if x == 3_u32 {
+        vector = vector.push_back(dummy_val);
+    } else {
+        let (vector, _): ([u32], u32) = vector.pop_back();
+        let (s2, x): ([u32], u32) = vector.pop_back();
+        assert(x == y);
+        assert(s2.len() == 1_u32);
+    };
+    assert(vector.len() == 2_u32);
+}

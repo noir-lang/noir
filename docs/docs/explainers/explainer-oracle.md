@@ -48,10 +48,22 @@ If you don't constrain the return of your oracle, you could be clearly opening a
 
 :::
 
+## Return Type
+
+Oracles cannot return references (e.g., `&Field`, `&mut T`) because oracle functions represent external computations that execute outside the Noir program's memory space. Since oracles bridge between the Noir runtime and external environments, any values they return must be copied into the caller's context rather than referenced. Attempting to return a reference from an oracle would be meaningless, as there is no shared memory space between the oracle's execution environment and the Noir program.
+
+This restriction applies to any type containing references, including:
+- Direct references: `&Field`, `&mut u32`
+- Tuples with references: `(Field, &u32)`
+- Structs with reference fields
+- Enums with reference variants
+
+The compiler will produce an error if an oracle function's return type contains any references.
+
 ## How to use Oracles
 
 On CLI, Nargo resolves oracles by making JSON RPC calls, which means it would require an RPC node to be running.
 
-In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they match the expected types the developer defines. Refer to [Foreign Call Handler](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) to learn more about NoirJS's call handling.
+In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they match the expected types the developer defines.
 
 If you want to build using oracles, follow through to the [oracle guide](../how_to/how-to-oracles.md) for a simple example on how to do that.

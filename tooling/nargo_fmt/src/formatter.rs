@@ -1,10 +1,10 @@
 use buffer::Buffer;
 use noirc_frontend::{
+    ParsedModule,
     ast::Ident,
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
-    ParsedModule,
 };
 
 use crate::Config;
@@ -83,7 +83,7 @@ pub(crate) struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub(crate) fn new(source: &'a str, config: &'a Config) -> Self {
-        let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
+        let lexer = Lexer::new_with_dummy_file(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
             source,
@@ -111,6 +111,7 @@ impl<'a> Formatter<'a> {
         );
 
         self.format_parsed_module(parsed_module, self.ignore_next);
+        self.buffer.trim_multiple_newlines();
     }
 
     pub(crate) fn format_parsed_module(&mut self, parsed_module: ParsedModule, ignore_next: bool) {
@@ -128,7 +129,7 @@ impl<'a> Formatter<'a> {
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
         };
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -138,7 +139,7 @@ impl<'a> Formatter<'a> {
         if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
             panic!("Expected identifier or integer, got {:?}", self.token);
         }
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -223,6 +224,13 @@ impl<'a> Formatter<'a> {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
     }
 
+    /// Writes whatever is in the given span relative to the file's source that's being formatted
+    /// but trims the whitespaces at the end.
+    pub(crate) fn write_source_span_trimmed(&mut self, span: Span) {
+        let source = self.source[span.start() as usize..span.end() as usize].trim_end();
+        self.write(source);
+    }
+
     /// Writes the current indentation to the buffer, but only if the buffer
     /// is empty or it ends with a newline (otherwise we'd be indenting when not needed).
     pub(crate) fn write_indentation(&mut self) {
@@ -292,7 +300,7 @@ impl<'a> Formatter<'a> {
         self.ignore_next = false;
 
         let next_token = self.read_token_internal();
-        self.token_span = next_token.to_span();
+        self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
 
@@ -300,8 +308,8 @@ impl<'a> Formatter<'a> {
         let token = self.lexer.next();
         if let Some(token) = token {
             match token {
-                Ok(token) => token,
-                Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
+                Ok(token) => token.into_spanned_token(),
+                Err(err) => panic!("Expected lexer not to error, but got: {err:?}"),
             }
         } else {
             SpannedToken::new(Token::EOF, Default::default())

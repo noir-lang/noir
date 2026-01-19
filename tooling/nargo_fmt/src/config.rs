@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::ConfigError;
 
 macro_rules! config {
-    ($($field_name:ident: $field_ty:ty, $default_value:expr, $description:expr );+ $(;)*) => (
+    ($($field_name:ident: $field_ty:ty, $default_value:expr_2021, $description:expr_2021 );+ $(;)*) => (
         pub struct Config {
             $(
                 #[doc = $description]

@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool, zero: u32) -> pub bool {
+    let G_C: [[bool; 3]; 1] = [[true, false, true]];
+    let b: bool = func_1(G_C[zero])[zero + 1_u32];
+    if a {
+        G_C[zero][zero + 1_u32]
+    } else {
+        b
+    }
+}
+
+fn func_1(mut b: [bool; 3]) -> [bool; 3] {
+    b[1_u32] = true;
+    b
+}

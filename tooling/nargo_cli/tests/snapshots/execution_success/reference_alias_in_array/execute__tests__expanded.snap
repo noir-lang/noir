@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        foo()
+    }
+}
+
+unconstrained fn foo() {
+    if *bar([&mut true]) {
+        let mut i: bool = true;
+        while i {
+            i = false;
+        }
+    };
+}
+
+unconstrained fn bar(mut a: [&mut bool; 1]) -> &mut bool {
+    let e: (&mut bool,) = (&mut true,);
+    if *a[0_u32] { a[0_u32] = e.0; };
+    a[0_u32]
+}

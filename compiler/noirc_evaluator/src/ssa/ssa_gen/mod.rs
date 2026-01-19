@@ -1,18 +1,23 @@
 pub(crate) mod context;
 mod program;
+mod tests;
 mod value;
 
 use acvm::AcirField;
+use noirc_errors::call_stack::CallStack;
+use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
-pub(crate) use program::Ssa;
+pub use program::Ssa;
 
 use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
-use noirc_frontend::ast::{UnaryOp, Visibility};
+use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::hir_def::types::Type as HirType;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
+use noirc_frontend::shared::Visibility;
 
+use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
     ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
@@ -23,9 +28,11 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
+use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -36,16 +43,18 @@ use super::{
     },
 };
 
+pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
+pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
-    let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
+    let is_databus = DataBusBuilder::is_databus(program.main_function_parameters());
 
-    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
+    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
@@ -126,17 +135,55 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
-    Ok(ssa)
+
+    validate_ssa_or_err(ssa)
 }
 
-impl<'a> FunctionContext<'a> {
+/// Run the panicky validation, and try to turn it into a [RuntimeError] if it fails.
+fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+    // Temporarily take the hook, so we don't get the panic printout.
+    let old_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_info| {}));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)));
+    std::panic::set_hook(old_hook);
+
+    if let Err(payload) = result {
+        // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
+        // under the panic message, which makes it difficult to see what went wrong.
+        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+            eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+        }
+
+        // Try to get the panic message and turn this into a RuntimeError
+        let message = if let Some(message) = payload.downcast_ref::<String>() {
+            message.to_owned()
+        } else if let Some(message) = payload.downcast_ref::<&str>() {
+            message.to_string()
+        } else {
+            format!("{payload:?}")
+        };
+        let err = RuntimeError::SsaValidationError {
+            message: message.to_owned(),
+            call_stack: CallStack::default(),
+        };
+        Err(err)
+    } else {
+        Ok(ssa)
+    }
+}
+
+pub fn validate_ssa(ssa: &Ssa) {
+    for function in ssa.functions.values() {
+        validate_function(function, ssa);
+    }
+}
+
+impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        let incremented_params = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
-        self.end_scope(incremented_params, &results);
 
         self.builder.terminate_with_return(results);
         Ok(())
@@ -153,7 +200,9 @@ impl<'a> FunctionContext<'a> {
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::Loop(block) => self.codegen_loop(block),
+            Expression::While(while_) => self.codegen_while(while_),
             Expression::If(if_expr) => self.codegen_if(if_expr),
+            Expression::Match(match_expr) => self.codegen_match(match_expr),
             Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             Expression::ExtractTupleField(tuple, index) => {
                 self.codegen_extract_tuple_field(tuple, *index)
@@ -165,8 +214,10 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
-            Expression::Break => Ok(self.codegen_break()),
-            Expression::Continue => Ok(self.codegen_continue()),
+            Expression::Break => self.codegen_break(),
+            Expression::Continue => self.codegen_continue(),
+            Expression::Clone(expr) => self.codegen_clone(expr),
+            Expression::Drop(expr) => self.codegen_drop(expr),
         }
     }
 
@@ -215,29 +266,29 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Slice(array) => {
+            ast::Literal::Vector(array) => {
                 let elements = self.codegen_array_elements(&array.contents)?;
 
                 let typ = Self::convert_type(&array.typ).flatten();
                 Ok(match array.typ {
-                    ast::Type::Slice(_) => {
-                        let slice_length =
+                    ast::Type::Vector(_) => {
+                        let vector_length =
                             self.builder.length_constant(array.contents.len() as u128);
-                        let slice_contents =
+                        let vector_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
-                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                        Tree::Branch(vec![vector_length.into(), vector_contents])
                     }
-                    _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
+                    _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, negative, typ, location) => {
+            ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
+                self.checked_numeric_constant(*value, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
-                Ok(self.builder.numeric_constant(*value as u128, NumericType::bool()).into())
+                Ok(self.builder.numeric_constant(u128::from(*value), NumericType::bool()).into())
             }
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
@@ -249,7 +300,7 @@ impl<'a> FunctionContext<'a> {
                             let value = value.replace('{', "{{").replace('}', "}}");
                             string.push_str(&value);
                         }
-                        FmtStrFragment::Interpolation(value, _span) => {
+                        FmtStrFragment::Interpolation(value, _) => {
                             string.push('{');
                             string.push_str(value);
                             string.push('}');
@@ -260,7 +311,9 @@ impl<'a> FunctionContext<'a> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(&string);
-                let field_count = self.builder.length_constant(*number_of_fields as u128);
+                let field_count = self
+                    .builder
+                    .numeric_constant(u128::from(*number_of_fields), NumericType::NativeField);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -272,34 +325,30 @@ impl<'a> FunctionContext<'a> {
     fn codegen_array_elements(
         &mut self,
         elements: &[Expression],
-    ) -> Result<Vec<(Values, bool)>, RuntimeError> {
-        try_vecmap(elements, |element| {
-            let value = self.codegen_expression(element)?;
-            Ok((value, element.is_array_or_slice_literal()))
-        })
+    ) -> Result<Vec<Values>, RuntimeError> {
+        try_vecmap(elements, |element| self.codegen_expression(element))
     }
 
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            let char = self.builder.numeric_constant(*byte as u128, NumericType::char());
-            (char.into(), false)
+            self.builder.numeric_constant(u128::from(*byte), NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
-    // Codegen an array but make sure that we do not have a nested slice
+    // Codegen an array but make sure that we do not have a nested vector
     ///
     /// The bool aspect of each array element indicates whether the element is an array constant
     /// or not. If it is, we avoid incrementing the reference count because we consider the
     /// constant to be moved into this larger array constant.
     fn codegen_array_checked(
         &mut self,
-        elements: Vec<(Values, bool)>,
+        elements: Vec<Values>,
         typ: Type,
     ) -> Result<Values, RuntimeError> {
-        if typ.is_nested_slice() {
-            return Err(RuntimeError::NestedSlice { call_stack: self.builder.get_call_stack() });
+        if typ.is_nested_vector() {
+            return Err(RuntimeError::NestedVector { call_stack: self.builder.get_call_stack() });
         }
         Ok(self.codegen_array(elements, typ))
     }
@@ -317,22 +366,12 @@ impl<'a> FunctionContext<'a> {
     /// constant to be moved into this larger array constant.
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<(Values, bool)>, typ: Type) -> Values {
+    fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
         let mut array = im::Vector::new();
 
-        for (element, is_array_constant) in elements {
+        for element in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
-
-                // If we're referencing a sub-array in a larger nested array we need to
-                // increase the reference count of the sub array. This maintains a
-                // pessimistic reference count (since some are likely moved rather than shared)
-                // which is important for Brillig's copy on write optimization. This has no
-                // effect in ACIR code.
-                if !is_array_constant {
-                    self.builder.increment_array_reference_count(element);
-                }
-
                 array.push_back(element);
             });
         }
@@ -367,8 +406,13 @@ impl<'a> FunctionContext<'a> {
                     unary.location,
                 ))
             }
-            UnaryOp::MutableReference => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+            UnaryOp::Reference { mutable: _ } => {
+                let rhs = self.codegen_reference(&unary.rhs)?;
+                // If skip is set then `rhs` is a member access expression which is already a reference
+                if unary.skip {
+                    return Ok(rhs);
+                }
+                Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -415,14 +459,16 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Generate the index value first, it might modify the collection itself.
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
-        // Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, slices require two value ids for their representation.
-        let (array, slice_length) = if array_or_slice.len() > 1 {
-            (array_or_slice[1], Some(array_or_slice[0]))
+        // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
+        let array_or_vector = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Vectors are represented as a tuple in the form: (length, vector contents).
+        // Thus, vectors require two value ids for their representation.
+        let (array, vector_length) = if array_or_vector.len() > 1 {
+            (array_or_vector[1], Some(array_or_vector[0]))
         } else {
-            (array_or_slice[0], None)
+            (array_or_vector[0], None)
         };
 
         self.codegen_array_index(
@@ -430,7 +476,7 @@ impl<'a> FunctionContext<'a> {
             index_value,
             &index.element_type,
             index.location,
-            slice_length,
+            vector_length,
         )
     }
 
@@ -450,59 +496,105 @@ impl<'a> FunctionContext<'a> {
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
-        let type_size = Self::convert_type(element_type).size_of_type();
+        let type_size_usize = Self::convert_type(element_type).size_of_type();
         let type_size =
-            self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        // This shouldn't overflow as we are reaching for an initial array offset
-        // (otherwise it would have overflowed when creating the array)
+            self.builder.numeric_constant(type_size_usize as u128, NumericType::length_type());
+
+        let array_type = &self.builder.type_of_value(array);
+        let runtime = self.builder.current_function.runtime();
+
+        // Checks for index Out-of-bounds
+        match array_type {
+            Type::Array(_, len) => {
+                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
+                // except when the inner elements have no size, because the array access can be optimized out in that case.
+                // We then only need to inject it for brillig functions or for 'unit' elements.
+                if runtime.is_brillig() || type_size_usize == 0 {
+                    let len = self
+                        .builder
+                        .numeric_constant(u128::from(len.0), NumericType::length_type());
+                    self.codegen_access_check(index, len);
+                }
+            }
+            Type::Vector(_) => {
+                // The vector length is dynamic however so we can't rely on it being equal to the underlying memory
+                // block as we can do for array types. We then inject a access check for both ACIR and brillig.
+                self.codegen_access_check(
+                    index,
+                    length.expect("ICE: a length must be supplied for checking index"),
+                );
+            }
+
+            _ => unreachable!("must have array or vector but got {array_type}"),
+        }
+
+        // This can overflow if the original index is already not in the bounds of the array
+        // and we skipped inserting constraints. To stay on the conservative side, start with
+        // a checked operation, and simplify to unchecked if it can be evaluated.
+        // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
+        // In ACIR the values are represented as Fields, so they don't wrap around, but ACIR has built-in OOB checks,
+        // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
+        let unchecked = true;
+
         let base_index = self.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: true },
+            BinaryOp::Mul { unchecked },
             type_size,
         );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let offset = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index, unchecked);
             field_index += 1;
 
-            let array_type = &self.builder.type_of_value(array);
-            match array_type {
-                Type::Slice(_) => {
-                    self.codegen_slice_access_check(index, length);
-                }
-                Type::Array(..) => {
-                    // Nothing needs to done to prepare an array access on an array
-                }
-                _ => unreachable!("must have array or slice but got {array_type}"),
-            }
-
             // Reference counting in brillig relies on us incrementing reference
-            // counts when nested arrays/slices are constructed or indexed. This
+            // counts when nested arrays/vectors are constructed or indexed. This
             // has no effect in ACIR code.
-            let result = self.builder.insert_array_get(array, offset, typ);
-            self.builder.increment_array_reference_count(result);
+            let result = self.builder.insert_array_get(array, index, typ);
             result.into()
         }))
     }
 
-    /// Prepare a slice access.
-    /// Check that the index being used to access a slice element
-    /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
+    /// Prepare an array or vector access.
+    /// Check that the index being used to access an array/vector element
+    /// is less than the (potentially dynamic) array/vector length.
+    fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
-        let array_len = self
-            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
+        let array_len = self.make_array_index(length);
+        let assert_message = Some("Index out of bounds".to_owned());
 
-        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        let true_const = self.builder.numeric_constant(true, NumericType::bool());
+        let array_len_constant = self
+            .builder
+            .current_function
+            .dfg
+            .get_numeric_constant(array_len)
+            .and_then(|value| value.try_to_u32());
 
-        self.builder.insert_constrain(
-            is_offset_out_of_bounds,
-            true_const,
-            Some("Index out of bounds".to_owned().into()),
-        );
+        // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
+        let runtime = self.builder.current_function.runtime();
+        if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
+            // If the array length is a power of two then we can make use of the range check opcode
+            // to assert that the index fits in the relevant number of bits.
+            let array_len_constant = array_len_constant.expect("array checked to be constant");
+            let array_len_bits = array_len_constant.ilog2();
+            assert_eq!(2u32.pow(array_len_bits), array_len_constant);
+            // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
+            // There's an optimization here that we should find automatically.
+            let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
+            self.builder.insert_range_check(index_as_field, array_len_bits, assert_message);
+        } else {
+            // If it's not a power of two then we need to do an explicit inequality and constraint.
+            let is_offset_out_of_bounds =
+                self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+            let true_const = self.builder.numeric_constant(true, NumericType::bool());
+
+            self.builder.insert_constrain(
+                is_offset_out_of_bounds,
+                true_const,
+                assert_message.map(ConstrainError::from),
+            );
+        }
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
@@ -523,7 +615,7 @@ impl<'a> FunctionContext<'a> {
     ///   br loop_entry(v0)
     /// loop_entry(i: Field):
     ///   v2 = lt i v1
-    ///   brif v2, then: loop_body, else: loop_end
+    ///   jmpif v2, then: loop_body, else: loop_end
     /// loop_body():
     ///   v3 = ... codegen body ...
     ///   v4 = add 1, i
@@ -538,10 +630,11 @@ impl<'a> FunctionContext<'a> {
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
-        if let (Some(start_constant), Some(end_constant)) = (
-            self.builder.current_function.dfg.get_numeric_constant(start_index),
-            self.builder.current_function.dfg.get_numeric_constant(end_index),
-        ) {
+        let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
+
+        if let (Some(start_constant), Some(end_constant)) =
+            (range_bound(start_index), range_bound(end_index))
+        {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
             if start_constant >= end_constant {
                 return Ok(Self::unit_value());
@@ -578,9 +671,12 @@ impl<'a> FunctionContext<'a> {
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
-        self.codegen_expression(&for_expr.block)?;
-        let new_loop_index = self.make_offset(loop_index, 1);
-        self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+
+        let result = self.codegen_expression(&for_expr.block);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            let new_loop_index = this.make_offset(loop_index, 1, true);
+            this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+        })?;
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -588,7 +684,7 @@ impl<'a> FunctionContext<'a> {
         Ok(Self::unit_value())
     }
 
-    /// Codegens a loop, creating three new blocks in the process.
+    /// Codegens a loop, creating two new blocks in the process.
     /// The return value of a loop is always a unit literal.
     ///
     /// For example, the loop `loop { body }` is codegen'd as:
@@ -611,11 +707,56 @@ impl<'a> FunctionContext<'a> {
 
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
-        self.codegen_expression(block)?;
-        self.builder.terminate_with_jmp(loop_body, vec![]);
+        let result = self.codegen_expression(block);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            this.builder.terminate_with_jmp(loop_body, vec![]);
+        })?;
 
         // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
+        self.exit_loop();
+        Ok(Self::unit_value())
+    }
+
+    /// Codegens a while loop, creating three new blocks in the process.
+    /// The return value of a while is always a unit literal.
+    ///
+    /// For example, the loop `while cond { body }` is codegen'd as:
+    ///
+    /// ```text
+    ///   jmp while_entry()
+    /// while_entry:
+    ///   v0 = ... codegen cond ...
+    ///   jmpif v0, then: while_body, else: while_end
+    /// while_body():
+    ///   v3 = ... codegen body ...
+    ///   jmp while_entry()
+    /// while_end():
+    ///   ... This is the current insert point after codegen_while finishes ...
+    /// ```
+    fn codegen_while(&mut self, while_: &While) -> Result<Values, RuntimeError> {
+        let while_entry = self.builder.insert_block();
+        let while_body = self.builder.insert_block();
+        let while_end = self.builder.insert_block();
+
+        self.builder.terminate_with_jmp(while_entry, vec![]);
+
+        // Codegen the entry (where the condition is)
+        self.builder.switch_to_block(while_entry);
+        let condition = self.codegen_non_tuple_expression(&while_.condition)?;
+        self.builder.terminate_with_jmpif(condition, while_body, while_end);
+
+        self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
+
+        // Codegen the body
+        self.builder.switch_to_block(while_body);
+        let result = self.codegen_expression(&while_.body);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            this.builder.terminate_with_jmp(while_entry, vec![]);
+        })?;
+
+        // Finish by switching to the end of the while
+        self.builder.switch_to_block(while_end);
         self.exit_loop();
         Ok(Self::unit_value())
     }
@@ -626,7 +767,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: else_block
+    ///   jmpif v0, then: then_block, else: else_block
     /// then_block():
     ///   v1 = ... codegen a ...
     ///   br end_if(v1)
@@ -641,7 +782,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_if
+    ///   jmpif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()
@@ -660,19 +801,24 @@ impl<'a> FunctionContext<'a> {
         self.builder.terminate_with_jmpif(condition, then_block, else_block);
 
         self.builder.switch_to_block(then_block);
-        let then_value = self.codegen_expression(&if_expr.consequence)?;
+        let then_result = self.codegen_expression(&if_expr.consequence);
 
         let mut result = Self::unit_value();
 
         if let Some(alternative) = &if_expr.alternative {
             let end_block = self.builder.insert_block();
-            let then_values = then_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, then_values);
+
+            self.codegen_unless_break_or_continue(then_result, |this, then_value| {
+                let then_values = then_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, then_values);
+            })?;
 
             self.builder.switch_to_block(else_block);
-            let else_value = self.codegen_expression(alternative)?;
-            let else_values = else_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, else_values);
+            let else_result = self.codegen_expression(alternative);
+            self.codegen_unless_break_or_continue(else_result, |this, else_value| {
+                let else_values = else_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, else_values);
+            })?;
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
@@ -710,6 +856,216 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
+    fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Values, RuntimeError> {
+        let variable = self.lookup(match_expr.variable_to_match.0);
+
+        // Any matches with only a single case we don't need to check the tag at all.
+        // Note that this includes all matches on struct / tuple values.
+        if match_expr.cases.len() == 1 && match_expr.default_case.is_none() {
+            return self.no_match(variable, &match_expr.cases[0]);
+        }
+
+        // From here on we can assume `variable` is an enum, int, or bool value (not a struct/tuple)
+        let tag = self.enum_tag(&variable);
+        let tag_type = self.builder.type_of_value(tag).unwrap_numeric();
+
+        let make_end_block = |this: &mut Self| -> (BasicBlockId, Values) {
+            let block = this.builder.insert_block();
+            let results = Self::map_type(&match_expr.typ, |typ| {
+                this.builder.add_block_parameter(block, typ).into()
+            });
+            (block, results)
+        };
+
+        let (end_block, end_results) = make_end_block(self);
+
+        // Optimization: if there is no default case we can jump directly to the last case
+        // when finished with the previous case instead of using a jmpif with an unreachable
+        // else block.
+        let last_case = if match_expr.default_case.is_some() {
+            match_expr.cases.len()
+        } else {
+            match_expr.cases.len() - 1
+        };
+
+        let mut blocks_to_merge = Vec::with_capacity(last_case);
+
+        for i in 0..last_case {
+            let case = &match_expr.cases[i];
+            let variant_tag = self.variant_index_value(&case.constructor, tag_type)?;
+            let eq = self.builder.insert_binary(tag, BinaryOp::Eq, variant_tag);
+
+            let case_block = self.builder.insert_block();
+            let else_block = self.builder.insert_block();
+            self.builder.terminate_with_jmpif(eq, case_block, else_block);
+
+            self.builder.switch_to_block(case_block);
+            self.bind_case_arguments(variable.clone(), case);
+            let results = self.codegen_expression(&case.branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+
+                // Each branch will jump to a different end block for now. We have to merge them all
+                // later since SSA doesn't support more than two blocks jumping to the same end block.
+                let local_end_block = make_end_block(this);
+                this.builder.terminate_with_jmp(local_end_block.0, results);
+                blocks_to_merge.push(local_end_block);
+            })?;
+
+            self.builder.switch_to_block(else_block);
+        }
+
+        let (last_local_end_block, last_results) = make_end_block(self);
+        blocks_to_merge.push((last_local_end_block, last_results));
+
+        if let Some(branch) = &match_expr.default_case {
+            let results = self.codegen_expression(branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })?;
+        } else {
+            // If there is no default case, assume we saved the last case from the
+            // last_case optimization above
+            let case = match_expr.cases.last().unwrap();
+            self.bind_case_arguments(variable, case);
+            let results = self.codegen_expression(&case.branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })?;
+        }
+
+        // Merge blocks as last-in first-out:
+        //
+        // local_end_block0-----------------------------------------\
+        //                                                           end block
+        //                                                          /
+        // local_end_block1---------------------\                  /
+        //                                       new merge block2-/
+        // local_end_block2--\                  /
+        //                    new merge block1-/
+        // local_end_block3--/
+        //
+        // This is necessary since SSA panics during flattening if we immediately
+        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        //
+        // It'd also be more efficient to merge them tournament-bracket style but that
+        // also leads to panics during flattening for similar reasons.
+        while let Some((block, results)) = blocks_to_merge.pop() {
+            self.builder.switch_to_block(block);
+
+            if let Some((block2, results2)) = blocks_to_merge.pop() {
+                // Merge two blocks in the queue together
+                let (new_merge, new_merge_results) = make_end_block(self);
+                blocks_to_merge.push((new_merge, new_merge_results));
+
+                let results = results.into_value_list(self);
+                self.builder.terminate_with_jmp(new_merge, results);
+
+                self.builder.switch_to_block(block2);
+                let results2 = results2.into_value_list(self);
+                self.builder.terminate_with_jmp(new_merge, results2);
+            } else {
+                // Finally done, jump to the end
+                let results = results.into_value_list(self);
+                self.builder.terminate_with_jmp(end_block, results);
+            }
+        }
+
+        self.builder.switch_to_block(end_block);
+        Ok(end_results)
+    }
+
+    fn variant_index_value(
+        &mut self,
+        constructor: &Constructor,
+        typ: NumericType,
+    ) -> Result<ValueId, RuntimeError> {
+        match constructor {
+            Constructor::Int(value) => self.checked_numeric_constant(*value, typ),
+            other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
+        }
+    }
+
+    fn no_match(&mut self, variable: Values, case: &MatchCase) -> Result<Values, RuntimeError> {
+        if !case.arguments.is_empty() {
+            self.bind_case_arguments(variable, case);
+        }
+        self.codegen_expression(&case.branch)
+    }
+
+    /// Extracts the tag value from an enum. Assumes enums are represented as a tuple
+    /// where the tag is always the first field of the tuple.
+    ///
+    /// If the enum is only a single Leaf value, this expects the enum to consist only of the tag value.
+    fn enum_tag(&mut self, enum_value: &Values) -> ValueId {
+        match enum_value {
+            Tree::Branch(values) => self.enum_tag(&values[0]),
+            Tree::Leaf(value) => value.clone().eval(self),
+        }
+    }
+
+    /// Bind the given variable ids to each argument of the given enum, using the
+    /// variant at the given variant index. Note that this function makes assumptions that the
+    /// representation of an enum is:
+    ///
+    /// (
+    ///   tag_value,
+    ///   (field0_0, .. field0_N), // fields of variant 0,
+    ///   (field1_0, .. field1_N), // fields of variant 1,
+    ///   ..,
+    ///   (fieldM_0, .. fieldM_N), // fields of variant N,
+    /// )
+    fn bind_case_arguments(&mut self, enum_value: Values, case: &MatchCase) {
+        if !case.arguments.is_empty() {
+            if case.constructor.is_enum() {
+                self.bind_enum_case_arguments(enum_value, case);
+            } else if case.constructor.is_tuple_or_struct() {
+                self.bind_tuple_or_struct_case_arguments(enum_value, case);
+            }
+        }
+    }
+
+    fn bind_enum_case_arguments(&mut self, enum_value: Values, case: &MatchCase) {
+        let Tree::Branch(mut variants) = enum_value else {
+            unreachable!("Expected enum value to contain each variant");
+        };
+
+        let variant_index = case.constructor.variant_index();
+
+        // variant_index + 1 to account for the extra tag value
+        let Tree::Branch(variant) = variants.swap_remove(variant_index + 1) else {
+            unreachable!("Expected enum variant to contain a tag and each variant's arguments");
+        };
+
+        assert_eq!(
+            variant.len(),
+            case.arguments.len(),
+            "Expected enum variant to contain a value for each variant argument"
+        );
+
+        for (value, (arg, _)) in variant.into_iter().zip(&case.arguments) {
+            self.define(*arg, value);
+        }
+    }
+
+    fn bind_tuple_or_struct_case_arguments(&mut self, struct_value: Values, case: &MatchCase) {
+        let Tree::Branch(fields) = struct_value else {
+            unreachable!("Expected struct value to contain each field");
+        };
+
+        assert_eq!(
+            fields.len(),
+            case.arguments.len(),
+            "Expected field length to match constructor argument count"
+        );
+
+        for (value, (arg, _)) in fields.into_iter().zip(&case.arguments) {
+            self.define(*arg, value);
+        }
+    }
+
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
         Ok(Tree::Branch(try_vecmap(tuple, |expr| self.codegen_expression(expr))?))
     }
@@ -729,8 +1085,19 @@ impl<'a> FunctionContext<'a> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
+        // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
+        let can_modify_args = !is_pure_builtin_func(&call.func) && !is_oracle_func(&call.func);
+
         for argument in &call.arguments {
-            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            // The ownership pass inserts `Clone` around call arguments, however if we know that
+            // we are calling a builtin function that will not modify the argument, then we can
+            // skip generating an `IncrementRc` for cloned arrays.
+            // The purity information isn't currently available to the ownership pass.
+            let arg = match argument {
+                Expression::Clone(arg) if !can_modify_args => arg.as_ref(),
+                other => other,
+            };
+            let mut values = self.codegen_expression(arg)?.into_value_list(self);
             arguments.append(&mut values);
         }
 
@@ -751,22 +1118,36 @@ impl<'a> FunctionContext<'a> {
             self.builder.set_location(location).get_intrinsic_from_value(function)
         {
             match intrinsic {
-                Intrinsic::SliceInsert => {
+                Intrinsic::VectorInsert => {
                     let one = self.builder.length_constant(1u128);
 
-                    // We add one here in the case of a slice insert as a slice insert at the length of the slice
-                    // can be converted to a slice push back
-                    // This is unchecked as the slice length could be u32::max
+                    // We add one here in the case of a vector insert as a vector insert at the length of the vector
+                    // can be converted to a vector push back
+                    // This is unchecked as the vector length could be u32::max
                     let len_plus_one = self.builder.insert_binary(
                         arguments[0],
                         BinaryOp::Add { unchecked: false },
                         one,
                     );
 
-                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_access_check(arguments[2], len_plus_one);
                 }
-                Intrinsic::SliceRemove => {
-                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                Intrinsic::VectorRemove => {
+                    self.codegen_access_check(arguments[2], arguments[0]);
+                }
+                Intrinsic::VectorPopFront | Intrinsic::VectorPopBack
+                    if self.builder.current_function.runtime().is_brillig() =>
+                {
+                    // We need to put in a constraint to protect against accessing empty vectors:
+                    // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
+                    // * In ACIR we do have protection against reading empty vectors (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
+                    //   when it inevitably tries to read from an empty vector anyway. We have to handle that by removing operations which are known
+                    //   to fail and replace them with conditional constraints that do take the side effect into account.
+                    // By doing this in the SSA we might be able to optimize this away later.
+                    let zero =
+                        self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
+                    self.codegen_access_check(zero, arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -782,22 +1163,12 @@ impl<'a> FunctionContext<'a> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
-        // Don't mutate the reference count if we're assigning an array literal to a Let:
-        // `let mut foo = [1, 2, 3];`
-        // we consider the array to be moved, so we should have an initial rc of just 1.
-        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
-
         values = values.map(|value| {
             let value = value.eval(self);
 
             Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value, should_inc_rc)
+                self.new_mutable_variable(value)
             } else {
-                // `new_mutable_variable` increments rcs internally so we have to
-                // handle it separately for the immutable case
-                if should_inc_rc {
-                    self.builder.increment_array_reference_count(value);
-                }
                 value::Value::Normal(value)
             })
         });
@@ -854,19 +1225,13 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
+        // Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
-        let should_inc_rc = !assign.expression.is_array_or_slice_literal();
-
-        rhs.clone().for_each(|value| {
-            let value = value.eval(self);
-
-            if should_inc_rc {
-                self.builder.increment_array_reference_count(value);
-            }
-        });
+        let lhs = self.extract_current_value(&assign.lvalue)?;
 
         self.assign_new_value(lhs, rhs);
+
         Ok(Self::unit_value())
     }
 
@@ -875,22 +1240,85 @@ impl<'a> FunctionContext<'a> {
         Ok(Self::unit_value())
     }
 
-    fn codegen_break(&mut self) -> Values {
+    fn codegen_break(&mut self) -> Result<Values, RuntimeError> {
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
-        Self::unit_value()
+
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
 
-    fn codegen_continue(&mut self) -> Values {
+    fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
         if let Some(loop_index) = loop_.loop_index {
-            let new_loop_index = self.make_offset(loop_index, 1);
+            let new_loop_index = self.make_offset(loop_index, 1, true);
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
-        Self::unit_value()
+
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
+
+    /// Evaluate the given expression, increment the reference count of each array within,
+    /// and return the evaluated expression.
+    fn codegen_clone(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        let values = self.codegen_expression(expr)?;
+        Ok(values.map(|value| {
+            let value = value.eval(self);
+            self.builder.increment_array_reference_count(value);
+            Values::from(value)
+        }))
+    }
+
+    /// Evaluate the given expression, decrement the reference count of each array within,
+    /// and return unit.
+    fn codegen_drop(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        let values = self.codegen_expression(expr)?;
+        values.for_each(|value| {
+            let value = value.eval(self);
+            self.builder.decrement_array_reference_count(value);
+        });
+        Ok(Self::unit_value())
+    }
+
+    #[must_use = "do not forget to add `?` at the end of this function call"]
+    fn codegen_unless_break_or_continue<T, F>(
+        &mut self,
+        result: Result<T, RuntimeError>,
+        f: F,
+    ) -> Result<(), RuntimeError>
+    where
+        F: FnOnce(&mut Self, T),
+    {
+        match result {
+            Ok(value) => {
+                f(self, value);
+                Ok(())
+            }
+            Err(RuntimeError::BreakOrContinue { .. }) => Ok(()),
+            Err(err) => Err(err),
+        }
+    }
+}
+
+/// Return whether the expression refers to a pure builtin or low level function.
+fn is_pure_builtin_func(expr: &Expression) -> bool {
+    let Expression::Ident(ident) = expr else {
+        return false;
+    };
+    let (ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = &ident.definition
+    else {
+        return false;
+    };
+    let Some(intrinsic) = Intrinsic::lookup(name) else {
+        return false;
+    };
+    matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+}
+
+/// Return whether the expression refers to a foreign function.
+fn is_oracle_func(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
 }

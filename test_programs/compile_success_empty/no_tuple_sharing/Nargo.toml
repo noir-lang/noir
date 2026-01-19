@@ -1,0 +1,6 @@
+[package]
+name = "no_tuple_sharing"
+type = "bin"
+authors = [""]
+
+[dependencies]

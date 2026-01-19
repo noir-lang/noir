@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(modulo(47_u32, 3_u32) == 2_u32);
+        assert(modulo(2_u32, 3_u32) == 2_u32);
+        assert(signed_modulo(5_i8, 3_i8) == 2_i8);
+        assert(signed_modulo(2_i8, 3_i8) == 2_i8);
+        let minus_two: i8 = -2_i8;
+        let minus_three: i8 = -3_i8;
+        let minus_five: i8 = -5_i8;
+        assert(signed_modulo(5_i8, minus_three) == 2_i8);
+        assert(signed_modulo(minus_five, 3_i8) == minus_two);
+        assert(signed_modulo(minus_five, minus_three) == minus_two);
+    }
+}
+
+unconstrained fn modulo(x: u32, y: u32) -> u32 {
+    x % y
+}
+
+unconstrained fn signed_modulo(x: i8, y: i8) -> i8 {
+    x % y
+}

@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+-12345
+-7655

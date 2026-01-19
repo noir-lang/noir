@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+Cannot find file src/main.nr which is defaulted due to specifying `type = "bin"` in Nargo.toml

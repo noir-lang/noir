@@ -1,0 +1,6 @@
+[package]
+name = "while_cond_clone_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

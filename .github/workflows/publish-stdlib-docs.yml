@@ -1,0 +1,104 @@
+name: stdlib docs
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-nargo:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v6
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: false
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: nargo
+          path: ./target/release/nargo
+          retention-days: 3
+
+  build-stdlib-docs:
+    name: Build stdlib docs
+    runs-on: ubuntu-24.04
+    needs: [build-nargo]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: Run `integration-tests`
+        working-directory: ./noir_stdlib
+        run: nargo doc
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: stdlib-docs
+          path: ./noir_stdlib/target/docs
+          retention-days: 3
+
+  publish-stdlib-docs:
+    name: Publish stdlib Docs
+    runs-on: ubuntu-24.04
+    needs: [build-stdlib-docs]
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+
+      - name: Clear old docs
+        run: rm -rf ./stdlib
+
+      - name: Download stdlib docs
+        uses: actions/download-artifact@v7
+        with:
+          name: stdlib-docs
+          path: ./stdlib
+
+      - name: Configure git
+        run: |
+          git config --global user.name "noirdoc"
+          git config --global user.email "github@users.noreply.github.com"
+
+      - name: Commit new docs
+        run: |
+          # This could _potentially_ clash with pushing benchmarks to this branch at the same time.
+          # In practice, this will complete much sooner than the benchmarks are generated.
+          git add ./stdlib/*
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "update noirdoc"
+            git push
+          fi

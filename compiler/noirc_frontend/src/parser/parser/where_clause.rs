@@ -1,15 +1,15 @@
 use crate::{
-    ast::{GenericTypeArgs, Path, PathKind, TraitBound, UnresolvedTraitConstraint, UnresolvedType},
+    ast::{GenericTypeArgs, Path, TraitBound, UnresolvedTraitConstraint, UnresolvedType},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token},
 };
 
 use super::{
-    parse_many::{separated_by, separated_by_comma},
     Parser,
+    parse_many::{separated_by, separated_by_comma},
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// WhereClause = 'where' WhereClauseItems?
     ///
     /// WhereClauseItems = WhereClauseItem ( ',' WhereClauseItem )* ','?
@@ -70,12 +70,7 @@ impl<'a> Parser<'a> {
 
         self.expected_label(ParsingRuleLabel::TraitBound);
         TraitBound {
-            trait_path: Path {
-                kind: PathKind::Plain,
-                segments: Vec::new(),
-                span: self.span_at_previous_token_end(),
-            },
-            trait_id: None,
+            trait_path: Path::plain(Vec::new(), self.location_at_previous_token_end()),
             trait_generics: GenericTypeArgs::default(),
         }
     }
@@ -84,7 +79,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_trait_bound(&mut self) -> Option<TraitBound> {
         let trait_path = self.parse_path_no_turbofish()?;
         let trait_generics = self.parse_generic_type_args();
-        Some(TraitBound { trait_path, trait_generics, trait_id: None })
+        Some(TraitBound { trait_path, trait_generics })
     }
 }
 
@@ -93,16 +88,16 @@ mod tests {
     use crate::{
         ast::UnresolvedTraitConstraint,
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
         token::Token,
     };
 
     fn parse_where_clause_no_errors(src: &str) -> Vec<UnresolvedTraitConstraint> {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let constraints = parser.parse_where_clause();
         expect_no_errors(&parser.errors);
         constraints
@@ -154,7 +149,7 @@ mod tests {
                           ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let mut constraints = parser.parse_where_clause();
 
         let reason = get_single_error_reason(&parser.errors, span);
@@ -179,7 +174,7 @@ mod tests {
     #[test]
     fn parses_where_clause_missing_trait_bound() {
         let src = "where Foo: ";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         parser.parse_where_clause();
         assert!(!parser.errors.is_empty());
     }

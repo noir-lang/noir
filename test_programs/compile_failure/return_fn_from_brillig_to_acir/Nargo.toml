@@ -1,0 +1,6 @@
+[package]
+name = "return_fn_from_brillig_to_acir"
+type = "bin"
+authors = [""]
+
+[dependencies]

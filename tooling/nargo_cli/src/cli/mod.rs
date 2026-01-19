@@ -2,30 +2,36 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+    ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
+    get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
+use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
+    collections::BTreeMap,
     fs::File,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use color_eyre::eyre;
 
 use crate::errors::CliError;
 
-mod fs;
-
 mod check_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
+mod doc_cmd;
 mod execute_cmd;
+mod expand_cmd;
 mod export_cmd;
 mod fmt_cmd;
+mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
+mod interpret_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
@@ -54,13 +60,13 @@ struct NargoCli {
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_and_normalize_path)]
     program_dir: PathBuf,
 
     /// Override the default target directory.
-    #[arg(long, hide = true, global = true, value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, value_parser = parse_and_normalize_path)]
     target_dir: Option<PathBuf>,
 }
 
@@ -97,17 +103,21 @@ enum NargoCommand {
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
+    #[command(hide = true)]
+    Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
-    #[command(hide = true)] // Hidden while the feature is being built out
     Export(export_cmd::ExportCommand),
     Debug(debug_cmd::DebugCommand),
     Test(test_cmd::TestCommand),
+    Fuzz(fuzz_cmd::FuzzCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
+    Expand(expand_cmd::ExpandCommand),
+    Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -140,15 +150,19 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
-        NargoCommand::Compile(args) => with_workspace(args, config, compile_cmd::run),
+        NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
+        NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
         NargoCommand::Test(args) => with_workspace(args, config, test_cmd::run),
+        NargoCommand::Fuzz(args) => with_workspace(args, config, fuzz_cmd::run),
         NargoCommand::Info(args) => with_workspace(args, config, info_cmd::run),
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
+        NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
+        NargoCommand::Doc(args) => with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
@@ -176,6 +190,43 @@ fn read_workspace(
     )?;
 
     Ok(workspace)
+}
+
+/// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+#[allow(clippy::field_reassign_with_default)]
+fn compile_with_maybe_dummy_workspace(
+    cmd: compile_cmd::CompileCommand,
+    config: NargoConfig,
+) -> Result<(), CliError> {
+    if cmd.compile_options.debug_compile_stdin {
+        let package_name = "debug_compile_stdin".to_string();
+
+        // dummy root dir
+        let root_dir = PathBuf::new();
+        // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
+        // is invalid because the fields are private
+        let mut package = PackageMetadata::default();
+        package.name = package_name.clone();
+        package.package_type = Some("bin".into());
+        let dependencies = BTreeMap::new();
+        let package_config = PackageConfig { package, dependencies };
+        let config = nargo_toml::Config::Package { package_config };
+        let nargo_toml = NargoToml { root_dir, config };
+        let package_name =
+            CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
+        let selection = PackageSelection::Selected(package_name);
+
+        let assume_default_entry = true;
+        let workspace = resolve_workspace_from_fixed_toml(
+            nargo_toml,
+            selection,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
+        )?;
+        compile_cmd::run(cmd, workspace)
+    } else {
+        with_workspace(cmd, config, compile_cmd::run)
+    }
 }
 
 /// Find the root directory, parse the workspace, lock the packages, then execute the command.
@@ -213,14 +264,15 @@ where
 /// Lock the (selected) packages in the workspace.
 /// The lock taken can be shared for commands that only read the artifacts,
 /// or exclusive for the ones that (might) write artifacts as well.
-fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Drop>, CliError> {
-    use fs2::FileExt as _;
-
+fn lock_workspace(
+    workspace: &Workspace,
+    exclusive: bool,
+) -> Result<Vec<impl Drop + use<>>, CliError> {
     struct LockedFile(File);
 
     impl Drop for LockedFile {
         fn drop(&mut self) {
-            let _ = self.0.unlock();
+            let _ = fs2::FileExt::unlock(&self.0);
         }
     }
 
@@ -233,15 +285,17 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
             .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
 
         if exclusive {
-            if file.try_lock_exclusive().is_err() {
+            if fs2::FileExt::try_lock_exclusive(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...");
             }
-            file.lock_exclusive().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+            fs2::FileExt::lock_exclusive(&file)
+                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         } else {
-            if file.try_lock_shared().is_err() {
+            if fs2::FileExt::try_lock_shared(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...",);
             }
-            file.lock_shared().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+            fs2::FileExt::lock_shared(&file)
+                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         }
 
         locks.push(LockedFile(file));
@@ -249,32 +303,10 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
     Ok(locks)
 }
 
-/// Parses a path and turns it into an absolute one by joining to the current directory.
-fn parse_path(path: &str) -> Result<PathBuf, String> {
-    use fm::NormalizePath;
-    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
-    if !path.is_absolute() {
-        path = std::env::current_dir().unwrap().join(path).normalize();
-    }
-    Ok(path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::NargoCli;
     use clap::Parser;
-
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(err
-            .to_string()
-            .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
-    }
 
     #[test]
     fn test_parse_target_dir() {

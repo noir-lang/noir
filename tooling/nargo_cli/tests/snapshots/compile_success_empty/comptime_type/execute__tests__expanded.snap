@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::meta::type_of;
+
+struct Foo<T> {
+    x: T,
+}
+
+trait SomeTrait<T> {}
+
+pub struct StructImplementsSomeTrait {}
+
+impl SomeTrait<i32> for StructImplementsSomeTrait {}
+
+pub struct StructDoesNotImplementSomeTrait {}
+
+trait Serialize<let N: u32> {}
+
+impl Serialize<1> for Field {}
+
+impl<let M: u32, let N: u32, T> Serialize<N * M> for [T; N]
+where
+    T: Serialize<M>,
+{}
+
+impl<let M: u32, let N: u32, T, U> Serialize<N + M> for (T, U)
+where
+    T: Serialize<N>,
+    U: Serialize<M>,
+{}
+
+fn main() {
+    ()
+}
+
+pub fn function_with_where<T>(_x: T)
+where
+    T: SomeTrait<i32>,
+{
+    ()
+}

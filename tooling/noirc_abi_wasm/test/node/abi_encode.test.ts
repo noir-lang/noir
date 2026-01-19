@@ -1,10 +1,9 @@
 import { expect } from 'chai';
 import { abiEncode, abiDecode, WitnessMap, Field } from '@noir-lang/noirc_abi';
-import { DecodedInputs } from '../types';
+import type { DecodedInputs } from '../types';
+import { abi, inputs } from '../shared/abi_encode';
 
 it('recovers original inputs when abi encoding and decoding', async () => {
-  const { abi, inputs } = await import('../shared/abi_encode');
-
   const initial_witness: WitnessMap = abiEncode(abi, inputs);
   const decoded_inputs: DecodedInputs = abiDecode(abi, initial_witness);
 

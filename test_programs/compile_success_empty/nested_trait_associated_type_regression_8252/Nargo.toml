@@ -1,0 +1,6 @@
+[package]
+name = "nested_trait_associated_type_regression_8252"
+type = "bin"
+authors = [""]
+
+[dependencies]

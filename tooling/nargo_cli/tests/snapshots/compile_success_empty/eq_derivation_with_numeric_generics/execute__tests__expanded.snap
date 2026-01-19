@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo<let T: u32> {
+    a: [Field; T],
+    b: u32,
+}
+
+impl<let T: u32> Eq for Foo<T> {
+    fn eq(_self: Self, _other: Self) -> bool {
+        (_self.a == _other.a) & (_self.b == _other.b)
+    }
+}
+
+fn main() {
+    let foo: Foo<10> = Foo::<10> { a: [0_Field; 10], b: 27_u32 };
+    let bar: Foo<10> = Foo::<10> { a: [0_Field; 10], b: 28_u32 };
+    assert(foo != bar);
+}

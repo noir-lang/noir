@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<script defer src="../../nargo_doc.js"></script>
+<title>Trait Hash documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">Hash</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.14</div>
+<h2><a href="#trait">Trait Hash</a></h2>
+<h3>Required methods</h3>
+<ul class="sidebar-list">
+<li><a href="#hash">hash</a></li>
+</ul>
+<h3>Implementors</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Hash-for-()">()</a></li>
+<li><a href="#impl-Hash-for-(A, B)">(A, B)</a></li>
+<li><a href="#impl-Hash-for-(A, B, C)">(A, B, C)</a></li>
+<li><a href="#impl-Hash-for-(A, B, C, D)">(A, B, C, D)</a></li>
+<li><a href="#impl-Hash-for-(A, B, C, D, E)">(A, B, C, D, E)</a></li>
+<li><a href="#impl-Hash-for-BinaryOp">BinaryOp</a></li>
+<li><a href="#impl-Hash-for-CtString">CtString</a></li>
+<li><a href="#impl-Hash-for-EmbeddedCurvePoint">EmbeddedCurvePoint</a></li>
+<li><a href="#impl-Hash-for-EmbeddedCurveScalar">EmbeddedCurveScalar</a></li>
+<li><a href="#impl-Hash-for-Field">Field</a></li>
+<li><a href="#impl-Hash-for-FunctionDefinition">FunctionDefinition</a></li>
+<li><a href="#impl-Hash-for-Module">Module</a></li>
+<li><a href="#impl-Hash-for-Option<T>">Option<T></a></li>
+<li><a href="#impl-Hash-for-Quoted">Quoted</a></li>
+<li><a href="#impl-Hash-for-TraitConstraint">TraitConstraint</a></li>
+<li><a href="#impl-Hash-for-TraitDefinition">TraitDefinition</a></li>
+<li><a href="#impl-Hash-for-Type">Type</a></li>
+<li><a href="#impl-Hash-for-TypeDefinition">TypeDefinition</a></li>
+<li><a href="#impl-Hash-for-UnaryOp">UnaryOp</a></li>
+<li><a href="#impl-Hash-for-[T; N]">[T; N]</a></li>
+<li><a href="#impl-Hash-for-[T]">[T]</a></li>
+<li><a href="#impl-Hash-for-bool">bool</a></li>
+<li><a href="#impl-Hash-for-i16">i16</a></li>
+<li><a href="#impl-Hash-for-i32">i32</a></li>
+<li><a href="#impl-Hash-for-i64">i64</a></li>
+<li><a href="#impl-Hash-for-i8">i8</a></li>
+<li><a href="#impl-Hash-for-u1">u1</a></li>
+<li><a href="#impl-Hash-for-u128">u128</a></li>
+<li><a href="#impl-Hash-for-u16">u16</a></li>
+<li><a href="#impl-Hash-for-u32">u32</a></li>
+<li><a href="#impl-Hash-for-u64">u64</a></li>
+<li><a href="#impl-Hash-for-u8">u8</a></li>
+</ul>
+<h2>In module hash</h2>
+<h3>Modules</h3><ul class="item-list">
+<li><a href="keccak/index.html">keccak</a></div></li>
+</ul>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
+</ul>
+<h3>Traits</h3><ul class="item-list">
+<li><a href="trait.BuildHasher.html">BuildHasher</a></div></li>
+<li><a href="trait.Hash.html">Hash</a></div></li>
+<li><a href="trait.Hasher.html">Hasher</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.blake2s.html">blake2s</a></div></li>
+<li><a href="fn.blake3.html">blake3</a></div></li>
+<li><a href="fn.derive_generators.html">derive_generators</a></div></li>
+<li><a href="fn.keccakf1600.html">keccakf1600</a></div></li>
+<li><a href="fn.pedersen_commitment.html">pedersen_commitment</a></div></li>
+<li><a href="fn.pedersen_commitment_with_separator.html">pedersen_commitment_with_separator</a></div></li>
+<li><a href="fn.pedersen_hash.html">pedersen_hash</a></div></li>
+<li><a href="fn.pedersen_hash_with_separator.html">pedersen_hash_with_separator</a></div></li>
+<li><a href="fn.poseidon2_permutation.html">poseidon2_permutation</a></div></li>
+<li><a href="fn.sha256_compression.html">sha256_compression</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">hash</a></div>
+<h1>Trait <span id="trait" class="trait">Hash</span></h1>
+<pre><code>pub trait Hash {
+    <span class="comment">// Required methods</span>
+    pub fn <a href="#hash"><span class="fn">hash</span></a>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">    where
+        H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div>;
+}</code></pre>
+
+<h2>Required methods</h2>
+<div class="padded-methods"><code id="hash" class="code-header">pub fn <a href="#hash"><span class="fn">hash</span></a>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">where
+    H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
+
+</div><h2>Implementors</h2>
+<h3 id="impl-Hash-for-()"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for ()</code></h3>
+
+<h3 id="impl-Hash-for-(A, B)"><code class="code-header">impl&lt;A, B&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for (A, B)
+<div class="where-clause">where
+    A: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    B: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-(A, B, C)"><code class="code-header">impl&lt;A, B, C&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for (A, B, C)
+<div class="where-clause">where
+    A: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    B: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    C: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-(A, B, C, D)"><code class="code-header">impl&lt;A, B, C, D&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for (A, B, C, D)
+<div class="where-clause">where
+    A: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    B: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    C: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    D: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-(A, B, C, D, E)"><code class="code-header">impl&lt;A, B, C, D, E&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for (A, B, C, D, E)
+<div class="where-clause">where
+    A: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    B: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    C: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    D: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
+    E: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-BinaryOp"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a></code></h3>
+
+<h3 id="impl-Hash-for-CtString"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.CtString.html" class="primitive">CtString</a></code></h3>
+
+<h3 id="impl-Hash-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<h3 id="impl-Hash-for-EmbeddedCurveScalar"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></code></h3>
+
+<h3 id="impl-Hash-for-Field"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
+
+<h3 id="impl-Hash-for-FunctionDefinition"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
+
+<h3 id="impl-Hash-for-Module"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.Module.html" class="primitive">Module</a></code></h3>
+
+<h3 id="impl-Hash-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;
+<div class="where-clause">where
+    T: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-Quoted"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
+
+<h3 id="impl-Hash-for-TraitConstraint"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code></h3>
+
+<h3 id="impl-Hash-for-TraitDefinition"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.TraitDefinition.html" class="primitive">TraitDefinition</a></code></h3>
+
+<h3 id="impl-Hash-for-Type"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.Type.html" class="primitive">Type</a></code></h3>
+
+<h3 id="impl-Hash-for-TypeDefinition"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a></code></h3>
+
+<h3 id="impl-Hash-for-UnaryOp"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/meta/op/struct.UnaryOp.html" class="struct">UnaryOp</a></code></h3>
+
+<h3 id="impl-Hash-for-[T; N]"><code class="code-header">impl&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for [T; N]
+<div class="where-clause">where
+    T: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-[T]"><code class="code-header">impl&lt;T&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for [T]
+<div class="where-clause">where
+    T: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a></div></code></h3>
+
+<h3 id="impl-Hash-for-bool"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
+
+<h3 id="impl-Hash-for-i16"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<h3 id="impl-Hash-for-i32"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>
+
+<h3 id="impl-Hash-for-i64"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.i64.html" class="primitive">i64</a></code></h3>
+
+<h3 id="impl-Hash-for-i8"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
+
+<h3 id="impl-Hash-for-u1"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.u1.html" class="primitive">u1</a></code></h3>
+
+<h3 id="impl-Hash-for-u128"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
+
+<h3 id="impl-Hash-for-u16"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
+
+<h3 id="impl-Hash-for-u32"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.u32.html" class="primitive">u32</a></code></h3>
+
+<h3 id="impl-Hash-for-u64"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<h3 id="impl-Hash-for-u8"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
+
+</main>
+</span>
+</body>
+</html>

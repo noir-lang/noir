@@ -1,0 +1,6 @@
+[package]
+name = "global_var_func_with_multiple_entry_points"
+type = "bin"
+authors = [""]
+
+[dependencies]

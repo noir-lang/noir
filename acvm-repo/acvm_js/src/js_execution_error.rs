@@ -1,10 +1,11 @@
 use acvm::{
-    acir::circuit::{brillig::BrilligFunctionId, OpcodeLocation, RawAssertionPayload},
-    FieldElement,
+    AcirField, FieldElement,
+    acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId, opcodes::AcirFunctionId},
+    pwg::RawAssertionPayload,
 };
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{Array, Error, JsString, Reflect};
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 #[wasm_bindgen(typescript_custom_section)]
 const EXECUTION_ERROR: &'static str = r#"
@@ -16,6 +17,7 @@ export type RawAssertionPayload = {
 export type ExecutionError = Error & {
     callStack?: string[];
     rawAssertionPayload?: RawAssertionPayload;
+    acirFunctionId?: number;
     brilligFunctionId?: number;
 };
 "#;
@@ -40,6 +42,7 @@ impl JsExecutionError {
         message: String,
         call_stack: Option<Vec<OpcodeLocation>>,
         assertion_payload: Option<RawAssertionPayload<FieldElement>>,
+        acir_function_id: Option<AcirFunctionId>,
         brillig_function_id: Option<BrilligFunctionId>,
     ) -> Self {
         let mut error = JsExecutionError::constructor(JsString::from(message));
@@ -47,15 +50,28 @@ impl JsExecutionError {
             Some(call_stack) => {
                 let js_array = Array::new();
                 for loc in call_stack {
-                    js_array.push(&JsValue::from(format!("{}", loc)));
+                    js_array.push(&JsValue::from(format!("{loc}")));
                 }
                 js_array.into()
             }
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some(raw) => <JsValue as JsValueSerdeExt>::from_serde(&raw)
-                .expect("Cannot serialize assertion payload"),
+            Some(raw) => {
+                let stringified_raw_payload: RawAssertionPayload<String> = RawAssertionPayload {
+                    selector: raw.selector,
+                    data: raw.data.into_iter().map(|x| x.to_hex()).collect(),
+                };
+
+                <JsValue as JsValueSerdeExt>::from_serde(&stringified_raw_payload)
+                    .expect("Cannot serialize assertion payload")
+            }
+            None => JsValue::UNDEFINED,
+        };
+
+        let acir_function_id = match acir_function_id {
+            Some(function_id) => <JsValue as JsValueSerdeExt>::from_serde(&function_id)
+                .expect("Cannot serialize ACIR function id"),
             None => JsValue::UNDEFINED,
         };
 
@@ -67,6 +83,7 @@ impl JsExecutionError {
 
         error.set_property("callStack", js_call_stack);
         error.set_property("rawAssertionPayload", assertion_payload);
+        error.set_property("acirFunctionId", acir_function_id);
         error.set_property("brilligFunctionId", brillig_function_id);
 
         error

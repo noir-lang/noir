@@ -1,0 +1,2 @@
+array = [{ counter = 8, fields = ["0x200000000"] }]
+x = true

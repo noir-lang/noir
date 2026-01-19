@@ -1,0 +1,4 @@
+{"suite":"keccak256","name":"keccak256::oracle_tests::test_keccak256_1"}
+{"suite":"keccak256","name":"keccak256::oracle_tests::test_keccak256_100"}
+{"suite":"keccak256","name":"keccak256::oracle_tests::test_keccak256_135"}
+{"suite":"keccak256","name":"keccak256::oracle_tests::test_keccak256_256"}

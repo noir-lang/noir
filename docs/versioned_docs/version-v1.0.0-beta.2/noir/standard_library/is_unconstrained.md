@@ -1,7 +1,7 @@
 ---
 title: Is Unconstrained Function
 description:
-  The is_unconstrained function returns wether the context at that point of the program is unconstrained or not.
+  The is_unconstrained function returns whether the context at that point of the program is unconstrained or not.
 keywords:
   [
     unconstrained
@@ -12,7 +12,7 @@ It's very common for functions in circuits to take unconstrained hints of an exp
 
 When a function is marked as unconstrained, any subsequent functions that it calls will also be run in an unconstrained context. However, if we are implementing a library function, other users might call it within an unconstrained context or a constrained one. Generally, in an unconstrained context we prefer just computing the result instead of taking a hint of it and verifying it, since that'd mean doing the same computation twice:
 
-```rust 
+```rust
 
 fn my_expensive_computation(){
   ...
@@ -33,7 +33,7 @@ pub fn external_interface(){
 In order to improve the performance in an unconstrained context you can use the function at `std::runtime::is_unconstrained() -> bool`:
 
 
-```rust 
+```rust
 use dep::std::runtime::is_unconstrained;
 
 fn my_expensive_computation(){

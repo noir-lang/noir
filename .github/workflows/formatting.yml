@@ -17,15 +17,15 @@ jobs:
     name: cargo clippy
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTFLAGS: -Dwarnings
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -36,22 +36,26 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      - uses: taiki-e/install-action@just
+
       - name: Run `cargo clippy`
-        run: cargo clippy --all-targets --workspace --locked --release
+        run: just clippy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   rustfmt:
     name: cargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTFLAGS: -Dwarnings
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -62,34 +66,72 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Run `cargo fmt`
-        run: cargo fmt --all --check
+      - uses: taiki-e/install-action@just
+
+      - name: Check formatting
+        run: just format-check
+
+  rustdoc:
+    name: cargo doc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - uses: taiki-e/install-action@just
+
+      - name: Run `cargo doc`
+        run: just doc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   eslint:
     name: eslint
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - uses: taiki-e/install-action@just
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Run `yarn lint`
-        run: yarn lint
+      - name: Run eslint
+        run: just lint
 
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -99,6 +141,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -106,7 +150,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./dist/*
@@ -117,11 +161,13 @@ jobs:
     name: Nargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
@@ -143,8 +189,11 @@ jobs:
     needs:
       - clippy
       - rustfmt
+      - rustdoc
       - eslint
       - nargo_fmt
+    permissions:
+      contents: read
 
     steps:
         - name: Report overall success
@@ -157,4 +206,3 @@ jobs:
           env:
             # We treat any skipped or failing jobs as a failure for the workflow as a whole.
             FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
-

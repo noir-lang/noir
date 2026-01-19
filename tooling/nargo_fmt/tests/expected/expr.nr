@@ -56,7 +56,7 @@ fn only_comments() {
     // Keep this here
 }
 
-fn commnet() {
+fn comment() {
     1
     //
 }

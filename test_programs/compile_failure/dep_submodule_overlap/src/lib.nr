@@ -1,3 +1,3 @@
-struct MyStruct {
+pub(crate) struct MyStruct {
     inner: Field
 }

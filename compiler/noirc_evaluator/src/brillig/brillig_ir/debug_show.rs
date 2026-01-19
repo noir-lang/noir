@@ -3,8 +3,8 @@
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::ReservedRegisters;
 use acvm::{
-    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     FieldElement,
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 /// Trait for converting values into debug-friendly strings.
@@ -32,8 +32,8 @@ impl DebugToString for MemoryAddress {
             "StackPointer".into()
         } else {
             match self {
-                MemoryAddress::Direct(address) => format!("M{}", address),
-                MemoryAddress::Relative(offset) => format!("S{}", offset),
+                MemoryAddress::Direct(address) => format!("M{address}"),
+                MemoryAddress::Relative(offset) => format!("S{offset}"),
             }
         }
     }
@@ -126,6 +126,24 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
     }
 
+    /// Emits a `conditional mov` instruction.
+    pub(crate) fn conditional_mov_instruction(
+        &self,
+        destination: MemoryAddress,
+        source_then: MemoryAddress,
+        source_else: MemoryAddress,
+        condition: MemoryAddress,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  {} = MOV if {} then {}, else {}",
+            destination,
+            condition,
+            source_then,
+            source_else
+        );
+    }
+
     /// Emits a `cast` instruction.
     pub(crate) fn cast_instruction(
         &self,
@@ -153,12 +171,12 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  {} = {} {} {}", result, lhs, operation, rhs);
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the `result` register.
     pub(crate) fn const_instruction<F: DebugToString>(&self, result: MemoryAddress, constant: F) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the register pointed at by `result_pointer`.
     pub(crate) fn indirect_const_instruction<F: DebugToString>(
         &self,
         result_pointer: MemoryAddress,
@@ -326,65 +344,11 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
+            BlackBoxOp::Poseidon2Permutation { message, output } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  BIGINT_ADD {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntSub { lhs, rhs, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_NEG {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntMul { lhs, rhs, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_MUL {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_DIV {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_FROM_LE_BYTES {} {} -> {}",
-                    inputs,
-                    modulus,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntToLeBytes { input, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_TO_LE_BYTES {} -> {}",
-                    input,
-                    output
-                );
-            }
-            BlackBoxOp::Poseidon2Permutation { message, output, len } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  POSEIDON2_PERMUTATION {} {} -> {}",
+                    "  POSEIDON2_PERMUTATION {} -> {}",
                     message,
-                    len,
                     output
                 );
             }

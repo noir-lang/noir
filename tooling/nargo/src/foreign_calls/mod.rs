@@ -1,9 +1,11 @@
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use noirc_printable_type::TryFromParamsError;
 use thiserror::Error;
 
 pub mod layers;
 pub mod mocker;
 pub mod print;
+pub mod transcript;
 
 pub mod default;
 #[cfg(feature = "rpc")]
@@ -12,6 +14,7 @@ pub use default::DefaultForeignCallBuilder;
 #[cfg(feature = "rpc")]
 pub use default::DefaultForeignCallExecutor;
 
+/// Interface for executing foreign calls
 pub trait ForeignCallExecutor<F> {
     fn execute(
         &mut self,
@@ -22,6 +25,7 @@ pub trait ForeignCallExecutor<F> {
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
 /// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub enum ForeignCall {
+    /// Reference [mod@print] for more info regarding this call's inputs
     Print,
     CreateMock,
     SetMockParams,
@@ -29,6 +33,7 @@ pub enum ForeignCall {
     SetMockReturns,
     SetMockTimes,
     ClearMock,
+    GetTimesCalled,
 }
 
 impl std::fmt::Display for ForeignCall {
@@ -47,6 +52,7 @@ impl ForeignCall {
             ForeignCall::SetMockReturns => "set_mock_returns",
             ForeignCall::SetMockTimes => "set_mock_times",
             ForeignCall::ClearMock => "clear_mock",
+            ForeignCall::GetTimesCalled => "get_times_called",
         }
     }
 
@@ -59,6 +65,7 @@ impl ForeignCall {
             "set_mock_returns" => Some(ForeignCall::SetMockReturns),
             "set_mock_times" => Some(ForeignCall::SetMockTimes),
             "clear_mock" => Some(ForeignCall::ClearMock),
+            "get_times_called" => Some(ForeignCall::GetTimesCalled),
             _ => None,
         }
     }
@@ -83,4 +90,18 @@ pub enum ForeignCallError {
 
     #[error("Assert message resolved after an unsatisfied constrain. {0}")]
     ResolvedAssertMessage(String),
+
+    #[error("Failed to replay oracle transcript: {0}")]
+    TranscriptError(String),
+}
+
+impl From<TryFromParamsError> for ForeignCallError {
+    fn from(err: TryFromParamsError) -> Self {
+        match err {
+            TryFromParamsError::MissingForeignCallInputs => {
+                ForeignCallError::MissingForeignCallInputs
+            }
+            TryFromParamsError::ParsingError(error) => ForeignCallError::ParsingError(error),
+        }
+    }
 }

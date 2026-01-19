@@ -27,7 +27,9 @@ pub enum InputValue {
 pub enum InputTypecheckingError {
     #[error("Value {value:?} does not fall within range of allowable values for a {typ:?}")]
     OutsideOfValidRange { path: String, typ: AbiType, value: InputValue },
-    #[error("Type {typ:?} is expected to have length {expected_length} but value {value:?} has length {actual_length}")]
+    #[error(
+        "Type {typ:?} is expected to have length {expected_length} but value {value:?} has length {actual_length}"
+    )]
     LengthMismatch {
         path: String,
         typ: AbiType,
@@ -35,9 +37,13 @@ pub enum InputTypecheckingError {
         expected_length: usize,
         actual_length: usize,
     },
-    #[error("Could not find value for required field `{expected_field}`. Found values for fields {found_fields:?}")]
+    #[error(
+        "Could not find value for required field `{expected_field}`. Found values for fields {found_fields:?}"
+    )]
     MissingField { path: String, expected_field: String, found_fields: Vec<String> },
-    #[error("Additional unexpected field was provided for type {typ:?}. Found field named `{extra_field}`")]
+    #[error(
+        "Additional unexpected field was provided for type {typ:?}. Found field named `{extra_field}`"
+    )]
     UnexpectedField { path: String, typ: AbiType, extra_field: String },
     #[error("Type {typ:?} and value {value:?} do not match")]
     IncompatibleTypes { path: String, typ: AbiType, value: InputValue },
@@ -186,6 +192,7 @@ impl InputValue {
 
 /// The different formats that are supported when parsing
 /// the initial witness values
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Format {
     Json,
@@ -197,6 +204,14 @@ impl Format {
         match self {
             Format::Json => "json",
             Format::Toml => "toml",
+        }
+    }
+
+    pub fn from_ext(ext: &str) -> Option<Self> {
+        match ext {
+            "json" => Some(Self::Json),
+            "toml" => Some(Self::Toml),
+            _ => None,
         }
     }
 }
@@ -233,8 +248,8 @@ mod serialization_tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign,
-        MAIN_RETURN_NAME,
+        Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, MAIN_RETURN_NAME, Sign,
+        input_parser::InputValue,
     };
 
     use super::Format;
@@ -348,8 +363,11 @@ fn parse_str_to_signed(
             error: err_msg.to_string(),
         })
         .and_then(|bigint| {
-            let max = BigInt::from(2_u128.pow(width - 1) - 1);
-            let min = BigInt::from(-(2_i128.pow(width - 1)));
+            let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+            let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
+
+            let max = BigInt::from(max);
+            let min = BigInt::from(min);
 
             if bigint < min {
                 return Err(InputParserError::InputUnderflowsMinimum {
@@ -389,8 +407,8 @@ fn parse_integer_to_signed(
     width: u32,
     arg_name: &str,
 ) -> Result<FieldElement, InputParserError> {
-    let min = -(1 << (width - 1));
-    let max = (1 << (width - 1)) - 1;
+    let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+    let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
 
     if integer < min {
         return Err(InputParserError::InputUnderflowsMinimum {
@@ -408,8 +426,12 @@ fn parse_integer_to_signed(
         });
     }
 
-    let integer = if integer < 0 { (1 << width) + integer } else { integer };
-    Ok(FieldElement::from(integer as u128))
+    let integer = if integer < 0 {
+        FieldElement::from(2u32).pow(&width.into()) + FieldElement::from(integer)
+    } else {
+        FieldElement::from(integer)
+    };
+    Ok(integer)
 }
 
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {
@@ -430,9 +452,9 @@ fn field_from_big_int(bigint: BigInt) -> FieldElement {
 
 fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
     let f_u128 = f.to_u128();
-    let max = 2_u128.pow(bit_size - 1) - 1;
+    let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
     if f_u128 > max {
-        let f = FieldElement::from(2_u128.pow(bit_size) - f_u128);
+        let f = FieldElement::from(2u32).pow(&bit_size.into()) - f;
         format!("-0x{}", f.to_hex())
     } else {
         format!("0x{}", f.to_hex())
@@ -440,11 +462,12 @@ fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
+    use strum::IntoEnumIterator;
 
-    use super::{parse_str_to_field, parse_str_to_signed};
+    use super::{Format, parse_str_to_field, parse_str_to_signed};
 
     fn big_uint_from_field(field: FieldElement) -> BigUint {
         BigUint::from_bytes_be(&field.to_be_bytes())
@@ -520,6 +543,14 @@ mod test {
             FieldElement::from(65535_i128)
         );
         assert!(parse_str_to_signed("-32769", 16, "arg_name").is_err());
+    }
+
+    #[test]
+    fn test_from_ext() {
+        for fmt in Format::iter() {
+            assert_eq!(Format::from_ext(fmt.ext()), Some(fmt));
+        }
+        assert_eq!(Format::from_ext("invalid extension"), None);
     }
 }
 

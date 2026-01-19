@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    for idx_d in 0_u32..1_u32 {
+        if idx_d == 2_u32 {
+            let a: i32 = 345422577_i32 >> -115035501_i32;
+            let _: i32 = 1_i32 >> a;
+        }
+    }
+}

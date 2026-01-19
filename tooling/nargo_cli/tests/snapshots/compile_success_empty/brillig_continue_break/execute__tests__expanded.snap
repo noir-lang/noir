@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let bug: bool = unsafe { foo() };
+    assert(!bug);
+}
+
+unconstrained fn foo() -> bool {
+    let mut i: Field = 0_Field;
+    let mut bug: bool = false;
+    loop {
+        if i == 3_Field {
+            break;
+            bug = true;
+        } else if i == 2_Field {
+            i = i + 1_Field;
+            continue;
+            bug = true;
+        };
+        i = i + 1_Field;
+    }
+    bug
+}

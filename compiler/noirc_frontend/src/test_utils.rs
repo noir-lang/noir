@@ -1,0 +1,230 @@
+//! This crate represents utility methods which can be useful for testing in other crates
+//! which also desire to compile the frontend.
+//!
+//! This module is split out from the `tests` module and has an additional `test_utils` feature
+//! as a module configured only for tests will not be accessible in other crates.
+//! A crate that needs to use the methods in this module should add the `noirc_frontend`
+//! crate as a dev dependency with the `test_utils` feature activated.
+#![cfg(any(test, feature = "test_utils"))]
+
+use std::path::Path;
+
+use crate::elaborator::FrontendOptions;
+
+use iter_extended::vecmap;
+use noirc_errors::Location;
+
+use crate::hir::Context;
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_collector::dc_crate::DefCollector;
+use crate::hir::def_map::CrateDefMap;
+use crate::hir::def_map::ModuleData;
+use crate::parser::{ItemKind, ParserErrorReason};
+use crate::token::SecondaryAttribute;
+use crate::{ParsedModule, parse_program};
+use fm::FileManager;
+
+use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
+
+#[derive(Copy, Clone, Debug)]
+pub struct GetProgramOptions<'a> {
+    pub allow_parser_errors: bool,
+    pub allow_elaborator_errors: bool,
+    /// Treats the program snippet as if it was stdlib, which allows the definition of
+    /// low-level (builtin) functions, and standard traits used by prefix/infix operators.
+    pub root_and_stdlib: bool,
+    pub frontend_options: FrontendOptions<'a>,
+}
+
+impl Default for GetProgramOptions<'_> {
+    fn default() -> Self {
+        Self {
+            allow_parser_errors: false,
+            allow_elaborator_errors: false,
+            root_and_stdlib: false,
+            frontend_options: FrontendOptions::test_default(),
+        }
+    }
+}
+
+/// Compile and monomorphize a program.
+pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
+    get_monomorphized_with_options(src, GetProgramOptions::default())
+}
+
+/// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
+pub fn get_monomorphized_with_stdlib(
+    user_src: &str,
+    stdlib_src: &str,
+) -> Result<Program, MonomorphizationError> {
+    let src = format!("{stdlib_src}\n\n{user_src}");
+    get_monomorphized_with_options(
+        &src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+}
+
+/// Compile and monomorphize a program.
+pub fn get_monomorphized_with_options(
+    src: &str,
+    options: GetProgramOptions,
+) -> Result<Program, MonomorphizationError> {
+    let (_parsed_module, mut context, errors) = get_program_with_options(src, options);
+
+    let only_warnings = errors.iter().all(|err| !err.is_error());
+    let has_defs = !context.def_maps.is_empty();
+    if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
+        panic!(
+            "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
+        )
+    }
+
+    let main = context
+        .get_main_function(context.root_crate_id())
+        .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
+
+    monomorphize(main, &mut context.def_interner, false)
+}
+
+pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
+    errors.iter().any(|e| matches!(e, CompilationError::ParseError(_)))
+}
+
+pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
+    errors.retain(|error| match error {
+        CompilationError::ParseError(error) => {
+            !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
+        }
+        _ => true,
+    });
+}
+
+/// Compile a program.
+///
+/// The stdlib is not available for these snippets.
+pub fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
+    get_program_with_options(src, GetProgramOptions::default())
+}
+
+pub enum Expect {
+    Bug,
+    Success,
+    Error,
+}
+
+/// Compile a program.
+///
+/// The stdlib is not available for these snippets, but using the `root_and_stdlib`
+/// option allows the inclusion of trait definitions that are considered for prefix/infix
+/// operators by the compiler, as well as defining low-level builtin functions.
+pub(crate) fn get_program_with_options(
+    src: &str,
+    options: GetProgramOptions,
+) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
+    let root = Path::new("/");
+    let mut fm = FileManager::new(root);
+    let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
+    let mut context = Context::new(fm, Default::default());
+    context.enable_pedantic_solving();
+
+    context.def_interner.populate_dummy_operator_traits();
+    let root_crate_id = if options.root_and_stdlib {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    } else {
+        context.crate_graph.add_crate_root(root_file_id)
+    };
+
+    let (program, parser_errors) = parse_program(src, root_file_id);
+    let mut errors = vecmap(parser_errors, |e| e.into());
+    remove_experimental_warnings(&mut errors);
+
+    if options.allow_parser_errors || !has_parser_error(&errors) {
+        let inner_attributes: Vec<SecondaryAttribute> = program
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let ItemKind::InnerAttribute(attribute) = &item.kind {
+                    Some(attribute.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let location = Location::new(Default::default(), root_file_id);
+        let root_module = ModuleData::new(
+            None,
+            location,
+            Vec::new(),
+            inner_attributes.clone(),
+            false, // is contract
+            false, // is struct
+        );
+
+        let def_map = CrateDefMap::new(root_crate_id, root_module);
+
+        // Now we want to populate the CrateDefMap using the DefCollector
+        errors.extend(DefCollector::collect_crate_and_dependencies(
+            def_map,
+            &mut context,
+            program.clone().into_sorted(),
+            root_file_id,
+            options.frontend_options,
+        ));
+    }
+
+    (program, context, errors)
+}
+
+/// These snippets can be used in conjunction with `get_program_with_stdlib`.
+pub mod stdlib_src {
+    pub const ZEROED: &str = "
+        #[builtin(zeroed)]
+        pub fn zeroed<T>() -> T {}
+    ";
+
+    pub const EQ: &str = "
+        pub trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+    ";
+
+    pub const NEG: &str = "
+        pub trait Neg {
+            fn neg(self) -> Self;
+        }
+    ";
+
+    pub const ARRAY_LEN: &str = "
+        impl<T, let N: u32> [T; N] {
+            #[builtin(array_len)]
+            pub fn len(self) -> u32 {}
+        }
+    ";
+
+    pub const CHECKED_TRANSMUTE: &str = "
+        #[builtin(checked_transmute)]
+        pub fn checked_transmute<T, U>(value: T) -> U {}
+    ";
+
+    // Note that in the stdlib these are all comptime functions, which I thought meant
+    // that the comptime interpreter was used to evaluate them, however they do seem to
+    // hit the `try_evaluate_call::try_evaluate_call`.
+    // To make sure they are handled here, I removed the `comptime` for these tests.
+    pub const MODULUS: &str = "
+        #[builtin(modulus_num_bits)]
+        pub fn modulus_num_bits() -> u64 {}
+
+        #[builtin(modulus_be_bits)]
+        pub fn modulus_be_bits() -> [u1] {}
+
+        #[builtin(modulus_le_bits)]
+        pub fn modulus_le_bits() -> [u1] {}
+
+        #[builtin(modulus_be_bytes)]
+        pub fn modulus_be_bytes() -> [u8] {}
+
+        #[builtin(modulus_le_bytes)]
+        pub fn modulus_le_bytes() -> [u8] {}
+    ";
+}

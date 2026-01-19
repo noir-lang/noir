@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[regression_8755] Circuit output: 0x0a7b42b36ae0ac4cefcf78a9e9b00e67a6a402a68ab81bdc904f41fac753cc81

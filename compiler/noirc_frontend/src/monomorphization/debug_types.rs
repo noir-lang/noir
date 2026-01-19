@@ -2,7 +2,7 @@ use crate::{
     debug::{DebugInstrumenter, SourceFieldId, SourceVarId},
     hir_def::types::Type,
 };
-use noirc_errors::debug_info::{
+use noirc_artifacts::debug::{
     DebugFnId, DebugFunction, DebugFunctions, DebugTypeId, DebugTypes, DebugVarId, DebugVariable,
     DebugVariables,
 };
@@ -10,7 +10,7 @@ use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
 
 /// We keep a collection of the debug variables and their types in this
-/// structure. The source_var_id refers to the ID given by the debug
+/// structure. The `source_var_id` refers to the ID given by the debug
 /// instrumenter. This variable does not have a type yet and hence it
 /// can be instantiated for multiple types if it's in the context of a generic
 /// variable. The var_id refers to the ID of the instantiated variable which
@@ -24,7 +24,7 @@ pub struct DebugTypeTracker {
     source_field_names: HashMap<SourceFieldId, String>,
 
     // Current instances of tracked variables from the ID given during
-    // instrumentation. The tracked var_id will change for each source_var_id
+    // instrumentation. The tracked var_id will change for each `source_var_id`
     // when compiling generic functions.
     source_to_debug_vars: HashMap<SourceVarId, DebugVarId>,
 
@@ -83,12 +83,12 @@ impl DebugTypeTracker {
     }
 
     fn insert_type(&mut self, the_type: &Type) -> DebugTypeId {
-        let ptype: PrintableType = the_type.follow_bindings().into();
-        self.types_reverse.get(&ptype).copied().unwrap_or_else(|| {
+        let printable_type: PrintableType = the_type.follow_bindings().into();
+        self.types_reverse.get(&printable_type).copied().unwrap_or_else(|| {
             let type_id = DebugTypeId(self.next_type_id);
             self.next_type_id += 1;
-            self.types_reverse.insert(ptype.clone(), type_id);
-            self.types.insert(type_id, ptype);
+            self.types_reverse.insert(printable_type.clone(), type_id);
+            self.types.insert(type_id, printable_type);
             type_id
         })
     }
@@ -128,8 +128,8 @@ impl DebugTypeTracker {
     }
 }
 
-fn get_field(ptype: &PrintableType, field_name: &str) -> Option<usize> {
-    match ptype {
+fn get_field(printable_type: &PrintableType, field_name: &str) -> Option<usize> {
+    match printable_type {
         PrintableType::Struct { fields, .. } => {
             fields.iter().position(|(name, _)| name == field_name)
         }

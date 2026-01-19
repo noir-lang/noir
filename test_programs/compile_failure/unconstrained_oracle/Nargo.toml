@@ -1,7 +1,0 @@
-[package]
-name = "unconstrained_oracle"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.25.0"
-
-[dependencies]

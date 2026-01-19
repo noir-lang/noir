@@ -1,17 +1,20 @@
-use std::io::Write;
+use std::hash::BuildHasher;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
 
-use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
+use noir_artifact_cli::fs::artifact::{
+    read_program_from_file, save_contract_to_file, save_program_to_file,
+};
+use noirc_artifacts::contract::CompiledContract;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
+use noirc_driver::{CompilationResult, CompileOptions};
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
@@ -20,18 +23,17 @@ use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
 
-use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CompileCommand {
+pub struct CompileCommand {
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub(super) compile_options: CompileOptions,
 
     /// Watch workspace and recompile on changes.
     #[clap(long, hide = true)]
@@ -50,10 +52,14 @@ impl WorkspaceCommand for CompileCommand {
 
 pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliError> {
     if args.watch {
+        if args.compile_options.debug_compile_stdin {
+            return Err(CliError::CantWatchStdin);
+        }
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options)?;
+        let debug_compile_stdin = None;
+        compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
     }
     Ok(())
 }
@@ -72,7 +78,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let _ = compile_workspace_full(workspace, compile_options);
+    let debug_compile_stdin = None;
+    let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -80,7 +87,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         let noir_files_modified = debounced_events.iter().any(|event| {
             let mut event_paths = event.event.paths.iter();
             let event_affects_noir_file =
-                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+                event_paths.any(|path| path.extension().is_some_and(|ext| ext == "nr"));
 
             let is_relevant_event_kind = matches!(
                 event.kind,
@@ -93,7 +100,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options);
+            let debug_compile_stdin = None;
+            let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
         }
     }
 
@@ -103,20 +111,38 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(workspace: &Workspace) -> (FileManager, ParsedFiles) {
+pub fn parse_workspace(
+    workspace: &Workspace,
+    debug_compile_stdin: Option<String>,
+) -> (FileManager, ParsedFiles) {
     let mut file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+
+    if let Some(main_nr) = debug_compile_stdin {
+        file_manager.add_file_with_source(Path::new("src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+    }
+
     let parsed_files = parse_all(&file_manager);
     (file_manager, parsed_files)
 }
 
 /// Parse and compile the entire workspace, then report errors.
 /// This is the main entry point used by all other commands that need compilation.
-pub(super) fn compile_workspace_full(
+pub fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
+    debug_compile_stdin: Option<String>, // use this String as STDIN if present
 ) -> Result<(), CliError> {
-    let (workspace_file_manager, parsed_files) = parse_workspace(workspace);
+    let mut debug_compile_stdin = debug_compile_stdin;
+    if compile_options.debug_compile_stdin && debug_compile_stdin.is_none() {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        debug_compile_stdin = Some(main_nr);
+    }
+    let (workspace_file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -181,7 +207,7 @@ fn compile_programs(
     // The loaded circuit includes backend specific transformations, which might be different from the current target.
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
-        read_program_from_file(program_artifact_path)
+        read_program_from_file(&program_artifact_path)
             .ok()
             .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
             .map(|p| p.into())
@@ -192,7 +218,8 @@ fn compile_programs(
 
         // Hash over the entire compiled program, including any post-compile transformations.
         // This is used to detect whether `cached_program` is returned by `compile_program`.
-        let cached_hash = cached_program.as_ref().map(fxhash::hash64);
+        let cached_hash =
+            cached_program.as_ref().map(|prog| rustc_hash::FxBuildHasher.hash_one(prog));
 
         // Compile the program, or use the cached artifacts if it matches.
         let (program, warnings) = compile_program(
@@ -204,51 +231,31 @@ fn compile_programs(
             cached_program,
         )?;
 
-        if compile_options.check_non_determinism {
-            let (program_two, _) = compile_program(
-                file_manager,
-                parsed_files,
-                workspace,
-                package,
-                compile_options,
-                load_cached_program(package),
-            )?;
-            if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
-                panic!("Non deterministic result compiling {}", package.name);
-            }
-        }
-
-        // Choose the target width for the final, backend specific transformation.
-        let target_width =
-            get_target_width(package.expression_width, compile_options.expression_width);
-
         // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
         // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
         // based on which we might have generated a verifier already.
-        if cached_hash == Some(fxhash::hash64(&program)) {
-            let width_matches = program
-                .program
-                .functions
-                .iter()
-                .all(|circuit| circuit.expression_width == target_width);
-
-            if width_matches {
-                return Ok(((), warnings));
-            }
+        if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program)) {
+            return Ok(((), warnings));
         }
-        // Run ACVM optimizations and set the target width.
-        let program = nargo::ops::transform_program(program, target_width);
+        // Run ACVM optimizations.
+        let program = nargo::ops::optimize_program(program);
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
+        save_program_to_file(&program.into(), &package.name, &workspace.target_directory_path())
+            .expect("failed to save program");
 
         Ok(((), warnings))
     };
 
     // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
-    // Default is 2MB.
-    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    // Default is 2MB. Limit threads to the number of packages we actually need to compile.
+    let num_threads = rayon::current_num_threads().min(binary_packages.len()).max(1);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .stack_size(4 * 1024 * 1024)
+        .build()
+        .unwrap();
     let program_results: Vec<CompilationResult<()>> =
         pool.install(|| binary_packages.par_iter().map(compile_package).collect());
 
@@ -269,9 +276,8 @@ fn compile_contracts(
         .map(|package| {
             let (contract, warnings) =
                 compile_contract(file_manager, parsed_files, package, compile_options)?;
-            let target_width =
-                get_target_width(package.expression_width, compile_options.expression_width);
-            let contract = nargo::ops::transform_contract(contract, target_width);
+
+            let contract = nargo::ops::optimize_contract(contract);
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
@@ -292,163 +298,9 @@ fn save_contract(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
         target_dir,
-    );
+    )
+    .expect("failed to save contract");
     if show_artifact_paths {
         println!("Saved contract artifact to: {}", artifact_path.display());
-    }
-}
-
-/// If a target width was not specified in the CLI we can safely override the default.
-pub(crate) fn get_target_width(
-    package_default_width: Option<ExpressionWidth>,
-    compile_options_width: Option<ExpressionWidth>,
-) -> ExpressionWidth {
-    if let (Some(manifest_default_width), None) = (package_default_width, compile_options_width) {
-        manifest_default_width
-    } else {
-        compile_options_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{
-        path::{Path, PathBuf},
-        str::FromStr,
-    };
-
-    use clap::Parser;
-    use nargo::ops::compile_program;
-    use nargo_toml::PackageSelection;
-    use noirc_driver::{CompileOptions, CrateName};
-
-    use crate::cli::test_cmd::formatters::diagnostic_to_string;
-    use crate::cli::{
-        compile_cmd::{get_target_width, parse_workspace},
-        read_workspace,
-    };
-
-    /// Try to find the directory that Cargo sets when it is running;
-    /// otherwise fallback to assuming the CWD is the root of the repository
-    /// and append the crate path.
-    fn test_programs_dir() -> PathBuf {
-        let root_dir = match std::env::var("CARGO_MANIFEST_DIR") {
-            Ok(dir) => PathBuf::from(dir).parent().unwrap().parent().unwrap().to_path_buf(),
-            Err(_) => std::env::current_dir().unwrap(),
-        };
-        root_dir.join("test_programs")
-    }
-
-    /// Collect the test programs under a sub-directory.
-    fn read_test_program_dirs(
-        test_programs_dir: &Path,
-        test_sub_dir: &str,
-    ) -> impl Iterator<Item = PathBuf> {
-        let test_case_dir = test_programs_dir.join(test_sub_dir);
-        std::fs::read_dir(test_case_dir)
-            .unwrap()
-            .flatten()
-            .filter(|c| c.path().is_dir())
-            .map(|c| c.path())
-    }
-
-    #[derive(Parser, Debug)]
-    #[command(ignore_errors = true)]
-    struct Options {
-        /// Test name to filter for.
-        ///
-        /// For example:
-        /// ```text
-        /// cargo test -p nargo_cli -- test_transform_program_is_idempotent slice_loop
-        /// ```
-        args: Vec<String>,
-    }
-
-    impl Options {
-        fn package_selection(&self) -> PackageSelection {
-            match self.args.as_slice() {
-                [_test_name, test_program] => {
-                    PackageSelection::Selected(CrateName::from_str(test_program).unwrap())
-                }
-                _ => PackageSelection::DefaultOrAll,
-            }
-        }
-    }
-
-    /// Check that `nargo::ops::transform_program` is idempotent by compiling the
-    /// test programs and running them through the optimizer twice.
-    ///
-    /// This test is here purely because of the convenience of having access to
-    /// the utility functions to process workspaces.
-    #[test]
-    fn test_transform_program_is_idempotent() {
-        let opts = Options::parse();
-
-        let sel = opts.package_selection();
-        let verbose = matches!(sel, PackageSelection::Selected(_));
-
-        let test_workspaces = read_test_program_dirs(&test_programs_dir(), "execution_success")
-            .filter_map(|dir| read_workspace(&dir, sel.clone()).ok())
-            .collect::<Vec<_>>();
-
-        assert!(!test_workspaces.is_empty(), "should find some test workspaces");
-
-        test_workspaces.iter().for_each(|workspace| {
-            let (file_manager, parsed_files) = parse_workspace(workspace);
-            let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
-
-            for package in binary_packages {
-                let (program_0, _warnings) = compile_program(
-                    &file_manager,
-                    &parsed_files,
-                    workspace,
-                    package,
-                    &CompileOptions::default(),
-                    None,
-                )
-                .unwrap_or_else(|err| {
-                    for diagnostic in err {
-                        println!("{}", diagnostic_to_string(&diagnostic, &file_manager));
-                    }
-                    panic!("Failed to compile")
-                });
-
-                let width = get_target_width(package.expression_width, None);
-
-                let program_1 = nargo::ops::transform_program(program_0, width);
-                let program_2 = nargo::ops::transform_program(program_1.clone(), width);
-
-                if verbose {
-                    // Compare where the most likely difference is.
-                    similar_asserts::assert_eq!(
-                        format!("{}", program_1.program),
-                        format!("{}", program_2.program),
-                        "optimization not idempotent for test program '{}'",
-                        package.name
-                    );
-                    assert_eq!(
-                        program_1.program, program_2.program,
-                        "optimization not idempotent for test program '{}'",
-                        package.name
-                    );
-
-                    // Compare the whole content.
-                    similar_asserts::assert_eq!(
-                        serde_json::to_string_pretty(&program_1).unwrap(),
-                        serde_json::to_string_pretty(&program_2).unwrap(),
-                        "optimization not idempotent for test program '{}'",
-                        package.name
-                    );
-                } else {
-                    // Just compare hashes, which would just state that the program failed.
-                    // Then we can use the filter option to zoom in one one to see why.
-                    assert!(
-                        fxhash::hash64(&program_1) == fxhash::hash64(&program_2),
-                        "optimization not idempotent for test program '{}'",
-                        package.name
-                    );
-                }
-            }
-        });
     }
 }

@@ -1,12 +1,12 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
-use noirc_frontend::{node_interner::ReferenceId, QuotedType, Type};
+use noirc_frontend::{QuotedType, Type, node_interner::ReferenceId};
 
 use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn remove_bang_from_call(&mut self, span: Span) {
         // If we can't find the referenced function, there's nothing we can do
         let Some(ReferenceId::Function(func_id)) =

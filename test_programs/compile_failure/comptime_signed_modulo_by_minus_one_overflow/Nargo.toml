@@ -1,0 +1,5 @@
+[package]
+name = "comptime_signed_modulo_by_minus_one_overflow"
+type = "bin"
+authors = [""]
+[dependencies]

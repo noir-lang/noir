@@ -3,7 +3,7 @@ use crate::hash::Hasher;
 
 comptime global RATE: u32 = 3;
 
-pub struct Poseidon2 {
+pub(crate) struct Poseidon2 {
     cache: [Field; 3],
     state: [Field; 4],
     cache_size: u32,
@@ -12,11 +12,11 @@ pub struct Poseidon2 {
 
 impl Poseidon2 {
     #[no_predicates]
-    pub fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {
+    pub(crate) fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {
         Poseidon2::hash_internal(input, message_size, message_size != N)
     }
 
-    pub fn new(iv: Field) -> Poseidon2 {
+    pub(crate) fn new(iv: Field) -> Poseidon2 {
         let mut result =
             Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
         result.state[RATE] = iv;
@@ -32,7 +32,7 @@ impl Poseidon2 {
                 self.state[i] += self.cache[i];
             }
         }
-        self.state = crate::hash::poseidon2_permutation(self.state, 4);
+        self.state = crate::hash::poseidon2_permutation_internal(self.state);
     }
 
     fn absorb(&mut self, input: Field) {
@@ -83,7 +83,7 @@ impl Poseidon2 {
     }
 }
 
-pub struct Poseidon2Hasher {
+pub(crate) struct Poseidon2Hasher {
     _state: [Field],
 }
 
@@ -104,6 +104,6 @@ impl Hasher for Poseidon2Hasher {
 
 impl Default for Poseidon2Hasher {
     fn default() -> Self {
-        Poseidon2Hasher { _state: &[] }
+        Poseidon2Hasher { _state: [].as_vector() }
     }
 }

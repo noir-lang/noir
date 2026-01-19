@@ -1,0 +1,6 @@
+[package]
+name = "vector_access_failure"
+type = "bin"
+authors = [""]
+
+[dependencies]

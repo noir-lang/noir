@@ -1,8 +1,8 @@
 use super::expr::HirIdent;
+use crate::Type;
 use crate::ast::Ident;
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
-use crate::Type;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
@@ -15,6 +15,7 @@ pub enum HirStatement {
     Assign(HirAssignStatement),
     For(HirForStatement),
     Loop(ExprId),
+    While(ExprId, ExprId),
     Break,
     Continue,
     Expression(ExprId),
@@ -43,6 +44,11 @@ impl HirLetStatement {
         is_global_let: bool,
     ) -> HirLetStatement {
         Self { pattern, r#type, expression, attributes, comptime, is_global_let }
+    }
+
+    /// Creates a new 'basic' let statement with no attributes and is not comptime nor global.
+    pub fn basic(pattern: HirPattern, r#type: Type, expression: ExprId) -> HirLetStatement {
+        Self::new(pattern, r#type, expression, Vec::new(), false, false)
     }
 
     pub fn ident(&self) -> HirIdent {
@@ -94,9 +100,9 @@ impl HirPattern {
     /// Panics if the type is not a struct or tuple.
     pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
         match self {
-            HirPattern::Struct(_, fields, _) => Box::new(
-                fields.iter().map(move |(name, pattern)| (name.0.contents.clone(), pattern)),
-            ),
+            HirPattern::Struct(_, fields, _) => {
+                Box::new(fields.iter().map(move |(name, pattern)| (name.to_string(), pattern)))
+            }
             HirPattern::Tuple(fields, _) => {
                 Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
             }
@@ -137,6 +143,9 @@ pub enum HirLValue {
     },
     Index {
         array: Box<HirLValue>,
+        /// `index` is required to be an identifier to simplify sequencing of side-effects.
+        /// However we also store types and locations on ExprIds which makes these necessary
+        /// for evaluating/compiling HirIdents so we don't directly require a HirIdent type here.
         index: ExprId,
         typ: Type,
         location: Location,
@@ -144,6 +153,7 @@ pub enum HirLValue {
     Dereference {
         lvalue: Box<HirLValue>,
         element_type: Type,
+        implicitly_added: bool,
         location: Location,
     },
 }

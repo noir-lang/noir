@@ -1,0 +1,14 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 61042657e25848176247cad004d50238ed31fa0f0ef493dbfc504515c5a65cd1 # shrinks to (comptime_expr, runtime_expr, a, b) = ("78981287 / 1661494462", "a / b", 78981287, 1661494462)
+cc 18cc582c81f2b4f993fb27b6a84e20830a03598b4f347ee2307a26cda0290044 # shrinks to (comptime_expr, runtime_expr, a, b) = ("153856295 - 3543581023", "a - b", 153856295, 3543581023)
+cc 51662878a1f23ce05f5afda7ed0b2534c9cc35ac022d69a3e7f3f688d816e9f1 # shrinks to (comptime_expr, runtime_expr, a, b) = ("249512460 * 1654372632", "a * b", 249512460, 1654372632)
+cc 47956ca2b12d1b1d575fcc9057502aeb3d2c9040c206c9c6cbc53d5897b99d53 # shrinks to (comptime_expr, runtime_expr, a, b) = ("29480924 + 3961410066", "a + b", 29480924, 3961410066)
+cc 92a2baa828fb65dc55ce2b7dee53d9dcd9956423e3b04b6aada44a22eee53347 # shrinks to (comptime_expr, runtime_expr, a, b) = ("7533799 / 3594186306", "a / b", 7533799, 3594186306)
+cc 75c3e62019d6e9b6b274d97b93649067ab0bc8e53f7bb27f3de2a597e2822ac8 # shrinks to (comptime_expr, runtime_expr, a, b) = ("234831728 - 3534706463", "a - b", 234831728, 3534706463)
+cc d57cf1d61b4b71a383a313b06f9b51a373e800818fce3feefa7692df2af6d354 # shrinks to (comptime_expr, runtime_expr, a, b) = ("249626379 + 1522826944", "a + b", 249626379, 1522826944)
+cc 5fcb8310b679ebc865ff81ba03c7f313b3de71236c56f826cfb0faf2ef0b2228 # shrinks to (comptime_expr, runtime_expr, a, b) = ("196454304 * 4072824723", "a * b", 196454304, 4072824723)

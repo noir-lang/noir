@@ -61,6 +61,10 @@ const webConfig: webpack.Configuration = {
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
     }),
+    // Strip node: prefix from imports (used by memfs) so webpack can resolve them via fallback
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, '');
+    }),
   ],
   module: {
     rules: [

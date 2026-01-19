@@ -1,13 +1,19 @@
-use acir::circuit::{brillig::BrilligInputs, opcodes::BlockId, Circuit, Opcode};
+use acir::{
+    AcirField,
+    circuit::{Circuit, Opcode, brillig::BrilligInputs, opcodes::BlockId},
+};
 use std::collections::HashSet;
 
 /// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.
-pub(crate) struct UnusedMemoryOptimizer<F> {
+/// A first pass collects all memory blocks which are initialized but discards the ones
+/// which are used in a MemoryOp or as input to a BrilligCall.
+/// The second pass removes the opcodes tagged as unused by the first pass.
+pub(crate) struct UnusedMemoryOptimizer<F: AcirField> {
     unused_memory_initializations: HashSet<BlockId>,
     circuit: Circuit<F>,
 }
 
-impl<F> UnusedMemoryOptimizer<F> {
+impl<F: AcirField> UnusedMemoryOptimizer<F> {
     /// Creates a new `UnusedMemoryOptimizer ` by collecting unused memory init
     /// opcodes from `Circuit`.
     pub(crate) fn new(circuit: Circuit<F>) -> Self {
@@ -65,5 +71,53 @@ impl<F> UnusedMemoryOptimizer<F> {
         }
 
         (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_circuit_snapshot, compiler::CircuitSimulator};
+
+    use super::*;
+
+    #[test]
+    fn unused_memory_is_removed() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        INIT b0 = [w0, w1]
+        ASSERT w0 - w1 - w2 = 0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+        let unused_memory = UnusedMemoryOptimizer::new(circuit);
+        assert_eq!(unused_memory.unused_memory_initializations.len(), 1);
+        let (circuit, _) = unused_memory.remove_unused_memory_initializations(vec![0, 1]);
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+        assert_circuit_snapshot!(circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        ASSERT w2 = w0 - w1
+        ");
+    }
+
+    #[test]
+    fn databus_is_not_removed() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        INIT RETURNDATA b0 = [w0, w1]
+        ASSERT w2 = w0 - w1
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+        let unused_memory = UnusedMemoryOptimizer::new(circuit.clone());
+        assert_eq!(unused_memory.unused_memory_initializations.len(), 1);
+        let (optimized_circuit, _) = unused_memory.remove_unused_memory_initializations(vec![0, 1]);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+        assert_eq!(optimized_circuit, circuit);
     }
 }

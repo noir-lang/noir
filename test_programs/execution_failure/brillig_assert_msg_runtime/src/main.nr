@@ -1,5 +1,5 @@
 fn main(x: Field) {
-    /// Safety: testing context
+    // Safety: testing context
     assert(1 == unsafe { conditional(x) });
 }
 

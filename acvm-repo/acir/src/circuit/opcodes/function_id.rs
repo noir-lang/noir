@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+/// Id for the function being called.
+/// Indexes into the table of ACIR function's specified in a [program][crate::circuit::Program]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
 pub struct AcirFunctionId(pub u32);
 

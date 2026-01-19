@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+Cyclic package dependency found when processing dep1/../dep2/Nargo.toml referencing dep2/../dep1/Nargo.toml referencing dep1/../dep2/Nargo.toml

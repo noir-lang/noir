@@ -1,0 +1,7 @@
+[package]
+name = "main_with_generics"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

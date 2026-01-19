@@ -94,12 +94,7 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
 }
 
 mod my_submodule {
-    global N: u32 = 10;
-    global L: Field = 50;
-
-    fn my_bool_or(x: u1, y: u1) {
-        assert(x | y == 1);
-    }
+    pub(crate) global N: u32 = 10;
 
     pub fn my_helper() -> Field {
         let N: u32 = 15; // Like in Rust, local variables override globals

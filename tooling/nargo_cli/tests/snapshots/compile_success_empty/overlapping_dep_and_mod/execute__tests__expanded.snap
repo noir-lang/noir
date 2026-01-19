@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let _: Field = foo::bar() + foo::baz();
+}
+
+mod foo {
+    pub(crate) fn bar() -> Field {
+        5_Field
+    }
+}

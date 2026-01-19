@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: trait `std::meta::ctstring::AsCtString` which provides `as_ctstring` is implemented but not in scope, please import it
+  ┌─ src/main.nr:4:25
+  │
+4 │         let signature = "hello".as_ctstring();
+  │                         ---------------------
+  │
+
+error: Type annotation needed
+  ┌─ src/main.nr:6:22
+  │
+6 │         let result = half(string);
+  │                      ---- Could not determine the value of the generic argument `N` declared on the function `half`
+  │
+
+Aborting due to 2 previous errors

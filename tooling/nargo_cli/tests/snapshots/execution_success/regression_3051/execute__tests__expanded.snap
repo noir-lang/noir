@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    fn foo(self) -> Field;
+}
+
+impl Foo for Field {
+    fn foo(self) -> Self {
+        self + 1_Field
+    }
+}
+
+trait Bar {
+    fn bar(self) -> u64;
+}
+
+impl Bar for u64 {
+    fn bar(self) -> Self {
+        self + 1_u64
+    }
+}
+
+fn main() {
+    println(1_Field.foo());
+    println(1_u64.bar());
+}

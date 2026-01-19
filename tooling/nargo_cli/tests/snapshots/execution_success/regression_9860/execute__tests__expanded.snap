@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(mut a: pub [[u32; 4]; 4]) -> pub [[u32; 4]; 4] {
+    let idx_b: u32 = a[0_u32][0_u32];
+    let idx_f: u32 = a[2_u32][3_u32];
+    a[2_u32][idx_f] = a[2_u32][2_u32];
+    a[idx_b][1_u32] = 0_u32;
+    a
+}

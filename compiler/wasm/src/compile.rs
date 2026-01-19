@@ -1,19 +1,17 @@
-use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
 use nargo::parse_all;
-use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
+use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact, ssa::SsaReport};
 use noirc_driver::{
-    add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
+    CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
-use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
 };
 use serde::Deserialize;
-use std::{collections::HashMap, path::Path};
+use std::{collections::BTreeMap, path::Path};
 use wasm_bindgen::prelude::*;
 
 use crate::errors::{CompileError, JsCompileError};
@@ -128,16 +126,21 @@ impl JsCompileContractResult {
 #[derive(Deserialize, Default)]
 pub(crate) struct DependencyGraph {
     pub(crate) root_dependencies: Vec<CrateName>,
-    pub(crate) library_dependencies: HashMap<CrateName, Vec<CrateName>>,
+    pub(crate) library_dependencies: BTreeMap<CrateName, Vec<CrateName>>,
 }
+/// This map contains the paths of all of the files in the entry-point crate and
+/// the transitive dependencies of the entry-point crate.
+///
+/// This is for all intents and purposes the file system that the compiler will use to resolve/compile
+/// files in the crate being compiled and its dependencies.
+///
+/// Using a `BTreeMap` to add files to the [FileManager] in a deterministic order,
+/// which affects the `FileId` in the `Location`s in the AST on which the `hash` is based.
+/// Note that we cannot expect to match the IDs assigned by the `FileManager` used by `nargo`,
+/// because there the order is determined by the dependency graph as well as the file name.
 #[wasm_bindgen]
-// This is a map containing the paths of all of the files in the entry-point crate and
-// the transitive dependencies of the entry-point crate.
-//
-// This is for all intents and purposes the file system that the compiler will use to resolve/compile
-// files in the crate being compiled and its dependencies.
 #[derive(Deserialize, Default)]
-pub struct PathToFileSourceMap(pub(crate) HashMap<std::path::PathBuf, String>);
+pub struct PathToFileSourceMap(pub(crate) BTreeMap<std::path::PathBuf, String>);
 
 #[wasm_bindgen]
 impl PathToFileSourceMap {
@@ -164,14 +167,12 @@ pub fn compile_program(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let expression_width = ExpressionWidth::Bounded { width: 4 };
-    let compile_options =
-        CompileOptions { expression_width: Some(expression_width), ..CompileOptions::default() };
+    let compile_options = CompileOptions::default();
 
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
             .map_err(|errs| {
-                CompileError::with_file_diagnostics(
+                CompileError::with_custom_diagnostics(
                     "Failed to compile program",
                     errs,
                     &context.file_manager,
@@ -179,9 +180,9 @@ pub fn compile_program(
             })?
             .0;
 
-    let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+    let optimized_program = nargo::ops::optimize_program(compiled_program);
     nargo::ops::check_program(&optimized_program).map_err(|errs| {
-        CompileError::with_file_diagnostics(
+        CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
             &context.file_manager,
@@ -201,14 +202,12 @@ pub fn compile_contract(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let expression_width = ExpressionWidth::Bounded { width: 4 };
-    let compile_options =
-        CompileOptions { expression_width: Some(expression_width), ..CompileOptions::default() };
+    let compile_options = CompileOptions::default();
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
-            .map_err(|errs| {
-                CompileError::with_file_diagnostics(
+            .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
+                CompileError::with_custom_diagnostics(
                     "Failed to compile contract",
                     errs,
                     &context.file_manager,
@@ -216,7 +215,7 @@ pub fn compile_contract(
             })?
             .0;
 
-    let optimized_contract = nargo::ops::transform_contract(compiled_contract, expression_width);
+    let optimized_contract = nargo::ops::optimize_contract(compiled_contract);
     let warnings = optimized_contract.warnings.clone();
 
     Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
@@ -231,7 +230,7 @@ fn prepare_context(
         <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
             .map_err(|err| err.to_string())?
     } else {
-        DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() }
+        DependencyGraph { root_dependencies: vec![], library_dependencies: BTreeMap::new() }
     };
 
     let fm = file_manager_with_source_map(file_source_map);
@@ -272,7 +271,7 @@ pub(crate) fn file_manager_with_source_map(source_map: PathToFileSourceMap) -> F
 // upon some library `lib1`. Then the packages that `lib1` depend upon will be placed in the
 // `library_dependencies` list and the `lib1` will be placed in the `root_dependencies` list.
 fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyGraph) {
-    let mut crate_names: HashMap<&CrateName, CrateId> = HashMap::new();
+    let mut crate_names: BTreeMap<&CrateName, CrateId> = BTreeMap::new();
 
     for lib in &dependency_graph.root_dependencies {
         let crate_id = add_noir_lib(context, lib);
@@ -304,15 +303,15 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::{graph::CrateName, hir::Context};
 
     use crate::compile::PathToFileSourceMap;
 
-    use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
-    use std::{collections::HashMap, path::Path};
+    use super::{DependencyGraph, file_manager_with_source_map, process_dependency_graph};
+    use std::{collections::BTreeMap, path::Path};
 
     fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static, 'static> {
         let mut fm = file_manager_with_source_map(source_map);
@@ -333,7 +332,7 @@ mod test {
     #[test]
     fn test_works_with_empty_dependency_graph() {
         let dependency_graph =
-            DependencyGraph { root_dependencies: vec![], library_dependencies: HashMap::new() };
+            DependencyGraph { root_dependencies: vec![], library_dependencies: BTreeMap::new() };
 
         let source_map = PathToFileSourceMap::default();
         let mut context = setup_test_context(source_map);
@@ -348,7 +347,7 @@ mod test {
     fn test_works_with_root_dependencies() {
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1")],
-            library_dependencies: HashMap::new(),
+            library_dependencies: BTreeMap::new(),
         };
 
         let source_map = PathToFileSourceMap(
@@ -368,7 +367,7 @@ mod test {
     fn test_works_with_duplicate_root_dependencies() {
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1"), crate_name("lib1")],
-            library_dependencies: HashMap::new(),
+            library_dependencies: BTreeMap::new(),
         };
 
         let source_map = PathToFileSourceMap(
@@ -387,7 +386,7 @@ mod test {
     fn test_works_with_transitive_dependencies() {
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1")],
-            library_dependencies: HashMap::from([
+            library_dependencies: BTreeMap::from([
                 (crate_name("lib1"), vec![crate_name("lib2")]),
                 (crate_name("lib2"), vec![crate_name("lib3")]),
             ]),
@@ -413,7 +412,7 @@ mod test {
     fn test_works_with_missing_dependencies() {
         let dependency_graph = DependencyGraph {
             root_dependencies: vec![crate_name("lib1")],
-            library_dependencies: HashMap::from([(crate_name("lib2"), vec![crate_name("lib3")])]),
+            library_dependencies: BTreeMap::from([(crate_name("lib2"), vec![crate_name("lib3")])]),
         };
 
         let source_map = PathToFileSourceMap(

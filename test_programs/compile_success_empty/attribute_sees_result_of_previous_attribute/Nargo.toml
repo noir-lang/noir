@@ -1,5 +1,5 @@
 [package]
-name = "attribute_sees_results_of_previous_attribute"
+name = "attribute_sees_result_of_previous_attribute"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.34.0"

@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Wrapper<T> {
+    _value: T,
+}
+
+impl<T> Wrapper<T> {
+    fn new_wrapper(value: T) -> Self {
+        Self { _value: value }
+    }
+
+    fn unwrap(self) -> T {
+        self._value
+    }
+}
+
+trait MyTrait {
+    fn new() -> Self;
+}
+
+struct MyType {}
+
+impl MyTrait for MyType {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+fn foo<T>() -> T
+where
+    T: MyTrait,
+{
+    T::new()
+}
+
+fn concise_regression() -> MyType {
+    Wrapper::<MyType>::new_wrapper(foo()).unwrap()
+}
+
+fn main() {
+    let _: MyType = concise_regression();
+}

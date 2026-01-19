@@ -5,10 +5,11 @@ use noirc_errors::{Location, Span};
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
-use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType, Visibility};
+use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
 use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
+use crate::shared::Visibility;
 
 use crate::{ResolvedGeneric, Type};
 
@@ -88,8 +89,6 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
-pub type FunctionSignature = (Vec<Param>, Option<Type>);
-
 /// A FuncMeta contains the signature of the function and any associated meta data like
 /// the function's Location, FunctionKind, and attributes. If the function's body is
 /// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
@@ -130,7 +129,12 @@ pub struct FuncMeta {
     // This flag is needed for the attribute check pass
     pub has_body: bool,
 
+    /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
+
+    /// Trait constraints that came either from a parent item (for example a where clause on a
+    /// trait or trait impl) or from constraints on implicitly added named generics.
+    pub extra_trait_constraints: Vec<TraitConstraint>,
 
     /// The type this method belongs to, if any
     pub type_id: Option<TypeId>,
@@ -171,7 +175,7 @@ pub struct FuncMeta {
 
 #[derive(Debug, Clone)]
 pub enum FunctionBody {
-    Unresolved(FunctionKind, BlockExpression, Span),
+    Unresolved(FunctionKind, BlockExpression, Location),
     Resolving,
     Resolved,
 }
@@ -185,14 +189,6 @@ impl FuncMeta {
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
         self.kind.can_ignore_return_type()
-    }
-
-    pub fn function_signature(&self) -> FunctionSignature {
-        let return_type = match self.return_type() {
-            Type::Unit => None,
-            typ => Some(typ.clone()),
-        };
-        (self.parameters.0.clone(), return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.
@@ -220,5 +216,9 @@ impl FuncMeta {
             FunctionBody::Resolving => FunctionBody::Resolving,
             FunctionBody::Resolved => FunctionBody::Resolved,
         }
+    }
+
+    pub fn all_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
+        self.trait_constraints.iter().chain(self.extra_trait_constraints.iter())
     }
 }

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: The `#[fuzz]` attribute may only be used on functions with parameters
+  ┌─ src/main.nr:2:1
+  │
+2 │ #[fuzz]
+  │ -------
+  │
+
+error: The `#[test(only_fail_with = "..")]` attribute may only be used on functions with parameters
+  ┌─ src/main.nr:6:1
+  │
+6 │ #[test(only_fail_with = "error")]
+  │ ---------------------------------
+  │
+
+Aborting due to 2 previous errors

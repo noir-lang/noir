@@ -1,0 +1,38 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(a: [u16; 1], b: [u16; 1]) {
+    case1(a);
+    case2(b);
+}
+
+unconstrained fn case1(array: [u16; 1]) {
+    if false {} else {
+        let mut d: [u16; 1] = array;
+        if true {
+            d[0_u32] = 2_u16;
+            assert(array[0_u32] != 2_u16);
+            println(d);
+        } else {
+            ()
+        }
+    }
+}
+
+unconstrained fn case2(array: [u16; 1]) {
+    if true {
+        if true {
+            let mut foo: [u16; 1] = array;
+            foo[0_u32] = 0_u16;
+            println(foo);
+        }
+    };
+    if true {
+        if false {
+            ()
+        } else {
+            assert(array[0_u32] != 0_u16);
+        }
+    }
+}

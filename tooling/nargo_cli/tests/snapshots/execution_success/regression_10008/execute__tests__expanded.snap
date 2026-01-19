@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(v0: i16, v1: bool) -> pub i16 {
+    let v4: i16 = !(v0 - v0);
+    if v1 {
+        let v6: i16 = v4 / v4;
+        let v7: i16 = !v6;
+        let v8: i16 = v4 / v7;
+        let v9: i16 = v8 ^ v0;
+        let v10: i16 = !v9;
+        let _: i16 = v10 / v4;
+    } else {
+        let _: i16 = v4 / v4;
+    };
+    v4 / v4
+}

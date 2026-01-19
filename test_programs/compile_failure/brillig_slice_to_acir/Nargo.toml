@@ -1,7 +1,0 @@
-[package]
-name = "brillig_slice_to_acir"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.23.0"
-
-[dependencies]

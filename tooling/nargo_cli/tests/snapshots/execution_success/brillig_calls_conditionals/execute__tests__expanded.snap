@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: [u32; 3]) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(entry_point(x[0_u32]) == 7_u32);
+        assert(entry_point(x[1_u32]) == 8_u32);
+        assert(entry_point(x[2_u32]) == 9_u32);
+        assert(entry_point(42_u32) == 0_u32);
+    }
+}
+
+unconstrained fn inner_1() -> u32 {
+    7_u32
+}
+
+unconstrained fn inner_2() -> u32 {
+    8_u32
+}
+
+unconstrained fn inner_3() -> u32 {
+    9_u32
+}
+
+unconstrained fn entry_point(x: u32) -> u32 {
+    let mut result: u32 = 0_u32;
+    if x == 1_u32 {
+        result = inner_1();
+    } else if x == 2_u32 {
+        result = inner_2();
+    } else if x == 3_u32 {
+        result = inner_3();
+    };
+    result
+}

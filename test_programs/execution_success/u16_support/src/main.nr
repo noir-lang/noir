@@ -1,6 +1,6 @@
 fn main(x: u16) {
     test_u16(x);
-    /// Safety: testing context
+    // Safety: testing context
     unsafe {
         test_u16_unconstrained(x);
     }
@@ -19,9 +19,9 @@ fn test_u16(x: u16) {
     assert(t4 == t1);
 
     let mut small_int = x as u16;
-    let shift = small_int << (x as u8);
+    let shift = small_int << x;
     assert(shift == 8);
-    assert(shift >> (x as u8) == small_int);
+    assert(shift >> x == small_int);
     assert(shift >> 15 == 0);
     assert(shift << 15 == 0);
 }

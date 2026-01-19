@@ -42,11 +42,7 @@ impl<'a> Parser<'a> {
         F: FnMut(&mut Parser<'a>) -> Option<T>,
     {
         let f = |x: &mut Parser<'a>| {
-            if let Some(result) = f(x) {
-                vec![result]
-            } else {
-                vec![]
-            }
+            if let Some(result) = f(x) { vec![result] } else { vec![] }
         };
         self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f)
     }
@@ -70,7 +66,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            let start_span = self.current_token_span;
+            let start_location = self.current_token_location;
             let mut new_elements = f(self);
             if new_elements.is_empty() {
                 if let Some(end) = &separated_by.until {
@@ -81,7 +77,7 @@ impl<'a> Parser<'a> {
 
             if let Some(separator) = &separated_by.token {
                 if !trailing_separator && !elements.is_empty() {
-                    self.expected_token_separating_items(separator.clone(), items, start_span);
+                    self.expected_token_separating_items(separator.clone(), items, start_location);
                 }
             }
 

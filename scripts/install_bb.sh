@@ -1,11 +1,11 @@
 #!/bin/bash
 
-VERSION="0.72.1"
+VERSION="3.0.0-nightly.20260102"
 
 BBUP_PATH=~/.bb/bbup
 
-if ! [ -f $BBUP_PATH ]; then 
-    curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
+if ! [ -f $BBUP_PATH ]; then
+    curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/next/barretenberg/bbup/install | bash
 fi
 
 $BBUP_PATH -v $VERSION

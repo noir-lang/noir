@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub [[bool; 1]; 1] {
+    let mut ctx_limit: u32 = 1_u32;
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        func_1([[true]], [[true]], ctx_limit)
+    }
+}
+
+unconstrained fn func_1(
+    a: [[bool; 1]; 1],
+    mut b: [[bool; 1]; 1],
+    mut ctx_limit: u32,
+) -> [[bool; 1]; 1] {
+    if ctx_limit == 0_u32 {
+        [[true]]
+    } else {
+        b[0_u32][0_u32] = false;
+        println(a);
+        b = func_1(a, b, ctx_limit - 1_u32);
+        a
+    }
+}

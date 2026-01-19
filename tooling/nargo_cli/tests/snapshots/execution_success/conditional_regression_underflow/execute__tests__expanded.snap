@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u8) {
+    if x == 10_u8 { x + 255_u8; };
+    if x == 9_u8 { x << 7_u8; };
+    if x == 128_u8 { x * 3_u8; };
+    if x == 7_u8 {
+        x - 8_u8;
+    }
+}

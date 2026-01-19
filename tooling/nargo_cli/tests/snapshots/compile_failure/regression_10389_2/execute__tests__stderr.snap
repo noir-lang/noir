@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: The value `-1` cannot fit into `u8` which has range `0..=255`
+  ┌─ src/main.nr:3:9
+  │
+3 │         -1 => {},
+  │         --
+  │
+
+Aborting due to 1 previous error

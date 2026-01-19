@@ -10,7 +10,9 @@ sidebar_position: 4
 
 Noir includes a special `assert` function which will explicitly constrain the predicate/comparison
 expression that follows to be true. If this expression is false at runtime, the program will fail to
-be proven. Example:
+be proven. As of v1.0.0-beta.2, assert statements are expressions and can be used in value contexts.
+
+Example:
 
 ```rust
 fn main(x : Field, y : Field) {
@@ -48,13 +50,20 @@ but that runs at compile-time.
 
 ```rust
 fn main(xs: [Field; 3]) {
-    let x = 2 + 2;
+    let x = 2;
     let y = 4;
-    static_assert(x == y, "expected 2 + 2 to equal 4");
+    static_assert(x + x == y, "expected 2 + 2 to equal 4");
 
     // This passes since the length of `xs` is known at compile-time
     static_assert(xs.len() == 3, "expected the input to have 3 elements");
 }
+```
+
+Like `assert`, the message can be a format string or any other type supported as input for Noir's [print](../standard_library/logging.md) functions.
+This feature lets you incorporate runtime variables into your failed assertion logs:
+
+```rust
+static_assert(x + x == y, f"Expected 2 + 2 to equal 4 but got: {x} + {x} == {y}");
 ```
 
 This function fails when passed a dynamic (run-time) argument:
@@ -64,15 +73,14 @@ fn main(x : Field, y : Field) {
     // this fails because `x` is not known at compile-time
     static_assert(x == 2, "expected x to be known at compile-time and equal to 2");
 
-    let mut example_slice = &[];
+    let mut example_vector = @[];
     if y == 4 {
-        example_slice = example_slice.push_back(0);
+        example_vector = example_vector.push_back(0);
     }
 
-    // This fails because the length of `example_slice` is not known at
+    // This fails because the length of `example_vector` is not known at
     // compile-time
-    let error_message = "expected an empty slice, known at compile-time";
-    static_assert(example_slice.len() == 0, error_message);
+    let error_message = "expected an empty vector, known at compile-time";
+    static_assert(example_vector.len() == 0, error_message);
 }
 ```
-

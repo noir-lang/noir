@@ -1,14 +1,16 @@
-use acvm::FieldElement;
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -33,15 +35,14 @@ pub enum HirExpression {
     EnumConstructor(HirEnumConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
-    MethodCall(HirMethodCallExpression),
     Constrain(HirConstrainExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
+    Match(HirMatch),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Quote(Tokens),
     Unquote(Tokens),
-    Comptime(HirBlockExpression),
     Unsafe(HirBlockExpression),
     Error,
 }
@@ -58,12 +59,16 @@ pub struct HirIdent {
 }
 
 impl HirIdent {
+    /// Create a [HirIdent] with [ImplKind::NotATraitMethod].
+    ///
+    /// It may not be a method at all.
     pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
         Self { id, location, impl_kind: ImplKind::NotATraitMethod }
     }
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ImplKind {
     /// This ident is not a trait method
     NotATraitMethod,
@@ -72,14 +77,23 @@ pub enum ImplKind {
     /// and eventually linked to this id. The boolean indicates whether the impl
     /// is already assumed to exist - e.g. when resolving a path such as `T::default`
     /// when there is a corresponding `T: Default` constraint in scope.
-    TraitMethod(TraitMethod),
+    TraitItem(TraitItem),
 }
 
+/// A method or constant defined in a trait
 #[derive(Debug, Clone)]
-pub struct TraitMethod {
-    pub method_id: TraitMethodId,
+pub struct TraitItem {
+    /// Note that this _must_ be the id of the function or constant within the trait,
+    /// not the id within the impl.
+    pub definition: DefinitionId,
     pub constraint: TraitConstraint,
     pub assumed: bool,
+}
+
+impl TraitItem {
+    pub fn id(&self) -> TraitItemId {
+        TraitItemId { item_id: self.definition, trait_id: self.constraint.trait_bound.trait_id }
+    }
 }
 
 impl Eq for HirIdent {}
@@ -112,9 +126,9 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
-    Slice(HirArrayLiteral),
+    Vector(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(SignedField),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -133,7 +147,21 @@ pub struct HirPrefixExpression {
 
     /// The trait method id for the operator trait method that corresponds to this operator,
     /// if such a trait exists (for example, there's no trait for the dereference operator).
-    pub trait_method_id: Option<TraitMethodId>,
+    pub trait_method_id: Option<TraitItemId>,
+
+    /// If this is true we should skip this operation and directly return `rhs` instead.
+    /// This is used for compiling `&mut foo.bar.baz` where `foo.bar.baz` already returns
+    /// a reference and we do not want to create a new reference. Additionally, this node
+    /// is kept so that `nargo expand` still expands into the full `&mut foo.bar.baz` instead
+    /// of removing the leading `&mut`.
+    pub skip: bool,
+}
+
+impl HirPrefixExpression {
+    /// Creates a basic HirPrefixExpression with `trait_method_id = None` and `skip = false`
+    pub fn new(operator: UnaryOp, rhs: ExprId) -> Self {
+        Self { operator, rhs, trait_method_id: None, skip: false }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -146,7 +174,7 @@ pub struct HirInfixExpression {
     /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
     /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
     /// after the call to `Eq::eq` to get the result of the `!=` operator.
-    pub trait_method_id: TraitMethodId,
+    pub trait_method_id: Option<TraitItemId>,
 }
 
 /// This is always a struct field access `my_struct.field`
@@ -206,7 +234,11 @@ pub struct HirMethodCallExpression {
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
-pub struct HirConstrainExpression(pub ExprId, pub FileId, pub Option<ExprId>);
+pub struct HirConstrainExpression(
+    /*condition*/ pub ExprId,
+    pub FileId,
+    /*message*/ pub Option<ExprId>,
+);
 
 #[derive(Debug, Clone)]
 pub enum HirMethodReference {
@@ -218,16 +250,26 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(TraitMethodId, TraitGenerics, bool /* assumed */),
+    TraitItemId(HirTraitMethodReference),
+}
+
+#[derive(Debug, Clone)]
+pub struct HirTraitMethodReference {
+    pub trait_id: TraitId,
+    pub definition: DefinitionId,
+    pub trait_generics: TraitGenerics,
+    pub assumed: bool,
 }
 
 impl HirMethodReference {
+    /// Return the [FuncId] of a method if it's known.
+    ///
+    /// Returns `None` for trait methods don't have a know function definition.
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
-            HirMethodReference::TraitMethodId(method_id, _, _) => {
-                let id = interner.trait_method_id(*method_id);
-                match &interner.try_definition(id)?.kind {
+            HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) => {
+                match &interner.try_definition(*definition)?.kind {
                     DefinitionKind::Function(func_id) => Some(*func_id),
                     _ => None,
                 }
@@ -235,34 +277,37 @@ impl HirMethodReference {
         }
     }
 
+    /// Looks up definition of a function and its implementation kind (a normal function or a trait method),
+    /// and interns an identifier we can use to call the function.
     pub fn into_function_id_and_name(
         self,
         object_type: Type,
         generics: Option<Vec<Type>>,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirIdent) {
+    ) -> (PushedExpr<HasLocation>, HirIdent) {
         let (id, impl_kind) = match self {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
-                let id = interner.trait_method_id(method_id);
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed,
+            }) => {
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound {
-                        trait_id: method_id.trait_id,
-                        trait_generics,
-                        span: location.span,
-                    },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
-                (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
+                (definition, ImplKind::TraitItem(TraitItem { definition, constraint, assumed }))
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location.span, location.file);
+        let func = interner
+            .push_expr(HirExpression::Ident(func_var.clone(), generics))
+            .push_location(interner, location);
         (func, func_var)
     }
 }
@@ -353,4 +398,152 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
+    pub unconstrained: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirMatch {
+    /// Jump directly to ExprId
+    Success(ExprId),
+
+    /// A Failure node in the match. `missing_case` is true if this node is the result of a missing
+    /// case of the match for which we should later reconstruct an example of.
+    Failure { missing_case: bool },
+
+    /// Run `body` if the given expression is true.
+    /// Otherwise continue with the given decision tree.
+    Guard { cond: ExprId, body: ExprId, otherwise: Box<HirMatch> },
+
+    /// Switch on the given variable with the given cases to test.
+    /// The final argument is an optional match-all case to take if
+    /// none of the cases matched.
+    Switch(DefinitionId, Vec<Case>, Option<Box<HirMatch>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Case {
+    pub constructor: Constructor,
+    pub arguments: Vec<DefinitionId>,
+    pub body: HirMatch,
+}
+
+impl Case {
+    pub fn new(constructor: Constructor, arguments: Vec<DefinitionId>, body: HirMatch) -> Self {
+        Self { constructor, arguments, body }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Constructor {
+    True,
+    False,
+    Unit,
+    Int(SignedField),
+    Tuple(Vec<Type>),
+    Variant(Type, usize),
+    Range(SignedField, SignedField),
+}
+
+impl Constructor {
+    pub fn variant_index(&self) -> usize {
+        match self {
+            Constructor::False
+            | Constructor::Int(_)
+            | Constructor::Unit
+            | Constructor::Tuple(_)
+            | Constructor::Range(_, _) => 0,
+            Constructor::True => 1,
+            Constructor::Variant(_, index) => *index,
+        }
+    }
+
+    /// True if this constructor constructs an enum value.
+    /// Enums contain a tag value and often have values to
+    /// unpack for each different variant index.
+    pub fn is_enum(&self) -> bool {
+        match self {
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_enum(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// True if this constructor constructs a tuple or struct value.
+    /// Tuples or structs will still have values to unpack but do not
+    /// store a tag value internally.
+    pub fn is_tuple_or_struct(&self) -> bool {
+        match self {
+            Constructor::Tuple(_) => true,
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_struct(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// Return all the constructors of this type from one constructor. Intended to be used
+    /// for error reporting in cases where there are at least 2 constructors.
+    pub(crate) fn all_constructors(&self) -> Vec<(Constructor, /*arg count:*/ usize)> {
+        match self {
+            Constructor::True | Constructor::False => {
+                vec![(Constructor::True, 0), (Constructor::False, 0)]
+            }
+            Constructor::Unit => vec![(Constructor::Unit, 0)],
+            Constructor::Tuple(args) => vec![(self.clone(), args.len())],
+            Constructor::Variant(typ, _) => {
+                let typ = typ.follow_bindings();
+                let Type::DataType(def, generics) = &typ else {
+                    unreachable!(
+                        "Constructor::Variant should have a DataType type, but found {typ:?}"
+                    );
+                };
+
+                let def_ref = def.borrow();
+                if let Some(variants) = def_ref.get_variants(generics) {
+                    vecmap(variants.into_iter().enumerate(), |(i, (_, fields))| {
+                        (Constructor::Variant(typ.clone(), i), fields.len())
+                    })
+                } else
+                /* def is a struct */
+                {
+                    let field_count = def_ref.fields_raw().map(|fields| fields.len()).unwrap_or(0);
+                    vec![(Constructor::Variant(typ.clone(), 0), field_count)]
+                }
+            }
+
+            // Nothing great to return for these
+            Constructor::Int(_) | Constructor::Range(..) => Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Display for Constructor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constructor::True => write!(f, "true"),
+            Constructor::False => write!(f, "false"),
+            Constructor::Unit => write!(f, "()"),
+            Constructor::Int(x) => write!(f, "{x}"),
+            // We already print the arguments of a constructor after this in the format of `(x, y)`.
+            // In that case it is already in the format of a tuple so there's nothing more we need
+            // to do here. This is implicitly assuming we never display a constructor without also
+            // displaying its arguments though.
+            Constructor::Tuple(_) => Ok(()),
+            Constructor::Variant(typ, variant_index) => {
+                if let Type::DataType(def, _) = typ {
+                    let def = def.borrow();
+                    if let Some(variant) = def.get_variant_as_written(*variant_index) {
+                        write!(f, "{}", variant.name)?;
+                    } else if def.is_struct() {
+                        write!(f, "{}", def.name)?;
+                    }
+                }
+                Ok(())
+            }
+            Constructor::Range(start, end) => write!(f, "{start} .. {end}"),
+        }
+    }
 }

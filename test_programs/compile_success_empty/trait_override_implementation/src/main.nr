@@ -80,4 +80,3 @@ fn main(x: Field) {
     assert(bar_mut.f4() == 4, "14");
     assert(bar_mut.f5() == 50, "15");
 }
-

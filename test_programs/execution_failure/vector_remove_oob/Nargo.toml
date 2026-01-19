@@ -1,0 +1,6 @@
+[package]
+name = "vector_remove_oob"
+type = "bin"
+authors = [""]
+
+[dependencies]

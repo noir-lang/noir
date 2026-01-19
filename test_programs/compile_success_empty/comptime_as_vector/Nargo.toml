@@ -1,0 +1,7 @@
+[package]
+name = "comptime_as_vector"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.24.0"
+
+[dependencies]

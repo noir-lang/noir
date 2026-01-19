@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+MFFA
+[regression_8729] Circuit output: 0x00

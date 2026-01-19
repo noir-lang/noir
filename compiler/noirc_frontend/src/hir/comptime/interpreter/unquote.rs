@@ -1,31 +1,28 @@
-use noirc_errors::Location;
-
 use crate::{
     hir::comptime::errors::IResult,
-    token::{Token, Tokens},
+    token::{LocatedToken, Token, Tokens},
 };
 
 use super::Interpreter;
 
-impl<'local, 'interner> Interpreter<'local, 'interner> {
+impl Interpreter<'_, '_> {
     /// Evaluates any expressions within UnquoteMarkers in the given token list
     /// and replaces the expression held by the marker with the evaluated value
     /// in expression form.
     pub(super) fn substitute_unquoted_values_into_tokens(
         &mut self,
         tokens: Tokens,
-        location: Location,
-    ) -> IResult<Vec<Token>> {
+    ) -> IResult<Vec<LocatedToken>> {
         let mut new_tokens = Vec::with_capacity(tokens.0.len());
 
         for token in tokens.0 {
-            match token.into_token() {
+            match token.token() {
                 Token::UnquoteMarker(id) => {
-                    let value = self.evaluate(id)?;
-                    let tokens = value.into_tokens(self.elaborator.interner, location)?;
+                    let value = self.evaluate(*id)?;
+                    let tokens = value.into_tokens(self.elaborator.interner, token.location())?;
                     new_tokens.extend(tokens);
                 }
-                token => new_tokens.push(token),
+                _ => new_tokens.push(token),
             }
         }
 

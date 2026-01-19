@@ -9,4 +9,3 @@ fn main(y: pub myStruct) {
     assert(y.foo == 5);
     assert(y.bar == 7);
 }
-

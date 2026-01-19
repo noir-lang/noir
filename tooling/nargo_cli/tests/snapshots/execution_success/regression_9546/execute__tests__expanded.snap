@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: i16, mut b: i16) -> pub i16 {
+    for _ in 0_u32..7_u32 {
+        if b == -13461_i16 {
+            b = if b == 28165_i16 {
+                ((8724006435340102799_i64 >> 4976821465038191667_i64) as i16) + 9004_i16
+            } else {
+                a
+            };
+        };
+        b = -8670_i16;
+    }
+    b
+}

@@ -58,6 +58,8 @@ export interface ABIVariable {
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
+  /** The hash of the circuit. */
+  hash?: string;
   /** Whether the function is unconstrained. */
   is_unconstrained: boolean;
   /** The custom attributes applied to the function. */
@@ -96,7 +98,7 @@ export interface ProgramArtifact {
   /** Version of noir used for the build. */
   noir_version: string;
   /** The hash of the circuit. */
-  hash?: number;
+  hash?: string;
   /** * The ABI of the function. */
   abi: Abi;
   /** The bytecode of the circuit in base64. */
@@ -137,13 +139,20 @@ export interface SourceCodeLocation {
 
 /**
  * The location of an opcode in the bytecode.
- * It's a string of the form `{acirIndex}` or `{acirIndex}:{brilligIndex}`.
  */
-export type OpcodeLocation = string;
+export type OpcodeLocation = number;
 
 export type BrilligFunctionId = number;
 
 export type OpcodeToLocationsMap = Record<OpcodeLocation, SourceCodeLocation[]>;
+
+export interface LocationNodeDebugInfo {
+  value: SourceCodeLocation;
+}
+
+export interface LocationTree {
+  locations: Array<LocationNodeDebugInfo>;
+}
 
 /**
  * The debug information for a given function.
@@ -152,7 +161,7 @@ export interface DebugInfo {
   /**
    * A map of the opcode location to the source code location.
    */
-  locations: OpcodeToLocationsMap;
+  location_tree: LocationTree;
   /**
    * For each Brillig function, we have a map of the opcode location to the source code location.
    */

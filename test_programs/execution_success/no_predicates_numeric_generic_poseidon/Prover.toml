@@ -1,2 +1,7 @@
 enable = [true, false]
 to_hash = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+return = [
+    "0x0f319258a1a8e85324d818a86f6b9e843601bf5fc0c16a5f6373ad1079d61bf4",
+    "0x00",
+    "0x252875d79a57f3835f452548af60c7beee6ac01a1c36bb6aec7ce6d069011acc",
+]

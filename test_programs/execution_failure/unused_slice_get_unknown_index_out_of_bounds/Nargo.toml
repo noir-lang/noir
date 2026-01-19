@@ -1,7 +1,0 @@
-[package]
-name = "unused_slice_get_unknown_index_out_of_bounds"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.31.0"
-
-[dependencies]

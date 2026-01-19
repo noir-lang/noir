@@ -1,7 +1,8 @@
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span};
+use noirc_errors::{CustomDiagnostic, Location};
 use thiserror::Error;
 
+use crate::elaborator::{TypedPath, TypedPathSegment};
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
 
@@ -10,8 +11,10 @@ use crate::usage_tracker::UsageTracker;
 
 use std::collections::BTreeMap;
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind};
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
+use crate::hir::def_map::{
+    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs,
+};
 
 use super::errors::ResolverError;
 use super::visibility::item_in_module_is_visible;
@@ -44,17 +47,39 @@ pub enum PathResolutionError {
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
     #[error("There is no super module")]
-    NoSuper(Span),
+    NoSuper(Location),
     #[error("turbofish (`::<_>`) not allowed on {item}")]
-    TurbofishNotAllowedOnItem { item: String, span: Span },
+    TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
-    #[error("trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it")]
+    #[error(
+        "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
+    )]
     TraitMethodNotInScope { ident: Ident, trait_name: String },
     #[error("Could not resolve '{ident}' in path")]
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
+    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
+    StructDefinitionDeprecated { location: Location },
+}
+
+impl PathResolutionError {
+    pub fn location(&self) -> Location {
+        match self {
+            PathResolutionError::NoSuper(location)
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. }
+            | PathResolutionError::StructDefinitionDeprecated { location } => *location,
+            PathResolutionError::Unresolved(ident)
+            | PathResolutionError::Private(ident)
+            | PathResolutionError::NotAModule { ident, .. }
+            | PathResolutionError::TraitMethodNotInScope { ident, .. }
+            | PathResolutionError::MultipleTraitsInScope { ident, .. }
+            | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. } => {
+                ident.location()
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -75,43 +100,55 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
     fn from(error: &'a PathResolutionError) -> Self {
         match &error {
             PathResolutionError::Unresolved(ident) => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
-            // This will be upgraded to an error in future versions
-            PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
+            PathResolutionError::Private(ident) => CustomDiagnostic::simple_error(
                 error.to_string(),
                 format!("{ident} is private"),
-                ident.span(),
+                ident.location(),
             ),
-            PathResolutionError::NoSuper(span) => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            PathResolutionError::NoSuper(location) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *location)
             }
-            PathResolutionError::TurbofishNotAllowedOnItem { item: _, span } => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            PathResolutionError::TurbofishNotAllowedOnItem { item: _, location } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             PathResolutionError::NotAModule { ident, kind: _ } => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
-                CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
-                    format!("The following traits which provide `{ident}` are implemented but not in scope: {}", traits.join(", ")),
-                    ident.span(),
+                    format!(
+                        "The following traits which provide `{ident}` are implemented but not in scope: {}",
+                        traits.join(", ")
+                    ),
+                    ident.location(),
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
                         "All these trait which provide `{ident}` are implemented and in scope: {}",
                         traits.join(", ")
                     ),
-                    ident.span(),
+                    ident.location(),
+                )
+            }
+            PathResolutionError::StructDefinitionDeprecated { location } => {
+                CustomDiagnostic::simple_warning(
+                    "`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"
+                        .to_string(),
+                    String::new(),
+                    *location,
                 )
             }
         }
@@ -126,10 +163,11 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 pub fn resolve_import(
     path: Path,
     importing_module: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     usage_tracker: &mut UsageTracker,
     references_tracker: Option<ReferencesTracker>,
 ) -> ImportResolutionResult {
+    let path = path_to_typed_path(path);
     let (path, module_id, references_tracker) =
         resolve_path_kind(path, importing_module, def_maps, references_tracker)?;
     let mut solver =
@@ -137,23 +175,58 @@ pub fn resolve_import(
     solver.resolve_name_in_module(path, module_id)
 }
 
-/// Given a Path and a ModuleId it's being used in, this function returns a plain Path
-/// and a ModuleId where that plain Path should be resolved. That is, this method will
-/// resolve the Path kind and translate it to a plain path.
+fn path_to_typed_path(path: Path) -> TypedPath {
+    let segments = vecmap(path.segments, path_segment_to_typed_path_segment);
+    let kind_location = path.kind_location;
+    TypedPath { segments, kind: path.kind, location: path.location, kind_location }
+}
+
+fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment {
+    assert!(segment.generics.is_none(), "generics should not be present in a use path segment");
+    TypedPathSegment { ident: segment.ident, generics: None, location: segment.location }
+}
+
+/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
+/// and a [ModuleId] where that `TypedPath` should be resolved.
+///
+/// For a [PathKind::Dep] with a value such as `dep::foo::bar::baz`, the path will be turned into a
+/// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
+/// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
+/// up with the module where it should be looked up. If the module cannot be found, and error is
+/// returned.
 ///
 /// The third value in the tuple is a reference tracker that must be passed to this
 /// method, which is used in case the path kind is `dep`: the segment after `dep`
 /// will be linked to the root module of the external dependency.
 pub fn resolve_path_kind<'r>(
-    path: Path,
+    path: TypedPath,
     importing_module: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     references_tracker: Option<ReferencesTracker<'r>>,
-) -> Result<(Path, ModuleId, Option<ReferencesTracker<'r>>), PathResolutionError> {
+) -> Result<(TypedPath, ModuleId, Option<ReferencesTracker<'r>>), PathResolutionError> {
     let mut solver =
         PathResolutionTargetResolver { importing_module, def_maps, references_tracker };
     let (path, module_id) = solver.resolve(path)?;
     Ok((path, module_id, solver.references_tracker))
+}
+
+/// Returns `true` if the first segment of a `TypedPath` in the `starting_module`
+/// should always be visible to the `importing_module`.
+///
+/// Assumes that we have called [resolve_path_kind] before.
+pub(crate) fn first_segment_is_always_visible(
+    path: &TypedPath,
+    importing_module: ModuleId,
+    starting_module: ModuleId,
+) -> bool {
+    match path.kind {
+        PathKind::Crate | PathKind::Super => true,
+        PathKind::Plain => importing_module == starting_module,
+        PathKind::Resolved(_) => false,
+        PathKind::Dep => {
+            unreachable!("ICE: Dep path kinds should have been turned into Plain.")
+        }
+    }
 }
 
 struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
@@ -162,27 +235,39 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
     references_tracker: Option<ReferencesTracker<'references_tracker>>,
 }
 
-impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 'references_tracker> {
-    fn resolve(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
+impl PathResolutionTargetResolver<'_, '_> {
+    /// Resolve a `TypedPath` based on its [PathKind] to the target [ModuleId].
+    fn resolve(&mut self, path: TypedPath) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         match path.kind {
-            PathKind::Crate => self.resolve_crate_path(path),
+            PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
             PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
             PathKind::Dep => self.resolve_dep_path(path),
             PathKind::Super => self.resolve_super_path(path),
+            PathKind::Resolved(crate_id) => self.resolve_crate_path(path, crate_id),
         }
     }
 
-    fn resolve_crate_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
-        let root_module = self.def_maps[&self.importing_module.krate].root;
-        let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
+    /// Resolve a path such as `crate::foo::bar` or `$crate::foo::bar`.
+    ///
+    /// Returns a path with its kind unchanged, paired up with the importing or defining module itself as the target.
+    fn resolve_crate_path(
+        &mut self,
+        path: TypedPath,
+        krate: CrateId,
+    ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
+        let root_module = self.def_maps[&krate].root();
+        let current_module = ModuleId { krate, local_id: root_module };
         Ok((path, current_module))
     }
 
+    /// Resolve a path such as `foo::bar`:
+    /// * check if `foo` module can be found in the current importing module
+    /// * if not, treat the path as if it were `dep::foo::bar` and look for a `foo` crate instead
     fn resolve_plain_path(
         &mut self,
-        path: Path,
+        path: TypedPath,
         current_module: ModuleId,
-    ) -> Result<(Path, ModuleId), PathResolutionError> {
+    ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         // There is a possibility that the import path is empty. In that case, early return.
         // This happens on import statements such as `use crate` or `use std`.
         if path.segments.is_empty() {
@@ -190,7 +275,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
         }
 
         let first_segment =
-            &path.segments.first().expect("ice: could not fetch first segment").ident;
+            &path.segments.first().expect("ICE: could not fetch first segment").ident;
         if get_module(self.def_maps, current_module).find_name(first_segment).is_none() {
             // Resolve externally when first segment is unresolved
             return self.resolve_dep_path(path);
@@ -199,10 +284,13 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
         Ok((path, current_module))
     }
 
+    /// Resolve a path such as `dep::foo:bar::baz`:
+    /// * find the `foo` crate among the dependencies of the current importing module
+    /// * remove the crate `foo` from the path, returning a plain path `bar::baz` along with the dependency module
     fn resolve_dep_path(
         &mut self,
-        mut path: Path,
-    ) -> Result<(Path, ModuleId), PathResolutionError> {
+        mut path: TypedPath,
+    ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         // Use extern_prelude to get the dep
         let current_def_map = &self.def_maps[&self.importing_module.krate];
 
@@ -210,12 +298,12 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
         let crate_name = &path.segments.first().unwrap().ident;
         let dep_module = current_def_map
             .extern_prelude
-            .get(&crate_name.0.contents)
+            .get(crate_name.as_str())
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
         if let Some(references_tracker) = &mut self.references_tracker {
-            let span = crate_name.span();
-            references_tracker.add_reference(ModuleDefId::ModuleId(*dep_module), span, false);
+            let location = crate_name.location();
+            references_tracker.add_reference(ModuleDefId::ModuleId(*dep_module), location, false);
         }
 
         // Now the path can be solved starting from the second segment as a plain path
@@ -225,11 +313,15 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
         Ok((path, *dep_module))
     }
 
-    fn resolve_super_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
+    /// Resolve a path such as `super::foo::bar`:
+    /// * get the parent of the current importing module
+    /// * return the path still with [PathKind::Super], paired up with the parent module
+    fn resolve_super_path(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
-            let span_start = path.span.start();
-            let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
-            return Err(PathResolutionError::NoSuper(span));
+            return Err(PathResolutionError::NoSuper(path.kind_location));
         };
 
         let current_module =
@@ -257,9 +349,12 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Self { importing_module, def_maps, usage_tracker, references_tracker }
     }
 
+    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    ///
+    /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
         &mut self,
-        path: Path,
+        path: TypedPath,
         starting_module: ModuleId,
     ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
@@ -270,14 +365,15 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             });
         }
 
-        let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
+        let first_segment_is_always_visible =
+            first_segment_is_always_visible(&path, self.importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
         let mut current_module = get_module(self.def_maps, starting_module);
 
         let first_segment =
-            &path.segments.first().expect("ice: could not fetch first segment").ident;
+            &path.segments.first().expect("ICE: could not fetch first segment").ident;
         let mut current_ns = current_module.find_name(first_segment);
         if current_ns.is_none() {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
@@ -293,11 +389,13 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             let current_ident = &current_segment.ident;
 
             let (typ, visibility) = match current_ns.types {
-                None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
+                None => {
+                    return Err(PathResolutionError::Unresolved(last_ident.clone()));
+                }
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            self.add_reference(typ, last_segment.span, last_segment.ident.is_self_type_name());
+            self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {
@@ -309,21 +407,24 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                         kind: "type alias",
                     });
                 }
+                ModuleDefId::TraitAssociatedTypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "associated type",
+                    });
+                }
                 ModuleDefId::TraitId(id) => id.0,
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
 
-            // If the path is plain or crate, the first segment will always refer to
-            // something that's visible from the current module.
-            if !((plain_or_crate && index == 0)
+            if !((first_segment_is_always_visible && index == 0)
                 || self.item_in_module_is_visible(current_module_id, visibility))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
 
-            current_module =
-                &self.def_maps[&current_module_id.krate].modules[current_module_id.local_id.0];
+            current_module = &self.def_maps[&current_module_id.krate][current_module_id.local_id];
 
             // Check if namespace
             let found_ns = current_module.find_name(current_ident);
@@ -339,7 +440,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         let (module_def_id, visibility, _) =
             current_ns.values.or(current_ns.types).expect("Found empty namespace");
 
-        self.add_reference(module_def_id, path.segments.last().unwrap().ident.span(), false);
+        self.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), false);
 
         if !self.item_in_module_is_visible(current_module_id, visibility) {
             errors.push(PathResolutionError::Private(path.last_ident()));
@@ -348,9 +449,14 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Ok(ResolvedImport { namespace: current_ns, errors })
     }
 
-    fn add_reference(&mut self, reference_id: ModuleDefId, span: Span, is_self_type_name: bool) {
+    fn add_reference(
+        &mut self,
+        reference_id: ModuleDefId,
+        location: Location,
+        is_self_type_name: bool,
+    ) {
         if let Some(references_tracker) = &mut self.references_tracker {
-            references_tracker.add_reference(reference_id, span, is_self_type_name);
+            references_tracker.add_reference(reference_id, location, is_self_type_name);
         }
     }
 
@@ -359,7 +465,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     }
 }
 
-fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
+fn get_module(def_maps: &DefMaps, module: ModuleId) -> &ModuleData {
     let message = "A crate should always be present for a given crate id";
-    &def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+    &def_maps.get(&module.krate).expect(message)[module.local_id]
 }

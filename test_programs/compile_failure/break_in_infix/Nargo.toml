@@ -1,0 +1,7 @@
+[package]
+name = "break_in_infix"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

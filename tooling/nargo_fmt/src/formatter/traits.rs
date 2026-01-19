@@ -1,11 +1,13 @@
+use noirc_errors::Location;
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
+    ast::{NoirTrait, Param, Pattern, TraitItem},
     token::{Attributes, Keyword, Token},
 };
 
-use super::{function::FunctionToFormat, Formatter};
+use super::{Formatter, function::FunctionToFormat};
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
         self.format_secondary_attributes(noir_trait.attributes);
         self.write_indentation();
@@ -28,15 +30,7 @@ impl<'a> Formatter<'a> {
             }
 
             self.write_space();
-
-            for (index, trait_bound) in noir_trait.bounds.into_iter().enumerate() {
-                if index > 0 {
-                    self.write_space();
-                    self.write_token(Token::Plus);
-                    self.write_space();
-                }
-                self.format_trait_bound(trait_bound);
-            }
+            self.format_trait_bounds(noir_trait.bounds);
         }
 
         if !noir_trait.where_clause.is_empty() {
@@ -99,7 +93,7 @@ impl<'a> Formatter<'a> {
                         visibility: Visibility::Private,
                         pattern: Pattern::Identifier(name),
                         typ,
-                        span: Default::default(), // Doesn't matter
+                        location: Location::dummy(), // Doesn't matter
                     })
                     .collect();
 
@@ -117,23 +111,28 @@ impl<'a> Formatter<'a> {
                 };
                 self.format_function_impl(func);
             }
-            TraitItem::Constant { name, typ, default_value } => {
+            TraitItem::Constant { name, typ } => {
                 let pattern = Pattern::Identifier(name);
                 let chunks = self.chunk_formatter().format_let_or_global(
                     Keyword::Let,
                     pattern,
                     typ,
-                    default_value,
+                    None,
                     Vec::new(), // Attributes
                 );
                 self.write_indentation();
                 self.format_chunk_group(chunks);
             }
-            TraitItem::Type { name } => {
+            TraitItem::Type { name, bounds } => {
                 self.write_indentation();
                 self.write_keyword(Keyword::Type);
                 self.write_space();
                 self.write_identifier(name);
+                if !bounds.is_empty() {
+                    self.write_token(Token::Colon);
+                    self.write_space();
+                    self.format_trait_bounds(bounds);
+                }
                 self.write_semicolon();
             }
         }
@@ -206,13 +205,15 @@ mod tests {
     }
 
     #[test]
-    fn format_trait_with_constant_no_value() {
+    fn format_trait_with_type_and_bounds() {
         let src = " mod moo { trait Foo { 
-            let  x  : i32 ;
+    /// hello
+            type X : A  +  B  ;
          } }";
         let expected = "mod moo {
     trait Foo {
-        let x: i32;
+        /// hello
+        type X: A + B;
     }
 }
 ";
@@ -220,13 +221,13 @@ mod tests {
     }
 
     #[test]
-    fn format_trait_with_constant_with_value() {
+    fn format_trait_with_constant_no_value() {
         let src = " mod moo { trait Foo { 
-            let  x  : i32  =  1 ;
+            let  x  : i32 ;
          } }";
         let expected = "mod moo {
     trait Foo {
-        let x: i32 = 1;
+        let x: i32;
     }
 }
 ";
@@ -293,6 +294,23 @@ mod tests {
         fn foo<T>()
         where
             T: Bar;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_function_with_multiple_where_clauses() {
+        let src = " mod moo { trait Foo { 
+            fn  foo<T> () where  A: B, C: D;
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        fn foo<T>()
+        where
+            A: B,
+            C: D;
     }
 }
 ";

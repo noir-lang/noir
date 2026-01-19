@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn foo(x: u32, f: unconstrained fn(u32) -> bool) -> bool {
+    if f(x - 1_u32) & (x > 1_u32) {
+        f(x - 2_u32)
+    } else {
+        x < 2_u32
+    }
+}
+
+unconstrained fn main(x: u32) -> pub bool {
+    if x == 0_u32 {
+        true
+    } else {
+        foo(x, main)
+    }
+}

@@ -1,31 +1,32 @@
-use lsp_types::{
+use async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
+use iter_extended::vecmap;
 use noirc_frontend::{
+    QuotedType, Type,
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
-    QuotedType, Type,
-};
-
-use crate::{
     modules::{relative_module_full_path, relative_module_id_path},
-    use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+    node_interner::{
+        FuncId, GlobalId, ReferenceId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
     },
 };
 
+use crate::use_segment_positions::{
+    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+};
+
 use super::{
+    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
     sort_text::{
         crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
         self_mismatch_sort_text,
     },
-    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn module_def_id_completion_items(
         &self,
         module_def_id: ModuleDefId,
@@ -40,15 +41,17 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeId(_)
                 | ModuleDefId::TypeAliasId(_)
-                | ModuleDefId::TraitId(_) => (),
+                | ModuleDefId::TraitId(_)
+                | ModuleDefId::TraitAssociatedTypeId(_) => (),
             },
             RequestedItems::OnlyTraits => match module_def_id {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
-                    return Vec::new()
+                    return Vec::new();
                 }
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeAliasId(_)
-                | ModuleDefId::TraitId(_) => (),
+                | ModuleDefId::TraitId(_)
+                | ModuleDefId::TraitAssociatedTypeId(_) => (),
             },
             RequestedItems::OnlyAttributeFunctions(..) => {
                 if !matches!(module_def_id, ModuleDefId::FunctionId(..)) {
@@ -62,8 +65,8 @@ impl<'a> NodeFinder<'a> {
             if let RequestedItems::OnlyAttributeFunctions(target) = requested_items {
                 match target {
                     AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
-                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
-                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::EnumDefinition)),
+                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::TypeDefinition)),
+                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::TypeDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
                     AttributeTarget::Let => {
@@ -95,6 +98,9 @@ impl<'a> NodeFinder<'a> {
                 }
             }
             ModuleDefId::TypeAliasId(id) => vec![self.type_alias_completion_item(name, id)],
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                vec![self.trait_associated_type_completion_item(name, id)]
+            }
             ModuleDefId::TraitId(trait_id) => vec![self.trait_completion_item(name, trait_id)],
             ModuleDefId::GlobalId(global_id) => vec![self.global_completion_item(name, global_id)],
         }
@@ -145,6 +151,15 @@ impl<'a> NodeFinder<'a> {
         self.completion_item_with_doc_comments(ReferenceId::Alias(id), item)
     }
 
+    fn trait_associated_type_completion_item(
+        &self,
+        name: String,
+        id: TraitAssociatedTypeId,
+    ) -> CompletionItem {
+        let item = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::TraitAssociatedType(id), item)
+    }
+
     fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {
         let item = simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
         self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), item)
@@ -188,8 +203,8 @@ impl<'a> NodeFinder<'a> {
 
         let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
             if self.hir_pattern_is_self_type(pattern) {
-                if let Type::MutableReference(mut_typ) = typ {
-                    let typ: &Type = mut_typ;
+                if let Type::Reference(elem_type, _) = typ {
+                    let typ: &Type = elem_type;
                     Some(typ)
                 } else {
                     Some(typ)
@@ -222,9 +237,8 @@ impl<'a> NodeFinder<'a> {
                         // Check that the pattern type is the same as self type.
                         // We do this because some types (only Field and integer types)
                         // have their methods in the same HashMap.
-
-                        if let Type::MutableReference(mut_typ) = self_type {
-                            self_type = mut_typ;
+                        if let Type::Reference(elem_type, _) = self_type {
+                            self_type = elem_type;
                         }
 
                         if self_type != func_self_type {
@@ -309,8 +323,8 @@ impl<'a> NodeFinder<'a> {
             false
         };
         let description = func_meta_type_to_string(func_meta, name, func_self_type.is_some());
-        let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
-        let name = if is_macro_call { format!("{}!", name) } else { name };
+        let name = if self_prefix { format!("self.{name}") } else { name.clone() };
+        let name = if is_macro_call { format!("{name}!") } else { name };
         let name = &name;
         let mut has_arguments = false;
 
@@ -332,12 +346,12 @@ impl<'a> NodeFinder<'a> {
 
                 if insert_text.ends_with("()") {
                     let label =
-                        if skip_first_argument { name.to_string() } else { format!("{}()", name) };
+                        if skip_first_argument { name.to_string() } else { format!("{name}()") };
                     simple_completion_item(label, kind, Some(description.clone()))
                 } else {
                     has_arguments = true;
                     snippet_completion_item(
-                        format!("{}(…)", name),
+                        format!("{name}(…)"),
                         kind,
                         insert_text,
                         Some(description.clone()),
@@ -395,15 +409,14 @@ impl<'a> NodeFinder<'a> {
         let (trait_id, trait_reexport) = trait_info?;
 
         let trait_name = if let Some(trait_reexport) = trait_reexport {
-            trait_reexport.name
+            trait_reexport.name.clone()
         } else {
             let trait_ = self.interner.get_trait(trait_id);
-            &trait_.name
+            trait_.name.clone()
         };
 
-        let module_data =
-            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-        if !module_data.scope().find_name(trait_name).is_none() {
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+        if !module_data.scope().find_name(&trait_name).is_none() {
             return None;
         }
 
@@ -411,8 +424,8 @@ impl<'a> NodeFinder<'a> {
         let current_module_parent_id = self.module_id.parent(self.def_maps);
         let module_full_path = if let Some(reexport_data) = trait_reexport {
             relative_module_id_path(
-                *reexport_data.module_id,
-                &self.module_id,
+                reexport_data.module_id,
+                self.module_id,
                 current_module_parent_id,
                 self.interner,
             )
@@ -422,11 +435,12 @@ impl<'a> NodeFinder<'a> {
                 self.module_id,
                 current_module_parent_id,
                 self.interner,
+                self.def_maps,
             )?
         };
-        let full_path = format!("{}::{}", module_full_path, trait_name);
+        let full_path = format!("{module_full_path}::{trait_name}");
         let mut label_details = completion_item.label_details.clone().unwrap();
-        label_details.detail = Some(format!("(use {})", full_path));
+        label_details.detail = Some(format!("(use {full_path})"));
         completion_item.label_details = Some(label_details);
         completion_item.additional_text_edits = Some(use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {
@@ -500,7 +514,7 @@ impl<'a> NodeFinder<'a> {
         completion_item: CompletionItem,
     ) -> CompletionItem {
         if let Some(doc_comments) = self.interner.doc_comments(id) {
-            let docs = doc_comments.join("\n");
+            let docs = vecmap(doc_comments, |comment| comment.contents.clone()).join("\n");
             CompletionItem {
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,
@@ -597,7 +611,7 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: boo
 }
 
 fn type_to_self_string(typ: &Type, string: &mut String) {
-    if let Type::MutableReference(..) = typ {
+    if let Type::Reference(..) = typ {
         string.push_str("&mut self");
     } else {
         string.push_str("self");

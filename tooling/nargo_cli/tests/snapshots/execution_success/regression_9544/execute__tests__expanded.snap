@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(c: u64) -> pub u64 {
+    if c == 1_u64 {
+        if c == 2_u64 {
+            c >> c
+        } else {
+            3_u64
+        }
+    } else {
+        if c == 4_u64 {
+            c >> c
+        } else {
+            5_u64
+        }
+    }
+}

@@ -1,0 +1,6 @@
+[package]
+name = "nested_vector_pop_front_return"
+type = "bin"
+authors = [""]
+
+[dependencies]

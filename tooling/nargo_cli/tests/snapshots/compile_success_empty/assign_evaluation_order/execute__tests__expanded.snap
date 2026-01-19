@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let result1: i32 = bug_8262((1_i32, true, false));
+    assert(result1 == 2_i32);
+    let result2: [Field; 3] = bug_8337();
+    assert(result2 == [10_Field, 40_Field, 10_Field]);
+}
+
+fn bug_8262(mut a: (i32, bool, bool)) -> i32 {
+    a.1 = if a.1 {
+        a = (2_i32, a.2, a.1);
+        true
+    } else { !a.2 };
+    a.0
+}
+
+fn bug_8337() -> [Field; 3] {
+    let mut a: [Field; 3] = [10_Field, 20_Field, 30_Field];
+    a[1_u32] = {
+        a = {
+            a[2_u32] = a[0_u32];
+            [a[0_u32], 40_Field, a[2_u32]]
+        };
+        a[1_u32]
+    };
+    a
+}

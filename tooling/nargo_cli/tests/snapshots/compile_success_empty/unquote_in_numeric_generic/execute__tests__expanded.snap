@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo<let N: u32> {
+    x: Field,
+}
+
+impl<let N: u32> Foo<N> {
+    fn foo(self) {
+        let _: Self = self;
+    }
+}
+
+fn main() {
+    let f: Foo<7> = Foo::<7> { x: 0_Field };
+    f.foo();
+}
+
+comptime fn foo_impl(t: TypeDefinition) -> Quoted {
+    let g: [(Type, Option<Type>)] = t.generics();
+    let g_names: Quoted =
+        g.map(|(name, _): (Type, Option<Type>)| -> Quoted quote { $name }).join(quote { ,  });
+    let g_intros: Quoted = g
+        .map(|(name, typ): (Type, Option<Type>)| -> Quoted {
+            let typ: Type = typ.unwrap();
+            quote { let $name: $typ }
+        })
+        .join(quote { ,  });
+    quote {
+        impl < $g_intros > Foo < $g_names >  {
+            fn foo(self) {
+                let _ = self;
+            }
+        }
+    }
+}

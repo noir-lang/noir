@@ -1,0 +1,6 @@
+[package]
+name = "nested_fmtstr"
+type = "bin"
+authors = [""]
+
+[dependencies]

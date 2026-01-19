@@ -1,0 +1,6 @@
+[package]
+name = "bracket_stack_overflow"
+type = "bin"
+authors = [""]
+
+[dependencies]
