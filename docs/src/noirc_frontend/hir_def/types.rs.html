@@ -3317,7 +3317,14 @@
 <a href="#3316" id="3316">3316</a>
 <a href="#3317" id="3317">3317</a>
 <a href="#3318" id="3318">3318</a>
-<a href="#3319" id="3319">3319</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3319" id="3319">3319</a>
+<a href="#3320" id="3320">3320</a>
+<a href="#3321" id="3321">3321</a>
+<a href="#3322" id="3322">3322</a>
+<a href="#3323" id="3323">3323</a>
+<a href="#3324" id="3324">3324</a>
+<a href="#3325" id="3325">3325</a>
+<a href="#3326" id="3326">3326</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -5055,14 +5062,17 @@
             Type::CheckedCast { from, to } =&gt; from.contains_vector() || to.contains_vector(),
             Type::Reference(element, <span class="kw">_</span>) =&gt; element.contains_vector(),
             Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.contains_vector(),
-
+            Type::Function(_arg, _ret, env, _unconstrained) =&gt; {
+                <span class="comment">// The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                </span>env.contains_vector()
+            }
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
             | Type::Unit
             | Type::TraitAsType(..)
-            | Type::Function(..)
             | Type::Constant(..)
             | Type::Quoted(..)
             | Type::InfixExpr(..)
@@ -5079,7 +5089,6 @@
             | Type::FieldElement
             | Type::Quoted(..)
             | Type::Constant(..)
-            | Type::Function(..)
             | Type::TraitAsType(..)
             | Type::Forall(..)
             | Type::Error =&gt; <span class="bool-val">false</span>,
@@ -5115,6 +5124,11 @@
             Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; to.contains_reference(),
             Type::InfixExpr(lhs, _op, rhs, <span class="kw">_</span>) =&gt; {
                 lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Function(_args, _ret, env, _unconstrained) =&gt; {
+                <span class="comment">// The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                </span>env.contains_reference()
             }
             Type::Reference(..) =&gt; <span class="bool-val">true</span>,
         }

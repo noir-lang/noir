@@ -154,7 +154,10 @@
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -181,6 +184,7 @@
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    ReferenceReturnedFromOracle { typ: String, location: Location },
 }
 
 <span class="kw">impl </span>MonomorphizationError {
@@ -204,9 +208,8 @@
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. } =&gt; {
-                <span class="kw-2">*</span>location
-            }
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. } =&gt; <span class="kw-2">*</span>location,
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
         }
     }
@@ -303,6 +306,9 @@
                 <span class="macro">format!</span>(
                     <span class="string">"Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 </span>)
+            }
+            MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } =&gt; {
+                <span class="macro">format!</span>(<span class="string">"Mutable reference `{typ}` cannot be returned from an oracle function"</span>)
             }
         };
 

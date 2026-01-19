@@ -3116,27 +3116,7 @@
 <a href="#3115" id="3115">3115</a>
 <a href="#3116" id="3116">3116</a>
 <a href="#3117" id="3117">3117</a>
-<a href="#3118" id="3118">3118</a>
-<a href="#3119" id="3119">3119</a>
-<a href="#3120" id="3120">3120</a>
-<a href="#3121" id="3121">3121</a>
-<a href="#3122" id="3122">3122</a>
-<a href="#3123" id="3123">3123</a>
-<a href="#3124" id="3124">3124</a>
-<a href="#3125" id="3125">3125</a>
-<a href="#3126" id="3126">3126</a>
-<a href="#3127" id="3127">3127</a>
-<a href="#3128" id="3128">3128</a>
-<a href="#3129" id="3129">3129</a>
-<a href="#3130" id="3130">3130</a>
-<a href="#3131" id="3131">3131</a>
-<a href="#3132" id="3132">3132</a>
-<a href="#3133" id="3133">3133</a>
-<a href="#3134" id="3134">3134</a>
-<a href="#3135" id="3135">3135</a>
-<a href="#3136" id="3136">3136</a>
-<a href="#3137" id="3137">3137</a>
-<a href="#3138" id="3138">3138</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3118" id="3118">3118</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3192,6 +3172,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 <span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
+<span class="kw">use </span><span class="kw">crate</span>::token::FunctionAttributeKind;
 <span class="kw">use crate</span>::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -3972,7 +3953,7 @@
                 <span class="kw">let </span>frontend_type = <span class="self">self</span>.interner.id_type(expr);
                 <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>frontend_type, location)<span class="question-mark">?</span>;
 
-                <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>frontend_type) {
+                <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; frontend_type.contains_reference() {
                     <span class="kw">let </span>typ = frontend_type.to_string();
                     <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
                         typ,
@@ -4023,62 +4004,6 @@
         <span class="kw">match </span>target_type {
             <span class="prelude-val">Some</span>(typ) =&gt; Cow::Borrowed(typ),
             <span class="prelude-val">None </span>=&gt; Cow::Owned(<span class="self">self</span>.interner.id_type(expr)),
-        }
-    }
-
-    <span class="doccomment">/// True if a value of the given type contains a reference value.
-    ///
-    /// Note that the above wording excludes function types with reference parameters.
-    </span><span class="kw">fn </span>contains_reference(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-        <span class="kw">match </span>typ {
-            Type::FieldElement
-            | Type::Bool
-            | Type::String(<span class="kw">_</span>)
-            | Type::Integer(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error =&gt; <span class="bool-val">false</span>,
-
-            Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-
-            Type::Array(_len, element) =&gt; <span class="self">Self</span>::contains_reference(element),
-            Type::Vector(element) =&gt; <span class="self">Self</span>::contains_reference(element),
-            Type::FmtString(<span class="kw">_</span>, environment) =&gt; <span class="self">Self</span>::contains_reference(environment),
-            Type::Tuple(fields) =&gt; fields.iter().any(<span class="self">Self</span>::contains_reference),
-            Type::DataType(datatype, generics) =&gt; {
-                <span class="kw">let </span>datatype = datatype.borrow();
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = datatype.get_fields(generics) {
-                    fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| <span class="self">Self</span>::contains_reference(field))
-                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = datatype.get_variants(generics) {
-                    variants
-                        .iter()
-                        .any(|(<span class="kw">_</span>, variant_args)| variant_args.iter().any(<span class="self">Self</span>::contains_reference))
-                } <span class="kw">else </span>{
-                    <span class="bool-val">false
-                </span>}
-            }
-            Type::Alias(alias, generics) =&gt; {
-                <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>alias.borrow().get_type(generics))
-            }
-            Type::TypeVariable(type_variable) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
-                TypeBinding::Bound(binding) =&gt; <span class="self">Self</span>::contains_reference(binding),
-                TypeBinding::Unbound(..) =&gt; <span class="bool-val">false</span>,
-            },
-            Type::NamedGeneric(named_generic) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>named_generic.type_var.borrow() {
-                TypeBinding::Bound(binding) =&gt; <span class="self">Self</span>::contains_reference(binding),
-                TypeBinding::Unbound(..) =&gt; <span class="bool-val">false</span>,
-            },
-            Type::CheckedCast { to, .. } =&gt; <span class="self">Self</span>::contains_reference(to),
-            Type::Function(_args, _ret, env, _unconstrained) =&gt; {
-                <span class="comment">// Only the environment of a function is counted as an actual reference value.
-                // Otherwise we can't return functions accepting references as arguments from if
-                // expressions.
-                </span><span class="self">Self</span>::contains_reference(env)
-            }
-            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="self">Self</span>::contains_reference(typ),
         }
     }
 
@@ -5208,6 +5133,7 @@
 
         <span class="kw">let </span>crossing_runtime_boundaries =
             !<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">self</span>.function_is_unconstrained(call.func);
+        <span class="kw">let </span>is_oracle = <span class="self">self</span>.function_is_oracle(call.func);
 
         <span class="kw">if </span>crossing_runtime_boundaries {
             <span class="self">self</span>.check_arguments_crossing_runtime_boundaries(<span class="kw-2">&amp;</span>call)<span class="question-mark">?</span>;
@@ -5252,6 +5178,10 @@
 
         <span class="kw">if </span>crossing_runtime_boundaries {
             <span class="self">self</span>.check_return_type_crossing_runtime_boundaries(<span class="kw-2">&amp;</span>return_type, location)<span class="question-mark">?</span>;
+        }
+
+        <span class="kw">if </span>is_oracle {
+            <span class="self">self</span>.check_return_type_returned_from_oracle(<span class="kw-2">&amp;</span>return_type, location)<span class="question-mark">?</span>;
         }
 
         <span class="kw">let </span>return_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>return_type, location)<span class="question-mark">?</span>;
@@ -5369,6 +5299,19 @@
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="kw">fn </span>check_return_type_returned_from_oracle(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        return_type: <span class="kw-2">&amp;</span>Type,
+        location: Location,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
+        <span class="kw">if </span>return_type.contains_reference() {
+            <span class="kw">let </span>typ = return_type.to_string();
+            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="doccomment">/// Adds a function argument that contains type metadata that is required to tell
     /// `println` how to convert values passed to an foreign call back to a human-readable string.
     /// The values passed to an foreign call will be a simple list of field elements,
@@ -5467,7 +5410,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>expression_type = <span class="self">self</span>.interner.id_type(assign.expression);
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>assign.expression);
-        <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>expression_type) {
+        <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; expression_type.contains_reference() {
             <span class="kw">let </span>typ = expression_type.to_string();
             <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::AssignedToVarContainingReference { typ, location });
         }
@@ -5732,7 +5675,7 @@
         <span class="kw">let </span>result_type = <span class="self">self</span>.interner.id_type(expr_id);
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
 
-        <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>result_type) {
+        <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; result_type.contains_reference() {
             <span class="kw">let </span>typ = result_type.to_string();
             <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
         }
@@ -5923,6 +5866,23 @@
             }
         }
 
+        <span class="bool-val">false
+    </span>}
+
+    <span class="kw">fn </span>function_is_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ExprId) -&gt; bool {
+        <span class="kw">if let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function) {
+            <span class="kw">if let </span>DefinitionKind::Function(func_id) = <span class="self">self</span>.interner.definition(ident.id).kind {
+                <span class="kw">return </span><span class="self">self
+                    </span>.interner
+                    .function_modifiers(<span class="kw-2">&amp;</span>func_id)
+                    .attributes
+                    .function
+                    .as_ref()
+                    .is_some_and(|(attribute, <span class="kw">_</span>)| {
+                        <span class="macro">matches!</span>(attribute.kind, FunctionAttributeKind::Oracle(..))
+                    });
+            }
+        }
         <span class="bool-val">false
     </span>}
 }
