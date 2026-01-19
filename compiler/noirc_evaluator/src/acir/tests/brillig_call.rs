@@ -55,12 +55,12 @@ fn multiple_brillig_calls_one_bytecode() {
      0: @2 = const u32 1
      1: @1 = const u32 32839
      2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @68
-     7: sp[2] = @69
-     8: call 14
+     3: call 14
+     4: sp[3] = const u32 2
+     5: sp[4] = const u32 0
+     6: @68 = calldata copy [sp[4]; sp[3]]
+     7: sp[1] = @68
+     8: sp[2] = @69
      9: call 15
     10: @70 = sp[1]
     11: sp[2] = const u32 70
@@ -85,12 +85,12 @@ fn multiple_brillig_calls_one_bytecode() {
      0: @2 = const u32 1
      1: @1 = const u32 32839
      2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @68
-     7: sp[2] = @69
-     8: call 14
+     3: call 14
+     4: sp[3] = const u32 2
+     5: sp[4] = const u32 0
+     6: @68 = calldata copy [sp[4]; sp[3]]
+     7: sp[1] = @68
+     8: sp[2] = @69
      9: call 15
     10: @70 = sp[1]
     11: sp[2] = const u32 70
@@ -264,14 +264,14 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
      0: @2 = const u32 1
      1: @1 = const u32 32839
      2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: @68 = cast @68 to u32
-     7: @69 = cast @69 to u32
-     8: sp[1] = @68
-     9: sp[2] = @69
-    10: call 16
+     3: call 16
+     4: sp[3] = const u32 2
+     5: sp[4] = const u32 0
+     6: @68 = calldata copy [sp[4]; sp[3]]
+     7: @68 = cast @68 to u32
+     8: @69 = cast @69 to u32
+     9: sp[1] = @68
+    10: sp[2] = @69
     11: call 17
     12: @70 = sp[1]
     13: sp[2] = const u32 70
@@ -411,14 +411,14 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
      0: @2 = const u32 1
      1: @1 = const u32 32839
      2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: @68 = cast @68 to u32
-     7: @69 = cast @69 to u32
-     8: sp[1] = @68
-     9: sp[2] = @69
-    10: call 16
+     3: call 16
+     4: sp[3] = const u32 2
+     5: sp[4] = const u32 0
+     6: @68 = calldata copy [sp[4]; sp[3]]
+     7: @68 = cast @68 to u32
+     8: @69 = cast @69 to u32
+     9: sp[1] = @68
+    10: sp[2] = @69
     11: call 17
     12: @70 = sp[1]
     13: sp[2] = const u32 70
