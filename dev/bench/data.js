@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768833853263,
+  "lastUpdate": 1768836004508,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "90cb79ad0504a678ddc990d85e894d49c795c1ca",
-          "message": "chore!: store brillig memory addresses as `u32` instead of `usize` (#10933)",
-          "timestamp": "2026-01-12T17:20:22Z",
-          "tree_id": "73a3b98a033a2990cb3b5de3b379d82ef0fd9737",
-          "url": "https://github.com/noir-lang/noir/commit/90cb79ad0504a678ddc990d85e894d49c795c1ca"
-        },
-        "date": 1768239711386,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253375,
-            "range": "± 798",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223611,
-            "range": "± 3284",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783695,
-            "range": "± 1298",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792652,
             "range": "± 17546",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3fd16975ba573eaec1f93a51e5ee927dacc4b767",
+          "message": "chore(monomorphization): More tests  (#11189)",
+          "timestamp": "2026-01-19T14:58:27Z",
+          "tree_id": "69f77964f9c986496aeb831a72b999c8db228f51",
+          "url": "https://github.com/noir-lang/noir/commit/3fd16975ba573eaec1f93a51e5ee927dacc4b767"
+        },
+        "date": 1768835968120,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262373,
+            "range": "± 744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237037,
+            "range": "± 3713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795048,
+            "range": "± 30121",
             "unit": "ns/iter"
           }
         ]
