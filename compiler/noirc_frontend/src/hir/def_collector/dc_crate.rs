@@ -391,8 +391,7 @@ impl DefCollector {
             inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
         }
 
-        let collected_imports = std::mem::take(&mut def_collector.imports);
-        Self::process_imports(collected_imports, crate_id, context, &mut errors);
+        Self::process_imports(def_collector.imports, crate_id, context, &mut errors);
 
         let debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
             let file = context.file_manager.find_by_path_suffix(file_suffix);
