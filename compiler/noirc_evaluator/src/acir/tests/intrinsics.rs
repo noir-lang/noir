@@ -296,58 +296,56 @@ fn vector_pop_back_nested_arrays() {
     // rather than (v0, v1)
     // We then read w18 from b3 at index `8` (the flattened starting index of the vector).
     assert_circuit_snapshot!(program, @r"
-  func 0
-  private parameters: [w0, w1, w2, w3, w4, w5]
-  public parameters: []
-  return values: []
-  BLACKBOX::RANGE input: w0, bits: 32
-  BLACKBOX::RANGE input: w1, bits: 32
-  BLACKBOX::RANGE input: w2, bits: 32
-  BLACKBOX::RANGE input: w3, bits: 32
-  BLACKBOX::RANGE input: w4, bits: 32
-  BLACKBOX::RANGE input: w5, bits: 32
-  ASSERT w6 = 0
-  ASSERT w7 = 1
-  ASSERT w8 = 4
-  ASSERT w9 = 5
-  ASSERT w10 = 8
-  ASSERT w11 = 9
-  ASSERT w12 = 12
-  ASSERT w13 = 13
-  INIT b2 = [w6, w7, w8, w9, w10, w11, w12, w13]
-  INIT b3 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
-  READ w14 = b2[w8]
-  WRITE b3[w14] = w4
-  ASSERT w15 = w14 + 1
-  WRITE b3[w15] = w1
-  ASSERT w16 = w15 + 1
-  WRITE b3[w16] = w2
-  ASSERT w17 = w16 + 1
-  WRITE b3[w17] = w3
-  READ w18 = b3[w10]
-  READ w19 = b3[w11]
-  ASSERT w20 = 10
-  READ w21 = b3[w20]
-  ASSERT w22 = 11
-  READ w23 = b3[w22]
-  READ w24 = b3[w6]
-  READ w25 = b3[w7]
-  ASSERT w26 = 2
-  READ w27 = b3[w26]
-  ASSERT w28 = 3
-  READ w29 = b3[w28]
-  READ w30 = b3[w8]
-  READ w31 = b3[w9]
-  ASSERT w32 = 6
-  READ w33 = b3[w32]
-  ASSERT w34 = 7
-  READ w35 = b3[w34]
-  READ w36 = b3[w10]
-  READ w37 = b3[w11]
-  READ w38 = b3[w20]
-  READ w39 = b3[w22]
-  ASSERT w18 = w5
-  ");
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w2, bits: 32
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w4, bits: 32
+    BLACKBOX::RANGE input: w5, bits: 32
+    ASSERT w6 = 0
+    ASSERT w7 = 1
+    ASSERT w8 = 4
+    ASSERT w9 = 5
+    ASSERT w10 = 8
+    ASSERT w11 = 9
+    INIT b2 = [w6, w7, w8, w9, w10, w11]
+    INIT b3 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
+    READ w12 = b2[w8]
+    WRITE b3[w12] = w4
+    ASSERT w13 = w12 + 1
+    WRITE b3[w13] = w1
+    ASSERT w14 = w13 + 1
+    WRITE b3[w14] = w2
+    ASSERT w15 = w14 + 1
+    WRITE b3[w15] = w3
+    READ w16 = b3[w10]
+    READ w17 = b3[w11]
+    ASSERT w18 = 10
+    READ w19 = b3[w18]
+    ASSERT w20 = 11
+    READ w21 = b3[w20]
+    READ w22 = b3[w6]
+    READ w23 = b3[w7]
+    ASSERT w24 = 2
+    READ w25 = b3[w24]
+    ASSERT w26 = 3
+    READ w27 = b3[w26]
+    READ w28 = b3[w8]
+    READ w29 = b3[w9]
+    ASSERT w30 = 6
+    READ w31 = b3[w30]
+    ASSERT w32 = 7
+    READ w33 = b3[w32]
+    READ w34 = b3[w10]
+    READ w35 = b3[w11]
+    READ w36 = b3[w18]
+    READ w37 = b3[w20]
+    ASSERT w16 = w5
+    ");
 }
 
 #[test]
@@ -429,11 +427,11 @@ fn vector_insert_no_predicate() {
     WRITE b1[w0] = w5
     ASSERT w6 = 0
     INIT b2 = [w6, w6, w6, w6]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w7, w8]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w7, w8]
     BLACKBOX::RANGE input: w7, bits: 1
     BLACKBOX::RANGE input: w8, bits: 64
     ASSERT w8 = -w1 - 18446744073709551616*w7 + 18446744073709551616
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551615, 18446744073709551616], outputs: [w9, w10]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551615, 18446744073709551616], outputs: [w9, w10]
     BLACKBOX::RANGE input: w9, bits: 1
     BLACKBOX::RANGE input: w10, bits: 64
     ASSERT w10 = -w1 - 18446744073709551616*w9 + 18446744073709551615
@@ -441,7 +439,7 @@ fn vector_insert_no_predicate() {
     ASSERT w12 = w7*w9 - w7 + 1
     ASSERT w13 = -10*w7*w9 + w11*w12 + 10*w7
     WRITE b2[w6] = w13
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w14, w15]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w14, w15]
     BLACKBOX::RANGE input: w14, bits: 1
     BLACKBOX::RANGE input: w15, bits: 64
     ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551617
@@ -451,7 +449,7 @@ fn vector_insert_no_predicate() {
     ASSERT w19 = 1
     ASSERT w20 = -10*w7*w14 + w17*w18 + 10*w14
     WRITE b2[w19] = w20
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w21, w22]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551618, 18446744073709551616], outputs: [w21, w22]
     BLACKBOX::RANGE input: w21, bits: 1
     BLACKBOX::RANGE input: w22, bits: 64
     ASSERT w22 = -w1 - 18446744073709551616*w21 + 18446744073709551618
@@ -460,7 +458,7 @@ fn vector_insert_no_predicate() {
     ASSERT w25 = w14*w21 - w21 + 1
     ASSERT w26 = -10*w14*w21 + w24*w25 + 10*w21
     WRITE b2[w2] = w26
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w27, w28]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551619, 18446744073709551616], outputs: [w27, w28]
     BLACKBOX::RANGE input: w27, bits: 1
     BLACKBOX::RANGE input: w28, bits: 64
     ASSERT w28 = -w1 - 18446744073709551616*w27 + 18446744073709551619
@@ -531,14 +529,14 @@ fn vector_remove() {
     READ w12 = b1[w1]
     INIT b2 = [w7, w7]
     READ w13 = b1[w9]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w14, w15]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w14, w15]
     BLACKBOX::RANGE input: w14, bits: 1
     BLACKBOX::RANGE input: w15, bits: 64
     ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551616
     ASSERT w16 = -w8*w14 + w13*w14 + w8
     WRITE b2[w7] = w16
     READ w17 = b1[w3]
-    BRILLIG CALL func: 0, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w18, w19]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w18, w19]
     BLACKBOX::RANGE input: w18, bits: 1
     BLACKBOX::RANGE input: w19, bits: 64
     ASSERT w19 = -w1 - 18446744073709551616*w18 + 18446744073709551617
@@ -738,7 +736,7 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
     INIT b1 = [w0]
-    BRILLIG CALL func: 0, inputs: [w1 - 3], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w1 - 3], outputs: [w3]
     ASSERT w4 = -w1*w3 + 3*w3 + 1
     ASSERT 0 = w1*w4 - 3*w4
     ASSERT w5 = 0

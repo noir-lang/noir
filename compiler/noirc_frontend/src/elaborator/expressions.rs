@@ -102,8 +102,15 @@ impl Elaborator<'_> {
                 return self.elaborate_expression_with_target_type(*expr, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
-            ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type);
+            ExpressionKind::Comptime(block, _) => {
+                if self.in_comptime_context {
+                    // Treat a nested comptime block as a regular block. Nested comptime blocks
+                    // can happen as a result of macro expansion so it wouldn't be good to produce
+                    // a warning in that case.
+                    self.elaborate_block(block, target_type)
+                } else {
+                    return self.elaborate_comptime_block(block, expr.location, target_type);
+                }
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
@@ -1261,7 +1268,7 @@ impl Elaborator<'_> {
             Ok((typ, use_impl)) => {
                 if use_impl {
                     let trait_method_id = trait_method_id
-                        .expect("ice: expected some trait_method_id when use_impl is true");
+                        .expect("ICE: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
@@ -1272,6 +1279,7 @@ impl Elaborator<'_> {
                     let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
                     let select_impl = true; // this constraint should lead to choosing a trait impl
                     self.push_trait_constraint(constraint, expr_id, select_impl);
+
                     self.type_check_operator_method(
                         expr_id,
                         trait_method_id,

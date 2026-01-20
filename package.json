@@ -9,12 +9,11 @@
     "tooling/noir_js",
     "tooling/noir_codegen",
     "acvm-repo/acvm_js",
-    "docs",
     "examples/browser"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{docs,@noir-lang/root,browser_example}\" run build",
-    "build:js:only": "yarn workspaces foreach -A -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,docs,@noir-lang/root,browser_example}\" run build",
+    "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{@noir-lang/root,browser_example}\" run build",
+    "build:js:only": "yarn workspaces foreach -A -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,@noir-lang/root,browser_example}\" run build",
     "test": "yarn workspaces foreach -A -vp run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach -A --exclude @noir-lang/root run clean",
@@ -29,8 +28,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.2",
-    "@typescript-eslint/eslint-plugin": "^8.52.0",
-    "@typescript-eslint/parser": "^8.52.0",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
     "chai": "^6.2.2",
     "cspell": "^8.19.4",
     "eslint": "^9.39.2",

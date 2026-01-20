@@ -557,7 +557,7 @@ fn create_apply_function(
     caller_runtime: RuntimeType,
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
-    debug_assert!(
+    assert!(
         function_ids.len() > 1,
         "create_apply_function is expected to be called with two or more FunctionIds"
     );
@@ -742,7 +742,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
         Type::Numeric(numeric_type) => function_builder.numeric_constant(0_u128, *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(make_dummy_return_data(function_builder, typ));
                 }

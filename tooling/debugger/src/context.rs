@@ -890,7 +890,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     ) {
         if let Some(solver) = self.brillig_solver.as_mut() {
             solver.write_memory_at(
-                ptr,
+                ptr.try_into().expect("Pointer is too large"),
                 MemoryValue::new_checked(value, bit_size)
                     .expect("Invalid value for the given bit size"),
             );
@@ -1139,7 +1139,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}], outputs: []
         "
         );
         let circuit = Circuit::from_str(&src).unwrap();
@@ -1294,7 +1294,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
         ASSERT {w_z} = {w_x} + {w_y}
         "
         );
@@ -1372,8 +1372,8 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = []
-        BRILLIG CALL func: 0, inputs: [], outputs: []
-        CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: []
+        CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
         let circuit_one = Circuit::from_str(src_one).unwrap();
@@ -1382,7 +1382,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
         let circuit_two = Circuit::from_str(src_two).unwrap();

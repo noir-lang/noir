@@ -4,9 +4,8 @@ use crate::{errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
 
 use super::{Ssa, generate_ssa};
 
-use noirc_frontend::{
-    hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-    test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
+use noirc_frontend::test_utils::{
+    GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
 };
 
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
@@ -215,12 +214,10 @@ fn pure_builtin_call_args_do_not_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized_with_error_filter(src, |err| {
-        matches!(
-            err,
-            CompilationError::ResolverError(ResolverError::LowLevelFunctionOutsideOfStdlib { .. })
-        )
-    })
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
     .unwrap();
 
     let ssa = generate_ssa(program).unwrap();
