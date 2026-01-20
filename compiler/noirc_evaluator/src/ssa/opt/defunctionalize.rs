@@ -2283,4 +2283,130 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn per_runtime_dispatch() {
+        // SSA of the following program:
+        // fn main(c: bool) -> pub Field {
+        //     let f = identity(|| 1);
+        //     let g = identity(|| 2);
+        //     if c {
+        //         f()
+        //     } else {
+        //         g()
+        //     }
+        // }
+        // fn identity<T>(x: T) -> T {
+        //     x
+        // }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v5, v6 = call f1(f2, f3) -> (function, function)
+            v9, v10 = call f1(f4, f5) -> (function, function)
+            jmpif v0 then: b1, else: b2
+          b1():
+            v12 = call v5() -> Field
+            jmp b3(v12)
+          b2():
+            v11 = call v9() -> Field
+            jmp b3(v11)
+          b3(v1: Field):
+            return v1
+        }
+        acir(inline) fn identity f1 {
+          b0(v0: function, v1: function):
+            return v0, v1
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn lambda f3 {
+          b0():
+            return Field 1
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return Field 2
+        }
+        brillig(inline) fn lambda f5 {
+          b0():
+            return Field 2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // We want two dispatch functions generated:
+        // * one for ACIR, calling only constrained lambdas
+        // * one for Brillig, calling any lambda (or just unconstrained)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v5, v6 = call f1(Field 2, Field 3) -> (Field, Field)
+            v9, v10 = call f1(Field 4, Field 5) -> (Field, Field)
+            jmpif v0 then: b1, else: b2
+          b1():
+            v13 = call f6(v5) -> Field
+            jmp b3(v13)
+          b2():
+            v12 = call f6(v9) -> Field
+            jmp b3(v12)
+          b3(v1: Field):
+            return v1
+        }
+        acir(inline) fn identity f1 {
+          b0(v0: Field, v1: Field):
+            return v0, v1
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn lambda f3 {
+          b0():
+            return Field 1
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return Field 2
+        }
+        brillig(inline) fn lambda f5 {
+          b0():
+            return Field 2
+        }
+        acir(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
+          b2():
+            v7 = call f2() -> Field
+            jmp b9(v7)
+          b3():
+            v13 = eq v0, Field 4
+            jmpif v13 then: b6, else: b5
+          b4():
+            v11 = call f3() -> Field
+            jmp b8(v11)
+          b5():
+            constrain v0 == Field 5
+            v18 = call f5() -> Field
+            jmp b7(v18)
+          b6():
+            v15 = call f4() -> Field
+            jmp b7(v15)
+          b7(v1: Field):
+            jmp b8(v1)
+          b8(v2: Field):
+            jmp b9(v2)
+          b9(v3: Field):
+            return v3
+        }
+        ");
+    }
 }
