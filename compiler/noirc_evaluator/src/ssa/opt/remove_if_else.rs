@@ -345,6 +345,24 @@ impl Context {
                     );
                 }
             }
+            Intrinsic::Hint(Hint::BlackBox) => {
+                // Try to set the length of any vector argument to be that of the preceding constant.
+                let arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+
+                for (i, argument) in arguments.iter().enumerate() {
+                    if !matches!(arguments_types[i], Type::Vector(_)) {
+                        continue;
+                    }
+                    assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                    if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
+                        self.vector_sizes.insert(
+                            *argument,
+                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                        );
+                    }
+                }
+            }
             _ => {}
         }
     }
