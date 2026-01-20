@@ -108,11 +108,16 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             stack_start.into(),
         );
 
+        // The initialization of globals if after the creation of the reserved registers,
+        // so that things such as the allocation of arrays can use the _free memory pointer_
+        // (because only the pointers to the arrays will live in the global space, with the
+        // content still residing on the heap).
         if globals_init {
             self.add_globals_init_instruction(target_function);
         }
 
-        // Copy calldata
+        // Copy calldata.
+        // Happens after global initialization to avoid any potential overwrite temporary registers during global init.
         self.copy_and_cast_calldata(arguments);
 
         let mut current_calldata_pointer = self.calldata_start_offset();
