@@ -10,9 +10,10 @@ use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
+use crate::hir::def_collector::dc_crate::UnresolvedGlobal;
 use crate::hir::def_map::DefMaps;
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, TypeId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, TypeVariable};
@@ -62,6 +63,9 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
+
+    /// Unresolved globals that need to be elaborated.
+    pub unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 }
 
 #[derive(Debug)]
@@ -85,6 +89,7 @@ impl Context<'_, '_> {
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
+            unresolved_globals: BTreeMap::new(),
         }
     }
 
@@ -104,6 +109,7 @@ impl Context<'_, '_> {
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
+            unresolved_globals: BTreeMap::new(),
         }
     }
 

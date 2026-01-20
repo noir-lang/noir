@@ -145,6 +145,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// starting from the end, moving backwards.
     ///
     /// By moving back-to-front, it can shift items backwards, modifying a vector in-place to make room in the front.
+    ///
+    /// # Safety
+    /// When `num_elements = 0`, the subtraction `num_elements - 1` underflows to `2^32 - 1`.
+    /// This is safe because:
+    /// 1. `source_pointer = source_start + (2^32 - 1)` wraps to `source_start - 1`
+    /// 2. The loop exit condition `source_pointer < source_start` becomes `true` immediately
+    /// 3. The loop exits without any iterations, which is correct for 0 elements
+    ///
+    /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this                                                             
+    /// invariant because they pass heap pointers (from vector metadata), and heap allocations                                                             
+    /// always produce pointers > 0 since the heap starts after reserved registers and the stack.   
     pub(crate) fn codegen_mem_copy_from_the_end(
         &mut self,
         source_start: MemoryAddress,
@@ -542,7 +553,27 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// The inputs are:
     /// * the `pointer` to the array/vector
     /// * the `rc` address of the vector where we have the current RC loaded already
-    /// * the `by` is a constant by which to increment the RC, typically 1
+    ///
+    /// # Safety
+    ///
+    /// ### RC Overflow Limitation
+    ///
+    /// This operation uses wrapping arithmetic and does not check for overflow.
+    /// If the reference count were to reach `u32::MAX` (4,294,967,295) and be
+    /// incremented, it would wrap to 0. A subsequent increment would make it 1,
+    /// which would cause the copy-on-write logic (`rc == 1`) to incorrectly
+    /// treat a shared array/vector as uniquely owned, leading to in-place
+    /// mutation of shared data (memory corruption / unsoundness).
+    ///
+    /// This is an accepted theoretical limitation because:
+    /// - Triggering overflow requires 2^32 (~4.3 billion) RC increments on a
+    ///   single array/vector, which is practically unreachable in any realistic
+    ///   Noir program.
+    /// - Unlike free memory pointer (FMP) updates (which are checked in the VM), RC values are stored
+    ///   at arbitrary heap addresses, and the incremented result is written back to that address.
+    ///   They are not operating on the [FMP][ReservedRegisters::free_memory_pointer()].
+    /// - Adding runtime overflow checks would require ~3 extra opcodes per RC
+    ///   increment, which is unacceptable overhead for a theoretical issue.
     pub(crate) fn codegen_increment_rc(&mut self, pointer: MemoryAddress, rc: MemoryAddress) {
         // Modify the RC (it's on the stack, or scratch space).
         self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, 1);

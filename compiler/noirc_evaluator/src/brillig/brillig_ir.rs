@@ -337,11 +337,11 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize, MemoryAddress,
-        ValueOrArray,
+        BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize,
+        MemoryAddress, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VM, VMStatus, offsets};
+    use acvm::brillig_vm::{MemoryValue, VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
@@ -350,6 +350,7 @@ pub(crate) mod tests {
     use crate::ssa::ssa_gen::Ssa;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
+    use super::brillig_variable::SingleAddrVariable;
     use super::procedures::compile_procedure;
     use super::registers::Stack;
     use super::{BrilligOpcode, ReservedRegisters};
@@ -639,6 +640,127 @@ pub(crate) mod tests {
             panic!("Expected 'Out of memory' error from allocation overflow, got: {status:?}")
         };
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
+    }
+
+    /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
+    ///
+    /// See the function's `# Safety` documentation for why the underflow is safe.
+    /// This test directly verifies the loop exit condition is immediately `true`.
+    #[test]
+    fn mem_copy_from_end_zero_elements_condition_is_immediately_true() {
+        let options = BrilligOptions {
+            enable_debug_trace: false,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+            show_opcode_advisories: false,
+            layout: Default::default(),
+        };
+        let mut context = BrilligContext::new("test", &options);
+
+        // Allocate direct memory addresses for our variables (after reserved registers)
+        let source_start = MemoryAddress::direct(assert_u32(ReservedRegisters::len()));
+        let target_start = source_start.offset(1); // Direct(4)
+        let num_elements_addr = source_start.offset(2); // Direct(5)
+        let num_elements = SingleAddrVariable::new_usize(num_elements_addr);
+
+        // Initialize reserved registers
+        // Stack pointer points to start of stack space (after our variables)
+        // After source_start, target_start, num_elements
+        let stack_start = assert_u32(ReservedRegisters::len()) + 3;
+        context.const_instruction(
+            SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
+            stack_start.into(),
+        );
+        // usize_one is used by codegen_usize_op for constant 1
+        context.const_instruction(
+            SingleAddrVariable::new_usize(ReservedRegisters::usize_one()),
+            1_usize.into(),
+        );
+
+        // Initialize: source_start=100, target_start=200, num_elements=0
+        // source_start > 0 is required for the transitive protection to work
+        context.usize_const_instruction(source_start, 100_usize.into());
+        context.usize_const_instruction(target_start, 200_usize.into());
+        context.const_instruction(num_elements, FieldElement::from(0_u32));
+
+        // Call the function under test
+        context.codegen_mem_copy_from_the_end(source_start, target_start, num_elements);
+
+        // Stop successfully
+        context.stop_instruction(HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(0),
+        });
+
+        let bytecode = context.into_artifact().finish().byte_code;
+
+        // Find the LessThan opcode (the loop exit condition check) and its destination register.
+        // There should be exactly one LessThan in codegen_mem_copy_from_the_end.
+        let (less_than_idx, condition_dest) = bytecode
+            .iter()
+            .enumerate()
+            .find_map(|(idx, op)| {
+                if let BrilligOpcode::BinaryIntOp {
+                    op: BinaryIntOp::LessThan, destination, ..
+                } = op
+                {
+                    Some((idx, *destination))
+                } else {
+                    None
+                }
+            })
+            .expect("Should find LessThan opcode in bytecode");
+
+        // Step through opcodes until we've executed the LessThan operation
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+        for _ in 0..=less_than_idx {
+            vm.process_opcode();
+        }
+
+        // Read the condition register value from memory.
+        // After the LessThan executes, this should be true (1) if the protection works.
+        let memory = vm.get_memory();
+        let condition_addr = match condition_dest {
+            MemoryAddress::Relative(offset) => {
+                // For relative addresses, we need to add the stack pointer value
+                let stack_ptr_address = assert_usize(ReservedRegisters::stack_pointer().to_u32());
+                let stack_ptr_value = match memory[stack_ptr_address] {
+                    MemoryValue::U32(v) => v as usize,
+                    _ => panic!("Expected stack pointer to be U32"),
+                };
+                stack_ptr_value + offset as usize
+            }
+            MemoryAddress::Direct(_) => {
+                panic!("Expected condition destination to be a relative address")
+            }
+        };
+
+        let condition_value = &memory[condition_addr];
+
+        // The condition should be true (U1(true)) because:
+        // source_pointer = source_start + (2^32 - 1) = source_start - 1 (wrapping)
+        // source_start - 1 < source_start = true
+        assert_eq!(
+            *condition_value,
+            MemoryValue::U1(true),
+            "Loop exit condition should be immediately true when num_elements=0"
+        );
+
+        // We will process a JmpIf based upon the condition which will immediately jump us to a Stop
+        for _ in less_than_idx..(less_than_idx + 2) {
+            let opcode = &bytecode[vm.program_counter()];
+            match opcode {
+                BrilligOpcode::Load { .. } | BrilligOpcode::Store { .. } => {
+                    panic!("We are performing a mem copy when it should have been skipped");
+                }
+                _ => {}
+            };
+            vm.process_opcode();
+        }
+
+        let status = vm.get_status();
+        // The VM successfully finished executing
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
     }
 
     /// Test proving that empty array allocation near heap limit triggers OOM.

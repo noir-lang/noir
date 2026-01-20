@@ -1,5 +1,5 @@
 use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -35,13 +35,23 @@ impl<'a> ValueMerger<'a> {
         ValueMerger { dfg, block, vector_sizes, call_stack }
     }
 
+    /// Choose a call stack to return with the [RuntimeError].
+    ///
+    /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
+    fn get_call_stack(&self, value: ValueId) -> Vec<Location> {
+        // The value points at one of the problematic references, while the instruction would
+        // point at where we got the if-then-else; it's not clear which one is more useful.
+        let call_stack = self.dfg.get_value_call_stack(value);
+        if call_stack.is_empty() { self.dfg.get_call_stack(self.call_stack) } else { call_stack }
+    }
+
     /// Merge two values a and b to a single value.
     /// If these two values are numeric, the result will be
     /// `then_condition * (then_value - else_value) + else_value`.
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
-    /// It is currently an error to call this function on reference or function values
+    /// Returns an error if called with a function value or a reference or function values
     /// as it is less clear how to merge these.
     pub(crate) fn merge_values(
         &mut self,
@@ -74,13 +84,11 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             ),
             Type::Reference(_) => {
-                // FIXME: none of then_value, else_value, then_condition, or else_condition have
-                // non-empty call stacks
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }
             Type::Function => {
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedFunctionFromDynamicIf { call_stack })
             }
         }

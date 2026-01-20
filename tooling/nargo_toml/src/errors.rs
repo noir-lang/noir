@@ -71,9 +71,6 @@ pub enum ManifestError {
 
     #[error("Cyclic package dependency found when processing {cycle}")]
     CyclicDependency { cycle: String },
-
-    #[error("Failed to parse expression width with the following error: {0}")]
-    ParseExpressionWidth(String),
 }
 
 #[allow(clippy::enum_variant_names)]
