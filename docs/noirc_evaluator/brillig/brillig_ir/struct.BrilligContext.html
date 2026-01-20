@@ -311,7 +311,7 @@ with any assertion message written to the error data.</p>
 and the <code>radix</code> register <code>target_array</code>, with the number of limbs given by the size of <code>target_array</code>.</p>
 <p>If <code>output_bits</code> is true, it generates bit limbs, otherwise it generates byte limbs.
 If <code>little_endian</code> is true, then the <code>target_array</code> will contain the results in Little Endian order.</p>
-</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-BrilligContext%3CF,+Registers%3E-17" class="impl"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#26-639">Source</a><a href="#impl-BrilligContext%3CF,+Registers%3E-17" class="anchor">§</a><h3 class="code-header">impl&lt;F: <a class="trait" href="../../../acir_field/generic_ark/trait.AcirField.html" title="trait acir_field::generic_ark::AcirField">AcirField</a> + <a class="trait" href="debug_show/trait.DebugToString.html" title="trait noirc_evaluator::brillig::brillig_ir::debug_show::DebugToString">DebugToString</a>, Registers: <a class="trait" href="registers/trait.RegisterAllocator.html" title="trait noirc_evaluator::brillig::brillig_ir::registers::RegisterAllocator">RegisterAllocator</a>&gt; <a class="struct" href="struct.BrilligContext.html" title="struct noirc_evaluator::brillig::brillig_ir::BrilligContext">BrilligContext</a>&lt;F, Registers&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.codegen_allocate_immediate_mem" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#30-41">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_allocate_immediate_mem" class="fn">codegen_allocate_immediate_mem</a>(
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-BrilligContext%3CF,+Registers%3E-17" class="impl"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#26-659">Source</a><a href="#impl-BrilligContext%3CF,+Registers%3E-17" class="anchor">§</a><h3 class="code-header">impl&lt;F: <a class="trait" href="../../../acir_field/generic_ark/trait.AcirField.html" title="trait acir_field::generic_ark::AcirField">AcirField</a> + <a class="trait" href="debug_show/trait.DebugToString.html" title="trait noirc_evaluator::brillig::brillig_ir::debug_show::DebugToString">DebugToString</a>, Registers: <a class="trait" href="registers/trait.RegisterAllocator.html" title="trait noirc_evaluator::brillig::brillig_ir::registers::RegisterAllocator">RegisterAllocator</a>&gt; <a class="struct" href="struct.BrilligContext.html" title="struct noirc_evaluator::brillig::brillig_ir::BrilligContext">BrilligContext</a>&lt;F, Registers&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.codegen_allocate_immediate_mem" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#30-41">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_allocate_immediate_mem" class="fn">codegen_allocate_immediate_mem</a>(
     &amp;mut self,
     pointer_register: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
     size: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.usize.html">usize</a>,
@@ -455,7 +455,7 @@ This should only be used internally in the array and vector initialization metho
 <li>the <code>pointer</code> to the array/vector</li>
 <li>the <code>rc</code> address of the vector where we have the current RC loaded already</li>
 </ul>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_increment_rc" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#537-542">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_increment_rc" class="fn">codegen_increment_rc</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_increment_rc" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#557-562">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_increment_rc" class="fn">codegen_increment_rc</a>(
     &amp;mut self,
     pointer: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
     rc: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
@@ -464,22 +464,39 @@ This should only be used internally in the array and vector initialization metho
 <ul>
 <li>the <code>pointer</code> to the array/vector</li>
 <li>the <code>rc</code> address of the vector where we have the current RC loaded already</li>
-<li>the <code>by</code> is a constant by which to increment the RC, typically 1</li>
 </ul>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_initialize_vector" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#545-572">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_initialize_vector" class="fn">codegen_initialize_vector</a>(
+<h5 id="safety-3"><a class="doc-anchor" href="#safety-3">§</a>Safety</h5><h6 id="rc-overflow-limitation"><a class="doc-anchor" href="#rc-overflow-limitation">§</a>RC Overflow Limitation</h6>
+<p>This operation uses wrapping arithmetic and does not check for overflow.
+If the reference count were to reach <code>u32::MAX</code> (4,294,967,295) and be
+incremented, it would wrap to 0. A subsequent increment would make it 1,
+which would cause the copy-on-write logic (<code>rc == 1</code>) to incorrectly
+treat a shared array/vector as uniquely owned, leading to in-place
+mutation of shared data (memory corruption / unsoundness).</p>
+<p>This is an accepted theoretical limitation because:</p>
+<ul>
+<li>Triggering overflow requires 2^32 (~4.3 billion) RC increments on a
+single array/vector, which is practically unreachable in any realistic
+Noir program.</li>
+<li>Unlike free memory pointer (FMP) updates (which are checked in the VM), RC values are stored
+at arbitrary heap addresses, and the incremented result is written back to that address.
+They are not operating on the <a href="struct.ReservedRegisters.html#method.free_memory_pointer" title="associated function noirc_evaluator::brillig::brillig_ir::ReservedRegisters::free_memory_pointer">FMP</a>.</li>
+<li>Adding runtime overflow checks would require ~3 extra opcodes per RC
+increment, which is unacceptable overhead for a theoretical issue.</li>
+</ul>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_initialize_vector" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#565-592">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_initialize_vector" class="fn">codegen_initialize_vector</a>(
     &amp;mut self,
     vector: <a class="struct" href="brillig_variable/struct.BrilligVector.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVector">BrilligVector</a>,
     size: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
     capacity: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>&gt;,
 )</h4></section></summary><div class="docblock"><p>Initializes a vector, allocating memory on the heap to store its representation and initializing the reference counter, size and capacity.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_initialize_vector_metadata" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#577-603">Source</a><h4 class="code-header">pub(super) fn <a href="#method.codegen_initialize_vector_metadata" class="fn">codegen_initialize_vector_metadata</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_initialize_vector_metadata" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#597-623">Source</a><h4 class="code-header">pub(super) fn <a href="#method.codegen_initialize_vector_metadata" class="fn">codegen_initialize_vector_metadata</a>(
     &amp;mut self,
     vector: <a class="struct" href="brillig_variable/struct.BrilligVector.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVector">BrilligVector</a>,
     size: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
     capacity: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
 )</h4></section></summary><div class="docblock"><p>Writes vector metadata (reference count, size, and capacity) into the allocated memory.</p>
 <p>Sets the reference count to 1.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_initialize_externally_returned_vector" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#613-638">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_initialize_externally_returned_vector" class="fn">codegen_initialize_externally_returned_vector</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_initialize_externally_returned_vector" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#633-658">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_initialize_externally_returned_vector" class="fn">codegen_initialize_externally_returned_vector</a>(
     &amp;mut self,
     vector: <a class="struct" href="brillig_variable/struct.BrilligVector.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVector">BrilligVector</a>,
     output: &amp;<a class="struct" href="../../../brillig/opcodes/struct.HeapVector.html" title="struct brillig::opcodes::HeapVector">HeapVector</a>,

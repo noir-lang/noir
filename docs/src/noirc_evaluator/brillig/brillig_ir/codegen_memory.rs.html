@@ -637,7 +637,27 @@
 <a href="#636" id="636">636</a>
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     brillig_vm::offsets,
@@ -1172,7 +1192,27 @@
     /// The inputs are:
     /// * the `pointer` to the array/vector
     /// * the `rc` address of the vector where we have the current RC loaded already
-    /// * the `by` is a constant by which to increment the RC, typically 1
+    ///
+    /// # Safety
+    ///
+    /// ### RC Overflow Limitation
+    ///
+    /// This operation uses wrapping arithmetic and does not check for overflow.
+    /// If the reference count were to reach `u32::MAX` (4,294,967,295) and be
+    /// incremented, it would wrap to 0. A subsequent increment would make it 1,
+    /// which would cause the copy-on-write logic (`rc == 1`) to incorrectly
+    /// treat a shared array/vector as uniquely owned, leading to in-place
+    /// mutation of shared data (memory corruption / unsoundness).
+    ///
+    /// This is an accepted theoretical limitation because:
+    /// - Triggering overflow requires 2^32 (~4.3 billion) RC increments on a
+    ///   single array/vector, which is practically unreachable in any realistic
+    ///   Noir program.
+    /// - Unlike free memory pointer (FMP) updates (which are checked in the VM), RC values are stored
+    ///   at arbitrary heap addresses, and the incremented result is written back to that address.
+    ///   They are not operating on the [FMP][ReservedRegisters::free_memory_pointer()].
+    /// - Adding runtime overflow checks would require ~3 extra opcodes per RC
+    ///   increment, which is unacceptable overhead for a theoretical issue.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer: MemoryAddress, rc: MemoryAddress) {
         <span class="comment">// Modify the RC (it's on the stack, or scratch space).
         </span><span class="self">self</span>.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, <span class="number">1</span>);
