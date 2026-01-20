@@ -770,8 +770,8 @@ pub enum ForRange {
 
 impl ForRange {
     /// Create a half-open range, bounded inclusively below and exclusively above.
-    pub fn range(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: false })
+    pub fn range(start: Expression, end: Expression, inclusive: bool) -> Self {
+        Self::Range(ForBounds { start, end, inclusive })
     }
 
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
@@ -873,7 +873,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::range(start_range, end_range),
+                        range: ForRange::range(start_range, end_range, false),
                         block: new_block,
                         location: for_loop_location,
                     }),
