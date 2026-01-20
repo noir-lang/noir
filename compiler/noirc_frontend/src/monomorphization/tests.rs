@@ -1351,5 +1351,5 @@ fn closure_capture_chain_oom() {
         let _ = f10();
     }
     ";
-    let _ = get_monomorphized(&src);
+    let _ = get_monomorphized(src);
 }
