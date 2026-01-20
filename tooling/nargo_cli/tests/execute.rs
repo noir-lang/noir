@@ -48,6 +48,7 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner_aggressiveness: Inliner,
     ) -> Command {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg(test_command).arg("--force");
@@ -332,6 +333,7 @@ mod tests {
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {
         // First run `nargo execute` on the original code to get the output
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
@@ -347,6 +349,7 @@ mod tests {
         let original_output = nargo.output().unwrap();
         let original_output: String = String::from_utf8(original_output.stdout).unwrap();
 
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
@@ -386,6 +389,7 @@ mod tests {
         run_nargo_fmt(temp_dir.clone());
 
         // Now we can run `nargo execute` on the expanded code
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
@@ -408,6 +412,7 @@ mod tests {
     }
 
     fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
@@ -447,6 +452,7 @@ mod tests {
         run_nargo_fmt(temp_dir.clone());
 
         // Now we can run `nargo compile` on the expanded code
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
         nargo.arg("compile").arg("--force");
@@ -461,6 +467,7 @@ mod tests {
     }
 
     fn nargo_execute_comptime(test_program_dir: PathBuf, check_stdout: bool) {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force-comptime");
@@ -479,6 +486,7 @@ mod tests {
     }
 
     fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg("execute").arg("--force-comptime");
@@ -492,6 +500,7 @@ mod tests {
     }
 
     fn run_nargo_fmt(target_dir: PathBuf) {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(target_dir);
         nargo.arg("fmt");

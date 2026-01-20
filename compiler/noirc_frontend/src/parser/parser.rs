@@ -1,11 +1,11 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use modifiers::Modifiers;
 use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    lexer::{Lexer, lexer::LocatedTokenResult},
+    lexer::{Lexer, errors::LexerErrorKind, lexer::LocatedTokenResult},
     node_interner::ExprId,
     token::{FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
@@ -233,6 +233,18 @@ impl<'a> Parser<'a> {
                         return (token, last_comments);
                     }
                 },
+                // These two errors always arise from integer tokens being invalid. Issuing a fake
+                // integer token in their place greatly improves parse recovery in these cases since
+                // otherwise an array of too-large integers would be seen by the parser as e.g. `[,,,,]`.
+                Some(Err(
+                    error @ (LexerErrorKind::IntegerLiteralTooLarge { .. }
+                    | LexerErrorKind::InvalidIntegerLiteral { .. }),
+                )) => {
+                    let location = error.location();
+                    self.errors.push(error.into());
+                    let token = LocatedToken::new(Token::Int(FieldElement::zero(), None), location);
+                    return (token, last_comments);
+                }
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
                 None => {
                     let end_span = Span::single_char(self.current_token_location.span.end());
@@ -259,6 +271,15 @@ impl<'a> Parser<'a> {
         } else {
             false
         }
+    }
+
+    /// Eats an identifier. If it's `_`, pushes an error but still returns it as an identifier.
+    fn eat_non_underscore_ident(&mut self) -> Option<Ident> {
+        let ident = self.eat_ident()?;
+        if ident.as_str() == "_" {
+            self.push_error(ParserErrorReason::ExpectedIdentifierGotUnderscore, ident.location());
+        }
+        Some(ident)
     }
 
     fn eat_ident(&mut self) -> Option<Ident> {

@@ -125,6 +125,7 @@ impl<'context> Elaborator<'context> {
             self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
+            self.unresolved_globals,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -465,6 +466,13 @@ impl<'context> Elaborator<'context> {
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
         let is_varargs = modifiers.attributes.has_varargs();
         let varargs_type = if is_varargs { parameters.pop() } else { None };
+
+        // If the varargs type is not a vector, make it a vector to avoid producing more errors
+        // (an error for this was already produced during name resolution). Here we assume the user
+        // used the vector element type instead of a vector.
+        let varargs_type = varargs_type.map(|typ| {
+            if matches!(typ, Type::Vector(..)) { typ } else { Type::Vector(Box::new(typ)) }
+        });
 
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.vector_element_type());
 

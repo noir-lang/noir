@@ -754,9 +754,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => self.evaluate_integer(value, id),
-                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
-                        typ: associated_type.typ.clone(),
-                        err: Some(Box::new(err)),
+                    Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
+                        err: Box::new(err),
                         location,
                     }),
                 }
@@ -771,10 +770,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let value = value
             .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
-                let typ = value;
-                let err = Some(Box::new(err));
+                let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
-                InterpreterError::NonIntegerArrayLength { typ, err, location }
+                InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
         self.evaluate_integer(value, id)
@@ -900,9 +898,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Ok(Value::Array(elements, typ))
                     }
                     Err(err) => {
-                        let err = Some(Box::new(err));
+                        let err = Box::new(err);
                         let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ: length, err, location })
+                        Err(InterpreterError::InvalidArrayLength { err, location })
                     }
                 }
             }

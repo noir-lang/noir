@@ -126,24 +126,27 @@
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
 use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        function::{Function, FunctionId},
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::{Function, FunctionId},
+            instruction::{
+                Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
+                binary::{BinaryEvaluationResult, eval_constant_binary_op},
+            },
+            types::{NumericType, Type},
+            value::{Value, ValueId},
         },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+        opt::simple_optimization::SimpleOptimizationContext,
+        ssa_gen::Ssa,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -306,16 +309,15 @@ impl Function {
                                 return;
                             };
                             // The index check expects `len` to be the logical length, like for arrays,
-                            // not the flattened size, so we need to divide by the number of items.
-                            (elements.len() / typ.element_size()) as u32
+                            // not the semi flattened size, so we need to divide by the number of items.
+                            SemiFlattenedLength(assert_u32(elements.len())) / typ.element_size()
                         }
                         _ => return,
                     };
 
-                    let array_op_always_fails = len == 0
+                    let array_op_always_fails = len.0 == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap())
-                                >= (array_type.element_size() as u32 * len)
+                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
                         });
                     if !array_op_always_fails {
                         return;
@@ -460,7 +462,7 @@ fn zeroed_value(
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(zeroed_value(dfg, func_id, block_id, typ));
                 }

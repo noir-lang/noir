@@ -1,4 +1,5 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::elaborator::UnstableFeature;
+use crate::tests::{assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn deny_oracle_attribute_on_non_unconstrained() {
@@ -112,4 +113,39 @@ fn does_not_error_if_oracle_called_from_constrained_via_other() {
       unconstrained fn foo() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_returns_reference() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> &mut Field {}
+                         ^^^^^^^^^^^ Oracle functions cannot return references
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_returns_reference_in_tuple() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> (Field, &Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot return references
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn errors_if_oracle_returns_reference_in_struct() {
+    let src = r#"
+    pub struct Foo {
+        field: &Field,
+    }
+
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> Foo {}
+                         ^^^^^^^^^^^ Oracle functions cannot return references
+    "#;
+    //check_errors(src);
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }

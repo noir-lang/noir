@@ -30,6 +30,11 @@ function showSidebar() {
 }
 
 function hideSidebar() {
+  // Only hide the sidebar if we are on a mobile device
+  if (document.documentElement.clientWidth >= 1200) {
+    return;
+  }
+
   main.style.display = 'block';
   sidebar.style.display = 'none';
   sidebarShown = false;

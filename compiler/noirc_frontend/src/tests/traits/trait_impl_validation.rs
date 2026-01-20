@@ -11,7 +11,7 @@ fn check_trait_impl_for_non_type() {
     }
 
     impl Default2 for main {
-                      ^^^^ expected type got function
+                      ^^^^ expected type, found function `main`
         fn default(x: Field, y: Field) -> Field {
             x + y
         }
