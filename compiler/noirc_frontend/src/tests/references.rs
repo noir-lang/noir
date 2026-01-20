@@ -1,6 +1,8 @@
 use crate::{
     elaborator::UnstableFeature,
-    tests::{assert_no_errors, check_errors, get_program_using_features},
+    tests::{
+        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+    },
 };
 
 #[test]
@@ -179,4 +181,27 @@ fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn mutable_reference_behind_generics_returned_from_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        let y = &mut 10;
+        let add = |x: Field| { *y = *y + x; };
+        let mul = |x: Field| { *y = *y * x; };
+
+        let f = choose_func(add, mul);
+                ^^^^^^^^^^^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+
+        f(20);
+    }
+
+    #[oracle(choose_func)]
+    unconstrained fn choose_func<Env>(
+        f: fn[Env](Field) -> (),
+        g: fn[Env](Field) -> (),
+    ) -> fn[Env](Field) -> () {}
+    "#;
+    check_monomorphization_error(src);
 }

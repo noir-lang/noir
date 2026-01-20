@@ -549,7 +549,7 @@ fn brillig_call() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w3]
     ASSERT 0 = w0*w3 - w1*w3 - 1
     ASSERT w2 = w0
     ";
@@ -575,7 +575,7 @@ fn brillig_call_with_memory_array_input() {
     private parameters: [w0, w1, w2]
     public parameters: []
     return values: []
-    BRILLIG CALL func: 0, inputs: [2, b0], outputs: []
+    BRILLIG CALL func: 0, predicate: 1, inputs: [2, b0], outputs: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -586,7 +586,7 @@ fn call() {
     private parameters: [w0]
     public parameters: [w1]
     return values: []
-    CALL func: 1, inputs: [w0, w1], outputs: [w2]
+    CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -634,7 +634,7 @@ fn array_dynamic() {
     ASSERT w23 = 111
     READ w24 = b0[w22]
     ASSERT w24 = 101
-    BRILLIG CALL func: 0, inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w22 + 4294967291, 4294967296], outputs: [w25, w26]
     BLACKBOX::RANGE input: w26, bits: 32
     ASSERT w26 = w22 - 4294967296*w25 + 4294967291
     ASSERT w25 = 0
@@ -645,7 +645,7 @@ fn array_dynamic() {
     ASSERT w29 = 1
     READ w30 = b0[w29]
     ASSERT w30 = 0
-    BRILLIG CALL func: 0, inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w21 + 4294967286, 4294967296], outputs: [w31, w32]
     BLACKBOX::RANGE input: w31, bits: 1
     BLACKBOX::RANGE input: w32, bits: 32
     ASSERT w32 = w21 - 4294967296*w31 + 4294967286
@@ -653,7 +653,7 @@ fn array_dynamic() {
     READ w34 = b0[w33]
     ASSERT w35 = -w31*w34 + 2*w31 + w34 - 2
     BLACKBOX::RANGE input: w35, bits: 32
-    BRILLIG CALL func: 0, inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w21 + 4294967291, 4294967296], outputs: [w36, w37]
     BLACKBOX::RANGE input: w36, bits: 1
     BLACKBOX::RANGE input: w37, bits: 32
     ASSERT w37 = w21 - 4294967296*w36 + 4294967291
@@ -693,20 +693,20 @@ fn array_dynamic() {
     READ w64 = b4[w9]
     READ w65 = b4[w10]
     READ w999 = b4[w11]
-    BRILLIG CALL func: 1, inputs: [w62 + w63 + w64 + w65 + w999], outputs: [w67]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w62 + w63 + w64 + w65 + w999], outputs: [w67]
     ASSERT 0 = w62*w67 + w63*w67 + w64*w67 + w65*w67 + w999*w67 - 1
-    BRILLIG CALL func: 0, inputs: [w18, 4294967296], outputs: [w68, w69]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w18, 4294967296], outputs: [w68, w69]
     BLACKBOX::RANGE input: w68, bits: 222
     BLACKBOX::RANGE input: w69, bits: 32
     ASSERT w69 = w18 - 4294967296*w68
     ASSERT w70 = -w68 + 5096253676302562286669017222071363378443840053029366383258766538131
     BLACKBOX::RANGE input: w70, bits: 222
-    BRILLIG CALL func: 1, inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [-w68 + 5096253676302562286669017222071363378443840053029366383258766538131], outputs: [w71]
     ASSERT w72 = w68*w71 - 5096253676302562286669017222071363378443840053029366383258766538131*w71 + 1
     ASSERT 0 = -w68*w72 + 5096253676302562286669017222071363378443840053029366383258766538131*w72
     ASSERT w73 = w69*w72 + 268435455*w72
     BLACKBOX::RANGE input: w73, bits: 32
-    BRILLIG CALL func: 0, inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w69 + 4294967299, 4294967296], outputs: [w74, w75]
     BLACKBOX::RANGE input: w74, bits: 1
     BLACKBOX::RANGE input: w75, bits: 32
     ASSERT w75 = -w69 - 4294967296*w74 + 4294967299
@@ -736,7 +736,7 @@ fn fold_basic() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w3]
     ASSERT 0 = w0*w3 - w1*w3 - 1
     ASSERT w2 = w0
     ";
@@ -756,7 +756,7 @@ fn fold_basic_mismatched_ids() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BRILLIG CALL func: 0, inputs: [w0 - w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1], outputs: [w3]
     ASSERT w0*w3 - w1*w3 - 1 = 0
     ASSERT w0 = w2
     ";

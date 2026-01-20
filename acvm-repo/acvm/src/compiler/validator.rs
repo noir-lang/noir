@@ -363,11 +363,9 @@ pub fn validate_witness<F: AcirField>(
             Opcode::BrilligCall { .. } => (),
             Opcode::Call { id: _, inputs, outputs, predicate } => {
                 // Skip validation when predicate is false
-                if let Some(pred) = predicate {
-                    let pred_value = get_value(pred, &witness_map)?;
-                    if pred_value.is_zero() {
-                        continue;
-                    }
+                let pred_value = get_value(predicate, &witness_map)?;
+                if pred_value.is_zero() {
+                    continue;
                 }
 
                 // Verify input witnesses exist
@@ -667,7 +665,7 @@ mod tests {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
-            predicate: None,
+            predicate: Expression::one(),
         }]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
@@ -688,7 +686,7 @@ mod tests {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
-            predicate: None,
+            predicate: Expression::one(),
         }]);
 
         // Missing Witness(2)
@@ -709,7 +707,7 @@ mod tests {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
-            predicate: None,
+            predicate: Expression::one(),
         }]);
 
         // Missing Witness(3) output
@@ -731,11 +729,11 @@ mod tests {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
-            predicate: Some(Expression {
+            predicate: Expression {
                 mul_terms: vec![],
                 linear_combinations: vec![(FieldElement::one(), Witness(4))],
                 q_c: FieldElement::zero(),
-            }),
+            },
         }]);
 
         // Witness(4) = 0, so predicate is false, call is skipped
@@ -855,7 +853,7 @@ mod tests {
                 BrilligInputs::Single(Witness(2).into()),
             ],
             outputs: vec![BrilligOutputs::Simple(Witness(3))],
-            predicate: None,
+            predicate: Expression::one(),
         }]);
 
         // Empty witness map
