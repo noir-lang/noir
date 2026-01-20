@@ -2220,8 +2220,9 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        // A call to f4 will be created in the `apply` function in this case.
-        // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
+        // Only a call to f5 will be created in the `apply` function in this case.
+        // It would be valid to call Brillig from ACIR as this will be treated as a new Brillig entry point,
+        // but we see in the original SSA that we never actually do that, because there is the ACIR variant f5 to call.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32):
@@ -2265,25 +2266,17 @@ mod tests {
             jmpif v5 then: b4, else: b3
           b2():
             call f1()
-            jmp b9()
+            jmp b6()
           b3():
-            v8 = eq v0, Field 4
-            jmpif v8 then: b6, else: b5
-          b4():
-            call f2()
-            jmp b8()
-          b5():
             constrain v0 == Field 5
             call f5()
-            jmp b7()
+            jmp b5()
+          b4():
+            call f2()
+            jmp b5()
+          b5():
+            jmp b6()
           b6():
-            call f4()
-            jmp b7()
-          b7():
-            jmp b8()
-          b8():
-            jmp b9()
-          b9():
             return
         }
         ");
