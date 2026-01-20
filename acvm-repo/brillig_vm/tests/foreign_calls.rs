@@ -760,11 +760,10 @@ fn foreign_call_opcode_vector_input_nested_composite_array() {
     ])
     .collect();
 
-    // Convert memory to calldata (as FieldElements)
     let calldata: Vec<FieldElement> = memory.iter().map(|v| v.to_field()).collect();
 
-    // The expected inputs to the oracle should be ONLY the 12 valid fields (flattened).
-    // If truncation was buggy (kept 24 instead of 12), we'd see garbage (999) values.
+    // The expected inputs to the oracle should be only the 12 valid flattened fields.
+    // If truncation was buggy (kept > 12 values), we'd see garbage (999) values.
     let expected_oracle_input: Vec<FieldElement> = vec![
         1u128.into(),
         2u128.into(),
