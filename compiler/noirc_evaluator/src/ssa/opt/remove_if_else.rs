@@ -100,6 +100,7 @@
 
 use std::collections::hash_map::Entry;
 
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
 
@@ -168,7 +169,7 @@ struct Context {
     /// Note: as this pass operates on a single block, which is an entry block,
     /// and because vectors are disallowed in entry blocks, all vector lengths
     /// should be known at this point.
-    vector_sizes: HashMap<ValueId, u32>,
+    vector_sizes: HashMap<ValueId, SemanticLength>,
 }
 
 impl Context {
@@ -268,13 +269,13 @@ impl Context {
             SizeChange::Inc { old, new } => {
                 self.set_capacity(context.dfg, old, new, |c| {
                     // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                    c.checked_add(1).expect("Vector capacity overflow")
+                    SemanticLength(c.0.checked_add(1).expect("Vector capacity overflow"))
                 });
             }
             SizeChange::Dec { old, new } => {
                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                 // would otherwise underflow.
-                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(1));
+                self.set_capacity(context.dfg, old, new, |c| SemanticLength(c.0.saturating_sub(1)));
             }
             SizeChange::Many(changes) => {
                 for change in changes {
@@ -290,7 +291,7 @@ impl Context {
         dfg: &DataFlowGraph,
         old: ValueId,
         new: ValueId,
-        f: impl Fn(u32) -> u32,
+        f: impl Fn(SemanticLength) -> SemanticLength,
     ) {
         // No need to store the capacity of arrays, only vectors.
         if !matches!(dfg.type_of_value(new), Type::Vector(_)) {
@@ -306,7 +307,7 @@ impl Context {
     }
 
     /// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> SemanticLength {
         match self.vector_sizes.entry(value) {
             Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
@@ -338,8 +339,10 @@ impl Context {
             | Intrinsic::VectorRemove
             | Intrinsic::VectorPopFront => {
                 if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
-                    self.vector_sizes
-                        .insert(arguments[1], const_len.try_to_u32().expect("Type should be u32"));
+                    self.vector_sizes.insert(
+                        arguments[1],
+                        SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                    );
                 }
             }
             _ => {}
@@ -474,15 +477,12 @@ fn remove_if_else_pre_check(func: &Function) {
 
         for instruction_id in instruction_ids {
             if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
-                assert!(
-                    func.dfg.instruction_results(*instruction_id).iter().all(|value| {
-                        matches!(
-                            func.dfg.type_of_value(*value),
-                            Type::Array(_, _) | Type::Vector(_)
-                        )
-                    }),
-                    "IfElse instruction returns unexpected type"
-                );
+                // We generally expect that all the results at this point will be either arrays or vectors,
+                // however the flattening makes no guarantee of this: if it needs to merge references or functions
+                // it will do so using IfElse. The ValueMerger already returns appropriate RuntimeErrors to point
+                // at the problem, so we don't assert this expectation.
+
+                // We do expect that numeric values are not used though.
                 let typ = func.dfg.type_of_value(*then_value);
                 assert!(
                     !matches!(typ, Type::Numeric(_)),

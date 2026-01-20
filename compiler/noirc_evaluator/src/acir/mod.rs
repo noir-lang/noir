@@ -94,7 +94,7 @@ struct Context<'a> {
 
     /// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
     /// non-homogenous arrays end up having the same type sizes layout.
-    type_sizes_to_blocks: HashMap<Vec<usize>, BlockId>,
+    type_sizes_to_blocks: HashMap<Vec<u32>, BlockId>,
 
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
@@ -343,7 +343,7 @@ impl<'a> Context<'a> {
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
-                        typ.flattened_size() as usize
+                        typ.flattened_size()
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
@@ -381,7 +381,7 @@ impl<'a> Context<'a> {
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
 
-                for _ in 0..*length {
+                for _ in 0..length.0 {
                     for element in element_types.iter() {
                         elements.push_back(self.create_value_from_type(element, make_var)?);
                     }
@@ -598,7 +598,7 @@ impl<'a> Context<'a> {
 
         return_values
             .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size() as usize)
+            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations

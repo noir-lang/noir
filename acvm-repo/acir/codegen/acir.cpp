@@ -586,9 +586,24 @@ namespace Acir {
         }
     };
 
+    struct SemiFlattenedLength {
+        uint32_t value;
+
+        friend bool operator==(const SemiFlattenedLength&, const SemiFlattenedLength&);
+
+        void msgpack_unpack(msgpack::object const& o) {
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'SemiFlattenedLength'");
+            }
+        }
+    };
+
     struct HeapArray {
         Acir::MemoryAddress pointer;
-        uint32_t size;
+        Acir::SemiFlattenedLength size;
 
         friend bool operator==(const HeapArray&, const HeapArray&);
 
@@ -1058,6 +1073,21 @@ namespace Acir {
         }
     };
 
+    struct SemanticLength {
+        uint32_t value;
+
+        friend bool operator==(const SemanticLength&, const SemanticLength&);
+
+        void msgpack_unpack(msgpack::object const& o) {
+            try {
+                o.convert(value);
+            } catch (const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into newtype 'SemanticLength'");
+            }
+        }
+    };
+
     struct HeapValueType;
 
     struct HeapValueType {
@@ -1079,7 +1109,7 @@ namespace Acir {
 
         struct Array {
             std::vector<Acir::HeapValueType> value_types;
-            uint32_t size;
+            Acir::SemanticLength size;
 
             friend bool operator==(const Array&, const Array&);
 
@@ -3065,7 +3095,7 @@ namespace Acir {
             uint32_t id;
             std::vector<Acir::BrilligInputs> inputs;
             std::vector<Acir::BrilligOutputs> outputs;
-            std::optional<Acir::Expression> predicate;
+            Acir::Expression predicate;
 
             friend bool operator==(const BrilligCall&, const BrilligCall&);
 
@@ -3076,7 +3106,7 @@ namespace Acir {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
@@ -3093,7 +3123,7 @@ namespace Acir {
             uint32_t id;
             std::vector<Acir::Witness> inputs;
             std::vector<Acir::Witness> outputs;
-            std::optional<Acir::Expression> predicate;
+            Acir::Expression predicate;
 
             friend bool operator==(const Call&, const Call&);
 
@@ -3104,7 +3134,7 @@ namespace Acir {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
@@ -3525,79 +3555,6 @@ namespace Acir {
                 Helpers::conv_fld_from_array(array, name, "functions", functions, 0);
             } else {
                 throw_or_abort("expected MAP or ARRAY for " + name);
-            }
-        }
-    };
-
-    struct ExpressionWidth {
-
-        struct Unbounded {
-            friend bool operator==(const Unbounded&, const Unbounded&);
-
-            void msgpack_unpack(msgpack::object const& o) {}
-        };
-
-        struct Bounded {
-            uint64_t width;
-
-            friend bool operator==(const Bounded&, const Bounded&);
-
-            void msgpack_unpack(msgpack::object const& o) {
-                std::string name = "Bounded";
-                if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "width", width, false);
-                } else if (o.type == msgpack::type::ARRAY) {
-                    auto array = o.via.array; 
-                    Helpers::conv_fld_from_array(array, name, "width", width, 0);
-                } else {
-                    throw_or_abort("expected MAP or ARRAY for " + name);
-                }
-            }
-        };
-
-        std::variant<Unbounded, Bounded> value;
-
-        friend bool operator==(const ExpressionWidth&, const ExpressionWidth&);
-
-        void msgpack_unpack(msgpack::object const& o) {
-
-            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
-                std::cerr << o << std::endl;
-                throw_or_abort("expected MAP or STR for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
-            }
-            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ExpressionWidth'; got " + std::to_string(o.via.map.size));
-            }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
-                    o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'ExpressionWidth'");
-            }
-            if (tag == "Unbounded") {
-                Unbounded v;
-                value = v;
-            }
-            else if (tag == "Bounded") {
-                Bounded v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ExpressionWidth::Bounded'");
-                }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'ExpressionWidth' enum variant: " + tag);
             }
         }
     };
@@ -6000,76 +5957,6 @@ Acir::ExpressionOrMemory::Memory serde::Deserializable<Acir::ExpressionOrMemory:
 
 namespace Acir {
 
-    inline bool operator==(const ExpressionWidth &lhs, const ExpressionWidth &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::ExpressionWidth>::serialize(const Acir::ExpressionWidth &obj, Serializer &serializer) {
-    serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-    serializer.decrease_container_depth();
-}
-
-template <>
-template <typename Deserializer>
-Acir::ExpressionWidth serde::Deserializable<Acir::ExpressionWidth>::deserialize(Deserializer &deserializer) {
-    deserializer.increase_container_depth();
-    Acir::ExpressionWidth obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    deserializer.decrease_container_depth();
-    return obj;
-}
-
-namespace Acir {
-
-    inline bool operator==(const ExpressionWidth::Unbounded &lhs, const ExpressionWidth::Unbounded &rhs) {
-        return true;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::ExpressionWidth::Unbounded>::serialize(const Acir::ExpressionWidth::Unbounded &obj, Serializer &serializer) {
-}
-
-template <>
-template <typename Deserializer>
-Acir::ExpressionWidth::Unbounded serde::Deserializable<Acir::ExpressionWidth::Unbounded>::deserialize(Deserializer &deserializer) {
-    Acir::ExpressionWidth::Unbounded obj;
-    return obj;
-}
-
-namespace Acir {
-
-    inline bool operator==(const ExpressionWidth::Bounded &lhs, const ExpressionWidth::Bounded &rhs) {
-        if (!(lhs.width == rhs.width)) { return false; }
-        return true;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::ExpressionWidth::Bounded>::serialize(const Acir::ExpressionWidth::Bounded &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.width)>::serialize(obj.width, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Acir::ExpressionWidth::Bounded serde::Deserializable<Acir::ExpressionWidth::Bounded>::deserialize(Deserializer &deserializer) {
-    Acir::ExpressionWidth::Bounded obj;
-    obj.width = serde::Deserializable<decltype(obj.width)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Acir {
-
     inline bool operator==(const FunctionInput &lhs, const FunctionInput &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
@@ -6903,6 +6790,60 @@ template <typename Deserializer>
 Acir::PublicInputs serde::Deserializable<Acir::PublicInputs>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::PublicInputs obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const SemanticLength &lhs, const SemanticLength &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::SemanticLength>::serialize(const Acir::SemanticLength &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Acir::SemanticLength serde::Deserializable<Acir::SemanticLength>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Acir::SemanticLength obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const SemiFlattenedLength &lhs, const SemiFlattenedLength &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::SemiFlattenedLength>::serialize(const Acir::SemiFlattenedLength &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Acir::SemiFlattenedLength serde::Deserializable<Acir::SemiFlattenedLength>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Acir::SemiFlattenedLength obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;

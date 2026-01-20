@@ -220,9 +220,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                         witnesses.insert(witness);
                     });
                 }
-                if let Some(predicate) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_witness(predicate));
-                }
+                witnesses.extend(CircuitSimulator::expr_witness(predicate));
                 for i in outputs {
                     self.for_each_brillig_output_witness(i, |witness| {
                         witnesses.insert(witness);
@@ -233,10 +231,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             Opcode::Call { id: _, inputs, outputs, predicate } => {
                 let mut witnesses: BTreeSet<Witness> = inputs.iter().copied().collect();
                 witnesses.extend(outputs);
-
-                if let Some(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_witness(p));
-                }
+                witnesses.extend(CircuitSimulator::expr_witness(predicate));
                 witnesses
             }
         }
@@ -345,7 +340,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [], outputs: [w1]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: [w1]
         ASSERT 2*w0 + 3*w1 + w2 + 1 = 0
         ASSERT 2*w0 + 2*w1 + w5 + 1 = 0
         ";
@@ -403,7 +398,7 @@ mod tests {
         private parameters: [w0, w1]
         public parameters: []
         return values: [w2]
-        BRILLIG CALL func: 0, inputs: [], outputs: [w3]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: [w3]
         BLACKBOX::AND lhs: w0, rhs: w1, output: w4, bits: 8
         ASSERT w3 - w4 = 0
         ASSERT -w2 + w4 = 0

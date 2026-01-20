@@ -35,7 +35,7 @@ impl FromStr for UnstableFeature {
 /// Generic options struct meant to resolve to ElaboratorOptions below when
 /// we can resolve a file path to a file id later. This generic struct is used
 /// so that FrontendOptions doesn't need to duplicate fields and methods with ElaboratorOptions.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct GenericOptions<'a, T> {
     /// The scope of --debug-comptime, or None if unset
     pub debug_comptime_in_file: Option<T>,

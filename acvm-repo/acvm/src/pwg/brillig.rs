@@ -154,7 +154,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.get_memory()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
+    pub fn write_memory_at(&mut self, ptr: u32, value: MemoryValue<F>) {
         self.vm.write_memory_at(ptr, value);
     }
 

@@ -14,7 +14,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint ./test --max-warnings 0"
   },
   "dependencies": {
-    "@aztec/bb.js": "3.0.0-nightly.20260102",
+    "@aztec/bb.js": "4.0.0-nightly.20260120",
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noir_wasm": "workspace:*",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
@@ -25,10 +25,10 @@
     "@web/test-runner-playwright": "^0.11.1",
     "buffer-esm": "^1.2.0",
     "eslint": "^9.39.2",
-    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-prettier": "^5.5.5",
     "ethers": "^6.14.3",
     "hardhat": "^2.24.1",
-    "prettier": "3.7.4",
+    "prettier": "3.8.0",
     "smol-toml": "^1.3.1",
     "toml": "^3.0.0",
     "tslog": "^4.10.2"

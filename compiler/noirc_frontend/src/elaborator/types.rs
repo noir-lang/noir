@@ -417,7 +417,7 @@ impl Elaborator<'_> {
             Ok(item) => {
                 self.push_err(ResolverError::Expected {
                     expected: "type",
-                    got: item.description(),
+                    found: item.description(self.interner),
                     location,
                 });
 
@@ -742,10 +742,22 @@ impl Elaborator<'_> {
                 self.check_type_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
-                if let Some(suffix) = suffix {
-                    self.check_kind(suffix.as_kind(), expected_kind, location);
+                let suffix_kind = if let Some(suffix) = suffix {
+                    suffix.as_kind()
+                } else {
+                    let integer_or_field_var =
+                        self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+                    Kind::Numeric(Box::new(integer_or_field_var))
+                };
+
+                if !suffix_kind.unifies(expected_kind) {
+                    self.push_err(TypeCheckError::ExpectingOtherError {
+                        message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                        location,
+                    });
                 }
-                Type::Constant(int, expected_kind.clone())
+
+                Type::Constant(int, suffix_kind)
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
@@ -2352,6 +2364,13 @@ impl Elaborator<'_> {
         });
 
         let is_current_func_constrained = self.in_constrained_function();
+        if !is_current_func_constrained {
+            // Check if we're calling verify_proof_with_type in an unconstrained context
+            self.run_lint(|elaborator| {
+                lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
+                    .map(Into::into)
+            });
+        }
 
         let func_type_is_unconstrained =
             if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {

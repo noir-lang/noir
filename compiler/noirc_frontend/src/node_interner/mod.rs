@@ -851,26 +851,39 @@ impl NodeInterner {
         self.try_id_type(index).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of an item, or `None` if it was not found.
     pub fn try_id_type(&self, index: impl Into<Index>) -> Option<&Type> {
         self.id_to_type.get(&index.into())
     }
 
     /// Returns the type of the definition, or [Type::Error] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
-        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
+        self.try_definition_type(id).cloned().unwrap_or(Type::Error)
+    }
+
+    /// Returns the type of the definition, or `None` if it was not found.
+    pub fn try_definition_type(&self, id: DefinitionId) -> Option<&Type> {
+        self.definition_to_type.get(&id)
     }
 
     /// Returns the type of the definition, unless it's a function returning an `impl Trait`,
     /// in which case it looks up the type of its body and returns a new function type with
     /// the type fo the body substituted to its return type.
-    pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
+    ///
+    /// Returns:
+    /// * `Ok` if it was able to substitute the type, either because it's not an `impl Trait`
+    ///    or because the type of the body of the function is already known
+    /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
+    pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
         let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
-                    let f = self.function(&func_id);
-                    let func_body = f.as_expr();
+                    let func = self.function(&func_id);
+                    let Some(func_body) = func.try_as_expr() else {
+                        return Err(func_id);
+                    };
                     let ret_type = self.id_type(func_body);
                     let new_type = Type::Function(
                         args.clone(),
@@ -878,11 +891,11 @@ impl NodeInterner {
                         env.clone(),
                         *unconstrained,
                     );
-                    return new_type;
+                    return Ok(new_type);
                 }
             }
         }
-        typ
+        Ok(typ)
     }
 
     /// Returns the span of an item stored in the Interner
@@ -1080,7 +1093,7 @@ impl NodeInterner {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Retrieves the impl selected for a given ExprId during name resolution.
+    /// Retrieves the impl selected for a given [ExprId] during name resolution.
     pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }

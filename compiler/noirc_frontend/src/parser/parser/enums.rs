@@ -23,7 +23,7 @@ impl Parser<'_> {
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return self.empty_enum(
                 self.unknown_ident_at_previous_token_end(),
@@ -63,7 +63,7 @@ impl Parser<'_> {
             let doc_comments_start_location = self.current_token_location;
             doc_comments = self.parse_outer_doc_comments();
 
-            if let Some(ident) = self.eat_ident() {
+            if let Some(ident) = self.eat_non_underscore_ident() {
                 name = ident;
                 break;
             }

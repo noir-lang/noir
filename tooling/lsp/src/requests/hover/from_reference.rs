@@ -917,7 +917,11 @@ fn process_doc_comments_links(
     let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
 
     for link in links.into_iter().rev() {
-        let Some(location) = link_target_location(&link.target, args) else {
+        let Some(target) = link.target else {
+            continue;
+        };
+
+        let Some(location) = link_target_location(target, args) else {
             continue;
         };
         let mut line = lines[link.line].to_string();
@@ -932,54 +936,54 @@ fn process_doc_comments_links(
 /// Returns the Location where a link target exists.
 /// The Location might not exist. For example, primitive types have no definition location.
 fn link_target_location(
-    target: &LinkTarget,
+    target: LinkTarget,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<lsp_types::Location> {
     match target {
         LinkTarget::TopLevelItem(module_def_id) => match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                let module_attributes = args.interner.try_module_attributes(*module_id)?;
+                let module_attributes = args.interner.try_module_attributes(module_id)?;
                 let location = module_attributes.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::FunctionId(func_id) => {
-                let func_meta = args.interner.function_meta(func_id);
+                let func_meta = args.interner.function_meta(&func_id);
                 let location = func_meta.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TypeId(type_id) => {
-                let typ = args.interner.get_type(*type_id);
+                let typ = args.interner.get_type(type_id);
                 let typ = typ.borrow();
                 let location = typ.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TypeAliasId(type_alias_id) => {
-                let type_alias = args.interner.get_type_alias(*type_alias_id);
+                let type_alias = args.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 let location = type_alias.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TraitId(trait_id) => {
-                let some_trait = args.interner.get_trait(*trait_id);
+                let some_trait = args.interner.get_trait(trait_id);
                 let location = some_trait.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TraitAssociatedTypeId(..) => None,
             ModuleDefId::GlobalId(global_id) => {
-                let global_info = args.interner.get_global(*global_id);
+                let global_info = args.interner.get_global(global_id);
                 let location = global_info.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
         },
         LinkTarget::Method(_, func_id) | LinkTarget::PrimitiveTypeFunction(_, func_id) => {
-            let func_meta = args.interner.function_meta(func_id);
+            let func_meta = args.interner.function_meta(&func_id);
             let location = func_meta.location;
             to_lsp_location(args.files, location.file, location.span)
         }
         LinkTarget::StructMember(type_id, index) => {
-            let struct_type = args.interner.get_type(*type_id);
+            let struct_type = args.interner.get_type(type_id);
             let struct_type = struct_type.borrow();
-            let field = struct_type.field_at(*index);
+            let field = struct_type.field_at(index);
             let location = field.name.location();
             to_lsp_location(args.files, location.file, location.span)
         }

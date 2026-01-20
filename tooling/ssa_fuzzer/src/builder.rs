@@ -1,5 +1,6 @@
 use crate::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
+use acvm::acir::brillig::lengths::SemanticLength;
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::CompileOptions;
@@ -771,12 +772,15 @@ impl FuzzerBuilder {
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                1,
+                SemanticLength(1),
             ),
         );
         let scalar_id = self.builder.insert_make_array(
             vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
-            SsaType::Array(Arc::new(vec![field_type.clone().into(), field_type.clone().into()]), 1),
+            SsaType::Array(
+                Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
+                SemanticLength(1),
+            ),
         );
         let return_type = Type::Array(
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
@@ -845,14 +849,14 @@ impl FuzzerBuilder {
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                points.len() as u32,
+                SemanticLength(points.len() as u32),
             ),
         );
         let scalar_ids_array = self.builder.insert_make_array(
             scalar_ids.into_iter().collect(),
             SsaType::Array(
                 Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
-                scalars.len() as u32,
+                SemanticLength(scalars.len() as u32),
             ),
         );
         let return_type = Type::Array(

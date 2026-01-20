@@ -12,6 +12,7 @@ use acvm::{
 
 use crate::{
     brillig::{
+        assert_usize,
         brillig_gen::brillig_fn::FunctionContext,
         brillig_ir::{
             BrilligContext, ReservedRegisters,
@@ -236,7 +237,7 @@ impl<'a> ReadCollector<'a> {
 
 impl OpcodeAddressVisitor for ReadCollector<'_> {
     fn read(&mut self, addr: &MemoryAddress, _location: OpcodeLocation) {
-        if addr.is_relative() && self.addr_range.contains(&addr.to_usize()) {
+        if addr.is_relative() && self.addr_range.contains(&assert_usize(addr.to_u32())) {
             self.reads.insert(*addr);
         }
     }
@@ -297,7 +298,7 @@ impl<'a> AdvisoryCollector<'a> {
     }
 
     fn addr_in_range(&self, addr: &MemoryAddress) -> bool {
-        addr.is_relative() && self.addr_range.contains(&addr.to_usize())
+        addr.is_relative() && self.addr_range.contains(&assert_usize(addr.to_u32()))
     }
 
     fn add_advisory(&mut self, location: OpcodeLocation, advisory: OpcodeAdvisory) {

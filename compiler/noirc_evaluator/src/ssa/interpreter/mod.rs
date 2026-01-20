@@ -30,6 +30,9 @@ pub mod value;
 
 use value::Value;
 
+/// Maximum number of recursive calls allowed at comptime.
+const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 1000;
+
 pub(crate) struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
@@ -257,6 +260,22 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// it is meant to be used for internal calls.
     fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
+
+        if self.call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+            let call_stack = self
+                .call_stack
+                .iter()
+                .skip(1)
+                .map(|ctx| {
+                    let id = ctx
+                        .called_function
+                        .expect("all but the first global context has a called function");
+                    let name = self.functions[&id].name().to_string();
+                    (id, name)
+                })
+                .collect();
+            return Err(InterpreterError::StackOverflow { call_stack });
+        }
 
         let function = &self.functions[&function_id];
         if self.options.trace {

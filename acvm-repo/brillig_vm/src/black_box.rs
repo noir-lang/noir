@@ -20,7 +20,7 @@ fn read_heap_array<'a, F: AcirField>(
     array: &HeapArray,
 ) -> &'a [MemoryValue<F>] {
     let items_start = memory.read_ref(array.pointer);
-    memory.read_slice(items_start, assert_usize(array.size))
+    memory.read_slice(items_start, assert_usize(array.size.0))
 }
 
 /// Write values to a [array][HeapArray] in memory.
@@ -297,12 +297,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let MemoryValue::U32(radix) = memory.read(*radix) else {
                 panic!("ToRadix opcode's radix bit size does not match expected bit size 32")
             };
-            let num_limbs = memory.read(*num_limbs).to_usize();
+            let num_limbs = memory.read(*num_limbs).to_u32();
             let MemoryValue::U1(output_bits) = memory.read(*output_bits) else {
                 panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
             };
 
-            let output = to_be_radix(input, radix, num_limbs, output_bits)?;
+            let output = to_be_radix(input, radix, assert_usize(num_limbs), output_bits)?;
 
             memory.write_slice(memory.read_ref(*output_pointer), &output);
 
