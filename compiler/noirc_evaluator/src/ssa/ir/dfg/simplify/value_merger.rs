@@ -1,5 +1,5 @@
 use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -33,6 +33,13 @@ impl<'a> ValueMerger<'a> {
         call_stack: CallStackId,
     ) -> Self {
         ValueMerger { dfg, block, vector_sizes, call_stack }
+    }
+
+    fn get_call_stack(&self, value: ValueId) -> Vec<Location> {
+        // FIXME: none of then_value, else_value, then_condition, or else_condition have
+        // non-empty call stacks
+        let call_stack = self.dfg.get_value_call_stack(value);
+        if call_stack.is_empty() { self.dfg.get_call_stack(self.call_stack) } else { call_stack }
     }
 
     /// Merge two values a and b to a single value.
@@ -74,13 +81,11 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             ),
             Type::Reference(_) => {
-                // FIXME: none of then_value, else_value, then_condition, or else_condition have
-                // non-empty call stacks
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }
             Type::Function => {
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedFunctionFromDynamicIf { call_stack })
             }
         }
