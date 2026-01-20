@@ -306,10 +306,10 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
     None
 }
 
-/// Collects all functions used as values that can be called by their signatures
+/// Collects all functions used as values that can be called by their signatures.
 ///
-/// Groups all [FunctionId]s used as values by their [Signature] and [RuntimeType],
-/// producing a mapping from these tuples to the list of variant functions to be dynamically dispatched.
+/// Groups all [FunctionId]s used as values by their [Signature] and caller [RuntimeType],
+/// producing a mapping from these tuples to the list of target functions to be dynamically dispatched to.
 ///
 /// # Arguments
 /// - `ssa`: The full [Ssa] structure
@@ -430,7 +430,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// Creates all apply functions needed for dispatch of function values.
 ///
 /// This function maintains the grouping set in [Variants], meaning an apply
-/// function is grouped by functions that share a signature and runtime.
+/// function is grouped by functions that share a target signature and callee runtime.
 /// An apply function is only created if there are multiple function variants
 /// for a specific ([Signature], [RuntimeType]) group.
 /// Otherwise, if there is a single variant that function is simply reused.
@@ -462,6 +462,7 @@ fn create_apply_functions(
 
     for ((signature, caller_runtime), variants) in variants_map.into_iter() {
         // Calling an ACIR function from a Brillig runtime is not allowed.
+        // Calling a Brillig function from ACIR is allowed, but shouldn't be necessary.
         // We expect all ACIR functions called from Brillig to be specialized
         // as Brillig functions at compile time (e.g., before SSA generation).
         // Closures are expected to be duplicated by their runtime.
@@ -476,7 +477,7 @@ fn create_apply_functions(
         let pre_runtime_filter_len = variants.len();
         let variants: Vec<(FunctionId, RuntimeType)> = variants
             .into_iter()
-            .filter(|(_, runtime)| !(runtime.is_acir() && caller_runtime.is_brillig()))
+            .filter(|(_, callee_runtime)| *callee_runtime == caller_runtime)
             .collect();
 
         let dispatches_to_multiple_functions = variants.len() > 1;
@@ -508,6 +509,10 @@ fn create_apply_functions(
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
             panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
+        } else if pre_runtime_filter_len != 0 && caller_runtime.is_acir() {
+            // We had variants, but they were all filtered out.
+            // Frontend bug: only Brillig variants in an ACIR group.
+            panic!("ICE: invalid defunctionalization: only Brillig variants for a ACIR runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -2286,33 +2291,39 @@ mod tests {
 
     #[test]
     fn per_runtime_dispatch() {
-        // SSA of the following program:
-        // fn main(c: bool) -> pub Field {
+        // Initial SSA of the following program:
+        // fn main(c: bool) {
         //     let f = identity(|| 1);
         //     let g = identity(|| 2);
-        //     if c {
-        //         f()
-        //     } else {
-        //         g()
-        //     }
+        //     let h = if c { f } else { g };
+        //     let x = h();
+        //     let y =
+        //         // safety: test
+        //         unsafe { go(h) };
+        //     assert_eq(x, y);
         // }
         // fn identity<T>(x: T) -> T {
         //     x
         // }
+        // unconstrained fn go(f: fn() -> Field) -> Field {
+        //     f()
+        // }
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v5, v6 = call f1(f2, f3) -> (function, function)
-            v9, v10 = call f1(f4, f5) -> (function, function)
+            v6, v7 = call f1(f2, f3) -> (function, function)
+            v10, v11 = call f1(f4, f5) -> (function, function)
             jmpif v0 then: b1, else: b2
           b1():
-            v12 = call v5() -> Field
-            jmp b3(v12)
+            jmp b3(v6, v7)
           b2():
-            v11 = call v9() -> Field
-            jmp b3(v11)
-          b3(v1: Field):
-            return v1
+            jmp b3(v10, v11)
+          b3(v1: function, v2: function):
+            v12 = call v1() -> Field
+            v14 = call f6(v1, v2) -> Field
+            v15 = eq v12, v14
+            constrain v12 == v14
+            return
         }
         acir(inline) fn identity f1 {
           b0(v0: function, v1: function):
@@ -2334,28 +2345,32 @@ mod tests {
           b0():
             return Field 2
         }
+        brillig(inline) fn go f6 {
+          b0(v0: function, v1: function):
+            v2 = call v1() -> Field
+            return v2
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        // We want two dispatch functions generated:
-        // * one for ACIR, calling only constrained lambdas
-        // * one for Brillig, calling any lambda (or just unconstrained)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v5, v6 = call f1(Field 2, Field 3) -> (Field, Field)
-            v9, v10 = call f1(Field 4, Field 5) -> (Field, Field)
+            v6, v7 = call f1(Field 2, Field 3) -> (Field, Field)
+            v10, v11 = call f1(Field 4, Field 5) -> (Field, Field)
             jmpif v0 then: b1, else: b2
           b1():
-            v13 = call f6(v5) -> Field
-            jmp b3(v13)
+            jmp b3(v6, v7)
           b2():
-            v12 = call f6(v9) -> Field
-            jmp b3(v12)
-          b3(v1: Field):
-            return v1
+            jmp b3(v10, v11)
+          b3(v1: Field, v2: Field):
+            v13 = call f7(v1) -> Field
+            v15 = call f6(v1, v2) -> Field
+            v16 = eq v13, v15
+            constrain v13 == v15
+            return
         }
         acir(inline) fn identity f1 {
           b0(v0: Field, v1: Field):
@@ -2377,35 +2392,38 @@ mod tests {
           b0():
             return Field 2
         }
-        acir(inline_always) fn apply f6 {
-          b0(v0: Field):
-            v5 = eq v0, Field 2
-            jmpif v5 then: b2, else: b1
-          b1():
-            v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
-          b2():
-            v7 = call f2() -> Field
-            jmp b9(v7)
-          b3():
-            v13 = eq v0, Field 4
-            jmpif v13 then: b6, else: b5
-          b4():
-            v11 = call f3() -> Field
-            jmp b8(v11)
-          b5():
-            constrain v0 == Field 5
-            v18 = call f5() -> Field
-            jmp b7(v18)
-          b6():
-            v15 = call f4() -> Field
-            jmp b7(v15)
-          b7(v1: Field):
-            jmp b8(v1)
-          b8(v2: Field):
-            jmp b9(v2)
-          b9(v3: Field):
+        brillig(inline) fn go f6 {
+          b0(v0: Field, v1: Field):
+            v3 = call f8(v1) -> Field
             return v3
+        }
+        acir(inline_always) fn apply f7 {
+          b0(v0: Field):
+            v3 = eq v0, Field 2
+            jmpif v3 then: b2, else: b1
+          b1():
+            constrain v0 == Field 4
+            v8 = call f4() -> Field
+            jmp b3(v8)
+          b2():
+            v5 = call f2() -> Field
+            jmp b3(v5)
+          b3(v1: Field):
+            return v1
+        }
+        brillig(inline_always) fn apply f8 {
+          b0(v0: Field):
+            v3 = eq v0, Field 3
+            jmpif v3 then: b2, else: b1
+          b1():
+            constrain v0 == Field 5
+            v8 = call f5() -> Field
+            jmp b3(v8)
+          b2():
+            v5 = call f3() -> Field
+            jmp b3(v5)
+          b3(v1: Field):
+            return v1
         }
         ");
     }
