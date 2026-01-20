@@ -1515,12 +1515,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             } else {
                 self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
             }
-        } else if loop_index_type.is_unsigned() {
-            if for_.inclusive {
-                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
-            } else {
-                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
-            }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
