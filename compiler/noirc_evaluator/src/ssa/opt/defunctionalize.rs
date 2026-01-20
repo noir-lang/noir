@@ -462,9 +462,10 @@ fn create_apply_functions(
 
     for ((signature, caller_runtime), variants) in variants_map.into_iter() {
         // Calling an ACIR function from a Brillig runtime is not allowed.
-        // Calling a Brillig function from ACIR is allowed, but shouldn't be necessary.
         // We expect all ACIR functions called from Brillig to be specialized
         // as Brillig functions at compile time (e.g., before SSA generation).
+        // Calling a Brillig function from ACIR is allowed, but we avoid creating dispatch functions to variants
+        // which would pass invalid types across runtime boundaries.
         // Closures are expected to be duplicated by their runtime.
         // It is expected that the frontend has appropriately extracted the correct closure
         // based on the current runtime of the caller function.
@@ -477,7 +478,12 @@ fn create_apply_functions(
         let pre_runtime_filter_len = variants.len();
         let variants: Vec<(FunctionId, RuntimeType)> = variants
             .into_iter()
-            .filter(|(_, callee_runtime)| *callee_runtime == caller_runtime)
+            .filter(|(_, callee_runtime)| {
+                *callee_runtime == caller_runtime
+                    || caller_runtime.is_acir()
+                        && callee_runtime.is_brillig()
+                        && is_valid_across_boundaries(&signature)
+            })
             .collect();
 
         let dispatches_to_multiple_functions = variants.len() > 1;
@@ -531,6 +537,15 @@ fn create_apply_functions(
 /// Transforms a [FunctionId] into a [FieldElement]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
     u128::from(function_id.to_u32()).into()
+}
+
+/// Check if a [Signature] is valid when the caller is ACIR and the callee is Brillig.
+fn is_valid_across_boundaries(signature: &Signature) -> bool {
+    !signature.params.iter().any(|typ| typ.contains_reference())
+        && !signature
+            .returns
+            .iter()
+            .any(|typ| typ.contains_reference() || typ.contains_vector_element())
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
@@ -2220,9 +2235,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        // Only a call to f5 will be created in the `apply` function in this case.
-        // It would be valid to call Brillig from ACIR as this will be treated as a new Brillig entry point,
-        // but we see in the original SSA that we never actually do that, because there is the ACIR variant f5 to call.
+        // A call to f5 will be created in the `apply` function in this case.
+        // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32):
@@ -2266,25 +2280,129 @@ mod tests {
             jmpif v5 then: b4, else: b3
           b2():
             call f1()
-            jmp b6()
+            jmp b9()
           b3():
-            constrain v0 == Field 5
-            call f5()
-            jmp b5()
+            v8 = eq v0, Field 4
+            jmpif v8 then: b6, else: b5
           b4():
             call f2()
-            jmp b5()
+            jmp b8()
           b5():
-            jmp b6()
+            constrain v0 == Field 5
+            call f5()
+            jmp b7()
           b6():
+            call f4()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
             return
         }
         ");
     }
 
     #[test]
+    fn only_brillig_variants_in_acir() {
+        // SSA of a program with explicitly unconstrained lambdas:
+        // fn main(c: bool) {
+        //     let mut f: unconstrained fn() -> Field = foo;
+        //     if c {
+        //         f = bar;
+        //     }
+        //     unsafe {
+        //         assert_eq(f(), 1);
+        //     }
+        // }
+        // unconstrained fn foo() -> Field {
+        //     1
+        // }
+        // unconstrained fn bar() -> Field {
+        //     2
+        // }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut function
+            store f1 at v1
+            v3 = allocate -> &mut function
+            store f1 at v3
+            jmpif v0 then: b1, else: b2
+          b1():
+            store f2 at v1
+            store f2 at v3
+            jmp b2()
+          b2():
+            v5 = load v1 -> function
+            v6 = load v3 -> function
+            v7 = call v5() -> Field
+            v9 = eq v7, Field 1
+            constrain v7 == Field 1
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn bar f2 {
+          b0():
+            return Field 2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v3 = allocate -> &mut Field
+            store Field 1 at v3
+            jmpif v0 then: b1, else: b2
+          b1():
+            store Field 2 at v1
+            store Field 2 at v3
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = load v3 -> Field
+            v8 = call f3(v5) -> Field
+            v9 = eq v8, Field 1
+            constrain v8 == Field 1
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn bar f2 {
+          b0():
+            return Field 2
+        }
+        acir(inline_always) fn apply f3 {
+          b0(v0: Field):
+            v3 = eq v0, Field 1
+            jmpif v3 then: b2, else: b1
+          b1():
+            constrain v0 == Field 2
+            v8 = call f2() -> Field
+            jmp b3(v8)
+          b2():
+            v5 = call f1() -> Field
+            jmp b3(v5)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    #[test]
     fn per_runtime_dispatch() {
-        // Initial SSA of the following program:
+        // SSA of the following program:
         // fn main(c: bool) {
         //     let f = identity(|| 1);
         //     let g = identity(|| 2);
@@ -2392,17 +2510,33 @@ mod tests {
         }
         acir(inline_always) fn apply f7 {
           b0(v0: Field):
-            v3 = eq v0, Field 2
-            jmpif v3 then: b2, else: b1
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
           b1():
-            constrain v0 == Field 4
-            v8 = call f4() -> Field
-            jmp b3(v8)
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v5 = call f2() -> Field
-            jmp b3(v5)
-          b3(v1: Field):
-            return v1
+            v7 = call f2() -> Field
+            jmp b9(v7)
+          b3():
+            v13 = eq v0, Field 4
+            jmpif v13 then: b6, else: b5
+          b4():
+            v11 = call f3() -> Field
+            jmp b8(v11)
+          b5():
+            constrain v0 == Field 5
+            v18 = call f5() -> Field
+            jmp b7(v18)
+          b6():
+            v15 = call f4() -> Field
+            jmp b7(v15)
+          b7(v1: Field):
+            jmp b8(v1)
+          b8(v2: Field):
+            jmp b9(v2)
+          b9(v3: Field):
+            return v3
         }
         brillig(inline_always) fn apply f8 {
           b0(v0: Field):
