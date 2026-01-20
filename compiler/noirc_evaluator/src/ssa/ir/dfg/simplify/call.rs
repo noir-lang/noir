@@ -622,12 +622,11 @@ fn simplify_black_box_func(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    let pedantic_solving = true;
-    cfg_if::cfg_if! {
+        cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
-            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
         } else {
-            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
         }
     };
     match bb_func {

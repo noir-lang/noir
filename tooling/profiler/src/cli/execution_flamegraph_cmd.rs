@@ -35,7 +35,6 @@ pub(crate) struct ExecutionFlamegraphCommand {
     /// assumptions when solving.
     /// This is disabled by default.
     #[clap(long, default_value = "false")]
-    pedantic_solving: bool,
 
     /// A single number representing the total opcodes executed.
     /// Outputs to stdout and skips generating a flamegraph.
@@ -53,7 +52,6 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         &args.prover_toml_path,
         &InfernoFlamegraphGenerator { count_name: "samples".to_string() },
         &args.output,
-        args.pedantic_solving,
         args.sample_count,
         args.verbose,
     )
@@ -64,7 +62,6 @@ fn run_with_generator(
     prover_toml_path: &Path,
     flamegraph_generator: &impl FlamegraphGenerator,
     output_path: &Option<PathBuf>,
-    pedantic_solving: bool,
     print_sample_count: bool,
     verbose: bool,
 ) -> eyre::Result<()> {
@@ -90,7 +87,7 @@ fn run_with_generator(
     let solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver(pedantic_solving),
+        &Bn254BlackBoxSolver,
         &mut DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
     );
     let mut profiling_samples = match solved_witness_stack_err {
@@ -265,7 +262,6 @@ mod tests {
                 &prover_toml_path,
                 &flamegraph_generator,
                 &Some(temp_dir.keep()),
-                false,
                 false,
                 false,
             )
