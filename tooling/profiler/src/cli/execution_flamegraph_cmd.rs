@@ -31,11 +31,6 @@ pub(crate) struct ExecutionFlamegraphCommand {
     #[clap(long, short)]
     output: Option<PathBuf>,
 
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    #[clap(long, default_value = "false")]
-
     /// A single number representing the total opcodes executed.
     /// Outputs to stdout and skips generating a flamegraph.
     #[clap(long, default_value = "false")]
