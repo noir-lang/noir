@@ -2081,7 +2081,7 @@ __metadata:
     cspell: "npm:^8.19.4"
     eslint: "npm:^9.39.2"
     eslint-plugin-prettier: "npm:^5.5.4"
-    globals: "npm:^16.2.0"
+    globals: "npm:^17.0.0"
     mocha: "npm:^11.7.5"
     prettier: "npm:3.7.4"
     ts-node: "npm:^10.9.2"
@@ -7836,10 +7836,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"globals@npm:^16.2.0":
-  version: 16.2.0
-  resolution: "globals@npm:16.2.0"
-  checksum: 10/37fc33502973ebbee5a44b58939aa8574abc00ca1fc4c1d4ec0571a2c6620843ae647eff8bd082adf6bb5975ad221a887522b9a7961125764f0cb6dfab0b7483
+"globals@npm:^17.0.0":
+  version: 17.0.0
+  resolution: "globals@npm:17.0.0"
+  checksum: 10/af6213db9bf5f599b8a609061984c4d5fedb23db336228b866eba70819fe13ea3d11ca507b4799e8afc888331d0f7e5760d01507e38cb988fff9ad3a9635b312
   languageName: node
   linkType: hard
 
