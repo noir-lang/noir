@@ -1207,10 +1207,7 @@
 <a href="#1206" id="1206">1206</a>
 <a href="#1207" id="1207">1207</a>
 <a href="#1208" id="1208">1208</a>
-<a href="#1209" id="1209">1209</a>
-<a href="#1210" id="1210">1210</a>
-<a href="#1211" id="1211">1211</a>
-<a href="#1212" id="1212">1212</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#1209" id="1209">1209</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1689,16 +1686,13 @@
 
         <span class="kw">for </span>instruction_id <span class="kw">in </span>instruction_ids {
             <span class="kw">if let </span>Instruction::IfElse { then_value, .. } = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id] {
-                <span class="macro">assert!</span>(
-                    func.dfg.instruction_results(<span class="kw-2">*</span>instruction_id).iter().all(|value| {
-                        <span class="macro">matches!</span>(
-                            func.dfg.type_of_value(<span class="kw-2">*</span>value),
-                            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Vector(<span class="kw">_</span>)
-                        )
-                    }),
-                    <span class="string">"IfElse instruction returns unexpected type"
-                </span>);
-                <span class="kw">let </span>typ = func.dfg.type_of_value(<span class="kw-2">*</span>then_value);
+                <span class="comment">// We generally expect that all the results at this point will be either arrays or vectors,
+                // however the flattening makes no guarantee of this: if it needs to merge references or functions
+                // it will do so using IfElse. The ValueMerger already returns appropriate RuntimeErrors to point
+                // at the problem, so we don't assert this expectation.
+
+                // We do expect that numeric values are not used though.
+                </span><span class="kw">let </span>typ = func.dfg.type_of_value(<span class="kw-2">*</span>then_value);
                 <span class="macro">assert!</span>(
                     !<span class="macro">matches!</span>(typ, Type::Numeric(<span class="kw">_</span>)),
                     <span class="string">"Numeric values should have been handled during flattening"

@@ -273,8 +273,16 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
-<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
+<span class="kw">use </span>noirc_errors::{Location, call_stack::CallStackId};
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
@@ -310,13 +318,23 @@
         ValueMerger { dfg, block, vector_sizes, call_stack }
     }
 
+    <span class="doccomment">/// Choose a call stack to return with the [RuntimeError].
+    ///
+    /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
+    </span><span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; Vec&lt;Location&gt; {
+        <span class="comment">// The value points at one of the problematic references, while the instruction would
+        // point at where we got the if-then-else; it's not clear which one is more useful.
+        </span><span class="kw">let </span>call_stack = <span class="self">self</span>.dfg.get_value_call_stack(value);
+        <span class="kw">if </span>call_stack.is_empty() { <span class="self">self</span>.dfg.get_call_stack(<span class="self">self</span>.call_stack) } <span class="kw">else </span>{ call_stack }
+    }
+
     <span class="doccomment">/// Merge two values a and b to a single value.
     /// If these two values are numeric, the result will be
     /// `then_condition * (then_value - else_value) + else_value`.
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
-    /// It is currently an error to call this function on reference or function values
+    /// Returns an error if called with a function value or a reference or function values
     /// as it is less clear how to merge these.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>merge_values(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -349,13 +367,11 @@
                 else_value,
             ),
             Type::Reference(<span class="kw">_</span>) =&gt; {
-                <span class="comment">// FIXME: none of then_value, else_value, then_condition, or else_condition have
-                // non-empty call stacks
-                </span><span class="kw">let </span>call_stack = <span class="self">self</span>.dfg.get_value_call_stack(then_value);
+                <span class="kw">let </span>call_stack = <span class="self">self</span>.get_call_stack(then_value);
                 <span class="prelude-val">Err</span>(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }
             Type::Function =&gt; {
-                <span class="kw">let </span>call_stack = <span class="self">self</span>.dfg.get_value_call_stack(then_value);
+                <span class="kw">let </span>call_stack = <span class="self">self</span>.get_call_stack(then_value);
                 <span class="prelude-val">Err</span>(RuntimeError::ReturnedFunctionFromDynamicIf { call_stack })
             }
         }
