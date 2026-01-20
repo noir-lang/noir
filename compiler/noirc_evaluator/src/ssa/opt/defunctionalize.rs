@@ -519,10 +519,6 @@ fn create_apply_functions(
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
             panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
-        } else if pre_runtime_filter_len != 0 && caller_runtime.is_acir() {
-            // We had variants, but they were all filtered out.
-            // Frontend bug: only Brillig variants in an ACIR group.
-            panic!("ICE: invalid defunctionalization: only Brillig variants for a ACIR runtime");
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
