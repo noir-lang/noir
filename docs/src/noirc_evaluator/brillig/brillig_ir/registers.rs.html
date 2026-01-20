@@ -761,7 +761,75 @@
 <a href="#760" id="760">760</a>
 <a href="#761" id="761">761</a>
 <a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -1077,7 +1145,7 @@
     }
 
     <span class="doccomment">/// Expand the global space to fit a new register if necessary.
-    </span><span class="kw">fn </span>update_max_address(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
+    </span><span class="kw">fn </span>expand_max_address(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
         <span class="kw">let </span>index = assert_usize(register.unwrap_direct());
         <span class="macro">assert!</span>(index &gt;= <span class="self">self</span>.start(), <span class="string">"Global space malformed"</span>);
         <span class="kw">if </span>index &gt; <span class="self">self</span>.max_memory_address {
@@ -1085,7 +1153,24 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>max_memory_address(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="doccomment">/// Shrink the global space to minimize unused space at the end
+    /// if a temporary register gets deallocated.
+    </span><span class="kw">fn </span>shrink_max_address(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
+        <span class="kw">let </span>index = assert_usize(register.unwrap_direct());
+        <span class="macro">assert!</span>(index &gt;= <span class="self">self</span>.start(), <span class="string">"Global space malformed"</span>);
+        <span class="kw">if </span>index == <span class="self">self</span>.max_memory_address {
+            <span class="kw">let </span>empty_start = assert_usize(<span class="self">self</span>.empty_registers_start().unwrap_direct());
+            <span class="self">self</span>.max_memory_address =
+                empty_start.saturating_sub(<span class="number">1</span>).max(<span class="self">self</span>.storage.start_register_index);
+        }
+    }
+
+    <span class="doccomment">/// The maximum address occupied by global variables *after* initialization.
+    ///
+    /// Note that during initialization temporary variables may be allocated beyond this address,
+    /// so it is important that the memory after the globals is not populated with data before
+    /// the globals have been initialized, or that data could be overwritten by the init.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>max_memory_address(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.max_memory_address
     }
 
@@ -1108,16 +1193,17 @@
 
     <span class="kw">fn </span>allocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; MemoryAddress {
         <span class="kw">let </span>allocated = MemoryAddress::direct(assert_u32(<span class="self">self</span>.storage.allocate_register()));
-        <span class="self">self</span>.update_max_address(allocated);
+        <span class="self">self</span>.expand_max_address(allocated);
         allocated
     }
 
     <span class="kw">fn </span>deallocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
         <span class="self">self</span>.storage.deallocate_register(assert_usize(register.unwrap_direct()));
+        <span class="self">self</span>.shrink_max_address(register);
     }
 
     <span class="kw">fn </span>ensure_register_is_allocated(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
-        <span class="self">self</span>.update_max_address(register);
+        <span class="self">self</span>.expand_max_address(register);
         <span class="self">self</span>.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
@@ -1225,11 +1311,13 @@
         <span class="self">Self </span>{ deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
-    <span class="doccomment">/// Find the first register after which there are only free registers.
+    <span class="doccomment">/// Find the first free register after which there are only free registers.
     </span><span class="kw">fn </span>empty_registers_start(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">let </span><span class="kw-2">mut </span>first_free = <span class="self">self</span>.next_free_register_index;
-        <span class="kw">while </span>first_free &gt; <span class="self">self</span>.start_register_index {
-            <span class="kw">if </span>!<span class="self">self</span>.deallocated_registers.contains(<span class="kw-2">&amp;</span>(first_free - <span class="number">1</span>)) {
+        <span class="comment">// Walk backwards toward the start, as long as we step on deallocated registers.
+        </span><span class="kw">while </span>first_free &gt; <span class="self">self</span>.start_register_index {
+            <span class="comment">// If the next slot is _not_ deallocated, this is where free starts.
+            </span><span class="kw">if </span>!<span class="self">self</span>.deallocated_registers.contains(<span class="kw-2">&amp;</span>(first_free - <span class="number">1</span>)) {
                 <span class="kw">break</span>;
             }
             first_free -= <span class="number">1</span>;
@@ -1486,7 +1574,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
         LayoutConfig,
-        registers::{DeallocationListAllocator, RegisterAllocator, Stack},
+        registers::{DeallocationListAllocator, GlobalSpace, RegisterAllocator, Stack},
     };
 
     <span class="attr">#[test]
@@ -1522,6 +1610,54 @@
     </span><span class="kw">fn </span>deallocation_list_deallocate_twice() {
         <span class="kw">let </span><span class="kw-2">mut </span>allocator = DeallocationListAllocator::from_preallocated_registers(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">10</span>]);
         allocator.deallocate_register(<span class="number">5</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>global_space_max_addr_expands_and_shrinks() {
+        <span class="kw">let </span><span class="kw-2">mut </span>global = GlobalSpace::new(LayoutConfig::default());
+        <span class="kw">let </span>start = global.storage.start_register_index;
+        <span class="macro">assert_eq!</span>(global.max_memory_address(), start, <span class="string">"max initialized to start"</span>);
+
+        <span class="kw">let </span>reg1 = global.allocate_register();
+        <span class="kw">let </span>reg2 = global.allocate_register();
+        <span class="kw">let </span>reg3 = global.allocate_register();
+        <span class="kw">let </span>reg4 = global.allocate_register();
+        <span class="kw">let </span>max1 = global.max_memory_address();
+        <span class="macro">assert_eq!</span>(max1, start + <span class="number">3</span>, <span class="string">"max expands during allocation"</span>);
+
+        global.deallocate_register(reg3);
+        <span class="macro">assert_eq!</span>(
+            global.max_memory_address(),
+            start + <span class="number">3</span>,
+            <span class="string">"max does not shrink during when non-max deallocated"
+        </span>);
+
+        global.deallocate_register(reg4);
+        <span class="macro">assert_eq!</span>(
+            global.max_memory_address(),
+            start + <span class="number">1</span>,
+            <span class="string">"max shrinks to precede first free address when max deallocated"
+        </span>);
+
+        global.deallocate_register(reg2);
+        <span class="macro">assert_eq!</span>(
+            global.max_memory_address(),
+            start,
+            <span class="string">"max shrinks to start when we only have the first register"
+        </span>);
+
+        global.deallocate_register(reg1);
+        <span class="macro">assert_eq!</span>(
+            global.max_memory_address(),
+            start,
+            <span class="string">"max shrinks to start when we have no registers"
+        </span>);
+
+        <span class="kw">let </span>reg5 = global.allocate_register();
+        <span class="kw">let </span>reg6 = global.allocate_register();
+        <span class="macro">assert_eq!</span>(reg5, reg1, <span class="string">"earliest free register is reallocated"</span>);
+        <span class="macro">assert_eq!</span>(reg6, reg2, <span class="string">"earliest free register is reallocated"</span>);
+        <span class="macro">assert_eq!</span>(global.max_memory_address(), start + <span class="number">1</span>, <span class="string">"max expands again"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

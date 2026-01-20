@@ -1305,7 +1305,7 @@
                     .get(<span class="kw-2">&amp;</span>func_id)
                     .copied()
                     .expect(<span class="string">"Should have globals memory size"</span>);
-                <span class="macro">assert_eq!</span>(globals_max_memory, <span class="number">7</span>);
+                <span class="macro">assert_eq!</span>(globals_max_memory, <span class="number">7 </span>- <span class="number">2</span>, <span class="string">"maximum minus temporary"</span>);
             } <span class="kw">else </span>{
                 <span class="macro">panic!</span>(<span class="string">"Unexpected function id: {func_id}"</span>);
             }

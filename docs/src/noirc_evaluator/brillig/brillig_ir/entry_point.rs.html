@@ -486,7 +486,22 @@
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
 <a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
 };
@@ -521,11 +536,12 @@
 
         context.set_globals_memory_size(<span class="prelude-val">Some</span>(globals_memory_size));
 
-        <span class="kw">let </span>stack_start = context.codegen_entry_point(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>return_parameters);
-
-        <span class="kw">if </span>globals_init {
-            context.add_globals_init_instruction(target_function);
-        }
+        <span class="kw">let </span>stack_start = context.codegen_entry_point(
+            <span class="kw-2">&amp;</span>arguments,
+            <span class="kw-2">&amp;</span>return_parameters,
+            target_function,
+            globals_init,
+        );
 
         context.add_external_call_instruction(target_function);
 
@@ -545,12 +561,15 @@
         <span class="self">self</span>.layout().return_data_start(globals_size, calldata_size)
     }
 
-    <span class="doccomment">/// Adds the instructions needed to handle entry point parameters
+    <span class="doccomment">/// Adds the instructions needed to handle entry point parameters and global initialization.
     /// The runtime will leave the parameters in calldata.
     /// Arrays will be passed flattened.
     ///
     /// Memory layout for entry points:
     /// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+    ///
+    /// Globals are initialized before calldata is copied so that they can temporarily use more memory
+    /// than their final read-only maximum, without overwriting calldata.
     ///
     /// # Returns
     /// The start of the stack memory region. The start of the stack is determined by the globals compiled as well as
@@ -560,6 +579,8 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         arguments: <span class="kw-2">&amp;</span>[BrilligParameter],
         return_parameters: <span class="kw-2">&amp;</span>[BrilligParameter],
+        target_function: FunctionId,
+        globals_init: bool,
     ) -&gt; usize {
         <span class="comment">// We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         </span><span class="kw">let </span>argument_variables = <span class="self">self</span>.allocate_function_arguments(arguments);
@@ -590,7 +611,16 @@
             stack_start.into(),
         );
 
-        <span class="comment">// Copy calldata
+        <span class="comment">// The initialization of globals if after the creation of the reserved registers,
+        // so that things such as the allocation of arrays can use the _free memory pointer_
+        // (because only the pointers to the arrays will live in the global space, with the
+        // content still residing on the heap).
+        </span><span class="kw">if </span>globals_init {
+            <span class="self">self</span>.add_globals_init_instruction(target_function);
+        }
+
+        <span class="comment">// Copy calldata.
+        // Happens after global initialization to avoid any potential overwrite temporary registers during global init.
         </span><span class="self">self</span>.copy_and_cast_calldata(arguments);
 
         <span class="kw">let </span><span class="kw-2">mut </span>current_calldata_pointer = <span class="self">self</span>.calldata_start_offset();
