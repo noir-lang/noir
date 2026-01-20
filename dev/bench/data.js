@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768869649662,
+  "lastUpdate": 1768910353472,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f06ded9c9de4047effbb60899bc20b6ee61f1332",
-          "message": "fix: Fix panic during monomorphization when calling a non-function enum variant as a function (#11165)",
-          "timestamp": "2026-01-12T20:08:50Z",
-          "tree_id": "b26c9eef0c99aae0ba3d4b68e6caf272888cc0d7",
-          "url": "https://github.com/noir-lang/noir/commit/f06ded9c9de4047effbb60899bc20b6ee61f1332"
-        },
-        "date": 1768249913147,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 244530,
-            "range": "± 2407",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 216952,
-            "range": "± 7557",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2708240,
-            "range": "± 31554",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "alejo.amiras@gmail.com",
             "name": "Alejo Amiras",
             "username": "alejoamiras"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789728,
             "range": "± 27751",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7ccbd1bdc25463caa956924c1d3a3de3fb36d5a",
+          "message": "chore(deps-dev): bump globals from 16.2.0 to 17.0.0 (#11267)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-20T11:37:01Z",
+          "tree_id": "847f527270fad101a20ca50354c9ee467ac186b0",
+          "url": "https://github.com/noir-lang/noir/commit/a7ccbd1bdc25463caa956924c1d3a3de3fb36d5a"
+        },
+        "date": 1768910315078,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255314,
+            "range": "± 318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224989,
+            "range": "± 6656",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787804,
+            "range": "± 1561",
             "unit": "ns/iter"
           }
         ]
