@@ -54,6 +54,7 @@ use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
+use crate::token::FunctionAttributeKind;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -834,7 +835,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let frontend_type = self.interner.id_type(expr);
                 let typ = Self::convert_type(&frontend_type, location)?;
 
-                if !self.in_unconstrained_function && Self::contains_reference(&frontend_type) {
+                if !self.in_unconstrained_function && frontend_type.contains_reference() {
                     let typ = frontend_type.to_string();
                     return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
                         typ,
@@ -885,62 +886,6 @@ impl<'interner> Monomorphizer<'interner> {
         match target_type {
             Some(typ) => Cow::Borrowed(typ),
             None => Cow::Owned(self.interner.id_type(expr)),
-        }
-    }
-
-    /// True if a value of the given type contains a reference value.
-    ///
-    /// Note that the above wording excludes function types with reference parameters.
-    fn contains_reference(typ: &Type) -> bool {
-        match typ {
-            Type::FieldElement
-            | Type::Bool
-            | Type::String(_)
-            | Type::Integer(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
-
-            Type::Reference(_, _) => true,
-
-            Type::Array(_len, element) => Self::contains_reference(element),
-            Type::Vector(element) => Self::contains_reference(element),
-            Type::FmtString(_, environment) => Self::contains_reference(environment),
-            Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
-            Type::DataType(datatype, generics) => {
-                let datatype = datatype.borrow();
-                if let Some(fields) = datatype.get_fields(generics) {
-                    fields.iter().any(|(_, field, _)| Self::contains_reference(field))
-                } else if let Some(variants) = datatype.get_variants(generics) {
-                    variants
-                        .iter()
-                        .any(|(_, variant_args)| variant_args.iter().any(Self::contains_reference))
-                } else {
-                    false
-                }
-            }
-            Type::Alias(alias, generics) => {
-                Self::contains_reference(&alias.borrow().get_type(generics))
-            }
-            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::CheckedCast { to, .. } => Self::contains_reference(to),
-            Type::Function(_args, _ret, env, _unconstrained) => {
-                // Only the environment of a function is counted as an actual reference value.
-                // Otherwise we can't return functions accepting references as arguments from if
-                // expressions.
-                Self::contains_reference(env)
-            }
-            Type::Forall(_, typ) => Self::contains_reference(typ),
         }
     }
 
@@ -1149,12 +1094,13 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// For an enum like:
+    /// ```text
     /// enum Foo {
     ///    A(i32, u32),
     ///    B(Field),
     ///    C
     /// }
-    ///
+    /// ```
     /// this will translate the call `Foo::A(1, 2)` into `(0, (1, 2), (0,), ())` where
     /// the first field `0` is the tag value, the second is `A`, third is `B`, and fourth is `C`.
     /// Each variant that isn't the desired variant has zeroed values filled in for its data.
@@ -1167,11 +1113,16 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&id);
         let variants = unwrap_enum_type(typ, location)?;
 
+        let tag_value = FieldElement::from(constructor.variant_index);
+        let tag_value = SignedField::positive(tag_value);
+        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
+        let mut fields = vec![ast::Expression::Literal(tag)];
+
         // Fill in each field of the translated enum tuple.
         // For most fields this will be simply `std::mem::zeroed::<T>()`,
         // but for the given variant we just pack all the arguments into a tuple for that field.
-        let mut fields = try_vecmap(variants.into_iter().enumerate(), |(i, (_, arg_types))| {
-            let fields = if i == constructor.variant_index {
+        for (i, (_, arg_types)) in variants.into_iter().enumerate() {
+            let args = if i == constructor.variant_index {
                 try_vecmap(&constructor.arguments, |arg| self.expr(*arg))
             } else {
                 try_vecmap(arg_types, |typ| {
@@ -1179,13 +1130,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(self.zeroed_value_of_type(&typ, location))
                 })
             }?;
-            Ok(ast::Expression::Tuple(fields))
-        })?;
-
-        let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
-        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
-        fields.insert(0, ast::Expression::Literal(tag));
+            fields.push(ast::Expression::Tuple(args));
+        }
 
         Ok(ast::Expression::Tuple(fields))
     }
@@ -2069,6 +2015,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let crossing_runtime_boundaries =
             !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+        let is_oracle = self.function_is_oracle(call.func);
 
         if crossing_runtime_boundaries {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
@@ -2113,6 +2060,10 @@ impl<'interner> Monomorphizer<'interner> {
 
         if crossing_runtime_boundaries {
             self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
+        }
+
+        if is_oracle {
+            self.check_return_type_returned_from_oracle(&return_type, location)?;
         }
 
         let return_type = Self::convert_type(&return_type, location)?;
@@ -2230,6 +2181,19 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    fn check_return_type_returned_from_oracle(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if return_type.contains_reference() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
+        }
+
+        Ok(())
+    }
+
     /// Adds a function argument that contains type metadata that is required to tell
     /// `println` how to convert values passed to an foreign call back to a human-readable string.
     /// The values passed to an foreign call will be a simple list of field elements,
@@ -2328,7 +2292,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.interner.id_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
-        if !self.in_unconstrained_function && Self::contains_reference(&expression_type) {
+        if !self.in_unconstrained_function && expression_type.contains_reference() {
             let typ = expression_type.to_string();
             return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
         }
@@ -2593,7 +2557,7 @@ impl<'interner> Monomorphizer<'interner> {
         let result_type = self.interner.id_type(expr_id);
         let location = self.interner.expr_location(&expr_id);
 
-        if !self.in_unconstrained_function && Self::contains_reference(&result_type) {
+        if !self.in_unconstrained_function && result_type.contains_reference() {
             let typ = result_type.to_string();
             return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
         }
@@ -2784,6 +2748,23 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
+        false
+    }
+
+    fn function_is_oracle(&self, function: ExprId) -> bool {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
+            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+                return self
+                    .interner
+                    .function_modifiers(&func_id)
+                    .attributes
+                    .function
+                    .as_ref()
+                    .is_some_and(|(attribute, _)| {
+                        matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
+                    });
+            }
+        }
         false
     }
 }

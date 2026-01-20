@@ -3095,7 +3095,7 @@ namespace Acir {
             uint32_t id;
             std::vector<Acir::BrilligInputs> inputs;
             std::vector<Acir::BrilligOutputs> outputs;
-            std::optional<Acir::Expression> predicate;
+            Acir::Expression predicate;
 
             friend bool operator==(const BrilligCall&, const BrilligCall&);
 
@@ -3106,7 +3106,7 @@ namespace Acir {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
@@ -3123,7 +3123,7 @@ namespace Acir {
             uint32_t id;
             std::vector<Acir::Witness> inputs;
             std::vector<Acir::Witness> outputs;
-            std::optional<Acir::Expression> predicate;
+            Acir::Expression predicate;
 
             friend bool operator==(const Call&, const Call&);
 
@@ -3134,7 +3134,7 @@ namespace Acir {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
