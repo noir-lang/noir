@@ -259,6 +259,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// Unlike `interpret_function` this does not reset the state;
     /// it is meant to be used for internal calls.
     fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
+        self.call_stack.push(CallContext::new(function_id));
+
         if self.call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
             let call_stack = self
                 .call_stack
@@ -274,8 +276,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 .collect();
             return Err(InterpreterError::StackOverflow { call_stack });
         }
-
-        self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.functions[&function_id];
         if self.options.trace {
