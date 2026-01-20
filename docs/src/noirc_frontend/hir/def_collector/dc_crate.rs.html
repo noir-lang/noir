@@ -610,7 +610,63 @@
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -1003,108 +1059,7 @@
             inject_prelude(crate_id, context, submodule, <span class="kw-2">&amp;mut </span>def_collector.imports);
         }
 
-        <span class="comment">// Resolve unresolved imports collected from the crate, one by one.
-        </span><span class="kw">for </span>collected_import <span class="kw">in </span>std::mem::take(<span class="kw-2">&amp;mut </span>def_collector.imports) {
-            <span class="kw">let </span>local_module_id = collected_import.module_id;
-            <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: local_module_id };
-
-            <span class="kw">let </span>resolved_import = resolve_import(
-                collected_import.path.clone(),
-                module_id,
-                <span class="kw-2">&amp;</span>context.def_maps,
-                <span class="kw-2">&amp;mut </span>context.usage_tracker,
-                <span class="prelude-val">Some</span>(ReferencesTracker::new(<span class="kw-2">&amp;mut </span>context.def_interner)),
-            );
-
-            <span class="kw">match </span>resolved_import {
-                <span class="prelude-val">Ok</span>(resolved_import) =&gt; {
-                    <span class="kw">let </span>current_def_map = context.def_maps.get_mut(<span class="kw-2">&amp;</span>crate_id).unwrap();
-                    <span class="kw">let </span>file_id = current_def_map.file_id(local_module_id);
-
-                    <span class="kw">let </span>has_path_resolution_error = !resolved_import.errors.is_empty();
-                    <span class="kw">for </span>error <span class="kw">in </span>resolved_import.errors {
-                        errors.push(DefCollectorErrorKind::PathResolutionError(error).into());
-                    }
-
-                    <span class="comment">// Populate module namespaces according to the imports used
-                    </span><span class="kw">let </span>name = collected_import.name();
-                    <span class="kw">let </span>visibility = collected_import.visibility;
-                    <span class="kw">let </span>is_prelude = collected_import.is_prelude;
-                    <span class="kw">for </span>(module_def_id, item_visibility, <span class="kw">_</span>) <span class="kw">in
-                        </span>resolved_import.namespace.iter_items()
-                    {
-                        <span class="kw">if </span>item_visibility &lt; visibility {
-                            errors.push(
-                                DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
-                                    item_name: name.clone(),
-                                    desired_visibility: visibility,
-                                }
-                                .into(),
-                            );
-                        }
-                        <span class="kw">let </span>visibility = visibility.min(item_visibility);
-
-                        <span class="kw">let </span>result = current_def_map.index_mut(local_module_id).import(
-                            name.clone(),
-                            visibility,
-                            module_def_id,
-                            is_prelude,
-                        );
-
-                        <span class="comment">// If we error on path resolution don't also say it's unused (in case it ends up being unused)
-                        </span><span class="kw">if </span>!has_path_resolution_error {
-                            <span class="kw">let </span>defining_module =
-                                ModuleId { krate: crate_id, local_id: local_module_id };
-
-                            context.usage_tracker.add_unused_item(
-                                defining_module,
-                                name.clone(),
-                                UnusedItem::Import,
-                                visibility,
-                            );
-
-                            <span class="kw">if </span>visibility != ItemVisibility::Private {
-                                context.def_interner.register_name_for_auto_import(
-                                    name.to_string(),
-                                    module_def_id,
-                                    visibility,
-                                    <span class="prelude-val">Some</span>(defining_module),
-                                );
-
-                                context.def_interner.add_reexport(
-                                    module_def_id,
-                                    defining_module,
-                                    name.clone(),
-                                    visibility,
-                                );
-                            }
-                        }
-
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>alias) = collected_import.alias {
-                            add_import_reference(
-                                module_def_id,
-                                alias,
-                                <span class="kw-2">&amp;mut </span>context.def_interner,
-                                file_id,
-                            );
-                        }
-
-                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = result {
-                            <span class="kw">let </span>err = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::Import,
-                                first_def,
-                                second_def,
-                            };
-                            errors.push(err.into());
-                        }
-                    }
-                }
-                <span class="prelude-val">Err</span>(error) =&gt; {
-                    <span class="kw">let </span>error = DefCollectorErrorKind::PathResolutionError(error);
-                    errors.push(error.into());
-                }
-            }
-        }
+        <span class="self">Self</span>::process_imports(def_collector.imports, crate_id, context, <span class="kw-2">&amp;mut </span>errors);
 
         <span class="kw">let </span>debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
             <span class="kw">let </span>file = context.file_manager.find_by_path_suffix(file_suffix);
@@ -1133,6 +1088,163 @@
             errors.retain(|error| !error.is_expecting_other_error_error());
         }
         errors
+    }
+
+    <span class="kw">fn </span>process_imports(
+        <span class="kw-2">mut </span>collected_imports: Vec&lt;ImportDirective&gt;,
+        crate_id: CrateId,
+        context: <span class="kw-2">&amp;mut </span>Context,
+        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+    ) {
+        <span class="comment">// Resolve unresolved imports collected from the crate, one by one.
+        // Imports that cannot be resolved don't error right away. Instead, they are put in
+        // `import_with_errors`. After trying to resolve all imports, we'll try to resolve, once
+        // more, the imports that previously failed. They can succeed this time if they import
+        // a re-export that is defined later in the crate, as in this case:
+        //
+        // ```noir
+        // mod one {
+        //     // This will fail to resolve the first time, as it refers to a re-export that comes
+        //     // later on. However, after the re-export below is processed, this import will succeed.
+        //     use crate::two::Exported;
+        // }
+        // mod two {
+        //     mod three {
+        //         pub struct Exported {}
+        //     }
+        //     pub use three::Exported;
+        // }
+        // ```
+        //
+        // An alternative way could be to first process pub exports, then pub(crate) exports, then
+        // private exports, but this way is a bit more robust as the above case will work even if
+        // the first `use` is `pub`.
+        </span><span class="kw">loop </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>imports_with_errors = Vec::new();
+
+            <span class="comment">// Keep track of whether we could at least resolve one import. If not, we shouldn't
+            // continue trying to resolve imports indefinitely.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>resolved_at_least_one_import = <span class="bool-val">false</span>;
+
+            <span class="comment">// Resolve unresolved imports collected from the crate, one by one.
+            </span><span class="kw">for </span>collected_import <span class="kw">in </span><span class="kw-2">&amp;</span>collected_imports {
+                <span class="kw">let </span>local_module_id = collected_import.module_id;
+                <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: local_module_id };
+
+                <span class="kw">let </span>resolved_import = resolve_import(
+                    collected_import.path.clone(),
+                    module_id,
+                    <span class="kw-2">&amp;</span>context.def_maps,
+                    <span class="kw-2">&amp;mut </span>context.usage_tracker,
+                    <span class="prelude-val">Some</span>(ReferencesTracker::new(<span class="kw-2">&amp;mut </span>context.def_interner)),
+                );
+
+                <span class="kw">match </span>resolved_import {
+                    <span class="prelude-val">Ok</span>(resolved_import) =&gt; {
+                        resolved_at_least_one_import = <span class="bool-val">true</span>;
+
+                        <span class="kw">let </span>current_def_map = context.def_maps.get_mut(<span class="kw-2">&amp;</span>crate_id).unwrap();
+                        <span class="kw">let </span>file_id = current_def_map.file_id(local_module_id);
+
+                        <span class="kw">let </span>has_path_resolution_error = !resolved_import.errors.is_empty();
+                        <span class="kw">for </span>error <span class="kw">in </span>resolved_import.errors {
+                            errors.push(DefCollectorErrorKind::PathResolutionError(error).into());
+                        }
+
+                        <span class="comment">// Populate module namespaces according to the imports used
+                        </span><span class="kw">let </span>name = collected_import.name();
+                        <span class="kw">let </span>visibility = collected_import.visibility;
+                        <span class="kw">let </span>is_prelude = collected_import.is_prelude;
+                        <span class="kw">for </span>(module_def_id, item_visibility, <span class="kw">_</span>) <span class="kw">in
+                            </span>resolved_import.namespace.iter_items()
+                        {
+                            <span class="kw">if </span>item_visibility &lt; visibility {
+                                errors.push(
+                                    DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
+                                        item_name: name.clone(),
+                                        desired_visibility: visibility,
+                                    }
+                                    .into(),
+                                );
+                            }
+                            <span class="kw">let </span>visibility = visibility.min(item_visibility);
+
+                            <span class="kw">let </span>result = current_def_map.index_mut(local_module_id).import(
+                                name.clone(),
+                                visibility,
+                                module_def_id,
+                                is_prelude,
+                            );
+
+                            <span class="comment">// If we error on path resolution don't also say it's unused (in case it ends up being unused)
+                            </span><span class="kw">if </span>!has_path_resolution_error {
+                                <span class="kw">let </span>defining_module =
+                                    ModuleId { krate: crate_id, local_id: local_module_id };
+
+                                context.usage_tracker.add_unused_item(
+                                    defining_module,
+                                    name.clone(),
+                                    UnusedItem::Import,
+                                    visibility,
+                                );
+
+                                <span class="kw">if </span>visibility != ItemVisibility::Private {
+                                    context.def_interner.register_name_for_auto_import(
+                                        name.to_string(),
+                                        module_def_id,
+                                        visibility,
+                                        <span class="prelude-val">Some</span>(defining_module),
+                                    );
+
+                                    context.def_interner.add_reexport(
+                                        module_def_id,
+                                        defining_module,
+                                        name.clone(),
+                                        visibility,
+                                    );
+                                }
+                            }
+
+                            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>alias) = collected_import.alias {
+                                add_import_reference(
+                                    module_def_id,
+                                    alias,
+                                    <span class="kw-2">&amp;mut </span>context.def_interner,
+                                    file_id,
+                                );
+                            }
+
+                            <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = result {
+                                <span class="kw">let </span>err = DefCollectorErrorKind::Duplicate {
+                                    typ: DuplicateType::Import,
+                                    first_def,
+                                    second_def,
+                                };
+                                errors.push(err.into());
+                            }
+                        }
+                    }
+                    <span class="prelude-val">Err</span>(error) =&gt; {
+                        imports_with_errors.push((collected_import.clone(), error));
+                    }
+                }
+            }
+
+            <span class="kw">if </span>imports_with_errors.is_empty() {
+                <span class="kw">break</span>;
+            }
+
+            <span class="kw">if </span>resolved_at_least_one_import {
+                collected_imports = vecmap(imports_with_errors, |(import, <span class="kw">_</span>)| import);
+                <span class="kw">continue</span>;
+            } <span class="kw">else </span>{
+                <span class="kw">for </span>(<span class="kw">_</span>, error) <span class="kw">in </span>imports_with_errors {
+                    <span class="kw">let </span>error = DefCollectorErrorKind::PathResolutionError(error);
+                    errors.push(error.into());
+                }
+                <span class="kw">break</span>;
+            }
+        }
     }
 
     <span class="kw">fn </span>check_unused_items(
