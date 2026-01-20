@@ -863,9 +863,7 @@
 <a href="#862" id="862">862</a>
 <a href="#863" id="863">863</a>
 <a href="#864" id="864">864</a>
-<a href="#865" id="865">865</a>
-<a href="#866" id="866">866</a>
-<a href="#867" id="867">867</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::pwg::{
+<a href="#865" id="865">865</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::pwg::{
     ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ResolvedAssertionPayload,
     arithmetic::ExpressionSolver,
     blackbox::embedded_curve_ops::{execute_embedded_curve_add, execute_multi_scalar_mul},
@@ -1230,11 +1228,9 @@
             </span>Opcode::BrilligCall { .. } =&gt; (),
             Opcode::Call { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
                 <span class="comment">// Skip validation when predicate is false
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="kw">let </span>pred_value = get_value(pred, <span class="kw-2">&amp;</span>witness_map)<span class="question-mark">?</span>;
-                    <span class="kw">if </span>pred_value.is_zero() {
-                        <span class="kw">continue</span>;
-                    }
+                </span><span class="kw">let </span>pred_value = get_value(predicate, <span class="kw-2">&amp;</span>witness_map)<span class="question-mark">?</span>;
+                <span class="kw">if </span>pred_value.is_zero() {
+                    <span class="kw">continue</span>;
                 }
 
                 <span class="comment">// Verify input witnesses exist
@@ -1534,7 +1530,7 @@
             id: AcirFunctionId(<span class="number">1</span>),
             inputs: <span class="macro">vec!</span>[Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)],
             outputs: <span class="macro">vec!</span>[Witness(<span class="number">3</span>)],
-            predicate: <span class="prelude-val">None</span>,
+            predicate: Expression::one(),
         }]);
 
         <span class="kw">let </span>witness_map = WitnessMap::from(BTreeMap::from_iter([
@@ -1555,7 +1551,7 @@
             id: AcirFunctionId(<span class="number">1</span>),
             inputs: <span class="macro">vec!</span>[Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)],
             outputs: <span class="macro">vec!</span>[Witness(<span class="number">3</span>)],
-            predicate: <span class="prelude-val">None</span>,
+            predicate: Expression::one(),
         }]);
 
         <span class="comment">// Missing Witness(2)
@@ -1576,7 +1572,7 @@
             id: AcirFunctionId(<span class="number">1</span>),
             inputs: <span class="macro">vec!</span>[Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)],
             outputs: <span class="macro">vec!</span>[Witness(<span class="number">3</span>)],
-            predicate: <span class="prelude-val">None</span>,
+            predicate: Expression::one(),
         }]);
 
         <span class="comment">// Missing Witness(3) output
@@ -1598,11 +1594,11 @@
             id: AcirFunctionId(<span class="number">1</span>),
             inputs: <span class="macro">vec!</span>[Witness(<span class="number">1</span>), Witness(<span class="number">2</span>)],
             outputs: <span class="macro">vec!</span>[Witness(<span class="number">3</span>)],
-            predicate: <span class="prelude-val">Some</span>(Expression {
+            predicate: Expression {
                 mul_terms: <span class="macro">vec!</span>[],
                 linear_combinations: <span class="macro">vec!</span>[(FieldElement::one(), Witness(<span class="number">4</span>))],
                 q_c: FieldElement::zero(),
-            }),
+            },
         }]);
 
         <span class="comment">// Witness(4) = 0, so predicate is false, call is skipped
@@ -1722,7 +1718,7 @@
                 BrilligInputs::Single(Witness(<span class="number">2</span>).into()),
             ],
             outputs: <span class="macro">vec!</span>[BrilligOutputs::Simple(Witness(<span class="number">3</span>))],
-            predicate: <span class="prelude-val">None</span>,
+            predicate: Expression::one(),
         }]);
 
         <span class="comment">// Empty witness map

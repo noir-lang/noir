@@ -981,15 +981,7 @@
 <a href="#980" id="980">980</a>
 <a href="#981" id="981">981</a>
 <a href="#982" id="982">982</a>
-<a href="#983" id="983">983</a>
-<a href="#984" id="984">984</a>
-<a href="#985" id="985">985</a>
-<a href="#986" id="986">986</a>
-<a href="#987" id="987">987</a>
-<a href="#988" id="988">988</a>
-<a href="#989" id="989">989</a>
-<a href="#990" id="990">990</a>
-<a href="#991" id="991">991</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#983" id="983">983</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="doccomment">//! This module contains methods to implement the partial witness generation (PWG) of an ACIR program.
 //! The goal of ACIR execution is to compute the values of all the ACIR witnesses, or an error if it could not compute them all.
@@ -1029,7 +1021,7 @@
 // BLACKBOX::RANGE input: w3, bits: 32
 // BLACKBOX::RANGE input: w4, bits: 32
 // ASSERT w0 - w1 - w6 = 0
-// BRILLIG CALL func: 0, inputs: [w6], outputs: [w7]
+// BRILLIG CALL func: 0, predicate: 1, inputs: [w6], outputs: [w7]
 // ASSERT w6*w7 + w8 - 1 = 0
 // ASSERT w6*w8 = 0
 // ASSERT w1*w8 = 0
@@ -1599,7 +1591,7 @@
         id: <span class="kw-2">&amp;</span>BrilligFunctionId,
         inputs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[BrilligInputs&lt;F&gt;],
         outputs: <span class="kw-2">&amp;</span>[BrilligOutputs],
-        predicate: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
+        predicate: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ForeignCallWaitInfo&lt;F&gt;&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="kw">let </span>opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(<span class="self">self</span>.instruction_pointer()));
@@ -1737,7 +1729,7 @@
         id: <span class="kw-2">&amp;</span>AcirFunctionId,
         inputs: <span class="kw-2">&amp;</span>[Witness],
         outputs: <span class="kw-2">&amp;</span>[Witness],
-        predicate: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
+        predicate: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AcirCallWaitInfo&lt;F&gt;&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="kw">let </span>opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(<span class="self">self</span>.instruction_pointer()));
@@ -1886,33 +1878,25 @@
 <span class="doccomment">/// Returns `Ok(true)` if the predicate is zero
 /// A predicate is used to indicate whether we should skip a certain operation.
 /// If we have a zero predicate it means the operation should be skipped.
-///
-/// Returns `Ok(false)` when the `predicate` is `None`.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_predicate_false&lt;F: AcirField&gt;(
     witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
-    predicate: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
+    predicate: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
     pedantic_solving: bool,
     opcode_location: <span class="kw-2">&amp;</span>ErrorLocation,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, OpcodeResolutionError&lt;F&gt;&gt; {
-    <span class="kw">match </span>predicate {
-        <span class="prelude-val">Some</span>(pred) =&gt; {
-            <span class="kw">let </span>pred_value = get_value(pred, witness)<span class="question-mark">?</span>;
-            <span class="kw">let </span>predicate_is_false = pred_value.is_zero();
-            <span class="kw">if </span>pedantic_solving {
-                <span class="comment">// We expect that the predicate should resolve to either 0 or 1.
-                </span><span class="kw">if </span>!predicate_is_false &amp;&amp; !pred_value.is_one() {
-                    <span class="kw">let </span>opcode_location = <span class="kw-2">*</span>opcode_location;
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::PredicateLargerThanOne {
-                        opcode_location,
-                        pred_value,
-                    });
-                }
-            }
-            <span class="prelude-val">Ok</span>(predicate_is_false)
+    <span class="kw">let </span>pred_value = get_value(predicate, witness)<span class="question-mark">?</span>;
+    <span class="kw">let </span>predicate_is_false = pred_value.is_zero();
+    <span class="kw">if </span>pedantic_solving {
+        <span class="comment">// We expect that the predicate should resolve to either 0 or 1.
+        </span><span class="kw">if </span>!predicate_is_false &amp;&amp; !pred_value.is_one() {
+            <span class="kw">let </span>opcode_location = <span class="kw-2">*</span>opcode_location;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::PredicateLargerThanOne {
+                opcode_location,
+                pred_value,
+            });
         }
-        <span class="comment">// If the predicate is `None`, then we treat it as an unconditional `true`
-        </span><span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
     }
+    <span class="prelude-val">Ok</span>(predicate_is_false)
 }
 
 <span class="doccomment">/// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]
@@ -1969,7 +1953,7 @@
         <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver(<span class="bool-val">false</span>);
 
         <span class="kw">let </span>src = <span class="string">"
-        CALL func: 0, inputs: [w1], outputs: [w2]
+        CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]
         "</span>;
         <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
 

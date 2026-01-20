@@ -234,9 +234,7 @@
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField,
     brillig::lengths::SemanticLength,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
@@ -300,8 +298,6 @@
 
             <span class="kw">return </span><span class="prelude-val">Ok</span>(outputs_var);
         }
-        <span class="comment">// Remove "always true" predicates.
-        </span><span class="kw">let </span>predicate = <span class="kw">if </span>predicate == Expression::one() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(predicate) };
 
         <span class="kw">let </span>brillig_inputs: Vec&lt;BrilligInputs&lt;F&gt;&gt; =
             try_vecmap(inputs, |i| -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, InternalError&gt; {

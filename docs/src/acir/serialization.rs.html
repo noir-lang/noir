@@ -315,34 +315,7 @@
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
+<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
 
 </span><span class="kw">use </span>num_enum::{IntoPrimitive, TryFromPrimitive};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -453,12 +426,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>acir_field::FieldElement;
     <span class="kw">use </span>brillig::{BitSize, HeapArray, IntegerBitSize, ValueOrArray, lengths::SemiFlattenedLength};
     <span class="kw">use </span>std::str::FromStr;
 
     <span class="kw">use crate</span>::{
-        circuit::{Opcode, brillig::BrilligFunctionId},
         native_types::Witness,
         serialization::{Format, msgpack_deserialize, msgpack_serialize},
     };
@@ -654,31 +625,6 @@
         <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
 
         </span><span class="macro">assert!</span>(<span class="macro">matches!</span>(msg, Value::Integer(<span class="kw">_</span>)));
-    }
-
-    <span class="doccomment">/// Test to show that optional fields, when empty, are still in the map.
-    /// The Rust library handles deserializing them as `None` if they are not present,
-    /// but the `msgpack-c` library does not.
-    </span><span class="attr">#[test]
-    </span><span class="kw">fn </span>msgpack_optional() {
-        <span class="kw">use </span>rmpv::Value; <span class="comment">// cSpell:disable-line
-
-        </span><span class="kw">let </span>value: Opcode&lt;FieldElement&gt; = Opcode::BrilligCall {
-            id: BrilligFunctionId(<span class="number">1</span>),
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            predicate: <span class="prelude-val">None</span>,
-        };
-        <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
-
-        </span><span class="kw">let </span>fields = msg.as_map().expect(<span class="string">"enum is a map"</span>);
-        <span class="kw">let </span>fields = <span class="kw-2">&amp;</span>fields.first().expect(<span class="string">"enum is non-empty"</span>).<span class="number">1</span>;
-        <span class="kw">let </span>fields = fields.as_map().expect(<span class="string">"fields are map"</span>);
-
-        <span class="kw">let </span>(k, v) = fields.last().expect(<span class="string">"fields are not empty"</span>);
-        <span class="macro">assert_eq!</span>(k.as_str().expect(<span class="string">"names are str"</span>), <span class="string">"predicate"</span>);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(v, Value::Nil));
     }
 
     <span class="attr">#[test]

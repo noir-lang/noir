@@ -136,9 +136,7 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines how to build a dictionary of values which are likely to be correspond
+<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines how to build a dictionary of values which are likely to be correspond
 //! to significant inputs during fuzzing by inspecting the [Program] being fuzzed.
 //!
 //! This dictionary can be fed into the fuzzer's [strategy][proptest::strategy::Strategy] in order to bias it towards
@@ -201,7 +199,7 @@
 
     <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
         <span class="kw">match </span>opcode {
-            Opcode::AssertZero(expr) | Opcode::Call { predicate: <span class="prelude-val">Some</span>(expr), .. } =&gt; {
+            Opcode::AssertZero(expr) | Opcode::Call { predicate: expr, .. } =&gt; {
                 insert_expr(<span class="kw-2">&amp;mut </span>constants, expr);
             }
 
@@ -218,9 +216,7 @@
                         BrilligInputs::MemoryArray(<span class="kw">_</span>) =&gt; (),
                     }
                 }
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(predicate) = predicate {
-                    insert_expr(<span class="kw-2">&amp;mut </span>constants, predicate);
-                }
+                insert_expr(<span class="kw-2">&amp;mut </span>constants, predicate);
             }
 
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits })

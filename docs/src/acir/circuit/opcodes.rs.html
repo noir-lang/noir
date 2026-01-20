@@ -279,11 +279,7 @@
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
+<a href="#281" id="281">281</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
 //!
 //! This module defines the core set opcodes used in ACIR.
 </span><span class="kw">use </span><span class="kw">super</span>::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
@@ -413,8 +409,8 @@
         <span class="doccomment">/// Outputs to the function call
         </span>outputs: Vec&lt;BrilligOutputs&gt;,
         <span class="doccomment">/// Predicate of the Brillig execution - when the predicate evaluates to 0, execution is skipped.
-        /// When the predicate evaluates to 1 or is None, execution proceeds.
-        </span>predicate: <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
+        /// When the predicate evaluates to 1, execution proceeds.
+        </span>predicate: Expression&lt;F&gt;,
     },
 
     <span class="doccomment">/// Calls to functions represented as a separate circuit. A call opcode allows us
@@ -428,8 +424,8 @@
         <span class="doccomment">/// Outputs of the function call
         </span>outputs: Vec&lt;Witness&gt;,
         <span class="doccomment">/// Predicate of the circuit execution - when the predicate evaluates to 0, execution is skipped.
-        /// When the predicate evaluates to 1 or is None, execution proceeds.
-        </span>predicate: <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
+        /// When the predicate evaluates to 1, execution proceeds.
+        </span>predicate: Expression&lt;F&gt;,
     },
 }
 
@@ -479,9 +475,7 @@
         // are distinct in their functionality and we should maintain this separation for debugging.
         </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
             <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func: {id}, "</span>)<span class="question-mark">?</span>;
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
-            }
+            <span class="macro">write!</span>(f, <span class="string">"predicate: {predicate}, "</span>)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>inputs =
                 inputs.iter().map(|input| <span class="macro">format!</span>(<span class="string">"{input}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
@@ -496,9 +490,7 @@
         }
         Opcode::Call { id, inputs, outputs, predicate } =&gt; {
             <span class="macro">write!</span>(f, <span class="string">"CALL func: {id}, "</span>)<span class="question-mark">?</span>;
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                <span class="macro">write!</span>(f, <span class="string">"predicate: {pred}, "</span>)<span class="question-mark">?</span>;
-            }
+            <span class="macro">write!</span>(f, <span class="string">"predicate: {predicate}, "</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>inputs = inputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
             <span class="kw">let </span>outputs =
                 outputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);

@@ -387,11 +387,7 @@
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#389" id="389">389</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
@@ -515,10 +511,8 @@
                         <span class="kw">return </span><span class="bool-val">false</span>;
                     }
                 }
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(predicate) = predicate {
-                    <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(predicate) {
-                        <span class="kw">return </span><span class="bool-val">false</span>;
-                    }
+                <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(predicate) {
+                    <span class="kw">return </span><span class="bool-val">false</span>;
                 }
                 <span class="kw">for </span>output <span class="kw">in </span>outputs {
                     <span class="kw">match </span>output {
@@ -538,10 +532,8 @@
                         <span class="kw">return </span><span class="bool-val">false</span>;
                     }
                 }
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(predicate) = predicate {
-                    <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(predicate) {
-                        <span class="kw">return </span><span class="bool-val">false</span>;
-                    }
+                <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(predicate) {
+                    <span class="kw">return </span><span class="bool-val">false</span>;
                 }
                 <span class="kw">for </span>w <span class="kw">in </span>outputs {
                     <span class="self">self</span>.mark_solvable(<span class="kw-2">*</span>w);
@@ -685,7 +677,7 @@
         private parameters: [w0]
         public parameters: []
         return values: []
-        CALL func: 0, inputs: [w0], outputs: [w1]
+        CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
@@ -698,7 +690,7 @@
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         "</span>;
         <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();

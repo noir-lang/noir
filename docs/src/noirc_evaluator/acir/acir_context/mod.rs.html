@@ -1687,8 +1687,7 @@
 <a href="#1686" id="1686">1686</a>
 <a href="#1687" id="1687">1687</a>
 <a href="#1688" id="1688">1688</a>
-<a href="#1689" id="1689">1689</a>
-<a href="#1690" id="1690">1690</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1689" id="1689">1689</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -3133,12 +3132,11 @@
         // See issue https://github.com/noir-lang/noir/issues/1439
         </span><span class="kw">let </span>results =
             vecmap(<span class="kw-2">&amp;</span>outputs, |witness_index| <span class="self">self</span>.add_data(AcirVarData::Witness(<span class="kw-2">*</span>witness_index)));
-        <span class="kw">let </span>expr: Expression&lt;F&gt; = <span class="kw">if </span><span class="self">self</span>.is_constant(<span class="kw-2">&amp;</span>predicate) {
+        <span class="kw">let </span>predicate: Expression&lt;F&gt; = <span class="kw">if </span><span class="self">self</span>.is_constant(<span class="kw-2">&amp;</span>predicate) {
             <span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?
         </span>} <span class="kw">else </span>{
             <span class="self">self</span>.var_to_witness(predicate)<span class="question-mark">?</span>.into()
         };
-        <span class="kw">let </span>predicate = <span class="prelude-val">Some</span>(expr);
         <span class="self">self</span>.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         <span class="prelude-val">Ok</span>(results)
     }

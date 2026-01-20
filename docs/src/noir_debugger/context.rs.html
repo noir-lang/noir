@@ -2629,7 +2629,7 @@
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}], outputs: []
         "
         </span>);
         <span class="kw">let </span>circuit = Circuit::from_str(<span class="kw-2">&amp;</span>src).unwrap();
@@ -2784,7 +2784,7 @@
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
         ASSERT {w_z} = {w_x} + {w_y}
         "
         </span>);
@@ -2862,8 +2862,8 @@
         public parameters: []
         return values: []
         INIT b0 = []
-        BRILLIG CALL func: 0, inputs: [], outputs: []
-        CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: []
+        CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         "</span>;
         <span class="kw">let </span>circuit_one = Circuit::from_str(src_one).unwrap();
@@ -2872,7 +2872,7 @@
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         "</span>;
         <span class="kw">let </span>circuit_two = Circuit::from_str(src_two).unwrap();

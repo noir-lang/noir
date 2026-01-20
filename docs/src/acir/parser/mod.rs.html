@@ -1113,9 +1113,7 @@
 <a href="#1112" id="1112">1112</a>
 <a href="#1113" id="1113">1113</a>
 <a href="#1114" id="1114">1114</a>
-<a href="#1115" id="1115">1115</a>
-<a href="#1116" id="1116">1116</a>
-<a href="#1117" id="1117">1117</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeSet, str::FromStr};
+<a href="#1115" id="1115">1115</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeSet, str::FromStr};
 
 <span class="kw">use </span>acir_field::{AcirField, FieldElement};
 
@@ -1895,14 +1893,12 @@
         <span class="prelude-val">Ok</span>(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
     }
 
-    <span class="kw">fn </span>eat_predicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;<span class="prelude-ty">Option</span>&lt;Expression&lt;FieldElement&gt;&gt;&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>predicate = <span class="prelude-val">None</span>;
-        <span class="kw">if </span><span class="self">self</span>.eat_keyword(Keyword::Predicate)<span class="question-mark">? </span>&amp;&amp; <span class="self">self</span>.eat(Token::Colon)<span class="question-mark">? </span>{
-            <span class="kw">let </span>expr = <span class="self">self</span>.parse_arithmetic_expression()<span class="question-mark">?</span>;
-            <span class="self">self</span>.eat_or_error(Token::Comma)<span class="question-mark">?</span>;
-            predicate = <span class="prelude-val">Some</span>(expr);
-        }
-        <span class="prelude-val">Ok</span>(predicate)
+    <span class="kw">fn </span>eat_predicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Expression&lt;FieldElement&gt;&gt; {
+        <span class="self">self</span>.eat_keyword_or_error(Keyword::Predicate)<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
+        <span class="kw">let </span>expr = <span class="self">self</span>.parse_arithmetic_expression()<span class="question-mark">?</span>;
+        <span class="self">self</span>.eat_or_error(Token::Comma)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(expr)
     }
 
     <span class="kw">fn </span>parse_bracketed_list&lt;T, F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parser: F) -&gt; ParseResult&lt;Vec&lt;T&gt;&gt;

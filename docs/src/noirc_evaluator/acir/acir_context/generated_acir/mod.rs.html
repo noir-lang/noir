@@ -1251,7 +1251,7 @@
         <span class="kw">let </span>outputs = <span class="macro">vec!</span>[BrilligOutputs::Array(limb_witnesses.clone())];
 
         <span class="self">self</span>.brillig_call(
-            <span class="prelude-val">None</span>,
+            Expression::one(),
             <span class="kw-2">&amp;</span>le_bytes_code,
             inputs,
             outputs,
@@ -1278,7 +1278,7 @@
         <span class="kw">let </span>inputs = <span class="macro">vec!</span>[BrilligInputs::Single(expr)];
         <span class="kw">let </span>outputs = <span class="macro">vec!</span>[BrilligOutputs::Simple(inverted_witness)];
         <span class="self">self</span>.brillig_call(
-            <span class="prelude-val">None</span>,
+            Expression::one(),
             <span class="kw-2">&amp;</span>inverse_code,
             inputs,
             outputs,
@@ -1419,7 +1419,7 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brillig_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        predicate: <span class="prelude-ty">Option</span>&lt;Expression&lt;F&gt;&gt;,
+        predicate: Expression&lt;F&gt;,
         generated_brillig: <span class="kw-2">&amp;</span>GeneratedBrillig&lt;F&gt;,
         inputs: Vec&lt;BrilligInputs&lt;F&gt;&gt;,
         outputs: Vec&lt;BrilligOutputs&gt;,
