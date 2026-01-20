@@ -3245,7 +3245,7 @@
             group.trailing_comma();
         }
 
-        group.text(chunk);
+        group.trailing_comment_at_block_end(chunk);
 
         <span class="kw">if </span>force_trailing_comma {
             group.text(TextChunk::new(<span class="string">","</span>.to_string()));
@@ -3972,7 +3972,7 @@
         }
 
         <span class="comment">// Finally format the comment, if any
-        </span>group.text(<span class="self">self</span>.chunk(|formatter| {
+        </span>group.trailing_comment_at_block_end(<span class="self">self</span>.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 

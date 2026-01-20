@@ -94,7 +94,9 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -149,7 +151,9 @@
     single_line_if_else_max_width: usize, <span class="number">50</span>, <span class="string">"Maximum line length for single line if-else expressions"</span>;
     imports_granularity: ImportsGranularity, ImportsGranularity::Preserve, <span class="string">"How imports should be grouped into use statements."</span>;
     reorder_imports: bool, <span class="bool-val">true</span>, <span class="string">"Reorder imports alphabetically"</span>;
-}
+    wrap_comments: bool, <span class="bool-val">false</span>, <span class="string">"Break comments to fit on the line"</span>;
+    comment_width: usize, <span class="number">100</span>, <span class="string">"Maximum length of comments. No effect unless `wrap_comments = true`"
+</span>}
 
 <span class="kw">impl </span>Config {
     <span class="doccomment">/// Reads a Config starting at the given path and going through the path parents

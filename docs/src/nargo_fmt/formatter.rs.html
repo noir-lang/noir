@@ -316,10 +316,7 @@
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
 <a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use </span>buffer::Buffer;
+<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use </span>buffer::Buffer;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
     ast::Ident,
@@ -392,11 +389,14 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) group_tag_counter: usize,
 
     <span class="doccomment">/// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) max_width: usize,
 
     <span class="doccomment">/// This is the buffer where we write the formatted code.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) buffer: Buffer,
+
+    <span class="doccomment">/// Is the formatter inside a chunk?
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) in_chunk: bool,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Formatter&lt;<span class="lifetime">'a</span>&gt; {
@@ -415,6 +415,7 @@
             group_tag_counter: <span class="number">0</span>,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: <span class="bool-val">false</span>,
         };
         formatter.bump();
         formatter
@@ -526,13 +527,6 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_current_token_and_bump(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.write(<span class="kw-2">&amp;</span><span class="self">self</span>.token.to_string());
         <span class="self">self</span>.bump();
-    }
-
-    <span class="doccomment">/// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_current_token_trimming_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.write(<span class="self">self</span>.token.to_string().trim_end());
     }
 
     <span class="doccomment">/// Writes the current token but without turning it into a string using `to_string()`.

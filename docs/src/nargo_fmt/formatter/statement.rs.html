@@ -902,7 +902,13 @@
 <a href="#901" id="901">901</a>
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
         LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, WhileStatement,
@@ -924,8 +930,7 @@
             formatter.skip_whitespace();
         }));
 
-        <span class="comment">// Now write any leading comment respecting multiple newlines after them
-        </span>group.leading_comment(<span class="self">self</span>.chunk(|formatter| {
+        group.leading_comment(<span class="self">self</span>.chunk(|formatter| {
             <span class="comment">// Doc comments for a let statement could come before a potential non-doc comment
             </span><span class="kw">if </span>formatter.token.kind() == TokenKind::OuterDocComment {
                 formatter.format_outer_doc_comments_checking_safety();
@@ -938,6 +943,13 @@
                 formatter.format_outer_doc_comments_checking_safety();
             }
         }));
+
+        <span class="comment">// Or doc comments could come after a potential non-doc comment
+        </span><span class="kw">if </span><span class="self">self</span>.token.kind() == TokenKind::OuterDocComment {
+            group.leading_comment(<span class="self">self</span>.chunk(|formatter| {
+                formatter.format_outer_doc_comments();
+            }));
+        }
 
         ignore_next |= <span class="self">self</span>.ignore_next;
 
