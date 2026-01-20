@@ -837,7 +837,14 @@
 <a href="#836" id="836">836</a>
 <a href="#837" id="837">837</a>
 <a href="#838" id="838">838</a>
-<a href="#839" id="839">839</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA vector intrinsic functions to Brillig bytecode.
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA vector intrinsic functions to Brillig bytecode.
 </span><span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -988,6 +995,13 @@
     <span class="doccomment">/// Read a number of (flattened) items at a specific index of a vector into the variables
     /// representing the removed items, then create a new vector with the same number of
     /// items removed and subsequent items shifted to the left.
+    ///
+    /// # Safety
+    ///
+    /// The pointer addition (`read_pointer + index`) cannot overflow because:
+    /// 1. `index` is bounds-checked at SSA level ensuring `index &lt; length`
+    /// 2. The vector allocation is protected by FMP's checked addition
+    /// 3. Therefore `items_pointer + index &lt; items_pointer + length &lt;= vector_end &lt; 2^32`
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vector_remove_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
