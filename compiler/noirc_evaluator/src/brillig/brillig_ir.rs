@@ -32,6 +32,8 @@ pub(crate) use instructions::BrilligBinaryOp;
 use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
+use crate::brillig::assert_u32;
+
 pub(crate) use self::registers::LayoutConfig;
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
@@ -47,16 +49,6 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
 pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
-
-/// Converts a u32 value to usize, panicking if the conversion fails.
-fn assert_usize(value: u32) -> usize {
-    value.try_into().expect("Failed conversion from u32 to usize")
-}
-
-/// Converts a usize value to u32, panicking if the conversion fails.
-fn assert_u32(value: usize) -> u32 {
-    value.try_into().expect("Failed conversion from usize to u32")
-}
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
@@ -135,7 +127,7 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         );
 
         // The copy counter is always put in the first global slot
-        MemoryAddress::direct(GlobalSpace::start_with_layout(&self.layout()))
+        MemoryAddress::direct(assert_u32(GlobalSpace::start_with_layout(&self.layout())))
     }
 
     /// If this flag is set, compile the array copy counter as a global.
@@ -345,21 +337,23 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize, MemoryAddress,
-        ValueOrArray,
+        BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize,
+        MemoryAddress, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VM, VMStatus, offsets};
+    use acvm::brillig_vm::{MemoryValue, VM, VMStatus, offsets};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::BrilligOptions;
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
+    use crate::brillig::{BrilligOptions, assert_u32, assert_usize, brillig_gen::gen_brillig_for};
     use crate::ssa::ir::function::FunctionId;
+    use crate::ssa::ssa_gen::Ssa;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
+    use super::brillig_variable::SingleAddrVariable;
     use super::procedures::compile_procedure;
     use super::registers::Stack;
-    use super::{BrilligOpcode, ReservedRegisters, assert_usize};
+    use super::{BrilligOpcode, ReservedRegisters};
 
     pub(crate) struct DummyBlackBoxSolver;
 
@@ -484,7 +478,7 @@ pub(crate) mod tests {
         let mut context = BrilligContext::new("test", &options);
 
         // Allocate variables
-        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+        let r_input_size = MemoryAddress::direct(assert_u32(ReservedRegisters::len()));
         let r_output_ptr = r_input_size.offset(1);
         let r_output_size = r_input_size.offset(2);
         let r_equality = r_input_size.offset(3);
@@ -554,5 +548,309 @@ pub(crate) mod tests {
         // The equality check should succeed
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    }
+
+    /// Test demonstrating that `initialize_constant_array_runtime` is protected from
+    /// iterator overflow by the VM's allocation overflow check (`process_free_memory_op`).
+    ///
+    /// `codegen_for_loop` uses wrapping arithmetic for iterator increments. If the iterator
+    /// could overflow before reaching the bound, it would cause an infinite loop.
+    /// However, this cannot happen through `initialize_constant_array_runtime` because:
+    ///
+    /// 1. Array allocation adds to `free_memory_pointer` via `BinaryIntOp::Add`
+    /// 2. VM's `process_free_memory_op` intercepts adds to register 1 and uses `checked_add`
+    /// 3. If allocation would overflow, VM fails with "Out of memory" before the loop runs
+    ///
+    /// This test compiles SSA with a large constant array, then patches `free_memory_pointer`
+    /// to near u32::MAX to demonstrate that allocation triggers "Out of memory".
+    #[test]
+    fn initialize_constant_array_protected_by_allocation_check() {
+        // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: u32):
+                v1 = make_array [
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42,
+                    u32 42, u32 42, u32 42
+                ] : [(u32, u32, u32); 11]
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let args = vec![BrilligParameter::SingleAddr(32)];
+        let mut generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+
+        // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
+        // and insert a patch just before it.
+        // We patch the opcode rather than using the memory layout config because if we indicate a heap start
+        // near u32::MAX we will fail with a trap in the CheckMaxStackDepth procedure.
+        // Patching the initialization of the FMP lets us simulate prior allocations exhausting memory without having
+        // to actually allocate GBs of memory for this test.
+        let mut insert_pos = None;
+        for (i, opcode) in generated.byte_code.iter().enumerate() {
+            if let BrilligOpcode::BinaryIntOp { destination, op, .. } = opcode {
+                use acvm::acir::brillig::BinaryIntOp;
+                if *destination == ReservedRegisters::free_memory_pointer()
+                    && *op == BinaryIntOp::Add
+                {
+                    insert_pos = Some(i);
+                    break;
+                }
+            }
+        }
+        let insert_pos = insert_pos.expect("Should find BinaryIntOp::Add to FMP");
+
+        // Insert opcode to set free_memory_pointer near u32::MAX
+        // This simulates what would happen if prior allocations exhausted memory
+        let patch_opcode = BrilligOpcode::Const {
+            destination: ReservedRegisters::free_memory_pointer(), // FREE_MEMORY_POINTER_ADDRESS
+            value: FieldElement::from(u32::MAX - 10), // Near max, allocation will overflow
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        };
+        generated.byte_code.insert(insert_pos, patch_opcode);
+
+        let mut vm = VM::new(
+            vec![FieldElement::from(0u64)],
+            &generated.byte_code,
+            &DummyBlackBoxSolver,
+            false,
+            None,
+        );
+
+        let status = vm.process_opcodes();
+
+        let VMStatus::Failure {
+            reason: acvm::brillig_vm::FailureReason::RuntimeError { message },
+            ..
+        } = status
+        else {
+            panic!("Expected 'Out of memory' error from allocation overflow, got: {status:?}")
+        };
+        assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
+    }
+
+    /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
+    ///
+    /// See the function's `# Safety` documentation for why the underflow is safe.
+    /// This test directly verifies the loop exit condition is immediately `true`.
+    #[test]
+    fn mem_copy_from_end_zero_elements_condition_is_immediately_true() {
+        let options = BrilligOptions {
+            enable_debug_trace: false,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+            show_opcode_advisories: false,
+            layout: Default::default(),
+        };
+        let mut context = BrilligContext::new("test", &options);
+
+        // Allocate direct memory addresses for our variables (after reserved registers)
+        let source_start = MemoryAddress::direct(assert_u32(ReservedRegisters::len()));
+        let target_start = source_start.offset(1); // Direct(4)
+        let num_elements_addr = source_start.offset(2); // Direct(5)
+        let num_elements = SingleAddrVariable::new_usize(num_elements_addr);
+
+        // Initialize reserved registers
+        // Stack pointer points to start of stack space (after our variables)
+        // After source_start, target_start, num_elements
+        let stack_start = assert_u32(ReservedRegisters::len()) + 3;
+        context.const_instruction(
+            SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
+            stack_start.into(),
+        );
+        // usize_one is used by codegen_usize_op for constant 1
+        context.const_instruction(
+            SingleAddrVariable::new_usize(ReservedRegisters::usize_one()),
+            1_usize.into(),
+        );
+
+        // Initialize: source_start=100, target_start=200, num_elements=0
+        // source_start > 0 is required for the transitive protection to work
+        context.usize_const_instruction(source_start, 100_usize.into());
+        context.usize_const_instruction(target_start, 200_usize.into());
+        context.const_instruction(num_elements, FieldElement::from(0_u32));
+
+        // Call the function under test
+        context.codegen_mem_copy_from_the_end(source_start, target_start, num_elements);
+
+        // Stop successfully
+        context.stop_instruction(HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(0),
+        });
+
+        let bytecode = context.into_artifact().finish().byte_code;
+
+        // Find the LessThan opcode (the loop exit condition check) and its destination register.
+        // There should be exactly one LessThan in codegen_mem_copy_from_the_end.
+        let (less_than_idx, condition_dest) = bytecode
+            .iter()
+            .enumerate()
+            .find_map(|(idx, op)| {
+                if let BrilligOpcode::BinaryIntOp {
+                    op: BinaryIntOp::LessThan, destination, ..
+                } = op
+                {
+                    Some((idx, *destination))
+                } else {
+                    None
+                }
+            })
+            .expect("Should find LessThan opcode in bytecode");
+
+        // Step through opcodes until we've executed the LessThan operation
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+        for _ in 0..=less_than_idx {
+            vm.process_opcode();
+        }
+
+        // Read the condition register value from memory.
+        // After the LessThan executes, this should be true (1) if the protection works.
+        let memory = vm.get_memory();
+        let condition_addr = match condition_dest {
+            MemoryAddress::Relative(offset) => {
+                // For relative addresses, we need to add the stack pointer value
+                let stack_ptr_address = assert_usize(ReservedRegisters::stack_pointer().to_u32());
+                let stack_ptr_value = match memory[stack_ptr_address] {
+                    MemoryValue::U32(v) => v as usize,
+                    _ => panic!("Expected stack pointer to be U32"),
+                };
+                stack_ptr_value + offset as usize
+            }
+            MemoryAddress::Direct(_) => {
+                panic!("Expected condition destination to be a relative address")
+            }
+        };
+
+        let condition_value = &memory[condition_addr];
+
+        // The condition should be true (U1(true)) because:
+        // source_pointer = source_start + (2^32 - 1) = source_start - 1 (wrapping)
+        // source_start - 1 < source_start = true
+        assert_eq!(
+            *condition_value,
+            MemoryValue::U1(true),
+            "Loop exit condition should be immediately true when num_elements=0"
+        );
+
+        // We will process a JmpIf based upon the condition which will immediately jump us to a Stop
+        for _ in less_than_idx..(less_than_idx + 2) {
+            let opcode = &bytecode[vm.program_counter()];
+            match opcode {
+                BrilligOpcode::Load { .. } | BrilligOpcode::Store { .. } => {
+                    panic!("We are performing a mem copy when it should have been skipped");
+                }
+                _ => {}
+            };
+            vm.process_opcode();
+        }
+
+        let status = vm.get_status();
+        // The VM successfully finished executing
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
+    }
+
+    /// Test proving that empty array allocation near heap limit triggers OOM.
+    ///
+    /// This demonstrates that [BrilligContext::codegen_make_array_items_pointer] is transitively protected
+    /// from overflow. Even an empty array allocates [offsets::ARRAY_META_COUNT] slot for metadata,
+    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// before we ever compute the items pointer.
+    #[test]
+    fn empty_array_allocation_near_heap_limit_triggers_oom() {
+        // SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [Field; 0]
+                return
+            }
+        "#;
+        assert_allocation_near_heap_limit_triggers_oom(src);
+    }
+
+    /// Test proving that empty vector allocation near heap limit triggers OOM.
+    ///
+    /// This demonstrates that [BrilligContext::codegen_vector_items_pointer] is transitively protected
+    /// from overflow. Even an empty vector allocates [offsets::VECTOR_META_COUNT] slots for metadata,
+    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// before we ever compute the items pointer.
+    #[test]
+    fn empty_vector_allocation_near_heap_limit_triggers_oom() {
+        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [Field]
+                return
+            }
+        "#;
+        assert_allocation_near_heap_limit_triggers_oom(src);
+    }
+
+    /// Helper to test that allocation near heap limit triggers OOM.
+    ///
+    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to u32::MAX
+    /// just before the first allocation, and asserts the VM fails with "Out of memory".
+    fn assert_allocation_near_heap_limit_triggers_oom(ssa_src: &str) {
+        use acvm::acir::brillig::BinaryIntOp;
+
+        let ssa = Ssa::from_str(ssa_src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let mut generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
+        // and insert a patch just before it.
+        // Patching the FMP lets us simulate prior allocations exhausting memory without
+        // having to actually allocate GBs of memory for this test.
+        let insert_pos = generated
+            .byte_code
+            .iter()
+            .position(|opcode| {
+                matches!(
+                    opcode,
+                    BrilligOpcode::BinaryIntOp {
+                        destination,
+                        op: BinaryIntOp::Add,
+                        ..
+                    } if *destination == ReservedRegisters::free_memory_pointer()
+                )
+            })
+            .expect("Should find BinaryIntOp::Add to free_memory_pointer");
+
+        // Patch FMP to u32::MAX so any allocation overflows
+        let patch_opcode = BrilligOpcode::Const {
+            destination: ReservedRegisters::free_memory_pointer(),
+            value: FieldElement::from(u32::MAX),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        };
+        generated.byte_code.insert(insert_pos, patch_opcode);
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+
+        let VMStatus::Failure {
+            reason: acvm::brillig_vm::FailureReason::RuntimeError { message },
+            ..
+        } = status
+        else {
+            panic!("Expected 'Out of memory' error from allocation overflow, got: {status:?}")
+        };
+        assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 }

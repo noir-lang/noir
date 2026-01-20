@@ -14,7 +14,7 @@ pub enum MonomorphizationError {
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: Type, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
@@ -25,6 +25,7 @@ pub enum MonomorphizationError {
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    ReferenceReturnedFromOracle { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -48,9 +49,8 @@ impl MonomorphizationError {
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. } => {
-                *location
-            }
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -68,7 +68,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
-                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
+                format!("checked_transmute failed: expected `{expected}` but found `{actual}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
@@ -147,6 +147,9 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 format!(
                     "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
+            }
+            MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
+                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
             }
         };
 

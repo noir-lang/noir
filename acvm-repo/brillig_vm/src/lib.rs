@@ -278,7 +278,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Write a numeric value to direct memory slot.
     ///
     /// Used by the debugger to alter memory.
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
+    pub fn write_memory_at(&mut self, ptr: u32, value: MemoryValue<F>) {
         self.memory.write(MemoryAddress::direct(ptr), value);
     }
 
@@ -380,8 +380,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 }
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
-                let size = self.memory.read(*size_address).to_usize();
-                let offset = self.memory.read(*offset_address).to_usize();
+                let size = assert_usize(self.memory.read(*size_address).to_u32());
+                let offset = assert_usize(self.memory.read(*offset_address).to_u32());
                 let values: Vec<_> = self.calldata[offset..(offset + size)]
                     .iter()
                     .map(|value| MemoryValue::new_field(*value))
@@ -432,22 +432,22 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.increment_program_counter()
             }
             Opcode::Trap { revert_data } => {
-                let revert_data_size = self.memory.read(revert_data.size).to_usize();
+                let revert_data_size = self.memory.read(revert_data.size).to_u32();
                 if revert_data_size > 0 {
                     self.trap(
-                        assert_u32(self.memory.read_ref(revert_data.pointer).unwrap_direct()),
-                        assert_u32(revert_data_size),
+                        self.memory.read_ref(revert_data.pointer).unwrap_direct(),
+                        revert_data_size,
                     )
                 } else {
                     self.trap(0, 0)
                 }
             }
             Opcode::Stop { return_data } => {
-                let return_data_size = self.memory.read(return_data.size).to_usize();
+                let return_data_size = self.memory.read(return_data.size).to_u32();
                 if return_data_size > 0 {
                     self.finish(
-                        assert_u32(self.memory.read_ref(return_data.pointer).unwrap_direct()),
-                        assert_u32(return_data_size),
+                        self.memory.read_ref(return_data.pointer).unwrap_direct(),
+                        return_data_size,
                     )
                 } else {
                     self.finish(0, 0)

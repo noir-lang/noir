@@ -13,7 +13,7 @@ use super::{
     opt::pure::Purity,
 };
 
-use acvm::FieldElement;
+use acvm::{FieldElement, acir::brillig::lengths::SemanticLength};
 use ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -27,9 +27,12 @@ use noirc_frontend::{
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
-use crate::ssa::{
-    ir::{function::RuntimeType, instruction::ArrayOffset},
-    parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{function::RuntimeType, instruction::ArrayOffset},
+        parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+    },
 };
 
 mod ast;
@@ -754,7 +757,8 @@ impl<'a> Parser<'a> {
             ParsedMakeArray { elements, typ }
         } else if let Some(string) = self.eat_byte_str()? {
             let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-            let typ = Type::Array(Arc::new(vec![u8.clone()]), string.len() as u32);
+            let typ =
+                Type::Array(Arc::new(vec![u8.clone()]), SemanticLength(assert_u32(string.len())));
             let elements = string
                 .bytes()
                 .map(|byte| {
@@ -977,7 +981,10 @@ impl<'a> Parser<'a> {
             if self.eat(Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
+                return Ok(Type::Array(
+                    Arc::new(element_types),
+                    SemanticLength(length.try_to_unsigned().unwrap()),
+                ));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Vector(Arc::new(element_types)));

@@ -87,11 +87,8 @@ impl Ssa {
         self.functions.values().for_each(|func| die_pre_check(func, flattened));
 
         // Collect all function runtimes and distribute them to all DFGs
-        let runtimes: std::collections::HashMap<FunctionId, _> = self
-            .functions
-            .iter()
-            .map(|(id, func)| (*id, func.runtime()))
-            .collect();
+        let runtimes: std::collections::HashMap<FunctionId, _> =
+            self.functions.iter().map(|(id, func)| (*id, func.runtime())).collect();
         let runtimes = std::sync::Arc::new(runtimes);
         for func in self.functions.values_mut() {
             func.dfg.set_function_runtimes(runtimes.clone());
@@ -583,6 +580,7 @@ fn die_post_check(func: &Function, flattened: bool) {
 mod tests {
     use std::sync::Arc;
 
+    use acvm::acir::brillig::lengths::SemanticLength;
     use im::vector;
     use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -723,7 +721,7 @@ mod tests {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
         let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
+        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(2));
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
         builder.increment_array_reference_count(v1);

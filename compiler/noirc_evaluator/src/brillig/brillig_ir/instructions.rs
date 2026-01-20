@@ -262,7 +262,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// Entering a context resets the current section to 0 and the next section to 1.
     pub(crate) fn enter_context(&mut self, label: Label) {
-        debug_assert!(label.section.is_none(), "new context should have no section");
+        assert!(label.section.is_none(), "new context should have no section");
         self.debug_show.enter_context(label.to_string());
         self.context_label = label.clone();
         // Add a context label to the next opcode

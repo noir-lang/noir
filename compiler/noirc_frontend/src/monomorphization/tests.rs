@@ -1,6 +1,11 @@
 #![cfg(test)]
 use crate::{
-    elaborator::UnstableFeature, test_utils::get_monomorphized,
+    elaborator::UnstableFeature,
+    monomorphization::errors::MonomorphizationError,
+    test_utils::{
+        GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+        get_monomorphized_with_stdlib, stdlib_src,
+    },
     tests::check_monomorphization_error_using_features,
 };
 
@@ -458,6 +463,335 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+#[should_panic(expected = "Type recursion limit reached - types are too large")]
+fn extreme_type_alias_chain_stack_overflow() {
+    // Generate a chain of 2,000 type aliases programmatically
+    // ```
+    // type Alias2000 = u8;
+    // type Alias1999 = Alias2000;
+    // type Alias1998 = Alias1999;
+    // ...
+    // type Alias1 = Alias2;
+    // ```
+    const DEPTH: usize = 2000;
+    let mut aliases = String::new();
+
+    // Start with the base type
+    aliases.push_str(&format!("    type Alias{DEPTH} = u8;\n"));
+
+    // Chain aliases from top to bottom
+    for i in (1..DEPTH).rev() {
+        aliases.push_str(&format!("    type Alias{} = Alias{};\n", i, i + 1));
+    }
+
+    // Insert the following alias chain:
+    let src = format!(
+        r#"
+        {aliases}
+
+        pub fn main(x: Alias1) -> pub u8 {{
+            x
+        }}
+    "#
+    );
+
+    let _ = get_monomorphized(&src);
+}
+
+#[test]
+fn tuple_pattern_becomes_separate_params() {
+    let src = r#"
+    fn main() -> pub u32 {
+        let ab = (1, 2);
+        let cd = (3, 4);
+        foo(ab, cd)
+    }
+
+    fn foo((a, b): (u32, u32), cd: (u32, u32)) -> u32 {
+        a + b + cd.0 + cd.1
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let ab$l0 = (1, 2);
+        let cd$l1 = (3, 4);
+        foo$f1(ab$l0, cd$l1)
+    }
+    fn foo$f1(a$l2: u32, b$l3: u32, cd$l4: (u32, u32)) -> u32 {
+        (((a$l2 + b$l3) + cd$l4.0) + cd$l4.1)
+    }
+    ");
+}
+
+#[test]
+fn return_impl_trait_becomes_underlying_type() {
+    let src = r#"
+    trait Foo {}
+    struct Bar { x: u32, y: Field }
+    impl Foo for Bar {}
+
+    fn foo_bar() -> impl Foo {
+        Bar { x: 0, y: 0 }
+    }
+
+    fn main() {
+        let _fb = foo_bar();
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _fb$l0 = foo_bar$f1()
+    }
+    fn foo_bar$f1() -> (u32, Field) {
+        {
+            let x$l1 = 0;
+            let y$l2 = 0;
+            (x$l1, y$l2)
+        }
+    }
+    ");
+}
+
+#[test]
+fn unused_generic_in_enum_inferred() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B
+    }
+    fn main() {
+        let _foo: Foo<u32> = Foo::B;
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global B$g0: (Field, (u32,), ()) = (1, (0), ());
+    fn main$f0() -> () {
+        let _foo$l0 = B$g0
+    }
+    ");
+}
+
+#[test]
+fn unused_str_const_generic_in_enum_inferred() {
+    let src = r#"
+    enum Foo<let N: u32> {
+        A(str<N>),
+        B
+    }
+
+    fn main() {
+        let _f: Foo<3> = Foo::B;
+    }
+    "#;
+
+    // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
+    // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
+}
+
+#[test]
+fn generic_enum_singleton_becomes_global_per_type() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B
+    }
+    fn main() {
+        let _: Foo<u32> = Foo::B;
+        let _: Foo<bool> = Foo::B;
+        // Repeat to make sure we only monomorphize them once.
+        let _: Foo<u32> = Foo::B;
+        let _: Foo<bool> = Foo::B;
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global B$g0: (Field, (u32,), ()) = (1, (0), ());
+    global B$g1: (Field, (bool,), ()) = (1, (false), ());
+    fn main$f0() -> () {
+        let _$l0 = B$g0;
+        let _$l1 = B$g1;
+        let _$l2 = B$g0;
+        let _$l3 = B$g1
+    }
+    ");
+}
+
+#[test]
+fn repeated_array() {
+    let src = r#"
+    fn main() {
+        let _a = [1 + 2; 3];
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l1 = {
+            let repeated_element$l0 = (1 + 2);
+            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
+        }
+    }
+    ");
+}
+
+#[test]
+fn repeated_array_zero() {
+    let src = r#"
+    fn main() {
+        let _a = @[foo(); 0];
+    }
+    fn foo() -> Field {
+        1 + 2
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l1 = {
+            let repeated_element$l0 = foo$f1();
+            @[]
+        }
+    }
+    fn foo$f1() -> Field {
+        (1 + 2)
+    }
+    ");
+}
+
+#[test]
+fn trait_method() {
+    let src = r#"
+    struct Foo {
+        a: u32,
+    }
+
+    trait Bar {
+        fn bar(self, other: Self) -> bool;
+    }
+
+    impl Bar for Foo {
+        fn bar(self, other: Self) -> bool {
+            self.a == other.a
+        }
+    }
+
+    fn main() -> pub bool {
+        let f1 = Foo { a: 1 };
+        let f2 = Foo { a: 2 };
+        f1.bar(f2)
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub bool {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let f2$l3 = {
+            let a$l2 = 2;
+            (a$l2)
+        };
+        bar$f1(f1$l1, f2$l3)
+    }
+    fn bar$f1(self$l4: (u32,), other$l5: (u32,)) -> bool {
+        (self$l4.0 == other$l5.0)
+    }
+    ");
+}
+
+#[test]
+fn infix_trait_method() {
+    let src = r#"
+    struct Foo {
+        a: u32,
+    }
+
+    impl Eq for Foo {
+        fn eq(self, other: Self) -> bool {
+            self.a == other.a
+        }
+    }
+
+    fn main() -> pub bool {
+        let f1 = Foo { a: 1 };
+        let f2 = Foo { a: 2 };
+        f1 == f2
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::EQ).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub bool {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let f2$l3 = {
+            let a$l2 = 2;
+            (a$l2)
+        };
+        eq$f1(f1$l1, f2$l3)
+    }
+    fn eq$f1(self$l4: (u32,), other$l5: (u32,)) -> bool {
+        (self$l4.0 == other$l5.0)
+    }
+    ");
+}
+
+#[test]
+fn prefix_trait_method() {
+    let src = r#"
+    struct Foo {
+        a: i32,
+    }
+
+    impl Neg for Foo {
+        fn neg(self) -> Self {
+            Self { a: -self.a }
+        }
+    }
+
+    fn main() {
+        let f1 = Foo { a: 1 };
+        let _f2 = -f1;
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::NEG).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let f1$l1 = {
+            let a$l0 = 1;
+            (a$l0)
+        };
+        let _f2$l2 = neg$f1(f1$l1)
+    }
+    fn neg$f1(self$l3: (i32,)) -> (i32,) {
+        {
+            let a$l4 = (-self$l3.0);
+            (a$l4)
+        }
+    }
+    ");
+}
+
+#[test]
+
 fn fail_to_call_enum_member_without_panic() {
     // The 'Unexpected Type::Error found during monomorphization' error doesn't occur
     // when running this code as a real source file because in actual Noir code we don't
@@ -481,4 +815,525 @@ fn fail_to_call_enum_member_without_panic() {
     ";
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features, true);
+}
+
+#[test]
+fn lambda_pairs() {
+    let src = r#"
+    fn main() {
+        constrained_context();
+        // safety: test
+        unsafe { unconstrained_context(); }
+    }
+
+    fn foo() {}
+    unconstrained fn bar() {}
+
+    fn baz(f: fn () -> ()) {
+        f();
+    }
+    fn qux(f: unconstrained fn () -> ()) {
+        // safety: test
+        unsafe { f(); }
+    }
+    unconstrained fn quy(f: fn () -> ()) {
+        f();
+    }
+    unconstrained fn quz(f: unconstrained fn () -> ()) {
+        f();
+    }
+
+    fn constrained_context() {
+        let f = foo; // should be (constrained, unconstrained), because we could call the constrained, or pass on the unconstrained
+        let b = bar; // should be (unconstrained, unconstrained), because we only have unconstrained
+        f();
+        // safety: test
+        unsafe {
+            b();
+        }
+        baz(f);
+        // baz(b);   // cannot pass unconstrained where constrained is expected
+        qux(f);
+        qux(b);
+        // safety: test
+        unsafe {
+            quy(f);
+            quy(b);
+            quz(f);
+            quz(b);
+        }
+    }
+
+    unconstrained fn unconstrained_context() {
+        let f = foo; // should be (unconstrained, unconstrained), because we can only call unconstrained
+        let b = bar; // should be (unconstrained, unconstrained), because we only have unconstrained
+        f();
+        b();
+        baz(f);
+        // baz(b);   // cannot pass unconstrained where constrained is expected
+        qux(f);
+        qux(b);
+        quy(f);
+        quy(b);
+        quz(f);
+        quz(b);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        constrained_context$f1();;
+        {
+            unconstrained_context$f2();
+        }
+    }
+    fn constrained_context$f1() -> () {
+        let f$l0 = (foo$f3, foo$f4);
+        let b$l1 = (bar$f5, bar$f5);
+        f$l0.0();;
+        {
+            b$l1.0();
+        };
+        baz$f6(f$l0);;
+        qux$f7(f$l0);;
+        qux$f7(b$l1);;
+        {
+            quy$f8(f$l0);;
+            quy$f8(b$l1);;
+            quz$f9(f$l0);;
+            quz$f9(b$l1);
+        }
+    }
+    unconstrained fn unconstrained_context$f2() -> () {
+        let f$l2 = (foo$f4, foo$f4);
+        let b$l3 = (bar$f5, bar$f5);
+        f$l2.1();;
+        b$l3.1();;
+        baz$f10(f$l2);;
+        qux$f11(f$l2);;
+        qux$f11(b$l3);;
+        quy$f8(f$l2);;
+        quy$f8(b$l3);;
+        quz$f9(f$l2);;
+        quz$f9(b$l3);
+    }
+    fn foo$f3() -> () {
+    }
+    unconstrained fn foo$f4() -> () {
+    }
+    unconstrained fn bar$f5() -> () {
+    }
+    fn baz$f6(f$l4: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l4.0();
+    }
+    fn qux$f7(f$l5: (fn() -> (), unconstrained fn() -> ())) -> () {
+        {
+            f$l5.0();
+        }
+    }
+    unconstrained fn quy$f8(f$l6: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l6.1();
+    }
+    unconstrained fn quz$f9(f$l7: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l7.1();
+    }
+    unconstrained fn baz$f10(f$l8: (fn() -> (), unconstrained fn() -> ())) -> () {
+        f$l8.1();
+    }
+    unconstrained fn qux$f11(f$l9: (fn() -> (), unconstrained fn() -> ())) -> () {
+        {
+            f$l9.1();
+        }
+    }
+    ");
+}
+
+#[test]
+fn global_lambda_becomes_local() {
+    let src = r#"
+    global FOO: u32 = 1;
+    global BAR: fn(u32) -> u32 = bar;
+    global BAZ: u32 = BAR(2);
+
+    fn main(x: u32) -> pub u32 {
+        let f = BAR;
+        f(x) + BAZ
+    }
+
+    fn bar(x: u32) -> u32 { x + FOO }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    global BAZ$g0: u32 = 3;
+    global FOO$g1: u32 = 1;
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let f$l1 = (bar$f1, bar$f2);
+        (f$l1.0(x$l0) + BAZ$g0)
+    }
+    fn bar$f1(x$l2: u32) -> u32 {
+        (x$l2 + FOO$g1)
+    }
+    unconstrained fn bar$f2(x$l3: u32) -> u32 {
+        (x$l3 + FOO$g1)
+    }
+    ");
+}
+
+#[test]
+fn match_missing_case_becomes_constrain() {
+    let src = r#"
+    enum Foo {
+        A(u32),
+        B
+    }
+
+    fn main() {
+        let _ = foo(Foo::A(0));
+    }
+
+    fn foo(f: Foo) -> bool {
+        match f {
+            Foo::A(0) => true,
+        }
+    }
+    "#;
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions {
+            // Normally a missing case causes an elaboration failure,
+            // which prevents monomorphization, but here we want to exercise
+            // the code that would handle this, although it should never have to.
+            allow_elaborator_errors: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    insta::assert_snapshot!(program, @r#"
+    fn main$f0() -> () {
+        let _$l0 = foo$f1(A$f2(0))
+    }
+    fn foo$f1(f$l1: (Field, (u32,), ())) -> bool {
+        {
+            let internal variable$l2 = f$l1;
+            match $2 {
+                A($3) => match $3 {
+                    0 => true,
+                    _ => assert(false, "match failure"),
+                },
+                B => assert(false, "match failure"),
+            }
+        }
+    }
+    fn A$f2($0$l4: u32) -> (Field, (u32,), ()) {
+        (0, ($0$l4), ())
+    }
+    "#);
+}
+
+#[test]
+fn match_tuple_becomes_multiple_matches() {
+    let src = r#"
+    fn main(xy: (u32, u32)) -> pub bool {
+        match xy {
+            (0, _) => true,
+            (_, 0) => true,
+            _ => false,
+        }
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(xy$l0: (u32, u32)) -> pub bool {
+        {
+            let internal variable$l1 = xy$l0;
+            match $1 {
+                ($2, $3) => match $2 {
+                    0 => {
+                        let _$l4 = internal_match_variable_1$l3;
+                        true
+                    },
+                    _ => match $3 {
+                        0 => {
+                            let _$l5 = internal_match_variable_0$l2;
+                            true
+                        },
+                        _ => {
+                            let _$l6 = internal variable$l1;
+                            false
+                        },
+                    },
+                },
+            }
+        }
+    }
+    ");
+}
+
+// Placeholder: code exists in the monomorphizer to handle `HirExpression::Guard`,
+// but it looks like a guard is never constructed at the moment.
+// When it is implemented, we should complete this test.
+#[test]
+#[should_panic(expected = "ParseError")]
+fn match_guard_becomes_if_then_else() {
+    let src = r#"
+    fn main(xy: (u32, u32)) -> pub u32 {
+        match xy {
+            (x, y) if x == 0 => y,
+            (x, _) => x,
+        }
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"???");
+}
+
+#[test]
+fn pass_ref_from_constrained_to_unconstrained_via_closure() {
+    let src = r#"
+    fn main()  {
+        let mut x = 0;
+        let f = foo(&mut x);
+        f(1_u32);
+        // safety: test
+        unsafe { bar(f, 2_u32) }
+    }
+
+    fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
+        |y| { *x = y; }
+    }
+
+    unconstrained fn bar<Env>(f: fn[Env](u32) -> (), x: u32) {
+        f(x);
+    }
+    "#;
+
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .expect_err("should fail to monomorphize");
+
+    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+}
+
+#[test]
+fn pass_ref_from_constrained_to_unconstrained_via_arg() {
+    let src = r#"
+    fn main()  {
+        // safety: test
+        unsafe { foo(&mut 0); }
+    }
+
+    unconstrained fn foo(_x: &mut u32) {}
+    "#;
+
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .expect_err("should fail to monomorphize");
+
+    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+}
+
+#[test]
+fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
+    let src = r#"
+    fn main()  {
+        // safety: test
+        unsafe {
+            let _x = foo();
+        }
+    }
+
+    unconstrained fn foo() -> &mut u32 {
+        &mut 0
+    }
+    "#;
+
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .expect_err("should fail to monomorphize");
+
+    assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
+}
+
+#[test]
+fn evaluates_builtin_zeroed() {
+    let src = r#"
+    fn main() {
+        let _a: [(u32, str<3>); 2] = zeroed();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+
+    // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
+    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+}
+
+#[test]
+fn evaluates_builtin_zeroed_function() {
+    let src = r#"
+    fn main() {
+        let _f: fn (u32, str<3>) -> [Field; 2] = zeroed();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _f$l4 = (zeroed_lambda$f1, zeroed_lambda$f2)
+    }
+    fn zeroed_lambda$f1(_$l0: u32, _$l1: str<3>) -> [Field; 2] {
+        [0, 0]
+    }
+    unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
+        [0, 0]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_checked_transmute() {
+    let src = r#"
+    fn main() {
+        let _a = foo([1, 2, 3]);
+    }
+
+    fn foo<let N: u32>(a: [u32; N]) -> [u32; 3] {
+        checked_transmute(a)
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _a$l0 = foo$f1([1, 2, 3])
+    }
+    fn foo$f1(a$l1: [u32; 3]) -> [u32; 3] {
+        a$l1
+    }
+    ");
+}
+
+#[test]
+fn wraps_aliased_builtin_functions() {
+    let src = r#"
+    fn main() {
+        let f = modulus_num_bits;
+        let _ = f();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+
+    // We are using `modulus_num_bits` as a function value.
+    // The monomorphizer creates a function that returns a comptime value,
+    // because there is no such builtin to be called from SSA.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let f$l0 = (modulus_num_bits$f1, modulus_num_bits$f2);
+        let _$l1 = f$l0.0()
+    }
+    #[inline_always]
+    fn modulus_num_bits$f1() -> u64 {
+        254
+    }
+    #[inline_always]
+    unconstrained fn modulus_num_bits$f2() -> u64 {
+        254
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_modulus_functions() {
+    let src = r#"
+    fn main() {
+        let _ = modulus_num_bits();
+        let _ = modulus_le_bits();
+        let _ = modulus_be_bits();
+        let _ = modulus_le_bytes();
+        let _ = modulus_be_bytes();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _$l0 = 254;
+        let _$l1 = @[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1];
+        let _$l2 = @[1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let _$l3 = @[1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48];
+        let _$l4 = @[48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 40, 51, 232, 72, 121, 185, 112, 145, 67, 225, 245, 147, 240, 0, 0, 1]
+    }
+    ");
+}
+
+#[test]
+fn does_not_evaluate_array_len() {
+    let src = r#"
+    fn main() -> pub u32 {
+        let a = [1, 2, 3];
+        a.len()
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+
+    // The evaluation of array_len has been moved to the SSA in #1736
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let a$l0 = [1, 2, 3];
+        len$array_len(a$l0)
+    }
+    ");
+}
+
+#[test]
+fn out_of_order_globals() {
+    // FOO;BAZ;BAR was fine, but BAZ;FOO;BAR gave type error.
+    let src = r#"
+    global BAZ: u32 = BAR(2);
+    global FOO: u32 = 1;
+    global BAR: fn(u32) -> u32 = bar;
+
+    fn main(x: u32) -> pub u32 {
+        BAR(x) + BAZ + FOO
+    }
+
+    fn bar(x: u32) -> u32 { x + FOO }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    global BAZ$g0: u32 = 3;
+    global FOO$g1: u32 = 1;
+    fn main$f0(x$l0: u32) -> pub u32 {
+        ((bar$f1(x$l0) + BAZ$g0) + FOO$g1)
+    }
+    fn bar$f1(x$l1: u32) -> u32 {
+        (x$l1 + FOO$g1)
+    }
+    unconstrained fn bar$f2(x$l2: u32) -> u32 {
+        (x$l2 + FOO$g1)
+    }
+    ");
 }

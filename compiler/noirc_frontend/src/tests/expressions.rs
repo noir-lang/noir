@@ -138,7 +138,7 @@ fn cannot_assign_to_module() {
 
     fn main() {
         foo = 1;
-        ^^^ expected value got module
+        ^^^ expected value, found module `foo`
     }
     "#;
     check_errors(src);
@@ -153,7 +153,7 @@ fn cannot_assign_to_nested_struct() {
 
     fn main() {
         foo::bar = 1;
-        ^^^^^^^^ expected value got type
+        ^^^^^^^^ expected value, found struct `bar`
     }
     "#;
     check_errors(src);
@@ -260,4 +260,17 @@ fn abi_incompatible_generic_assert_message() {
         }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn use_struct_as_value() {
+    let src = r#"
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo;
+                ^^^ expected value, found struct `Foo`
+    }
+    "#;
+    check_errors(src);
 }

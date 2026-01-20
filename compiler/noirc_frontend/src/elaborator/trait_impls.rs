@@ -400,17 +400,23 @@ impl Elaborator<'_> {
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
-        let override_meta = self.interner.function_meta(func_id);
+        let override_meta = self.interner.remove_function_meta(func_id);
+
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) in
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_resolved_generic.clone().as_named_generic();
-            bindings.insert(
-                trait_fn_generic.id(),
-                (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
-            );
+
+            if self.check_kind(
+                trait_fn_kind.clone(),
+                &arg.kind(),
+                impl_fn_resolved_generic.location,
+            ) {
+                bindings
+                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            }
         }
 
         let mut substituted_method_ids = HashSet::default();
@@ -458,6 +464,8 @@ impl Elaborator<'_> {
                 });
             }
         }
+
+        self.interner.push_fn_meta(override_meta, *func_id);
     }
 
     fn check_trait_impl_crate_coherence(
