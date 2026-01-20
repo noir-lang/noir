@@ -475,11 +475,14 @@ fn create_apply_functions(
         // Thus, to avoid a broken SSA we simply do not include calls to variants which differ from their callers.
         // It is expected that if the new ID associated with the bad variant is used, that we will still fail as the last
         // function to dispatch constrains that we have an expected ID.
+
         let pre_runtime_filter_len = variants.len();
         let variants: Vec<(FunctionId, RuntimeType)> = variants
             .into_iter()
             .filter(|(_, callee_runtime)| {
-                *callee_runtime == caller_runtime
+                // Note that the Inline property is ignored.
+                caller_runtime.is_brillig() && callee_runtime.is_brillig()
+                    || caller_runtime.is_acir() && callee_runtime.is_acir()
                     || caller_runtime.is_acir()
                         && callee_runtime.is_brillig()
                         && is_valid_across_boundaries(&signature)
