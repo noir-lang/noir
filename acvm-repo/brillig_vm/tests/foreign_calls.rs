@@ -629,6 +629,173 @@ fn foreign_call_opcode_nested_arrays_input() {
     assert_eq!(counter, 1);
 }
 
+/// Test for vector input with nested composite arrays.
+/// This tests the truncation logic when processing foreign call vector inputs.
+///
+/// This test creates a vector with 2 inner arrays, each containing 3 tuples of (Field, Field):
+/// - Semi-flattened size per inner array: 3 * 2 = 6 fields
+/// - Total flattened size: 2 * 6 = 12 fields
+///
+/// We place "garbage" values (999) after the valid inner array data. If truncation is correct,
+/// the oracle receives only the 12 valid fields. If truncation was wrong, it would include garbage.
+#[test]
+fn foreign_call_opcode_vector_input_nested_composite_array() {
+    // Inner arrays: [(Field, Field); 3]
+    // Array 0: [(1, 2), (3, 4), (5, 6)] -> flattened: [1, 2, 3, 4, 5, 6]
+    let inner_array_0: Vec<MemoryValue<FieldElement>> = vec![
+        MemoryValue::new_field(1u128.into()),
+        MemoryValue::new_field(2u128.into()),
+        MemoryValue::new_field(3u128.into()),
+        MemoryValue::new_field(4u128.into()),
+        MemoryValue::new_field(5u128.into()),
+        MemoryValue::new_field(6u128.into()),
+    ];
+    // Array 1: [(7, 8), (9, 10), (11, 12)] -> flattened: [7, 8, 9, 10, 11, 12]
+    let inner_array_1: Vec<MemoryValue<FieldElement>> = vec![
+        MemoryValue::new_field(7u128.into()),
+        MemoryValue::new_field(8u128.into()),
+        MemoryValue::new_field(9u128.into()),
+        MemoryValue::new_field(10u128.into()),
+        MemoryValue::new_field(11u128.into()),
+        MemoryValue::new_field(12u128.into()),
+    ];
+    // Garbage data to detect over-reading (placed after inner_array_1)
+    let garbage: Vec<MemoryValue<FieldElement>> = vec![MemoryValue::new_field(999u128.into()); 12];
+
+    // Build memory layout:
+    // [0]: RC for inner_array_0
+    // [1-6]: inner_array_0 data (6 fields)
+    // [7]: RC for inner_array_1
+    // [8-13]: inner_array_1 data (6 fields)
+    // [14-25]: garbage data (12 fields)
+    // [26]: RC for outer vector
+    // [27-28]: outer vector data (2 pointers to inner arrays)
+    let mut memory: Vec<MemoryValue<FieldElement>> = Vec::new();
+
+    // Inner array 0: [RC, ...items]
+    let inner_array_0_ptr = memory.len() as u32;
+    memory.push(MemoryValue::from(1_u32)); // RC
+    memory.extend(inner_array_0.clone());
+
+    // Inner array 1: [RC, ...items]
+    let inner_array_1_ptr = memory.len() as u32;
+    memory.push(MemoryValue::from(1_u32)); // RC
+    memory.extend(inner_array_1.clone());
+
+    // Garbage after inner array 1 to detect over-reading
+    memory.extend(garbage);
+
+    // Outer vector: [RC, ...pointers to inner arrays]
+    memory.push(MemoryValue::from(1_u32)); // RC
+    let outer_vector_start = memory.len();
+    memory.push(MemoryValue::from(inner_array_0_ptr)); // Pointer to inner_array_0
+    memory.push(MemoryValue::from(inner_array_1_ptr)); // Pointer to inner_array_1
+
+    // Registers
+    let r_input_pointer = MemoryAddress::direct(memory.len() as u32);
+    let r_input_size = MemoryAddress::direct(memory.len() as u32 + 1);
+    let r_output = MemoryAddress::direct(memory.len() as u32 + 2);
+
+    // The inner array type: [(Field, Field); 3]
+    let inner_array_value_types: Vec<HeapValueType> =
+        vec![HeapValueType::field(), HeapValueType::field()];
+
+    // The vector element type: [(Field, Field); 3]
+    let vector_element_type = HeapValueType::Array {
+        value_types: inner_array_value_types,
+        size: SemanticLength(3), // 3 tuples per inner array
+    };
+
+    // Build program: copy memory from calldata, then call foreign function
+    let program: Vec<_> = vec![
+        Opcode::Const {
+            destination: MemoryAddress::direct(200),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(memory.len()),
+        },
+        Opcode::Const {
+            destination: MemoryAddress::direct(201),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(0u64),
+        },
+        Opcode::CalldataCopy {
+            destination_address: MemoryAddress::direct(0),
+            size_address: MemoryAddress::direct(200),
+            offset_address: MemoryAddress::direct(201),
+        },
+    ]
+    .into_iter()
+    // Cast each memory value to its proper bit size
+    .chain(memory.iter().enumerate().map(|(index, mem_value)| Opcode::Cast {
+        destination: MemoryAddress::direct(index as u32),
+        source: MemoryAddress::direct(index as u32),
+        bit_size: mem_value.bit_size(),
+    }))
+    .chain(vec![
+        // input_pointer = outer_vector_start
+        Opcode::Const {
+            destination: r_input_pointer,
+            value: (outer_vector_start as u32).into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
+        // input_size = 2 (vector has 2 inner arrays)
+        Opcode::Const {
+            destination: r_input_size,
+            value: 2_u32.into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
+        // Call foreign function
+        Opcode::ForeignCall {
+            function: "sum_nested".into(),
+            destinations: vec![ValueOrArray::MemoryAddress(r_output)],
+            destination_value_types: vec![HeapValueType::field()],
+            inputs: vec![ValueOrArray::HeapVector(HeapVector {
+                pointer: r_input_pointer,
+                size: r_input_size,
+            })],
+            input_value_types: vec![HeapValueType::Vector {
+                value_types: vec![vector_element_type],
+            }],
+        },
+    ])
+    .collect();
+
+    // Convert memory to calldata (as FieldElements)
+    let calldata: Vec<FieldElement> = memory.iter().map(|v| v.to_field()).collect();
+
+    // The expected inputs to the oracle should be ONLY the 12 valid fields (flattened).
+    // If truncation was buggy (kept 24 instead of 12), we'd see garbage (999) values.
+    let expected_oracle_input: Vec<FieldElement> = vec![
+        1u128.into(),
+        2u128.into(),
+        3u128.into(),
+        4u128.into(),
+        5u128.into(),
+        6u128.into(),
+        7u128.into(),
+        8u128.into(),
+        9u128.into(),
+        10u128.into(),
+        11u128.into(),
+        12u128.into(),
+    ];
+
+    let (_memory, counter) = run_foreign_call_test(
+        calldata,
+        &program,
+        VMStatus::ForeignCallWait {
+            function: "sum_nested".into(),
+            inputs: vec![expected_oracle_input.into()],
+        },
+        // Return a dummy sum value
+        vec![FieldElement::from(78u128).into()],
+        VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+    );
+
+    // Ensure the foreign call was made
+    assert_eq!(counter, 1);
+}
+
 #[test]
 fn handles_foreign_calls_returning_empty_arrays() {
     let opcodes = &[
