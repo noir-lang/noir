@@ -430,7 +430,8 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// Creates all apply functions needed for dispatch of function values.
 ///
 /// This function maintains the grouping set in [Variants], meaning an apply
-/// function is grouped by functions that share a target signature and callee runtime.
+/// function is grouped by functions that share a target signature and caller runtime.
+///
 /// An apply function is only created if there are multiple function variants
 /// for a specific ([Signature], [RuntimeType]) group.
 /// Otherwise, if there is a single variant that function is simply reused.
