@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768929092994,
+  "lastUpdate": 1768930232838,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "59188e07a34d5512979b5641cf6e2a2590ee5d32",
-          "message": "fix: correct size for HeapValueType::Array size (#11126)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-01-13T18:41:10Z",
-          "tree_id": "c1754223fa3f27f9ab8491be4c18c267fc21074a",
-          "url": "https://github.com/noir-lang/noir/commit/59188e07a34d5512979b5641cf6e2a2590ee5d32"
-        },
-        "date": 1768331016696,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256468,
-            "range": "± 752",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225643,
-            "range": "± 4742",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2264306,
-            "range": "± 4011",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2261876,
             "range": "± 6988",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e48a0d8d0e96d1b35964908f875faa9e5e631f59",
+          "message": "feat: add `wrap_comments` and `comment_width` options to `nargo fmt` (#7371)",
+          "timestamp": "2026-01-20T17:06:38Z",
+          "tree_id": "38a205b06ae35c8a5b6c412991f4127d03be0531",
+          "url": "https://github.com/noir-lang/noir/commit/e48a0d8d0e96d1b35964908f875faa9e5e631f59"
+        },
+        "date": 1768930195820,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255585,
+            "range": "± 576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226440,
+            "range": "± 13240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795467,
+            "range": "± 1565",
             "unit": "ns/iter"
           }
         ]
