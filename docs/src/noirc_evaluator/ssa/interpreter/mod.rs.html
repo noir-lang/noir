@@ -1877,7 +1877,26 @@
 <a href="#1876" id="1876">1876</a>
 <a href="#1877" id="1877">1877</a>
 <a href="#1878" id="1878">1878</a>
-<a href="#1879" id="1879">1879</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1908,6 +1927,9 @@
 <span class="kw">pub mod </span>value;
 
 <span class="kw">use </span>value::Value;
+
+<span class="doccomment">/// Maximum number of recursive calls allowed at comptime.
+</span><span class="kw">const </span>MAX_INTERPRETER_CALL_STACK_SIZE: usize = <span class="number">1000</span>;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Interpreter&lt;<span class="lifetime">'ssa</span>, W&gt; {
     <span class="doccomment">/// Contains each function called with `main` (or the first called function if
@@ -2136,6 +2158,22 @@
     /// it is meant to be used for internal calls.
     </span><span class="kw">fn </span>call_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function_id: FunctionId, <span class="kw-2">mut </span>arguments: Vec&lt;Value&gt;) -&gt; IResults {
         <span class="self">self</span>.call_stack.push(CallContext::new(function_id));
+
+        <span class="kw">if </span><span class="self">self</span>.call_stack.len() &gt;= MAX_INTERPRETER_CALL_STACK_SIZE {
+            <span class="kw">let </span>call_stack = <span class="self">self
+                </span>.call_stack
+                .iter()
+                .skip(<span class="number">1</span>)
+                .map(|ctx| {
+                    <span class="kw">let </span>id = ctx
+                        .called_function
+                        .expect(<span class="string">"all but the first global context has a called function"</span>);
+                    <span class="kw">let </span>name = <span class="self">self</span>.functions[<span class="kw-2">&amp;</span>id].name().to_string();
+                    (id, name)
+                })
+                .collect();
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::StackOverflow { call_stack });
+        }
 
         <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>function_id];
         <span class="kw">if </span><span class="self">self</span>.options.trace {
