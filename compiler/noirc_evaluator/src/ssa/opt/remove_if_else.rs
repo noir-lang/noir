@@ -477,15 +477,12 @@ fn remove_if_else_pre_check(func: &Function) {
 
         for instruction_id in instruction_ids {
             if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
-                assert!(
-                    func.dfg.instruction_results(*instruction_id).iter().all(|value| {
-                        matches!(
-                            func.dfg.type_of_value(*value),
-                            Type::Array(_, _) | Type::Vector(_)
-                        )
-                    }),
-                    "IfElse instruction returns unexpected type"
-                );
+                // We generally expect that all the results at this point will be either arrays or vectors,
+                // however the flattening makes no guarantee of this: if it needs to merge references or functions
+                // it will do so using IfElse. The ValueMerger already returns appropriate RuntimeErrors to point
+                // at the problem, so we don't assert this expectation.
+
+                // We do expect that numeric values are not used though.
                 let typ = func.dfg.type_of_value(*then_value);
                 assert!(
                     !matches!(typ, Type::Numeric(_)),
