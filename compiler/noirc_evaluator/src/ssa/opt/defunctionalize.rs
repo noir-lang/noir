@@ -2401,156 +2401,98 @@ mod tests {
     }
 
     #[test]
-    fn per_runtime_dispatch() {
+    fn variants_with_invalid_cross_boundary_returns() {
         // SSA of the following program:
-        // fn main(c: bool) {
-        //     let f = identity(|| 1);
-        //     let g = identity(|| 2);
+        // fn main(c: bool) -> pub Field {
+        //     let f = || @[1, 2];
+        //     let g = || @[3, 4];
         //     let h = if c { f } else { g };
-        //     let x = h();
-        //     let y =
-        //         // safety: test
-        //         unsafe { go(h) };
-        //     assert_eq(x, y);
-        // }
-        // fn identity<T>(x: T) -> T {
-        //     x
-        // }
-        // unconstrained fn go(f: fn() -> Field) -> Field {
-        //     f()
+        //     let _ = h();
         // }
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v6, v7 = call f1(f2, f3) -> (function, function)
-            v10, v11 = call f1(f4, f5) -> (function, function)
             jmpif v0 then: b1, else: b2
           b1():
-            jmp b3(v6, v7)
+            jmp b3(f1, f2)
           b2():
-            jmp b3(v10, v11)
+            jmp b3(f3, f4)
           b3(v1: function, v2: function):
-            v12 = call v1() -> Field
-            v14 = call f6(v1, v2) -> Field
-            v15 = eq v12, v14
-            constrain v12 == v14
+            v7, v8 = call v1() -> (u32, [Field])
             return
         }
-        acir(inline) fn identity f1 {
-          b0(v0: function, v1: function):
-            return v0, v1
-        }
-        acir(inline) fn lambda f2 {
+        acir(inline) fn lambda f1 {
           b0():
-            return Field 1
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
         }
-        brillig(inline) fn lambda f3 {
+        brillig(inline) fn lambda f2 {
           b0():
-            return Field 1
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
         }
-        acir(inline) fn lambda f4 {
+        acir(inline) fn lambda f3 {
           b0():
-            return Field 2
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
         }
-        brillig(inline) fn lambda f5 {
+        brillig(inline) fn lambda f4 {
           b0():
-            return Field 2
-        }
-        brillig(inline) fn go f6 {
-          b0(v0: function, v1: function):
-            v2 = call v1() -> Field
-            return v2
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
+        // The ACIR dispatch only calls the acir lambdas,
+        // because returning a vector from Brillig would be invalid.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v6, v7 = call f1(Field 2, Field 3) -> (Field, Field)
-            v10, v11 = call f1(Field 4, Field 5) -> (Field, Field)
             jmpif v0 then: b1, else: b2
           b1():
-            jmp b3(v6, v7)
+            jmp b3(Field 1, Field 2)
           b2():
-            jmp b3(v10, v11)
+            jmp b3(Field 3, Field 4)
           b3(v1: Field, v2: Field):
-            v13 = call f7(v1) -> Field
-            v15 = call f6(v1, v2) -> Field
-            v16 = eq v13, v15
-            constrain v13 == v15
+            v8, v9 = call f5(v1) -> (u32, [Field])
             return
         }
-        acir(inline) fn identity f1 {
-          b0(v0: Field, v1: Field):
-            return v0, v1
-        }
-        acir(inline) fn lambda f2 {
+        acir(inline) fn lambda f1 {
           b0():
-            return Field 1
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
         }
-        brillig(inline) fn lambda f3 {
+        brillig(inline) fn lambda f2 {
           b0():
-            return Field 1
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
         }
-        acir(inline) fn lambda f4 {
+        acir(inline) fn lambda f3 {
           b0():
-            return Field 2
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
         }
-        brillig(inline) fn lambda f5 {
+        brillig(inline) fn lambda f4 {
           b0():
-            return Field 2
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
         }
-        brillig(inline) fn go f6 {
-          b0(v0: Field, v1: Field):
-            v3 = call f8(v1) -> Field
-            return v3
-        }
-        acir(inline_always) fn apply f7 {
+        acir(inline_always) fn apply f5 {
           b0(v0: Field):
-            v5 = eq v0, Field 2
-            jmpif v5 then: b2, else: b1
+            v4 = eq v0, Field 1
+            jmpif v4 then: b2, else: b1
           b1():
-            v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            constrain v0 == Field 3
+            v10, v11 = call f3() -> (u32, [Field])
+            jmp b3(v10, v11)
           b2():
-            v7 = call f2() -> Field
-            jmp b9(v7)
-          b3():
-            v13 = eq v0, Field 4
-            jmpif v13 then: b6, else: b5
-          b4():
-            v11 = call f3() -> Field
-            jmp b8(v11)
-          b5():
-            constrain v0 == Field 5
-            v18 = call f5() -> Field
-            jmp b7(v18)
-          b6():
-            v15 = call f4() -> Field
-            jmp b7(v15)
-          b7(v1: Field):
-            jmp b8(v1)
-          b8(v2: Field):
-            jmp b9(v2)
-          b9(v3: Field):
-            return v3
-        }
-        brillig(inline_always) fn apply f8 {
-          b0(v0: Field):
-            v3 = eq v0, Field 3
-            jmpif v3 then: b2, else: b1
-          b1():
-            constrain v0 == Field 5
-            v8 = call f5() -> Field
-            jmp b3(v8)
-          b2():
-            v5 = call f3() -> Field
-            jmp b3(v5)
-          b3(v1: Field):
-            return v1
+            v6, v7 = call f1() -> (u32, [Field])
+            jmp b3(v6, v7)
+          b3(v1: u32, v2: [Field]):
+            return v1, v2
         }
         ");
     }
