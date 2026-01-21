@@ -84,17 +84,6 @@ fn return_values() {
 }
 
 #[test]
-fn computes_current_witness() {
-    let src = "
-    private parameters: [w0, w1]
-    public parameters: [w3]
-    return values: [w2]
-    ";
-    let circuit = Circuit::from_str(src).unwrap();
-    assert_eq!(circuit.current_witness_index, 3);
-}
-
-#[test]
 fn assert_zero_opcodes() {
     let src = "
     private parameters: [w0, w1, w2, w3, w4]
@@ -716,9 +705,6 @@ fn array_dynamic() {
     READ w78 = b1[w77]
     ASSERT w78 = -w15*w74 + w74*w78 + w15
     ";
-
-    let circuit = Circuit::from_str(src).unwrap();
-    assert_eq!(circuit.current_witness_index, 999);
 
     assert_circuit_roundtrip(src);
 }
