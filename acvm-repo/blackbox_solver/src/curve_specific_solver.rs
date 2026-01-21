@@ -7,7 +7,6 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns an [`BlackBoxResolutionError`] if the backend does not support the given [`acir::BlackBoxFunc`].
 pub trait BlackBoxFunctionSolver<F> {
-    fn pedantic_solving(&self) -> bool;
     fn multi_scalar_mul(
         &self,
         points: &[F],
@@ -29,17 +28,7 @@ pub trait BlackBoxFunctionSolver<F> {
     ) -> Result<(F, F, F), BlackBoxResolutionError>;
     fn poseidon2_permutation(&self, inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
-
-// pedantic_solving: bool
-pub struct StubbedBlackBoxSolver(pub bool);
-
-// pedantic_solving enabled by default
-impl Default for StubbedBlackBoxSolver {
-    fn default() -> StubbedBlackBoxSolver {
-        let pedantic_solving = true;
-        StubbedBlackBoxSolver(pedantic_solving)
-    }
-}
+pub struct StubbedBlackBoxSolver;
 
 impl StubbedBlackBoxSolver {
     fn fail(black_box_function: BlackBoxFunc) -> BlackBoxResolutionError {
@@ -51,9 +40,6 @@ impl StubbedBlackBoxSolver {
 }
 
 impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
-    fn pedantic_solving(&self) -> bool {
-        self.0
-    }
     fn multi_scalar_mul(
         &self,
         _points: &[F],
