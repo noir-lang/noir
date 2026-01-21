@@ -69,11 +69,9 @@ impl Elaborator<'_> {
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
                 // Extract the declared numeric type from the type alias's kind.
-                let Kind::Numeric(declared_type) = type_alias.borrow().typ.kind() else {
-                    unreachable!(
-                        "ICE: numeric type alias should have Kind::Numeric, found {:?}",
-                        type_alias.borrow().typ.kind()
-                    )
+                let declared_type = match type_alias.borrow().typ.kind() {
+                    Kind::Numeric(declared_type) => declared_type,
+                    _ => Box::new(Type::Error),
                 };
                 let declared_type = *declared_type;
                 let expr_location = type_alias.borrow().location;
