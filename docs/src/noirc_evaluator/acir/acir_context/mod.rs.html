@@ -3298,7 +3298,7 @@
             )
             .circuit;
 
-            <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
+            <span class="kw">let </span>solver = StubbedBlackBoxSolver;
 
             <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
             witness_map.insert(lhs_witness,  FieldElement::from(limit));
@@ -3361,7 +3361,7 @@
         BLACKBOX::RANGE input: w1, bits: 128
         "</span>);
 
-        <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
+        <span class="kw">let </span>solver = StubbedBlackBoxSolver;
 
         <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
         witness_map.insert(lhs_witness, limit);

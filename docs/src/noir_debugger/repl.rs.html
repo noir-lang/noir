@@ -860,10 +860,7 @@
 <a href="#859" id="859">859</a>
 <a href="#860" id="860">860</a>
 <a href="#861" id="861">861</a>
-<a href="#862" id="862">862</a>
-<a href="#863" id="863">863</a>
-<a href="#864" id="864">864</a>
-<a href="#865" id="865">865</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
+<a href="#862" id="862">862</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
 <span class="kw">use </span><span class="kw">crate</span>::context::{
     DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
     RunParams,
@@ -939,7 +936,7 @@
     command_receiver: Receiver&lt;DebugCommandAPI&gt;,
     status_sender: Sender&lt;DebuggerStatus&gt;,
     last_result: DebugCommandResult,
-    pedantic_solving: bool,
+
     raw_source_printing: bool,
 }
 
@@ -951,7 +948,6 @@
         status_sender: Sender&lt;DebuggerStatus&gt;,
         command_receiver: Receiver&lt;DebugCommandAPI&gt;,
         raw_source_printing: bool,
-        pedantic_solving: bool,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>last_result = DebugCommandResult::Ok;
 
@@ -964,7 +960,6 @@
             unconstrained_functions: compiled_program.program.unconstrained_functions.clone(),
             raw_source_printing,
             initial_witness,
-            pedantic_solving,
         }
     }
 
@@ -976,7 +971,7 @@
         <span class="kw-2">mut </span><span class="self">self</span>,
         foreign_call_executor: Box&lt;<span class="kw">dyn </span>DebugForeignCallExecutor + <span class="lifetime">'a</span>&gt;,
     ) {
-        <span class="kw">let </span>blackbox_solver = <span class="kw-2">&amp;</span>Bn254BlackBoxSolver(<span class="self">self</span>.pedantic_solving);
+        <span class="kw">let </span>blackbox_solver = <span class="kw-2">&amp;</span>Bn254BlackBoxSolver;
         <span class="kw">let </span>circuits = <span class="kw-2">&amp;</span><span class="self">self</span>.circuits.clone();
         <span class="kw">let </span>unconstrained_functions = <span class="kw-2">&amp;</span><span class="self">self</span>.unconstrained_functions.clone();
         <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::new(
@@ -1525,7 +1520,6 @@
             status_tx,
             command_rx,
             run_params.raw_source_printing.unwrap_or(<span class="bool-val">false</span>),
-            run_params.pedantic_solving,
         );
         debugger.start_debugging(foreign_call_executor);
     });

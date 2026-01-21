@@ -264,16 +264,7 @@
 <a href="#263" id="263">263</a>
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
+<a href="#266" id="266">266</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>acir::circuit::Opcode;
 <span class="kw">use </span>acir::circuit::OpcodeLocation;
@@ -306,12 +297,6 @@
     </span><span class="attr">#[clap(long, short)]
     </span>output: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
-    <span class="doccomment">/// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    </span><span class="attr">#[clap(long, default_value = <span class="string">"false"</span>)]
-    </span>pedantic_solving: bool,
-
     <span class="doccomment">/// A single number representing the total opcodes executed.
     /// Outputs to stdout and skips generating a flamegraph.
     </span><span class="attr">#[clap(long, default_value = <span class="string">"false"</span>)]
@@ -328,7 +313,6 @@
         <span class="kw-2">&amp;</span>args.prover_toml_path,
         <span class="kw-2">&amp;</span>InfernoFlamegraphGenerator { count_name: <span class="string">"samples"</span>.to_string() },
         <span class="kw-2">&amp;</span>args.output,
-        args.pedantic_solving,
         args.sample_count,
         args.verbose,
     )
@@ -339,7 +323,6 @@
     prover_toml_path: <span class="kw-2">&amp;</span>Path,
     flamegraph_generator: <span class="kw-2">&amp;</span><span class="kw">impl </span>FlamegraphGenerator,
     output_path: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
-    pedantic_solving: bool,
     print_sample_count: bool,
     verbose: bool,
 ) -&gt; eyre::Result&lt;()&gt; {
@@ -365,7 +348,7 @@
     <span class="kw">let </span>solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
         <span class="kw-2">&amp;</span>program.bytecode,
         initial_witness,
-        <span class="kw-2">&amp;</span>Bn254BlackBoxSolver(pedantic_solving),
+        <span class="kw-2">&amp;</span>Bn254BlackBoxSolver,
         <span class="kw-2">&amp;mut </span>DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
     );
     <span class="kw">let </span><span class="kw-2">mut </span>profiling_samples = <span class="kw">match </span>solved_witness_stack_err {
@@ -540,7 +523,6 @@
                 <span class="kw-2">&amp;</span>prover_toml_path,
                 <span class="kw-2">&amp;</span>flamegraph_generator,
                 <span class="kw-2">&amp;</span><span class="prelude-val">Some</span>(temp_dir.keep()),
-                <span class="bool-val">false</span>,
                 <span class="bool-val">false</span>,
                 <span class="bool-val">false</span>,
             )

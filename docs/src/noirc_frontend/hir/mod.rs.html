@@ -333,11 +333,7 @@
 <a href="#332" id="332">332</a>
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#335" id="335">335</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>printer;
@@ -616,10 +612,6 @@
     <span class="doccomment">/// Activates LSP mode, which will track references for all definitions.
     </span><span class="kw">pub fn </span>activate_lsp_mode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.def_interner.lsp_mode = <span class="bool-val">true</span>;
-    }
-
-    <span class="kw">pub fn </span>enable_pedantic_solving(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.def_interner.pedantic_solving = <span class="bool-val">true</span>;
     }
 
     <span class="kw">pub fn </span>disable_comptime_printing(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {

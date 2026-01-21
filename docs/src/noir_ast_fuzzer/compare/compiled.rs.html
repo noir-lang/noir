@@ -677,7 +677,7 @@
 <span class="kw">impl</span>&lt;P&gt; CompareCompiled&lt;P&gt; {
     <span class="doccomment">/// Execute the two SSAs and compare the results.
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
-        <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver;
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>do_exec = |program| {

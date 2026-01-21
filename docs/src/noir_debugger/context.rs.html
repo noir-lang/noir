@@ -1485,10 +1485,7 @@
 <a href="#1484" id="1484">1484</a>
 <a href="#1485" id="1485">1485</a>
 <a href="#1486" id="1486">1486</a>
-<a href="#1487" id="1487">1487</a>
-<a href="#1488" id="1488">1488</a>
-<a href="#1489" id="1489">1489</a>
-<a href="#1490" id="1490">1490</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1487" id="1487">1487</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -1775,9 +1772,6 @@
 <span class="attr">#[derive(Debug, Clone)]
 
 </span><span class="kw">pub struct </span>RunParams {
-    <span class="doccomment">/// Use pedantic ACVM solving
-    </span><span class="kw">pub </span>pedantic_solving: bool,
-
     <span class="doccomment">/// Option for configuring the source_code_printer
     /// This option only applies for the Repl interface
     </span><span class="kw">pub </span>raw_source_printing: <span class="prelude-ty">Option</span>&lt;bool&gt;,
@@ -2586,7 +2580,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_resolve_foreign_calls_stepping_into_brillig() {
-        <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
+        <span class="kw">let </span>solver = StubbedBlackBoxSolver;
         <span class="kw">let </span>fe_1 = FieldElement::one();
         <span class="kw">let </span>w_x = Witness(<span class="number">1</span>);
 
@@ -2735,7 +2729,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_break_brillig_block_while_stepping_acir_opcodes() {
-        <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
+        <span class="kw">let </span>solver = StubbedBlackBoxSolver;
         <span class="kw">let </span>fe_1 = FieldElement::one();
         <span class="kw">let </span>w_x = Witness(<span class="number">1</span>);
         <span class="kw">let </span>w_y = Witness(<span class="number">2</span>);
@@ -2847,7 +2841,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_address_debug_location_mapping() {
-        <span class="kw">let </span>solver = StubbedBlackBoxSolver::default();
+        <span class="kw">let </span>solver = StubbedBlackBoxSolver;
         <span class="kw">let </span>brillig_one = BrilligBytecode {
             function_name: <span class="string">"one"</span>.to_string(),
             bytecode: <span class="macro">vec!</span>[BrilligOpcode::Return, BrilligOpcode::Return],

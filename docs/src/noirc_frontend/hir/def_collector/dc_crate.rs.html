@@ -665,8 +665,7 @@
 <a href="#664" id="664">664</a>
 <a href="#665" id="665">665</a>
 <a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#667" id="667">667</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -1072,7 +1071,6 @@
 
         <span class="kw">let </span>cli_options = <span class="kw">crate</span>::elaborator::ElaboratorOptions {
             debug_comptime_in_file,
-            pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,
             disable_required_unstable_features: options.disable_required_unstable_features,
         };

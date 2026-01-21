@@ -1807,7 +1807,7 @@
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_on_initialize() {
         <span class="kw">let </span>client = ClientSocket::new_closed();
-        <span class="kw">let </span><span class="kw-2">mut </span>state = LspState::new(<span class="kw-2">&amp;</span>client, StubbedBlackBoxSolver::default());
+        <span class="kw">let </span><span class="kw-2">mut </span>state = LspState::new(<span class="kw-2">&amp;</span>client, StubbedBlackBoxSolver);
         <span class="kw">let </span>params = InitializeParams::default();
         <span class="kw">let </span>response = on_initialize(<span class="kw-2">&amp;mut </span>state, params).<span class="kw">await</span>.unwrap();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(

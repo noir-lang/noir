@@ -1941,8 +1941,7 @@
 <a href="#1940" id="1940">1940</a>
 <a href="#1941" id="1941">1941</a>
 <a href="#1942" id="1942">1942</a>
-<a href="#1943" id="1943">1943</a>
-<a href="#1944" id="1944">1944</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1943" id="1943">1943</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -3869,10 +3868,9 @@
         <span class="kw">let </span>local_id = func_meta.source_module;
         <span class="kw">let </span>location = func_meta.location;
         <span class="kw">let </span>enabled_unstable_features = <span class="kw-2">&amp;</span><span class="self">self</span>.required_unstable_features[<span class="kw-2">&amp;</span>crate_id].clone();
-        <span class="kw">let </span>pedantic_solving = <span class="self">self</span>.def_interner.pedantic_solving;
         <span class="kw">let </span>cli_options = ElaboratorOptions {
             debug_comptime_in_file: <span class="prelude-val">None</span>,
-            pedantic_solving,
+
             enabled_unstable_features,
             disable_required_unstable_features: <span class="bool-val">false</span>,
         };

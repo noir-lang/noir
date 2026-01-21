@@ -1224,7 +1224,7 @@
                         <span class="string">"retrieving predicate in call to MultiScalarMul blackbox"</span>,
                     )<span class="question-mark">?</span>;
 
-                    <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+                    <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     <span class="kw">let </span>result =
                         solver.multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi, predicate);
                     <span class="kw">let </span>(x, y, is_infinite) = result.map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
@@ -1255,7 +1255,7 @@
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd =&gt; {
                     check_argument_count(args, <span class="number">7</span>, intrinsic)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+                    <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     <span class="kw">let </span>lhs = (
                         <span class="self">self</span>.lookup_field(args[<span class="number">0</span>], <span class="string">"call EmbeddedCurveAdd BlackBox"</span>)<span class="question-mark">?</span>,
                         <span class="self">self</span>.lookup_field(args[<span class="number">1</span>], <span class="string">"call EmbeddedCurveAdd BlackBox"</span>)<span class="question-mark">?</span>,
@@ -1285,7 +1285,7 @@
                     check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                     <span class="kw">let </span>inputs = <span class="self">self
                         </span>.lookup_vec_field(args[<span class="number">0</span>], <span class="string">"call Poseidon2Permutation BlackBox (inputs)"</span>)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+                    <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     <span class="kw">let </span>result =
                         solver.poseidon2_permutation(<span class="kw-2">&amp;</span>inputs).map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
                     <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;

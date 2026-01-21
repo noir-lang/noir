@@ -908,13 +908,7 @@
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
 <a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1378,11 +1372,6 @@
         <span class="self">self</span>.push_errors(<span class="self">self</span>.interner.check_for_dependency_cycles());
     }
 
-    <span class="doccomment">/// True if we should use pedantic ACVM solving
-    </span><span class="kw">pub fn </span>pedantic_solving(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.options.pedantic_solving
-    }
-
     <span class="kw">fn </span>elaborate_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, functions: UnresolvedFunctions) {
         <span class="kw">for </span>(<span class="kw">_</span>, id, <span class="kw">_</span>) <span class="kw">in </span>functions.functions {
             <span class="self">self</span>.elaborate_function(id);
@@ -1768,7 +1757,6 @@
         <span class="kw">let </span>file_manager = FileManager::new(<span class="kw-2">&amp;</span>PathBuf::new());
         <span class="kw">let </span>parsed_files = ParsedFiles::new();
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
-        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 

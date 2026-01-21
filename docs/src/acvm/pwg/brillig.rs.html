@@ -822,7 +822,7 @@
         <span class="kw">let </span>inputs =
             <span class="macro">vec!</span>[BrilligInputs::Single(w1), BrilligInputs::Single(w2), BrilligInputs::Single(w3)];
 
-        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
         <span class="kw">let </span>bytecode = <span class="macro">vec!</span>[
             Opcode::Const {
                 destination: MemoryAddress::Direct(<span class="number">21</span>),

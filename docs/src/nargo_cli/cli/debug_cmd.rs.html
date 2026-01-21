@@ -308,8 +308,7 @@
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -414,7 +413,6 @@
         target_dir: <span class="kw-2">&amp;</span>workspace.target_directory_path(),
     };
     <span class="kw">let </span>run_params = RunParams {
-        pedantic_solving: args.compile_options.pedantic_solving,
         raw_source_printing: args.raw_source_printing,
         oracle_resolver_url: args.oracle_resolver,
     };

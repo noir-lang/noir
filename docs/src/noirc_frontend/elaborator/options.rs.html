@@ -65,11 +65,7 @@
 <a href="#64" id="64">64</a>
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compiler frontend options and unstable feature flags.
+<a href="#67" id="67">67</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compiler frontend options and unstable feature flags.
 
 </span><span class="kw">use </span>std::str::FromStr;
 
@@ -111,9 +107,6 @@
     <span class="doccomment">/// The scope of --debug-comptime, or None if unset
     </span><span class="kw">pub </span>debug_comptime_in_file: <span class="prelude-ty">Option</span>&lt;T&gt;,
 
-    <span class="doccomment">/// Use pedantic ACVM solving
-    </span><span class="kw">pub </span>pedantic_solving: bool,
-
     <span class="doccomment">/// Unstable compiler features that were explicitly enabled. Any unstable features
     /// that are not in this list result in an error when used.
     </span><span class="kw">pub </span>enabled_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[UnstableFeature],
@@ -134,7 +127,6 @@
     </span><span class="kw">pub fn </span>test_default() -&gt; GenericOptions&lt;<span class="lifetime">'static</span>, T&gt; {
         GenericOptions {
             debug_comptime_in_file: <span class="prelude-val">None</span>,
-            pedantic_solving: <span class="bool-val">true</span>,
             enabled_unstable_features: <span class="kw-2">&amp;</span>[UnstableFeature::Enums],
             disable_required_unstable_features: <span class="bool-val">true</span>,
         }

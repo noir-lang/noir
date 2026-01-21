@@ -50,11 +50,7 @@
 <a href="#49" id="49">49</a>
 <a href="#50" id="50">50</a>
 <a href="#51" id="51">51</a>
-<a href="#52" id="52">52</a>
-<a href="#53" id="53">53</a>
-<a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::BlackBoxFunctionSolver;
+<a href="#52" id="52">52</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::BlackBoxFunctionSolver;
 
 <span class="comment">// This is a struct that wraps a dynamically dispatched `BlackBoxFunctionSolver`
 // where we proxy the unimplemented stuff to the wrapped backend, but it
@@ -62,10 +58,6 @@
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>WrapperSolver(<span class="kw">pub</span>(<span class="kw">super</span>) Box&lt;<span class="kw">dyn </span>BlackBoxFunctionSolver&lt;acvm::FieldElement&gt;&gt;);
 
 <span class="kw">impl </span>BlackBoxFunctionSolver&lt;acvm::FieldElement&gt; <span class="kw">for </span>WrapperSolver {
-    <span class="kw">fn </span>pedantic_solving(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.<span class="number">0</span>.pedantic_solving()
-    }
-
     <span class="kw">fn </span>multi_scalar_mul(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         points: <span class="kw-2">&amp;</span>[acvm::FieldElement],

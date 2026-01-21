@@ -50,8 +50,7 @@
 <a href="#49" id="49">49</a>
 <a href="#50" id="50">50</a>
 <a href="#51" id="51">51</a>
-<a href="#52" id="52">52</a>
-<a href="#53" id="53">53</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::{
+<a href="#52" id="52">52</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::{
     concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::LifecycleLayer,
     tracing::TracingLayer,
 };
@@ -77,8 +76,7 @@
 
     runtime.block_on(<span class="kw">async </span>{
         <span class="kw">let </span>(server, <span class="kw">_</span>) = async_lsp::MainLoop::new_server(|client| {
-            <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-            <span class="kw">let </span>router = NargoLspService::new(<span class="kw-2">&amp;</span>client, Bn254BlackBoxSolver(pedantic_solving));
+            <span class="kw">let </span>router = NargoLspService::new(<span class="kw-2">&amp;</span>client, Bn254BlackBoxSolver);
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())

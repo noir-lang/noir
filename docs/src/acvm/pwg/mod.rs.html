@@ -962,26 +962,7 @@
 <a href="#961" id="961">961</a>
 <a href="#962" id="962">962</a>
 <a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a>
-<a href="#965" id="965">965</a>
-<a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a>
-<a href="#968" id="968">968</a>
-<a href="#969" id="969">969</a>
-<a href="#970" id="970">970</a>
-<a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a>
-<a href="#973" id="973">973</a>
-<a href="#974" id="974">974</a>
-<a href="#975" id="975">975</a>
-<a href="#976" id="976">976</a>
-<a href="#977" id="977">977</a>
-<a href="#978" id="978">978</a>
-<a href="#979" id="979">979</a>
-<a href="#980" id="980">980</a>
-<a href="#981" id="981">981</a>
-<a href="#982" id="982">982</a>
-<a href="#983" id="983">983</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#964" id="964">964</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="doccomment">//! This module contains methods to implement the partial witness generation (PWG) of an ACIR program.
 //! The goal of ACIR execution is to compute the values of all the ACIR witnesses, or an error if it could not compute them all.
@@ -1487,7 +1468,7 @@
                     </span>.block_solvers
                     .get_mut(block_id)
                     .expect(<span class="string">"Memory block should have been initialized before use"</span>);
-                solver.solve_memory_op(op, <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map, <span class="self">self</span>.backend.pedantic_solving())
+                solver.solve_memory_op(op, <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map)
             }
             Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.solve_brillig_call_opcode(id, inputs, outputs, predicate) {
@@ -1595,12 +1576,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ForeignCallWaitInfo&lt;F&gt;&gt;, OpcodeResolutionError&lt;F&gt;&gt; {
         <span class="kw">let </span>opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(<span class="self">self</span>.instruction_pointer()));
-        <span class="kw">if </span>is_predicate_false(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.witness_map,
-            predicate,
-            <span class="self">self</span>.backend.pedantic_solving(),
-            <span class="kw-2">&amp;</span>opcode_location,
-        )<span class="question-mark">? </span>{
+        <span class="kw">if </span>is_predicate_false(<span class="kw-2">&amp;</span><span class="self">self</span>.witness_map, predicate, <span class="kw-2">&amp;</span>opcode_location)<span class="question-mark">? </span>{
             <span class="kw">return </span>BrilligSolver::&lt;F, B&gt;::zero_out_brillig_outputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map, outputs)
                 .map(|<span class="kw">_</span>| <span class="prelude-val">None</span>);
         }
@@ -1679,12 +1655,7 @@
         <span class="kw">let </span>opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(<span class="self">self</span>.instruction_pointer()));
         <span class="kw">let </span>witness = <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map;
-        <span class="kw">let </span>should_skip = <span class="kw">match </span>is_predicate_false(
-            witness,
-            predicate,
-            <span class="self">self</span>.backend.pedantic_solving(),
-            <span class="kw-2">&amp;</span>opcode_location,
-        ) {
+        <span class="kw">let </span>should_skip = <span class="kw">match </span>is_predicate_false(witness, predicate, <span class="kw-2">&amp;</span>opcode_location) {
             <span class="prelude-val">Ok</span>(result) =&gt; result,
             <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>StepResult::Status(<span class="self">self</span>.handle_opcode_resolution(<span class="prelude-val">Err</span>(err))),
         };
@@ -1737,12 +1708,7 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::AcirMainCallAttempted { opcode_location });
         }
 
-        <span class="kw">if </span>is_predicate_false(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.witness_map,
-            predicate,
-            <span class="self">self</span>.backend.pedantic_solving(),
-            <span class="kw-2">&amp;</span>opcode_location,
-        )<span class="question-mark">? </span>{
+        <span class="kw">if </span>is_predicate_false(<span class="kw-2">&amp;</span><span class="self">self</span>.witness_map, predicate, <span class="kw-2">&amp;</span>opcode_location)<span class="question-mark">? </span>{
             <span class="comment">// Zero out the outputs if we have a false predicate
             </span><span class="kw">for </span>output <span class="kw">in </span>outputs {
                 insert_value(output, F::zero(), <span class="kw-2">&amp;mut </span><span class="self">self</span>.witness_map)<span class="question-mark">?</span>;
@@ -1881,21 +1847,17 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_predicate_false&lt;F: AcirField&gt;(
     witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
     predicate: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
-    pedantic_solving: bool,
     opcode_location: <span class="kw-2">&amp;</span>ErrorLocation,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, OpcodeResolutionError&lt;F&gt;&gt; {
     <span class="kw">let </span>pred_value = get_value(predicate, witness)<span class="question-mark">?</span>;
     <span class="kw">let </span>predicate_is_false = pred_value.is_zero();
-    <span class="kw">if </span>pedantic_solving {
-        <span class="comment">// We expect that the predicate should resolve to either 0 or 1.
-        </span><span class="kw">if </span>!predicate_is_false &amp;&amp; !pred_value.is_one() {
-            <span class="kw">let </span>opcode_location = <span class="kw-2">*</span>opcode_location;
-            <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::PredicateLargerThanOne {
-                opcode_location,
-                pred_value,
-            });
-        }
+
+    <span class="comment">// We expect that the predicate should resolve to either 0 or 1.
+    </span><span class="kw">if </span>!predicate_is_false &amp;&amp; !pred_value.is_one() {
+        <span class="kw">let </span>opcode_location = <span class="kw-2">*</span>opcode_location;
+        <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::PredicateLargerThanOne { opcode_location, pred_value });
     }
+
     <span class="prelude-val">Ok</span>(predicate_is_false)
 }
 
@@ -1930,7 +1892,7 @@
             (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">1u128</span>)),
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">2u128</span>)),
         ]));
-        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
 
         <span class="kw">let </span>src = <span class="string">"
         BLACKBOX::RANGE input: w1, bits: 32
@@ -1950,7 +1912,7 @@
     </span><span class="kw">fn </span>errors_when_calling_function_zero() {
         <span class="kw">let </span>initial_witness =
             WitnessMap::from(BTreeMap::from_iter([(Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>))]));
-        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
 
         <span class="kw">let </span>src = <span class="string">"
         CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]

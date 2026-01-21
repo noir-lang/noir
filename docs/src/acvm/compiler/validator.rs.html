@@ -1341,7 +1341,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">5u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1366,7 +1366,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">6u128</span>)), <span class="comment">// Wrong value!
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1387,7 +1387,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">12u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1403,7 +1403,7 @@
             (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">255u128</span>)), <span class="comment">// Max 8-bit value
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1419,7 +1419,7 @@
             (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">256u128</span>)), <span class="comment">// Too large for 8 bits
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1439,7 +1439,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">0b1000u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1459,7 +1459,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">0b1111u128</span>)), <span class="comment">// Wrong!
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1479,7 +1479,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">0b0110u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1499,7 +1499,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">0b1111u128</span>)), <span class="comment">// Wrong!
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1516,7 +1516,7 @@
         <span class="comment">// Empty witness map - missing w1
         </span><span class="kw">let </span>witness_map = WitnessMap::default();
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="comment">// The expression evaluates with missing witness, but won't be zero
         // so this should fail
         </span><span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
@@ -1539,7 +1539,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">3u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1560,7 +1560,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">3u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1581,7 +1581,7 @@
             (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">2u128</span>)),
         ]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1606,7 +1606,7 @@
         </span><span class="kw">let </span>witness_map =
             WitnessMap::from(BTreeMap::from_iter([(Witness(<span class="number">4</span>), FieldElement::zero())]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1636,7 +1636,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">42u128</span>)), <span class="comment">// Should match value at index 0
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1664,7 +1664,7 @@
             (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">99u128</span>)), <span class="comment">// Wrong! Should be 42
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_err());
     }
 
@@ -1700,7 +1700,7 @@
             </span>(Witness(<span class="number">4</span>), FieldElement::from(<span class="number">100u128</span>)), <span class="comment">// Read should get written value
         </span>]));
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 
@@ -1724,7 +1724,7 @@
         <span class="comment">// Empty witness map
         </span><span class="kw">let </span>witness_map = WitnessMap::default();
 
-        <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>backend = Bn254BlackBoxSolver;
         <span class="macro">assert!</span>(validate_witness(<span class="kw-2">&amp;</span>backend, witness_map, <span class="kw-2">&amp;</span>circuit).is_ok());
     }
 }

@@ -317,34 +317,7 @@
 <a href="#316" id="316">316</a>
 <a href="#317" id="317">317</a>
 <a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, pin::Pin};
+<a href="#319" id="319">319</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, pin::Pin};
 
 <span class="kw">use </span>acvm::acir::circuit::brillig::BrilligBytecode;
 <span class="kw">use </span>acvm::acir::circuit::opcodes::AcirFunctionId;
@@ -377,8 +350,7 @@
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;JsWitnessMap, Error&gt; {
-    <span class="kw">let </span>pedantic_solving = <span class="bool-val">false</span>;
-    execute_circuit_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).<span class="kw">await
+    execute_circuit_pedantic(program, initial_witness, foreign_call_handler).<span class="kw">await
 </span>}
 
 <span class="doccomment">/// `execute_circuit` with pedantic ACVM solving
@@ -386,17 +358,12 @@
     program: Vec&lt;u8&gt;,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;JsWitnessMap, Error&gt; {
     console_error_panic_hook::set_once();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>witness_stack = execute_program_with_native_type_return(
-        program,
-        initial_witness,
-        <span class="kw-2">&amp;</span>foreign_call_handler,
-        pedantic_solving,
-    )
-    .<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>witness_stack =
+        execute_program_with_native_type_return(program, initial_witness, <span class="kw-2">&amp;</span>foreign_call_handler)
+            .<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>witness_map =
         witness_stack.pop().expect(<span class="string">"Should have at least one witness on the stack"</span>).witness;
     <span class="prelude-val">Ok</span>(witness_map.into())
@@ -415,14 +382,8 @@
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;JsSolvedAndReturnWitness, Error&gt; {
-    <span class="kw">let </span>pedantic_solving = <span class="bool-val">false</span>;
-    execute_circuit_with_return_witness_pedantic(
-        program,
-        initial_witness,
-        foreign_call_handler,
-        pedantic_solving,
-    )
-    .<span class="kw">await
+    execute_circuit_with_return_witness_pedantic(program, initial_witness, foreign_call_handler)
+        .<span class="kw">await
 </span>}
 
 <span class="doccomment">/// `executeCircuitWithReturnWitness` with pedantic ACVM execution
@@ -430,7 +391,6 @@
     program: Vec&lt;u8&gt;,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;JsSolvedAndReturnWitness, Error&gt; {
     console_error_panic_hook::set_once();
 
@@ -441,7 +401,6 @@
         <span class="kw-2">&amp;</span>program,
         initial_witness,
         <span class="kw-2">&amp;</span>foreign_call_handler,
-        pedantic_solving,
     )
     .<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>solved_witness =
@@ -467,8 +426,7 @@
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;JsWitnessStack, Error&gt; {
-    <span class="kw">let </span>pedantic_solving = <span class="bool-val">false</span>;
-    execute_program_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).<span class="kw">await
+    execute_program_pedantic(program, initial_witness, foreign_call_handler).<span class="kw">await
 </span>}
 
 <span class="doccomment">/// `execute_program` with pedantic ACVM solving
@@ -476,17 +434,12 @@
     program: Vec&lt;u8&gt;,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;JsWitnessStack, Error&gt; {
     console_error_panic_hook::set_once();
 
-    <span class="kw">let </span>witness_stack = execute_program_with_native_type_return(
-        program,
-        initial_witness,
-        <span class="kw-2">&amp;</span>foreign_call_handler,
-        pedantic_solving,
-    )
-    .<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>witness_stack =
+        execute_program_with_native_type_return(program, initial_witness, <span class="kw-2">&amp;</span>foreign_call_handler)
+            .<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(witness_stack.into())
 }
@@ -495,7 +448,6 @@
     program: Vec&lt;u8&gt;,
     initial_witness: JsWitnessMap,
     foreign_call_executor: <span class="kw-2">&amp;</span>ForeignCallHandler,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, Error&gt; {
     <span class="kw">let </span>program: Program&lt;FieldElement&gt; = Program::deserialize_program(<span class="kw-2">&amp;</span>program)
     .map_err(|<span class="kw">_</span>| JsExecutionError::new(
@@ -504,22 +456,16 @@
         <span class="prelude-val">None</span>,
     <span class="prelude-val">None</span>, <span class="prelude-val">None</span>))<span class="question-mark">?</span>;
 
-    execute_program_with_native_program_and_return(
-        <span class="kw-2">&amp;</span>program,
-        initial_witness,
-        foreign_call_executor,
-        pedantic_solving,
-    )
-    .<span class="kw">await
+    execute_program_with_native_program_and_return(<span class="kw-2">&amp;</span>program, initial_witness, foreign_call_executor)
+        .<span class="kw">await
 </span>}
 
 <span class="kw">async fn </span>execute_program_with_native_program_and_return(
     program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
     initial_witness: JsWitnessMap,
     foreign_call_executor: <span class="kw-2">&amp;</span>ForeignCallHandler,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, Error&gt; {
-    <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(pedantic_solving);
+    <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver;
     <span class="kw">let </span>executor = ProgramExecutor::new(
         <span class="kw-2">&amp;</span>program.functions,
         <span class="kw-2">&amp;</span>program.unconstrained_functions,

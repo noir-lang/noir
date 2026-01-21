@@ -1250,7 +1250,7 @@
         file_map: project.compiled_program.file_map.clone(),
     };
 
-    <span class="kw">let </span>solver = Bn254BlackBoxSolver(run_params.pedantic_solving);
+    <span class="kw">let </span>solver = Bn254BlackBoxSolver;
     <span class="kw">let </span><span class="kw-2">mut </span>session =
         DapSession::new(server, <span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>project, <span class="kw-2">&amp;</span>debug_artifact, run_params.oracle_resolver_url);
 

@@ -129,11 +129,7 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
+<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>clap::Args;
@@ -197,10 +193,6 @@
     <span class="doccomment">/// Package name for the RPC oracle resolver
     </span><span class="attr">#[clap(long)]
     </span><span class="kw">pub </span>oracle_package_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
-
-    <span class="doccomment">/// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
-    </span><span class="attr">#[clap(long, default_value_t = <span class="bool-val">false</span>)]
-    </span><span class="kw">pub </span>pedantic_solving: bool,
 }
 
 <span class="kw">pub fn </span>run(args: ExecuteCommand) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
@@ -264,7 +256,7 @@
     }
     .build_with_base(transcript_executor);
 
-    <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
+    <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver;
 
     execution::execute(circuit, <span class="kw-2">&amp;</span>blackbox_solver, <span class="kw-2">&amp;mut </span>foreign_call_executor, <span class="kw-2">&amp;</span>args.prover_file)
 }

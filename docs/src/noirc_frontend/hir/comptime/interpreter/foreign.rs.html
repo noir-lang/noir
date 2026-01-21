@@ -357,15 +357,7 @@
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
 <a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
+<a href="#359" id="359">359</a></pre></div><pre class="rust"><code><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
 </span><span class="kw">use </span>acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver; <span class="comment">// Currently locked to only bn254!
@@ -399,7 +391,7 @@
         return_type: Type,
         location: Location,
     ) -&gt; IResult&lt;Value&gt; {
-        call_foreign(name, arguments, return_type, location, <span class="self">self</span>.elaborator.pedantic_solving())
+        call_foreign(name, arguments, return_type, location)
     }
 }
 
@@ -411,7 +403,6 @@
     args: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
-    pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">match </span>name {
         <span class="string">"aes128_encrypt" </span>=&gt; aes128_encrypt(args, location),
@@ -425,9 +416,9 @@
         </span><span class="string">"ecdsa_secp256r1" </span>=&gt; {
             ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
-        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location, pedantic_solving),
-        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location, pedantic_solving),
-        <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location, pedantic_solving),
+        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location),
+        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location),
+        <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location),
         <span class="string">"keccakf1600" </span>=&gt; keccakf1600(args, location),
         <span class="string">"sha256_compression" </span>=&gt; sha256_compression(args, location),
         <span class="kw">_ </span>=&gt; {
@@ -518,7 +509,6 @@
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
-    pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(point1, point2, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"ec_add predicate should be true"</span>);
@@ -528,7 +518,7 @@
     <span class="kw">let </span>(p1x, p1y, p1inf) = get_embedded_curve_point(point1)<span class="question-mark">?</span>;
     <span class="kw">let </span>(p2x, p2y, p2inf) = get_embedded_curve_point(point2)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+    <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver
         .ec_add(
             <span class="kw-2">&amp;</span>p1x,
             <span class="kw-2">&amp;</span>p1y,
@@ -557,7 +547,6 @@
     arguments: Vec&lt;(Value, Location)&gt;,
     return_type: Type,
     location: Location,
-    pedantic_solving: bool,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(points, scalars, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"multi_scalar_mul predicate should be true"</span>);
@@ -573,7 +562,7 @@
         scalars_hi.push(hi);
     }
 
-    <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+    <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver
         .multi_scalar_mul(
             <span class="kw-2">&amp;</span>points,
             <span class="kw-2">&amp;</span>scalars_lo,
@@ -600,17 +589,13 @@
 }
 
 <span class="doccomment">/// `poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N], _state_length: u32) -&gt; [Field; N]`
-</span><span class="kw">fn </span>poseidon2_permutation(
-    arguments: Vec&lt;(Value, Location)&gt;,
-    location: Location,
-    pedantic_solving: bool,
-) -&gt; IResult&lt;Value&gt; {
+</span><span class="kw">fn </span>poseidon2_permutation(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(input, typ) = get_array_map(input, get_field)<span class="question-mark">?</span>;
     <span class="kw">let </span>input = vecmap(input, SignedField::to_field_element);
 
-    <span class="kw">let </span>fields = Bn254BlackBoxSolver(pedantic_solving)
+    <span class="kw">let </span>fields = Bn254BlackBoxSolver
         .poseidon2_permutation(<span class="kw-2">&amp;</span>input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
 
@@ -712,8 +697,7 @@
             }
 
             <span class="kw">let </span>name = blackbox.name();
-            <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-            <span class="kw">match </span>call_foreign(name, Vec::new(), Type::Unit, no_location, pedantic_solving) {
+            <span class="kw">match </span>call_foreign(name, Vec::new(), Type::Unit, no_location) {
                 <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
                     <span class="comment">// Exists and works with no args (unlikely)
                 </span>}

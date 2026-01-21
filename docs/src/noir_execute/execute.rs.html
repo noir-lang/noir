@@ -240,7 +240,7 @@
     };
 
     <span class="kw">let </span><span class="kw-2">mut </span>witness_stack = load_witness_from_file(witness_path)<span class="question-mark">?</span>;
-    <span class="kw">let </span>backend = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+    <span class="kw">let </span>backend = Bn254BlackBoxSolver;
 
     <span class="kw">while let </span><span class="prelude-val">Some</span>(stack_item) = witness_stack.pop() {
         <span class="kw">let </span>function_index = stack_item.index <span class="kw">as </span>usize;

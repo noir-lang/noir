@@ -140,12 +140,7 @@
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a></pre></div><pre class="rust"><code><span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
+<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>nargo::{
     constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
@@ -230,11 +225,7 @@
             args.compile_options.force_brillig,
             <span class="string">"Internal CLI Error: --force-brillig must be active when --profile-execution is active"
         </span>);
-        profile_brillig_execution(
-            binary_packages,
-            <span class="kw-2">&amp;</span>args.prover_name,
-            args.compile_options.pedantic_solving,
-        )<span class="question-mark">?
+        profile_brillig_execution(binary_packages, <span class="kw-2">&amp;</span>args.prover_name)<span class="question-mark">?
     </span>} <span class="kw">else </span>{
         binary_packages
             .into_iter()
@@ -255,7 +246,6 @@
 <span class="kw">fn </span>profile_brillig_execution(
     binary_packages: Vec&lt;(Package, ProgramArtifact)&gt;,
     prover_name: <span class="kw-2">&amp;</span>str,
-    pedantic_solving: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ProgramInfo&gt;, CliError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>program_info = Vec::new();
     <span class="kw">for </span>(package, program_artifact) <span class="kw">in </span>binary_packages.iter() {
@@ -269,7 +259,7 @@
         <span class="kw">let </span>(<span class="kw">_</span>, profiling_samples) = nargo::ops::execute_program_with_profiling(
             <span class="kw-2">&amp;</span>program_artifact.bytecode,
             initial_witness,
-            <span class="kw-2">&amp;</span>Bn254BlackBoxSolver(pedantic_solving),
+            <span class="kw-2">&amp;</span>Bn254BlackBoxSolver,
             <span class="kw-2">&amp;mut </span>DefaultForeignCallBuilder::default().build(),
         )
         .map_err(|e| {

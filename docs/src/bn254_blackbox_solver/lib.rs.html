@@ -62,11 +62,7 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
@@ -86,13 +82,9 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="comment">// pedantic_solving: bool
-</span><span class="kw">pub struct </span>Bn254BlackBoxSolver(<span class="kw">pub </span>bool);
+</span><span class="kw">pub struct </span>Bn254BlackBoxSolver;
 
 <span class="kw">impl </span>BlackBoxFunctionSolver&lt;FieldElement&gt; <span class="kw">for </span>Bn254BlackBoxSolver {
-    <span class="kw">fn </span>pedantic_solving(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.<span class="number">0
-    </span>}
-
     <span class="kw">fn </span>multi_scalar_mul(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         points: <span class="kw-2">&amp;</span>[FieldElement],

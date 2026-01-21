@@ -975,8 +975,7 @@
 <a href="#974" id="974">974</a>
 <a href="#975" id="975">975</a>
 <a href="#976" id="976">976</a>
-<a href="#977" id="977">977</a>
-<a href="#978" id="978">978</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#977" id="977">977</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -1600,12 +1599,11 @@
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -&gt; SimplifyResult {
-    <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
     <span class="macro">cfg_if::cfg_if!</span> {
         <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">"bn254"</span>)] </span>{
-            <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+            <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
         } <span class="kw">else </span>{
-            <span class="kw">let </span>solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
+            <span class="kw">let </span>solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
         }
     };
     <span class="kw">match </span>bb_func {

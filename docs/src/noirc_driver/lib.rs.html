@@ -959,18 +959,7 @@
 <a href="#958" id="958">958</a>
 <a href="#959" id="959">959</a>
 <a href="#960" id="960">960</a>
-<a href="#961" id="961">961</a>
-<a href="#962" id="962">962</a>
-<a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a>
-<a href="#965" id="965">965</a>
-<a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a>
-<a href="#968" id="968">968</a>
-<a href="#969" id="969">969</a>
-<a href="#970" id="970">970</a>
-<a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#961" id="961">961</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -1160,12 +1149,6 @@
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>max_bytecode_increase_percent: <span class="prelude-ty">Option</span>&lt;i32&gt;,
 
-    <span class="doccomment">/// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
-    </span><span class="kw">pub </span>pedantic_solving: bool,
-
     <span class="doccomment">/// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
     ///
@@ -1224,7 +1207,6 @@
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: <span class="prelude-val">None</span>,
-            pedantic_solving: <span class="bool-val">false</span>,
             debug_compile_stdin: <span class="bool-val">false</span>,
             unstable_features: Vec::new(),
             no_unstable_features: <span class="bool-val">false</span>,
@@ -1270,7 +1252,6 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>frontend_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: <span class="self">self</span>.debug_comptime_in_file.as_deref(),
-            pedantic_solving: <span class="self">self</span>.pedantic_solving,
             enabled_unstable_features: <span class="kw-2">&amp;</span><span class="self">self</span>.unstable_features,
             disable_required_unstable_features: <span class="self">self</span>.no_unstable_features,
         }
@@ -1419,9 +1400,6 @@
 ) -&gt; CompilationResult&lt;()&gt; {
     <span class="kw">if </span>options.disable_comptime_printing {
         context.disable_comptime_printing();
-    }
-    <span class="kw">if </span>options.pedantic_solving {
-        context.enable_pedantic_solving();
     }
 
     <span class="kw">let </span>diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
