@@ -1,3 +1,4 @@
+use acir::native_types::Witness;
 use noirc_errors::call_stack::CallStack;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -22,4 +23,10 @@ pub enum InternalBug {
     UncheckedBrilligCall { call_stack: CallStack },
     #[error("Assertion is always false")]
     AssertFailed { call_stack: CallStack, message: Option<String> },
+    #[error("Witness can have arbitrary values: {details}")]
+    UnconstrainedWitness { witness: Witness, details: String, call_stack: CallStack },
+    #[error("Witness is not connected to public inputs/outputs: {details}")]
+    DisconnectedWitness { witness: Witness, details: String, call_stack: CallStack },
+    #[error("Circuit is unsatisfiable")]
+    UnsatisfiableCircuit { call_stack: CallStack },
 }

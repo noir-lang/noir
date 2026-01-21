@@ -3957,6 +3957,7 @@ dependencies = [
  "serde_with",
  "similar-asserts",
  "smallvec",
+ "tempfile",
  "test-case",
  "thiserror 1.0.69",
  "tracing",

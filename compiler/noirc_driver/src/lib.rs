@@ -13,6 +13,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
+use noirc_errors::call_stack::CallStack;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
@@ -165,6 +166,15 @@ pub struct CompileOptions {
     #[arg(long)]
     pub enable_brillig_constraints_check_lookback: bool,
 
+    /// Enable ACIR-level analysis using cvc5 SMT solver (MVP)
+    /// This performs formal verification of constraint system to detect underconstrained circuits
+    #[arg(long)]
+    pub enable_acir_analysis: bool,
+
+    /// Path to cvc5 executable (if not in PATH)
+    #[arg(long)]
+    pub cvc5_path: Option<String>,
+
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -249,6 +259,8 @@ impl Default for CompileOptions {
             enable_brillig_debug_assertions: false,
             count_array_copies: false,
             enable_brillig_constraints_check_lookback: false,
+            enable_acir_analysis: false,
+            cvc5_path: None,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
@@ -280,12 +292,15 @@ impl CompileOptions {
                 layout: Default::default(),
             },
             print_codegen_timings: self.benchmark_codegen,
-            emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
+            emit_ssa: if self.emit_ssa { Some(package_build_path.clone()) } else { None },
             skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
             enable_brillig_constraints_check_lookback: self
                 .enable_brillig_constraints_check_lookback,
             skip_brillig_constraints_check: !self.silence_warnings
                 && self.skip_brillig_constraints_check,
+            enable_acir_analysis: self.enable_acir_analysis,
+            cvc5_path: self.cvc5_path.clone(),
+            package_build_path: Some(package_build_path),
             inliner_aggressiveness: self.inliner_aggressiveness,
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
@@ -971,11 +986,26 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         }
                         ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                     }
+                    InternalBug::UnconstrainedWitness { details, call_stack, .. } => {
+                        (format!("This witness can have arbitrary values, which may lead to soundness issues. {}", details), call_stack)
+                    }
+                    InternalBug::DisconnectedWitness { details, call_stack, .. } => {
+                        (format!("This witness is not connected to public inputs/outputs, which may indicate a problem. {}", details), call_stack)
+                    }
+                    InternalBug::UnsatisfiableCircuit { call_stack } => {
+                        ("The circuit is unsatisfiable, meaning no valid witness exists that satisfies all constraints".to_string(), call_stack)
+                    }
                 };
             let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, *location);
-            diagnostic.with_call_stack(call_stack)
+            let diagnostic = if let Some(location) = call_stack.last() {
+                let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, *location);
+                diagnostic.with_call_stack(call_stack)
+            } else {
+                // For bugs without call stack, create a diagnostic with a dummy location
+                // This can happen for UnconstrainedWitness, DisconnectedWitness, or UnsatisfiableCircuit
+                CustomDiagnostic::simple_bug(message, secondary_message, noirc_errors::Location::dummy())
+            };
+            diagnostic
         }
     }
 }

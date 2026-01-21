@@ -94,6 +94,15 @@ pub struct SsaEvaluatorOptions {
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
 
+    /// Enable ACIR-level analysis using cvc5 (MVP)
+    pub enable_acir_analysis: bool,
+
+    /// Path to cvc5 executable (None = use from PATH)
+    pub cvc5_path: Option<String>,
+    
+    /// Package build path (for saving intermediate analysis files)
+    pub package_build_path: Option<PathBuf>,
+
     /// Enable the lookback feature of the Brillig call constraints
     /// check (prevents some rare false positives, leads to a slowdown
     /// on large rollout functions)
@@ -339,6 +348,10 @@ pub fn optimize_ssa_builder_into_acir(
         ssa.into_acir(&brillig, &options.brillig_options)
     })?;
 
+    // Note: ACIR-level analysis is now performed in combine_artifacts()
+    // where we have access to properly constructed Circuit with correct
+    // private/public parameter separation based on function signatures.
+
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
@@ -413,12 +426,13 @@ pub fn create_program_with_passes(
 
     let artifacts = optimize_into_acir(program, options, passes, files)?;
 
-    Ok(combine_artifacts(
+    Ok(combine_artifacts_with_options(
         artifacts,
         &arg_size_and_visibilities,
         debug_variables,
         debug_functions,
         debug_types,
+        Some(options),
     ))
 }
 
@@ -429,7 +443,25 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+    combine_artifacts_with_options(
+        artifacts,
+        arg_size_and_visibilities,
+        debug_variables,
+        debug_functions,
+        debug_types,
+        None, // No options available here - ACIR analysis will be skipped
+    )
+}
+
+pub fn combine_artifacts_with_options(
+    artifacts: ArtifactsAndWarnings,
+    arg_size_and_visibilities: &[Vec<(u32, Visibility)>],
+    debug_variables: DebugVariables,
+    debug_functions: DebugFunctions,
+    debug_types: DebugTypes,
+    options: Option<&SsaEvaluatorOptions>,
+) -> SsaProgramArtifact {
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), mut ssa_level_warnings) =
         artifacts;
 
     assert_eq!(
@@ -451,6 +483,57 @@ pub fn combine_artifacts(
             )
         })
         .collect();
+
+    // ACIR-level analysis using cvc5 (MVP)
+    // Now performed here where we have properly constructed Circuit with correct
+    // private/public parameter separation based on function signatures
+    if let Some(options) = options {
+        if options.enable_acir_analysis {
+            let acir_reports = time("ACIR Analysis", options.print_codegen_timings, || {
+                use crate::acir_analysis::AcirAnalyzer;
+                
+                let mut analyzer = if let Some(path) = &options.cvc5_path {
+                    AcirAnalyzer::with_cvc5_path(path.clone())
+                } else {
+                    AcirAnalyzer::new()
+                };
+                
+                let mut all_reports = Vec::new();
+                
+                // Determine output directory for intermediate files
+                let output_dir = options.package_build_path.as_ref().map(|path| {
+                    let mut dir = path.clone();
+                    dir.pop(); // Remove filename, get target directory
+                    dir
+                }).or_else(|| {
+                    options.emit_ssa.as_ref().map(|path| {
+                        let mut dir = path.clone();
+                        dir.pop();
+                        dir
+                    })
+                });
+                
+                // Analyze each circuit (already has correct private/public parameters)
+                for circuit_artifact in &functions {
+                    match analyzer.analyze_underconstrained(
+                        &circuit_artifact.circuit,
+                        Some(&circuit_artifact.debug_info),
+                        output_dir.as_deref()
+                    ) {
+                        Ok(reports) => {
+                            all_reports.extend(reports.into_iter().map(|r| r.to_ssa_report()));
+                        }
+                        Err(e) => {
+                            // Log error but don't fail compilation
+                            eprintln!("ACIR analysis error for circuit '{}': {}", circuit_artifact.name, e);
+                        }
+                    }
+                }
+                all_reports
+            });
+            ssa_level_warnings.extend(acir_reports);
+        }
+    }
 
     let error_types = error_types
         .into_iter()

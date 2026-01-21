@@ -4,6 +4,7 @@
 pub mod errors;
 
 pub mod acir;
+pub mod acir_analysis;
 pub mod brillig;
 pub mod ssa;
 
