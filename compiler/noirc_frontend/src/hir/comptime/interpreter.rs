@@ -1508,7 +1508,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_i128(start_value).expect("Checked above that value is signed type");
             let end = to_i128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
@@ -1524,7 +1528,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
             let end = to_u128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
             let typ = start_type.into_owned();
