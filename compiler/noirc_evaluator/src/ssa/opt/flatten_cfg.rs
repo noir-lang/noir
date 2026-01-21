@@ -7,13 +7,13 @@
 //!
 //! Conditions:
 //!   - Precondition: Inlining has been performed which should result in there being no remaining
-//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`).
-//!     This also means the only acir functions in the program should be `main` (if main is
-//!     constrained), or any constrained `InlineType::Fold` functions.
+//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`
+//!     or `InlineType::NoPredicates`). This also means the only acir functions in the program
+//!     should be `main` (if main is constrained), or any constrained `InlineType::Fold`
+//!     or `InlineType::NoPredicates` functions.
 //!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
 //!   - Precondition: "Equal" constraints have not been turned into "NotEqual".
-//!   - Postcondition: Each constrained function should now consist of only one block where the
-//!     terminator instruction is always a return.
+//!   - Postcondition: Each constrained function should now consist of only one block.
 //!
 //! Relevance to other passes:
 //!   - Flattening effectively eliminates control-flow entirely which can make it easier for
@@ -176,6 +176,10 @@ impl Ssa {
         let no_predicates: HashMap<_, _> =
             self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
 
+
+        #[cfg(debug_assertions)]
+        flatten_cfg_pre_check(&self);
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -183,9 +187,6 @@ impl Ssa {
             if matches!(function.runtime(), RuntimeType::Brillig(_)) {
                 continue;
             }
-
-            #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -202,17 +203,34 @@ impl Ssa {
 ///   - Any ACIR function has at least 1 loop
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
-    }
-    let loops = super::Loops::find_all(function);
-    assert_eq!(loops.yet_to_unroll.len(), 0);
+fn flatten_cfg_pre_check(ssa: &Ssa) {
+    for function in ssa.functions.values() {
+        if !function.runtime().is_acir() {
+            return;
+        }
+        let loops = super::Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 0);
 
-    for block in function.reachable_blocks() {
-        for instruction in function.dfg[block].instructions() {
-            if matches!(function.dfg[*instruction], Instruction::ConstrainNotEqual(_, _, _)) {
-                panic!("ConstrainNotEqual should not be introduced before flattening");
+        for block in function.reachable_blocks() {
+            for instruction in function.dfg[block].instructions() {
+                match function.dfg[*instruction] {
+                    Instruction::ConstrainNotEqual(_, _, _) => {
+                        panic!("ConstrainNotEqual should not be introduced before flattening")
+                    }
+                    Instruction::Call { func, .. } => {
+                        if let Value::Function(function_id) = function.dfg[func] {
+                            use noirc_frontend::monomorphization::ast::InlineType;
+
+                          let called_function_runtime = &ssa.functions[&function_id].runtime();
+
+                          // ACIR functions are expected to be inlined by this point unless they are InlineType::Fold or InlineType::NoPredicates
+                          assert!(!matches!(called_function_runtime, RuntimeType::Acir(InlineType::Inline | InlineType::InlineAlways)),
+                            "Unexpected call to ACIR function that should have been inlined before flattening"
+                          );
+                        }
+                    }
+                    _ => (),
+                }
             }
         }
     }
@@ -229,6 +247,17 @@ pub(super) fn flatten_cfg_post_check(function: &Function) {
     }
     let blocks = function.reachable_blocks();
     assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
+    assert!(
+        matches!(
+            function.dfg[*blocks.first().unwrap()].unwrap_terminator(),
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. }
+        ),
+        "Block terminator attempts a jump"
+    );
+
+    // Note: it's tempting to assert that we have no `enable_side_effects u1 0` instruction here,
+    // however there are a few way that these can be inserted(e.g. conditions in a `no_predicates` function
+    // which is inlined later) so we do not assert this here.
 }
 
 pub(crate) struct Context<'f> {
@@ -452,6 +481,18 @@ impl<'f> Context<'f> {
         // We do not inline the target block into itself.
         // This is the case in the beginning for the entry block.
         if self.target_block == block {
+            // The `simplify_cfg` pass can sometimes result in instructions for which all inputs are known but
+            // the instruction is not replaced with the known output - this can result in unnecessary instructions
+            // being present in the flattened output.
+            //
+            // To handle this, we reinsert all instructions in the target block to propagate any simplifications into the
+            // terminator instruction. Any later blocks will be simplified automatically as they are inlined into the target.
+            //
+            // See the test `fully_simplifies_with_non_simplified_first_block` for an example of this.
+            let instructions = self.inserter.function.dfg[block].take_instructions();
+            for instruction in instructions {
+                self.push_instruction(instruction);
+            }
             return;
         }
 
@@ -502,6 +543,9 @@ impl<'f> Context<'f> {
         block: BasicBlockId,
         work_list: &WorkList,
     ) -> Vec<BasicBlockId> {
+        // Update the terminator instruction to simplify jmpif with resolved conditions.
+        self.simplify_jmpif(block);
+
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
             TerminatorInstruction::JmpIf {
@@ -553,6 +597,30 @@ impl<'f> Context<'f> {
                 unreachable!("unexpected unreachable terminator in flattening")
             }
         }
+    }
+
+    pub(crate) fn simplify_jmpif(&mut self, block: BasicBlockId) -> bool {
+        self.inserter.map_terminator_in_place(block);
+
+        if let Some(TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            else_destination,
+            call_stack,
+        }) = self.inserter.function.dfg[block].terminator()
+        {
+            if let Some(constant) = self.inserter.function.dfg.get_numeric_constant(*condition) {
+                let destination =
+                    if constant.is_zero() { *else_destination } else { *then_destination };
+
+                let arguments = Vec::new();
+                let call_stack = *call_stack;
+                let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+                self.inserter.function.dfg[block].set_terminator(jmp);
+                return true;
+            }
+        }
+        false
     }
 
     /// Process a conditional statement by creating a `ConditionalContext`
@@ -1621,7 +1689,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects u1 1
             constrain u1 0 == u1 1
             return
         }
@@ -1996,10 +2063,41 @@ mod tests {
             enable_side_effects u1 1
             v10 = cast v0 as u32
             v11 = cast v6 as u32
-            v12 = unchecked_mul v10, v3
+            v12 = unchecked_mul v10, v5
             v13 = unchecked_mul v11, v8
             v14 = unchecked_add v12, v13
             return v14
+        }
+        ");
+    }
+
+    #[test]
+    fn fully_simplifies_with_non_simplified_first_block() {
+        // The `simplify_cfg` pass does not fully propagate any simplifications which are made possible by inlining
+        // a block's successor into it. This can result in a `jmpif` instruction being left in SSA which in actuality
+        // has a constant condition. We want to ensure that we can still fully simplify the SSA in this case.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = eq Field 1, Field 0                     	
+            jmpif v0 then: b1, else: b2
+          b1():
+            v1 = div Field 1, Field 0
+            jmp b11()
+          b2():
+            jmp b11()
+          b11():
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return
         }
         ");
     }

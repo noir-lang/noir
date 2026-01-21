@@ -352,12 +352,22 @@ impl Context<'_> {
         self.no_predicate = true;
         //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
+        if self.simplify_jmpif(conditional.block_entry) {
+            // If we've successfully resolved the jmpif condition to a constant then there's no need to
+            // process the conditional, it will be removed on the next time we call `simplify_cfg`.
+            return;
+        }
+
         let mut work_list = WorkList::new();
         let to_process = self.handle_terminator(conditional.block_entry, &work_list);
         work_list.extend(to_process);
 
         if let Some(then) = conditional.block_then {
-            assert_eq!(work_list.pop(), conditional.block_then);
+            assert_eq!(
+                work_list.pop(),
+                conditional.block_then,
+                "Expected 'then' block to be next in queue"
+            );
             self.inline_block(then, no_predicates);
             let to_process = self.handle_terminator(then, &work_list);
             work_list.extend(to_process);
@@ -444,6 +454,37 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
+
+    #[test]
+    fn handles_constant_condition_branches() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = eq Field 1, Field 0                     	
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 0)
+          b3(v1: Field):
+            return v1
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_basic_conditionals();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2(Field 0)
+          b2(v0: Field):
+            return v0
+        }
+        ");
+    }
 
     #[test]
     fn basic_jmpif() {
