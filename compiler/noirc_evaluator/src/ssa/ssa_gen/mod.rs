@@ -709,7 +709,7 @@ impl FunctionContext<'_> {
         // for index in start..end {
         //   body;
         // }
-        // if start < end && did_not_hit_break {
+        // if start <= end && did_not_hit_break {
         //   index = end;
         //   body;
         // }
@@ -769,13 +769,16 @@ impl FunctionContext<'_> {
             let final_iteration = self.builder.insert_block();
             let final_iteration_end = self.builder.insert_block();
 
-            let did_not_hit_brak = self.builder.insert_load(did_not_hit_break_var, Type::bool());
-            let start_index_is_less_than_end_index =
-                self.builder.insert_binary(start_index, BinaryOp::Lt, end_index);
+            let did_not_hit_break = self.builder.insert_load(did_not_hit_break_var, Type::bool());
+            // `start <= end` is equivalent to `!(start > end)`
+            let end_is_less_than_start =
+                self.builder.insert_binary(end_index, BinaryOp::Lt, start_index);
+            let start_is_less_than_or_equal_to_end =
+                self.builder.insert_not(end_is_less_than_start);
             let should_execute_loop_body = self.builder.insert_binary(
-                did_not_hit_brak,
+                did_not_hit_break,
                 BinaryOp::And,
-                start_index_is_less_than_end_index,
+                start_is_less_than_or_equal_to_end,
             );
             self.builder.terminate_with_jmpif(
                 should_execute_loop_body,
