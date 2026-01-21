@@ -29,7 +29,8 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
-        let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
+        let brillig_entry_points =
+            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
 
         let (sccs, recursive_functions) = call_graph.sccs();
 
@@ -46,7 +47,8 @@ impl Ssa {
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions, &self.functions);
+        let purities =
+            analyze_call_graph(call_graph, purities, &sccs, &recursive_functions, &self.functions);
         let purities = Arc::new(purities);
 
         // We're done, now store purities somewhere every dfg can find it.
