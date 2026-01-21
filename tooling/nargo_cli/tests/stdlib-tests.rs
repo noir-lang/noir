@@ -85,7 +85,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
-                        let mut context = match context.lock() {
+            let mut context = match context.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
             };

@@ -622,7 +622,7 @@ fn simplify_black_box_func(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-        cfg_if::cfg_if! {
+    cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
             let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
         } else {

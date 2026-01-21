@@ -24,7 +24,7 @@ pub(crate) fn run() -> Result<(), CliError> {
 
     runtime.block_on(async {
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
-                        let router = NargoLspService::new(&client, Bn254BlackBoxSolver);
+            let router = NargoLspService::new(&client, Bn254BlackBoxSolver);
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())
