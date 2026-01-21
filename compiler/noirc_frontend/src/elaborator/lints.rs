@@ -202,6 +202,25 @@ pub(super) fn oracle_returns_reference(
     }
 }
 
+/// Oracles cannot return vectors containing nested arrays because
+/// deflattening is not yet implemented in the VM.
+pub(super) fn oracle_returns_vector_with_nested_array(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    if func.return_type().is_vector_with_nested_array() {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleReturnsVectorWithNestedArray { location: ident.location() })
+    } else {
+        None
+    }
+}
+
 /// `pub` is required on return types for entry point functions
 pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Option<ResolverError> {
     if func.is_entry_point
