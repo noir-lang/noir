@@ -106,7 +106,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
         &mut self,
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
-        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
@@ -122,15 +121,13 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
-        if pedantic_solving {
-            // We expect that the 'operation' should resolve to either 0 or 1.
-            if !is_read_operation && !operation.is_one() {
-                let opcode_location = ErrorLocation::Unresolved;
-                return Err(OpcodeResolutionError::MemoryOperationLargerThanOne {
-                    opcode_location,
-                    operation,
-                });
-            }
+        // We expect that the 'operation' should resolve to either 0 or 1.
+        if !is_read_operation && !operation.is_one() {
+            let opcode_location = ErrorLocation::Unresolved;
+            return Err(OpcodeResolutionError::MemoryOperationLargerThanOne {
+                opcode_location,
+                operation,
+            });
         }
 
         if is_read_operation {
@@ -187,8 +184,7 @@ mod tests {
         let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
 
         for op in trace {
-            let pedantic_solving = true;
-            block_solver.solve_memory_op(&op, &mut initial_witness, pedantic_solving).unwrap();
+            block_solver.solve_memory_op(&op, &mut initial_witness).unwrap();
         }
 
         assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
@@ -212,9 +208,7 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                let pedantic_solving = true;
-                err =
-                    block_solver.solve_memory_op(&op, &mut initial_witness, pedantic_solving).err();
+                err = block_solver.solve_memory_op(&op, &mut initial_witness).err();
             }
         }
 
