@@ -885,7 +885,7 @@ pub(crate) mod tests {
         // - Allocating 7 registers uses offsets 1-7
         // - empty_registers_start() will return 8
         // - stack_size = 8
-        // IMPORTANT: We must keep the allocated registers alive to prevent deallocation.
+        // NOTE: We must keep the allocated registers alive to prevent deallocation.
         let _allocated_registers: Vec<_> = (0..7).map(|_| context.allocate_register()).collect();
 
         // Create 5 dummy arguments.
