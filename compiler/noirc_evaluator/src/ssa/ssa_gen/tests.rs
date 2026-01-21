@@ -520,3 +520,40 @@ fn for_loop_inclusive_unknown_range_with_break() {
     }
     ");
 }
+
+#[test]
+fn for_loop_inclusive_with_continue() {
+    let assert_src = "
+    unconstrained fn main() {
+        for _ in 0..=255_u8 {
+            continue;
+        }
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // Here we can see that the `continue` in the final iteration jumps
+    // to the end of the loop (from b4 to b5).
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u1
+        store u1 1 at v1
+        jmp b1(u8 0)
+      b1(v0: u8):
+        v5 = lt v0, u8 255
+        jmpif v5 then: b2, else: b3
+      b2():
+        v9 = unchecked_add v0, u8 1
+        jmp b1(v9)
+      b3():
+        v6 = load v1 -> u1
+        v7 = unchecked_mul v6, u1 1
+        jmpif v7 then: b4, else: b5
+      b4():
+        jmp b5()
+      b5():
+        return
+    }
+    ");
+}

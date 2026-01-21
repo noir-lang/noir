@@ -787,8 +787,11 @@ impl FunctionContext<'_> {
 
             // We need to be in the context of a loop because a `break` in the loop, in the final
             // iteration, has to jump somewhere.
+            // We set both `loop_entry` and `loop_end` to `final_iteration_end` because:
+            // - `break` will jump to `loop_end`
+            // - `continue` will jump to `loop_entry`, but here we also want to jump to the end
             self.enter_loop(Loop {
-                loop_entry,
+                loop_entry: final_iteration_end,
                 loop_index: None,
                 loop_end: final_iteration_end,
                 did_not_hit_break_var: None,
