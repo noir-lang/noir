@@ -2562,7 +2562,7 @@ impl<'interner> Monomorphizer<'interner> {
         let constrained_closure_typ =
             ast::Type::Tuple(vec![env_typ.clone(), constrained_fn_typ.clone()]);
         let unconstrained_closure_typ =
-            ast::Type::Tuple(vec![env_typ.clone(), unconstrained_fn_typ.clone()]);
+            ast::Type::Tuple(vec![env_typ, unconstrained_fn_typ.clone()]);
 
         // Create the expression that builds both closure variants sharing the same env:
         // ((env, constrained_fn), (env, unconstrained_fn))
