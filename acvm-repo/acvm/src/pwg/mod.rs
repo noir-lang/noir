@@ -38,7 +38,7 @@
 // BLACKBOX::RANGE input: w3, bits: 32
 // BLACKBOX::RANGE input: w4, bits: 32
 // ASSERT w0 - w1 - w6 = 0
-// BRILLIG CALL func: 0, inputs: [w6], outputs: [w7]
+// BRILLIG CALL func: 0, predicate: 1, inputs: [w6], outputs: [w7]
 // ASSERT w6*w7 + w8 - 1 = 0
 // ASSERT w6*w8 = 0
 // ASSERT w1*w8 = 0
@@ -504,7 +504,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     .block_solvers
                     .get_mut(block_id)
                     .expect("Memory block should have been initialized before use");
-                solver.solve_memory_op(op, &mut self.witness_map, self.backend.pedantic_solving())
+                solver.solve_memory_op(op, &mut self.witness_map)
             }
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
                 match self.solve_brillig_call_opcode(id, inputs, outputs, predicate) {
@@ -608,16 +608,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         id: &BrilligFunctionId,
         inputs: &'a [BrilligInputs<F>],
         outputs: &[BrilligOutputs],
-        predicate: &Option<Expression<F>>,
+        predicate: &Expression<F>,
     ) -> Result<Option<ForeignCallWaitInfo<F>>, OpcodeResolutionError<F>> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
-        if is_predicate_false(
-            &self.witness_map,
-            predicate,
-            self.backend.pedantic_solving(),
-            &opcode_location,
-        )? {
+        if is_predicate_false(&self.witness_map, predicate, &opcode_location)? {
             return BrilligSolver::<F, B>::zero_out_brillig_outputs(&mut self.witness_map, outputs)
                 .map(|_| None);
         }
@@ -696,12 +691,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         let witness = &mut self.witness_map;
-        let should_skip = match is_predicate_false(
-            witness,
-            predicate,
-            self.backend.pedantic_solving(),
-            &opcode_location,
-        ) {
+        let should_skip = match is_predicate_false(witness, predicate, &opcode_location) {
             Ok(result) => result,
             Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
         };
@@ -746,7 +736,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         id: &AcirFunctionId,
         inputs: &[Witness],
         outputs: &[Witness],
-        predicate: &Option<Expression<F>>,
+        predicate: &Expression<F>,
     ) -> Result<Option<AcirCallWaitInfo<F>>, OpcodeResolutionError<F>> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
@@ -754,12 +744,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             return Err(OpcodeResolutionError::AcirMainCallAttempted { opcode_location });
         }
 
-        if is_predicate_false(
-            &self.witness_map,
-            predicate,
-            self.backend.pedantic_solving(),
-            &opcode_location,
-        )? {
+        if is_predicate_false(&self.witness_map, predicate, &opcode_location)? {
             // Zero out the outputs if we have a false predicate
             for output in outputs {
                 insert_value(output, F::zero(), &mut self.witness_map)?;
@@ -895,33 +880,21 @@ fn any_witness_from_expression<F>(expr: &Expression<F>) -> Option<Witness> {
 /// Returns `Ok(true)` if the predicate is zero
 /// A predicate is used to indicate whether we should skip a certain operation.
 /// If we have a zero predicate it means the operation should be skipped.
-///
-/// Returns `Ok(false)` when the `predicate` is `None`.
 pub(crate) fn is_predicate_false<F: AcirField>(
     witness: &WitnessMap<F>,
-    predicate: &Option<Expression<F>>,
-    pedantic_solving: bool,
+    predicate: &Expression<F>,
     opcode_location: &ErrorLocation,
 ) -> Result<bool, OpcodeResolutionError<F>> {
-    match predicate {
-        Some(pred) => {
-            let pred_value = get_value(pred, witness)?;
-            let predicate_is_false = pred_value.is_zero();
-            if pedantic_solving {
-                // We expect that the predicate should resolve to either 0 or 1.
-                if !predicate_is_false && !pred_value.is_one() {
-                    let opcode_location = *opcode_location;
-                    return Err(OpcodeResolutionError::PredicateLargerThanOne {
-                        opcode_location,
-                        pred_value,
-                    });
-                }
-            }
-            Ok(predicate_is_false)
-        }
-        // If the predicate is `None`, then we treat it as an unconditional `true`
-        None => Ok(false),
+    let pred_value = get_value(predicate, witness)?;
+    let predicate_is_false = pred_value.is_zero();
+
+    // We expect that the predicate should resolve to either 0 or 1.
+    if !predicate_is_false && !pred_value.is_one() {
+        let opcode_location = *opcode_location;
+        return Err(OpcodeResolutionError::PredicateLargerThanOne { opcode_location, pred_value });
     }
+
+    Ok(predicate_is_false)
 }
 
 /// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]
@@ -955,7 +928,7 @@ mod tests {
             (Witness(2), FieldElement::from(1u128)),
             (Witness(3), FieldElement::from(2u128)),
         ]));
-        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
 
         let src = "
         BLACKBOX::RANGE input: w1, bits: 32
@@ -975,10 +948,10 @@ mod tests {
     fn errors_when_calling_function_zero() {
         let initial_witness =
             WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
-        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
 
         let src = "
-        CALL func: 0, inputs: [w1], outputs: [w2]
+        CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]
         ";
         let opcodes = parse_opcodes(src).unwrap();
 

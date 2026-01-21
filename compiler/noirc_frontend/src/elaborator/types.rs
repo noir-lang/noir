@@ -985,6 +985,15 @@ impl Elaborator<'_> {
 
         if matches.len() == 1 {
             let method = matches.remove(0).0;
+
+            if path.segments[0].generics.is_some() {
+                let turbofish_location = path.segments[0].turbofish_location();
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: "generic parameter".to_string(),
+                    location: turbofish_location,
+                });
+            }
+
             return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
         }
 
@@ -2355,6 +2364,13 @@ impl Elaborator<'_> {
         });
 
         let is_current_func_constrained = self.in_constrained_function();
+        if !is_current_func_constrained {
+            // Check if we're calling verify_proof_with_type in an unconstrained context
+            self.run_lint(|elaborator| {
+                lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
+                    .map(Into::into)
+            });
+        }
 
         let func_type_is_unconstrained =
             if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {

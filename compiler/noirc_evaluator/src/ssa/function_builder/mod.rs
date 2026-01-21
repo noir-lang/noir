@@ -575,7 +575,10 @@ fn validate_numeric_type(typ: &NumericType) {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::{
+        FieldElement,
+        acir::{AcirField, brillig::lengths::SemanticLength},
+    };
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
@@ -598,7 +601,7 @@ mod tests {
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.field_constant(FieldElement::from(7_u128));
         let length = builder.field_constant(FieldElement::from(8_u128));
-        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(8))];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 

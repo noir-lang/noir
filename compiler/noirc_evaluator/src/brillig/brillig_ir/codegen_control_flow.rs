@@ -3,14 +3,14 @@ use acvm::{
     acir::{
         brillig::{
             HeapVector, MemoryAddress,
-            lengths::{ElementsLength, SemanticLength, SemiFlattenedLength},
+            lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
         },
         circuit::ErrorSelector,
     },
 };
 
 use crate::{
-    brillig::{assert_usize, brillig_ir::registers::Allocated},
+    brillig::{assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::instruction::ErrorType,
 };
 
@@ -62,6 +62,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
+    ///
+    /// # Safety
+    /// Iterator increment uses wrapping 32-bit arithmetic. Callers must ensure the iterator
+    /// reaches the bound before wrapping. For `loop_start=0, step=1`, this requires
+    /// `loop_bound <= u32::MAX`. For pointer iteration, VM allocation checks ensure safety.
     pub(crate) fn codegen_for_loop(
         &mut self,
         loop_start: Option<MemoryAddress>,
@@ -111,8 +116,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// This codegen will issue a loop that will iterate from 0 to iteration_count
+    /// This codegen will issue a loop that will iterate from 0 to iteration_count.
     /// The body of the loop should be issued by the caller in the on_iteration closure.
+    ///
+    /// # Safety
+    /// `iteration_count` value must not exceed u32::MAX for correct behavior.
+    /// See [BrilligContext::codegen_for_loop] for more information.     
     pub(crate) fn codegen_loop(
         &mut self,
         iteration_count: MemoryAddress,
@@ -296,7 +305,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        debug_assert!(condition.bit_size == 1);
+        assert!(condition.bit_size == 1);
 
         // Compute error selector if we have a message
         let error_selector = assert_message.map(|message| {
@@ -418,7 +427,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 }
             }
         } else {
-            let size: SemiFlattenedLength = item_count * ElementsLength::from(item_type);
+            let size: SemiFlattenedLength =
+                item_count * ElementTypesLength(assert_u32(item_type.len()));
             let item_count = self.make_usize_constant_instruction(size.0.into());
             self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
         }

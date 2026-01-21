@@ -23,7 +23,7 @@ fn run_foreign_call_test<F: AcirField>(
     foreign_call_result: Vec<ForeignCallParam<F>>,
     expected_final_status: VMStatus<F>,
 ) -> (Memory<F>, usize) {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
 
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
@@ -526,12 +526,12 @@ fn foreign_call_opcode_nested_arrays_input() {
     let mut memory = vec![MemoryValue::from(1_u32)];
 
     // Declare a4: [RC, ...items]
-    let a4_ptr = memory.len();
+    let a4_ptr = memory.len() as u32;
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a4.clone());
 
     // Declare a9: [RC, ...items]
-    let a9_ptr = memory.len();
+    let a9_ptr = memory.len() as u32;
     memory.extend(vec![MemoryValue::from(1_u32)]);
     memory.extend(a9.clone());
 

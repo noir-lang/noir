@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use insta::assert_snapshot;
 
 use crate::ssa::{
@@ -162,7 +162,10 @@ fn value_snapshot_detaches_from_original() {
     let v0 = {
         let a0 = Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::bool()]);
         let a1 = Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::bool()]);
-        Value::array(vec![a0, a1], vec![Type::Array(Arc::new(vec![Type::bool()]), 2)])
+        Value::array(
+            vec![a0, a1],
+            vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(2))],
+        )
     };
     // Take a clone and a snapshot, to demonstrate the difference.
     let v1 = v0.clone();
@@ -282,7 +285,7 @@ fn run_flattened_function() {
         Value::array(vec![Value::bool(false), Value::bool(true)], vec![Type::unsigned(1)]),
     ];
 
-    let v1_element_types = vec![Type::Array(Arc::new(vec![Type::unsigned(1)]), 2)];
+    let v1_element_types = vec![Type::Array(Arc::new(vec![Type::unsigned(1)]), SemanticLength(2))];
     let v1 = Value::array(v1_elements, v1_element_types);
 
     let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
@@ -1877,4 +1880,25 @@ fn call_stack_is_cleared_between_entry_calls() {
 
     interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
     assert_eq!(interpreter.call_stack.len(), 1, "should clear the previous leftover");
+}
+
+#[test]
+fn infinite_recursion() {
+    let src = r#"
+    acir(inline) predicate_pure fn main f0 {
+    b0():
+      call f1()
+      return
+    }
+    brillig(inline) predicate_pure fn recur f1 {
+      b0():
+        call f1()
+        return
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![]);
+    let Err(InterpreterError::StackOverflow { .. }) = result else {
+        panic!("unexpected result: {result:?}")
+    };
 }
