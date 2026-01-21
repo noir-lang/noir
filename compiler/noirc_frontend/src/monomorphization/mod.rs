@@ -2191,6 +2191,14 @@ impl<'interner> Monomorphizer<'interner> {
             return Err(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
         }
 
+        if return_type.is_vector_with_nested_array() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::VectorWithNestedArrayReturnedFromOracle {
+                typ,
+                location,
+            });
+        }
+
         Ok(())
     }
 
