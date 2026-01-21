@@ -989,7 +989,7 @@ impl Elaborator<'_> {
             if path.segments[0].generics.is_some() {
                 let turbofish_location = path.segments[0].turbofish_location();
                 self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
-                    item: "named generics".to_string(),
+                    item: "generic parameter".to_string(),
                     location: turbofish_location,
                 });
             }
