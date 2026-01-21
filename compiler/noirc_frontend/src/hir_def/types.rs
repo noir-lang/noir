@@ -1736,14 +1736,17 @@ impl Type {
             Type::CheckedCast { from, to } => from.contains_vector() || to.contains_vector(),
             Type::Reference(element, _) => element.contains_vector(),
             Type::Forall(_, typ) => typ.contains_vector(),
-
+            Type::Function(_arg, _ret, env, _unconstrained) => {
+                // The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                env.contains_vector()
+            }
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
             | Type::Unit
             | Type::TraitAsType(..)
-            | Type::Function(..)
             | Type::Constant(..)
             | Type::Quoted(..)
             | Type::InfixExpr(..)
@@ -1760,7 +1763,6 @@ impl Type {
             | Type::FieldElement
             | Type::Quoted(..)
             | Type::Constant(..)
-            | Type::Function(..)
             | Type::TraitAsType(..)
             | Type::Forall(..)
             | Type::Error => false,
@@ -1796,6 +1798,11 @@ impl Type {
             Type::CheckedCast { from: _, to } => to.contains_reference(),
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                env.contains_reference()
             }
             Type::Reference(..) => true,
         }
