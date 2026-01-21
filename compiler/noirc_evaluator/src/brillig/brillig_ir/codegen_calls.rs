@@ -28,6 +28,19 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
 
+        // Ensure that writing call arguments won't exceed the current stack frame bounds.
+        // This check prevents heap corruption that could occur if arguments are written
+        // beyond the frame boundary before CheckMaxStackDepth runs in the called function.
+        // The +1 accounts for the slot at stack_size which stores the previous stack pointer.
+        let max_frame_size = self.registers().layout().max_stack_frame_size();
+        assert!(
+            (stack_size as usize) + arguments.len() < max_frame_size,
+            "Call arguments would exceed stack frame bounds: frame_size={}, arguments={}, max={}",
+            stack_size,
+            arguments.len(),
+            max_frame_size
+        );
+
         // Write the current stack size to a register, so we can add it to the stack pointer.
         self.const_instruction(*stack_size_register, stack_size.into());
 

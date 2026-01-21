@@ -849,4 +849,54 @@ pub(crate) mod tests {
         };
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
+
+    /// Test that `codegen_call` panics when call arguments would exceed stack frame bounds.
+    ///
+    /// This test demonstrates the defensive check that prevents heap corruption.
+    /// Without this check, call arguments could be written beyond the stack frame boundary
+    /// before CheckMaxStackDepth runs in the called function.
+    #[test]
+    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds() {
+        use super::brillig_variable::BrilligVariable;
+        use super::registers::LayoutConfig;
+
+        // Create a layout with a small max_stack_frame_size to easily trigger the check
+        let small_layout = LayoutConfig::new(
+            10, // max_stack_frame_size: very small for testing
+            16, // num_stack_frames
+            64, // max_scratch_space
+        );
+
+        let options = BrilligOptions {
+            enable_debug_trace: false,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+            show_opcode_advisories: false,
+            layout: small_layout,
+        };
+
+        let mut context: BrilligContext<FieldElement, Stack> =
+            BrilligContext::new("test", &options);
+        context.enter_context(Label::function(FunctionId::test_new(0)));
+
+        // Allocate registers to fill up most of the frame.
+        // Stack starts at offset 1, so with max_stack_frame_size=10:
+        // - Allocating 7 registers uses offsets 1-7
+        // - empty_registers_start() will return 8
+        // - stack_size = 8
+        // IMPORTANT: We must keep the allocated registers alive to prevent deallocation.
+        let _allocated_registers: Vec<_> = (0..7).map(|_| context.allocate_register()).collect();
+
+        // Create 5 dummy arguments.
+        // With stack_size=8 and 5 arguments:
+        // stack_size + arguments.len() + 1 = 8 + 5 + 1 = 14 > 10 (max_frame_size)
+        // This should trigger the assertion.
+        let dummy_addr = MemoryAddress::relative(1);
+        let dummy_var = BrilligVariable::SingleAddr(SingleAddrVariable::new(dummy_addr, 32));
+        let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
+
+        // This call should panic with "Call arguments would exceed stack frame bounds"
+        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+    }
 }
