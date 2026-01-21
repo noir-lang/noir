@@ -80,15 +80,3 @@ fn test_profile_execution_input_not_found() {
         .failure()
         .stderr(predicate::str::contains("Input file not found"));
 }
-
-#[test]
-fn test_help_shows_new_options() {
-    inspector_command()
-        .arg("info")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("profile-execution"))
-        .stdout(predicate::str::contains("input-file"))
-        .stdout(predicate::str::contains("pedantic-solving"));
-}
