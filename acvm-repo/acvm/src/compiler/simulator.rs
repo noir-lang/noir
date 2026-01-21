@@ -95,17 +95,14 @@ impl CircuitSimulator {
                     // Memory must be initialized before it can be used.
                     return false;
                 }
-                if !self.can_solve_expression(&op.index) {
+                if !self.solvable_witnesses.contains(&op.index) {
                     return false;
                 }
-                if op.operation.is_zero() {
-                    let Some(w) = op.value.to_witness() else {
-                        return false;
-                    };
-                    self.mark_solvable(w);
-                    true
+                if op.operation {
+                    self.solvable_witnesses.contains(&op.value)
                 } else {
-                    self.can_solve_expression(&op.value)
+                    self.mark_solvable(op.value);
+                    true
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } => {
@@ -275,8 +272,9 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0]
-        READ w1 = b0[0]
-        ASSERT w2 = w1
+        ASSERT w1 = 0
+        READ w2 = b0[w1]
+        ASSERT w3 = w2
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
@@ -368,7 +366,8 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0]
-        WRITE b0[w0] = w1 + w2
+        ASSERT w3 = w1 + w2
+        WRITE b0[w0] = w3
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
@@ -381,7 +380,8 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0]
-        WRITE b0[w0] = w1 + w2
+        ASSERT w3 = w1 + w2
+        WRITE b0[w0] = w3
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), None);

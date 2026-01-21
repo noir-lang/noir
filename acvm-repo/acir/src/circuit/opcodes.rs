@@ -102,7 +102,7 @@ pub enum Opcode<F: AcirField> {
         /// Identifier of the array
         block_id: BlockId,
         /// Describe the memory operation to perform
-        op: MemOp<F>,
+        op: MemOp,
     },
 
     /// Initialize an ACIR array from a vector of witnesses.
@@ -174,11 +174,11 @@ pub(super) fn display_opcode<F: AcirField>(
         }
         Opcode::BlackBoxFuncCall(g) => std::fmt::Display::fmt(&g, f),
         Opcode::MemoryOp { block_id, op } => {
-            let is_read = op.operation.is_zero();
-            if is_read {
-                write!(f, "READ {} = b{}[{}]", op.value, block_id.0, op.index)
-            } else {
+            let is_write = op.operation;
+            if is_write {
                 write!(f, "WRITE b{}[{}] = {}", block_id.0, op.index, op.value)
+            } else {
+                write!(f, "READ {} = b{}[{}]", op.value, block_id.0, op.index)
             }
         }
         Opcode::MemoryInit { block_id, init, block_type: databus } => {

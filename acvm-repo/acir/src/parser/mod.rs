@@ -673,16 +673,14 @@ impl<'a> Parser<'a> {
         self.eat_keyword_or_error(Keyword::MemoryRead)?;
 
         // value = blockId[index]
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
         self.eat_or_error(Token::Equal)?;
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
 
-        let operation = Expression::zero();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation: false } })
     }
 
     fn parse_memory_write(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -691,14 +689,12 @@ impl<'a> Parser<'a> {
         // blockId[index] = value
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
         self.eat_or_error(Token::Equal)?;
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
 
-        let operation = Expression::one();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation: true } })
     }
 
     fn parse_brillig_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
