@@ -678,7 +678,7 @@ fn regression_10363() {
 
     pub fn foo<T: Trait>() {
         let _ = T::<i32, i32>::foo();
-                 ^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on named generics
+                 ^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on generic parameter
     }
 
     fn main() {}
