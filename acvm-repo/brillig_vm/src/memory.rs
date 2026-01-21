@@ -452,7 +452,7 @@ impl<F: AcirField> Memory<F> {
     /// restrict us to fewer elements anyway. By using `i32::MAX`, we ensure the same behavior
     /// on both 32-bit and 64-bit systems.
     ///
-    /// See: https://github.com/rust-lang/rust/pull/95295 and https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html
+    /// See: <https://github.com/rust-lang/rust/pull/95295> and <https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html>
     const MAX_MEMORY_SIZE: usize = i32::MAX as usize;
 
     /// Increase the size of memory fit `size` elements, or the current length, whichever is bigger.
