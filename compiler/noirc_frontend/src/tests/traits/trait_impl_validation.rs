@@ -275,3 +275,37 @@ fn trait_impl_associated_type_without_body() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn comptime_mismatch_1() {
+    let src = "
+    trait Foo {
+        fn foo(self);
+    }
+
+    impl Foo for () {
+        comptime fn foo(self) { }
+                    ^^^ foo is not expected to be comptime
+    }
+
+    fn main() { }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn comptime_mismatch_2() {
+    let src = "
+    trait Foo {
+        comptime fn foo(self);
+    }
+
+    impl Foo for () {
+        fn foo(self) { }
+           ^^^ foo is expected to be comptime
+    }
+
+    fn main() { }
+    ";
+    check_errors(src);
+}

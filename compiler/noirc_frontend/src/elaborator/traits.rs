@@ -784,6 +784,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
+    let comptime = interner.function_modifiers(&function).is_comptime;
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
 
@@ -845,10 +846,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         }
 
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
+        let trait_comptime = interner.function_modifiers(trait_fn_id).is_comptime;
 
         check_function_type_matches_expected_type(
             &declaration_type,
             meta,
+            comptime,
+            trait_comptime,
             method_name,
             noir_function,
             trait_info.name.as_str(),
@@ -872,6 +876,8 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 fn check_function_type_matches_expected_type(
     expected: &Type,
     meta: &FuncMeta,
+    comptime: bool,
+    trait_comptime: bool,
     method_name: &str,
     noir_function: &NoirFunction,
     trait_name: &str,
@@ -892,6 +898,14 @@ fn check_function_type_matches_expected_type(
             errors.push(TypeCheckError::UnconstrainedMismatch {
                 item: method_name.to_string(),
                 expected: *unconstrained_a,
+                location,
+            });
+        }
+
+        if comptime != trait_comptime {
+            errors.push(TypeCheckError::ComptimeMismatch {
+                item: method_name.to_string(),
+                expected: trait_comptime,
                 location,
             });
         }
