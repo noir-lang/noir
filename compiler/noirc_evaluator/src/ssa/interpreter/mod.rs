@@ -198,7 +198,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // Later optimization passes will fix the representation.
                 let types_compatible = match (&expected_type, &actual_type) {
                     (Type::Array(expected_elem, _), Type::Array(actual_elem, actual_len)) => {
-                        expected_elem == actual_elem && expected_elem.is_empty() && *actual_len == 0
+                        expected_elem == actual_elem
+                            && expected_elem.is_empty()
+                            && actual_len.to_usize() == 0
                     }
                     _ => false,
                 };
