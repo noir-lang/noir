@@ -1609,7 +1609,7 @@ mod tests {
             )
             .circuit;
 
-            let solver = StubbedBlackBoxSolver::default();
+            let solver = StubbedBlackBoxSolver;
 
             let mut witness_map = WitnessMap::new();
             witness_map.insert(lhs_witness,  FieldElement::from(limit));
@@ -1672,7 +1672,7 @@ mod tests {
         BLACKBOX::RANGE input: w1, bits: 128
         ");
 
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
 
         let mut witness_map = WitnessMap::new();
         witness_map.insert(lhs_witness, limit);
