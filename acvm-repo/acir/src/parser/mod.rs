@@ -371,6 +371,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::AES128Encrypt => {
                 let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
+                assert!(inputs.len() % 16 == 0, "input length must be a multiple of 16");
 
                 let iv = self.parse_blackbox_inputs_array::<16>(Keyword::Iv)?;
                 self.eat_comma_or_error()?;
