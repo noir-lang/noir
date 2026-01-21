@@ -794,7 +794,7 @@ impl FunctionContext<'_> {
                 did_not_hit_break_var: None,
             });
 
-            self.redefine(for_expr.index_variable, end_index.into());
+            self.define(for_expr.index_variable, end_index.into());
 
             let result = self.codegen_expression(&for_expr.block);
             self.codegen_unless_break_or_continue(result, |this, _| {
