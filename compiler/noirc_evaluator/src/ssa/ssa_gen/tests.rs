@@ -354,6 +354,42 @@ fn for_loop_inclusive_max_value_without_break() {
 }
 
 #[test]
+fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
+    let assert_src = "
+    fn main() -> pub u8 {
+        let mut sum = 0;
+        for i in 0..=254_u8 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // We end up generating an exclusive for loop up to 255
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u8
+        store u8 0 at v1
+        jmp b1(u8 0)
+      b1(v0: u8):
+        v4 = lt v0, u8 255
+        jmpif v4 then: b2, else: b3
+      b2():
+        v6 = load v1 -> u8
+        v7 = add v6, v0
+        store v7 at v1
+        v9 = unchecked_add v0, u8 1
+        jmp b1(v9)
+      b3():
+        v5 = load v1 -> u8
+        return v5
+    }
+    ");
+}
+
+#[test]
 fn for_loop_inclusive_max_value_with_break() {
     let assert_src = "
     unconstrained fn main() -> pub u8 {

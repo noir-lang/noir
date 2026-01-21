@@ -628,7 +628,7 @@ impl FunctionContext<'_> {
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
 
         self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+        let mut end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
         let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
 
@@ -654,7 +654,35 @@ impl FunctionContext<'_> {
 
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
-        let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
+        let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
+
+        let mut inclusive = for_expr.inclusive;
+
+        // If this is an inclusive for loop, check if the end index is not the maximum value for its type.
+        // In that case we can generate an exclusive for loop up to `end + 1`, which is simpler than
+        // the code of an inclusive loop.
+        if inclusive {
+            if let Some(end_constant) =
+                self.builder.current_function.dfg.get_integer_constant(end_index)
+            {
+                let index_type = index_type.unwrap_numeric();
+                let bit_size = match index_type {
+                    NumericType::Signed { bit_size } => bit_size - 1,
+                    NumericType::Unsigned { bit_size } => bit_size,
+                    NumericType::NativeField => panic!("Cannot iterate over Field"),
+                };
+                let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
+
+                if end_constant.into_numeric_constant().0.to_u128() < max_value {
+                    let end_constant_plus_one = end_constant.inc();
+                    end_index = self.builder.numeric_constant(
+                        end_constant_plus_one.into_numeric_constant().0,
+                        index_type,
+                    );
+                    inclusive = false;
+                }
+            }
+        }
 
         // For inclusive ranges we could generate a loop like:
         //
@@ -689,7 +717,7 @@ impl FunctionContext<'_> {
         //
         // That is, we generate an exclusive for loop and include an extra final iteration that
         // is only executed if the start is less than the end, and if no break was hit in the loop body.
-        let did_not_hit_break_var = if for_expr.inclusive {
+        let did_not_hit_break_var = if inclusive {
             let did_not_hit_break_var = self.builder.insert_allocate(Type::bool());
             let zero = self.builder.numeric_constant(true, NumericType::bool());
             self.builder.insert_store(did_not_hit_break_var, zero);
