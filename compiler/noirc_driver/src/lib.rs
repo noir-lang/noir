@@ -4,7 +4,6 @@
 use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
-use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -199,12 +198,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
 
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    #[arg(long, default_value = "false")]
-    pub pedantic_solving: bool,
-
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
     ///
@@ -265,7 +258,6 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
-            pedantic_solving: false,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
@@ -314,7 +306,6 @@ impl CompileOptions {
     pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
-            pedantic_solving: self.pedantic_solving,
             enabled_unstable_features: &self.unstable_features,
             disable_required_unstable_features: self.no_unstable_features,
         }
@@ -463,9 +454,6 @@ pub fn check_crate(
 ) -> CompilationResult<()> {
     if options.disable_comptime_printing {
         context.disable_comptime_printing();
-    }
-    if options.pedantic_solving {
-        context.enable_pedantic_solving();
     }
 
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
@@ -724,7 +712,6 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
-            expression_width: DEFAULT_EXPRESSION_WIDTH,
         });
     }
 
@@ -836,12 +823,6 @@ pub fn filter_relevant_files(
     file_map
 }
 
-/// Default expression width used for Noir compilation.
-/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
-/// while we can sometimes expect the compilation target width to change.
-/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
-pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
-
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
@@ -926,7 +907,6 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: DEFAULT_EXPRESSION_WIDTH,
     })
 }
 

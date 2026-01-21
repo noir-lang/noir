@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn indexing_array_with_default_numeric_type_does_not_produce_an_error() {
@@ -111,6 +111,32 @@ fn array_with_nested_vector() {
         let _: [[[Field]; 1]; 1] = [[@[0]]];
                ^^^^^^^^^^^^^^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
                ~~~~~~~~~~~~~~~~~ Try to use a constant sized array or BoundedVec instead
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn array_length_overflow_during_monomorphization() {
+    let src = r#"
+    fn main() {
+        let _array = [0; 4294967296];
+                     ^^^^^^^^^^^^^^^ Invalid array length
+                     ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `u32` which has a maximum size of `4294967295`
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn array_length_overflow_at_comptime() {
+    let src = r#"
+    fn main() {
+        comptime {
+            let _array = [0; 4294967296];
+                         ^^^^^^^^^^^^^^^ Invalid array length
+                         ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `u32` which has a maximum size of `4294967295`
+        }
     }
     "#;
     check_errors(src);

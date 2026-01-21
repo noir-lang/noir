@@ -84,7 +84,7 @@ fn arb_program_can_be_executed() {
             );
         }
 
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let initial_witness = abi.encode(&inputs, None).unwrap();
 
         let mut foreign_call_executor =

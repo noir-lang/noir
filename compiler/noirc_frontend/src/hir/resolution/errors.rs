@@ -37,7 +37,7 @@ pub enum ResolverError {
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
-    Expected { location: Location, expected: &'static str, got: &'static str },
+    Expected { location: Location, expected: &'static str, found: String },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
@@ -76,6 +76,8 @@ pub enum ResolverError {
     OracleReturnsMultipleVectors { location: Location },
     #[error("Oracle functions cannot return references")]
     OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot return vectors containing nested arrays")]
+    OracleReturnsVectorWithNestedArray { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -172,8 +174,8 @@ pub enum ResolverError {
     NonIntegerGlobalUsedInPattern { location: Location },
     #[error("Cannot match on values of type `{typ}`")]
     TypeUnsupportedInMatch { typ: Type, location: Location },
-    #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
-    UnexpectedItemInPattern { location: Location, item: &'static str },
+    #[error("Expected a struct, enum, or literal value in pattern, but found {item}")]
+    UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
     #[error("Cannot use a type alias inside a type alias")]
@@ -208,6 +210,12 @@ pub enum ResolverError {
     DataBusOnNonEntryPoint { visibility: String, ident: Ident },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
+    #[error("#[varargs] can only be applied to comptime functions")]
+    VarargsOnNonComptimeFunction { location: Location },
+    #[error("#[varargs] requires its function to have at least one parameter")]
+    VarargsOnFunctionWithNoParameters { location: Location },
+    #[error("The last parameter of a #[varargs] function must be a vector")]
+    VarargsLastParameterIsNotAVector { location: Location },
 }
 
 impl ResolverError {
@@ -272,6 +280,7 @@ impl ResolverError {
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -279,7 +288,10 @@ impl ResolverError {
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
-            | ResolverError::BuiltinWithBody { location } => *location,
+            | ResolverError::BuiltinWithBody { location }
+            | ResolverError::VarargsOnNonComptimeFunction { location }
+            | ResolverError::VarargsOnFunctionWithNoParameters { location }
+            | ResolverError::VarargsLastParameterIsNotAVector { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -369,8 +381,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 }
             }
             ResolverError::PathResolutionError(error) => error.into(),
-            ResolverError::Expected { location, expected, got } => Diagnostic::simple_error(
-                format!("expected {expected} got {got}"),
+            ResolverError::Expected { location, expected, found: got } => Diagnostic::simple_error(
+                format!("expected {expected}, found {got}"),
                 String::new(),
                 *location,
             ),
@@ -500,6 +512,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleReturnsVectorWithNestedArray { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
             },
@@ -794,7 +813,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
-                    format!("Expected a struct, enum, or literal pattern, but found a {item}"),
+                    format!("Expected a struct, enum, or literal pattern, but found {item}"),
                     String::new(),
                     *location,
                 )
@@ -924,6 +943,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "Associated type in impl without body".to_string(),
                     "Provide a definition for the type: ` = <type>;`".to_string(),
                     ident.location(),
+                )
+            },
+            ResolverError::VarargsOnNonComptimeFunction { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] can only be applied to comptime functions".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsOnFunctionWithNoParameters { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] requires its function to have at least one parameter".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsLastParameterIsNotAVector { location } => {
+                Diagnostic::simple_error(
+                    "The last parameter of a #[varargs] function must be a vector".to_string(),
+                    String::new(),
+                    *location,
                 )
             },
         }

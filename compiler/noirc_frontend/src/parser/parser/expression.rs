@@ -268,7 +268,7 @@ impl Parser<'_> {
     }
 
     fn parse_member_access_field_name(&mut self) -> Option<Ident> {
-        if let Some(ident) = self.eat_ident() {
+        if let Some(ident) = self.eat_non_underscore_ident() {
             Some(ident)
         // We allow integer type suffixes on tuple field names since this lets
         // users unquote typed integers in macros to use as a tuple access expression.
@@ -556,7 +556,7 @@ impl Parser<'_> {
                 continue;
             }
 
-            let ident = self.eat_ident()?;
+            let ident = self.eat_non_underscore_ident()?;
 
             return Some(if self.eat_colon() {
                 let expression = self.parse_expression_or_error();
@@ -744,7 +744,7 @@ impl Parser<'_> {
     fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
         self.eat_or_error(Token::DoubleColon);
 
-        let item = if let Some(ident) = self.eat_ident() {
+        let item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();
@@ -1090,6 +1090,7 @@ mod tests {
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp,
         },
+        lexer::errors::LexerErrorKind,
         parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
@@ -2299,5 +2300,26 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
+    }
+
+    /// When an integer is too large, the lexer will issue an error instead of an integer token.
+    /// The parser in this case recovers by filling in extra integers in place of these errors.
+    #[test]
+    fn only_one_error_on_array_with_too_large_integers() {
+        // The fifth integer here should overflow bn254
+        let src = "
+            @[0, 1, 23, 3444, 21888242871839275222246405745257275088548364400416034343698204186575808495617, 43, 2, 32, 4]
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert!(matches!(expression.kind, ExpressionKind::Literal(Literal::Vector(_))));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(
+            reason,
+            ParserErrorReason::Lexer(LexerErrorKind::IntegerLiteralTooLarge { .. })
+        ));
     }
 }

@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 9a97293f9ef70c4cc52ccba90ba30de7514fd700
+define: &AZ_COMMIT 5be53b6f75bac06d6d0132220044b28777021f0f
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -113,7 +113,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-root
     num_runs: 5
-    compilation-timeout: 2
+    compilation-timeout: 5
     execution-timeout: 0.6
     brillig-compilation-timeout: 2
     brillig-execution-timeout: 0.6

@@ -645,19 +645,9 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
     )
 }
 
-/// Type to be used in `Value::Vector(<values>, <vector-type>)`.
-pub(crate) fn byte_vector_type() -> Type {
-    Type::Vector(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
-}
-
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
-}
-
-/// Create a `Value::Vector` from bytes.
-pub(crate) fn to_byte_vector(values: &[u8]) -> Value {
-    Value::Vector(values.iter().copied().map(Value::U8).collect(), byte_vector_type())
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.

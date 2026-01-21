@@ -2,11 +2,12 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength};
 use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
 
-use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
+use crate::brillig::{BrilligBlock, assert_u32};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -127,13 +128,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
         // We add one since array.pointer points to [RC, ...items]
         let mut index = offsets::ARRAY_ITEMS;
-        for _ in 0..*size {
+        for _ in 0..size.0 {
             for element_type in types.iter() {
                 match element_type {
-                    Type::Array(_, nested_size) => {
+                    Type::Array(items, nested_size) => {
                         // Allocate a pointer for an array on the stack.
-                        let inner_array =
-                            self.brillig_context.allocate_brillig_array(*nested_size as usize);
+                        let size: SemiFlattenedLength =
+                            ElementTypesLength(assert_u32(items.len())) * *nested_size;
+                        let inner_array = self.brillig_context.allocate_brillig_array(size);
 
                         // Recursively allocate memory for the inner array on the heap.
                         // This sets the pointer on the stack to point at the heap.
@@ -205,7 +207,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        debug_assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
+        assert!(matches!(binary_op, BrilligBinaryOp::Add | BrilligBinaryOp::Sub));
         self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 
@@ -246,7 +248,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_len = source_len.extract_single_addr();
 
         let vector_id = arguments[1];
-        let element_size = dfg.type_of_value(vector_id).element_size();
+        let element_size = dfg.type_of_value(vector_id).element_size().to_usize();
         let source_vector = self.convert_ssa_value(vector_id, dfg).extract_vector();
 
         let results = dfg.instruction_results(instruction_id);
@@ -356,6 +358,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let converted_index =
                     self.brillig_context.make_usize_constant_instruction(element_size.into());
 
+                // Safety: This multiplication cannot overflow because:
+                // 1. SSA generates bounds checks ensuring `user_index <= length`
+                // 2. The vector allocation is protected by FMP's checked addition
+                // 3. Therefore `element_size * user_index <= element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
@@ -387,6 +393,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let converted_index =
                     self.brillig_context.make_usize_constant_instruction(element_size.into());
 
+                // Safety: This multiplication cannot overflow because:
+                // 1. SSA generates bounds checks ensuring `user_index < length`
+                // 2. The vector allocation is protected by FMP's checked addition
+                // 3. Therefore `element_size * user_index < element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,

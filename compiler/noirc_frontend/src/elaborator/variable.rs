@@ -11,6 +11,7 @@ use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
@@ -475,7 +476,7 @@ impl Elaborator<'_> {
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
-        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+        let t = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.try_definition(ident.id);
         let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
@@ -567,6 +568,37 @@ impl Elaborator<'_> {
 
         self.interner.store_instantiation_bindings(**expr_id, bindings);
         typ
+    }
+
+    /// If the type of the [HirIdent] is a function that returns an `impl Trait`,
+    /// then it might need elaboration before it can be substituted to a [Type].
+    /// Try to elaborate it now.
+    ///
+    /// Returns a type error if the callee cannot be resolved on a second try,
+    /// which indicates a dependency cycle.
+    fn type_substitute_trait_as_type(&mut self, ident: &HirIdent) -> Type {
+        let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id) {
+            Ok(typ) => return typ,
+            Err(func_id) => func_id,
+        };
+
+        // Try to elaborate, so we get an expression for the body.
+        self.elaborate_function(func_id);
+
+        // Now try again. If it's still not working, give up.
+        match self.interner.id_type_substitute_trait_as_type(ident.id) {
+            Ok(typ) => typ,
+            Err(_) => {
+                let def = self.interner.definition(ident.id);
+                self.push_err(ResolverError::DependencyCycle {
+                    location: ident.location,
+                    item: def.name.clone(),
+                    cycle: "'impl Trait' could not be resolved to the type of the function body"
+                        .to_string(),
+                });
+                Type::Error
+            }
+        }
     }
 
     /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially

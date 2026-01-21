@@ -1,12 +1,18 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{
-    function::RuntimeType,
-    types::{NumericType, Type},
-    value::{ValueId, ValueMapping},
+use crate::{
+    brillig::assert_usize,
+    ssa::ir::{
+        function::RuntimeType,
+        types::{NumericType, Type},
+        value::{ValueId, ValueMapping},
+    },
 };
-use acvm::FieldElement;
-use noirc_frontend::hir_def::function::FunctionSignature;
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{FlattenedLength, SemanticLength},
+};
+use noirc_frontend::monomorphization::ast::Parameters;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
@@ -43,16 +49,16 @@ impl DataBusBuilder {
 
     /// Generates a vector telling which flattened parameters from the given function signature
     /// are tagged with databus visibility
-    pub(crate) fn is_databus(main_signature: &FunctionSignature) -> Vec<DatabusVisibility> {
+    pub(crate) fn is_databus(main_parameters: &Parameters) -> Vec<DatabusVisibility> {
         let mut params_is_databus = Vec::new();
 
-        for param in &main_signature.0 {
-            let is_databus = match param.2 {
+        for (_, _, _, typ, visibility) in main_parameters {
+            let is_databus = match visibility {
                 Visibility::Public | Visibility::Private => DatabusVisibility::None,
-                Visibility::CallData(id) => DatabusVisibility::CallData(id),
+                Visibility::CallData(id) => DatabusVisibility::CallData(*id),
                 Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
-            let len = param.1.field_count(&param.0.location()) as usize;
+            let len = typ.entry_point_field_count() as usize;
             params_is_databus.extend(vec![is_databus; len]);
         }
         params_is_databus
@@ -165,21 +171,21 @@ impl FunctionBuilder {
                 databus.map.insert(value, databus.index);
 
                 let mut index = 0;
-                for _i in 0..len {
+                for _i in 0..len.0 {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
                         let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index as i128);
+                        let index_var = FieldElement::from(index);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
                         // If we do not check for an empty array we will have an unused array get
                         // as an array of length zero will not be actually added to the databus' values.
-                        if let Type::Array(_, 0) = subitem_typ {
+                        if let Type::Array(_, SemanticLength(0)) = subitem_typ {
                             continue;
                         }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
-                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size(),
+                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size().0,
                             Type::Numeric(_) => 1,
                             _ => unreachable!("Unsupported type for databus"),
                         };
@@ -209,7 +215,7 @@ impl FunctionBuilder {
 
         let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
             .then(|| {
-                let array_type = Type::Array(Arc::new(vec![Type::field()]), len);
+                let array_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(len));
                 self.insert_make_array(databus.values, array_type)
             });
 
@@ -274,15 +280,14 @@ impl FunctionBuilder {
         ssa_params: &[ValueId],
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<usize> = ssa_params
+        let ssa_param_sizes: Vec<FlattenedLength> = ssa_params
             .iter()
-            .map(|ssa_param| {
-                self.current_function.dfg[*ssa_param].get_type().flattened_size() as usize
-            })
+            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
         for size in ssa_param_sizes {
+            let size = assert_usize(size.0);
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();
             let visibility = visibilities.first().copied().unwrap_or(DatabusVisibility::None);

@@ -21,8 +21,8 @@ fn insert(x: u32, array: [Field; 5]) {
 fn insert_dynamic_array(x: u32, array: [Field; 5]) {
     let mut value_to_insert: [Field; 5] = array;
     {
-        let i_4502: u32 = x - 1_u32;
-        value_to_insert[i_4502] = 10_Field;
+        let i_4493: u32 = x - 1_u32;
+        value_to_insert[i_4493] = 10_Field;
     };
     let mut vector: [[Field; 5]] = [array, array, array].as_vector();
     vector = vector.insert(x - 3_u32, value_to_insert);

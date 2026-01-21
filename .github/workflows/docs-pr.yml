@@ -67,25 +67,28 @@ jobs:
           cache-on-failure: false
           save-if: false
 
-      - name: Install Yarn dependencies
+      - name: Install Repo Yarn's Dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          tool: wasm-bindgen-cli@0.2.100
-
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
+          node-version: '22.15.0'
+          cache: 'yarn'
+          cache-dependency-path: 'docs/yarn.lock'
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
 
       - name: Query active docs versions
-        run: yarn workspace docs version::stables
+        working-directory: docs
+        run: yarn version::stables
 
       - name: Build docs
+        working-directory: docs
         env:
           ENV: staging # not really a secret, it will show in the footer anyway
-        run: yarn workspaces foreach -Rpt --from docs run build
+        run: yarn build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
