@@ -314,7 +314,7 @@ impl GlobalSpace {
     }
 
     /// Expand the global space to fit a new register if necessary.
-    fn update_max_address(&mut self, register: MemoryAddress) {
+    fn expand_max_address(&mut self, register: MemoryAddress) {
         let index = assert_usize(register.unwrap_direct());
         assert!(index >= self.start(), "Global space malformed");
         if index > self.max_memory_address {
@@ -322,6 +322,23 @@ impl GlobalSpace {
         }
     }
 
+    /// Shrink the global space to minimize unused space at the end
+    /// if a temporary register gets deallocated.
+    fn shrink_max_address(&mut self, register: MemoryAddress) {
+        let index = assert_usize(register.unwrap_direct());
+        assert!(index >= self.start(), "Global space malformed");
+        if index == self.max_memory_address {
+            let empty_start = assert_usize(self.empty_registers_start().unwrap_direct());
+            self.max_memory_address =
+                empty_start.saturating_sub(1).max(self.storage.start_register_index);
+        }
+    }
+
+    /// The maximum address occupied by global variables *after* initialization.
+    ///
+    /// Note that during initialization temporary variables may be allocated beyond this address,
+    /// so it is important that the memory after the globals is not populated with data before
+    /// the globals have been initialized, or that data could be overwritten by the init.
     pub(super) fn max_memory_address(&self) -> usize {
         self.max_memory_address
     }
@@ -345,16 +362,17 @@ impl RegisterAllocator for GlobalSpace {
 
     fn allocate_register(&mut self) -> MemoryAddress {
         let allocated = MemoryAddress::direct(assert_u32(self.storage.allocate_register()));
-        self.update_max_address(allocated);
+        self.expand_max_address(allocated);
         allocated
     }
 
     fn deallocate_register(&mut self, register: MemoryAddress) {
         self.storage.deallocate_register(assert_usize(register.unwrap_direct()));
+        self.shrink_max_address(register);
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        self.update_max_address(register);
+        self.expand_max_address(register);
         self.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
@@ -462,10 +480,12 @@ impl DeallocationListAllocator {
         Self { deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
-    /// Find the first register after which there are only free registers.
+    /// Find the first free register after which there are only free registers.
     fn empty_registers_start(&self) -> usize {
         let mut first_free = self.next_free_register_index;
+        // Walk backwards toward the start, as long as we step on deallocated registers.
         while first_free > self.start_register_index {
+            // If the next slot is _not_ deallocated, this is where free starts.
             if !self.deallocated_registers.contains(&(first_free - 1)) {
                 break;
             }
@@ -723,7 +743,7 @@ impl<A, R: RegisterAllocator> DerefMut for Allocated<A, R> {
 mod tests {
     use crate::brillig::brillig_ir::{
         LayoutConfig,
-        registers::{DeallocationListAllocator, RegisterAllocator, Stack},
+        registers::{DeallocationListAllocator, GlobalSpace, RegisterAllocator, Stack},
     };
 
     #[test]
@@ -759,5 +779,53 @@ mod tests {
     fn deallocation_list_deallocate_twice() {
         let mut allocator = DeallocationListAllocator::from_preallocated_registers(0, vec![10]);
         allocator.deallocate_register(5);
+    }
+
+    #[test]
+    fn global_space_max_addr_expands_and_shrinks() {
+        let mut global = GlobalSpace::new(LayoutConfig::default());
+        let start = global.storage.start_register_index;
+        assert_eq!(global.max_memory_address(), start, "max initialized to start");
+
+        let reg1 = global.allocate_register();
+        let reg2 = global.allocate_register();
+        let reg3 = global.allocate_register();
+        let reg4 = global.allocate_register();
+        let max1 = global.max_memory_address();
+        assert_eq!(max1, start + 3, "max expands during allocation");
+
+        global.deallocate_register(reg3);
+        assert_eq!(
+            global.max_memory_address(),
+            start + 3,
+            "max does not shrink during when non-max deallocated"
+        );
+
+        global.deallocate_register(reg4);
+        assert_eq!(
+            global.max_memory_address(),
+            start + 1,
+            "max shrinks to precede first free address when max deallocated"
+        );
+
+        global.deallocate_register(reg2);
+        assert_eq!(
+            global.max_memory_address(),
+            start,
+            "max shrinks to start when we only have the first register"
+        );
+
+        global.deallocate_register(reg1);
+        assert_eq!(
+            global.max_memory_address(),
+            start,
+            "max shrinks to start when we have no registers"
+        );
+
+        let reg5 = global.allocate_register();
+        let reg6 = global.allocate_register();
+        assert_eq!(reg5, reg1, "earliest free register is reallocated");
+        assert_eq!(reg6, reg2, "earliest free register is reallocated");
+        assert_eq!(global.max_memory_address(), start + 1, "max expands again");
     }
 }

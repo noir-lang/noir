@@ -383,6 +383,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Writes the pointer to the items of a given vector to the `result`.
+    ///
+    /// # Safety
+    ///
+    /// This should only be called upon a vector that has already been heap allocated.
+    ///
+    /// The addition `vector.pointer + [offsets::VECTOR_ITEMS]` cannot overflow because:
+    /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [offsets::VECTOR_META_COUNT] (3)
+    /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
+    /// - Since [offsets::VECTOR_ITEMS] == [offsets::VECTOR_META_COUNT] == 3, if allocation succeeded,
+    ///   `vector.pointer + 3` is guaranteed safe
     pub(crate) fn codegen_vector_items_pointer(
         &mut self,
         vector: BrilligVector,
@@ -466,6 +476,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Returns a pointer to the items of a given array.
+    ///
+    /// # Safety
+    ///
+    /// This should only be called upon an array that has already been heap allocated.
+    ///
+    /// The addition `array.pointer + [offsets::ARRAY_ITEMS]` cannot overflow because:
+    /// - [Array allocation][Self::codegen_initialize_array] size is at least [offsets::ARRAY_META_COUNT] (1)
+    /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
+    /// - Since [offsets::ARRAY_ITEMS] == [offsets::ARRAY_META_COUNT] == 1, if allocation succeeded,
+    ///   `array.pointer + 1` is guaranteed safe
     pub(crate) fn codegen_make_array_items_pointer(
         &mut self,
         array: BrilligArray,
@@ -533,7 +553,27 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// The inputs are:
     /// * the `pointer` to the array/vector
     /// * the `rc` address of the vector where we have the current RC loaded already
-    /// * the `by` is a constant by which to increment the RC, typically 1
+    ///
+    /// # Safety
+    ///
+    /// ### RC Overflow Limitation
+    ///
+    /// This operation uses wrapping arithmetic and does not check for overflow.
+    /// If the reference count were to reach `u32::MAX` (4,294,967,295) and be
+    /// incremented, it would wrap to 0. A subsequent increment would make it 1,
+    /// which would cause the copy-on-write logic (`rc == 1`) to incorrectly
+    /// treat a shared array/vector as uniquely owned, leading to in-place
+    /// mutation of shared data (memory corruption / unsoundness).
+    ///
+    /// This is an accepted theoretical limitation because:
+    /// - Triggering overflow requires 2^32 (~4.3 billion) RC increments on a
+    ///   single array/vector, which is practically unreachable in any realistic
+    ///   Noir program.
+    /// - Unlike free memory pointer (FMP) updates (which are checked in the VM), RC values are stored
+    ///   at arbitrary heap addresses, and the incremented result is written back to that address.
+    ///   They are not operating on the [FMP][ReservedRegisters::free_memory_pointer()].
+    /// - Adding runtime overflow checks would require ~3 extra opcodes per RC
+    ///   increment, which is unacceptable overhead for a theoretical issue.
     pub(crate) fn codegen_increment_rc(&mut self, pointer: MemoryAddress, rc: MemoryAddress) {
         // Modify the RC (it's on the stack, or scratch space).
         self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, 1);

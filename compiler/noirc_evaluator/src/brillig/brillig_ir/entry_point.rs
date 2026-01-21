@@ -33,11 +33,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
-        let stack_start = context.codegen_entry_point(&arguments, &return_parameters);
-
-        if globals_init {
-            context.add_globals_init_instruction(target_function);
-        }
+        let stack_start = context.codegen_entry_point(
+            &arguments,
+            &return_parameters,
+            target_function,
+            globals_init,
+        );
 
         context.add_external_call_instruction(target_function);
 
@@ -57,12 +58,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         self.layout().return_data_start(globals_size, calldata_size)
     }
 
-    /// Adds the instructions needed to handle entry point parameters
+    /// Adds the instructions needed to handle entry point parameters and global initialization.
     /// The runtime will leave the parameters in calldata.
     /// Arrays will be passed flattened.
     ///
     /// Memory layout for entry points:
     /// {reserved} {scratch} {globals} {entry point (call data + return data)} {stack} {heap}
+    ///
+    /// Globals are initialized before calldata is copied so that they can temporarily use more memory
+    /// than their final read-only maximum, without overwriting calldata.
     ///
     /// # Returns
     /// The start of the stack memory region. The start of the stack is determined by the globals compiled as well as
@@ -72,6 +76,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         &mut self,
         arguments: &[BrilligParameter],
         return_parameters: &[BrilligParameter],
+        target_function: FunctionId,
+        globals_init: bool,
     ) -> usize {
         // We need to allocate the variable for every argument first so any register allocation doesn't mangle the expected order.
         let argument_variables = self.allocate_function_arguments(arguments);
@@ -102,7 +108,16 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             stack_start.into(),
         );
 
-        // Copy calldata
+        // The initialization of globals if after the creation of the reserved registers,
+        // so that things such as the allocation of arrays can use the _free memory pointer_
+        // (because only the pointers to the arrays will live in the global space, with the
+        // content still residing on the heap).
+        if globals_init {
+            self.add_globals_init_instruction(target_function);
+        }
+
+        // Copy calldata.
+        // Happens after global initialization to avoid any potential overwrite temporary registers during global init.
         self.copy_and_cast_calldata(arguments);
 
         let mut current_calldata_pointer = self.calldata_start_offset();
