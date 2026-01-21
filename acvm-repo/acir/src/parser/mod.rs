@@ -778,14 +778,12 @@ impl<'a> Parser<'a> {
         Ok(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
     }
 
-    fn eat_predicate(&mut self) -> ParseResult<Option<Expression<FieldElement>>> {
-        let mut predicate = None;
-        if self.eat_keyword(Keyword::Predicate)? && self.eat(Token::Colon)? {
-            let expr = self.parse_arithmetic_expression()?;
-            self.eat_or_error(Token::Comma)?;
-            predicate = Some(expr);
-        }
-        Ok(predicate)
+    fn eat_predicate(&mut self) -> ParseResult<Expression<FieldElement>> {
+        self.eat_keyword_or_error(Keyword::Predicate)?;
+        self.eat_or_error(Token::Colon)?;
+        let expr = self.parse_arithmetic_expression()?;
+        self.eat_or_error(Token::Comma)?;
+        Ok(expr)
     }
 
     fn parse_bracketed_list<T, F>(&mut self, parser: F) -> ParseResult<Vec<T>>

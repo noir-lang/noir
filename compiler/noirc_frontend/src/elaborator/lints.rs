@@ -194,48 +194,7 @@ pub(super) fn oracle_returns_reference(
         return None;
     }
 
-    fn contains_reference(typ: &Type) -> bool {
-        match typ {
-            Type::Reference(_, _) => true,
-            Type::Array(_, item) => contains_reference(item),
-            Type::Vector(typ) => contains_reference(typ),
-            Type::Tuple(items) => items.iter().any(contains_reference),
-            Type::DataType(def, args) => {
-                let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().any(|(_, typ, _)| contains_reference(typ))
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(_, types)| types).any(contains_reference)
-                } else {
-                    false
-                }
-            }
-            Type::Alias(def, args) => contains_reference(&def.borrow().get_type(args)),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => contains_reference(binding),
-                    TypeBinding::Unbound(_, _) => false,
-                }
-            }
-            Type::Forall(_, _)
-            | Type::Constant(_, _)
-            | Type::Quoted(_)
-            | Type::InfixExpr(_, _, _, _)
-            | Type::Function(_, _, _, _)
-            | Type::CheckedCast { .. }
-            | Type::TraitAsType(_, _, _)
-            | Type::Error
-            | Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::String(_)
-            | Type::FmtString(_, _)
-            | Type::Unit => false,
-        }
-    }
-
-    if contains_reference(func.return_type()) {
+    if func.return_type().contains_reference() {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsReference { location: ident.location() })
     } else {
@@ -289,6 +248,28 @@ pub(super) fn unconstrained_function_return(
     } else {
         None
     }
+}
+
+/// Errors if func_expr_id is `std::verify_proof_with_type`
+pub(super) fn error_if_verify_proof_with_type(
+    interner: &NodeInterner,
+    func_expr_id: ExprId,
+) -> Option<TypeCheckError> {
+    // Called function
+    let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
+    let func_name = interner.function_name(&func_id);
+
+    // Check if it is verify_proof_with_type and is from the standard library
+    if func_name == "verify_proof_with_type" {
+        let module_id = interner.function_module(func_id);
+        if module_id.krate.is_stdlib() {
+            // Get the function location for the error
+            let location = interner.expr_location(&func_expr_id);
+            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
+        }
+    }
+
+    None
 }
 
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.

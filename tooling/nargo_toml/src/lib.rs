@@ -16,6 +16,7 @@ use nargo::{
 use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
+mod deserializers;
 mod errors;
 mod flock;
 mod git;
@@ -157,14 +158,11 @@ impl PackageConfig {
         processed: &mut Vec<String>,
         assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
     ) -> Result<Package, ManifestError> {
-        let name: CrateName = if let Some(name) = &self.package.name {
-            name.parse().map_err(|_| ManifestError::InvalidPackageName {
-                toml: root_dir.join("Nargo.toml"),
-                name: name.into(),
-            })?
-        } else {
-            return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
-        };
+        let name = &self.package.name;
+        let name: CrateName = name.parse().map_err(|_| ManifestError::InvalidPackageName {
+            toml: root_dir.join("Nargo.toml"),
+            name: name.into(),
+        })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
@@ -252,20 +250,13 @@ impl PackageConfig {
 }
 
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
-    Package {
-        #[serde(flatten)]
-        package_config: PackageConfig,
-    },
+    Package { package_config: PackageConfig },
     /// Represents a `Nargo.toml` with workspace fields.
-    Workspace {
-        #[serde(alias = "workspace")]
-        workspace_config: WorkspaceConfig,
-    },
+    Workspace { workspace_config: WorkspaceConfig },
 }
 
 impl TryFrom<String> for Config {
@@ -302,7 +293,7 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
-    pub name: Option<String>,
+    pub name: String,
     pub version: Option<String>,
     #[serde(alias = "type")]
     pub package_type: Option<String>,
@@ -322,12 +313,11 @@ pub struct PackageMetadata {
     pub expression_width: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 pub enum DependencyConfig {
-    Github { git: String, tag: String, directory: Option<String> },
+    Git { git: String, tag: String, directory: Option<String> },
     Path { path: String },
 }
 
@@ -338,7 +328,7 @@ impl DependencyConfig {
         processed: &mut Vec<String>,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
-            Self::Github { git, tag, directory } => {
+            Self::Git { git, tag, directory } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
                 let project_path = if let Some(directory) = directory {
                     let internal_path = dir_path.join(directory).normalize();

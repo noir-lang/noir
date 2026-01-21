@@ -291,6 +291,14 @@ impl Kind {
     pub(crate) fn is_normal_or_any(&self) -> bool {
         matches!(self, Kind::Normal | Kind::Any)
     }
+
+    /// See [`Type::has_cyclic_alias`] for more detail
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match self {
+            Self::Numeric(typ) => typ.has_cyclic_alias(aliases),
+            Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Kind {
@@ -1041,6 +1049,14 @@ impl TypeVariable {
     pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
         Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
     }
+
+    /// See [`Type::has_cyclic_alias`] for more detail
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match &*self.borrow() {
+            TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
+            TypeBinding::Unbound(_, _) => false,
+        }
+    }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
@@ -1437,8 +1453,8 @@ impl Type {
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
-    /// Return this type as a monomorphic type - without a `Type::Forall` if there is one.
-    /// This is only a shallow check since Noir's type system prohibits `Type::Forall` anywhere
+    /// Return this type as a monomorphic type - without a [Type::Forall] if there is one.
+    /// This is only a shallow check since Noir's type system prohibits [Type::Forall] anywhere
     /// inside other types.
     pub fn as_monotype(&self) -> &Type {
         match self {
@@ -1447,8 +1463,9 @@ impl Type {
         }
     }
 
-    /// Return the generics and type within this `Type::Forall`.
-    /// Panics if `self` is not `Type::Forall`
+    /// Return the generics and type within this [Type::Forall].
+    ///
+    /// Returns an empty list of type variables and the type itself if it's not a [Type::Forall].
     pub fn unwrap_forall(&self) -> (Cow<GenericTypeVars>, &Type) {
         match self {
             Type::Forall(generics, typ) => (Cow::Borrowed(generics), typ.as_ref()),
@@ -1491,18 +1508,18 @@ impl Type {
     ///
     /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
     /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    ///
+    /// Note: cloning the `aliases` parameter when calling this function recursively in multiple
+    /// branches, e.g. as done with [`Type::InfixExpr`], can prevent tests like
+    /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
+    /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
+    /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
         match self {
-            Type::CheckedCast { to, .. } => to.has_cyclic_alias(aliases),
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
-            }
-            Type::TypeVariable(var) => match &*var.borrow() {
-                TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
-                TypeBinding::Unbound(_, _) => false,
-            },
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.has_cyclic_alias(aliases),
+            Type::TypeVariable(var) => var.has_cyclic_alias(aliases),
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+                lhs.has_cyclic_alias(&mut aliases.clone()) || rhs.has_cyclic_alias(aliases)
             }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
@@ -1513,7 +1530,62 @@ impl Type {
                     def.borrow().get_type(generics).has_cyclic_alias(aliases)
                 }
             }
-            _ => false,
+            Type::TraitAsType(_id, _name, generics) => {
+                generics
+                    .ordered
+                    .iter()
+                    .any(|generic| generic.has_cyclic_alias(&mut aliases.clone()))
+                    || generics
+                        .named
+                        .iter()
+                        .any(|generic| generic.typ.has_cyclic_alias(&mut aliases.clone()))
+            }
+            Type::String(len) => len.has_cyclic_alias(aliases),
+            Type::Array(len, typ) => {
+                len.has_cyclic_alias(&mut aliases.clone()) || typ.has_cyclic_alias(aliases)
+            }
+            Type::Vector(typ) => typ.has_cyclic_alias(aliases),
+            Type::DataType(s, args) => {
+                let data_type = s.borrow();
+                data_type
+                    .get_fields(args)
+                    .unwrap_or_else(Vec::new)
+                    .iter()
+                    .any(|(_name, field, _visibility)| field.has_cyclic_alias(&mut aliases.clone()))
+                    || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
+                        |(_name, variant)| {
+                            variant.iter().any(|variant_field| {
+                                variant_field.has_cyclic_alias(&mut aliases.clone())
+                            })
+                        },
+                    )
+            }
+            Type::Tuple(elements) => {
+                elements.iter().any(|element| element.has_cyclic_alias(&mut aliases.clone()))
+            }
+            Type::FmtString(len, elements) => {
+                len.has_cyclic_alias(&mut aliases.clone()) || (*elements).has_cyclic_alias(aliases)
+            }
+            Type::CheckedCast { to, from } => {
+                to.has_cyclic_alias(&mut aliases.clone()) || from.has_cyclic_alias(aliases)
+            }
+            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases),
+            Type::Forall(typevars, typ) => {
+                typevars.iter().any(|typevar| typevar.has_cyclic_alias(&mut aliases.clone()))
+                    || typ.has_cyclic_alias(aliases)
+            }
+            Type::Function(args, ret, env, _unconstrained) => {
+                args.iter().any(|arg| arg.has_cyclic_alias(&mut aliases.clone()))
+                    || ret.has_cyclic_alias(&mut aliases.clone())
+                    || env.has_cyclic_alias(aliases)
+            }
+            Type::Reference(element, _mutable) => element.has_cyclic_alias(aliases),
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_) => false,
         }
     }
 
@@ -1569,61 +1641,6 @@ impl Type {
         }
 
         Self::InfixExpr(lhs, op, rhs, inversion)
-    }
-
-    /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self, location: &Location) -> u32 {
-        match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u32(*location)
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                let typ = typ.as_ref();
-                length.checked_mul(typ.field_count(location)).expect("Array length overflow")
-            }
-            Type::DataType(def, args) => {
-                let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    let mut size: u32 = 1; // start with the tag size
-                    for (_, args) in variants {
-                        for arg in args {
-                            size = size
-                                .checked_add(arg.field_count(location))
-                                .expect("Variant size overflow");
-                        }
-                    }
-                    size
-                } else {
-                    0
-                }
-            }
-            Type::CheckedCast { to, .. } => to.field_count(location),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
-            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
-                acc.checked_add(field_typ.field_count(location)).expect("Tuple size overflow")
-            }),
-            Type::String(size) => size
-                .evaluate_to_u32(*location)
-                .expect("Cannot have variable sized strings as a parameter to main"),
-            Type::FmtString(_, _)
-            | Type::Unit
-            | Type::TypeVariable(_)
-            | Type::TraitAsType(..)
-            | Type::NamedGeneric(_)
-            | Type::Function(_, _, _, _)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            | Type::Constant(_, _)
-            | Type::Quoted(_)
-            | Type::Vector(_)
-            | Type::InfixExpr(..)
-            | Type::Error => {
-                unreachable!("This type cannot exist as a parameter to main: {self:?}")
-            }
-        }
     }
 
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
@@ -1719,14 +1736,17 @@ impl Type {
             Type::CheckedCast { from, to } => from.contains_vector() || to.contains_vector(),
             Type::Reference(element, _) => element.contains_vector(),
             Type::Forall(_, typ) => typ.contains_vector(),
-
+            Type::Function(_arg, _ret, env, _unconstrained) => {
+                // The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                env.contains_vector()
+            }
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
             | Type::String(..)
             | Type::Unit
             | Type::TraitAsType(..)
-            | Type::Function(..)
             | Type::Constant(..)
             | Type::Quoted(..)
             | Type::InfixExpr(..)
@@ -1743,7 +1763,6 @@ impl Type {
             | Type::FieldElement
             | Type::Quoted(..)
             | Type::Constant(..)
-            | Type::Function(..)
             | Type::TraitAsType(..)
             | Type::Forall(..)
             | Type::Error => false,
@@ -1779,6 +1798,11 @@ impl Type {
             Type::CheckedCast { from: _, to } => to.contains_reference(),
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                env.contains_reference()
             }
             Type::Reference(..) => true,
         }

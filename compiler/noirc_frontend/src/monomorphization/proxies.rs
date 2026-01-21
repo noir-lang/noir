@@ -22,7 +22,6 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir_def::function::FunctionSignature,
     monomorphization::{
         ast::{
             Call, Definition, Expression, FuncId, Function, Ident, IdentId, InlineType, LocalId,
@@ -120,7 +119,7 @@ impl ProxyContext {
     /// Get or create a replacement proxy for the function definition in the [Ident],
     /// and replace the definition with the ID of the new global proxy function.
     fn redirect_to_proxy(&mut self, ident: &mut Ident, mut unconstrained: bool) {
-        // If we are calling an oracle, there is no reason to create an unconstrained proxy,
+        // If we are calling an oracle, there is no reason to create a constrained proxy,
         // since such a call would be rejected by the SSA validation.
         unconstrained |= matches!(ident.definition, Definition::Oracle(_));
 
@@ -237,9 +236,6 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         (id, mutable, name, typ, vis)
     });
 
-    // The function signature only matters for entry points.
-    let func_sig = FunctionSignature::default();
-
     let call = {
         let func = Ident {
             id: next_ident_id(),
@@ -280,7 +276,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,
-        func_sig,
+        is_entry_point: false, // This only matters for creating artifacts
     }
 }
 

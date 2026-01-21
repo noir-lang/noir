@@ -206,7 +206,7 @@ fn compile_with_maybe_dummy_workspace(
         // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
         // is invalid because the fields are private
         let mut package = PackageMetadata::default();
-        package.name = Some(package_name.clone());
+        package.name = package_name.clone();
         package.package_type = Some("bin".into());
         let dependencies = BTreeMap::new();
         let package_config = PackageConfig { package, dependencies };

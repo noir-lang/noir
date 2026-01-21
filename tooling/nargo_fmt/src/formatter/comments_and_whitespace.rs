@@ -114,6 +114,8 @@ impl Formatter<'_> {
                     last_was_block_comment = false;
                 }
                 Token::LineComment(comment, None) => {
+                    let comment = comment.to_string();
+
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
                     }
@@ -134,7 +136,7 @@ impl Formatter<'_> {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
-                    self.write_current_token_trimming_end();
+                    self.write_line_comment(&comment, "//");
                     self.write_line_without_skipping_whitespace_and_comments();
                     number_of_newlines = 1;
                     self.bump();
@@ -143,6 +145,8 @@ impl Formatter<'_> {
                     self.written_comments_count += 1;
                 }
                 Token::BlockComment(comment, None) => {
+                    let comment = comment.to_string();
+
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
                     }
@@ -162,7 +166,8 @@ impl Formatter<'_> {
                         // will never write two consecutive spaces.
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
-                    self.write_current_token_and_bump();
+                    self.write_block_comment(&comment, "/*");
+                    self.bump();
                     passed_whitespace = false;
                     last_was_block_comment = true;
                     self.written_comments_count += 1;
@@ -177,6 +182,79 @@ impl Formatter<'_> {
         }
 
         self.ignore_next = ignore_next;
+    }
+
+    pub(crate) fn write_line_comment(&mut self, comment: &str, prefix: &str) {
+        // We don't wrap lines that start with '#' because these might be
+        // markdown headers and wrapping those would actually break them.
+        if !self.config.wrap_comments
+            || self.in_chunk
+            || comment.trim_start().starts_with('#')
+            || self.current_line_width() + comment.chars().count() + prefix.len()
+                < self.config.comment_width
+        {
+            self.write(prefix);
+            self.write(comment.trim_end());
+            return;
+        }
+
+        self.write_comment_with_prefix(comment, prefix);
+    }
+
+    pub(crate) fn write_comment_with_prefix(&mut self, comment: &str, prefix: &str) {
+        self.write(prefix);
+        for word in comment.split_inclusive([' ', '\n', '\t']) {
+            if self.current_line_width() + word.trim().chars().count() >= self.config.comment_width
+            {
+                self.start_new_line();
+                if !prefix.is_empty() {
+                    self.write(prefix);
+                    self.write(" ");
+                }
+            }
+
+            self.write(word);
+        }
+    }
+
+    pub(crate) fn write_block_comment(&mut self, comment: &str, prefix: &str) {
+        self.write(prefix);
+
+        if !self.config.wrap_comments || self.in_chunk {
+            self.write(comment);
+            self.write("*/");
+            return;
+        }
+
+        if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
+            self.start_new_line();
+        }
+
+        for (index, line) in comment.lines().enumerate() {
+            if index > 0 {
+                self.start_new_line();
+            }
+
+            for word in line.split_inclusive([' ', '\n', '\t']) {
+                if self.current_line_width() + word.trim().chars().count()
+                    >= self.config.comment_width
+                {
+                    self.start_new_line();
+                }
+
+                self.write(word);
+            }
+        }
+
+        if comment.ends_with('\n') {
+            self.start_new_line();
+        }
+
+        if self.current_line_width() + 2 >= self.config.comment_width {
+            self.start_new_line();
+        }
+
+        self.write("*/");
     }
 
     /// Returns the number of newlines that come next, if we are at a whitespace
@@ -224,6 +302,12 @@ impl Formatter<'_> {
         }
     }
 
+    pub(crate) fn start_new_line(&mut self) {
+        self.trim_spaces();
+        self.write_line_without_skipping_whitespace_and_comments();
+        self.write_indentation();
+    }
+
     /// Trim spaces from the end of the buffer.
     pub(crate) fn trim_spaces(&mut self) {
         self.buffer.trim_spaces();
@@ -237,7 +321,12 @@ impl Formatter<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_max_width};
+    use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
+
+    fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
+        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
 
     #[test]
     fn format_array_in_global_with_line_comments() {
@@ -857,6 +946,243 @@ global x = 1;
 global x = 1;
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn wraps_line_comments() {
+        let src = "
+        // This is a long comment that's going to be wrapped.
+        global x: Field = 1;
+        ";
+        let expected = "// This is a long comment
+// that's going to be
+// wrapped.
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_line_comments_with_indentation() {
+        let src = "
+        mod moo {
+            // This is a long comment that's going to be wrapped.
+            global x: Field = 1;
+        }
+        ";
+        let expected = "mod moo {
+    // This is a long
+    // comment that's going
+    // to be wrapped.
+    global x: Field = 1;
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_line_comment_if_it_starts_with_pound() {
+        let src = "
+        // # This is a long comment that's not going to be wrapped.
+        global x: Field = 1;
+        ";
+        let expected = "// # This is a long comment that's not going to be wrapped.
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_line_comments_in_statement() {
+        let src = "fn foo() {
+        // This is a long comment that's going to be wrapped.
+        let x = 1;
+    }
+        ";
+        let expected = "fn foo() {
+    // This is a long
+    // comment that's going
+    // to be wrapped.
+    let x = 1;
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_line_comments_in_statement_trailing_position() {
+        let src = "fn foo() {
+        let x = 1; // This is a long comment that's going to be wrapped.
+    }
+        ";
+        let expected = "fn foo() {
+    let x = 1; // This is a
+    // long comment that's
+    // going to be wrapped.
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_line_comments_in_argument_trailing_position() {
+        let src = "fn foo() {
+        bar(
+        1, // This is a long comment that's going to be wrapped.
+    )}
+        ";
+        let expected = "fn foo() {
+    bar(
+        1, // This is a long
+        // comment that's
+        // going to be
+        // wrapped.
+    )
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_without_newlines_1() {
+        let src = "
+/* This is a long comment that's going to be wrapped. */
+global x: Field = 1;
+        ";
+        let expected = "/* This is a long comment
+that's going to be wrapped.
+*/
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_without_newlines_2() {
+        let src = "
+/* This is a long comment that's wrapped. */
+global x: Field = 1;
+        ";
+        let expected = "/* This is a long comment
+that's wrapped. */
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_without_newlines_3() {
+        let src = "
+/* This is a long comment that will be wrapped. */
+global x: Field = 1;
+        ";
+        let expected = "/* This is a long comment
+that will be wrapped. */
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_with_newlines() {
+        let src = "
+/*  
+This is a long comment that's going to be wrapped.
+*/
+global x: Field = 1;
+        ";
+        let expected = "/*
+This is a long comment
+that's going to be wrapped.
+*/
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_multiple_lines() {
+        let src = "
+/*  
+This is a long comment that's wrapped.
+This is a long comment that's wrapped.
+*/
+global x: Field = 1;
+        ";
+        let expected = "/*
+This is a long comment
+that's wrapped.
+This is a long comment
+that's wrapped.
+*/
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_in_statement() {
+        let src = "fn foo() {
+        /* This is a long comment that's going to be wrapped. */
+        let x = 1;
+    }
+        ";
+        let expected = "fn foo() {
+    /* This is a long
+    comment that's going to
+    be wrapped. */
+    let x = 1;
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_mixed_comments_in_statement() {
+        let src = "fn foo() {
+        /* 
+        This is a long comment that's going to be wrapped. 
+        This is a long comment that's going to be wrapped. 
+        */
+        // This is a long comment that's going to be wrapped.
+        /* This is a long comment that's going to be wrapped. */
+        let x = 1;
+    }
+        ";
+        let expected = "fn foo() {
+    /* This is a long
+    comment that's going to
+    be wrapped.
+    This is a long comment
+    that's going to be
+    wrapped.
+    */
+    // This is a long
+    // comment that's going
+    // to be wrapped.
+    /* This is a long
+    comment that's going to
+    be wrapped. */
+    let x = 1;
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_line_comments_at_block_end() {
+        let src = "fn foo() {
+        let x = 1;
+        // This is a very long comment
+    }
+        ";
+        let expected = "fn foo() {
+    let x = 1;
+    // This is a very long
+    // comment
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
     }
 
     #[test]
