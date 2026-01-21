@@ -1,4 +1,19 @@
 //! Implementation of the VM's memory.
+//!
+//! # Memory Addressing Limits
+//!
+//! The VM uses u32 addresses, theoretically allowing up to 2^32 memory slots. However,
+//! practical limits apply:
+//!
+//! - **Rust allocator limit**: All allocations are capped at `isize::MAX` bytes. On 32-bit
+//!   systems, this limits addressable memory to approximately `i32::MAX / sizeof(MemoryValue)`
+//!   elements (~44 million with typical element sizes).
+//!
+//! - **RAM limit**: On 64-bit systems, the allocator limit is not a concern, but allocating
+//!   the full u32 address space would require ~200 GB of RAM.
+//!
+//! For deterministic behavior across architectures, consider enforcing an `i32::MAX`-based
+//! limit. This ensures identical behavior on both 32-bit and 64-bit systems.
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
@@ -355,8 +370,18 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
     }
 }
 /// The VM's memory.
+///
 /// Memory is internally represented as a vector of values.
 /// We grow the memory when values past the end are set, extending with 0s.
+///
+/// # Capacity Limits
+///
+/// The inner `Vec` is subject to Rust's allocator limit of `isize::MAX` bytes.
+/// This means:
+/// - On 64-bit: Practical limit is available RAM (~200 GB for full u32 range)
+/// - On 32-bit: Hard limit of ~44 million addressable slots
+///
+/// Exceeding these limits will cause a panic with "capacity overflow".
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Memory<F> {
     // Internal memory representation
@@ -423,8 +448,27 @@ impl<F: AcirField> Memory<F> {
         self.inner[resolved_addr] = value;
     }
 
+    /// Maximum number of memory slots that can be allocated.
+    ///
+    /// This limit is set to `i32::MAX` to ensure deterministic behavior across all architectures.
+    /// On 32-bit systems, Rust's allocator limits allocations to `isize::MAX` bytes, which would
+    /// restrict us to fewer elements anyway. By using `i32::MAX`, we ensure the same behavior
+    /// on both 32-bit and 64-bit systems.
+    ///
+    /// See: https://github.com/rust-lang/rust/pull/95295 and https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html
+    const MAX_MEMORY_SIZE: usize = i32::MAX as usize;
+
     /// Increase the size of memory fit `size` elements, or the current length, whichever is bigger.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size` exceeds [`Self::MAX_MEMORY_SIZE`].
     fn resize_to_fit(&mut self, size: usize) {
+        assert!(
+            size <= Self::MAX_MEMORY_SIZE,
+            "Memory address space exceeded: requested {size} slots, maximum is {} (i32::MAX)",
+            Self::MAX_MEMORY_SIZE
+        );
         // Calculate new memory size
         let new_size = std::cmp::max(self.inner.len(), size);
         // Expand memory to new size with default values if needed
@@ -583,5 +627,13 @@ mod tests {
     fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "Memory address space exceeded")]
+    fn resize_to_fit_panics_when_exceeding_max_memory_size() {
+        let mut memory = Memory::<FieldElement>::default();
+        // Attempting to resize beyond i32::MAX should panic
+        memory.resize_to_fit(Memory::<FieldElement>::MAX_MEMORY_SIZE + 1);
     }
 }
