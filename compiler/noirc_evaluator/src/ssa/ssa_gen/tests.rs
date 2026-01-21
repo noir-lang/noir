@@ -592,7 +592,8 @@ fn for_loop_inclusive_max_value_to_max_value() {
         jmp b1(v15)
       b3():
         v7 = load v3 -> u1
-        jmpif u1 0 then: b4, else: b5
+        v8 = unchecked_mul v7, u1 1
+        jmpif v8 then: b4, else: b5
       b4():
         v9 = load v1 -> u8
         v10 = add v9, u8 255
