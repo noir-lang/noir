@@ -6,9 +6,8 @@ use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
 use super::{
-    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
-    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
+    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::graph::CrateId;
@@ -735,31 +734,6 @@ pub struct ForBounds {
     pub start: Expression,
     pub end: Expression,
     pub inclusive: bool,
-}
-
-impl ForBounds {
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),
-    /// desugaring `start..=end` into `start..end+1` if necessary.
-    ///
-    /// Returns the `start` and `end` expressions.
-    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
-        let end = if self.inclusive {
-            let end_location = self.end.location;
-            let end = ExpressionKind::Infix(Box::new(InfixExpression {
-                lhs: self.end,
-                operator: Located::from(end_location, BinaryOpKind::Add),
-                rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(1u32), None),
-                    end_location,
-                ),
-            }));
-            Expression::new(end, end_location)
-        } else {
-            self.end
-        };
-
-        (self.start, end)
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
