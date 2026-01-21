@@ -3324,7 +3324,105 @@
 <a href="#3323" id="3323">3323</a>
 <a href="#3324" id="3324">3324</a>
 <a href="#3325" id="3325">3325</a>
-<a href="#3326" id="3326">3326</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3326" id="3326">3326</a>
+<a href="#3327" id="3327">3327</a>
+<a href="#3328" id="3328">3328</a>
+<a href="#3329" id="3329">3329</a>
+<a href="#3330" id="3330">3330</a>
+<a href="#3331" id="3331">3331</a>
+<a href="#3332" id="3332">3332</a>
+<a href="#3333" id="3333">3333</a>
+<a href="#3334" id="3334">3334</a>
+<a href="#3335" id="3335">3335</a>
+<a href="#3336" id="3336">3336</a>
+<a href="#3337" id="3337">3337</a>
+<a href="#3338" id="3338">3338</a>
+<a href="#3339" id="3339">3339</a>
+<a href="#3340" id="3340">3340</a>
+<a href="#3341" id="3341">3341</a>
+<a href="#3342" id="3342">3342</a>
+<a href="#3343" id="3343">3343</a>
+<a href="#3344" id="3344">3344</a>
+<a href="#3345" id="3345">3345</a>
+<a href="#3346" id="3346">3346</a>
+<a href="#3347" id="3347">3347</a>
+<a href="#3348" id="3348">3348</a>
+<a href="#3349" id="3349">3349</a>
+<a href="#3350" id="3350">3350</a>
+<a href="#3351" id="3351">3351</a>
+<a href="#3352" id="3352">3352</a>
+<a href="#3353" id="3353">3353</a>
+<a href="#3354" id="3354">3354</a>
+<a href="#3355" id="3355">3355</a>
+<a href="#3356" id="3356">3356</a>
+<a href="#3357" id="3357">3357</a>
+<a href="#3358" id="3358">3358</a>
+<a href="#3359" id="3359">3359</a>
+<a href="#3360" id="3360">3360</a>
+<a href="#3361" id="3361">3361</a>
+<a href="#3362" id="3362">3362</a>
+<a href="#3363" id="3363">3363</a>
+<a href="#3364" id="3364">3364</a>
+<a href="#3365" id="3365">3365</a>
+<a href="#3366" id="3366">3366</a>
+<a href="#3367" id="3367">3367</a>
+<a href="#3368" id="3368">3368</a>
+<a href="#3369" id="3369">3369</a>
+<a href="#3370" id="3370">3370</a>
+<a href="#3371" id="3371">3371</a>
+<a href="#3372" id="3372">3372</a>
+<a href="#3373" id="3373">3373</a>
+<a href="#3374" id="3374">3374</a>
+<a href="#3375" id="3375">3375</a>
+<a href="#3376" id="3376">3376</a>
+<a href="#3377" id="3377">3377</a>
+<a href="#3378" id="3378">3378</a>
+<a href="#3379" id="3379">3379</a>
+<a href="#3380" id="3380">3380</a>
+<a href="#3381" id="3381">3381</a>
+<a href="#3382" id="3382">3382</a>
+<a href="#3383" id="3383">3383</a>
+<a href="#3384" id="3384">3384</a>
+<a href="#3385" id="3385">3385</a>
+<a href="#3386" id="3386">3386</a>
+<a href="#3387" id="3387">3387</a>
+<a href="#3388" id="3388">3388</a>
+<a href="#3389" id="3389">3389</a>
+<a href="#3390" id="3390">3390</a>
+<a href="#3391" id="3391">3391</a>
+<a href="#3392" id="3392">3392</a>
+<a href="#3393" id="3393">3393</a>
+<a href="#3394" id="3394">3394</a>
+<a href="#3395" id="3395">3395</a>
+<a href="#3396" id="3396">3396</a>
+<a href="#3397" id="3397">3397</a>
+<a href="#3398" id="3398">3398</a>
+<a href="#3399" id="3399">3399</a>
+<a href="#3400" id="3400">3400</a>
+<a href="#3401" id="3401">3401</a>
+<a href="#3402" id="3402">3402</a>
+<a href="#3403" id="3403">3403</a>
+<a href="#3404" id="3404">3404</a>
+<a href="#3405" id="3405">3405</a>
+<a href="#3406" id="3406">3406</a>
+<a href="#3407" id="3407">3407</a>
+<a href="#3408" id="3408">3408</a>
+<a href="#3409" id="3409">3409</a>
+<a href="#3410" id="3410">3410</a>
+<a href="#3411" id="3411">3411</a>
+<a href="#3412" id="3412">3412</a>
+<a href="#3413" id="3413">3413</a>
+<a href="#3414" id="3414">3414</a>
+<a href="#3415" id="3415">3415</a>
+<a href="#3416" id="3416">3416</a>
+<a href="#3417" id="3417">3417</a>
+<a href="#3418" id="3418">3418</a>
+<a href="#3419" id="3419">3419</a>
+<a href="#3420" id="3420">3420</a>
+<a href="#3421" id="3421">3421</a>
+<a href="#3422" id="3422">3422</a>
+<a href="#3423" id="3423">3423</a>
+<a href="#3424" id="3424">3424</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -5073,6 +5171,104 @@
             | Type::String(..)
             | Type::Unit
             | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error =&gt; <span class="bool-val">false</span>,
+        }
+    }
+
+    <span class="doccomment">/// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>contains_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            Type::Array(..) =&gt; <span class="bool-val">true</span>,
+            Type::Vector(elem) =&gt; elem.as_ref().contains_array(),
+            Type::Alias(alias, generics) =&gt; alias.borrow().get_type(generics).contains_array(),
+            Type::DataType(typ, generics) =&gt; {
+                <span class="kw">let </span>typ = typ.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(generics) {
+                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.contains_array()) {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = typ.get_variants(generics) {
+                    <span class="kw">if </span>variants.iter().flat_map(|(<span class="kw">_</span>, args)| args).any(|typ| typ.contains_array()) {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                }
+                <span class="bool-val">false
+            </span>}
+            Type::Tuple(types) =&gt; types.iter().any(|typ| typ.contains_array()),
+            Type::FmtString(_size, elem) =&gt; elem.contains_array(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
+                <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+                    TypeBinding::Bound(binding) =&gt; binding.contains_array(),
+                    TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+                }
+            }
+            Type::CheckedCast { from, to } =&gt; from.contains_array() || to.contains_array(),
+            Type::Reference(element, <span class="kw">_</span>) =&gt; element.contains_array(),
+            Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.contains_array(),
+            Type::Function(_arg, _ret, env, _unconstrained) =&gt; env.contains_array(),
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error =&gt; <span class="bool-val">false</span>,
+        }
+    }
+
+    <span class="doccomment">/// Check whether this type is a vector that contains a nested array in its element type.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_vector_with_nested_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            Type::Vector(elem) =&gt; elem.as_ref().contains_array(),
+            Type::Array(<span class="kw">_</span>, elem) =&gt; elem.as_ref().is_vector_with_nested_array(),
+            Type::Alias(alias, generics) =&gt; {
+                alias.borrow().get_type(generics).is_vector_with_nested_array()
+            }
+            Type::DataType(typ, generics) =&gt; {
+                <span class="kw">let </span>typ = typ.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(generics) {
+                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.is_vector_with_nested_array()) {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = typ.get_variants(generics) {
+                    <span class="kw">if </span>variants
+                        .iter()
+                        .flat_map(|(<span class="kw">_</span>, args)| args)
+                        .any(|typ| typ.is_vector_with_nested_array())
+                    {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                }
+                <span class="bool-val">false
+            </span>}
+            Type::Tuple(types) =&gt; types.iter().any(|typ| typ.is_vector_with_nested_array()),
+            Type::FmtString(_size, elem) =&gt; elem.is_vector_with_nested_array(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
+                <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+                    TypeBinding::Bound(binding) =&gt; binding.is_vector_with_nested_array(),
+                    TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+                }
+            }
+            Type::CheckedCast { from, to } =&gt; {
+                from.is_vector_with_nested_array() || to.is_vector_with_nested_array()
+            }
+            Type::Reference(element, <span class="kw">_</span>) =&gt; element.is_vector_with_nested_array(),
+            Type::Forall(<span class="kw">_</span>, typ) =&gt; typ.is_vector_with_nested_array(),
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
             | Type::Constant(..)
             | Type::Quoted(..)
             | Type::InfixExpr(..)

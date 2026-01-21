@@ -888,7 +888,7 @@
                         </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, assert_u32(values.len()).into());
                         <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
                     } <span class="kw">else </span>{
-                        <span class="macro">unimplemented!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
+                        <span class="macro">unreachable!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
                     }
                 }
                 <span class="kw">_ </span>=&gt; {
