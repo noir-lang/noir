@@ -712,7 +712,15 @@ impl<'context> Elaborator<'context> {
     /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        if self.in_comptime_context() {
+        // Check if any lambda in the nesting chain is unconstrained.
+        let in_unconstrained_lambda = self.lambda_stack.iter().any(|ctx| ctx.unconstrained);
+        if in_unconstrained_lambda {
+            return false;
+        }
+
+        // Check if we're in a comptime context (and not in a lambda that will run at runtime).
+        // Lambdas in global initializers are elaborated in comptime context but execute at runtime.
+        if self.in_comptime_context() && self.lambda_stack.is_empty() {
             return false;
         }
 
@@ -724,9 +732,7 @@ impl<'context> Elaborator<'context> {
             }
         });
 
-        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
-
-        !in_unconstrained_function && !in_unconstrained_lambda
+        !in_unconstrained_function
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not

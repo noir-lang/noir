@@ -459,3 +459,16 @@ fn user_defined_verify_proof_with_type_is_allowed_in_brillig() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn cannot_call_unconstrained_function_in_lambda_in_global() {
+    let src = r#"
+    pub global foo: fn() = || bar();
+                              ^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+
+    unconstrained fn bar() {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
