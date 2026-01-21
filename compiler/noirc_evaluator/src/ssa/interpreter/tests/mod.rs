@@ -1894,3 +1894,24 @@ acir(inline) fn main f0 {
     let ssa = Ssa::from_str(src).unwrap();
     let _ = ssa.interpret(vec![]).unwrap();
 }
+
+#[test]
+fn infinite_recursion() {
+    let src = r#"
+    acir(inline) predicate_pure fn main f0 {
+    b0():
+      call f1()
+      return
+    }
+    brillig(inline) predicate_pure fn recur f1 {
+      b0():
+        call f1()
+        return
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![]);
+    let Err(InterpreterError::StackOverflow { .. }) = result else {
+        panic!("unexpected result: {result:?}")
+    };
+}
