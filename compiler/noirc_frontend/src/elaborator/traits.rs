@@ -873,6 +873,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 ///
 /// This is used to check if a trait impl's function type matches the declared function in the
 /// original trait declaration - while handling the appropriate generic substitutions.
+#[allow(clippy::too_many_arguments)]
 fn check_function_type_matches_expected_type(
     expected: &Type,
     meta: &FuncMeta,
