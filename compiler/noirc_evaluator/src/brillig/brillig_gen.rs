@@ -19,9 +19,14 @@ use super::{
     brillig_ir::{
         BrilligContext,
         artifact::{BrilligParameter, GeneratedBrillig},
+        codegen_control_flow::flattened_size,
     },
 };
-use crate::{errors::InternalError, ssa::ir::function::Function};
+use crate::{
+    acir::MAX_ELEMENTS,
+    errors::{InternalError, RuntimeError},
+    ssa::ir::{function::Function, instruction::TerminatorInstruction},
+};
 
 /// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
 ///
@@ -37,7 +42,7 @@ use crate::{errors::InternalError, ssa::ir::function::Function};
 ///
 /// # Returns
 /// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
-/// - Err([InternalError]): If linking fails to find a dependency
+/// - Err([RuntimeError]): If the return value exceeds the witness limit or linking fails
 ///
 /// # Panics
 /// - If the global memory size for the function has not been precomputed.
@@ -46,7 +51,27 @@ pub(crate) fn gen_brillig_for(
     arguments: Vec<BrilligParameter>,
     brillig: &Brillig,
     options: &BrilligOptions,
-) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
+) -> Result<GeneratedBrillig<FieldElement>, RuntimeError> {
+    let return_parameters = FunctionContext::return_values(func);
+
+    // Check if the return value size exceeds the limit before generating the entry point.
+    // This is done early to avoid the expensive entry point codegen which iterates over
+    // each element in the return arrays.
+    let num_return_witnesses: usize = return_parameters.iter().map(flattened_size).sum();
+    if num_return_witnesses > MAX_ELEMENTS {
+        let entry_block = &func.dfg[func.entry_block()];
+        let call_stack_id = match entry_block.unwrap_terminator() {
+            TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+            _ => unreachable!("ICE: expected return terminator"),
+        };
+        let call_stack = func.dfg.call_stack_data.get_call_stack(call_stack_id);
+        return Err(RuntimeError::ReturnWitnessLimitExceeded {
+            num_witnesses: num_return_witnesses,
+            max_witnesses: MAX_ELEMENTS,
+            call_stack,
+        });
+    }
+
     // Create the entry point artifact
     let globals_memory_size = brillig
         .globals_memory_size
@@ -58,7 +83,7 @@ pub(crate) fn gen_brillig_for(
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
-        FunctionContext::return_values(func),
+        return_parameters,
         func.id(),
         true,
         globals_memory_size,
@@ -75,7 +100,8 @@ pub(crate) fn gen_brillig_for(
                 return Err(InternalError::General {
                     message: format!("Cannot find linked fn {unresolved_fn_label}"),
                     call_stack: CallStack::new(),
-                });
+                }
+                .into());
             }
         };
         entry_point.link_with(artifact);

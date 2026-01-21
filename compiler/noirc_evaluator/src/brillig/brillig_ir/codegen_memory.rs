@@ -497,7 +497,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         // Allocate memory for the ref counter and `size` items.
-        let size = array.size.0 + offsets::ARRAY_META_COUNT;
+        let size = array
+            .size
+            .0
+            .checked_add(offsets::ARRAY_META_COUNT)
+            .expect("Array size overflow: array is too large to be allocated in Brillig");
         self.codegen_allocate_immediate_mem(array.pointer, assert_usize(size));
         self.codegen_initialize_rc(array.pointer, 1);
     }

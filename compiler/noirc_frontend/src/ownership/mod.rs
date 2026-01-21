@@ -246,6 +246,8 @@ impl Context {
                     self.handle_expression(element);
                 }
             }
+
+            Literal::Repeated { element, .. } => self.handle_expression(element),
         }
     }
 

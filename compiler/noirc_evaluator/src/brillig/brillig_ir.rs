@@ -17,7 +17,7 @@ pub(crate) mod registers;
 
 mod codegen_binary;
 mod codegen_calls;
-mod codegen_control_flow;
+pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;

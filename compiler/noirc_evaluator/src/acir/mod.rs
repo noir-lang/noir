@@ -31,6 +31,14 @@ mod types;
 use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::errors::{InternalError, RuntimeError};
+
+/// Maximum number of elements allowed for return values, or for some arrays.
+/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
+/// 2^24 = 16,777,216 witnesses.
+/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
+/// So this limit should not interfere with real use cases.
+pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
+
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -191,6 +199,19 @@ impl<'a> Context<'a> {
         let num_return_witnesses =
             self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
 
+        if num_return_witnesses > MAX_ELEMENTS {
+            let call_stack_id = match entry_block.unwrap_terminator() {
+                TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+                _ => unreachable!("ICE: expected return terminator"),
+            };
+            let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
+            return Err(RuntimeError::ReturnWitnessLimitExceeded {
+                num_witnesses: num_return_witnesses,
+                max_witnesses: MAX_ELEMENTS,
+                call_stack,
+            });
+        }
+
         // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
         // layout for serializing those types as if they were being passed as inputs.
         //
@@ -283,6 +304,25 @@ impl<'a> Context<'a> {
 
         self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
+
+        // Check the flattened size of return values to avoid OOM during Brillig entry point generation
+        let num_return_values: usize = returns
+            .iter()
+            .map(|result_id| dfg.type_of_value(*result_id).flattened_size().to_usize())
+            .sum();
+        if num_return_values > MAX_ELEMENTS {
+            let entry_block = &dfg[main_func.entry_block()];
+            let call_stack_id = match entry_block.unwrap_terminator() {
+                TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+                _ => unreachable!("ICE: expected return terminator"),
+            };
+            let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
+            return Err(RuntimeError::ReturnWitnessLimitExceeded {
+                num_witnesses: num_return_values,
+                max_witnesses: MAX_ELEMENTS,
+                call_stack,
+            });
+        }
 
         let outputs: Vec<AcirType> =
             vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());

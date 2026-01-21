@@ -70,6 +70,7 @@ impl Expression {
             Expression::Ident(ident) => borrowed(&ident.typ),
             Expression::Literal(literal) => match literal {
                 Literal::Array(literal) | Literal::Vector(literal) => borrowed(&literal.typ),
+                Literal::Repeated { typ, .. } => borrowed(typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
@@ -268,6 +269,14 @@ pub struct While {
 pub enum Literal {
     Array(ArrayLiteral),
     Vector(ArrayLiteral),
+    /// A repeated array like `[expr; N]` where the element is repeated N times.
+    /// This avoids creating N copies of the element expression in memory.
+    Repeated {
+        element: Box<Expression>,
+        length: u32,
+        is_vector: bool,
+        typ: Type,
+    },
     Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,

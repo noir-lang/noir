@@ -923,43 +923,14 @@ impl<'interner> Monomorphizer<'interner> {
             MonomorphizationError::UnknownArrayLength { location, err }
         })?;
 
-        // Represent `[expr; n]` as:
-        //
-        // ```
-        // let repeated_element = expr;
-        // [repeated_element, repeated_element, ..., repeated_element]
-        // ```
-        //
-        // That is, `expr` is only evaluated once, assigned to a local variable,
-        // and the array consists of references to that local variable.
-        //
-        // Note that `expr` is evaluated even if the length is 0 (same as in Rust).
         let element = self.expr(repeated_element)?;
-        let local_id = self.next_local_id();
 
-        let name = "repeated_element".to_string();
-        let let_expr = ast::Expression::Let(ast::Let {
-            id: local_id,
-            mutable: false,
-            name: name.clone(),
-            expression: Box::new(element),
-        });
-
-        let contents = vecmap(0..length, |_| {
-            let definition = Definition::Local(local_id);
-            let id = self.next_ident_id();
-            let typ = typ.clone();
-            let name = name.clone();
-            let ident =
-                ast::Ident { location: Some(location), definition, mutable: false, name, typ, id };
-            ast::Expression::Ident(ident)
-        });
-        let array = if is_vector {
-            ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ }))
-        } else {
-            ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
-        };
-        Ok(ast::Expression::Block(vec![let_expr, array]))
+        Ok(ast::Expression::Literal(ast::Literal::Repeated {
+            element: Box::new(element),
+            length,
+            is_vector,
+            typ,
+        }))
     }
 
     fn index(

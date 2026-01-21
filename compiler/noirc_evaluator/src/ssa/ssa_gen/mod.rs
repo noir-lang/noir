@@ -281,6 +281,21 @@ impl FunctionContext<'_> {
                     _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
                 })
             }
+            ast::Literal::Repeated { element, length, is_vector, typ } => {
+                let element_value = self.codegen_expression(element)?;
+                let elements: Vec<_> =
+                    std::iter::repeat(element_value).take(*length as usize).collect();
+
+                let converted_typ = Self::convert_type(typ).flatten();
+                if *is_vector {
+                    let vector_length = self.builder.length_constant(u128::from(*length));
+                    let vector_contents =
+                        self.codegen_array_checked(elements, converted_typ[1].clone())?;
+                    Ok(Tree::Branch(vec![vector_length.into(), vector_contents]))
+                } else {
+                    self.codegen_array_checked(elements, converted_typ[0].clone())
+                }
+            }
             ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();

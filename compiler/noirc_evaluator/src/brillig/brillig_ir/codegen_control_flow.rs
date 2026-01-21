@@ -22,6 +22,18 @@ use super::{
     registers::RegisterAllocator,
 };
 
+/// Computes the size of a parameter if it was flattened
+pub(crate) fn flattened_size(param: &BrilligParameter) -> usize {
+    match param {
+        BrilligParameter::SingleAddr(_) => 1,
+        BrilligParameter::Array(item_types, item_count)
+        | BrilligParameter::Vector(item_types, item_count) => {
+            let item_size: usize = item_types.iter().map(flattened_size).sum();
+            assert_usize(item_count.0) * item_size
+        }
+    }
+}
+
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     pub(crate) fn codegen_generic_iteration<T>(
         &mut self,
@@ -265,7 +277,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             for (error_variable, error_param) in
                 error_data_items.into_iter().zip(error_data_types.into_iter())
             {
-                let flattened_size = Self::flattened_size(&error_param);
+                let flattened_size = flattened_size(&error_param);
                 match error_param {
                     BrilligParameter::SingleAddr(_) => {
                         ctx.store_instruction(
@@ -324,20 +336,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Computes the size of a parameter if it was flattened
-    pub(super) fn flattened_size(param: &BrilligParameter) -> usize {
-        match param {
-            BrilligParameter::SingleAddr(_) => 1,
-            BrilligParameter::Array(item_types, item_count)
-            | BrilligParameter::Vector(item_types, item_count) => {
-                let item_size: usize = item_types.iter().map(Self::flattened_size).sum();
-                assert_usize(item_count.0) * item_size
-            }
-        }
-    }
-
-    /// Computes the size of a parameter if it was flattened
     pub(super) fn flattened_tuple_size(tuple: &[BrilligParameter]) -> usize {
-        tuple.iter().map(Self::flattened_size).sum()
+        tuple.iter().map(flattened_size).sum()
     }
 
     /// Computes the size of a parameter if it was flattened
@@ -423,7 +423,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         BrilligParameter::Vector(..) => unreachable!("ICE: Cannot flatten vectors"),
                     }
 
-                    target_offset += Self::flattened_size(subitem);
+                    target_offset += flattened_size(subitem);
                 }
             }
         } else {

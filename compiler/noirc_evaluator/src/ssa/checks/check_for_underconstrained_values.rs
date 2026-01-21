@@ -170,7 +170,7 @@ impl BrilligTaintedIds {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length) => {
+                Some(length) if length.0 <= crate::acir::MAX_ELEMENTS.try_into().unwrap() => {
                     array_elements.insert(*result, vec![]);
                     for _ in 0..length.0 {
                         array_elements[result].push(results_status.len());
@@ -178,8 +178,9 @@ impl BrilligTaintedIds {
                             .push(ResultStatus::Unconstrained { descendants: HashSet::new() });
                     }
                 }
-                // Otherwise initialize a descendant set with the current value
-                None => {
+                // For very large arrays or non-arrays, treat the whole result as a single value
+                // to avoid memory/time issues when tracking individual elements
+                Some(_) | None => {
                     results_status.push(ResultStatus::Unconstrained {
                         descendants: HashSet::from([*result]),
                     });
