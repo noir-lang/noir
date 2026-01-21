@@ -32,10 +32,6 @@ pub(crate) struct InfoCommand {
     /// in the same directory as the artifact.
     #[clap(long, short = 'i')]
     input_file: Option<PathBuf>,
-
-    /// Use pedantic ACVM solving
-    #[clap(long)]
-    pedantic_solving: bool,
 }
 
 /// Resolves the input file path for profiling.
@@ -86,7 +82,6 @@ fn profile_program_execution(
     program: noirc_artifacts::program::ProgramArtifact,
     package_name: String,
     input_file: &Path,
-    pedantic_solving: bool,
 ) -> eyre::Result<ProgramInfo> {
     // Read inputs from file
     let (inputs_map, _) = read_inputs_from_file(input_file, &program.abi)?;
@@ -96,7 +91,7 @@ fn profile_program_execution(
     let (_, profiling_samples) = execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver(pedantic_solving),
+        &Bn254BlackBoxSolver,
         &mut DefaultForeignCallBuilder::default().build(),
     )
     .map_err(|e| eyre::eyre!("Execution failed: {}", e))?;
@@ -128,12 +123,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                     .map(|s| s.to_string_lossy().to_string())
                     .unwrap_or_else(|| "artifact".to_string());
 
-                vec![profile_program_execution(
-                    program,
-                    package_name,
-                    &input_file,
-                    args.pedantic_solving,
-                )?]
+                vec![profile_program_execution(program, package_name, &input_file)?]
             }
             Artifact::Contract(contract) => {
                 // profile each contract function
@@ -147,12 +137,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                             contract.noir_version.clone(),
                             contract.file_map.clone(),
                         );
-                        profile_program_execution(
-                            program.into(),
-                            package_name,
-                            &input_file,
-                            args.pedantic_solving,
-                        )
+                        profile_program_execution(program.into(), package_name, &input_file)
                     })
                     .collect::<eyre::Result<Vec<_>>>()?
             }
