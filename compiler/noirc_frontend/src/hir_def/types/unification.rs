@@ -628,23 +628,26 @@ impl Type {
         false
     }
 
-    /// Attempt to coerce `&mut T` to `&T`, returning true if this is possible.
+    /// Attempt to coerce reference types, returning true if possible.
     pub(crate) fn try_reference_coercion(&self, target: &Type) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Reference(this_elem, true), Type::Reference(target_elem, false)) =
-            (&this, &target)
-        {
-            // Still have to ensure the element types match.
-            // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::default();
-            if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
-                Self::apply_type_bindings(bindings);
-                return true;
+        match (&this, &target) {
+            // Coerce `&mut T` to `&T`, or unify`&T` with `&T`
+            (Type::Reference(this_elem, true), Type::Reference(target_elem, false))
+            | (Type::Reference(this_elem, false), Type::Reference(target_elem, false)) => {
+                // Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+                let mut bindings = TypeBindings::default();
+                if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
+                    Self::apply_type_bindings(bindings);
+                    return true;
+                }
+                false
             }
+            _ => false,
         }
-        false
     }
 }
 
