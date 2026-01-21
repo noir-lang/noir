@@ -392,11 +392,11 @@ fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
 #[test]
 fn for_loop_inclusive_max_value_with_break() {
     let assert_src = "
-    unconstrained fn main() -> pub u8 {
+    unconstrained fn main(cond: bool) -> pub u8 {
         let mut sum = 0;
         for i in 0..=255_u8 {
-          if i == 10 { 
-              break; 
+          if cond {
+              break;
           }
           sum += i;
         }
@@ -412,42 +412,47 @@ fn for_loop_inclusive_max_value_with_break() {
     // - b3 is the loop exit, but it performs a check to determine whether the final iteration
     //   should be executed. In this case we check if no break was hit. It's multiplied by
     //   one because that "one" is (start < end) which is true in this case.
-    // - b6 is the final loop iteration where `index == end`
+    // - b6 is the final loop iteration where `index == end`. Note that the code for
+    //   `if cond { break; }` now has the break take us to b8, which jumps to b7, which
+    //   exits main (that is, the break skips the final iteration).
     assert_ssa_snapshot!(ssa, @r"
     brillig(inline) fn main f0 {
-      b0():
-        v1 = allocate -> &mut u8
-        store u8 0 at v1
-        v3 = allocate -> &mut u1
-        store u1 1 at v3
+      b0(v0: u1):
+        v2 = allocate -> &mut u8
+        store u8 0 at v2
+        v4 = allocate -> &mut u1
+        store u1 1 at v4
         jmp b1(u8 0)
-      b1(v0: u8):
-        v6 = lt v0, u8 255
-        jmpif v6 then: b2, else: b3
+      b1(v1: u8):
+        v7 = lt v1, u8 255
+        jmpif v7 then: b2, else: b3
       b2():
-        v8 = eq v0, u8 10
-        jmpif v8 then: b4, else: b5
+        jmpif v0 then: b4, else: b5
       b3():
-        v14 = load v3 -> u1
-        v15 = unchecked_mul v14, u1 1
-        jmpif v15 then: b6, else: b7
+        v13 = load v4 -> u1
+        v14 = unchecked_mul v13, u1 1
+        jmpif v14 then: b6, else: b7
       b4():
-        store u1 0 at v3
+        store u1 0 at v4
         jmp b3()
       b5():
-        v9 = load v1 -> u8
-        v10 = add v9, v0
-        store v10 at v1
-        v12 = unchecked_add v0, u8 1
-        jmp b1(v12)
+        v8 = load v2 -> u8
+        v9 = add v8, v1
+        store v9 at v2
+        v11 = unchecked_add v1, u8 1
+        jmp b1(v11)
       b6():
-        v16 = load v1 -> u8
-        v17 = add v16, u8 255
-        store v17 at v1
-        jmp b7()
+        jmpif v0 then: b8, else: b9
       b7():
-        v18 = load v1 -> u8
-        return v18
+        v17 = load v2 -> u8
+        return v17
+      b8():
+        jmp b7()
+      b9():
+        v15 = load v2 -> u8
+        v16 = add v15, u8 255
+        store v16 at v2
+        jmp b7()
     }
     ");
 }
