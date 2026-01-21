@@ -492,9 +492,10 @@ fn for_loop_inclusive_unknown_range_with_break() {
         jmpif v9 then: b4, else: b5
       b3():
         v15 = load v5 -> u1
-        v16 = lt v0, v1
-        v17 = unchecked_mul v15, v16
-        jmpif v17 then: b6, else: b7
+        v16 = lt v1, v0
+        v17 = not v16
+        v18 = unchecked_mul v15, v17
+        jmpif v18 then: b6, else: b7
       b4():
         store u1 0 at v5
         jmp b3()
@@ -505,17 +506,17 @@ fn for_loop_inclusive_unknown_range_with_break() {
         v13 = unchecked_add v2, u8 1
         jmp b1(v13)
       b6():
-        v18 = eq v1, u8 10
-        jmpif v18 then: b8, else: b9
+        v19 = eq v1, u8 10
+        jmpif v19 then: b8, else: b9
       b7():
-        v21 = load v3 -> u8
-        return v21
+        v22 = load v3 -> u8
+        return v22
       b8():
         jmp b7()
       b9():
-        v19 = load v3 -> u8
-        v20 = add v19, v1
-        store v20 at v3
+        v20 = load v3 -> u8
+        v21 = add v20, v1
+        store v21 at v3
         jmp b7()
     }
     ");
@@ -554,6 +555,52 @@ fn for_loop_inclusive_with_continue() {
         jmp b5()
       b5():
         return
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_max_value_to_max_value() {
+    let assert_src = "
+    fn main() -> pub u8 {
+        let mut sum = 0;
+        for i in 255_u8..=255_u8 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // Check that the final iteration is included
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u8
+        store u8 0 at v1
+        v3 = allocate -> &mut u1
+        store u1 1 at v3
+        jmp b1(u8 255)
+      b1(v0: u8):
+        v6 = lt v0, u8 255
+        jmpif v6 then: b2, else: b3
+      b2():
+        v12 = load v1 -> u8
+        v13 = add v12, v0
+        store v13 at v1
+        v15 = unchecked_add v0, u8 1
+        jmp b1(v15)
+      b3():
+        v7 = load v3 -> u1
+        jmpif u1 0 then: b4, else: b5
+      b4():
+        v9 = load v1 -> u8
+        v10 = add v9, u8 255
+        store v10 at v1
+        jmp b5()
+      b5():
+        v11 = load v1 -> u8
+        return v11
     }
     ");
 }
