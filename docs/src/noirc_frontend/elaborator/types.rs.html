@@ -2768,7 +2768,16 @@
 <a href="#2767" id="2767">2767</a>
 <a href="#2768" id="2768">2768</a>
 <a href="#2769" id="2769">2769</a>
-<a href="#2770" id="2770">2770</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2770" id="2770">2770</a>
+<a href="#2771" id="2771">2771</a>
+<a href="#2772" id="2772">2772</a>
+<a href="#2773" id="2773">2773</a>
+<a href="#2774" id="2774">2774</a>
+<a href="#2775" id="2775">2775</a>
+<a href="#2776" id="2776">2776</a>
+<a href="#2777" id="2777">2777</a>
+<a href="#2778" id="2778">2778</a>
+<a href="#2779" id="2779">2779</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3755,6 +3764,15 @@
 
         <span class="kw">if </span>matches.len() == <span class="number">1 </span>{
             <span class="kw">let </span>method = matches.remove(<span class="number">0</span>).<span class="number">0</span>;
+
+            <span class="kw">if </span>path.segments[<span class="number">0</span>].generics.is_some() {
+                <span class="kw">let </span>turbofish_location = path.segments[<span class="number">0</span>].turbofish_location();
+                <span class="self">self</span>.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: <span class="string">"generic parameter"</span>.to_string(),
+                    location: turbofish_location,
+                });
+            }
+
             <span class="kw">return </span><span class="prelude-val">Some</span>(TraitPathResolution { method, item: <span class="prelude-val">None</span>, errors: Vec::new() });
         }
 
