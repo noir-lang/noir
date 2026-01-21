@@ -377,7 +377,7 @@ mod tests {
         let inputs =
             vec![BrilligInputs::Single(w1), BrilligInputs::Single(w2), BrilligInputs::Single(w3)];
 
-        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
         let bytecode = vec![
             Opcode::Const {
                 destination: MemoryAddress::Direct(21),

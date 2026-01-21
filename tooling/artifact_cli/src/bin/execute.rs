@@ -105,7 +105,7 @@ fn check_witness_file(
     };
 
     let mut witness_stack = load_witness_from_file(witness_path)?;
-    let backend = Bn254BlackBoxSolver(false);
+    let backend = Bn254BlackBoxSolver;
 
     while let Some(stack_item) = witness_stack.pop() {
         let function_index = stack_item.index as usize;

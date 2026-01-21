@@ -842,7 +842,6 @@ mod proptests {
             );
             let options = ElaboratorOptions {
                 debug_comptime_in_file: None,
-                pedantic_solving: true,
                 enabled_unstable_features: &[],
                 disable_required_unstable_features: false,
             };

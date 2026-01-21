@@ -504,7 +504,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     .block_solvers
                     .get_mut(block_id)
                     .expect("Memory block should have been initialized before use");
-                solver.solve_memory_op(op, &mut self.witness_map, self.backend.pedantic_solving())
+                solver.solve_memory_op(op, &mut self.witness_map)
             }
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
                 match self.solve_brillig_call_opcode(id, inputs, outputs, predicate) {
@@ -612,12 +612,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     ) -> Result<Option<ForeignCallWaitInfo<F>>, OpcodeResolutionError<F>> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
-        if is_predicate_false(
-            &self.witness_map,
-            predicate,
-            self.backend.pedantic_solving(),
-            &opcode_location,
-        )? {
+        if is_predicate_false(&self.witness_map, predicate, &opcode_location)? {
             return BrilligSolver::<F, B>::zero_out_brillig_outputs(&mut self.witness_map, outputs)
                 .map(|_| None);
         }
@@ -696,12 +691,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
         let witness = &mut self.witness_map;
-        let should_skip = match is_predicate_false(
-            witness,
-            predicate,
-            self.backend.pedantic_solving(),
-            &opcode_location,
-        ) {
+        let should_skip = match is_predicate_false(witness, predicate, &opcode_location) {
             Ok(result) => result,
             Err(err) => return StepResult::Status(self.handle_opcode_resolution(Err(err))),
         };
@@ -754,12 +744,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             return Err(OpcodeResolutionError::AcirMainCallAttempted { opcode_location });
         }
 
-        if is_predicate_false(
-            &self.witness_map,
-            predicate,
-            self.backend.pedantic_solving(),
-            &opcode_location,
-        )? {
+        if is_predicate_false(&self.witness_map, predicate, &opcode_location)? {
             // Zero out the outputs if we have a false predicate
             for output in outputs {
                 insert_value(output, F::zero(), &mut self.witness_map)?;
@@ -898,21 +883,17 @@ fn any_witness_from_expression<F>(expr: &Expression<F>) -> Option<Witness> {
 pub(crate) fn is_predicate_false<F: AcirField>(
     witness: &WitnessMap<F>,
     predicate: &Expression<F>,
-    pedantic_solving: bool,
     opcode_location: &ErrorLocation,
 ) -> Result<bool, OpcodeResolutionError<F>> {
     let pred_value = get_value(predicate, witness)?;
     let predicate_is_false = pred_value.is_zero();
-    if pedantic_solving {
-        // We expect that the predicate should resolve to either 0 or 1.
-        if !predicate_is_false && !pred_value.is_one() {
-            let opcode_location = *opcode_location;
-            return Err(OpcodeResolutionError::PredicateLargerThanOne {
-                opcode_location,
-                pred_value,
-            });
-        }
+
+    // We expect that the predicate should resolve to either 0 or 1.
+    if !predicate_is_false && !pred_value.is_one() {
+        let opcode_location = *opcode_location;
+        return Err(OpcodeResolutionError::PredicateLargerThanOne { opcode_location, pred_value });
     }
+
     Ok(predicate_is_false)
 }
 
@@ -947,7 +928,7 @@ mod tests {
             (Witness(2), FieldElement::from(1u128)),
             (Witness(3), FieldElement::from(2u128)),
         ]));
-        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
 
         let src = "
         BLACKBOX::RANGE input: w1, bits: 32
@@ -967,7 +948,7 @@ mod tests {
     fn errors_when_calling_function_zero() {
         let initial_witness =
             WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
-        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
 
         let src = "
         CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]
