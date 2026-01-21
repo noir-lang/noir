@@ -31,7 +31,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Ensure that writing call arguments won't exceed the current stack frame bounds.
         // This check prevents heap corruption that could occur if arguments are written
         // beyond the frame boundary before CheckMaxStackDepth runs in the called function.
-        // The +1 accounts for the slot at stack_size which stores the previous stack pointer.
         let max_frame_size = self.registers().layout().max_stack_frame_size();
         assert!(
             (stack_size as usize) + arguments.len() < max_frame_size,

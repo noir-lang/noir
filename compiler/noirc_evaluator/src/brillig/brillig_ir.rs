@@ -861,12 +861,8 @@ pub(crate) mod tests {
         use super::brillig_variable::BrilligVariable;
         use super::registers::LayoutConfig;
 
-        // Create a layout with a small max_stack_frame_size to easily trigger the check
-        let small_layout = LayoutConfig::new(
-            10, // max_stack_frame_size: very small for testing
-            16, // num_stack_frames
-            64, // max_scratch_space
-        );
+        // Create a layout with a very small max stack frame size to easily trigger the check
+        let small_layout = LayoutConfig::new(10, 16, 64);
 
         let options = BrilligOptions {
             enable_debug_trace: false,
@@ -890,7 +886,7 @@ pub(crate) mod tests {
 
         // Create 5 dummy arguments.
         // With stack_size=8 and 5 arguments:
-        // stack_size + arguments.len() + 1 = 8 + 5 + 1 = 14 > 10 (max_frame_size)
+        // stack_size + arguments.len() + 1 = 8 + 5 = 14 > 10 (max stack frame size)
         // This should trigger the assertion.
         let dummy_addr = MemoryAddress::relative(1);
         let dummy_var = BrilligVariable::SingleAddr(SingleAddrVariable::new(dummy_addr, 32));
