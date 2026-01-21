@@ -59,7 +59,7 @@ impl Elaborator<'_> {
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
-        let (expr, item) = self.resolve_variable(variable.clone());
+        let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
         if let Some(PathResolutionItem::TypeAlias(alias)) = item {
@@ -116,7 +116,6 @@ impl Elaborator<'_> {
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
             if let Some(unused_resolved_turbofish) = resolved_turbofish {
-                // TODO: format unused_resolved_turbofish using Display more (rather than Debug)?
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
