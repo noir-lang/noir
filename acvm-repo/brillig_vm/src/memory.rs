@@ -11,9 +11,6 @@
 //!
 //! - **RAM limit**: On 64-bit systems, the allocator limit is not a concern, but allocating
 //!   the full u32 address space would require ~200 GB of RAM.
-//!
-//! For deterministic behavior across architectures, consider enforcing an `i32::MAX`-based
-//! limit. This ensures identical behavior on both 32-bit and 64-bit systems.
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
