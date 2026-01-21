@@ -94,6 +94,10 @@ pub(super) struct Loop {
     /// The loop index will be `Some` for a `for` and `None` for a `loop`
     pub(super) loop_index: Option<ValueId>,
     pub(super) loop_end: BasicBlockId,
+    /// A variable that tracks whether a `break` was hit or not:
+    /// `false` if a `break` was hit, `true` if not. Tracking the negated value
+    /// is an optimization.
+    pub(super) did_not_hit_break_var: Option<ValueId>,
 }
 
 /// The queue of functions remaining to compile
@@ -556,6 +560,20 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn define(&mut self, id: LocalId, value: Values) {
         let existing = self.definitions.insert(id, value);
         assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
+    }
+
+    /// Redefines a local variable to be some Values that can later be retrieved
+    /// by calling self.lookup(id).
+    ///
+    /// This assumes a variable was already defined, and is used as an exception
+    /// when generating inclusive for loops to redefine the loop index variable
+    /// to the end value on the last iteration.
+    pub(super) fn redefine(&mut self, id: LocalId, value: Values) {
+        let existing = self.definitions.insert(id, value);
+        assert!(
+            existing.is_some(),
+            "Variable {id:?} was expected to be already definedin ssa-gen pass"
+        );
     }
 
     /// Looks up the value of a given local variable. Expects the variable to have

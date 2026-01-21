@@ -656,9 +656,56 @@ impl FunctionContext<'_> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
+        // For inclusive ranges we could generate a loop like:
+        //
+        // ```noir
+        // let index = start;
+        // while start <= end {
+        //   body;
+        //   if index == end { break; }
+        //   index += 1;
+        // }
+        // ``
+        //
+        // We could do that in order to avoid an overflow at `index += 1` when `end` is the maximum
+        // value for the range type.
+        //
+        // However, an SSA like above breaks some assumptions in the unrolling optimization pass.
+        //
+        // Instead, we generate something like this:
+        //
+        // ```noir
+        // let index = start;
+        // // did_not_hit_break is set to false if a break is hit in the for body
+        // let did_not_hit_break = true;
+        // for index in start..end {
+        //   body;
+        // }
+        // if start < end && did_not_hit_break {
+        //   index = end;
+        //   body;
+        // }
+        // ```
+        //
+        // That is, we generate an exclusive for loop and include an extra final iteration that
+        // is only executed if the start is less than the end, and if no break was hit in the loop body.
+        let did_not_hit_break_var = if for_expr.inclusive {
+            let did_not_hit_break_var = self.builder.insert_allocate(Type::bool());
+            let zero = self.builder.numeric_constant(true, NumericType::bool());
+            self.builder.insert_store(did_not_hit_break_var, zero);
+            Some(did_not_hit_break_var)
+        } else {
+            None
+        };
+
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
-        self.enter_loop(Loop { loop_entry, loop_index: Some(loop_index), loop_end });
+        self.enter_loop(Loop {
+            loop_entry,
+            loop_index: Some(loop_index),
+            loop_end,
+            did_not_hit_break_var,
+        });
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -672,17 +719,7 @@ impl FunctionContext<'_> {
         // end range. These are the instructions used to issue an error if the end of the range
         // cannot be determined at compile-time.
         self.builder.set_location(for_expr.end_range_location);
-        // Generate the loop condition: continue if loop_index is within the range.
-        // For inclusive ranges (e.g., `0..=255`): use `loop_index <= end_index`
-        //   Since BinaryOp only has `Lt`, we implement `<=` as `!(end_index < loop_index)`
-        // For exclusive ranges (e.g., `0..256`): use `loop_index < end_index`
-        let jump_condition = if for_expr.inclusive {
-            // loop_index <= end_index is equivalent to !(end_index < loop_index)
-            let end_lt_loop = self.builder.insert_binary(end_index, BinaryOp::Lt, loop_index);
-            self.builder.insert_not(end_lt_loop)
-        } else {
-            self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index)
-        };
+        let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
         self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
 
         // Compile the loop body
@@ -690,20 +727,7 @@ impl FunctionContext<'_> {
         self.define(for_expr.index_variable, loop_index.into());
 
         let result = self.codegen_expression(&for_expr.block);
-        self.codegen_unless_break_or_continue(result, |this, _| {
-            if for_expr.inclusive {
-                // For inclusive ranges, we need to check if we're at the end before incrementing
-                // to avoid overflow when end is the maximum value for the type.
-                // Example: for `0_u8..=255_u8`, when loop_index is 255, incrementing would
-                // overflow to 256, which doesn't fit in u8. Instead, we check if we're at
-                // the end and exit the loop without incrementing.
-                let at_end = this.builder.insert_binary(loop_index, BinaryOp::Eq, end_index);
-                let continue_block = this.builder.insert_block();
-                // If at_end is true, exit the loop. Otherwise, continue and increment.
-                this.builder.terminate_with_jmpif(at_end, loop_end, continue_block);
-
-                this.builder.switch_to_block(continue_block);
-            }
+        self.codegen_unless_break_or_continue(result.clone(), |this, _| {
             let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
@@ -711,6 +735,48 @@ impl FunctionContext<'_> {
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
         self.exit_loop();
+
+        // Generate the final iteration for inclusive ranges
+        if let Some(did_not_hit_break_var) = did_not_hit_break_var {
+            let final_iteration = self.builder.insert_block();
+            let final_iteration_end = self.builder.insert_block();
+
+            let did_not_hit_brak = self.builder.insert_load(did_not_hit_break_var, Type::bool());
+            let start_index_is_less_than_end_index =
+                self.builder.insert_binary(start_index, BinaryOp::Lt, end_index);
+            let should_execute_loop_body = self.builder.insert_binary(
+                did_not_hit_brak,
+                BinaryOp::And,
+                start_index_is_less_than_end_index,
+            );
+            self.builder.terminate_with_jmpif(
+                should_execute_loop_body,
+                final_iteration,
+                final_iteration_end,
+            );
+
+            self.builder.switch_to_block(final_iteration);
+
+            // We need to be in the context of a loop because a `break` in the loop, in the final
+            // iteration, has to jump somewhere.
+            self.enter_loop(Loop {
+                loop_entry,
+                loop_index: None,
+                loop_end: final_iteration_end,
+                did_not_hit_break_var: None,
+            });
+
+            self.redefine(for_expr.index_variable, end_index.into());
+
+            let result = self.codegen_expression(&for_expr.block);
+            self.codegen_unless_break_or_continue(result, |this, _| {
+                this.builder.terminate_with_jmp(final_iteration_end, vec![]);
+            })?;
+            self.builder.switch_to_block(final_iteration_end);
+
+            self.exit_loop();
+        }
+
         Ok(Self::unit_value())
     }
 
@@ -731,7 +797,12 @@ impl FunctionContext<'_> {
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
 
-        self.enter_loop(Loop { loop_entry: loop_body, loop_index: None, loop_end });
+        self.enter_loop(Loop {
+            loop_entry: loop_body,
+            loop_index: None,
+            loop_end,
+            did_not_hit_break_var: None,
+        });
 
         self.builder.terminate_with_jmp(loop_body, vec![]);
 
@@ -776,7 +847,12 @@ impl FunctionContext<'_> {
         let condition = self.codegen_non_tuple_expression(&while_.condition)?;
         self.builder.terminate_with_jmpif(condition, while_body, while_end);
 
-        self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
+        self.enter_loop(Loop {
+            loop_entry: while_entry,
+            loop_index: None,
+            loop_end: while_end,
+            did_not_hit_break_var: None,
+        });
 
         // Codegen the body
         self.builder.switch_to_block(while_body);
@@ -1271,7 +1347,15 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_break(&mut self) -> Result<Values, RuntimeError> {
-        let loop_end = self.current_loop().loop_end;
+        let current_loop = self.current_loop();
+
+        if let Some(did_not_hit_break_var) = current_loop.did_not_hit_break_var {
+            // `did_not_hit_break_var = false` means we hit a break
+            let zero = self.builder.numeric_constant(false, NumericType::bool());
+            self.builder.insert_store(did_not_hit_break_var, zero);
+        }
+
+        let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
         Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })

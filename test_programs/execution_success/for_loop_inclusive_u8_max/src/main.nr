@@ -1,10 +1,7 @@
-unconstrained fn main() {
-    // Test that for loops with inclusive ranges work correctly
-    // even when the end value is the maximum for the type (u8::MAX = 255)
-    let mut last_value = 0_u8;
-    for x in 0_u8..=255_u8 {
-        last_value = x;
+fn main() {
+    let mut sum = 0_u32;
+    for i in 0..=255_u8 {
+        sum += i as u32;
     }
-    // After the loop, last_value should be 255
-    assert(last_value == 255);
+    assert_eq(sum, 32640);
 }
