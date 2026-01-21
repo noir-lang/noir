@@ -103,7 +103,6 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
         target_dir: &workspace.target_directory_path(),
     };
     let run_params = RunParams {
-        pedantic_solving: args.compile_options.pedantic_solving,
         raw_source_printing: args.raw_source_printing,
         oracle_resolver_url: args.oracle_resolver,
     };

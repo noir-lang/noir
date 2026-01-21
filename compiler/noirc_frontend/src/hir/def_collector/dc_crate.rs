@@ -404,7 +404,6 @@ impl DefCollector {
 
         let cli_options = crate::elaborator::ElaboratorOptions {
             debug_comptime_in_file,
-            pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,
             disable_required_unstable_features: options.disable_required_unstable_features,
         };
