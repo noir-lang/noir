@@ -684,3 +684,19 @@ fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn signed_numeric_type_alias_with_negative_operand() {
+    // Regression test for https://github.com/noir-lang/noir/issues/10969
+    // Numeric type alias expressions should use their declared type.
+    // The expression `0 % (-1)` must be elaborated as a i32.
+    // An unsigned type would cause an "attempt to subtract with overflow" errors.
+    let src = r#"
+    pub type X: i32 = 0 % (-1);
+
+    fn main() {
+        let _: i32 = X;
+    }
+    "#;
+    assert_no_errors(src);
+}
