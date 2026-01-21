@@ -149,3 +149,14 @@ fn errors_if_oracle_returns_reference_in_struct() {
     //check_errors(src);
     check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }
+
+#[test]
+fn errors_if_oracle_returns_vector_with_nested_array() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> [[(u8, u8); 3]] {}
+                         ^^^^^^^^^^^ Oracle functions cannot return vectors containing nested arrays
+                         ~~~~~~~~~~~ Vectors with nested arrays are not yet supported for foreign call returns
+    "#;
+    check_errors(src);
+}
