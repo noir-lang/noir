@@ -794,12 +794,21 @@ impl FunctionContext<'_> {
                 did_not_hit_break_var: None,
             });
 
+            // Temporarily allow redefinitions because:
+            // 1. We'll override the index variable
+            // 2. We'll generate the for loop body again
+            let old_redefinitions_allowed = self.redefinitions_allowed;
+            self.redefinitions_allowed = true;
+
             self.define(for_expr.index_variable, end_index.into());
 
             let result = self.codegen_expression(&for_expr.block);
             self.codegen_unless_break_or_continue(result, |this, _| {
                 this.builder.terminate_with_jmp(final_iteration_end, vec![]);
             })?;
+
+            self.redefinitions_allowed = old_redefinitions_allowed;
+
             self.builder.switch_to_block(final_iteration_end);
 
             self.exit_loop();
