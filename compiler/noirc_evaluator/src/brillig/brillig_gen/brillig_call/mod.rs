@@ -358,6 +358,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let converted_index =
                     self.brillig_context.make_usize_constant_instruction(element_size.into());
 
+                // Safety: This multiplication cannot overflow because:
+                // 1. SSA generates bounds checks ensuring `user_index <= length`
+                // 2. The vector allocation is protected by FMP's checked addition
+                // 3. Therefore `element_size * user_index <= element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
@@ -389,6 +393,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let converted_index =
                     self.brillig_context.make_usize_constant_instruction(element_size.into());
 
+                // Safety: This multiplication cannot overflow because:
+                // 1. SSA generates bounds checks ensuring `user_index < length`
+                // 2. The vector allocation is protected by FMP's checked addition
+                // 3. Therefore `element_size * user_index < element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
