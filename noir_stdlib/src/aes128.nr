@@ -16,10 +16,7 @@ pub fn aes128_encrypt<let N: u32>(
     output
 }
 
-
-
 #[foreign(aes128_encrypt)]
-fn aes128_encrypt_padded_input<let N:u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8; N] {
-}
+fn aes128_encrypt_padded_input<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8; N] {}
 
 // docs:end:aes128
