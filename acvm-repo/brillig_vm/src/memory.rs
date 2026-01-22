@@ -297,12 +297,6 @@ impl<F: AcirField> From<u8> for MemoryValue<F> {
     }
 }
 
-impl<F: AcirField> From<usize> for MemoryValue<F> {
-    fn from(value: usize) -> Self {
-        MemoryValue::U32(value as u32)
-    }
-}
-
 impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
         MemoryValue::U32(value)

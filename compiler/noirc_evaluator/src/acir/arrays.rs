@@ -126,7 +126,7 @@ use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
 use crate::acir::types::flat_numeric_types;
-use crate::brillig::{assert_u32, assert_usize};
+use crate::brillig::assert_u32;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
@@ -171,7 +171,7 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
         if let Some(return_data) = self.data_bus.return_data {
-            debug_assert!(!witnesses.is_empty(), "return data cannot be empty");
+            assert!(!witnesses.is_empty(), "return data cannot be empty");
 
             let block_id = self.block_id(return_data);
             let already_initialized = self.initialized_arrays.contains(&block_id);
@@ -515,7 +515,7 @@ impl Context<'_> {
                     .collect::<Vec<_>>();
 
                 assert_eq!(
-                    assert_usize(len.0),
+                    len.to_usize(),
                     dummy_values.len(),
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
@@ -550,7 +550,7 @@ impl Context<'_> {
             Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
                 let mut result = im::Vector::new();
-                for _i in 0..*len {
+                for _i in 0..len.0 {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
                         result.push_back(element);
@@ -600,6 +600,31 @@ impl Context<'_> {
             .iter()
             .find_map(|cd| cd.index_map.get(&array).map(|idx| (cd.array_id, *idx)));
         if let Some((array_id, bus_index)) = call_data_info {
+            // Get the length of the array we want to read:
+            let array_typ = dfg.type_of_value(array);
+            let flattened_len = array_typ.flattened_size();
+            // Get the total call_data array length
+            let call_data_typ = dfg.type_of_value(array_id);
+            let call_data_len = call_data_typ.flattened_size();
+            let is_last_in_call_data =
+                bus_index + flattened_len.0 as usize == call_data_len.0 as usize;
+
+            // Check index for out of bounds in the call_data because
+            // the databus aggregates them into the call_data array.
+            // This is not needed when we access the last element, because
+            // we can benefit from the out-of-bound on call data.
+            if !is_last_in_call_data {
+                let length_var =
+                    self.acir_context.add_constant(FieldElement::from(i128::from(flattened_len.0)));
+                // Compute out-of-bounds value:
+                let in_bound = self.acir_context.less_than_var(var_index, length_var, 32)?;
+                // Add the out-of-bounds check:
+                let assert_message = "Index out of bounds".to_string();
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let message = self.acir_context.generate_assertion_message_payload(assert_message);
+                self.acir_context.assert_eq_var(in_bound, one, Some(message))?;
+            }
+
             let call_data_block = self.ensure_array_is_initialized(array_id, dfg)?;
             let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
@@ -671,7 +696,7 @@ impl Context<'_> {
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
-                for _ in 0..len {
+                for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
                     }
@@ -697,7 +722,7 @@ impl Context<'_> {
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
-                for _ in 0..len {
+                for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_zero_value(typ)?);
                     }
@@ -795,7 +820,7 @@ impl Context<'_> {
                 value_types,
                 ..
             }) => {
-                let values = try_vecmap(0..assert_usize(len.0), |i| {
+                let values = try_vecmap(0..len.to_usize(), |i| {
                     let index_var = self.acir_context.add_constant(i);
 
                     let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
@@ -1054,7 +1079,7 @@ impl Context<'_> {
         array_len: FlattenedLength,
         value_types: &[NumericType],
     ) -> impl Iterator<Item = Result<AcirValue, RuntimeError>> {
-        (0..assert_usize(array_len.0)).map(move |i| {
+        (0..array_len.to_usize()).map(move |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
@@ -1139,7 +1164,7 @@ impl Context<'_> {
     /// access its elements.
     pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
         if let Type::Array(_, size) = dfg.type_of_value(array) {
-            size == 0
+            size.0 == 0
         } else {
             match &dfg[array] {
                 Value::Instruction { .. } | Value::Param { .. } => {
@@ -1284,7 +1309,7 @@ pub(super) fn calculate_element_type_sizes_array(
     }
 
     let capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
-    let capacity = assert_usize(capacity.0);
+    let capacity = capacity.to_usize();
 
     let mut flat_elem_type_sizes = Vec::with_capacity(capacity);
     let mut total_size = 0;

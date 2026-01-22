@@ -85,6 +85,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// For complex types (e.g., tuples), multiple memory writes happen per loop iteration.
     /// For primitive type (e.g., `u32`, `Field`), a single memory write happens per loop iteration.
+    ///
+    /// # Safety                                                                                                                       
+    ///                                                                                                                                
+    /// The loop iterator cannot overflow because:                                                                                     
+    /// 1. The array allocation is sized for `item_count * item_types.len()` elements                                                  
+    /// 2. This allocation is protected by FMP's checked addition (see `process_free_memory_op`)                                       
+    /// 3. Therefore: `pointer`, `end_pointer`, and all intermediate loop values are < 2^32     
     fn initialize_constant_array_runtime(
         &mut self,
         item_types: Arc<Vec<Type>>,
@@ -440,7 +447,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         match new_variable {
             BrilligVariable::BrilligArray(brillig_array) => {
-                debug_assert_eq!(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
+                assert_eq!(SemiFlattenedLength(assert_u32(array.len())), brillig_array.size);
                 self.brillig_context.codegen_initialize_array(brillig_array);
             }
             BrilligVariable::BrilligVector(vector) => {

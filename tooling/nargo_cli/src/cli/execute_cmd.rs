@@ -83,7 +83,6 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
             oracle_resolver: args.oracle_resolver.clone(),
             oracle_root_dir: Some(workspace.root_dir.clone()),
             oracle_package_name: Some(package.name.to_string()),
-            pedantic_solving: args.compile_options.pedantic_solving,
         };
 
         noir_artifact_cli::commands::execute_cmd::run(cmd)?;

@@ -93,11 +93,7 @@ impl ValueMapping {
     }
 
     pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
-        debug_assert_eq!(
-            from.len(),
-            to.len(),
-            "Lengths of arrays of values being mapped must match"
-        );
+        assert_eq!(from.len(), to.len(), "Lengths of arrays of values being mapped must match");
         for (from_value, to_value) in from.iter().zip(to) {
             self.insert(*from_value, *to_value);
         }
