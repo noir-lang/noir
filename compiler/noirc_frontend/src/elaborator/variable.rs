@@ -68,10 +68,24 @@ impl Elaborator<'_> {
             // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
+                // Extract the declared numeric type from the type alias's kind.
+                let declared_type = match type_alias.borrow().typ.kind() {
+                    Kind::Numeric(declared_type) => declared_type,
+                    _ => Box::new(Type::Error),
+                };
+                let declared_type = *declared_type;
+                let expr_location = type_alias.borrow().location;
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                let expr = Expression::new(expr, type_alias.borrow().location);
+                let expr = Expression::new(expr, expr_location);
                 let (id, typ) = self.elaborate_expression(expr);
-                return (id, typ, false, location);
+                // Unify the expression's type with the declared type from the type alias
+                // to ensure proper type checking.
+                self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: declared_type.to_string(),
+                    expr_typ: typ.to_string(),
+                    expr_location,
+                });
+                return (id, declared_type, false, location);
             }
         }
 
