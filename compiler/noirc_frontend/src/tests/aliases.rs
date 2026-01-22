@@ -684,3 +684,16 @@ fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_10756() {
+    let src = r#"
+    pub type Foo = 0;
+                   ^ type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`
+
+    fn main() {
+        let _: Foo = std::mem::zeroed();
+    }
+    "#;
+    check_errors(src);
+}
