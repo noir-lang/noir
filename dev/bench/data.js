@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769044583669,
+  "lastUpdate": 1769080781982,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "404f60ff401cff2c89fe6c42b4afbd58cb7ea02f",
-          "message": "fix: prevent integer literals in non-numeric generic locations (#11211)",
-          "timestamp": "2026-01-14T22:50:21Z",
-          "tree_id": "5c4c0affc8108613bea8a02c1e08b3a2b7bb3cb4",
-          "url": "https://github.com/noir-lang/noir/commit/404f60ff401cff2c89fe6c42b4afbd58cb7ea02f"
-        },
-        "date": 1768432265757,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267767,
-            "range": "± 1176",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 238407,
-            "range": "± 5975",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2805822,
-            "range": "± 1721",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2806841,
             "range": "± 16267",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb2b4ea99cf83c1de043328e2f2a0561c7bc2f28",
+          "message": "feat(doc): enable some markdown extensions (#11292)",
+          "timestamp": "2026-01-22T10:51:58Z",
+          "tree_id": "b20baa7c44d2e8baa6aa275daf46723bd72f1938",
+          "url": "https://github.com/noir-lang/noir/commit/eb2b4ea99cf83c1de043328e2f2a0561c7bc2f28"
+        },
+        "date": 1769080745078,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263174,
+            "range": "± 1329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231695,
+            "range": "± 1046",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2802836,
+            "range": "± 2750",
             "unit": "ns/iter"
           }
         ]
