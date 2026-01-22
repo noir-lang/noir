@@ -472,3 +472,18 @@ fn cannot_call_unconstrained_function_in_lambda_in_global() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn call_unconstrained_function_in_lambda_in_global() {
+    let src = r#"
+    pub global foo: fn() = || {
+        // Safety: showing an unconstrained function call for testing
+        unsafe { bar() }
+    };
+
+    unconstrained fn bar() {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
