@@ -18,7 +18,8 @@ use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
 use noirc_evaluator::ssa::{
-    SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
+    OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
+    create_program_with_minimal_passes,
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
@@ -255,7 +256,7 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
-    pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
+    pub fn as_ssa_options(&self, package_build_path: PathBuf, compiling_for_debug: bool) -> SsaEvaluatorOptions {
         SsaEvaluatorOptions {
             ssa_logging: if !self.show_ssa_pass.is_empty() {
                 SsaLogging::Contains(self.show_ssa_pass.clone())
@@ -283,6 +284,11 @@ impl CompileOptions {
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
+            optimization_level: if compiling_for_debug {
+                OptimizationLevel::Debug
+            } else {
+                OptimizationLevel::All
+            },
         }
     }
 }
@@ -829,9 +835,10 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let compiling_for_debug = options.instrument_debug;
     let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
-    let program = if options.instrument_debug {
+    let program = if compiling_for_debug {
         monomorphize_debug(
             main_function,
             &mut context.def_interner,
@@ -869,7 +876,7 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone(), options.instrument_debug);
 
     let SsaProgramArtifact { program, debug, warnings, error_types, .. } = if options.minimal_ssa {
         create_program_with_minimal_passes(program, &ssa_evaluator_options, &context.file_manager)?

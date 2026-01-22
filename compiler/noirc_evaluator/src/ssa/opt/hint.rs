@@ -6,7 +6,7 @@ mod tests {
         brillig::BrilligOptions,
         errors::RuntimeError,
         ssa::{
-            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
+            OptimizationLevel, Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
             opt::{constant_folding, inlining},
             primary_passes,
         },
@@ -25,6 +25,7 @@ mod tests {
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            optimization_level: OptimizationLevel::All,
             skip_passes: Default::default(),
         };
 

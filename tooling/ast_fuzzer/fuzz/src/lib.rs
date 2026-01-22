@@ -9,7 +9,7 @@ use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCT
 use noirc_evaluator::ssa::{SsaPass, primary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
-    ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
+    ssa::{self, OptimizationLevel, SsaEvaluatorOptions, SsaProgramArtifact},
 };
 use noirc_frontend::monomorphization::ast::Program;
 
@@ -27,6 +27,7 @@ fn show_ssa() -> bool {
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
     ssa::SsaEvaluatorOptions {
         ssa_logging: if show_ssa() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
+        optimization_level: OptimizationLevel::All,
         brillig_options: BrilligOptions::default(),
         print_codegen_timings: false,
         emit_ssa: None,

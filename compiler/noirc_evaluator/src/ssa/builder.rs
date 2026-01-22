@@ -7,6 +7,7 @@ use noirc_errors::println_to_stdout;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::errors::RuntimeError;
+use crate::ssa::OptimizationLevel;
 
 use super::ssa_gen::generate_ssa;
 use super::{Ssa, SsaLogging};
@@ -68,6 +69,78 @@ impl<'a> SsaPass<'a> {
                 Ok(ssa)
             }),
         }
+    }
+}
+
+pub struct SsaPassBuilder<'a> {
+    current_optimization_level: OptimizationLevel,
+    ssa_passes: Vec<SsaPass<'a>>,
+}
+
+impl<'a> SsaPassBuilder<'a> {
+    pub fn new(ssa_optimization_level: OptimizationLevel) -> Self {
+        Self { current_optimization_level: ssa_optimization_level, ssa_passes: Vec::new() }
+    }
+
+    /// Attempts to add an SSA pass. The pass will be added successfully
+    /// only if the current optimization level fits in the allowed optimization levels.
+    pub fn add_pass<F>(
+        &mut self,
+        f: F,
+        msg: &'static str,
+        allowed_optimization_levels: Vec<OptimizationLevel>,
+    ) where
+        F: Fn(Ssa) -> Ssa + 'a,
+    {
+        if allowed_optimization_levels.contains(&self.current_optimization_level) {
+            self.ssa_passes.push(SsaPass::new(f, msg));
+        }
+    }
+
+    /// Attempts to add an SSA "try" pass. The pass will be added successfully
+    /// only if the current optimization level fits in the allowed optimization levels.
+    pub fn add_try_pass<F>(
+        &mut self,
+        f: F,
+        msg: &'static str,
+        allowed_optimization_levels: Vec<OptimizationLevel>,
+    ) where
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
+    {
+        if allowed_optimization_levels.contains(&self.current_optimization_level) {
+            self.ssa_passes.push(SsaPass::new_try(f, msg));
+        }
+    }
+
+    /// Attach a pass to the last pass.
+    ///
+    /// This is useful for attaching cleanup passes that we don't want to appear on their
+    /// own in the pipeline, because it would just increase the noise.
+    pub fn attach_pass_to_last<F>(&mut self, f: F, allowed_optimization_levels: Vec<OptimizationLevel>)
+    where
+        F: Fn(Ssa) -> Ssa + 'a,
+    {
+        if allowed_optimization_levels.contains(&self.current_optimization_level) {
+            if let Some(last_ssa_pass) = self.ssa_passes.pop() {
+                self.ssa_passes.push(last_ssa_pass.and_then(f));
+            }
+        }
+    }
+
+    /// Same as `attach_pass_to_last` but for passes that can fail.
+    pub fn attach_try_pass_to_last<F>(&mut self, f: F, allowed_optimization_levels: Vec<OptimizationLevel>)
+    where
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
+    {
+        if allowed_optimization_levels.contains(&self.current_optimization_level) {
+            if let Some(last_ssa_pass) = self.ssa_passes.pop() {
+                self.ssa_passes.push(last_ssa_pass.and_then_try(f));
+            }
+        }
+    }
+
+    pub(crate) fn finish(self) -> Vec<SsaPass<'a>> {
+        self.ssa_passes
     }
 }
 

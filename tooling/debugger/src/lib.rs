@@ -2,10 +2,10 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 #![expect(unreachable_pub)] // This crate is full of issues related to this lint
 
-mod context;
+pub mod context;
 mod dap;
 pub mod errors;
-mod foreign_calls;
+pub mod foreign_calls;
 mod repl;
 mod source_code_printer;
 

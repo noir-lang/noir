@@ -74,13 +74,16 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
     let (file_manager, parsed_files) = parse_workspace(&workspace, None);
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-    let opts = args.compile_options.as_ssa_options(PathBuf::new());
+    let opts =
+        args.compile_options.as_ssa_options(PathBuf::new(), args.compile_options.instrument_debug);
     let ssa_passes = primary_passes(&opts);
     let mut is_ok = true;
 
     for package in binary_packages {
-        let ssa_options =
-            &args.compile_options.as_ssa_options(workspace.package_build_path(package));
+        let ssa_options = &args.compile_options.as_ssa_options(
+            workspace.package_build_path(package),
+            args.compile_options.instrument_debug,
+        );
 
         // Compile into monomorphized AST
         let program_result = compile_into_program(

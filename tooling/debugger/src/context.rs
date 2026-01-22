@@ -6,12 +6,12 @@ use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
     ACVM, ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
-    OpcodeNotSolvable, StepResult,
+    OpcodeNotSolvable, OpcodeResolutionError, StepResult,
 };
-use acvm::{BlackBoxFunctionSolver, FieldElement};
+use acvm::{AcirField, BlackBoxFunctionSolver, FieldElement};
 
-use codespan_reporting::files::{Files, SimpleFile};
-use fm::FileId;
+use codespan_reporting::files::{Error, Files, SimpleFile};
+use fm::{FileId, PathString};
 use nargo::NargoError;
 use nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_error_from};
 use noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
@@ -232,7 +232,7 @@ impl std::str::FromStr for DebugLocation {
 }
 
 #[derive(Debug)]
-pub(super) enum DebugCommandResult {
+pub enum DebugCommandResult {
     Done,
     Ok,
     BreakpointReached(DebugLocation),
@@ -293,7 +293,7 @@ pub struct RunParams {
     pub oracle_resolver_url: Option<String>,
 }
 
-pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
+pub struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     pub(crate) acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
@@ -334,7 +334,7 @@ fn initialize_acvm<'a, B: BlackBoxFunctionSolver<FieldElement>>(
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
-    pub(super) fn new(
+    pub fn new(
         blackbox_solver: &'a B,
         circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
@@ -388,7 +388,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.acvm.overwrite_witness(witness, value)
     }
 
-    pub(super) fn get_current_debug_location(&self) -> Option<DebugLocation> {
+    pub fn get_current_debug_location(&self) -> Option<DebugLocation> {
         let ip = self.acvm.instruction_pointer();
         if ip >= self.get_opcodes().len() {
             None
@@ -414,7 +414,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_call_stack(&self) -> Vec<DebugLocation> {
+    pub fn get_call_stack(&self) -> Vec<DebugLocation> {
         // Build the frames from parent ACIR calls
         let mut frames: Vec<_> = self
             .acvm_stack
@@ -507,7 +507,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// happen for certain opcodes inserted synthetically by the compiler).
     /// This function also filters source locations that are determined to be in
     /// the internal debug module.
-    pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
+    pub fn get_current_source_location(&self) -> Option<Vec<Location>> {
         self.get_current_debug_location()
             .as_ref()
             .map(|debug_location| self.get_source_location_for_debug_location(debug_location))
@@ -526,7 +526,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// the given opcode location cannot be mapped back to a source location
     /// (eg. it may be pure debug instrumentation code or other synthetically
     /// produced opcode by the compiler)
-    pub(super) fn get_source_location_for_debug_location(
+    pub fn get_source_location_for_debug_location(
         &self,
         debug_location: &DebugLocation,
     ) -> Vec<Location> {
@@ -556,6 +556,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             .into_iter()
             .filter(|source_location| !self.is_source_location_in_debug_module(source_location))
             .collect()
+    }
+
+    pub fn get_filepath_for_location(&self, location: Location) -> Result<PathString, Error> {
+        self.debug_artifact.name(location.file)
+    }
+
+    pub fn get_line_for_location(&self, location: Location) -> Result<usize, Error> {
+        self.debug_artifact.location_line_index(location)
     }
 
     /// Returns the current call stack with expanded source locations. In
@@ -633,13 +641,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             }
             Err(err) => {
                 let error = execution_error_from(
-                    err,
+                    err.clone(),
                     &self
                         .get_call_stack()
                         .into_iter()
                         .map(|op| op.into())
                         .collect::<Vec<ResolvedOpcodeLocation>>(),
                 );
+                let error = update_assert_error_call_stack(error, err);
                 DebugCommandResult::Error(NargoError::ExecutionError(error))
             }
         }
@@ -749,7 +758,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn step_into_opcode(&mut self) -> DebugCommandResult {
+    pub fn step_into_opcode(&mut self) -> DebugCommandResult {
         if self.brillig_solver.is_some() {
             return self.step_brillig_opcode();
         }
@@ -820,7 +829,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     /// Steps debugging execution until the next source location
-    pub(super) fn next_into(&mut self) -> DebugCommandResult {
+    pub fn next_into(&mut self) -> DebugCommandResult {
         let start_location = self.get_current_source_location();
         loop {
             let result = self.step_into_opcode();
@@ -894,7 +903,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+    pub fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         self.foreign_call_executor.get_variables()
     }
 
@@ -949,7 +958,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.breakpoints.clear();
     }
 
-    pub(super) fn is_solved(&self) -> bool {
+    pub fn is_solved(&self) -> bool {
         matches!(self.acvm.get_status(), ACVMStatus::Solved)
     }
 
@@ -973,6 +982,37 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             self.initial_witness.clone(),
             self.unconstrained_functions,
         );
+    }
+}
+
+fn update_assert_error_call_stack<F: AcirField>(
+    error: ExecutionError<F>,
+    opcode_err: OpcodeResolutionError<F>,
+) -> ExecutionError<F> {
+    match &error {
+        ExecutionError::AssertionFailed(resolved_assertion_payload, ..) => {
+            if let OpcodeResolutionError::BrilligFunctionFailed {
+                payload: _,
+                function_id,
+                call_stack,
+            } = opcode_err
+            {
+                ExecutionError::AssertionFailed(
+                    resolved_assertion_payload.clone(),
+                    call_stack
+                        .iter()
+                        .map(|opcode_location| ResolvedOpcodeLocation {
+                            acir_function_index: 0,
+                            opcode_location: *opcode_location,
+                        })
+                        .collect::<Vec<ResolvedOpcodeLocation>>(),
+                    Some(function_id),
+                )
+            } else {
+                error
+            }
+        }
+        _ => error,
     }
 }
 

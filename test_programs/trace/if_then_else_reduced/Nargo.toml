@@ -1,0 +1,7 @@
+[package]
+name = "if_then_else_reduced"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

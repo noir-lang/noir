@@ -147,7 +147,7 @@ impl DebugInstrumenter {
         let func_body = &mut func.body.statements;
         let mut statements = take(func_body);
 
-        self.walk_scope(&mut statements, func.location);
+        self.walk_scope(&mut statements, func.location, true);
 
         // walk_scope ensures that the last statement is the return value of the function
         let last_stmt = statements.pop().expect("at least one statement after walk_scope");
@@ -163,23 +163,37 @@ impl DebugInstrumenter {
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, location: Location) {
+    fn walk_scope(
+        &mut self,
+        statements: &mut Vec<ast::Statement>,
+        location: Location,
+        is_function_scope: bool,
+    ) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
+
+        let temp_var_name = if is_function_scope { "__debug_return_expr" } else { "__debug_expr" };
+
+        let span = Span::empty(location.span.end());
+        let location = Location::new(span, location.file);
 
         // extract and save the return value from the scope if there is one
         let ret_stmt = statements.pop();
         let has_ret_expr = match ret_stmt {
             None => false,
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
-                let save_ret_expr = ast::Statement {
+                let mut save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
-                        ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
+                        ast::Pattern::Identifier(ident(temp_var_name, location)),
                         None,
                         ret_expr.clone(),
                         vec![],
                     ),
-                    location: ret_expr.location,
+                    location,
                 };
+                if is_function_scope {
+                    // call walk_statement on the new let statement, in order to make the return variable visible in the debugger
+                    self.walk_statement(&mut save_ret_expr);
+                }
                 statements.push(save_ret_expr);
                 true
             }
@@ -190,21 +204,18 @@ impl DebugInstrumenter {
             }
         };
 
-        let span = Span::empty(location.span.end());
-        let location = Location::new(span, location.file);
-
         // drop scope variables
         let scope_vars = self.scope.pop().unwrap_or_default();
         let drop_vars_stmts =
             scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, location));
         statements.extend(drop_vars_stmts);
 
-        // return the saved value in __debug_expr, or unit otherwise
+        // return the saved value in temp_var_name, or unit otherwise
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
                     kind: ast::ExpressionKind::Variable(Path::plain(
-                        vec![PathSegment::from(ident("__debug_expr", location))],
+                        vec![PathSegment::from(ident(temp_var_name, location))],
                         location,
                     )),
                     location,
@@ -414,7 +425,7 @@ impl DebugInstrumenter {
         match &mut expr.kind {
             ast::ExpressionKind::Block(ast::BlockExpression { statements, .. }) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements, expr.location);
+                self.walk_scope(statements, expr.location, false);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);

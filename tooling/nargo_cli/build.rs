@@ -48,6 +48,7 @@ fn main() -> Result<(), String> {
     generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
+    generate_trace_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
     generate_nargo_expand_compile_tests_with_ignore_list(
@@ -809,6 +810,86 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         );
     }
     writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_trace_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "trace";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn trace_{test_name}() {{
+    use tempfile::tempdir;
+    let test_program_dir_path = PathBuf::from("{test_dir}");
+    let temp_dir = tempdir().unwrap();
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir_path.to_str().unwrap());
+    cmd.arg("trace").arg("--trace-dir").arg(temp_dir.path()).arg("--trace-format").arg("json");
+    let trace_dir_path = temp_dir.path().as_os_str().to_str().unwrap();
+    let trace_file_path = temp_dir.path().join("trace.json");
+    let file_written_message = format!("Saved trace to {{trace_dir_path}}");
+    cmd.assert().success().stdout(predicate::str::contains(file_written_message));
+    let expected_trace_path = test_program_dir_path.join("expected_trace.json");
+    let expected_trace = fs::read_to_string(expected_trace_path).expect("problem reading {{expected_trace_path}}");
+    let mut expected_json: Value = serde_json::from_str(&expected_trace).unwrap();
+    let actual_trace = fs::read_to_string(trace_file_path).expect("problem reading {{trace_file_path}}");
+    let mut actual_json: Value = serde_json::from_str(&actual_trace).unwrap();
+    // Ignore paths in test, because they need to be absolute and supporting them would make the
+    // test too complicated.
+    for trace_item in expected_json.as_array_mut().unwrap() {{
+        if let Some(path) = trace_item.get_mut("Path") {{
+            *path = json!("ignored-in-test");
+        }}
+    }}
+    for trace_item in actual_json.as_array_mut().unwrap() {{
+        if let Some(path) = trace_item.get_mut("Path") {{
+            *path = json!("ignored-in-test");
+        }}
+    }}
+    assert_eq!(expected_json, actual_json, "traces do not match");
+    let expected_metadata_path = test_program_dir_path.join("expected_metadata.json");
+    let expected_metadata = fs::read_to_string(expected_metadata_path).expect("problem reading expected_metadata.json");
+    let mut expected_metadata_json: Value = serde_json::from_str(&expected_metadata).unwrap();
+    if let Some(path) = expected_metadata_json.get_mut("workdir") {{
+        *path = json!("ignored-in-test");
+    }}
+    let actual_metadata_path = temp_dir.path().join("trace_metadata.json");
+    let actual_metadata = fs::read_to_string(actual_metadata_path).expect("problem reading trace_metadata.json");
+    let mut actual_metadata_json: Value = serde_json::from_str(&actual_metadata).unwrap();
+    if let Some(path) = actual_metadata_json.get_mut("workdir") {{
+        *path = json!("ignored-in-test");
+    }}
+    assert_eq!(expected_metadata_json, actual_metadata_json, "trace metadata mismatch");
+    let expected_paths_file_path = test_program_dir_path.join("expected_paths.json");
+    let expected_paths = fs::read_to_string(expected_paths_file_path).expect("problem reading expected_paths.json");
+    let expected_paths_json: Value = serde_json::from_str(&expected_paths).unwrap();
+    let num_expected_paths = expected_paths_json.as_array().unwrap().len();
+    let actual_paths_file_path = temp_dir.path().join("trace_paths.json");
+    let actual_paths = fs::read_to_string(actual_paths_file_path).expect("problem reading actual_paths.json");
+    let actual_paths_json: Value = serde_json::from_str(&actual_paths).unwrap();
+    let num_actual_paths = actual_paths_json.as_array().unwrap().len();
+    assert_eq!(num_expected_paths, num_actual_paths, "traces use a different number of files");
+}}
+"#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
 }
 
 fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {

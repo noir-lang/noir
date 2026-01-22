@@ -650,6 +650,7 @@ mod tests {
             small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Vec::new(),
+            optimization_level: crate::ssa::OptimizationLevel::All,
         };
         let pipeline = primary_passes(&options);
         for pass in pipeline {
