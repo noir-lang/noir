@@ -139,9 +139,17 @@ impl TraitConstraint {
     /// Looks up a trait implementation which satisifies this constraint and returns it.
     ///
     /// Note that if successful, any type bindings from the impl search will be automatically
-    /// applied. 
-    pub fn find_impl(&self, interner: &NodeInterner) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
-        interner.lookup_trait_implementation(&self.typ, self.trait_bound.trait_id, &self.trait_bound.trait_generics.ordered, &self.trait_bound.trait_generics.named)
+    /// applied.
+    pub fn find_impl(
+        &self,
+        interner: &NodeInterner,
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        interner.lookup_trait_implementation(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
     }
 }
 
