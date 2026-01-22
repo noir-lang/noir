@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn deny_cyclic_globals() {
@@ -174,4 +174,20 @@ fn lazy_literal_globals() {
     }
     ";
     assert_no_errors(src);
+}
+
+#[test]
+fn global_fn_using_quoted() {
+    let src = "
+    global foo: fn() = || {
+        let _ = quote { 1 };
+                ^^^^^^^^^^^ Comptime-only type `Quoted` used in runtime code
+                ~~~~~~~~~~~ Comptime type used here
+    };
+
+    fn main() {
+        foo();
+    }
+    ";
+    check_monomorphization_error(src);
 }
