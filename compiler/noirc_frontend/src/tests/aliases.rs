@@ -704,6 +704,18 @@ fn regression_10763_mutable() {
     check_errors(src);
 }
 
+fn regression_10756() {
+    let src = r#"
+    pub type Foo = 0;
+                   ^ type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`
+
+    fn main() {
+        let _: Foo = std::mem::zeroed();
+    }
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn regression_10763_immutable() {
     let src = r#"
