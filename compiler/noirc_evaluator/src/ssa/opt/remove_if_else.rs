@@ -350,7 +350,7 @@ impl Context {
                 let arguments_types =
                     arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
 
-                for (i, argument) in arguments.iter().enumerate() {
+                for (i, argument) in arguments.iter().enumerate().skip(1) {
                     if !matches!(arguments_types[i], Type::Vector(_)) {
                         continue;
                     }
