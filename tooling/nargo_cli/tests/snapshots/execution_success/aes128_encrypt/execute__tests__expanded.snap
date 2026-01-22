@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
 expression: expanded_code
 ---
 unconstrained fn decode_ascii(ascii: u8) -> u8 {
@@ -18,8 +19,8 @@ unconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {
     for i in 0_u32..N {
         if (i % 2_u32) != 0_u32 { continue; };
         {
-            let i_4501: u32 = i / 2_u32;
-            result[i_4501] =
+            let i_4511: u32 = i / 2_u32;
+            result[i_4511] =
                 (decode_ascii(as_bytes[i]) * 16_u8) + decode_ascii(as_bytes[i + 1_u32]);
         }
     }
