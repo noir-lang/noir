@@ -771,7 +771,33 @@
 <a href="#770" id="770">770</a>
 <a href="#771" id="771">771</a>
 <a href="#772" id="772">772</a>
-<a href="#773" id="773">773</a></pre></div><pre class="rust"><code><span class="doccomment">//! Handles LSP semantic tokens requests.
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a></pre></div><pre class="rust"><code><span class="doccomment">//! Handles LSP semantic tokens requests.
 //!
 //! Semantic tokens in Noir are provided in two contexts:
 //! - links inside doc comments. For example,a doc comment that has `[println]` in it will
@@ -787,6 +813,7 @@
         SemanticTokensResult, TextDocumentPositionParams,
     },
 };
+<span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>nargo_doc::links::{LinkFinder, LinkTarget};
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
@@ -795,7 +822,7 @@
         Visitor,
     },
     elaborator::PrimitiveType,
-    hir::def_map::{ModuleDefId, ModuleId},
+    hir::def_map::{LocalModuleId, ModuleDefId, ModuleId},
     lexer::Lexer,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
@@ -825,7 +852,7 @@
         <span class="kw">let </span>source = file.source();
         <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>collector = SemanticTokenCollector::new(source, <span class="kw-2">&amp;</span>args);
+        <span class="kw">let </span><span class="kw-2">mut </span>collector = SemanticTokenCollector::new(source, file_id, <span class="kw-2">&amp;</span>args);
         <span class="kw">let </span>tokens = collector.collect(<span class="kw-2">&amp;</span>parsed_module);
         <span class="prelude-val">Some</span>(SemanticTokensResult::Tokens(SemanticTokens { result_id: <span class="prelude-val">None</span>, data: tokens }))
     });
@@ -835,6 +862,7 @@
 <span class="kw">struct </span>SemanticTokenCollector&lt;<span class="lifetime">'args</span>&gt; {
     source: <span class="kw-2">&amp;</span><span class="lifetime">'args </span>str,
     args: <span class="kw-2">&amp;</span><span class="lifetime">'args </span>ProcessRequestCallbackArgs&lt;<span class="lifetime">'args</span>&gt;,
+    file_id: FileId,
     link_finder: LinkFinder,
     tokens: Vec&lt;SemanticToken&gt;,
     previous_line: u32,
@@ -850,13 +878,18 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'args</span>&gt; SemanticTokenCollector&lt;<span class="lifetime">'args</span>&gt; {
-    <span class="kw">fn </span>new(source: <span class="kw-2">&amp;</span><span class="lifetime">'args </span>str, args: <span class="kw-2">&amp;</span><span class="lifetime">'args </span>ProcessRequestCallbackArgs&lt;<span class="lifetime">'args</span>&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(
+        source: <span class="kw-2">&amp;</span><span class="lifetime">'args </span>str,
+        file_id: FileId,
+        args: <span class="kw-2">&amp;</span><span class="lifetime">'args </span>ProcessRequestCallbackArgs&lt;<span class="lifetime">'args</span>&gt;,
+    ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>link_finder = LinkFinder::default();
         <span class="kw">let </span>tokens = Vec::new();
         <span class="kw">let </span>token_types = semantic_token_types_map();
         SemanticTokenCollector {
             source,
             args,
+            file_id,
             link_finder,
             tokens,
             previous_line: <span class="number">0</span>,
@@ -866,10 +899,22 @@
     }
 
     <span class="kw">fn </span>collect(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parsed_module: <span class="kw-2">&amp;</span>noirc_frontend::ParsedModule) -&gt; Vec&lt;SemanticToken&gt; {
-        <span class="comment">// Also process doc comments for the crate root module
-        </span><span class="kw">let </span>local_module_id = <span class="self">self</span>.args.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.args.crate_id].root();
-        <span class="kw">let </span>module_id = ModuleId { krate: <span class="self">self</span>.args.crate_id, local_id: local_module_id };
-        <span class="self">self</span>.process_reference_id(ReferenceId::Module(module_id));
+        <span class="comment">// Find the module the current file belongs to
+        </span><span class="kw">let </span>krate = <span class="self">self</span>.args.crate_id;
+        <span class="kw">let </span>def_map = <span class="kw-2">&amp;</span><span class="self">self</span>.args.def_maps[<span class="kw-2">&amp;</span>krate];
+        <span class="kw">let </span>local_id = <span class="kw">if let </span><span class="prelude-val">Some</span>((module_index, <span class="kw">_</span>)) = def_map
+            .modules()
+            .iter()
+            .find(|(<span class="kw">_</span>, module_data)| module_data.location.file == <span class="self">self</span>.file_id)
+        {
+            LocalModuleId::new(module_index)
+        } <span class="kw">else </span>{
+            def_map.root()
+        };
+        <span class="kw">let </span>module_id = ModuleId { krate, local_id };
+
+        <span class="comment">// Process doc comments on the module itself
+        </span><span class="self">self</span>.process_reference_id(ReferenceId::Module(module_id));
 
         parsed_module.accept(<span class="self">self</span>);
         std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.tokens)
@@ -889,6 +934,13 @@
 
         <span class="self">self</span>.link_finder.reset();
         <span class="kw">for </span>located_comment <span class="kw">in </span>doc_comments {
+            <span class="kw">let </span>location = located_comment.location();
+            <span class="kw">if </span>location.file != <span class="self">self</span>.file_id {
+                <span class="comment">// A module's comments might happen inline in the same file or in a different file.
+                // We should not process comments that are not in the current file.
+                </span><span class="kw">continue</span>;
+            }
+
             <span class="kw">let </span>contents = located_comment.contents.trim();
             <span class="kw">let </span><span class="kw-2">mut </span>fence = <span class="bool-val">false</span>;
 
