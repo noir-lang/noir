@@ -395,7 +395,8 @@ impl Elaborator<'_> {
                 );
                 if let Type::Quoted(quoted) = typ {
                     let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
-                    if in_function && !self.in_comptime_context() {
+                    let in_global = matches!(self.current_item, Some(DependencyId::Global(_)));
+                    if (in_function || in_global) && !self.in_comptime_context() {
                         let typ = quoted.to_string();
                         self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
                     }

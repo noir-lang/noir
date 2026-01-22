@@ -191,3 +191,29 @@ fn global_fn_using_quoted() {
     ";
     check_monomorphization_error(src);
 }
+
+#[test]
+fn global_using_nested_quoted_type() {
+    let src = "
+    global foo: [Quoted; 1] = [quote { 1 }];
+                 ^^^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                 ~~~~~~ Comptime-only type used here
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_using_nested_quoted_type() {
+    let src = "
+    comptime global foo: [Quoted; 1] = [quote { 1 }];
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    assert_no_errors(src);
+}
