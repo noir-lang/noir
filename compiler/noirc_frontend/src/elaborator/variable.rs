@@ -115,6 +115,13 @@ impl Elaborator<'_> {
             // and if the turbofish operator was used.
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
+            if let Some(unused_resolved_turbofish) = resolved_turbofish {
+                let message = format!(
+                    "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
+                );
+                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+            }
+
             None
         };
 

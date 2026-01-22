@@ -1754,6 +1754,104 @@ impl Type {
         }
     }
 
+    /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
+    pub(crate) fn contains_array(&self) -> bool {
+        match self {
+            Type::Array(..) => true,
+            Type::Vector(elem) => elem.as_ref().contains_array(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_array(),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_array()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_array()) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_array()),
+            Type::FmtString(_size, elem) => elem.contains_array(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_array(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.contains_array() || to.contains_array(),
+            Type::Reference(element, _) => element.contains_array(),
+            Type::Forall(_, typ) => typ.contains_array(),
+            Type::Function(_arg, _ret, env, _unconstrained) => env.contains_array(),
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
+
+    /// Check whether this type is a vector that contains a nested array in its element type.
+    pub(crate) fn is_vector_with_nested_array(&self) -> bool {
+        match self {
+            Type::Vector(elem) => elem.as_ref().contains_array(),
+            Type::Array(_, elem) => elem.as_ref().is_vector_with_nested_array(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).is_vector_with_nested_array()
+            }
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.is_vector_with_nested_array()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants
+                        .iter()
+                        .flat_map(|(_, args)| args)
+                        .any(|typ| typ.is_vector_with_nested_array())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => types.iter().any(|typ| typ.is_vector_with_nested_array()),
+            Type::FmtString(_size, elem) => elem.is_vector_with_nested_array(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_vector_with_nested_array(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => {
+                from.is_vector_with_nested_array() || to.is_vector_with_nested_array()
+            }
+            Type::Reference(element, _) => element.is_vector_with_nested_array(),
+            Type::Forall(_, typ) => typ.is_vector_with_nested_array(),
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
+
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
             Type::Unit

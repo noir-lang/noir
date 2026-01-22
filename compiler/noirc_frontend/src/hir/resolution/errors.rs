@@ -76,6 +76,8 @@ pub enum ResolverError {
     OracleReturnsMultipleVectors { location: Location },
     #[error("Oracle functions cannot return references")]
     OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot return vectors containing nested arrays")]
+    OracleReturnsVectorWithNestedArray { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -278,6 +280,7 @@ impl ResolverError {
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -509,6 +512,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleReturnsVectorWithNestedArray { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
             },
