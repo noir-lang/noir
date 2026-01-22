@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769099745412,
+  "lastUpdate": 1769100702979,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e68a755a1a561278a0af224bcde467822750dd66",
-          "message": "chore(ci): fix broken docs builds (#11220)",
-          "timestamp": "2026-01-15T13:56:54Z",
-          "tree_id": "d32276a2f066c159f2f2b506b0756a8ed9e31e22",
-          "url": "https://github.com/noir-lang/noir/commit/e68a755a1a561278a0af224bcde467822750dd66"
-        },
-        "date": 1768485572603,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268301,
-            "range": "± 824",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 238059,
-            "range": "± 1518",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2805529,
-            "range": "± 725",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795186,
             "range": "± 4086",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46c199403c82c0c81f3116901911a07ada74da26",
+          "message": "fix(lsp): don't always process crate root doc comments (#11296)",
+          "timestamp": "2026-01-22T16:28:23Z",
+          "tree_id": "302238de3995e476c2880f1521e34ea0f3516f99",
+          "url": "https://github.com/noir-lang/noir/commit/46c199403c82c0c81f3116901911a07ada74da26"
+        },
+        "date": 1769100665136,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264326,
+            "range": "± 1517",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231840,
+            "range": "± 3786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2796125,
+            "range": "± 5460",
             "unit": "ns/iter"
           }
         ]
