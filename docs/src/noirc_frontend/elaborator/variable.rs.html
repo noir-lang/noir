@@ -666,7 +666,21 @@
 <a href="#665" id="665">665</a>
 <a href="#666" id="666">666</a>
 <a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -736,10 +750,24 @@
             // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             </span><span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(alias);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="kw-2">&amp;</span>type_alias.borrow().numeric_expr {
+                <span class="comment">// Extract the declared numeric type from the type alias's kind.
+                </span><span class="kw">let </span>declared_type = <span class="kw">match </span>type_alias.borrow().typ.kind() {
+                    Kind::Numeric(declared_type) =&gt; declared_type,
+                    <span class="kw">_ </span>=&gt; Box::new(Type::Error),
+                };
+                <span class="kw">let </span>declared_type = <span class="kw-2">*</span>declared_type;
+                <span class="kw">let </span>expr_location = type_alias.borrow().location;
                 <span class="kw">let </span>expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                <span class="kw">let </span>expr = Expression::new(expr, type_alias.borrow().location);
+                <span class="kw">let </span>expr = Expression::new(expr, expr_location);
                 <span class="kw">let </span>(id, typ) = <span class="self">self</span>.elaborate_expression(expr);
-                <span class="kw">return </span>(id, typ, <span class="bool-val">false</span>, location);
+                <span class="comment">// Unify the expression's type with the declared type from the type alias
+                // to ensure proper type checking.
+                </span><span class="self">self</span>.unify(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>declared_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: declared_type.to_string(),
+                    expr_typ: typ.to_string(),
+                    expr_location,
+                });
+                <span class="kw">return </span>(id, declared_type, <span class="bool-val">false</span>, location);
             }
         }
 
