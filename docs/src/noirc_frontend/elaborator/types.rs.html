@@ -2777,7 +2777,12 @@
 <a href="#2776" id="2776">2776</a>
 <a href="#2777" id="2777">2777</a>
 <a href="#2778" id="2778">2778</a>
-<a href="#2779" id="2779">2779</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2779" id="2779">2779</a>
+<a href="#2780" id="2780">2780</a>
+<a href="#2781" id="2781">2781</a>
+<a href="#2782" id="2782">2782</a>
+<a href="#2783" id="2783">2783</a>
+<a href="#2784" id="2784">2784</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3096,13 +3101,14 @@
             }
         }
 
+        <span class="kw">let </span>location = path.location;
+
         <span class="comment">// Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_type_variable(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>args, wildcard_allowed) {
+            <span class="self">self</span>.check_comptime_type_in_runtime_code(<span class="kw-2">&amp;</span>typ, location);
             <span class="kw">return </span>typ;
         }
-
-        <span class="kw">let </span>location = path.location;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(type_alias) = <span class="self">self</span>.lookup_type_alias(path.clone(), mode) {
             <span class="kw">let </span>id = type_alias.borrow().id;
@@ -3125,7 +3131,6 @@
             </span><span class="kw">return </span>Type::Alias(type_alias, args);
         }
 
-        <span class="kw">let </span>location = path.location;
         <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
             <span class="prelude-val">Ok</span>(PathResolutionItem::Type(type_id)) =&gt; {
                 <span class="kw">let </span>data_type = <span class="self">self</span>.get_type(type_id);
@@ -3172,13 +3177,7 @@
                     location,
                     wildcard_allowed,
                 );
-                <span class="kw">if let </span>Type::Quoted(quoted) = typ {
-                    <span class="kw">let </span>in_function = <span class="macro">matches!</span>(<span class="self">self</span>.current_item, <span class="prelude-val">Some</span>(DependencyId::Function(<span class="kw">_</span>)));
-                    <span class="kw">if </span>in_function &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
-                        <span class="kw">let </span>typ = quoted.to_string();
-                        <span class="self">self</span>.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-                    }
-                }
+                <span class="self">self</span>.check_comptime_type_in_runtime_code(<span class="kw-2">&amp;</span>typ, location);
                 typ
             }
             <span class="prelude-val">Ok</span>(PathResolutionItem::TraitAssociatedType(associated_type_id)) =&gt; {
@@ -3206,6 +3205,17 @@
                 <span class="self">self</span>.push_err(err);
 
                 Type::Error
+            }
+        }
+    }
+
+    <span class="doccomment">/// Reports an error if `typ` is a comptime-only type and we are in runtime code.
+    </span><span class="kw">fn </span>check_comptime_type_in_runtime_code(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, location: Location) {
+        <span class="kw">if let </span>Type::Quoted(quoted) = typ {
+            <span class="kw">let </span>in_function = <span class="macro">matches!</span>(<span class="self">self</span>.current_item, <span class="prelude-val">Some</span>(DependencyId::Function(<span class="kw">_</span>)));
+            <span class="kw">if </span>in_function &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+                <span class="kw">let </span>typ = quoted.to_string();
+                <span class="self">self</span>.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
             }
         }
     }
