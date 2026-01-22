@@ -992,7 +992,9 @@
 <a href="#991" id="991">991</a>
 <a href="#992" id="992">992</a>
 <a href="#993" id="993">993</a>
-<a href="#994" id="994">994</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -1069,8 +1071,10 @@
         <span class="kw">let </span>previous_self_type = <span class="self">self</span>.self_type.replace(self_type.clone());
         <span class="kw">let </span>self_type_location = trait_impl.object_type.location;
 
-        <span class="kw">if </span><span class="macro">matches!</span>(self_type, Type::Reference(..)) {
+        <span class="kw">if </span><span class="macro">matches!</span>(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+            <span class="kw">let </span>is_alias = <span class="macro">matches!</span>(self_type, Type::Alias(..));
             <span class="self">self</span>.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
+                is_alias,
                 location: self_type_location,
             });
         }
