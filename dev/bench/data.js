@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769118207886,
+  "lastUpdate": 1769118327219,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "80026cfca7b7480bc1ad1277f68710e167226216",
-          "message": "fix: Evaluate monomorphizer builtins in variable case, not calls (#11214)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-01-16T02:49:49Z",
-          "tree_id": "0bca978209023d89e05a1f298a3aac7699e63e53",
-          "url": "https://github.com/noir-lang/noir/commit/80026cfca7b7480bc1ad1277f68710e167226216"
-        },
-        "date": 1768533088277,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260004,
-            "range": "± 792",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230143,
-            "range": "± 8755",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790149,
-            "range": "± 21497",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792384,
             "range": "± 7838",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a3382ab9ac016ddfafa82c95e786116c92fd229d",
+          "message": "fix: trait impl on alias to (mutable) reference error (#11297)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-01-22T21:22:42Z",
+          "tree_id": "bf48cfb9170ed30e8f51f9d6ccded5ff314d20fb",
+          "url": "https://github.com/noir-lang/noir/commit/a3382ab9ac016ddfafa82c95e786116c92fd229d"
+        },
+        "date": 1769118290258,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262276,
+            "range": "± 382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229395,
+            "range": "± 7256",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793189,
+            "range": "± 10765",
             "unit": "ns/iter"
           }
         ]
