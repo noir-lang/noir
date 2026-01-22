@@ -634,7 +634,7 @@ impl Type {
         let target = target.follow_bindings();
 
         match (&this, &target) {
-            // Coerce `&mut T` to `&T`, or unify `&T` with `&T`
+            // Coerce `&mut T` to `&T`, and `&T` to `&T`
             (Type::Reference(this_elem, true), Type::Reference(target_elem, false))
             | (Type::Reference(this_elem, false), Type::Reference(target_elem, false)) => {
                 // Still have to ensure the element types match.
