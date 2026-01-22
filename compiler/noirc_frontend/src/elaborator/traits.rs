@@ -779,7 +779,7 @@ impl Elaborator<'_> {
 ///
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     function: FuncId,
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {

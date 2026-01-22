@@ -145,7 +145,7 @@ impl Elaborator<'_> {
     pub(super) fn declare_methods_on_data_type(
         &mut self,
         trait_id: Option<TraitId>,
-        functions: &mut UnresolvedFunctions,
+        functions: &UnresolvedFunctions,
         location: Location,
     ) {
         let self_type = functions.self_type.as_ref();

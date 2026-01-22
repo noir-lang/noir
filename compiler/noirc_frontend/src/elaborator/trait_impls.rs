@@ -174,7 +174,7 @@ impl Elaborator<'_> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let location = trait_impl.object_type.location;
-            self.declare_methods_on_data_type(Some(trait_id), &mut trait_impl.methods, location);
+            self.declare_methods_on_data_type(Some(trait_id), &trait_impl.methods, location);
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
@@ -669,7 +669,7 @@ impl Elaborator<'_> {
 
     // Replace implicitly added unbound named generics with fresh type variables
     fn bind_to_fresh_variable(
-        &mut self,
+        &self,
         named_generics: &mut [NamedType],
         bindings: &mut TypeBindings,
     ) {

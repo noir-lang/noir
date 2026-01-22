@@ -1234,7 +1234,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Tuple(fields))
     }
 
-    fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
+    fn evaluate_lambda(&self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
         let env = try_vecmap(&lambda.captures, |capture| {
             let value = self.lookup_id(capture.ident.id, location)?;
@@ -1658,7 +1658,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_break(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
@@ -1667,7 +1667,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_continue(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
@@ -1680,10 +1680,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(
-        &mut self,
-        arguments: Vec<(Value, Location)>,
-    ) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
         let Some(output) = self.elaborator.interpreter_output else {

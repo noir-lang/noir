@@ -116,7 +116,7 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
 /// This returns Ok(true) if the given instruction should be kept in the block and
 /// Ok(false) if it should be removed.
 fn check_instruction(
-    function: &mut Function,
+    function: &Function,
     instruction: InstructionId,
     assert_constant_id: Option<ValueId>,
     static_assert_id: Option<ValueId>,

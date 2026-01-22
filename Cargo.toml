@@ -85,6 +85,7 @@ cast_lossless = "warn"
 semicolon_if_nothing_returned = "warn"
 result_large_err = "allow"
 uninlined_format_args = "warn"
+needless_pass_by_ref_mut = "warn"
 
 [workspace.dependencies]
 

@@ -1611,7 +1611,7 @@ impl Elaborator<'_> {
     }
 
     fn try_get_comptime_function(
-        &mut self,
+        &self,
         func: ExprId,
         location: Location,
     ) -> Result<Option<FuncId>, ResolverError> {

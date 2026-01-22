@@ -1248,7 +1248,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Return the variable that was referred to the most in `rows`, or panic if there are zero
     /// `rows`
-    fn branch_variable(&mut self, rows: &[Row]) -> DefinitionId {
+    fn branch_variable(&self, rows: &[Row]) -> DefinitionId {
         assert!(!rows.is_empty(), "ICE branch_variable: expected at least one row");
         let mut counts = HashMap::default();
 

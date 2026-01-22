@@ -366,7 +366,7 @@ impl<'interner> Monomorphizer<'interner> {
         IdentId(id)
     }
 
-    fn lookup_local(&mut self, id: node_interner::DefinitionId) -> Option<Definition> {
+    fn lookup_local(&self, id: node_interner::DefinitionId) -> Option<Definition> {
         self.locals.get(&id).copied().map(Definition::Local)
     }
 
@@ -1223,7 +1223,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Find a captured variable in the innermost closure, and construct an expression
-    fn lookup_captured_expr(&mut self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
+    fn lookup_captured_expr(&self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
         let ctx = self.lambda_envs_stack.last()?;
         ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
             ast::Expression::ExtractTupleField(
@@ -1234,7 +1234,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Find a captured variable in the innermost closure construct a LValue
-    fn lookup_captured_lvalue(&mut self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
+    fn lookup_captured_lvalue(&self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
         let ctx = self.lambda_envs_stack.last()?;
         ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
             ast::LValue::MemberAccess {
@@ -2140,7 +2140,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn check_arguments_crossing_runtime_boundaries(
-        &mut self,
+        &self,
         call: &HirCallExpression,
     ) -> Result<(), MonomorphizationError> {
         for argument in &call.arguments {
@@ -2159,7 +2159,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn check_return_type_crossing_runtime_boundaries(
-        &mut self,
+        &self,
         return_type: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
@@ -2183,7 +2183,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn check_return_type_returned_from_oracle(
-        &mut self,
+        &self,
         return_type: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
@@ -2214,7 +2214,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// The caller that is running a Noir program should then deserialize the `PrintableType`,
     /// and accurately decode the list of field elements passed to the foreign call.
     fn append_printable_type_info(
-        &mut self,
+        &self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
     ) {
@@ -2978,7 +2978,7 @@ fn resolve_trait_item_impl(
 /// However, we can bind `M` to `N`, so it eventually resolves to `2`,
 /// which is what this method does.
 fn bind_trait_impl_func_generics_to_trait_func_generics(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     method_id: TraitItemId,
     impl_id: node_interner::TraitImplId,
     bindings: &mut TypeBindings,

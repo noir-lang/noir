@@ -125,7 +125,7 @@ impl Ssa {
 
 impl DefunctionalizationContext {
     /// Defunctionalize all functions in the SSA
-    fn defunctionalize_all(mut self, ssa: &mut Ssa) {
+    fn defunctionalize_all(self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
             // We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
@@ -141,7 +141,7 @@ impl DefunctionalizationContext {
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    fn replace_first_class_calls_with_apply_function(&mut self, func: &mut Function) {
+    fn replace_first_class_calls_with_apply_function(&self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -191,7 +191,7 @@ impl DefunctionalizationContext {
     }
 
     /// Defunctionalize a single function
-    fn defunctionalize(&mut self, func: &mut Function) {
+    fn defunctionalize(&self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
