@@ -1,4 +1,5 @@
 // docs:start:aes128
+// Given a plaintext as an array of bytes, returns the corresponding aes128 ciphertext (CBC mode). Input padding is performed using PKCS#7, so that the output length is `input.len() + (16 - input.len() % 16)`.
 pub fn aes128_encrypt<let N: u32>(
     input: [u8; N],
     iv: [u8; 16],

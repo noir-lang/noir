@@ -20,11 +20,9 @@ pub fn aes128_encrypt(
     cipher.set_auto_padding(false);
     let encrypted = cipher.cbc_encrypt(&iv, inputs);
 
+    // We validate input.len() % 16 == 0 above, and libaes with auto_padding disabled only returns empty for non-block-aligned input.
     if encrypted.is_empty() && !inputs.is_empty() {
-        return Err(BlackBoxResolutionError::Failed(
-            acir::BlackBoxFunc::AES128Encrypt,
-            "AES encryption failed - input may not be block-aligned".to_string(),
-        ));
+        unreachable!("AES encryption returned empty output for non-empty block-aligned input");
     }
 
     Ok(encrypted)

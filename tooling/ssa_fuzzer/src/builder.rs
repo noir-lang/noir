@@ -610,9 +610,11 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("aes128_encrypt")
             .expect("aes128_encrypt intrinsic should be available");
+        // With auto padding disabled in libaes, output size equals input size.
+        // Input must be a multiple of 16 (pre-padded).
         let return_type = Type::Array(
             Arc::new(vec![Type::Numeric(NumericType::U8)]),
-            input_size + 16 - (input_size % 16),
+            input_size,
         );
         let result = self.builder.insert_call(
             intrinsic,
