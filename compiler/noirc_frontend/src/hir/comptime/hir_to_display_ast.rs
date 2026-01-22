@@ -43,6 +43,7 @@ impl HirStatement {
                 range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
+                    for_stmt.inclusive,
                 ),
                 block: for_stmt.block.to_display_ast(interner),
                 location,
