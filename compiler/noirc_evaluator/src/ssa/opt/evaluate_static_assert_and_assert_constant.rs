@@ -178,6 +178,10 @@ fn evaluate_static_assert(
 
     // To turn the arguments into a string we do the same as we'd do if the arguments
     // were passed to the built-in foreign call "print" functions.
+    //
+    // We do this before checking whether the argument to `static_assert` is true because
+    // the message argument might end up being dynamic, and we want to report that error
+    // even if the assertion would have passed.
     let mut foreign_call_params = Vec::with_capacity(arguments.len() - 1);
     for arg in arguments.iter().skip(1) {
         append_foreign_call_param(*arg, &function.dfg, instruction, &mut foreign_call_params)?;
