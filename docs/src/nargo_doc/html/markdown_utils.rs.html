@@ -102,7 +102,27 @@
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a></pre></div><pre class="rust"><code><span class="doccomment">/// Fixes a Markdown string by:
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="doccomment">/// Fixes a Markdown string by:
 /// - adjusting headers that exceed `current_heading_level` by making them smaller,
 ///   so headers in user comments aren't larger than the surrounding document's headers.
 /// - ensures code blocks are properly closed.
@@ -163,7 +183,27 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>to_html(markdown: <span class="kw-2">&amp;</span>str) -&gt; String {
-    <span class="kw">let </span>parse = markdown::ParseOptions::default();
+    <span class="kw">let </span>parse = markdown::ParseOptions {
+        constructs: markdown::Constructs {
+            <span class="comment">// Let URLs be automatically turned into links.
+            </span>gfm_autolink_literal: <span class="bool-val">true</span>,
+            <span class="comment">// Enable footnotes
+            </span>gfm_label_start_footnote: <span class="bool-val">true</span>,
+            gfm_footnote_definition: <span class="bool-val">true</span>,
+            <span class="comment">// ~~strikethrough~~
+            </span>gfm_strikethrough: <span class="bool-val">true</span>,
+            <span class="comment">// | Column 1 | Column 2 |
+            // |----------|----------|
+            // | Data 1   | Data 2   |
+            </span>gfm_table: <span class="bool-val">true</span>,
+            <span class="comment">// - [ ] Task item
+            </span>gfm_task_list_item: <span class="bool-val">true</span>,
+            ..markdown::Constructs::default()
+        },
+        <span class="comment">// or ~strikethrough~
+        </span>gfm_strikethrough_single_tilde: <span class="bool-val">true</span>,
+        ..markdown::ParseOptions::default()
+    };
     <span class="kw">let </span>compile = markdown::CompileOptions {
         <span class="comment">// This just means that HTML isn't escaped. Rustdoc works the same way.
         </span>allow_dangerous_html: <span class="bool-val">true</span>,
