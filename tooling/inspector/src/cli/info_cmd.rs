@@ -80,7 +80,7 @@ fn resolve_input_file(
 
 /// validates that a program artifact is pure Brillig
 /// 1. It has at least one Brillig function 2. All ACIR functions are wrappers with exactly 1 opcode each (the Brillig call)
-/// typically the result of compiling with `nargo export --force-brillig`
+///    typically the result of compiling with `nargo export --force-brillig`
 fn validate_brillig_artifact(
     program: &noirc_artifacts::program::ProgramArtifact,
 ) -> eyre::Result<()> {
@@ -96,7 +96,7 @@ fn validate_brillig_artifact(
     for (idx, circuit) in program.bytecode.functions.iter().enumerate() {
         if circuit.opcodes.len() != 1 {
             let function_name = if circuit.function_name.is_empty() {
-                format!("function_{}", idx)
+                format!("function_{idx}")
             } else {
                 circuit.function_name.clone()
             };
