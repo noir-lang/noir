@@ -74,7 +74,7 @@ pub struct AsyncReplDebugger<'a> {
     command_receiver: Receiver<DebugCommandAPI>,
     status_sender: Sender<DebuggerStatus>,
     last_result: DebugCommandResult,
-    pedantic_solving: bool,
+
     raw_source_printing: bool,
 }
 
@@ -86,7 +86,6 @@ impl<'a> AsyncReplDebugger<'a> {
         status_sender: Sender<DebuggerStatus>,
         command_receiver: Receiver<DebugCommandAPI>,
         raw_source_printing: bool,
-        pedantic_solving: bool,
     ) -> Self {
         let last_result = DebugCommandResult::Ok;
 
@@ -99,7 +98,6 @@ impl<'a> AsyncReplDebugger<'a> {
             unconstrained_functions: compiled_program.program.unconstrained_functions.clone(),
             raw_source_printing,
             initial_witness,
-            pedantic_solving,
         }
     }
 
@@ -111,7 +109,7 @@ impl<'a> AsyncReplDebugger<'a> {
         mut self,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     ) {
-        let blackbox_solver = &Bn254BlackBoxSolver(self.pedantic_solving);
+        let blackbox_solver = &Bn254BlackBoxSolver;
         let circuits = &self.circuits.clone();
         let unconstrained_functions = &self.unconstrained_functions.clone();
         let mut context = DebugContext::new(
@@ -660,7 +658,6 @@ pub fn run(project: DebugProject, run_params: RunParams) -> DebugExecutionResult
             status_tx,
             command_rx,
             run_params.raw_source_printing.unwrap_or(false),
-            run_params.pedantic_solving,
         );
         debugger.start_debugging(foreign_call_executor);
     });
