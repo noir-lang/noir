@@ -314,7 +314,7 @@ impl<W: Write> Interpreter<'_, W> {
                         "retrieving predicate in call to MultiScalarMul blackbox",
                     )?;
 
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let result =
                         solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, predicate);
                     let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
@@ -345,7 +345,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
                     check_argument_count(args, 7, intrinsic)?;
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let lhs = (
                         self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_field(args[1], "call EmbeddedCurveAdd BlackBox")?,
@@ -375,7 +375,7 @@ impl<W: Write> Interpreter<'_, W> {
                     check_argument_count(args, 1, intrinsic)?;
                     let inputs = self
                         .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let result =
                         solver.poseidon2_permutation(&inputs).map_err(Self::convert_error)?;
                     let result = Value::array_from_iter(result, NumericType::NativeField)?;

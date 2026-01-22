@@ -167,10 +167,14 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
         let first_capture = captures.get(0).unwrap();
         let start = first_capture.start();
         let end = first_capture.end();
-        let word = captures.get(1)?.as_str().to_string();
+        // Capture 1 is for [`name`], capture 2 is for [name]
+        // One of these captures must happen for a valid link.
+        let word = captures.get(1).or_else(|| captures.get(2))?.as_str().to_string();
+        // Capture 3 is for [link], capture 4 is for (link). These two captures are optional.
+        // (in that case the link is just [link] from captures 1 or 2 above).
         let link = captures
-            .get(2)
-            .or(captures.get(3))
+            .get(3)
+            .or(captures.get(4))
             .map(|capture| capture.as_str().to_string())
             .unwrap_or_else(|| word.clone());
 
@@ -220,8 +224,8 @@ fn reference_regex() -> Regex {
         # Ignore links inside backticks
         (?:`[^`]*`)|
 
-        # Match [reference], [reference][link] or [reference](url)
-        \[([^\[\]]+)\](?:\[([^\[\]]*)\]|\(([^\(\)]*)\))?
+        # Match [`name`] or [name], then [link] or (link)
+        (?:\[(`.+?`)\]|\[([^\[\]]+)\])(?:\[([^\[\]]*)\]|\(([^\(\)]*)\))?
     "#,
     )
     .unwrap()
@@ -637,5 +641,25 @@ mod tests {
         let line = "Hello [foo\\]!";
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert!(links.is_empty());
+    }
+
+    #[test]
+    fn finds_link_with_nested_brackets() {
+        let line = "Hello [`#[attribute]`][attr]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.name, "`#[attribute]`");
+        assert_eq!(&link.link, "attr");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 28);
+    }
+
+    #[test]
+    fn finds_two_links_with_nested_brackets() {
+        // This test just makes sure that the regex for [`...`] has the "..." part be non-greedy.
+        let line = "Hello [`one`][One] [`two`][Two]";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 2);
     }
 }

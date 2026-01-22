@@ -26,6 +26,7 @@ pub enum MonomorphizationError {
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
+    VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -50,7 +51,10 @@ impl MonomorphizationError {
                 location, ..
             }
             | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
-            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. } => *location,
+            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. } => {
+                *location
+            }
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -150,6 +154,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
                 format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
+                format!(
+                    "Vector with nested array `{typ}` cannot be returned from an oracle function"
+                )
             }
         };
 

@@ -3,6 +3,7 @@ fn main(val: str<3>, flag: bool, val2: str<1>) {
     example2(val, flag);
     example3(val2);
     example4(val, flag);
+    black_box_over_vector(flag);
 }
 
 fn example2(val: str<3>, flag: bool) {
@@ -27,4 +28,10 @@ fn example4(val: str<3>, flag: bool) {
     let a = std::hint::black_box(|| s1);
     let a = if flag { a() } else { @[123] };
     println(a);
+}
+
+fn black_box_over_vector(flag: bool) {
+    let a = std::hint::black_box(@[1, 2, 3]);
+    let v = if flag { a } else { @[4, 5] };
+    assert_eq(v[0], 1);
 }

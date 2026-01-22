@@ -1,5 +1,7 @@
 use crate::elaborator::UnstableFeature;
-use crate::tests::{assert_no_errors, check_errors, check_errors_using_features};
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
+};
 
 #[test]
 fn deny_oracle_attribute_on_non_unconstrained() {
@@ -148,4 +150,29 @@ fn errors_if_oracle_returns_reference_in_struct() {
     "#;
     //check_errors(src);
     check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn errors_if_oracle_returns_vector_with_nested_array() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> [[(u8, u8); 3]] {}
+                         ^^^^^^^^^^^ Oracle functions cannot return vectors containing nested arrays
+                         ~~~~~~~~~~~ Vectors with nested arrays are not yet supported for foreign call returns
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn vector_with_nested_array_behind_generics_returned_from_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        let _result: [[(u8, u8); 3]] = get_array();
+                                       ^^^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
+    }
+
+    #[oracle(get_array)]
+    unconstrained fn get_array<T>() -> [T] {}
+    "#;
+    check_monomorphization_error(src);
 }
