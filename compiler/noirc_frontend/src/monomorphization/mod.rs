@@ -997,6 +997,7 @@ impl<'interner> Monomorphizer<'interner> {
                     index_type,
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    inclusive: for_loop.inclusive,
                     start_range_location: self.interner.expr_location(&for_loop.start_range),
                     end_range_location: self.interner.expr_location(&for_loop.end_range),
                     block,
