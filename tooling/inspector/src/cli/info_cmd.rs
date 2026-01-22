@@ -135,26 +135,8 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                     args.pedantic_solving,
                 )?]
             }
-            Artifact::Contract(contract) => {
-                // profile each contract function
-                contract
-                    .functions
-                    .into_iter()
-                    .filter(|f| args.contract_fn.as_ref().map(|n| *n == f.name).unwrap_or(true))
-                    .map(|f| {
-                        let package_name = format!("{}::{}", contract.name, f.name);
-                        let program = f.into_compiled_program(
-                            contract.noir_version.clone(),
-                            contract.file_map.clone(),
-                        );
-                        profile_program_execution(
-                            program.into(),
-                            package_name,
-                            &input_file,
-                            args.pedantic_solving,
-                        )
-                    })
-                    .collect::<eyre::Result<Vec<_>>>()?
+            Artifact::Contract(_) => {
+                return Err(eyre::eyre!("profile-execution does not support contracts"));
             }
         }
     } else {
