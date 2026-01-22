@@ -704,6 +704,7 @@ fn regression_10763_mutable() {
     check_errors(src);
 }
 
+#[test]
 fn regression_10756() {
     let src = r#"
     pub type Foo = 0;
