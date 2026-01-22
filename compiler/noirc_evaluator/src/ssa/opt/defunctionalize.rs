@@ -542,10 +542,9 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// Check if a [Signature] is valid when the caller is ACIR and the callee is Brillig.
 fn is_valid_across_boundaries(signature: &Signature) -> bool {
     !signature.params.iter().any(|typ| typ.contains_reference())
-        && !signature
-            .returns
-            .iter()
-            .any(|typ| typ.contains_reference() || typ.contains_vector_element())
+        && !signature.returns.iter().any(|typ| {
+            typ.contains_reference() || typ.contains_vector_element() || typ.contains_function()
+        })
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
