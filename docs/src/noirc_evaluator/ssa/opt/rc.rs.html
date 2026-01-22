@@ -484,10 +484,10 @@
     </span>inc_rcs: HashMap&lt;Type, Vec&lt;RcInstruction&gt;&gt;,
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RcInstruction {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) id: InstructionId,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) array: ValueId,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) possibly_mutated: bool,
+<span class="kw">struct </span>RcInstruction {
+    id: InstructionId,
+    array: ValueId,
+    possibly_mutated: bool,
 }
 
 <span class="kw">impl </span>Function {
@@ -579,7 +579,7 @@
 }
 
 <span class="doccomment">/// Finds and pops the IncRc for the given array value if possible.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>pop_rc_for(
+</span><span class="kw">fn </span>pop_rc_for(
     value: ValueId,
     function: <span class="kw-2">&amp;</span>Function,
     inc_rcs: <span class="kw-2">&amp;mut </span>HashMap&lt;Type, Vec&lt;RcInstruction&gt;&gt;,
