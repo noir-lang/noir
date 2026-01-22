@@ -23,7 +23,8 @@ pub(crate) struct InfoCommand {
     #[clap(long)]
     contract_fn: Option<String>,
 
-    /// Profile execution to count actual opcodes executed at runtime
+    /// Profile execution to count actual opcodes executed at runtime.
+    /// Note: This flag only works with pure Brillig programs.
     #[clap(long)]
     profile_execution: bool,
 
@@ -77,12 +78,49 @@ fn resolve_input_file(
     ))
 }
 
+/// validates that a program artifact is pure Brillig
+/// 1. It has at least one Brillig function 2. All ACIR functions are wrappers with exactly 1 opcode each (the Brillig call)
+/// typically the result of compiling with `nargo export --force-brillig`
+fn validate_brillig_artifact(
+    program: &noirc_artifacts::program::ProgramArtifact,
+) -> eyre::Result<()> {
+    // check that it has brillig functions
+    if program.bytecode.unconstrained_functions.is_empty() {
+        return Err(eyre::eyre!(
+            "Cannot profile execution: program has no brillig functions.\n\
+             Compile with `nargo export --force-brillig` to generate pure brillig programs."
+        ));
+    }
+
+    // all acir functions must only have 1 opcode each
+    for (idx, circuit) in program.bytecode.functions.iter().enumerate() {
+        if circuit.opcodes.len() != 1 {
+            let function_name = if circuit.function_name.is_empty() {
+                format!("function_{}", idx)
+            } else {
+                circuit.function_name.clone()
+            };
+
+            return Err(eyre::eyre!(
+                "Cannot profile execution: function '{}' contains ACIR constraints.\n\
+                 Compile with `nargo export --force-brillig` to generate pure Brillig programs.",
+                function_name
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 /// Profile a single program's execution
 fn profile_program_execution(
     program: noirc_artifacts::program::ProgramArtifact,
     package_name: String,
     input_file: &Path,
 ) -> eyre::Result<ProgramInfo> {
+    // Validate that program is pure brillig before execution
+    validate_brillig_artifact(&program)?;
+
     // Read inputs from file
     let (inputs_map, _) = read_inputs_from_file(input_file, &program.abi)?;
     let initial_witness = program.abi.encode(&inputs_map, None)?;
