@@ -69,6 +69,7 @@ pub struct HirForStatement {
     pub start_range: ExprId,
     pub end_range: ExprId,
     pub block: ExprId,
+    pub inclusive: bool,
 }
 
 /// Corresponds to `lvalue = expression;` in the source code

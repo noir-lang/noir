@@ -1947,7 +1947,7 @@ fn expr_as_for(
     })
 }
 
-// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, bool, Expr)>
 fn expr_as_for_range(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1957,14 +1957,14 @@ fn expr_as_for_range(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
-                let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
-                let from = Shared::new(Value::expression(from.kind));
-                let to = Shared::new(Value::expression(to.kind));
+                let from = Shared::new(Value::expression(bounds.start.kind));
+                let to = Shared::new(Value::expression(bounds.end.kind));
+                let inclusive = Shared::new(Value::Bool(bounds.inclusive));
                 let body = Shared::new(Value::expression(for_statement.block.kind));
-                Some(Value::Tuple(vec![identifier, from, to, body]))
+                Some(Value::Tuple(vec![identifier, from, to, inclusive, body]))
             } else {
                 None
             }
