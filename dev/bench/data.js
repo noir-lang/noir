@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769119025582,
+  "lastUpdate": 1769119248933,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14857,95 +14857,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d8a674a8a759417323db4ea3ff622cdd095a338e",
-          "message": "fix: error instead of stack overflowing on more cyclic aliases (#11185)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2026-01-15T21:22:35Z",
-          "tree_id": "23567ddb170596af3f0cdef66e9aa7d0516a63b9",
-          "url": "https://github.com/noir-lang/noir/commit/d8a674a8a759417323db4ea3ff622cdd095a338e"
-        },
-        "date": 1768514830042,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 269.86,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 305.59,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 257.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 337.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 336.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1750,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 360.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 525.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 466.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 335.72,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.22,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.46,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -19230,6 +19141,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/55b50475b545012ee976eb3907b363d1467d5878"
         },
         "date": 1769117929575,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 269.39,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 306.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 257.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 338.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 337.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1750,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 338.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 525.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 467.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 336.59,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.23,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.48,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1c722cf07698d6aa76f1ba7e4a3b9871172521d4",
+          "message": "fix(ssa): Avoid generating invalid dispatch from ACIR to Brillig lambdas (#11269)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-01-22T21:15:25Z",
+          "tree_id": "681385673d0ca1548709d5dd4460ae1ebc0e834d",
+          "url": "https://github.com/noir-lang/noir/commit/1c722cf07698d6aa76f1ba7e4a3b9871172521d4"
+        },
+        "date": 1769119211794,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
