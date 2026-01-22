@@ -684,3 +684,40 @@ fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_10763_mutable() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = &mut ();
+
+    impl Foo for Bar {
+                 ^^^ Trait impls are not allowed on aliases to reference types
+                 ~~~ Try using a struct or enum type here instead
+
+        fn foo(self) { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10763_immutable() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = &();
+
+    impl Foo for Bar {
+                 ^^^ Trait impls are not allowed on aliases to reference types
+                 ~~~ Try using a struct or enum type here instead
+        fn foo(self) { }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}

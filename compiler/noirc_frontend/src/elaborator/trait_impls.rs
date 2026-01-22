@@ -75,8 +75,10 @@ impl Elaborator<'_> {
         let previous_self_type = self.self_type.replace(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::Reference(..)) {
+        if matches!(self_type.follow_bindings(), Type::Reference(..)) {
+            let is_alias = matches!(self_type, Type::Alias(..));
             self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
+                is_alias,
                 location: self_type_location,
             });
         }
