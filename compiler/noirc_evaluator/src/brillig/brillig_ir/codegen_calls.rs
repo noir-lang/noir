@@ -38,7 +38,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         //   `stack_pointer < stack_start + max_stack_size - max_frame_size`
         //
         // Heap corruption occurs when:
-        //   `stack_pointer + stack_size + arguments_len >= stack_start + max_stack_size``
+        //   `stack_pointer + stack_size + arguments_len >= stack_start + max_stack_size`
         //
         // Substituting worst case (`stack_pointer = stack_start + max_stack_size - max_frame_size`):
         //   `(stack_start + max_stack_size - max_frame_size) + stack_size + arguments_len >= stack_start + max_stack_size`
