@@ -985,6 +985,15 @@ impl Elaborator<'_> {
 
         if matches.len() == 1 {
             let method = matches.remove(0).0;
+
+            if path.segments[0].generics.is_some() {
+                let turbofish_location = path.segments[0].turbofish_location();
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: "generic parameter".to_string(),
+                    location: turbofish_location,
+                });
+            }
+
             return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
         }
 

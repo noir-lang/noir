@@ -224,8 +224,8 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
-        let (start, end) = match for_loop.range {
-            ForRange::Range(bounds) => bounds.into_half_open(),
+        let (start, end, inclusive) = match for_loop.range {
+            ForRange::Range(bounds) => (bounds.start, bounds.end, bounds.inclusive),
             ForRange::Array(_) => {
                 let for_stmt =
                     for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.location);
@@ -283,8 +283,13 @@ impl Elaborator<'_> {
         self.pop_scope();
         self.current_loop = old_loop;
 
-        let statement =
-            HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
+        let statement = HirStatement::For(HirForStatement {
+            start_range,
+            end_range,
+            block,
+            identifier,
+            inclusive,
+        });
 
         (statement, Type::Unit)
     }
