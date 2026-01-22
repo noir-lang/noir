@@ -668,3 +668,20 @@ fn turbofish_on_primitive_fmtstr() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn regression_10363() {
+    let src = r#"
+    pub trait Trait {
+        fn foo();
+    }
+
+    pub fn foo<T: Trait>() {
+        let _ = T::<i32, i32>::foo();
+                 ^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on generic parameter
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
