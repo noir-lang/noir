@@ -363,7 +363,7 @@ mod tests {
                 v1 = lt v0, u32 1
                 jmpif v1 then: b1, else: b2
               b1():
-                jmp b3(Field 0)
+                jmp b3(u32 0)
               b2():
                 v3 = call f7(v0) -> u32
                 call f6()
@@ -437,7 +437,7 @@ mod tests {
             v3 = lt v0, u32 1
             jmpif v3 then: b1, else: b2
           b1():
-            jmp b3(Field 0)
+            jmp b3(u32 0)
           b2():
             v5 = call f7(v0) -> u32
             call f6()
