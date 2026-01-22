@@ -2009,7 +2009,49 @@
 <a href="#2008" id="2008">2008</a>
 <a href="#2009" id="2009">2009</a>
 <a href="#2010" id="2010">2010</a>
-<a href="#2011" id="2011">2011</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -3040,8 +3082,22 @@
                     <span class="string">"JmpIf conditions should have boolean type"
                 </span>);
             }
-            TerminatorInstruction::Jmp { destination, .. } =&gt; {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: <span class="kw">_ </span>} =&gt; {
                 <span class="macro">assert_ne!</span>(<span class="kw-2">*</span>destination, entry_block, <span class="string">"Entry block cannot be the target of a jump"</span>);
+                <span class="kw">let </span>block_parameters = <span class="self">self</span>.function.dfg.block_parameters(<span class="kw-2">*</span>destination);
+                <span class="macro">assert_eq!</span>(
+                    arguments.len(),
+                    block_parameters.len(),
+                    <span class="string">"Number of arguments in jmp must match number of block parameters"
+                </span>);
+                <span class="kw">for </span>(argument, paramete) <span class="kw">in </span>arguments.iter().zip(block_parameters) {
+                    <span class="kw">let </span>argument_type = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>argument);
+                    <span class="kw">let </span>parameter_type = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>paramete);
+                    <span class="macro">assert_eq!</span>(
+                        argument_type, parameter_type,
+                        <span class="string">"Argument type in jmp must match block parameter type"
+                    </span>);
+                }
             }
             TerminatorInstruction::Return { return_values, .. } =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(return_data_id) = <span class="self">self</span>.function.dfg.data_bus.return_data {
@@ -4014,6 +4070,34 @@
         acir(inline) pure fn main f0 {
           b0(v0: u32):
             enable_side_effects v0
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Number of arguments in jmp must match number of block parameters"</span>)]
+    </span><span class="kw">fn </span>jmp_incorrect_block_arguments_length() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) pure fn main f0 {
+          b0():
+            jmp b1()
+          b1(v0: u32):
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Argument type in jmp must match block parameter type"</span>)]
+    </span><span class="kw">fn </span>jmp_incorrect_block_arguments_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u32):
             return
         }
         "</span>;

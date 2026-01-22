@@ -730,7 +730,8 @@
 <a href="#729" id="729">729</a>
 <a href="#730" id="730">730</a>
 <a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
@@ -985,6 +986,7 @@
     <span class="kw">pub </span>start_range: Box&lt;Expression&gt;,
     <span class="kw">pub </span>end_range: Box&lt;Expression&gt;,
     <span class="kw">pub </span>block: Box&lt;Expression&gt;,
+    <span class="kw">pub </span>inclusive: bool,
 
     <span class="kw">pub </span>start_range_location: Location,
     <span class="kw">pub </span>end_range_location: Location,

@@ -703,7 +703,11 @@
 <a href="#702" id="702">702</a>
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -1086,7 +1090,11 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
         <span class="macro">write!</span>(f, <span class="string">"for {} in "</span>, <span class="self">self</span>.fmt_local(<span class="kw-2">&amp;</span>for_expr.index_name, for_expr.index_variable))<span class="question-mark">?</span>;
         <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>for_expr.start_range, f)<span class="question-mark">?</span>;
-        <span class="macro">write!</span>(f, <span class="string">" .. "</span>)<span class="question-mark">?</span>;
+        <span class="kw">if </span>for_expr.inclusive {
+            <span class="macro">write!</span>(f, <span class="string">" ..= "</span>)<span class="question-mark">?</span>;
+        } <span class="kw">else </span>{
+            <span class="macro">write!</span>(f, <span class="string">" .. "</span>)<span class="question-mark">?</span>;
+        }
         <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>for_expr.end_range, f)<span class="question-mark">?</span>;
         <span class="macro">write!</span>(f, <span class="string">" {{"</span>)<span class="question-mark">?</span>;
 

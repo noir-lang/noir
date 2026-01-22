@@ -5217,7 +5217,7 @@
     })
 }
 
-<span class="comment">// fn as_for_range(self) -&gt; Option&lt;(Quoted, Expr, Expr, Expr)&gt;
+<span class="comment">// fn as_for_range(self) -&gt; Option&lt;(Quoted, Expr, Expr, bool, Expr)&gt;
 </span><span class="kw">fn </span>expr_as_for_range(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
@@ -5227,14 +5227,14 @@
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             <span class="kw">if let </span>ForRange::Range(bounds) = for_statement.range {
-                <span class="kw">let </span>(from, to) = bounds.into_half_open();
                 <span class="kw">let </span>token = Token::Ident(for_statement.identifier.into_string());
                 <span class="kw">let </span>token = LocatedToken::new(token, location);
                 <span class="kw">let </span>identifier = Shared::new(Value::Quoted(Rc::new(<span class="macro">vec!</span>[token])));
-                <span class="kw">let </span>from = Shared::new(Value::expression(from.kind));
-                <span class="kw">let </span>to = Shared::new(Value::expression(to.kind));
+                <span class="kw">let </span>from = Shared::new(Value::expression(bounds.start.kind));
+                <span class="kw">let </span>to = Shared::new(Value::expression(bounds.end.kind));
+                <span class="kw">let </span>inclusive = Shared::new(Value::Bool(bounds.inclusive));
                 <span class="kw">let </span>body = Shared::new(Value::expression(for_statement.block.kind));
-                <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[identifier, from, to, body]))
+                <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[identifier, from, to, inclusive, body]))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
             </span>}

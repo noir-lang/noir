@@ -1048,7 +1048,28 @@
 <a href="#1047" id="1047">1047</a>
 <a href="#1048" id="1048">1048</a>
 <a href="#1049" id="1049">1049</a>
-<a href="#1050" id="1050">1050</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
@@ -1089,6 +1110,7 @@
 /// is the only part of the context that needs to be shared between threads.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>FunctionContext&lt;<span class="lifetime">'a</span>&gt; {
     definitions: HashMap&lt;LocalId, Values&gt;,
+    <span class="kw">pub</span>(<span class="kw">super</span>) redefinitions_allowed: bool,
 
     <span class="kw">pub</span>(<span class="kw">super</span>) builder: FunctionBuilder,
     shared_context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>SharedContext,
@@ -1144,6 +1166,18 @@
     <span class="doccomment">/// The loop index will be `Some` for a `for` and `None` for a `loop`
     </span><span class="kw">pub</span>(<span class="kw">super</span>) loop_index: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
     <span class="kw">pub</span>(<span class="kw">super</span>) loop_end: BasicBlockId,
+    <span class="doccomment">/// A variable that tracks whether a `break` was hit or not:
+    /// `false` if a `break` was hit, `true` if not.
+    /// This is only `Some` in the case of an inclusive for loop which is
+    /// generated as an exclusive for loop with an extra iteration for the
+    /// end of the loop. This extra iteration is only done if no `break` was hit
+    /// in the exclusive iterations (and if `start &lt;= end`).
+    /// We track the negated value because we execute the last iteration
+    /// if we did not hit a break, in the end being `did_not_hit_break &amp;&amp; (start &lt;= end)`.
+    /// If we tracked whether we hit a break or not, the condition to execute
+    /// the last iteration would be `(not hit_break) &amp;&amp; (start &lt;= end)`, which is larger
+    /// by one instruction.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) did_not_hit_break_var: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
 }
 
 <span class="doccomment">/// The queue of functions remaining to compile
@@ -1176,7 +1210,13 @@
         builder.set_runtime(runtime);
 
         <span class="kw">let </span>definitions = HashMap::default();
-        <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">Self </span>{ definitions, builder, shared_context, loops: Vec::new() };
+        <span class="kw">let </span><span class="kw-2">mut </span>this = <span class="self">Self </span>{
+            definitions,
+            builder,
+            shared_context,
+            loops: Vec::new(),
+            redefinitions_allowed: <span class="bool-val">false</span>,
+        };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -1605,7 +1645,9 @@
     /// by calling self.lookup(id)
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId, value: Values) {
         <span class="kw">let </span>existing = <span class="self">self</span>.definitions.insert(id, value);
-        <span class="macro">assert!</span>(existing.is_none(), <span class="string">"Variable {id:?} was defined twice in ssa-gen pass"</span>);
+        <span class="kw">if </span>!<span class="self">self</span>.redefinitions_allowed &amp;&amp; existing.is_some() {
+            <span class="macro">panic!</span>(<span class="string">"Variable {id:?} was defined twice in ssa-gen pass"</span>);
+        }
     }
 
     <span class="doccomment">/// Looks up the value of a given local variable. Expects the variable to have

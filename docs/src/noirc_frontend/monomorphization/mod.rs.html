@@ -3124,7 +3124,8 @@
 <a href="#3123" id="3123">3123</a>
 <a href="#3124" id="3124">3124</a>
 <a href="#3125" id="3125">3125</a>
-<a href="#3126" id="3126">3126</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3126" id="3126">3126</a>
+<a href="#3127" id="3127">3127</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4123,6 +4124,7 @@
                     index_type,
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    inclusive: for_loop.inclusive,
                     start_range_location: <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>for_loop.start_range),
                     end_range_location: <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>for_loop.end_range),
                     block,

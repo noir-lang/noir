@@ -1076,7 +1076,11 @@
 <a href="#1075" id="1075">1075</a>
 <a href="#1076" id="1076">1076</a>
 <a href="#1077" id="1077">1077</a>
-<a href="#1078" id="1078">1078</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use crate</span>::{
     NamedGeneric, Type, TypeBindings,
@@ -1658,7 +1662,11 @@
                 <span class="self">self</span>.show_hir_ident(hir_for_statement.identifier, <span class="prelude-val">None</span>);
                 <span class="self">self</span>.push_str(<span class="string">" in "</span>);
                 <span class="self">self</span>.show_hir_expression_id(hir_for_statement.start_range);
-                <span class="self">self</span>.push_str(<span class="string">".."</span>);
+                <span class="kw">if </span>hir_for_statement.inclusive {
+                    <span class="self">self</span>.push_str(<span class="string">"..="</span>);
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.push_str(<span class="string">".."</span>);
+                }
                 <span class="self">self</span>.show_hir_expression_id(hir_for_statement.end_range);
                 <span class="self">self</span>.push(<span class="string">' '</span>);
                 <span class="self">self</span>.show_hir_expression_id(hir_for_statement.block);

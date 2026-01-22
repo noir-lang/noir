@@ -2369,7 +2369,8 @@
 <a href="#2368" id="2368">2368</a>
 <a href="#2369" id="2369">2369</a>
 <a href="#2370" id="2370">2370</a>
-<a href="#2371" id="2371">2371</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2371" id="2371">2371</a>
+<a href="#2372" id="2372">2372</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -3970,6 +3971,7 @@
             start_range: Box::new(start_range),
             end_range: Box::new(end_range),
             block: Box::new(block),
+            inclusive: bool::arbitrary(u)<span class="question-mark">?</span>,
             start_range_location: Location::dummy(),
             end_range_location: Location::dummy(),
         });

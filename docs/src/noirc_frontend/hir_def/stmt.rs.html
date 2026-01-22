@@ -157,7 +157,8 @@
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::expr::HirIdent;
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::expr::HirIdent;
 <span class="kw">use </span><span class="kw">crate</span>::Type;
 <span class="kw">use </span><span class="kw">crate</span>::ast::Ident;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, StmtId};
@@ -228,6 +229,7 @@
     <span class="kw">pub </span>start_range: ExprId,
     <span class="kw">pub </span>end_range: ExprId,
     <span class="kw">pub </span>block: ExprId,
+    <span class="kw">pub </span>inclusive: bool,
 }
 
 <span class="doccomment">/// Corresponds to `lvalue = expression;` in the source code
