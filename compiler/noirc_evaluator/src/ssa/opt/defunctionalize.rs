@@ -309,7 +309,7 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
 /// Collects all functions used as values that can be called by their signatures.
 ///
 /// Groups all [FunctionId]s used as values by their [Signature] and caller [RuntimeType],
-/// producing a mapping from these tuples to the list of target functions to be dynamically dispatched to.
+/// producing a mapping from these tuples to the list of target functions that may be dynamically dispatched.
 ///
 /// # Arguments
 /// - `ssa`: The full [Ssa] structure
