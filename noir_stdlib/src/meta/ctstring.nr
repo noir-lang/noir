@@ -32,11 +32,11 @@ impl CtString {
 }
 
 impl Append for CtString {
-    fn empty() -> Self {
+    comptime fn empty() -> Self {
         "".as_ctstring()
     }
 
-    fn append(self, other: Self) -> Self {
+    comptime fn append(self, other: Self) -> Self {
         f"{self}{other}".as_ctstring()
     }
 }
