@@ -877,7 +877,10 @@
 <a href="#876" id="876">876</a>
 <a href="#877" id="877">877</a>
 <a href="#878" id="878">878</a>
-<a href="#879" id="879">879</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -1507,24 +1510,27 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="doccomment">/// Attempt to coerce `&amp;mut T` to `&amp;T`, returning true if this is possible.
+    <span class="doccomment">/// Attempt to coerce reference types, returning true if possible.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_reference_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Type) -&gt; bool {
         <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
         <span class="kw">let </span>target = target.follow_bindings();
 
-        <span class="kw">if let </span>(Type::Reference(this_elem, <span class="bool-val">true</span>), Type::Reference(target_elem, <span class="bool-val">false</span>)) =
-            (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target)
-        {
-            <span class="comment">// Still have to ensure the element types match.
-            // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-            <span class="kw">if </span>this_elem.try_unify(target_elem, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
-                <span class="self">Self</span>::apply_type_bindings(bindings);
-                <span class="kw">return </span><span class="bool-val">true</span>;
-            }
+        <span class="kw">match </span>(<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
+            <span class="comment">// Coerce `&amp;mut T` to `&amp;T`, and `&amp;T` to `&amp;T`
+            </span>(Type::Reference(this_elem, <span class="bool-val">true</span>), Type::Reference(target_elem, <span class="bool-val">false</span>))
+            | (Type::Reference(this_elem, <span class="bool-val">false</span>), Type::Reference(target_elem, <span class="bool-val">false</span>)) =&gt; {
+                <span class="comment">// Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+                <span class="kw">if </span>this_elem.try_unify(target_elem, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
+                    <span class="self">Self</span>::apply_type_bindings(bindings);
+                    <span class="kw">return </span><span class="bool-val">true</span>;
+                }
+                <span class="bool-val">false
+            </span>}
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
-        <span class="bool-val">false
-    </span>}
+    }
 }
 
 <span class="doccomment">/// Wraps a given `expression` in `expression.method()`
