@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769107483498,
+  "lastUpdate": 1769115271125,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "7c79ab85c633c6d040749f32c2536722cd75c400",
-          "message": "fix: remove `impl From<usize> for MemoryValue` (#11226)",
-          "timestamp": "2026-01-15T18:38:44Z",
-          "tree_id": "9904b630abf1741664dc26e72399f16d3012b4de",
-          "url": "https://github.com/noir-lang/noir/commit/7c79ab85c633c6d040749f32c2536722cd75c400"
-        },
-        "date": 1768503897519,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268862,
-            "range": "± 804",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 241436,
-            "range": "± 10169",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2811926,
-            "range": "± 13913",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "3d0fc8f09c805aae0e1ce6f0db918abf2326f2f7",
           "message": "chore: replace `debug_assert` with `assert` (#11228)",
           "timestamp": "2026-01-15T20:53:17Z",
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795064,
             "range": "± 6577",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e78f9c8db0c1e6e0570481a8e13b59bf6768a6cf",
+          "message": "fix(ssa): Set the vector length of `black_box` inputs if they are constant (#11273)",
+          "timestamp": "2026-01-22T20:32:12Z",
+          "tree_id": "dd7270fc94e9cfc63a744e40a4a8f7ecd618d158",
+          "url": "https://github.com/noir-lang/noir/commit/e78f9c8db0c1e6e0570481a8e13b59bf6768a6cf"
+        },
+        "date": 1769115231898,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264399,
+            "range": "± 825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230714,
+            "range": "± 3277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794149,
+            "range": "± 3512",
             "unit": "ns/iter"
           }
         ]
