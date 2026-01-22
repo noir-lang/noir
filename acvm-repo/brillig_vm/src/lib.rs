@@ -16,6 +16,9 @@
 //!
 //! When using the VM with Noir programs, the ABI layer handles input validation
 //! automatically. Direct consumers of the VM API must implement their own input validation.
+//! 
+//! [acir]: https://crates.io/crates/acir
+//! [acvm]: https://crates.io/crates/acvm
 
 use acir::AcirField;
 use acir::brillig::{
