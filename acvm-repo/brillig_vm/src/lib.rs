@@ -5,8 +5,17 @@
 //!
 //! Brillig bytecode is distinct from regular [ACIR][acir] in that it does not generate constraints.
 //!
-//! [acir]: https://crates.io/crates/acir
-//! [acvm]: https://crates.io/crates/acvm
+//! # Input Validation
+//!
+//! **Important:** The VM assumes that all inputs have been validated by the caller before execution.
+//! This includes ensuring that field element values fit within the expected bit sizes for typed
+//! operations (e.g., `u8`, `u16`, `u32`, etc.).
+//!
+//! If invalid inputs are provided, the VM may produce unexpected results without error:
+//! - Cast operations truncate call data values that exceed the target bit size (e.g., casting `256` to `u8` produces `0`)
+//!
+//! When using the VM with Noir programs, the ABI layer handles input validation
+//! automatically. Direct consumers of the VM API must implement their own input validation.
 
 use acir::AcirField;
 use acir::brillig::{
