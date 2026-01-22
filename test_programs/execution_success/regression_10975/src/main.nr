@@ -2,6 +2,7 @@ fn main(val: str<3>, flag: bool, val2: str<1>) {
     std::hint::black_box(());
     example2(val, flag);
     example3(val2);
+    black_box_over_vector(flag);
 
     // TODO(https://github.com/noir-lang/noir/issues/11134): Still broken
     // example4(val, flag);
@@ -36,3 +37,9 @@ fn example3(val: str<1>) {
 //     };
 //     println(a);
 // }
+
+fn black_box_over_vector(flag: bool) {
+    let a = std::hint::black_box(@[1, 2, 3]);
+    let v = if flag { a } else { @[4, 5] };
+    assert_eq(v[0], 1);
+}
