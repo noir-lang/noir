@@ -700,3 +700,17 @@ fn signed_numeric_type_alias_with_negative_operand() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn regression_10971() {
+    // Regression test for https://github.com/noir-lang/noir/issues/10971
+    let src = r#"
+    pub type X: u8 = 257;
+    ^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+
+    fn main() {
+        let _ = X;
+    }
+    "#;
+    check_errors(src);
+}
