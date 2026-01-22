@@ -35,6 +35,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
 use simplify::{SimplifyResult, simplify};
+use std::collections::HashMap as StdHashMap;
 
 pub(crate) mod simplify;
 
@@ -117,6 +118,9 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) function_purities: Arc<FunctionPurities>,
+
+    #[serde(skip)]
+    pub(crate) function_runtimes: Arc<StdHashMap<FunctionId, RuntimeType>>,
 
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
@@ -826,6 +830,17 @@ impl DataFlowGraph {
 
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
         self.function_purities.get(&function).copied()
+    }
+
+    pub(crate) fn set_function_runtimes(
+        &mut self,
+        runtimes: Arc<StdHashMap<FunctionId, RuntimeType>>,
+    ) {
+        self.function_runtimes = runtimes;
+    }
+
+    pub(crate) fn runtime_of(&self, function: FunctionId) -> Option<RuntimeType> {
+        self.function_runtimes.get(&function).copied()
     }
 
     /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
