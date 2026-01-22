@@ -32,11 +32,11 @@ impl CtString {
 }
 
 impl Append for CtString {
-    fn empty() -> Self {
+    comptime fn empty() -> Self {
         "".as_ctstring()
     }
 
-    fn append(self, other: Self) -> Self {
+    comptime fn append(self, other: Self) -> Self {
         f"{self}{other}".as_ctstring()
     }
 }
@@ -60,13 +60,13 @@ impl<let N: u32, T> AsCtString for fmtstr<N, T> {
 }
 
 impl crate::cmp::Eq for CtString {
-    comptime fn eq(self, other: Self) -> bool {
+    fn eq(self, other: Self) -> bool {
         ctstring_eq(self, other)
     }
 }
 
 impl crate::hash::Hash for CtString {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: crate::hash::Hasher,
     {

@@ -79,7 +79,7 @@ impl FunctionDefinition {
 }
 
 impl crate::hash::Hash for FunctionDefinition {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: crate::hash::Hasher,
     {
@@ -88,7 +88,7 @@ impl crate::hash::Hash for FunctionDefinition {
 }
 
 impl crate::cmp::Eq for FunctionDefinition {
-    comptime fn eq(self, other: Self) -> bool {
+    fn eq(self, other: Self) -> bool {
         function_def_eq(self, other)
     }
 }

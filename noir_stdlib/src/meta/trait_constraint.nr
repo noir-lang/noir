@@ -2,13 +2,13 @@ use crate::cmp::Eq;
 use crate::hash::{Hash, Hasher};
 
 impl Eq for TraitConstraint {
-    comptime fn eq(self, other: Self) -> bool {
+    fn eq(self, other: Self) -> bool {
         constraint_eq(self, other)
     }
 }
 
 impl Hash for TraitConstraint {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: Hasher,
     {

@@ -43,7 +43,7 @@ impl Module {
 }
 
 impl crate::hash::Hash for Module {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: crate::hash::Hasher,
     {
@@ -52,7 +52,7 @@ impl crate::hash::Hash for Module {
 }
 
 impl crate::cmp::Eq for Module {
-    comptime fn eq(self, other: Self) -> bool {
+    fn eq(self, other: Self) -> bool {
         module_eq(self, other)
     }
 }

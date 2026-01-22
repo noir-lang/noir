@@ -79,7 +79,7 @@ impl TypeDefinition {
 }
 
 impl crate::hash::Hash for TypeDefinition {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: crate::hash::Hasher,
     {
@@ -88,7 +88,7 @@ impl crate::hash::Hash for TypeDefinition {
 }
 
 impl crate::cmp::Eq for TypeDefinition {
-    comptime fn eq(self, other: Self) -> bool {
+    fn eq(self, other: Self) -> bool {
         type_def_eq(self, other)
     }
 }

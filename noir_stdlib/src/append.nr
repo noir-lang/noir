@@ -8,17 +8,17 @@
 // - `x.append(T::empty()) == x`
 // docs:start:append-trait
 pub trait Append {
-    fn empty() -> Self;
-    fn append(self, other: Self) -> Self;
+    comptime fn empty() -> Self;
+    comptime fn append(self, other: Self) -> Self;
 }
 // docs:end:append-trait
 
 impl<T> Append for [T] {
-    fn empty() -> Self {
+    comptime fn empty() -> Self {
         [].as_vector()
     }
 
-    fn append(self, other: Self) -> Self {
+    comptime fn append(self, other: Self) -> Self {
         // Slices have an existing append function which this will resolve to.
         self.append(other)
     }

@@ -29,13 +29,13 @@ impl Quoted {
 }
 
 impl Eq for Quoted {
-    comptime fn eq(self, other: Quoted) -> bool {
+    fn eq(self, other: Self) -> bool {
         quoted_eq(self, other)
     }
 }
 
 impl crate::hash::Hash for Quoted {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: crate::hash::Hasher,
     {

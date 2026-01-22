@@ -9,13 +9,13 @@ impl TraitDefinition {
 }
 
 impl Eq for TraitDefinition {
-    comptime fn eq(self, other: Self) -> bool {
+    fn eq(self, other: Self) -> bool {
         trait_def_eq(self, other)
     }
 }
 
 impl Hash for TraitDefinition {
-    comptime fn hash<H>(self, state: &mut H)
+    fn hash<H>(self, state: &mut H)
     where
         H: Hasher,
     {
