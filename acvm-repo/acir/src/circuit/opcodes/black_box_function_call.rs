@@ -631,6 +631,7 @@ mod arb {
                 witness_vec.clone(),
             )
                 .prop_map(|(inputs, iv, key, outputs)| {
+                    assert!(inputs.len() % 16 == 0, "input length must be a multiple of 16");
                     BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
                 });
 
