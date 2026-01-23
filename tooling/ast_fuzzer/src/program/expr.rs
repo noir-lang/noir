@@ -89,19 +89,41 @@ pub fn gen_literal(
             Expression::Literal(Literal::Str(s))
         }
         Type::Array(len, item_type) => {
-            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
-            for _ in 0..*len {
-                arr.contents.push(gen_literal(u, item_type, config)?);
+            // Randomly choose between Array and Repeated literal
+            if u.arbitrary()? {
+                let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+                for _ in 0..*len {
+                    arr.contents.push(gen_literal(u, item_type, config)?);
+                }
+                Expression::Literal(Literal::Array(arr))
+            } else {
+                let element = gen_literal(u, item_type, config)?;
+                Expression::Literal(Literal::Repeated {
+                    element: Box::new(element),
+                    length: *len,
+                    is_vector: false,
+                    typ: typ.clone(),
+                })
             }
-            Expression::Literal(Literal::Array(arr))
         }
         Type::Vector(item_type) => {
             let len = u.int_in_range(0..=config.max_array_size)?;
-            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
-            for _ in 0..len {
-                arr.contents.push(gen_literal(u, item_type, config)?);
+            // Randomly choose between Vector and Repeated literal
+            if bool::arbitrary(u)? {
+                let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+                for _ in 0..len {
+                    arr.contents.push(gen_literal(u, item_type, config)?);
+                }
+                Expression::Literal(Literal::Vector(arr))
+            } else {
+                let element = gen_literal(u, item_type, config)?;
+                Expression::Literal(Literal::Repeated {
+                    element: Box::new(element),
+                    length: len as u32,
+                    is_vector: true,
+                    typ: typ.clone(),
+                })
             }
-            Expression::Literal(Literal::Vector(arr))
         }
         Type::Tuple(items) => {
             let mut values = Vec::new();

@@ -577,18 +577,33 @@ impl<'a> FunctionContext<'a> {
             // If we can't produce the exact we're looking for, maybe we can produce parts of it.
             match typ {
                 Type::Array(len, item_type) => {
-                    let mut arr = ArrayLiteral {
-                        contents: Vec::with_capacity(*len as usize),
-                        typ: typ.clone(),
-                    };
-                    let mut arr_dyn = false;
-                    for _ in 0..*len {
-                        let (item, item_dyn) =
+                    // Randomly choose between Array and Repeated literal
+                    if bool::arbitrary(u)? {
+                        let mut arr = ArrayLiteral {
+                            contents: Vec::with_capacity(*len as usize),
+                            typ: typ.clone(),
+                        };
+                        let mut arr_dyn = false;
+                        for _ in 0..*len {
+                            let (item, item_dyn) =
+                                self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
+                            arr_dyn |= item_dyn;
+                            arr.contents.push(item);
+                        }
+                        return Ok(Some((Expression::Literal(Literal::Array(arr)), arr_dyn)));
+                    } else {
+                        let (element, elem_dyn) =
                             self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
-                        arr_dyn |= item_dyn;
-                        arr.contents.push(item);
+                        return Ok(Some((
+                            Expression::Literal(Literal::Repeated {
+                                element: Box::new(element),
+                                length: *len,
+                                is_vector: false,
+                                typ: typ.clone(),
+                            }),
+                            elem_dyn,
+                        )));
                     }
-                    return Ok(Some((Expression::Literal(Literal::Array(arr)), arr_dyn)));
                 }
                 Type::Tuple(items) => {
                     let mut values = Vec::with_capacity(items.len());
