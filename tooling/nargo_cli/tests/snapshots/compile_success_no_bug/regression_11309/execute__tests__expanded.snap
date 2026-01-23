@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub Field {
+    let (x, f): (Field, fn(Field) -> Field) =
+        std::hint::black_box((1_Field, |x: Field| -> Field { x + 1_Field }));
+    f(x)
+}
