@@ -361,9 +361,38 @@ impl DefCollector {
         //
         // It is now possible to collect all of the definitions of this crate.
         let crate_root = def_map.root();
-        let mut def_collector = DefCollector::new(def_map);
+        let def_collector = DefCollector::new(def_map);
 
-        let module_id = ModuleId { krate: crate_id, local_id: crate_root };
+        Self::collect_defs_and_elaborate(
+            ast,
+            root_file_id,
+            crate_root,
+            crate_id,
+            context,
+            def_collector,
+            options,
+            &mut errors,
+        );
+
+        Self::check_unused_items(context, crate_id, &mut errors);
+
+        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
+        errors
+    }
+
+    pub fn collect_defs_and_elaborate(
+        ast: SortedModule,
+        file_id: FileId,
+        local_module_id: LocalModuleId,
+        crate_id: CrateId,
+        context: &mut Context,
+        mut def_collector: DefCollector,
+        options: FrontendOptions,
+        errors: &mut Vec<CompilationError>,
+    ) {
+        let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
         context
             .def_interner
             .set_doc_comments(ReferenceId::Module(module_id), ast.inner_doc_comments.clone());
@@ -375,8 +404,8 @@ impl DefCollector {
         errors.extend(collect_defs(
             &mut def_collector,
             ast,
-            root_file_id,
-            crate_root,
+            file_id,
+            local_module_id,
             crate_id,
             context,
         ));
@@ -386,17 +415,17 @@ impl DefCollector {
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
-        inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
+        inject_prelude(crate_id, context, local_module_id, &mut def_collector.imports);
         for submodule in submodules {
             inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
         }
 
-        Self::process_imports(def_collector.imports, crate_id, context, &mut errors);
+        Self::process_imports(def_collector.imports, crate_id, context, errors);
 
         let debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
             let file = context.file_manager.find_by_path_suffix(file_suffix);
             file.unwrap_or_else(|error| {
-                let location = Location::new(Span::empty(0), root_file_id);
+                let location = Location::new(Span::empty(0), file_id);
                 errors.push(CompilationError::DebugComptimeScopeNotFound(error, location));
                 None
             })
@@ -412,13 +441,6 @@ impl DefCollector {
             Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
 
         errors.append(&mut more_errors);
-
-        Self::check_unused_items(context, crate_id, &mut errors);
-
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        }
-        errors
     }
 
     fn process_imports(

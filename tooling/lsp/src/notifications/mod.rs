@@ -18,10 +18,9 @@ use noirc_driver::check_crate;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
-use noirc_frontend::elaborator::{Elaborator, ElaboratorOptions, UnstableFeature};
+use noirc_frontend::elaborator::FrontendOptions;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
-use noirc_frontend::hir::def_collector::dc_mod::collect_defs;
 use noirc_frontend::hir::def_map::LocalModuleId;
 use noirc_frontend::parse_program;
 
@@ -309,28 +308,21 @@ pub(crate) fn process_workspace_for_single_file_change(
     } else {
         crate_def_map.root()
     };
-    let mut def_collector = DefCollector::new(crate_def_map);
+    let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
-    let _errors =
-        collect_defs(&mut def_collector, sorted_module, file_id, module_id, crate_id, &mut context);
 
-    context.def_maps.insert(crate_id, def_collector.def_map);
-
-    let items = def_collector.items;
-    let elaborator_options = ElaboratorOptions {
-        debug_comptime_in_file: None,
-        enabled_unstable_features: &[
-            UnstableFeature::Enums,
-            UnstableFeature::Ownership,
-            UnstableFeature::TraitAsType,
-        ],
-        disable_required_unstable_features: false,
-    };
-    let mut elaborator = Elaborator::from_context(&mut context, crate_id, elaborator_options);
-    elaborator.local_module = Some(module_id);
-    elaborator.elaborate_items(items);
-    elaborator.check_and_pop_function_context();
+    let mut errors = Vec::new();
+    DefCollector::collect_defs_and_elaborate(
+        sorted_module,
+        file_id,
+        module_id,
+        crate_id,
+        &mut context,
+        def_collector,
+        FrontendOptions::test_default(), // TODO
+        &mut errors,
+    );
 
     package_cache.node_interner = context.def_interner;
     package_cache.def_maps = context.def_maps;
