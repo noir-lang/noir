@@ -694,6 +694,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          # Note that we are checking out into a sub-directory, which affects action paths.
           path: noir-repo
 
       - name: Checkout
@@ -703,7 +704,7 @@ jobs:
           path: test-repo
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./noir-repo/.github/actions/download-executable
         with:
           name: nargo
 
