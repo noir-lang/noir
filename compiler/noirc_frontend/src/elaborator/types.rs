@@ -368,6 +368,7 @@ impl Elaborator<'_> {
                 {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: data_type.borrow().name.location(),
+                        usage_location: Some(path.location),
                     });
                 }
 

@@ -78,6 +78,7 @@ impl Elaborator<'_> {
                 if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: attr.location,
+                        usage_location: None,
                     });
                 }
             }
