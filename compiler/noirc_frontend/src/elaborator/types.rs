@@ -19,7 +19,7 @@ use crate::{
         def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
-            NoMatchingImplFoundError, Source, TypeCheckError,
+            Source, TypeCheckError,
             generics::{Generic, TraitGenerics},
         },
     },
@@ -34,8 +34,7 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
-        TraitItemId,
+        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
     },
     shared::Signedness,
     token::SecondaryAttributeKind,
@@ -48,12 +47,14 @@ use super::{
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
+#[derive(Debug)]
 pub(super) struct TraitPathResolution {
     pub(super) method: TraitPathResolutionMethod,
     pub(super) item: Option<PathResolutionItem>,
     pub(super) errors: Vec<PathResolutionError>,
 }
 
+#[derive(Debug)]
 pub(super) enum TraitPathResolutionMethod {
     NotATraitMethod(FuncId),
     TraitItem(TraitItem),
@@ -2554,88 +2555,6 @@ impl Elaborator<'_> {
                 (self.interner.expr_location(&function_body_id), false)
             };
         (expr_location, empty_function)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn verify_trait_constraint(
-        &mut self,
-        object_type: &Type,
-        trait_id: TraitId,
-        trait_generics: &[Type],
-        associated_types: &[NamedType],
-        function_ident_id: ExprId,
-        select_impl: bool,
-        location: Location,
-    ) {
-        match self.interner.lookup_trait_implementation(
-            object_type,
-            trait_id,
-            trait_generics,
-            associated_types,
-        ) {
-            Ok((impl_kind, instantiation_bindings)) => {
-                if select_impl {
-                    // Insert any additional instantiation bindings into this expression's
-                    // instantiation bindings. We should avoid doing this if `select_impl` is
-                    // not true since that means we're not solving for this expressions exact
-                    // impl anyway. If we ignore this, we may rarely overwrite existing type
-                    // bindings causing incorrect types. The `vector_regex` test is one example
-                    // of that happening without this being behind `select_impl`.
-                    let mut bindings =
-                        self.interner.get_instantiation_bindings(function_ident_id).clone();
-
-                    // These can clash in the `vector_regex` test which causes us to insert
-                    // incorrect type bindings if they override the previous bindings.
-                    for (id, binding) in instantiation_bindings {
-                        let existing = bindings.insert(id, binding.clone());
-
-                        if let Some((_, type_var, existing)) = existing {
-                            let existing = existing.follow_bindings();
-                            let new = binding.2.follow_bindings();
-
-                            // Exact equality on types is intentional here, we never want to
-                            // overwrite even type variables but should probably avoid a panic if
-                            // the types are exactly the same.
-                            if existing != new {
-                                panic!(
-                                    "Overwriting an existing type binding with a different type!\n  {type_var:?} <- {existing:?}\n  {type_var:?} <- {new:?}"
-                                );
-                            }
-                        }
-                    }
-
-                    self.interner.store_instantiation_bindings(function_ident_id, bindings);
-                    self.interner.select_impl_for_expression(function_ident_id, impl_kind);
-                }
-            }
-            Err(error) => self.push_trait_constraint_error(object_type, error, location),
-        }
-    }
-
-    pub(super) fn push_trait_constraint_error(
-        &mut self,
-        object_type: &Type,
-        error: ImplSearchErrorKind,
-        location: Location,
-    ) {
-        match error {
-            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
-            }
-            ImplSearchErrorKind::Nested(constraints) => {
-                if let Some(error) =
-                    NoMatchingImplFoundError::new(self.interner, constraints, location)
-                {
-                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
-                }
-            }
-            ImplSearchErrorKind::MultipleMatching(candidates) => {
-                let object_type = object_type.clone();
-                let err =
-                    TypeCheckError::MultipleMatchingImpls { object_type, location, candidates };
-                self.push_err(err);
-            }
-        }
     }
 
     pub fn bind_generics_from_trait_constraint(
