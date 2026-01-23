@@ -634,7 +634,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
             ItemKind::Struct(struct_def) => {
-                if let Some((type_id, the_struct)) = dc_mod::collect_struct(
+                let (type_id, the_struct) = dc_mod::collect_struct(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
@@ -642,9 +642,8 @@ impl<'context> Elaborator<'context> {
                     local_module,
                     self.crate_id,
                     &mut self.errors,
-                ) {
-                    generated_items.structs.insert(type_id, the_struct);
-                }
+                );
+                generated_items.structs.insert(type_id, the_struct);
             }
             ItemKind::Enum(enum_def) => {
                 if let Some((type_id, the_enum)) = dc_mod::collect_enum(
