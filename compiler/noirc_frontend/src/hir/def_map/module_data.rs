@@ -83,15 +83,17 @@ impl ModuleData {
         item_id: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
-
         if let ModuleDefId::ModuleId(child) = item_id {
             self.child_declaration_order.push(child.local_id);
         }
 
+        let result1 = self.scope.add_definition(name.clone(), visibility, item_id, trait_id);
+
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        self.definitions.add_definition(name, visibility, item_id, trait_id)
+        let result2 = self.definitions.add_definition(name, visibility, item_id, trait_id);
+
+        result1.or(result2)
     }
 
     pub fn declare_function(
