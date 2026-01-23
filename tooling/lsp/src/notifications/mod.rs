@@ -57,7 +57,7 @@ pub(crate) fn on_did_open_text_document(
 
     let document_uri = params.text_document.uri;
 
-    match handle_text_document_notification(state, document_uri) {
+    match handle_text_document_open_or_close_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -88,7 +88,7 @@ pub(super) fn on_did_close_text_document(
 
     let document_uri = params.text_document.uri;
 
-    match handle_text_document_notification(state, document_uri) {
+    match handle_text_document_open_or_close_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -109,7 +109,7 @@ pub(super) fn on_did_save_text_document(
     }
 }
 
-fn handle_text_document_notification(
+fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
 ) -> Result<(), async_lsp::Error> {
@@ -260,18 +260,19 @@ pub(crate) fn process_workspace_for_single_file_change(
     parsed_files.insert(file_id, (parsed_program.clone(), errors));
 
     let sorted_module = parsed_program.into_sorted();
-    let module_id = if let Some((module_index, _)) =
-        crate_def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file_id)
-    {
-        LocalModuleId::new(module_index)
-    } else {
-        crate_def_map.root()
-    };
+    let module_index = crate_def_map
+        .modules()
+        .iter()
+        .find(|(_, module_data)| module_data.location.file == file_id)
+        .unwrap()
+        .0;
+    let module_id = LocalModuleId::new(module_index);
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
 
     let mut errors = Vec::new();
+
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
         file_id,
