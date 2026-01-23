@@ -1007,9 +1007,7 @@ impl NodeInterner {
                 self.add_method(element, method_name, method_id, trait_id)
             }
             _ => {
-                let key = if let Some(key) = get_type_method_key(self_type) {
-                    key
-                } else {
+                let Some(key) = get_type_method_key(self_type) else {
                     let location = self.function_ident(&method_id).location();
                     let error = ResolverError::TypeUnsupportedForMethod {
                         typ: self_type.clone(),
