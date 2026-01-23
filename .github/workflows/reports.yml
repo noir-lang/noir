@@ -475,6 +475,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          # Note that we are checking them out under `scripts`, including the github action.
           path: scripts
           sparse-checkout: |
             .github/actions/download-executable/action.yml
@@ -483,7 +484,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./scripts/.github/actions/download-executable
         with:
           name: nargo
 
