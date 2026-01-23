@@ -2198,8 +2198,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_duplicate_unsigned_division_by_non_zero_constant() {
-        // Regression test for https://github.com/noir-lang/noir/issues/7836
+    fn deduplicates_unsigned_division_by_non_zero_constant() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u1):
@@ -2208,6 +2207,33 @@ mod tests {
             v5 = not v2
             enable_side_effects v5
             v6 = div v1, u32 2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 2
+            v5 = not v2
+            enable_side_effects v5
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_signed_division_by_minus_one_constant() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, i32 -1
+            v5 = not v2
+            enable_side_effects v5
+            v6 = div v1, i32 -1
             return
         }
         ";
