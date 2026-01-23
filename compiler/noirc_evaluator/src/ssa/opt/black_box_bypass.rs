@@ -114,3 +114,137 @@ impl Function {
 fn black_box_should_ignore(typ: &Type) -> bool {
     typ.contains_function()
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn removes_parameters_to_ignore() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v4, v5, v6 = call black_box(Field 10, f1, f2) -> (Field, function, function)
+            v7 = call v5(v4) -> Field
+            return v7
+        }
+        acir(inline) fn lambda f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.black_box_bypass();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call black_box(Field 10) -> Field
+            v4 = call f1(v2) -> Field
+            return v4
+        }
+        acir(inline) fn lambda f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn removes_instruction_if_all_ignored() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1, v2 = call black_box(f1, f2) -> (function, function)
+            v3 = call v1(Field 10) -> Field
+            return v3
+        }
+        acir(inline) fn lambda f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.black_box_bypass();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1(Field 10) -> Field
+            return v2
+        }
+        acir(inline) fn lambda f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn removes_arrays_params_with_types_to_ignore() {
+        let src = "
+        acir(inline) fn main f0 {
+        b0():
+            v3 = make_array [Field 1, f1, f2] : [(Field, function, function); 1]
+            v5 = call black_box(v3) -> [(Field, function, function); 1]
+            v7 = array_get v5, index u32 0 -> Field
+            v9 = array_get v5, index u32 1 -> function
+            v11 = array_get v5, index u32 2 -> function
+            v12 = call v9(v7) -> Field
+            return v12
+        }
+        acir(inline) fn lambda f1 {
+        b0(v0: Field):
+            v2 = add v0, Field 10
+            return v2
+        }
+        brillig(inline) fn lambda f2 {
+        b0(v0: Field):
+            v2 = add v0, Field 10
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.black_box_bypass();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, f1, f2] : [(Field, function, function); 1]
+            v4 = call f1(Field 1) -> Field
+            return v4
+        }
+        acir(inline) fn lambda f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 10
+            return v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0(v0: Field):
+            v2 = add v0, Field 10
+            return v2
+        }
+        ");
+    }
+}
