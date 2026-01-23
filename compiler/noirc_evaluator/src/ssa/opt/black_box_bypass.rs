@@ -4,14 +4,15 @@
 //! compiler to minimize optimizations and try to preserve the inputs.
 //! It is primarily meant to be used with numeric values, but accepts any input.
 //!
-//! When some inputs are being prevented from being simplified away, it can cause
-//! unintended issues with other SSA passes. Since the `black_box` function has
+//! In some cases, when some inputs are prevented from being simplified away,
+//! it can cause issues with other SSA passes. Since the `black_box` function has
 //! no guarantees about what it does, other than not introducing undefined behavior,
 //! this pass allows us to _ignore_ parameters where it's not clear what `black_box`
-//! should do, but it is causing issues.
+//! should do, and it's effect is problematic.
 //!
-//! This way the user is free to give a hint to the compiler to try to apply the `black_box` effect,
-//! and the compiler is free to ignore it, without having to reject the code.
+//! This way the user is free to give a hint to the compiler to try to apply the
+//! `black_box` effect, and the compiler is free to ignore it, without having to
+//! outright reject the code.
 
 use iter_extended::vecmap;
 
