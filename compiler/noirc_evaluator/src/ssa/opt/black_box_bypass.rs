@@ -30,7 +30,7 @@ use crate::ssa::{
 impl Ssa {
     /// Removes parameters from calls to the `black_box` builtin which are best left ignored.
     ///
-    /// Currently these are just function values, but we might expand them in the future.
+    /// Currently these are just types which contain function values, but we might expand them in the future.
     ///
     /// This step should come before defunctionalization.
     #[tracing::instrument(level = "trace", skip(self))]
@@ -44,9 +44,12 @@ impl Ssa {
 
 impl Function {
     /// Removes parameters from calls to the `black_box` builtin which are best left ignored:
-    /// * function values, so the passing of a (constrained, unconstrained) pair to `black_box`:
-    ///     * doesn't prevent the returned values from being inlined as the only relevant call target
-    ///     * doesn't prevent the otherwise unused unconstrained variant from being removed
+    /// * types with function values in them, so that the passing of a (constrained, unconstrained)
+    ///   pair to `black_box` doesn't result in the following:
+    ///     * prevent the returned values from being inlined, recognizing the constrained variant
+    ///       as the only actual call target
+    ///     * prevent the otherwise unreachable unconstrained variant from being removed,
+    ///       and becoming part of the dispatch function during defunctionalization
     fn black_box_bypass(&mut self) {
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
