@@ -35,7 +35,7 @@ use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, MAX_ELEMENTS},
         function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, TerminatorInstruction,

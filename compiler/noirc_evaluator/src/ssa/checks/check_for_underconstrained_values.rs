@@ -170,7 +170,9 @@ impl BrilligTaintedIds {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length) if length.0 <= crate::acir::MAX_ELEMENTS.try_into().unwrap() => {
+                Some(length)
+                    if length.0 <= crate::ssa::ir::dfg::MAX_ELEMENTS.try_into().unwrap() =>
+                {
                     array_elements.insert(*result, vec![]);
                     for _ in 0..length.0 {
                         array_elements[result].push(results_status.len());
