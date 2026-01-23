@@ -192,6 +192,7 @@
         "metaprogramming",
         "metas",
         "microcontroller",
+        "mimalloc",
         "minreq",
         "monomorphization",
         "monomorphize",
