@@ -189,7 +189,7 @@ impl<'a> Context<'a> {
         self.acir_context.acir_ir.input_witnesses =
             self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
-        let num_return_witnesses = dfg.get_num_return_witnesses(entry_block.unwrap_terminator())?;
+        let num_return_witnesses = dfg.get_num_return_witnesses(main_func)?;
 
         // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
         // layout for serializing those types as if they were being passed as inputs.

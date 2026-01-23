@@ -55,8 +55,7 @@ pub(crate) fn gen_brillig_for(
     // Check if the return value size exceeds the limit before generating the entry point.
     // This is done early to avoid the expensive entry point codegen which iterates over
     // each element in the return arrays.
-    let entry_block = &func.dfg[func.entry_block()];
-    func.dfg.get_num_return_witnesses(entry_block.unwrap_terminator())?;
+    func.dfg.get_num_return_witnesses(func)?;
 
     // Create the entry point artifact
     let globals_memory_size = brillig

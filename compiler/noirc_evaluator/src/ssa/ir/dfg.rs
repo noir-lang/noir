@@ -5,6 +5,7 @@ use crate::{
     ssa::{
         RuntimeError,
         function_builder::data_bus::DataBus,
+        ir::function::Function,
         ir::instruction::ArrayOffset,
         opt::pure::{FunctionPurities, Purity},
     },
@@ -864,34 +865,27 @@ impl DataFlowGraph {
 
     /// Computes the number of flattened values returned by the SSA terminator
     /// Error if it exceeds MAX_ELEMENTS
-    pub(crate) fn get_num_return_witnesses(
-        &self,
-        terminator: &TerminatorInstruction,
-    ) -> Result<usize, RuntimeError> {
-        let (return_values, call_stack) = match terminator {
-            TerminatorInstruction::Return { return_values, call_stack } => {
-                (return_values, call_stack)
-            }
-            TerminatorInstruction::Unreachable { .. } => return Ok(0),
-            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
-        };
+    pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
+        if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
+            func.return_instruction()
+        {
+            let num_return_values: usize = return_values
+                .iter()
+                .map(|result_id| self.type_of_value(*result_id).flattened_size().to_usize())
+                .sum();
 
-        let num_return_witnesses = return_values.iter().fold(0, |acc, value_id| {
-            acc + self.type_of_value(*value_id).flattened_size().to_usize()
-        });
-
-        if num_return_witnesses > MAX_ELEMENTS {
-            let call_stack = self.call_stack_data.get_call_stack(*call_stack);
-            return Err(RuntimeError::ReturnLimitExceeded {
-                num_witnesses: num_return_witnesses,
-                max_witnesses: MAX_ELEMENTS,
-                call_stack,
-            });
+            if num_return_values > MAX_ELEMENTS {
+                let call_stack = func.dfg.call_stack_data.get_call_stack(*call_stack);
+                return Err(RuntimeError::ReturnLimitExceeded {
+                    num_witnesses: num_return_values,
+                    max_witnesses: MAX_ELEMENTS,
+                    call_stack,
+                });
+            }
+            return Ok(num_return_values);
         }
-        Ok(num_return_witnesses)
+
+        Ok(0)
     }
 }
 
