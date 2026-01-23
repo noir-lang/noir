@@ -1,7 +1,6 @@
 /// This enumeration represents the Brillig foreign calls that appear in the Noir stdlib,
 /// and are natively supported by `nargo`.
 pub enum ForeignCall {
-    /// Reference [mod@print] for more info regarding this call's inputs
     Print,
     CreateMock,
     SetMockParams,
