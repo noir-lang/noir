@@ -273,7 +273,7 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     let mut errors = Vec::new();
 
-    let skip_module_declarations = true;
+    let shallow = true;
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
         file_id,
@@ -282,7 +282,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         &mut context,
         def_collector,
         FrontendOptions::test_default(), // TODO
-        skip_module_declarations,
+        shallow,
         &mut errors,
     );
 

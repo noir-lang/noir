@@ -52,7 +52,7 @@ pub(crate) fn with_interpreter<T>(
     let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    let skip_module_declarations = false;
+    let shallow = false;
     collect_defs(
         &mut collector,
         ast,
@@ -60,7 +60,7 @@ pub(crate) fn with_interpreter<T>(
         root_module_id,
         krate,
         &mut context,
-        skip_module_declarations,
+        shallow,
     );
     context.def_maps.insert(krate, collector.def_map);
 

@@ -363,7 +363,7 @@ impl DefCollector {
         let crate_root = def_map.root();
         let def_collector = DefCollector::new(def_map);
 
-        let skip_module_declarations = false;
+        let shallow = false;
         Self::collect_defs_and_elaborate(
             ast,
             root_file_id,
@@ -372,7 +372,7 @@ impl DefCollector {
             context,
             def_collector,
             options,
-            skip_module_declarations,
+            shallow,
             &mut errors,
         );
 
@@ -384,6 +384,7 @@ impl DefCollector {
         errors
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn collect_defs_and_elaborate(
         ast: SortedModule,
         file_id: FileId,
@@ -392,7 +393,7 @@ impl DefCollector {
         context: &mut Context,
         mut def_collector: DefCollector,
         options: FrontendOptions,
-        skip_module_declarations: bool,
+        shallow: bool,
         errors: &mut Vec<CompilationError>,
     ) {
         let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
@@ -411,7 +412,7 @@ impl DefCollector {
             local_module_id,
             crate_id,
             context,
-            skip_module_declarations,
+            shallow,
         ));
 
         let submodules =
@@ -420,6 +421,7 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         inject_prelude(crate_id, context, local_module_id, &mut def_collector.imports);
+
         for submodule in submodules {
             inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
         }
