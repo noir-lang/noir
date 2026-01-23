@@ -176,3 +176,18 @@ fn vector_with_nested_array_behind_generics_returned_from_oracle() {
     "#;
     check_monomorphization_error(src);
 }
+
+#[test]
+fn errors_if_oracle_clashes_with_stdlib() {
+    let src = r#"
+    #[oracle(create_mock)]
+    ^^^^^^^^^^^^^^^^^^^^^^ The name of an `#[oracle]` function clashes with one defined in the Noir standard library
+    ~~~~~~~~~~~~~~~~~~~~~~ Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior
+    unconstrained fn create_mock_oracle() {}
+
+    unconstrained fn main() {
+        create_mock_oracle();
+    }
+    "#;
+    check_errors(src);
+}

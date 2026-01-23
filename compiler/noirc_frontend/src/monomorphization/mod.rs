@@ -52,7 +52,7 @@ use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
-use crate::shared::Visibility;
+use crate::shared::{ForeignCall, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FunctionAttributeKind;
 use crate::{
@@ -2075,7 +2075,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "print" {
+                if let Some(ForeignCall::Print) = ForeignCall::lookup(name) {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident

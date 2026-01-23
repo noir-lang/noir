@@ -460,6 +460,9 @@ impl Elaborator<'_> {
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
+        self.run_lint(|elaborator| {
+            lints::oracle_name_clashes_with_stdlib(modifiers, elaborator.crate_id).map(Into::into)
+        });
         self.run_lint(|_| lints::check_varargs(func, modifiers).map(Into::into));
     }
 

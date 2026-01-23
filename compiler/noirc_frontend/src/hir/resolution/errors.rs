@@ -70,6 +70,10 @@ pub enum ResolverError {
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
     LowLevelFunctionOutsideOfStdlib { location: Location },
+    #[error(
+        "The name of an `#[oracle]` function clashes with one defined in the Noir standard library"
+    )]
+    OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
@@ -277,6 +281,7 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
+            | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
@@ -492,6 +497,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 *location,
             ),
+            ResolverError::OracleNameClashesWithStdlib { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior".into(),
+                    *location,
+                )
+            },
             ResolverError::OracleMarkedAsConstrained { ident, location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     error.to_string(),
