@@ -428,8 +428,9 @@ impl Elaborator<'_> {
     /// Reports an error if `typ` is a comptime-only type and we are in runtime code.
     fn check_comptime_type_in_runtime_code(&mut self, typ: &Type, location: Location) {
         if let Type::Quoted(quoted) = typ {
-            let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
-            if in_function && !self.in_comptime_context() {
+            use DependencyId::*;
+            let in_function_or_global = matches!(self.current_item, Some(Function(_) | Global(_)));
+            if in_function_or_global && !self.in_comptime_context() {
                 let typ = quoted.to_string();
                 self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
             }
