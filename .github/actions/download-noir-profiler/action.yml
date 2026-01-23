@@ -1,0 +1,18 @@
+name: Download noir-profiler
+description: Downloads the noir-profiler binary from an artifact and adds it to the path
+
+runs:
+  using: composite
+  steps:
+    - name: Download noir-profiler binary
+      uses: actions/download-artifact@v4
+      with:
+        name: noir-profiler
+        path: ./noir-profiler
+
+    - name: Set noir-profiler on PATH
+      shell: bash
+      run: |
+        noir_binary="${{ github.workspace }}/noir-profiler/noir-profiler"
+        chmod +x $noir_binary
+        echo "$(dirname $noir_binary)" >> $GITHUB_PATH
