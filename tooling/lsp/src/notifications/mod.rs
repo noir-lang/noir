@@ -312,9 +312,8 @@ pub(crate) fn process_workspace_for_single_file_change(
     let mut def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
-    let errors =
+    let _errors =
         collect_defs(&mut def_collector, sorted_module, file_id, module_id, crate_id, &mut context);
-    dbg!(&errors);
 
     context.def_maps.insert(crate_id, def_collector.def_map);
 
@@ -332,7 +331,6 @@ pub(crate) fn process_workspace_for_single_file_change(
     elaborator.local_module = Some(module_id);
     elaborator.elaborate_items(items);
     elaborator.check_and_pop_function_context();
-    dbg!(&elaborator.errors);
 
     package_cache.node_interner = context.def_interner;
     package_cache.def_maps = context.def_maps;
