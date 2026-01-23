@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769203661456,
+  "lastUpdate": 1769204694682,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23216,48 +23216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6ef0e228bd649e8c43330354d704a6ec04dff225",
-          "message": "fix: better error messages on malformed Nargo.toml (#11240)",
-          "timestamp": "2026-01-16T15:37:50Z",
-          "tree_id": "fe7d5d6f8ffffa6b4de7e584a38642967379cd63",
-          "url": "https://github.com/noir-lang/noir/commit/6ef0e228bd649e8c43330354d704a6ec04dff225"
-        },
-        "date": 1768579176718,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256082,
-            "range": "± 621",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227799,
-            "range": "± 9880",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785965,
-            "range": "± 1433",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795154,
             "range": "± 1583",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "733f79c6c126108258976201e3082a741ca228d8",
+          "message": "fix: error on (trait) impl on unsupported type (#11304)",
+          "timestamp": "2026-01-23T21:23:00Z",
+          "tree_id": "8b24ee172bb065c9a28a08bcab70fa61ca98e275",
+          "url": "https://github.com/noir-lang/noir/commit/733f79c6c126108258976201e3082a741ca228d8"
+        },
+        "date": 1769204656855,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262935,
+            "range": "± 1224",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229119,
+            "range": "± 4425",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793724,
+            "range": "± 1887",
             "unit": "ns/iter"
           }
         ]
