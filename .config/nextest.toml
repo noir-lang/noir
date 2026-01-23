@@ -1,5 +1,7 @@
 # Default profile for local testing. Other profiles are layered on top.
 [profile.default]
+# TODO: WIP
+slow-timeout = "60s"
 
 [profile.ci]
 # Do not cancel the test run on the first failure.
