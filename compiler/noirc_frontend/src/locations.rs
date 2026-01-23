@@ -426,4 +426,9 @@ impl NodeInterner {
     pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<AutoImportEntry>> {
         &self.auto_import_names
     }
+
+    pub fn clear_file_locations(&mut self, file: FileId) {
+        self.id_to_location.retain(|_index, location| location.file != file);
+        self.location_indices.map_file_to_range.remove(&file);
+    }
 }

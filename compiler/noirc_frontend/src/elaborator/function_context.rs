@@ -105,7 +105,7 @@ impl Elaborator<'_> {
 
     /// Defaults all type variables used in this function context then solves
     /// all still-unsolved trait constraints in this context.
-    pub(super) fn check_and_pop_function_context(&mut self) {
+    pub fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.check_defaultable_type_variables(context.defaultable_type_variables);
         self.check_integer_literal_fit_their_type(context.integer_literal_expr_ids);

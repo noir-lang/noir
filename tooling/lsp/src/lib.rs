@@ -106,9 +106,6 @@ pub struct LspState {
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
-    /// Whenever a file in a workspace is changed we'll add it to this set.
-    workspaces_to_process: HashSet<PathBuf>,
-
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -143,7 +140,6 @@ impl LspState {
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }

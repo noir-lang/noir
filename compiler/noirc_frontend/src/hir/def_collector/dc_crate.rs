@@ -141,9 +141,9 @@ pub struct ModuleAttribute {
 
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
-    pub(crate) def_map: CrateDefMap,
+    pub def_map: CrateDefMap,
     pub(crate) imports: Vec<ImportDirective>,
-    pub(crate) items: CollectedItems,
+    pub items: CollectedItems,
 }
 
 #[derive(Default)]
