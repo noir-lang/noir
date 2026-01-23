@@ -572,7 +572,8 @@
 <a href="#571" id="571">571</a>
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -697,6 +698,7 @@
 <span class="doccomment">/// The default SSA optimization pipeline.
 </span><span class="kw">pub fn </span>primary_passes(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'_</span>&gt;&gt; {
     <span class="macro">vec!</span>[
+        SsaPass::new(Ssa::black_box_bypass, <span class="string">"black_box bypass"</span>),
         SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
         SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),

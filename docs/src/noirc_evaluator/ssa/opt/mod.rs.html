@@ -154,7 +154,8 @@
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -163,6 +164,7 @@
 </span><span class="kw">mod </span>array_set;
 <span class="kw">mod </span>as_vector_length;
 <span class="kw">mod </span>basic_conditional;
+<span class="kw">mod </span>black_box_bypass;
 <span class="kw">mod </span>brillig_array_get_and_set;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_entry_points;
 <span class="kw">mod </span>check_u128_mul_overflow;
