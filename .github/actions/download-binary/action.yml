@@ -1,5 +1,5 @@
-name: Download Executable
-description: Downloads an executable binary from an artifact and adds it to the path
+name: Download Binary
+description: Downloads a binary from an artifact and adds it to the path
 inputs:
   name:
     description: Name of the binary to download, e.g. 'nargo'

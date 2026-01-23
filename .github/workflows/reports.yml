@@ -158,7 +158,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./.github/actions/download-binary
         with:
           name: nargo
 
@@ -200,7 +200,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./.github/actions/download-binary
         with:
           name: nargo
 
@@ -254,7 +254,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./.github/actions/download-binary
         with:
           name: nargo
 
@@ -308,7 +308,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./.github/actions/download-binary
         with:
           name: nargo
 
@@ -354,7 +354,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           sparse-checkout: |
-            .github/actions/download-executable/action.yml
+            .github/actions/download-binary/action.yml
             scripts/gather_benchmark_data.sh
             scripts/process_benchmark_data.sh
           sparse-checkout-cone-mode: false
@@ -367,12 +367,12 @@ jobs:
           ref: ${{ matrix.ref }}
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
+        uses: ./.github/actions/download-binary
         with:
           name: nargo
 
       - name: Download noir-inspector binary
-        uses: ./.github/actions/download-executable
+        uses: ./.github/actions/download-binary
         with:
           name: noir-inspector
 
@@ -478,13 +478,13 @@ jobs:
           # Note that we are checking them out under `scripts`, including the github action.
           path: scripts
           sparse-checkout: |
-            .github/actions/download-executable/action.yml
+            .github/actions/download-binary/action.yml
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
 
       - name: Download nargo binary
-        uses: ./scripts/.github/actions/download-executable
+        uses: ./scripts/.github/actions/download-binary
         with:
           name: nargo
 
