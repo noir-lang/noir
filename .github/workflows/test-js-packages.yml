@@ -49,7 +49,7 @@ jobs:
         run: yarn --immutable
         shell: bash
 
-  build-executables:
+  build-binaries:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -292,7 +292,7 @@ jobs:
         run: yarn workspace @noir-lang/noirc_abi test:browser
 
   test-noir-js:
-    needs: [build-executables, build-acvm-js, build-noirc-abi]
+    needs: [build-binaries, build-acvm-js, build-noirc-abi]
     name: Noir JS
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -334,7 +334,7 @@ jobs:
           yarn workspace @noir-lang/noir_js test
 
   test-noir-wasm:
-    needs: [build-noir-wasm, build-executables]
+    needs: [build-noir-wasm, build-binaries]
     name: noir_wasm
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -374,7 +374,7 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm test:browser
 
   test-noir-codegen:
-    needs: [build-acvm-js, build-noirc-abi, build-executables]
+    needs: [build-acvm-js, build-noirc-abi, build-binaries]
     name: noir_codegen
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -419,7 +419,7 @@ jobs:
   test-integration-node:
     name: Integration Tests (Node)
     runs-on: ubuntu-24.04
-    needs: [build-acvm-js, build-noir-wasm, build-executables, build-noirc-abi]
+    needs: [build-acvm-js, build-noir-wasm, build-binaries, build-noirc-abi]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -527,7 +527,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       [
-        build-executables,
+        build-binaries,
         build-acvm-js,
         build-noirc-abi,
       ]
@@ -599,7 +599,7 @@ jobs:
         run: just run-examples
 
   external-repo-checks:
-    needs: [build-executables, critical-library-list]
+    needs: [build-binaries, critical-library-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -685,7 +685,7 @@ jobs:
 
   compile-noir-contracts:
     name: Compile `noir-contracts` zero inliner aggressiveness
-    needs: [build-executables]
+    needs: [build-binaries]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -767,7 +767,7 @@ jobs:
           max-items-in-chart: 50
 
   test-nargo-doc:
-    needs: [build-executables]
+    needs: [build-binaries]
     name: Nargo doc
     runs-on: ubuntu-22.04
     timeout-minutes: 30
