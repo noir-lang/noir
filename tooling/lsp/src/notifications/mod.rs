@@ -103,44 +103,10 @@ pub(super) fn on_did_save_text_document(
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
-    let _ = process_workspace(state, &workspace, false);
-
-    // Cached data should be here but, if it doesn't, we'll just type-check and output diagnostics
-    let (Some(workspace_cache), Some(package_cache)) = (
-        state.workspace_cache.get(&workspace.root_dir),
-        state.package_cache.get(&workspace.root_dir),
-    ) else {
-        let output_diagnostics = true;
-        return match process_workspace(state, &workspace, output_diagnostics) {
-            Ok(_) => ControlFlow::Continue(()),
-            Err(err) => return ControlFlow::Break(Err(err)),
-        };
-    };
-
-    // If the last thing the user did was to save a file in the workspace, it could be that
-    // the underlying files in the filesystem have changed (for example a `git checkout`),
-    // so here we force a type-check just in case.
-    if package_cache.diagnostics_just_published {
-        let output_diagnostics = true;
-        return match process_workspace(state, &workspace, output_diagnostics) {
-            Ok(_) => ControlFlow::Continue(()),
-            Err(err) => return ControlFlow::Break(Err(err)),
-        };
+    match process_workspace(state, &workspace) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
     }
-
-    // Otherwise, we can publish the diagnostics we computed in the last type-check
-    publish_diagnostics(
-        state,
-        &workspace.root_dir,
-        &workspace_cache.file_manager.clone(),
-        package_cache.diagnostics.clone(),
-    );
-
-    if let Some(package_cache) = state.package_cache.get_mut(&workspace.root_dir) {
-        package_cache.diagnostics_just_published = true;
-    }
-
-    ControlFlow::Continue(())
 }
 
 fn handle_text_document_notification(
@@ -154,8 +120,7 @@ fn handle_text_document_notification(
     } else {
         // If it's the first time we see this package, show diagnostics.
         // This can happen for example when a user opens a Noir file in a package for the first time.
-        let output_diagnostics = true;
-        process_workspace(state, &workspace, output_diagnostics)
+        process_workspace(state, &workspace)
     }
 }
 
@@ -171,8 +136,7 @@ fn handle_on_did_change_text_document_notification(
     } else {
         // If it's the first time we see this package, show diagnostics.
         // This can happen for example when a user opens a Noir file in a package for the first time.
-        let output_diagnostics = true;
-        process_workspace(state, &workspace, output_diagnostics)
+        process_workspace(state, &workspace)
     }
 }
 
@@ -200,7 +164,6 @@ pub(crate) fn workspace_from_document_uri(
 pub(crate) fn process_workspace(
     state: &mut LspState,
     workspace: &Workspace,
-    output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
     let mut workspace_file_manager = workspace.new_file_manager();
     if workspace.is_assumed {
@@ -242,16 +205,12 @@ pub(crate) fn process_workspace(
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
-                diagnostics: file_diagnostics.clone(),
-                diagnostics_just_published: output_diagnostics,
             },
         );
 
         let fm = &context.file_manager;
 
-        if output_diagnostics {
-            publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
-        }
+        publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
     }
 
     state.workspace_cache.insert(
