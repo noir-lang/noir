@@ -363,6 +363,7 @@ impl DefCollector {
         let crate_root = def_map.root();
         let def_collector = DefCollector::new(def_map);
 
+        let skip_module_declarations = false;
         Self::collect_defs_and_elaborate(
             ast,
             root_file_id,
@@ -371,6 +372,7 @@ impl DefCollector {
             context,
             def_collector,
             options,
+            skip_module_declarations,
             &mut errors,
         );
 
@@ -390,6 +392,7 @@ impl DefCollector {
         context: &mut Context,
         mut def_collector: DefCollector,
         options: FrontendOptions,
+        skip_module_declarations: bool,
         errors: &mut Vec<CompilationError>,
     ) {
         let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
@@ -408,6 +411,7 @@ impl DefCollector {
             local_module_id,
             crate_id,
             context,
+            skip_module_declarations,
         ));
 
         let submodules =

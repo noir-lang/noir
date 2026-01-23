@@ -59,15 +59,18 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    skip_module_declarations: bool,
 ) -> Vec<CompilationError> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<CompilationError> = vec![];
 
     // First resolve the module declarations
-    for decl in ast.module_decls {
-        errors.extend(
-            collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
-        );
+    if !skip_module_declarations {
+        for decl in ast.module_decls {
+            errors.extend(
+                collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
+            );
+        }
     }
 
     errors.extend(collector.collect_submodules(
@@ -782,6 +785,7 @@ impl ModCollector<'_> {
                 child.local_id,
                 crate_id,
                 context,
+                false, // don't skip module declarations
             ));
         }
         errors
@@ -876,6 +880,7 @@ impl ModCollector<'_> {
             child_mod_id.local_id,
             crate_id,
             context,
+            false, // don't skip module declarations
         ));
         errors
     }
