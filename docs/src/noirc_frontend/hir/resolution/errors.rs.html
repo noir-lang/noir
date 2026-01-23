@@ -969,7 +969,27 @@
 <a href="#968" id="968">968</a>
 <a href="#969" id="969">969</a>
 <a href="#970" id="970">970</a>
-<a href="#971" id="971">971</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1145,6 +1165,10 @@
     </span>NonIntegerGlobalUsedInPattern { location: Location },
     <span class="attr">#[error(<span class="string">"Cannot match on values of type `{typ}`"</span>)]
     </span>TypeUnsupportedInMatch { typ: Type, location: Location },
+    <span class="attr">#[error(<span class="string">"Cannot define a method on values of type `{typ}`"</span>)]
+    </span>TypeUnsupportedForMethod { typ: Type, location: Location },
+    <span class="attr">#[error(<span class="string">"Cannot define a trait impl on values of type `{typ}`"</span>)]
+    </span>TypeUnsupportedForTraitImpl { typ: Type, location: Location },
     <span class="attr">#[error(<span class="string">"Expected a struct, enum, or literal value in pattern, but found {item}"</span>)]
     </span>UnexpectedItemInPattern { location: Location, item: String },
     <span class="attr">#[error(<span class="string">"Trait `{trait_name}` doesn't have a method named `{method_name}`"</span>)]
@@ -1238,6 +1262,8 @@
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
+            | ResolverError::TypeUnsupportedForMethod { location, .. }
+            | ResolverError::TypeUnsupportedForTraitImpl { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
@@ -1782,6 +1808,20 @@
                     <span class="kw-2">*</span>location,
                 )
             },
+            ResolverError::TypeUnsupportedForMethod { typ, location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Cannot define a method on values of type `{typ}`"</span>),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
+            ResolverError::TypeUnsupportedForTraitImpl { typ, location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="macro">format!</span>(<span class="string">"Cannot define a trait impl on values of type `{typ}`"</span>),
+                    String::new(),
+                    <span class="kw-2">*</span>location,
+                )
+            }
             ResolverError::UnexpectedItemInPattern { item, location } =&gt; {
                 Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found {item}"</span>),

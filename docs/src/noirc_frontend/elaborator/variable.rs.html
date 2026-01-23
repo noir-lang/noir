@@ -675,12 +675,7 @@
 <a href="#674" id="674">674</a>
 <a href="#675" id="675">675</a>
 <a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a>
-<a href="#680" id="680">680</a>
-<a href="#681" id="681">681</a>
-<a href="#682" id="682">682</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#677" id="677">677</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -1205,11 +1200,8 @@
                 <span class="kw">let </span>trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 <span class="self">self</span>.interner.select_impl_for_expression(<span class="kw-2">**</span>expr_id, trait_impl);
             } <span class="kw">else </span>{
-                <span class="self">self</span>.push_trait_constraint(
-                    method.constraint,
-                    <span class="kw-2">**</span>expr_id,
-                    <span class="bool-val">true</span>, <span class="comment">// this constraint should lead to choosing a trait impl method
-                </span>);
+                <span class="comment">// this constraint should lead to choosing a trait impl method
+                </span><span class="self">self</span>.push_trait_constraint(method.constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">true</span>);
             }
         }
 
@@ -1250,10 +1242,8 @@
                 {
                     constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
 
-                    <span class="self">self</span>.push_trait_constraint(
-                        constraint, <span class="kw-2">**</span>expr_id,
-                        <span class="bool-val">false</span>, <span class="comment">// This constraint shouldn't lead to choosing a trait impl method
-                    </span>);
+                    <span class="comment">// This constraint shouldn't lead to choosing a trait impl method
+                    </span><span class="self">self</span>.push_trait_constraint(constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">false</span>);
                 }
             }
         }

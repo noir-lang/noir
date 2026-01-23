@@ -547,11 +547,50 @@
 <a href="#546" id="546">546</a>
 <a href="#547" id="547">547</a>
 <a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
-<span class="kw">use </span><span class="kw">crate</span>::Shared;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::pusher::{HasLocation, PushedExpr};
@@ -560,6 +599,7 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{FmtStrFragment, Tokens};
+<span class="kw">use crate</span>::{Shared, TypeBindings};
 
 <span class="kw">use </span><span class="kw">super</span>::stmt::HirPattern;
 <span class="kw">use </span><span class="kw">super</span>::traits::{ResolvedTraitBound, TraitConstraint};
@@ -846,7 +886,7 @@
                 assumed,
             }) =&gt; {
                 <span class="kw">let </span>constraint = TraitConstraint {
-                    typ: object_type,
+                    typ: <span class="self">Self</span>::find_self_type(definition, object_type, interner),
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
@@ -858,6 +898,46 @@
             .push_expr(HirExpression::Ident(func_var.clone(), generics))
             .push_location(interner, location);
         (func, func_var)
+    }
+
+    <span class="doccomment">/// Find what the trait's Self type should be to construct the trait constraint, given the type
+    /// of its first argument. Assuming this is a method call, it should be sufficient to expect
+    /// Self is somewhere within the first argument. Usually the first parameter is either `Self`
+    /// or `&amp;mut Self`.
+    ///
+    /// This defaults to `object_type` if there are any unexpected type errors (expected to be
+    /// issued elsewhere).
+    </span><span class="kw">fn </span>find_self_type(
+        definition: DefinitionId,
+        object_type: Type,
+        interner: <span class="kw-2">&amp;</span>NodeInterner,
+    ) -&gt; Type {
+        <span class="comment">// Get the function type, e.g: `fn(&amp;mut Self, i32) -&gt; Field`
+        </span><span class="kw">let </span>function_type = interner.definition_type(definition);
+
+        <span class="comment">// Instantiate, e.g: `fn(&amp;mut ?Self, A, B) -&gt; C`
+        </span><span class="kw">let </span>(instantiated, _bindings) = function_type.instantiate(interner);
+        <span class="kw">let </span>instantiated = instantiated.follow_bindings_shallow();
+
+        <span class="kw">let </span>first_parameter = <span class="kw">match </span>instantiated.as_ref() {
+            Type::Function(parameters, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) <span class="kw">if </span>!parameters.is_empty() =&gt; <span class="kw-2">&amp;</span>parameters[<span class="number">0</span>],
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span>object_type,
+        };
+
+        <span class="comment">// Match the first parameter, expected to be `?Self` or `&amp;mut ?Self` to our object type. If
+        // successful, we expect `bindings` to have a single binding of `?Self` to either our
+        // object type or its element type, if it is a reference. Note that unifying here also
+        // handles the case where `object_type` is unbound but is discovered (here) that it must at
+        // least be a reference.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+        <span class="kw">if </span>object_type.try_unify(first_parameter, <span class="kw-2">&amp;mut </span>bindings).is_ok() &amp;&amp; bindings.len() == <span class="number">1 </span>{
+            <span class="comment">// We're expecting `Self` or `&amp;mut Self`, where `Self` becomes a type variable after
+            // instantiation, so the value of `Self` for the constraint should be what it is bound
+            // to in `bindings`.
+            </span>bindings.into_values().next().unwrap().<span class="number">2
+        </span>} <span class="kw">else </span>{
+            object_type
+        }
     }
 }
 

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BindableTypeVariableKind"],"struct":["FunctionContext","RequiredTypeVariable"]};
+window.SIDEBAR_ITEMS = {"enum":["BindableTypeVariableKind"],"struct":["FunctionContext","LocalTraitConstraint","RequiredTypeVariable"]};

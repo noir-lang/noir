@@ -464,7 +464,11 @@
 <a href="#463" id="463">463</a>
 <a href="#464" id="464">464</a>
 <a href="#465" id="465">465</a>
-<a href="#466" id="466">466</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::collections::HashSet;
@@ -472,7 +476,10 @@
 <span class="kw">use crate</span>::{
     GenericTypeVars, Shared, Type, TypeBindings,
     graph::CrateId,
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
     node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
@@ -551,7 +558,7 @@
         impl_generics: GenericTypeVars,
         trait_impl: Shared&lt;TraitImpl&gt;,
         location: Location,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;(), Location&gt;, TypeCheckError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;(), Location&gt;, CompilationError&gt; {
         <span class="self">self</span>.trait_implementations.insert(impl_id, trait_impl.clone());
 
         <span class="comment">// Avoid adding error types to impls since they'll conflict with every other type.
@@ -561,7 +568,8 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::ExpectingOtherError {
                 message: <span class="string">"collect_trait_impl: missing trait type"</span>.to_string(),
                 location,
-            });
+            }
+            .into());
         }
 
         <span class="comment">// Replace each generic with a fresh type variable
@@ -611,7 +619,7 @@
 
         <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span>trait_impl.borrow().methods {
             <span class="kw">let </span>method_name = <span class="self">self</span>.function_name(method).to_owned();
-            <span class="self">self</span>.add_method(<span class="kw-2">&amp;</span>object_type, method_name, <span class="kw-2">*</span>method, <span class="prelude-val">Some</span>(trait_id));
+            <span class="self">self</span>.add_method(<span class="kw-2">&amp;</span>object_type, method_name, <span class="kw-2">*</span>method, <span class="prelude-val">Some</span>(trait_id))<span class="question-mark">?</span>;
         }
 
         <span class="comment">// The object type is generalized so that a generic impl will apply

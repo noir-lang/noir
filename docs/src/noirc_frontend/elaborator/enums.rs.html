@@ -1478,7 +1478,26 @@
 <a href="#1477" id="1477">1477</a>
 <a href="#1478" id="1478">1478</a>
 <a href="#1479" id="1479">1479</a>
-<a href="#1480" id="1480">1480</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a></pre></div><pre class="rust"><code><span class="doccomment">//! Enum definition collection and variant resolution.
 
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
@@ -1501,7 +1520,7 @@
     },
     hir::{
         comptime::Value,
-        def_collector::dc_crate::UnresolvedEnum,
+        def_collector::dc_crate::{CompilationError, UnresolvedEnum},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -1757,7 +1776,7 @@
         <span class="kw">let </span>datatype_ref = datatype.borrow();
         <span class="kw">let </span>location = variant.name.location();
 
-        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_empty_fn();
+        <span class="kw">let </span>method_id = <span class="self">self</span>.interner.push_empty_fn();
 
         <span class="kw">let </span>modifiers = FunctionModifiers {
             name: name_string.clone(),
@@ -1768,15 +1787,19 @@
             is_comptime: <span class="bool-val">false</span>,
             name_location: location,
         };
-        <span class="kw">let </span>definition_id =
-            <span class="self">self</span>.interner.push_function_definition(id, modifiers, type_id.module_id(), location);
+        <span class="kw">let </span>definition_id = <span class="self">self</span>.interner.push_function_definition(
+            method_id,
+            modifiers,
+            type_id.module_id(),
+            location,
+        );
 
         <span class="kw">let </span>hir_name = HirIdent::non_trait_method(definition_id, location);
         <span class="kw">let </span>parameters = <span class="self">self</span>.make_enum_variant_parameters(variant_arg_types, location);
 
         <span class="kw">let </span>body =
             <span class="self">self</span>.make_enum_variant_constructor(datatype, variant_index, <span class="kw-2">&amp;</span>parameters, location);
-        <span class="self">self</span>.interner.update_fn(id, HirFunction::unchecked_from_expr(body));
+        <span class="self">self</span>.interner.update_fn(method_id, HirFunction::unchecked_from_expr(body));
 
         <span class="kw">let </span>function_type =
             datatype_ref.variant_function_type_with_forall(variant_index, datatype.clone());
@@ -1809,12 +1832,27 @@
             self_type: <span class="prelude-val">None</span>,
         };
 
-        <span class="self">self</span>.interner.push_fn_meta(meta, id);
-        <span class="self">self</span>.interner.add_method(self_type, name_string, id, <span class="prelude-val">None</span>);
+        <span class="self">self</span>.interner.push_fn_meta(meta, method_id);
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, name_string, method_id, <span class="prelude-val">None</span>) {
+            <span class="kw">let </span>error = <span class="kw">if </span><span class="macro">matches!</span>(
+                error,
+                CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
+            ) {
+                <span class="comment">// Expecting a DefCollectorErrorKind::Duplicate error in this case
+                </span>TypeCheckError::ExpectingOtherError {
+                    message: <span class="string">"define_enum_variant_function: duplicate definition"</span>.to_string(),
+                    location,
+                }
+                .into()
+            } <span class="kw">else </span>{
+                error
+            };
+            <span class="self">self</span>.push_err(error);
+        }
 
         <span class="kw">let </span>name = variant.name.clone();
         <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, type_id.module_id())
-            .declare_function(name, enum_.visibility, id)
+            .declare_function(name, enum_.visibility, method_id)
             .ok();
     }
 

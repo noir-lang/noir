@@ -1554,7 +1554,20 @@
 <a href="#1553" id="1553">1553</a>
 <a href="#1554" id="1554">1554</a>
 <a href="#1555" id="1555">1555</a>
-<a href="#1556" id="1556">1556</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1573,8 +1586,9 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime;
-<span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{UnresolvedTrait, UnresolvedTypeAlias};
+<span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
+<span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::traits::NamedType;
 <span class="kw">use </span><span class="kw">crate</span>::locations::AutoImportEntry;
@@ -2555,23 +2569,35 @@
         method_name: String,
         method_id: FuncId,
         trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompilationError&gt; {
         <span class="kw">match </span>self_type {
-            Type::Error =&gt; <span class="prelude-val">None</span>,
+            Type::Error =&gt; <span class="prelude-val">Ok</span>(()),
             Type::Reference(element, _mutable) =&gt; {
                 <span class="self">self</span>.add_method(element, method_name, method_id, trait_id)
             }
             <span class="kw">_ </span>=&gt; {
-                <span class="kw">let </span>key = get_type_method_key(self_type).unwrap_or_else(|| {
-                    <span class="macro">unreachable!</span>(<span class="string">"Cannot add a method to the unsupported type '{}'"</span>, self_type)
-                });
+                <span class="kw">let </span><span class="prelude-val">Some</span>(key) = get_type_method_key(self_type) <span class="kw">else </span>{
+                    <span class="kw">let </span>location = <span class="self">self</span>.function_ident(<span class="kw-2">&amp;</span>method_id).location();
+                    <span class="kw">let </span>error = ResolverError::TypeUnsupportedForMethod {
+                        typ: self_type.clone(),
+                        location,
+                    };
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(error.into());
+                };
 
                 <span class="kw">if </span>trait_id.is_none() &amp;&amp; <span class="macro">matches!</span>(self_type, Type::DataType(..)) {
                     <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) =
                         <span class="self">self</span>.lookup_direct_method(self_type, <span class="kw-2">&amp;</span>method_name, check_self_param)
                     {
-                        <span class="kw">return </span><span class="prelude-val">Some</span>(existing);
+                        <span class="kw">let </span>first_location = <span class="self">self</span>.function_ident(<span class="kw-2">&amp;</span>existing).location();
+                        <span class="kw">let </span>second_location = <span class="self">self</span>.function_ident(<span class="kw-2">&amp;</span>method_id).location();
+                        <span class="kw">let </span>error = ResolverError::DuplicateDefinition {
+                            name: method_name,
+                            first_location,
+                            second_location,
+                        };
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(error.into());
                     }
                 }
 
@@ -2584,8 +2610,8 @@
                     .entry(method_name)
                     .or_default()
                     .add_method(method_id, typ, trait_id);
-                <span class="prelude-val">None
-            </span>}
+                <span class="prelude-val">Ok</span>(())
+            }
         }
     }
 
@@ -3057,7 +3083,7 @@
 
 <span class="doccomment">/// These are the primitive type variants that we support adding methods to
 </span><span class="attr">#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-</span><span class="kw">enum </span>TypeMethodKey {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TypeMethodKey {
     <span class="doccomment">/// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
     </span>FieldOrInt,
@@ -3074,7 +3100,7 @@
     Struct(TypeId),
 }
 
-<span class="kw">fn </span>get_type_method_key(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;TypeMethodKey&gt; {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type_method_key(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;TypeMethodKey&gt; {
     <span class="kw">use </span>TypeMethodKey::<span class="kw-2">*</span>;
     <span class="kw">let </span>typ = typ.follow_bindings();
     <span class="kw">match </span><span class="kw-2">&amp;</span>typ {

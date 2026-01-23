@@ -1750,7 +1750,8 @@
 <a href="#1749" id="1749">1749</a>
 <a href="#1750" id="1750">1750</a>
 <a href="#1751" id="1751">1751</a>
-<a href="#1752" id="1752">1752</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2531,6 +2532,7 @@
 
         <span class="kw">let </span>function_type = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id).typ.clone();
         <span class="self">self</span>.try_add_mutable_reference_to_object(<span class="kw-2">&amp;</span>function_type, <span class="kw-2">&amp;mut </span>object_type, <span class="kw-2">&amp;mut </span>object);
+
         <span class="kw">let </span>generics = method_call.generics;
         <span class="kw">let </span>generics = generics.map(|generics| {
             vecmap(generics, |generic| {

@@ -273,16 +273,102 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function-local context management for type variables and trait constraints.
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a></pre></div><pre class="rust"><code><span class="doccomment">//! Function-local context management for type variables and trait constraints.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    Kind, Type,
+    Kind, Type, TypeBindings,
     elaborator::lints::check_integer_literal_fits_its_type,
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{
+        comptime::Value,
+        type_check::{NoMatchingImplFoundError, TypeCheckError},
+    },
     hir_def::traits::TraitConstraint,
-    node_interner::{DefinitionKind, ExprId, GlobalValue, TypeId},
+    node_interner::{
+        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TypeId,
+    },
 };
 <span class="kw">use crate</span>::{TypeVariableId, node_interner::DefinitionId};
 
@@ -306,7 +392,7 @@
     /// the resulting trait impl should be the one used for a call (sometimes trait
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
-    </span>trait_constraints: Vec&lt;(TraitConstraint, ExprId, bool <span class="comment">/* select impl */</span>)&gt;,
+    </span>trait_constraints: Vec&lt;LocalTraitConstraint&gt;,
 
     <span class="doccomment">/// All ExprId in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
@@ -319,6 +405,20 @@
     typ: Type,
     kind: BindableTypeVariableKind,
     location: Location,
+}
+
+<span class="doccomment">/// A constraint local to the current [FunctionContext] to solve at the end of the context.
+</span><span class="kw">struct </span>LocalTraitConstraint {
+    constraint: TraitConstraint,
+
+    <span class="doccomment">/// The expression this constraint originated from. Used for its location in error messages,
+    /// and if `select_impl` is true, to be the expression the impl will replace during
+    /// monomorphization.
+    </span>expr: ExprId,
+
+    <span class="doccomment">/// True if a reference to some function in this constraint's trait should replace the
+    /// expression at `self.expr` during monomorphization.
+    </span>select_impl: bool,
 }
 
 <span class="doccomment">/// The kind of required type variable.
@@ -357,10 +457,14 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_trait_constraint(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constraint: TraitConstraint,
-        expr_id: ExprId,
+        expr: ExprId,
         select_impl: bool,
     ) {
-        <span class="self">self</span>.get_function_context_mut().trait_constraints.push((constraint, expr_id, select_impl));
+        <span class="self">self</span>.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
+            constraint,
+            expr,
+            select_impl,
+        });
     }
 
     <span class="doccomment">/// Push an `ExprId` that corresponds to an integer literal.
@@ -405,25 +509,83 @@
         }
     }
 
-    <span class="kw">fn </span>check_trait_constraints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_constraints: Vec&lt;(TraitConstraint, ExprId, bool)&gt;) {
-        <span class="kw">for </span>(<span class="kw-2">mut </span>constraint, expr_id, select_impl) <span class="kw">in </span>trait_constraints {
-            <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-
-            <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>constraint.typ, Type::Reference(..)) {
-                <span class="kw">let </span>(<span class="kw">_</span>, dereferenced_typ) =
-                    <span class="self">self</span>.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
+    <span class="kw">fn </span>check_trait_constraints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_constraints: Vec&lt;LocalTraitConstraint&gt;) {
+        <span class="kw">for </span>local <span class="kw">in </span>trait_constraints {
+            <span class="kw">match </span>local.constraint.find_impl(<span class="self">self</span>.interner) {
+                <span class="prelude-val">Ok</span>((impl_kind, instantiation_bindings)) =&gt; {
+                    <span class="kw">if </span>local.select_impl {
+                        <span class="self">self</span>.select_impl(local.expr, impl_kind, instantiation_bindings);
+                    }
+                }
+                <span class="prelude-val">Err</span>(error) =&gt; {
+                    <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>local.expr);
+                    <span class="self">self</span>.push_trait_constraint_error(<span class="kw-2">&amp;</span>local.constraint.typ, error, location);
+                }
             }
+        }
+    }
 
-            <span class="self">self</span>.verify_trait_constraint(
-                <span class="kw-2">&amp;</span>constraint.typ,
-                constraint.trait_bound.trait_id,
-                <span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.ordered,
-                <span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
+    <span class="kw">fn </span>select_impl(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        function_ident_id: ExprId,
+        impl_kind: TraitImplKind,
+        instantiation_bindings: TypeBindings,
+    ) {
+        <span class="comment">// Insert any additional instantiation bindings into this expression's
+        // instantiation bindings. We should avoid doing this if `select_impl` is
+        // not true since that means we're not solving for this expressions exact
+        // impl anyway. If we ignore this, we may rarely overwrite existing type
+        // bindings causing incorrect types. The `vector_regex` test is one example
+        // of that happening without this being behind `select_impl`.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = <span class="self">self</span>.interner.get_instantiation_bindings(function_ident_id).clone();
+
+        <span class="comment">// These can clash in the `vector_regex` test which causes us to insert
+        // incorrect type bindings if they override the previous bindings.
+        </span><span class="kw">for </span>(id, binding) <span class="kw">in </span>instantiation_bindings {
+            <span class="kw">let </span>existing = bindings.insert(id, binding.clone());
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, type_var, existing)) = existing {
+                <span class="kw">let </span>existing = existing.follow_bindings();
+                <span class="kw">let </span>new = binding.<span class="number">2</span>.follow_bindings();
+
+                <span class="comment">// Exact equality on types is intentional here, we never want to
+                // overwrite even type variables but should probably avoid a panic if
+                // the types are exactly the same.
+                </span><span class="kw">if </span>existing != new {
+                    <span class="macro">panic!</span>(
+                        <span class="string">"Overwriting an existing type binding with a different type!\n  {type_var:?} &lt;- {existing:?}\n  {type_var:?} &lt;- {new:?}"
+                    </span>);
+                }
+            }
+        }
+
+        <span class="self">self</span>.interner.store_instantiation_bindings(function_ident_id, bindings);
+        <span class="self">self</span>.interner.select_impl_for_expression(function_ident_id, impl_kind);
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_trait_constraint_error(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        object_type: <span class="kw-2">&amp;</span>Type,
+        error: ImplSearchErrorKind,
+        location: Location,
+    ) {
+        <span class="kw">match </span>error {
+            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType =&gt; {
+                <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
+            }
+            ImplSearchErrorKind::Nested(constraints) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(error) =
+                    NoMatchingImplFoundError::new(<span class="self">self</span>.interner, constraints, location)
+                {
+                    <span class="self">self</span>.push_err(TypeCheckError::NoMatchingImplFound(error));
+                }
+            }
+            ImplSearchErrorKind::MultipleMatching(candidates) =&gt; {
+                <span class="kw">let </span>object_type = object_type.clone();
+                <span class="kw">let </span>err =
+                    TypeCheckError::MultipleMatchingImpls { object_type, location, candidates };
+                <span class="self">self</span>.push_err(err);
+            }
         }
     }
 

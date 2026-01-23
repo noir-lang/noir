@@ -247,15 +247,7 @@
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="doccomment">//! Inherent type implementations collection and method declaration.
+<a href="#249" id="249">249</a></pre></div><pre class="rust"><code><span class="doccomment">//! Inherent type implementations collection and method declaration.
 //!
 //! This module handles the collection phase of impl blocks, where methods are declared
 //! and registered in their appropriate modules. This is distinct from elaboration, where
@@ -341,7 +333,6 @@
     hir::{
         def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
         def_map::LocalModuleId,
-        resolution::errors::ResolverError,
     },
     node_interner::{FuncId, TraitId},
 };
@@ -497,16 +488,9 @@
         <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
             <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(first_fn) =
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) =
                 <span class="self">self</span>.interner.add_method(self_type, method_name.clone(), <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>)
             {
-                <span class="kw">let </span>first_location = <span class="self">self</span>.interner.function_ident(<span class="kw-2">&amp;</span>first_fn).location();
-                <span class="kw">let </span>second_location = <span class="self">self</span>.interner.function_ident(method_id).location();
-                <span class="kw">let </span>error = ResolverError::DuplicateDefinition {
-                    name: method_name,
-                    first_location,
-                    second_location,
-                };
                 <span class="self">self</span>.push_err(error);
             }
         }

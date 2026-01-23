@@ -294,13 +294,29 @@
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ResolvedGeneric;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, NoirFunction};
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, NodeInterner};
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind};
 <span class="kw">use crate</span>::{
     ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -425,6 +441,22 @@
 
     <span class="kw">pub fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; String {
         interner.trait_constraint_string(
+            <span class="kw-2">&amp;</span><span class="self">self</span>.typ,
+            <span class="self">self</span>.trait_bound.trait_id,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.trait_bound.trait_generics.ordered,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.trait_bound.trait_generics.named,
+        )
+    }
+
+    <span class="doccomment">/// Looks up a trait implementation which satisifies this constraint and returns it.
+    ///
+    /// Note that if successful, any type bindings from the impl search will be automatically
+    /// applied.
+    </span><span class="kw">pub fn </span>find_impl(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        interner: <span class="kw-2">&amp;</span>NodeInterner,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TraitImplKind, TypeBindings), ImplSearchErrorKind&gt; {
+        interner.lookup_trait_implementation(
             <span class="kw-2">&amp;</span><span class="self">self</span>.typ,
             <span class="self">self</span>.trait_bound.trait_id,
             <span class="kw-2">&amp;</span><span class="self">self</span>.trait_bound.trait_generics.ordered,
