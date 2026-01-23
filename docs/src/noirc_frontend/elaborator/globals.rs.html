@@ -165,18 +165,7 @@
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
+<a href="#167" id="167">167</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
 //!
 //! ## Design
 //!
@@ -199,7 +188,6 @@
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
 
 </span><span class="kw">use crate</span>::{
-    Type,
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::stmt::HirStatement,
@@ -248,7 +236,6 @@
         </span>};
 
         <span class="kw">let </span>location = let_stmt.pattern.location();
-        <span class="kw">let </span>type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
         <span class="comment">// ABI attributes are only meaningful within contracts, so error if used elsewhere.
         </span><span class="kw">if </span>!<span class="self">self</span>.in_contract() {
@@ -267,21 +254,12 @@
             <span class="self">self</span>.push_err(ResolverError::MutableGlobal { location });
         }
 
-        <span class="comment">// Elaborate the let statement in a comptime context. This ensures that the expression
-        // is type-checked and converted to HIR.
-        </span><span class="kw">let </span>(let_statement, _typ) = <span class="self">self
-            </span>.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, <span class="prelude-val">Some</span>(global_id)));
+        <span class="kw">let </span>(let_statement, _typ) = <span class="self">self</span>.elaborate_let(let_stmt, <span class="prelude-val">Some</span>(global_id));
 
         <span class="comment">// References cannot be stored in globals because they would outlive their referents.
         // All data in globals must be owned.
         </span><span class="kw">if </span>let_statement.r#type.contains_reference() {
             <span class="self">self</span>.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
-        }
-
-        <span class="kw">if </span>!let_statement.comptime &amp;&amp; <span class="macro">matches!</span>(let_statement.r#type, Type::Quoted(<span class="kw">_</span>)) {
-            <span class="kw">let </span>typ = let_statement.r#type.to_string();
-            <span class="kw">let </span>location = type_location;
-            <span class="self">self</span>.push_err(ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location });
         }
 
         <span class="kw">let </span>let_statement = HirStatement::Let(let_statement);

@@ -3125,7 +3125,13 @@
 <a href="#3124" id="3124">3124</a>
 <a href="#3125" id="3125">3125</a>
 <a href="#3126" id="3126">3126</a>
-<a href="#3127" id="3127">3127</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3127" id="3127">3127</a>
+<a href="#3128" id="3128">3128</a>
+<a href="#3129" id="3129">3129</a>
+<a href="#3130" id="3130">3130</a>
+<a href="#3131" id="3131">3131</a>
+<a href="#3132" id="3132">3132</a>
+<a href="#3133" id="3133">3133</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3987,7 +3993,13 @@
             HirExpression::Lambda(lambda) =&gt; <span class="self">self</span>.lambda(lambda, expr)<span class="question-mark">?</span>,
 
             HirExpression::Error =&gt; <span class="macro">unreachable!</span>(<span class="string">"Encountered Error node during monomorphization"</span>),
-            HirExpression::Quote(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"quote expression remaining in runtime code"</span>),
+            HirExpression::Quote(<span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
+                <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ComptimeTypeInRuntimeCode {
+                    typ: <span class="string">"Quoted"</span>.to_string(),
+                    location,
+                });
+            }
             HirExpression::Unquote(<span class="kw">_</span>) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"unquote expression remaining in runtime code"</span>)
             }

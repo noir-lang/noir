@@ -2782,7 +2782,8 @@
 <a href="#2781" id="2781">2781</a>
 <a href="#2782" id="2782">2782</a>
 <a href="#2783" id="2783">2783</a>
-<a href="#2784" id="2784">2784</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2784" id="2784">2784</a>
+<a href="#2785" id="2785">2785</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3212,8 +3213,9 @@
     <span class="doccomment">/// Reports an error if `typ` is a comptime-only type and we are in runtime code.
     </span><span class="kw">fn </span>check_comptime_type_in_runtime_code(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, location: Location) {
         <span class="kw">if let </span>Type::Quoted(quoted) = typ {
-            <span class="kw">let </span>in_function = <span class="macro">matches!</span>(<span class="self">self</span>.current_item, <span class="prelude-val">Some</span>(DependencyId::Function(<span class="kw">_</span>)));
-            <span class="kw">if </span>in_function &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+            <span class="kw">use </span>DependencyId::<span class="kw-2">*</span>;
+            <span class="kw">let </span>in_function_or_global = <span class="macro">matches!</span>(<span class="self">self</span>.current_item, <span class="prelude-val">Some</span>(Function(<span class="kw">_</span>) | Global(<span class="kw">_</span>)));
+            <span class="kw">if </span>in_function_or_global &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
                 <span class="kw">let </span>typ = quoted.to_string();
                 <span class="self">self</span>.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
             }

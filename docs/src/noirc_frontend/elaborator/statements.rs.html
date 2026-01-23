@@ -686,7 +686,37 @@
 <a href="#685" id="685">685</a>
 <a href="#686" id="686">686</a>
 <a href="#687" id="687">687</a>
-<a href="#688" id="688">688</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a></pre></div><pre class="rust"><code><span class="doccomment">//! Statement elaboration including let bindings, assignments, and control flow.
 
 </span><span class="kw">use </span>noirc_errors::Location;
 
@@ -804,17 +834,41 @@
         let_stmt: LetStatement,
         global_id: <span class="prelude-ty">Option</span>&lt;GlobalId&gt;,
     ) -&gt; (HirLetStatement, Type) {
+        <span class="kw">let </span>previous_in_comptime_context = <span class="self">self</span>.in_comptime_context;
+
+        <span class="comment">// If this is a global we need to evaluate its type and value in a new function context.
+        // Also, if it's a comptime global we check the type in a comptime context (so Quoted
+        // and other comptime-only types are allowed).
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(global_id) = global_id {
+            <span class="self">self</span>.in_comptime_context = <span class="self">self</span>.interner.get_global_definition(global_id).comptime;
+            <span class="self">self</span>.push_function_context();
+        }
+
         <span class="kw">let </span>no_type = let_stmt.r#type.is_none();
         <span class="kw">let </span>wildcard_allowed = <span class="kw">if </span>global_id.is_some() {
             WildcardAllowed::No(WildcardDisallowedContext::Global)
         } <span class="kw">else </span>{
             WildcardAllowed::Yes
         };
+
         <span class="kw">let </span>annotated_type = <span class="self">self</span>.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
+
+        <span class="comment">// After resolving the type we'll elaborate the global's value. The value is interpreted
+        // at compile time, so we need to switch to a comptime context. For example using `Quoted`
+        // is allowed in global values, even in non-comptime globals, as long as these comptime-only
+        // values do not survive until runtime (if they do survive, the monomorphizer will catch this).
+        </span><span class="kw">if </span>global_id.is_some() {
+            <span class="self">self</span>.in_comptime_context = <span class="bool-val">true</span>;
+        }
 
         <span class="kw">let </span>pattern_location = let_stmt.pattern.location();
         <span class="kw">let </span>expr_location = let_stmt.expression.location;
-        <span class="kw">let </span>(expression, expr_type) = <span class="kw">if </span>no_type {
+
+        <span class="comment">// If this is a global, the global's value will be interpreted at compile time later on,
+        // which means the expression must be elaborated in a comptime context. For example
+        // Quoted and other comptime-only types are allowed here (though if they survive until
+        // runtime the monomorphizer will detect this).
+        </span><span class="kw">let </span>(expression, expr_type) = <span class="kw">if </span>no_type {
             <span class="self">self</span>.elaborate_expression(let_stmt.expression)
         } <span class="kw">else </span>{
             <span class="self">self</span>.elaborate_expression_with_target_type(let_stmt.expression, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>annotated_type))
@@ -870,6 +924,12 @@
         <span class="kw">let </span>is_global_let = let_stmt.is_global_let;
         <span class="kw">let </span>let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
+
+        <span class="kw">if </span>global_id.is_some() {
+            <span class="self">self</span>.check_and_pop_function_context();
+            <span class="self">self</span>.in_comptime_context = previous_in_comptime_context;
+        }
+
         (let_, Type::Unit)
     }
 
