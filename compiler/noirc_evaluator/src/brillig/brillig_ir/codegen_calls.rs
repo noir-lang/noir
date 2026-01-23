@@ -28,6 +28,34 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
 
+        // Ensure that writing call arguments won't overflow into heap memory.
+        //
+        // At compile time, we don't know the runtime stack_pointer position. The worst case
+        // is when we're in the last viable stack frame (last possible stack start in the `CheckMaxStackDepth` procedure).
+        // In that case, writing arguments could still overflow into the heap before the next `CheckMaxStackDepth` runs.
+        //
+        // Given that `CheckMaxStackDepth` ensures:
+        //   `stack_pointer < stack_start + max_stack_size - max_frame_size`
+        //
+        // Heap corruption occurs when:
+        //   `stack_pointer + stack_size + arguments_len >= stack_start + max_stack_size`
+        //
+        // Substituting worst case (`stack_pointer = stack_start + max_stack_size - max_frame_size`):
+        //   `(stack_start + max_stack_size - max_frame_size) + stack_size + arguments_len >= stack_start + max_stack_size`
+        //   `max_stack_size - max_frame_size + stack_size + arguments_len >= max_stack_size`
+        //   `stack_size + arguments_len >= max_frame_size`
+        //
+        // Therefore, to prevent heap corruption: `stack_size + arguments_len < max_frame_size`
+        //
+        // This is conservative (may reject programs that would work in the non-last viable frames),
+        // but is the only safe compile-time check without runtime pointers.
+        let max_frame_size = self.registers().layout().max_stack_frame_size();
+        let arguments_len = arguments.len();
+        assert!(
+            (stack_size as usize) + arguments_len < max_frame_size,
+            "Call arguments would exceed stack frame bounds: frame_size={stack_size}, arguments={arguments_len}, max={max_frame_size}",
+        );
+
         // Write the current stack size to a register, so we can add it to the stack pointer.
         self.const_instruction(*stack_size_register, stack_size.into());
 

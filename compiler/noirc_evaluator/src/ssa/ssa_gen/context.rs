@@ -39,6 +39,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// is the only part of the context that needs to be shared between threads.
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
+    pub(super) redefinitions_allowed: bool,
 
     pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,
@@ -94,6 +95,18 @@ pub(super) struct Loop {
     /// The loop index will be `Some` for a `for` and `None` for a `loop`
     pub(super) loop_index: Option<ValueId>,
     pub(super) loop_end: BasicBlockId,
+    /// A variable that tracks whether a `break` was hit or not:
+    /// `false` if a `break` was hit, `true` if not.
+    /// This is only `Some` in the case of an inclusive for loop which is
+    /// generated as an exclusive for loop with an extra iteration for the
+    /// end of the loop. This extra iteration is only done if no `break` was hit
+    /// in the exclusive iterations (and if `start <= end`).
+    /// We track the negated value because we execute the last iteration
+    /// if we did not hit a break, in the end being `did_not_hit_break && (start <= end)`.
+    /// If we tracked whether we hit a break or not, the condition to execute
+    /// the last iteration would be `(not hit_break) && (start <= end)`, which is larger
+    /// by one instruction.
+    pub(super) did_not_hit_break_var: Option<ValueId>,
 }
 
 /// The queue of functions remaining to compile
@@ -126,7 +139,13 @@ impl<'a> FunctionContext<'a> {
         builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
-        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
+        let mut this = Self {
+            definitions,
+            builder,
+            shared_context,
+            loops: Vec::new(),
+            redefinitions_allowed: false,
+        };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -555,7 +574,9 @@ impl<'a> FunctionContext<'a> {
     /// by calling self.lookup(id)
     pub(super) fn define(&mut self, id: LocalId, value: Values) {
         let existing = self.definitions.insert(id, value);
-        assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
+        if !self.redefinitions_allowed && existing.is_some() {
+            panic!("Variable {id:?} was defined twice in ssa-gen pass");
+        }
     }
 
     /// Looks up the value of a given local variable. Expects the variable to have

@@ -1883,6 +1883,19 @@ fn call_stack_is_cleared_between_entry_calls() {
 }
 
 #[test]
+fn allow_empty_zst_array() {
+    let src = r#"  
+acir(inline) fn main f0 {  
+  b0():  
+    v0 = make_array [] : [(); 3]  
+    return  
+}  
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let _ = ssa.interpret(vec![]).unwrap();
+}
+
+#[test]
 fn infinite_recursion() {
     let src = r#"
     acir(inline) predicate_pure fn main f0 {

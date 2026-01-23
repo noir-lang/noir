@@ -317,13 +317,14 @@ impl Elaborator<'_> {
             }
         }
 
+        let location = path.location;
+
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
+            self.check_comptime_type_in_runtime_code(&typ, location);
             return typ;
         }
-
-        let location = path.location;
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone(), mode) {
             let id = type_alias.borrow().id;
@@ -346,7 +347,6 @@ impl Elaborator<'_> {
             return Type::Alias(type_alias, args);
         }
 
-        let location = path.location;
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
             Ok(PathResolutionItem::Type(type_id)) => {
                 let data_type = self.get_type(type_id);
@@ -393,13 +393,7 @@ impl Elaborator<'_> {
                     location,
                     wildcard_allowed,
                 );
-                if let Type::Quoted(quoted) = typ {
-                    let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
-                    if in_function && !self.in_comptime_context() {
-                        let typ = quoted.to_string();
-                        self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-                    }
-                }
+                self.check_comptime_type_in_runtime_code(&typ, location);
                 typ
             }
             Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
@@ -427,6 +421,17 @@ impl Elaborator<'_> {
                 self.push_err(err);
 
                 Type::Error
+            }
+        }
+    }
+
+    /// Reports an error if `typ` is a comptime-only type and we are in runtime code.
+    fn check_comptime_type_in_runtime_code(&mut self, typ: &Type, location: Location) {
+        if let Type::Quoted(quoted) = typ {
+            let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
+            if in_function && !self.in_comptime_context() {
+                let typ = quoted.to_string();
+                self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
             }
         }
     }
@@ -985,6 +990,15 @@ impl Elaborator<'_> {
 
         if matches.len() == 1 {
             let method = matches.remove(0).0;
+
+            if path.segments[0].generics.is_some() {
+                let turbofish_location = path.segments[0].turbofish_location();
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: "generic parameter".to_string(),
+                    location: turbofish_location,
+                });
+            }
+
             return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
         }
 

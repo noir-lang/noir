@@ -245,8 +245,6 @@ pub struct NodeInterner {
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
-    pub(crate) pedantic_solving: bool,
-
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
@@ -489,7 +487,6 @@ impl Default for NodeInterner {
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
-            pedantic_solving: false,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -872,7 +869,7 @@ impl NodeInterner {
     ///
     /// Returns:
     /// * `Ok` if it was able to substitute the type, either because it's not an `impl Trait`
-    ///    or because the type of the body of the function is already known
+    ///   or because the type of the body of the function is already known
     /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
         let typ = self.definition_type(def_id);

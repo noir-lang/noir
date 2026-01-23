@@ -38,10 +38,10 @@ struct Context {
     inc_rcs: HashMap<Type, Vec<RcInstruction>>,
 }
 
-pub(crate) struct RcInstruction {
-    pub(crate) id: InstructionId,
-    pub(crate) array: ValueId,
-    pub(crate) possibly_mutated: bool,
+struct RcInstruction {
+    id: InstructionId,
+    array: ValueId,
+    possibly_mutated: bool,
 }
 
 impl Function {
@@ -133,7 +133,7 @@ impl Context {
 }
 
 /// Finds and pops the IncRc for the given array value if possible.
-pub(crate) fn pop_rc_for(
+fn pop_rc_for(
     value: ValueId,
     function: &Function,
     inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,

@@ -285,9 +285,6 @@ pub struct DebugProject {
 #[derive(Debug, Clone)]
 
 pub struct RunParams {
-    /// Use pedantic ACVM solving
-    pub pedantic_solving: bool,
-
     /// Option for configuring the source_code_printer
     /// This option only applies for the Repl interface
     pub raw_source_printing: Option<bool>,
@@ -1096,7 +1093,7 @@ mod tests {
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
@@ -1245,7 +1242,7 @@ mod tests {
 
     #[test]
     fn test_break_brillig_block_while_stepping_acir_opcodes() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
         let w_y = Witness(2);
@@ -1357,7 +1354,7 @@ mod tests {
 
     #[test]
     fn test_address_debug_location_mapping() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let brillig_one = BrilligBytecode {
             function_name: "one".to_string(),
             bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return],

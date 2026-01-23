@@ -48,6 +48,5 @@ fn hello_world_example() {
     #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("execute");
-    cmd.arg("--pedantic-solving");
     cmd.assert().success();
 }

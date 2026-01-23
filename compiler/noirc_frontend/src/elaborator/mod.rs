@@ -462,11 +462,6 @@ impl<'context> Elaborator<'context> {
         self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
-    /// True if we should use pedantic ACVM solving
-    pub fn pedantic_solving(&self) -> bool {
-        self.options.pedantic_solving
-    }
-
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
@@ -852,7 +847,6 @@ pub mod test_utils {
         let file_manager = FileManager::new(&PathBuf::new());
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
-        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
