@@ -95,9 +95,9 @@ pub enum RuntimeError {
     #[error("SSA validation failed: {message}")]
     SsaValidationError { message: String, call_stack: CallStack },
     #[error(
-        "The return value has {num_witnesses} witnesses which exceeds the limit of {max_witnesses}"
+        "The return value has {num_witnesses} elements which exceeds the limit of {max_witnesses}"
     )]
-    ReturnWitnessLimitExceeded { num_witnesses: usize, max_witnesses: usize, call_stack: CallStack },
+    ReturnLimitExceeded { num_witnesses: usize, max_witnesses: usize, call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -150,7 +150,7 @@ impl RuntimeError {
             | RuntimeError::RecursionLimit { call_stack, .. }
             | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
             | RuntimeError::SsaValidationError { call_stack, .. }
-            | RuntimeError::ReturnWitnessLimitExceeded { call_stack, .. } => call_stack,
+            | RuntimeError::ReturnLimitExceeded { call_stack, .. } => call_stack,
         }
     }
 }

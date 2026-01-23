@@ -32,13 +32,6 @@ use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::errors::{InternalError, RuntimeError};
 
-/// Maximum number of elements allowed for return values, or for some arrays.
-/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
-/// 2^24 = 16,777,216 witnesses.
-/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
-/// So this limit should not interfere with real use cases.
-pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
-
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -196,21 +189,7 @@ impl<'a> Context<'a> {
         self.acir_context.acir_ir.input_witnesses =
             self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
-        let num_return_witnesses =
-            self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
-
-        if num_return_witnesses > MAX_ELEMENTS {
-            let call_stack_id = match entry_block.unwrap_terminator() {
-                TerminatorInstruction::Return { call_stack, .. } => *call_stack,
-                _ => unreachable!("ICE: expected return terminator"),
-            };
-            let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
-            return Err(RuntimeError::ReturnWitnessLimitExceeded {
-                num_witnesses: num_return_witnesses,
-                max_witnesses: MAX_ELEMENTS,
-                call_stack,
-            });
-        }
+        let num_return_witnesses = dfg.get_num_return_witnesses(entry_block.unwrap_terminator())?;
 
         // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
         // layout for serializing those types as if they were being passed as inputs.
@@ -317,7 +296,7 @@ impl<'a> Context<'a> {
                 _ => unreachable!("ICE: expected return terminator"),
             };
             let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
-            return Err(RuntimeError::ReturnWitnessLimitExceeded {
+            return Err(RuntimeError::ReturnLimitExceeded {
                 num_witnesses: num_return_values,
                 max_witnesses: MAX_ELEMENTS,
                 call_stack,
@@ -619,26 +598,6 @@ impl<'a> Context<'a> {
         let [result_id] = dfg.instruction_result(instruction);
         let typ = dfg.type_of_value(result_id).unwrap_numeric();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
-    }
-
-    /// Converts an SSA terminator's return values into their ACIR representations
-    fn get_num_return_witnesses(
-        &self,
-        terminator: &TerminatorInstruction,
-        dfg: &DataFlowGraph,
-    ) -> usize {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values, .. } => return_values,
-            TerminatorInstruction::Unreachable { .. } => return 0,
-            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
-        };
-
-        return_values
-            .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations

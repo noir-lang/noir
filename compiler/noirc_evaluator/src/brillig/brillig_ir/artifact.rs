@@ -4,10 +4,10 @@ use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ErrorType;
-use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
-
 use super::procedures::ProcedureId;
+use crate::ErrorType;
+use crate::brillig::assert_usize;
+use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 /// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -19,6 +19,20 @@ pub(crate) enum BrilligParameter {
     /// A vector parameter or return value. Holds the type of a vector item.
     /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
     Vector(Vec<BrilligParameter>, SemanticLength),
+}
+
+impl BrilligParameter {
+    /// Computes the size of a parameter if it was flattened
+    pub(crate) fn flattened_size(&self) -> usize {
+        match self {
+            BrilligParameter::SingleAddr(_) => 1,
+            BrilligParameter::Array(item_types, item_count)
+            | BrilligParameter::Vector(item_types, item_count) => {
+                let item_size: usize = item_types.iter().map(|param| param.flattened_size()).sum();
+                assert_usize(item_count.0) * item_size
+            }
+        }
+    }
 }
 
 /// The result of compiling and linking brillig artifacts.

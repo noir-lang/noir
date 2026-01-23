@@ -7,7 +7,6 @@ use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
     artifact::{BrilligArtifact, BrilligParameter},
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
-    codegen_control_flow::flattened_size,
     debug_show::DebugToString,
     registers::Stack,
 };
@@ -154,7 +153,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
 
-            current_calldata_pointer += flattened_size(argument);
+            current_calldata_pointer += argument.flattened_size();
         }
 
         stack_start
@@ -308,7 +307,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         }
                     }
 
-                    source_offset += flattened_size(subitem);
+                    source_offset += subitem.flattened_size();
                 }
             }
         } else {
@@ -383,7 +382,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
             }
 
-            return_data_index += flattened_size(return_param);
+            return_data_index += return_param.flattened_size();
         }
 
         let return_pointer = self.make_usize_constant_instruction(return_data_offset.into());

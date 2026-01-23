@@ -19,13 +19,11 @@ use super::{
     brillig_ir::{
         BrilligContext,
         artifact::{BrilligParameter, GeneratedBrillig},
-        codegen_control_flow::flattened_size,
     },
 };
 use crate::{
-    acir::MAX_ELEMENTS,
     errors::{InternalError, RuntimeError},
-    ssa::ir::{function::Function, instruction::TerminatorInstruction},
+    ssa::ir::function::Function,
 };
 
 /// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
@@ -57,20 +55,8 @@ pub(crate) fn gen_brillig_for(
     // Check if the return value size exceeds the limit before generating the entry point.
     // This is done early to avoid the expensive entry point codegen which iterates over
     // each element in the return arrays.
-    let num_return_witnesses: usize = return_parameters.iter().map(flattened_size).sum();
-    if num_return_witnesses > MAX_ELEMENTS {
-        let entry_block = &func.dfg[func.entry_block()];
-        let call_stack_id = match entry_block.unwrap_terminator() {
-            TerminatorInstruction::Return { call_stack, .. } => *call_stack,
-            _ => unreachable!("ICE: expected return terminator"),
-        };
-        let call_stack = func.dfg.call_stack_data.get_call_stack(call_stack_id);
-        return Err(RuntimeError::ReturnWitnessLimitExceeded {
-            num_witnesses: num_return_witnesses,
-            max_witnesses: MAX_ELEMENTS,
-            call_stack,
-        });
-    }
+    let entry_block = &func.dfg[func.entry_block()];
+    func.dfg.get_num_return_witnesses(entry_block.unwrap_terminator())?;
 
     // Create the entry point artifact
     let globals_memory_size = brillig

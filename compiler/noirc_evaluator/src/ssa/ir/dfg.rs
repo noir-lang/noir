@@ -3,6 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     brillig::assert_u32,
     ssa::{
+        RuntimeError,
         function_builder::data_bus::DataBus,
         ir::instruction::ArrayOffset,
         opt::pure::{FunctionPurities, Purity},
@@ -165,6 +166,13 @@ impl From<GlobalsGraph> for DataFlowGraph {
         }
     }
 }
+
+/// Maximum number of elements allowed for return values, or for some arrays.
+/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
+/// 2^24 = 16,777,216 witnesses.
+/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
+/// So this limit should not interfere with real use cases.
+pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -852,6 +860,38 @@ impl DataFlowGraph {
         };
         let results = self.instruction_results(instruction_id);
         results.contains(&return_data)
+    }
+
+    /// Computes the number of flattened values returned by the SSA terminator
+    /// Error if it exceeds MAX_ELEMENTS
+    pub(crate) fn get_num_return_witnesses(
+        &self,
+        terminator: &TerminatorInstruction,
+    ) -> Result<usize, RuntimeError> {
+        let (return_values, call_stack) = match terminator {
+            TerminatorInstruction::Return { return_values, call_stack } => {
+                (return_values, call_stack)
+            }
+            TerminatorInstruction::Unreachable { .. } => return Ok(0),
+            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
+            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
+                unreachable!("ICE: Program must have a singular return")
+            }
+        };
+
+        let num_return_witnesses = return_values.iter().fold(0, |acc, value_id| {
+            acc + self.type_of_value(*value_id).flattened_size().to_usize()
+        });
+
+        if num_return_witnesses > MAX_ELEMENTS {
+            let call_stack = self.call_stack_data.get_call_stack(*call_stack);
+            return Err(RuntimeError::ReturnLimitExceeded {
+                num_witnesses: num_return_witnesses,
+                max_witnesses: MAX_ELEMENTS,
+                call_stack,
+            });
+        }
+        Ok(num_return_witnesses)
     }
 }
 
