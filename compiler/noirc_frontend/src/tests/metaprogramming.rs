@@ -1185,3 +1185,40 @@ fn unify_comptime_block_statement_with_target_type() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_explicit_self() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+                              ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                              ~~~~ Comptime-only type used here
+                     ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                     ~~~~ Comptime-only type used here
+            self
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
+    let src = r#"
+    trait Trait {
+        fn foo(self);
+    }
+
+    impl Trait for Quoted {
+        fn foo(self) {
+               ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+               ~~~~ Comptime-only type used here
+        }
+    }
+    "#;
+    check_errors(src);
+}
