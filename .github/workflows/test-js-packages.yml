@@ -304,7 +304,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Download artifact
         uses: actions/download-artifact@v7
@@ -353,7 +355,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
@@ -382,7 +386,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v7
@@ -429,7 +435,9 @@ jobs:
           sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v7
@@ -551,7 +559,9 @@ jobs:
           sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Download noir-execute binary
         uses: ./.github/actions/download-executable
@@ -622,7 +632,9 @@ jobs:
           ref: ${{ matrix.ref }}
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Generate paths
         id: test_report_name
@@ -692,7 +704,9 @@ jobs:
           path: test-repo
 
       - name: Download nargo binary
-        uses: ./noir-repo/.github/actions/download-nargo
+        uses: ./noir-repo/.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: Remove requirements on compiler version
         working-directory: ./test-repo
@@ -765,7 +779,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-executable
+        with:
+          name: nargo
 
       - name: nargo doc on stdlib
         working-directory: ./noir_stdlib
