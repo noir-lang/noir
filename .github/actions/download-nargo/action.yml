@@ -1,0 +1,10 @@
+# Convenience action, because nargo is the most downloaded binary.
+name: Download Nargo
+description: Downloads the 'nargo' executable binary from an artifact and adds it to the path
+runs:
+  using: composite
+  steps:
+    - name: Download nargo binary
+      uses: ../download-executable
+      with:
+        name: nargo

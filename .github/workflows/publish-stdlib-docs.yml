@@ -50,9 +50,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-executable
-        with:
-          name: nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Run `integration-tests`
         working-directory: ./noir_stdlib
