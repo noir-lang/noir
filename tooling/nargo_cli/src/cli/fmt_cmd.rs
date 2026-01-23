@@ -49,7 +49,7 @@ pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliEr
 
     for package in &workspace {
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
-            let file_id = workspace_file_manager.name_to_id(entry.path().to_path_buf()).expect("The file should exist since we added all files in the package into the file manager");
+            let file_id = workspace_file_manager.name_to_id(entry.path()).expect("The file should exist since we added all files in the package into the file manager");
 
             let (parsed_module, errors) = parse_file(&workspace_file_manager, file_id);
 
