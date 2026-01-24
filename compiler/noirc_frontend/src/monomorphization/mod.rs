@@ -860,7 +860,13 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
-            HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
+            HirExpression::Quote(_) => {
+                let location = self.interner.expr_location(&expr);
+                return Err(MonomorphizationError::ComptimeTypeInRuntimeCode {
+                    typ: "Quoted".to_string(),
+                    location,
+                });
+            }
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")
             }

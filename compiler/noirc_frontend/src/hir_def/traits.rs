@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::node_interner::{DefinitionId, NodeInterner};
+use crate::node_interner::{DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind};
 use crate::{
     ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -129,6 +129,22 @@ impl TraitConstraint {
 
     pub fn to_string(&self, interner: &NodeInterner) -> String {
         interner.trait_constraint_string(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
+    }
+
+    /// Looks up a trait implementation which satisifies this constraint and returns it.
+    ///
+    /// Note that if successful, any type bindings from the impl search will be automatically
+    /// applied.
+    pub fn find_impl(
+        &self,
+        interner: &NodeInterner,
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        interner.lookup_trait_implementation(
             &self.typ,
             self.trait_bound.trait_id,
             &self.trait_bound.trait_generics.ordered,

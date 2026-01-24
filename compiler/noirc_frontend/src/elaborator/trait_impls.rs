@@ -22,7 +22,7 @@ use crate::{
     Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, get_type_method_key},
 };
 
 use iter_extended::vecmap;
@@ -81,6 +81,21 @@ impl Elaborator<'_> {
                 is_alias,
                 location: self_type_location,
             });
+        } else if get_type_method_key(&self_type).is_none() {
+            let error: CompilationError = if self_type == Type::Error {
+                TypeCheckError::ExpectingOtherError {
+                    message: "collect_trait_impl: missing trait type".to_string(),
+                    location: self_type_location,
+                }
+                .into()
+            } else {
+                ResolverError::TypeUnsupportedForTraitImpl {
+                    typ: self_type.clone(),
+                    location: self_type_location,
+                }
+                .into()
+            };
+            self.push_err(error);
         }
 
         self.check_generics_appear_in_types(
