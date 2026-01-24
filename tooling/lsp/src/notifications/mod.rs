@@ -223,6 +223,15 @@ pub(crate) fn process_workspace(
 
 /// Type-checks a single file that changed by using existing cached data for the workspace/package,
 /// such as the cached NodeInterner, CrateGraph and DefMaps.
+///
+/// This greatly improves the responsiveness of the LSP server when editing files. However,
+/// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
+/// from the code, it will still existing in the cached data and it will still be offered as
+/// autocompletion. Or for example if the compiler refuses to re-process a trait because
+/// it's already defined, new methods defined on that trait won't be available for autocompletion.
+/// However, this is solved when the file is saved as the entire package is re-processed then.
+/// We think this is an acceptable trade-off to improve responsiveness, and it could eventually
+/// be further improved.
 pub(crate) fn process_workspace_for_single_file_change(
     state: &mut LspState,
     workspace: &Workspace,
@@ -237,9 +246,12 @@ pub(crate) fn process_workspace_for_single_file_change(
     let file_map = file_manager.as_file_map();
     let file_path = uri_to_file_path(&file_uri)?;
 
+    // We need to replace the file's source in the file manager
     let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
     file_manager.replace_file(file_id, file_source.to_string());
 
+    // Clear some locations associated with this file. For example, locations associated
+    // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
     let mut node_interner = package_cache.node_interner;
     node_interner.clear_file_locations(file_id);
 
@@ -247,13 +259,17 @@ pub(crate) fn process_workspace_for_single_file_change(
     let crate_graph = package_cache.crate_graph;
 
     let crate_id = package_cache.crate_id;
+
+    // Get a hold of the CrateDefMap for this crate, by removing it.
+    // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
     let crate_def_map = def_maps.remove(&crate_id).unwrap();
 
+    // Parse the program and add it to the parsed files
     let (parsed_program, errors) = parse_program(file_source, file_id);
-
     let mut parsed_files = parse_diff(&file_manager, state);
     parsed_files.insert(file_id, (parsed_program.clone(), errors));
 
+    // Prepare some things to create a Context
     let sorted_module = parsed_program.into_sorted();
     let module_index = crate_def_map
         .modules()
@@ -265,8 +281,6 @@ pub(crate) fn process_workspace_for_single_file_change(
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
-
-    let mut errors = Vec::new();
 
     // Here we enable all options because we won't show errors to users, so it's easier to
     // assume all unstable features are enabled.
@@ -280,7 +294,9 @@ pub(crate) fn process_workspace_for_single_file_change(
         disable_required_unstable_features: false,
     };
 
+    // This is when the type-checking of this single file happens
     let shallow = true;
+    let mut errors = Vec::new();
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
         file_id,
@@ -293,6 +309,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         &mut errors,
     );
 
+    // Put some things back before restoring the cached data
     package_cache.node_interner = context.def_interner;
     package_cache.def_maps = context.def_maps;
     package_cache.crate_graph = context.crate_graph;

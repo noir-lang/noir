@@ -427,6 +427,12 @@ impl NodeInterner {
         &self.auto_import_names
     }
 
+    /// Clears all location data associated with a given file.
+    /// Note that this only clears locations in `id_to_location` and `location_indices`.
+    /// For example, items that exist in the given `file` will still be present after
+    /// this call.
+    /// This is only used by LSP when a single file is changed, when just that file
+    /// is type-checked again.
     pub fn clear_file_locations(&mut self, file: FileId) {
         self.id_to_location.retain(|_index, location| location.file != file);
         self.location_indices.map_file_to_range.remove(&file);
