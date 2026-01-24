@@ -782,6 +782,7 @@ impl ModCollector<'_> {
                 context.def_interner.set_doc_comments(ReferenceId::Module(child), doc_comments);
             }
 
+            let shallow = false;
             errors.extend(collect_defs(
                 self.def_collector,
                 submodule.contents,
@@ -789,7 +790,7 @@ impl ModCollector<'_> {
                 child.local_id,
                 crate_id,
                 context,
-                false, // don't skip module declarations
+                shallow,
             ));
         }
         errors
@@ -877,6 +878,7 @@ impl ModCollector<'_> {
             context.def_interner.set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
         }
 
+        let shallow = false;
         errors.extend(collect_defs(
             self.def_collector,
             ast,
@@ -884,7 +886,7 @@ impl ModCollector<'_> {
             child_mod_id.local_id,
             crate_id,
             context,
-            false, // don't skip module declarations
+            shallow,
         ));
         errors
     }
