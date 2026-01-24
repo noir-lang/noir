@@ -217,7 +217,7 @@ fn test_lens(
         arguments: Some(
             [
                 package_selection_args(workspace, package),
-                vec!["--exact".into(), "--show-output".into(), func_name.into()],
+                vec!["--exact".into(), func_name.into(), "--show-output".into()],
             ]
             .concat(),
         ),
@@ -240,4 +240,126 @@ fn debug_test_lens(
         ),
     };
     CodeLens { range, command: Some(debug_test_command), data: None }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use async_lsp::lsp_types::{
+        CodeLensParams, DidOpenTextDocumentParams, PartialResultParams, TextDocumentIdentifier,
+        TextDocumentItem, WorkDoneProgressParams,
+    };
+    use iter_extended::vecmap;
+    use serde_json::Value;
+    use tokio::test;
+
+    use crate::{
+        notifications::on_did_open_text_document, requests::on_code_lens_request, test_utils,
+        types::CodeLensResult,
+    };
+
+    async fn get_code_lens(src: &str, directory: &str) -> CodeLensResult {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
+
+        let _ = on_did_open_text_document(
+            &mut state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: "noir".to_string(),
+                    version: 0,
+                    text: src.to_string(),
+                },
+            },
+        );
+
+        on_code_lens_request(
+            &mut state,
+            CodeLensParams {
+                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                partial_result_params: PartialResultParams { partial_result_token: None },
+            },
+        )
+        .await
+        .expect("Could not execute on_code_lens_request")
+    }
+
+    #[test]
+    async fn test_no_code_lens() {
+        let src = r#"
+        fn foo() {}
+        "#;
+
+        let code_lens = get_code_lens(src, "document_symbol").await;
+        assert!(code_lens.is_none());
+    }
+
+    #[test]
+    async fn test_main_code_lens() {
+        let src = r#"fn main() {}"#;
+
+        let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
+        assert_eq!(code_lens.len(), 4);
+
+        for lens in &code_lens {
+            assert_eq!(lens.range.start.line, 0);
+            assert_eq!(lens.range.end.line, 0);
+            assert_eq!(
+                &src[lens.range.start.character as usize..lens.range.end.character as usize],
+                "main"
+            );
+        }
+
+        let mut titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        assert_eq!(titles, vec!["Debug", "Execute", "Info", "▶\u{fe0e} Compile"]);
+    }
+
+    #[test]
+    async fn test_test_code_lens() {
+        let src = r#"mod moo { #[test] fn some_test() {} }"#;
+
+        let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
+        assert_eq!(code_lens.len(), 2);
+
+        for lens in &code_lens {
+            assert_eq!(lens.range.start.line, 0);
+            assert_eq!(lens.range.end.line, 0);
+            assert_eq!(
+                &src[lens.range.start.character as usize..lens.range.end.character as usize],
+                "some_test"
+            );
+            let arguments = lens.command.as_ref().unwrap().arguments.as_ref().unwrap();
+            assert!(arguments.contains(&Value::String("moo::some_test".into())));
+        }
+
+        let mut titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        assert_eq!(titles, vec!["▶\u{fe0e} Run Test", "⚙ Debug test"]);
+    }
+
+    #[test]
+    async fn test_contract_code_lens() {
+        let src = r#"contract SomeContract {}"#;
+
+        let code_lens = get_code_lens(src, "test_contract").await.unwrap();
+        assert_eq!(code_lens.len(), 2);
+
+        for lens in &code_lens {
+            assert_eq!(lens.range.start.line, 0);
+            assert_eq!(lens.range.end.line, 0);
+            assert_eq!(
+                &src[lens.range.start.character as usize..lens.range.end.character as usize],
+                "SomeContract"
+            );
+        }
+
+        let mut titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        assert_eq!(titles, vec!["Info", "▶\u{fe0e} Compile"]);
+    }
 }
