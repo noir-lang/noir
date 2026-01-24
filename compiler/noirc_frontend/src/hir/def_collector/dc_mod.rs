@@ -52,6 +52,10 @@ struct ModCollector<'a> {
 /// Walk a module and collect its definitions.
 ///
 /// This performs the entirety of the definition collection phase of the name resolution pass.
+///
+/// If `shallow` is true, module declarations like `mod some_module;` will not
+/// be collected. This is only useful for LSP where it's faster to skip these
+/// declarations when there's a change on a single file.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,

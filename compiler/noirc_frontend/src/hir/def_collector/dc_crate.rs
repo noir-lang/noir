@@ -384,6 +384,18 @@ impl DefCollector {
         errors
     }
 
+    /// This method does several things:
+    ///
+    /// 1. Collects definitions in the given module
+    /// 2. Injects the prelude in the collected modules
+    /// 3. Processes all of the imports collected during definition collection
+    /// 4. Elaborates all of the collected items
+    ///
+    /// Any errors are appended to `errors`.
+    ///
+    /// If `shallow` is true, module declarations like `mod some_module;` will not
+    /// be collected. This is only useful for LSP where it's faster to skip these
+    /// declarations when there's a change on a single file.
     #[allow(clippy::too_many_arguments)]
     pub fn collect_defs_and_elaborate(
         ast: SortedModule,
