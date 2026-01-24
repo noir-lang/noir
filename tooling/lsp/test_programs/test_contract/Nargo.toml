@@ -1,5 +1,5 @@
 [package]
-name = "document_symbol"
+name = "test_contract"
 type = "contract"
 authors = [""]
 
