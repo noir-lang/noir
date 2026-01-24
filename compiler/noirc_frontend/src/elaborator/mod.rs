@@ -113,7 +113,7 @@ mod visibility;
 
 use function_context::FunctionContext;
 use noirc_errors::Location;
-pub use options::ElaboratorOptions;
+pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
 use path_resolution::{
@@ -174,7 +174,7 @@ pub struct Loop {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub errors: Vec<CompilationError>,
+    pub(crate) errors: Vec<CompilationError>,
 
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
@@ -246,7 +246,7 @@ pub struct Elaborator<'context> {
 
     /// The current module this elaborator is in.
     /// Initially None, it is set whenever a new top-level item is resolved.
-    pub local_module: Option<LocalModuleId>,
+    local_module: Option<LocalModuleId>,
 
     /// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
@@ -402,7 +402,7 @@ impl<'context> Elaborator<'context> {
         this
     }
 
-    pub fn elaborate_items(&mut self, mut items: CollectedItems) {
+    pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         self.set_unresolved_globals_ordering(items.globals);
 
         for (alias_id, alias) in items.type_aliases {
