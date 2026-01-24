@@ -4,7 +4,7 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
-use crate::requests::file_path_to_file_id;
+use crate::requests::{file_path_to_file_id, uri_to_file_path};
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
@@ -221,6 +221,8 @@ pub(crate) fn process_workspace(
     Ok(())
 }
 
+/// Type-checks a single file that changed by using existing cached data for the workspace/package,
+/// such as the cached NodeInterner, CrateGraph and DefMaps.
 pub(crate) fn process_workspace_for_single_file_change(
     state: &mut LspState,
     workspace: &Workspace,
@@ -233,14 +235,7 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     let mut file_manager = workspace_cache.file_manager;
     let file_map = file_manager.as_file_map();
-    // TODO: duplicate logic in process_request
-    let file_path = if file_uri.scheme() == "noir-std" {
-        PathBuf::from_str(&format!("{}{}", file_uri.host().unwrap(), file_uri.path())).unwrap()
-    } else {
-        file_uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?
-    };
+    let file_path = uri_to_file_path(&file_uri)?;
 
     let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
     file_manager.replace_file(file_id, file_source.to_string());

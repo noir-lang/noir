@@ -600,19 +600,11 @@ where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
     let uri = text_document_position_params.text_document.uri.clone();
-
-    let (file_path, workspace) = if uri.scheme() == "noir-std" {
-        let workspace = fake_stdlib_workspace();
-        let file_path =
-            PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap();
-        (file_path, workspace)
+    let file_path = uri_to_file_path(&uri)?;
+    let workspace = if uri.scheme() == "noir-std" {
+        fake_stdlib_workspace()
     } else {
-        let file_path = uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-        let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-        (file_path, workspace)
+        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
     };
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
@@ -727,6 +719,16 @@ where
         def_maps,
         usage_tracker,
     }))
+}
+
+pub(crate) fn uri_to_file_path(uri: &Url) -> Result<PathBuf, ResponseError> {
+    if uri.scheme() == "noir-std" {
+        Ok(PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap())
+    } else {
+        uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })
+    }
 }
 
 pub(crate) fn find_all_references_in_workspace(
