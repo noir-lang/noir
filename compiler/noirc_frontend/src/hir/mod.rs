@@ -113,6 +113,8 @@ impl Context<'_, '_> {
         }
     }
 
+    /// Creates a Context from some existing components.
+    /// This is only used by LSP when a file is type-checked after it has been modified.
     pub fn from_existing<'file_manager, 'parsed_files>(
         file_manager: &'file_manager FileManager,
         parsed_files: &'parsed_files ParsedFiles,
