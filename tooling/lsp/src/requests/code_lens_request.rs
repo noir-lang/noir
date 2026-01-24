@@ -5,16 +5,16 @@ use async_lsp::{
     lsp_types::{Position, TextDocumentPositionParams},
 };
 
-use fm::{FileId, FileMap, PathString};
+use fm::{FileMap, PathString};
 use nargo::{package::Package, workspace::Workspace};
-use noirc_driver::CrateId;
+use noirc_errors::Span;
 use noirc_frontend::{
-    hir::{
-        FunctionNameMatch,
-        def_map::{DefMaps, ModuleId},
-        get_all_test_functions_in_crate_matching,
-    },
-    node_interner::NodeInterner,
+    ParsedModule,
+    ast::{NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
+    graph::CrateGraph,
+    hir::def_map::{DefMaps, ModuleId, fully_qualified_module_path},
+    node_interner::{NodeInterner, ReferenceId},
+    parser::ParsedSubModule,
 };
 
 use crate::{
@@ -72,13 +72,17 @@ fn on_code_lens_request_inner(
     };
     process_request(state, text_document_position_params, |args| {
         let file_id = args.files.get_file_id(&PathString::from_path(file_path))?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+
         let collected_lenses = collect_lenses_for_file(
-            file_id,
+            parsed_module,
             args.workspace,
             args.package,
-            args.crate_id,
             args.interner,
             args.def_maps,
+            args.crate_graph,
             args.files,
         );
         if collected_lenses.is_empty() { None } else { Some(collected_lenses) }
@@ -86,71 +90,113 @@ fn on_code_lens_request_inner(
 }
 
 pub(crate) fn collect_lenses_for_file(
-    current_file: FileId,
+    parsed_module: ParsedModule,
     workspace: &Workspace,
     package: &Package,
-    crate_id: CrateId,
     interner: &NodeInterner,
     def_maps: &DefMaps,
+    crate_graph: &CrateGraph,
     files: &FileMap,
 ) -> Vec<CodeLens> {
-    let mut lenses: Vec<CodeLens> = vec![];
-
-    let tests = get_all_test_functions_in_crate_matching(
-        crate_id,
-        &FunctionNameMatch::Anything,
+    let mut visitor = CodeLensVisitor {
+        workspace,
+        package,
         interner,
         def_maps,
-    );
-    for (func_name, test_function) in tests {
-        let location = interner.function_meta(&test_function.id).name.location;
-        let file_id = location.file;
-        if file_id != current_file {
-            continue;
+        crate_graph,
+        files,
+        nesting: 0,
+        lenses: vec![],
+    };
+    parsed_module.accept(&mut visitor);
+    visitor.lenses
+}
+
+struct CodeLensVisitor<'a> {
+    workspace: &'a Workspace,
+    package: &'a Package,
+    interner: &'a NodeInterner,
+    def_maps: &'a DefMaps,
+    crate_graph: &'a CrateGraph,
+    files: &'a FileMap,
+    nesting: usize,
+    lenses: Vec<CodeLens>,
+}
+
+impl Visitor for CodeLensVisitor<'_> {
+    fn visit_noir_function(&mut self, function: &NoirFunction, _: Span) -> bool {
+        let location = function.name_ident().location();
+
+        // Check if it's a main function
+        if self.nesting == 0 && self.package.is_binary() && function.name() == "main" {
+            let range = byte_span_to_range(self.files, location.file, location.span.into())
+                .unwrap_or_default();
+            self.lenses.push(compile_lens(self.workspace, self.package, range));
+            self.lenses.push(info_lens(self.workspace, self.package, range));
+            self.lenses.push(execute_lens(self.workspace, self.package, range));
+            self.lenses.push(debug_lens(self.workspace, self.package, range));
         }
 
-        let range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-        lenses.push(test_lens(workspace, package, &func_name, range));
-        lenses.push(debug_test_lens(workspace, package, func_name, range));
-    }
-
-    if package.is_binary() {
-        if let Some(main_func_id) = def_maps[&crate_id].main_function() {
-            let location = interner.function_meta(&main_func_id).name.location;
-            let file_id = location.file;
-            if file_id == current_file {
-                let range =
-                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-                lenses.push(compile_lens(workspace, package, range));
-                lenses.push(info_lens(workspace, package, range));
-                lenses.push(execute_lens(workspace, package, range));
-                lenses.push(debug_lens(workspace, package, range));
-            }
-        }
-    }
-
-    if package.is_contract() {
-        // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-        let def_map = def_maps.get(&crate_id).expect("The local crate should be analyzed already");
-
-        for contract in def_map
-            .get_all_contracts()
-            .map(|(local_id, _)| ModuleId { krate: crate_id, local_id }.module(def_maps))
+        // Check if it's a test function
+        if let Some(ReferenceId::Function(func_id)) = self.interner.reference_at_location(location)
         {
-            let location = contract.location;
-            let file_id = location.file;
-            if file_id != current_file {
-                continue;
-            }
+            if self.interner.function_modifiers(&func_id).attributes.is_test_function() {
+                let func_meta = self.interner.function_meta(&func_id);
+                let local_module_id = func_meta.source_module;
+                let crate_id = func_meta.source_crate;
+                let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
+                let module_path = fully_qualified_module_path(
+                    self.def_maps,
+                    self.crate_graph,
+                    &crate_id,
+                    module_id,
+                );
+                let func_name = if module_path.is_empty() {
+                    function.name().to_string()
+                } else {
+                    format!("{}::{}", module_path, function.name())
+                };
 
-            let range =
-                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-            lenses.push(compile_lens(workspace, package, range));
-            lenses.push(info_lens(workspace, package, range));
-        }
+                let range = byte_span_to_range(self.files, location.file, location.span.into())
+                    .unwrap_or_default();
+                self.lenses.push(test_lens(self.workspace, self.package, &func_name, range));
+                self.lenses.push(debug_test_lens(self.workspace, self.package, func_name, range));
+            }
+        };
+
+        false
     }
 
-    lenses
+    fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _: Span) -> bool {
+        // Check if this is a contract
+        if parsed_sub_module.is_contract && self.package.is_contract() {
+            let location = parsed_sub_module.name.location();
+            let range = byte_span_to_range(self.files, location.file, location.span.into())
+                .unwrap_or_default();
+            self.lenses.push(compile_lens(self.workspace, self.package, range));
+            self.lenses.push(info_lens(self.workspace, self.package, range));
+        }
+
+        self.nesting += 1;
+        parsed_sub_module.accept_children(self);
+        self.nesting -= 1;
+        false
+    }
+
+    fn visit_type_impl(&mut self, _: &TypeImpl, _: Span) -> bool {
+        // We don't want to find functions inside impl blocks
+        false
+    }
+
+    fn visit_noir_trait(&mut self, _: &NoirTrait, _: Span) -> bool {
+        // We don't want to find functions inside traits
+        false
+    }
+
+    fn visit_noir_trait_impl(&mut self, _: &NoirTraitImpl, _: Span) -> bool {
+        // We don't want to find functions inside trait impls
+        false
+    }
 }
 
 fn info_lens(
@@ -296,6 +342,18 @@ mod tests {
     }
 
     #[test]
+    async fn test_no_code_lens_on_nested_main() {
+        let src = r#"
+        mod moo {
+            fn main() {}
+        }
+        "#;
+
+        let code_lens = get_code_lens(src, "document_symbol").await;
+        assert!(code_lens.is_none());
+    }
+
+    #[test]
     async fn test_main_code_lens() {
         let src = r#"fn main() {}"#;
 
@@ -319,6 +377,30 @@ mod tests {
 
     #[test]
     async fn test_test_code_lens() {
+        let src = r#"#[test] fn some_test() {}"#;
+
+        let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
+        assert_eq!(code_lens.len(), 2);
+
+        for lens in &code_lens {
+            assert_eq!(lens.range.start.line, 0);
+            assert_eq!(lens.range.end.line, 0);
+            assert_eq!(
+                &src[lens.range.start.character as usize..lens.range.end.character as usize],
+                "some_test"
+            );
+            let arguments = lens.command.as_ref().unwrap().arguments.as_ref().unwrap();
+            assert!(arguments.contains(&Value::String("some_test".into())));
+        }
+
+        let mut titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        assert_eq!(titles, vec!["▶\u{fe0e} Run Test", "⚙ Debug test"]);
+    }
+
+    #[test]
+    async fn test_nested_test_code_lens() {
         let src = r#"mod moo { #[test] fn some_test() {} }"#;
 
         let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
