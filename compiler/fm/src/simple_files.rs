@@ -35,6 +35,7 @@ where
         self.files.get(file_id).ok_or(Error::FileMissing)
     }
 
+    /// Replaces the contents of the file with the given id.
     pub(crate) fn replace(&mut self, file_id: usize, source: Source) {
         let file = self.files.get_mut(file_id).unwrap();
         *file = SimpleFile::new(file.name().clone(), source);

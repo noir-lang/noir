@@ -78,6 +78,7 @@ impl FileManager {
         Some(file_id)
     }
 
+    /// Replaces the source code of an existing file.
     pub fn replace_file(&mut self, file_id: FileId, source: String) {
         self.file_map.replace_file(file_id, source);
     }
