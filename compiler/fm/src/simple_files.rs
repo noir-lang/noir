@@ -2,6 +2,11 @@ use std::ops::Range;
 
 use codespan_reporting::files::{Error, Files, SimpleFile};
 
+/// This is exactly the same as `codespan_reporting::files::SimpleFiles`, and in fact
+/// it was copied from there. However, it also provides a `replace` method to allow
+/// replacing the contents of a file. This is only used by LSP: when a file is modified
+/// (but still unsaved) we'll replace its contents in the database, then run the compiler
+/// on just that file. The original `SimpleFiles` does not provide such method.
 #[derive(Debug, Clone)]
 pub(crate) struct SimpleFiles<Name, Source> {
     files: Vec<SimpleFile<Name, Source>>,
