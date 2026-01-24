@@ -18,7 +18,7 @@ use noirc_driver::check_crate;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
-use noirc_frontend::elaborator::FrontendOptions;
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
 use noirc_frontend::hir::def_map::LocalModuleId;
@@ -273,6 +273,18 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     let mut errors = Vec::new();
 
+    // Here we enable all options because we won't show errors to users, so it's easier to
+    // assume all unstable features are enabled.
+    let options = FrontendOptions {
+        debug_comptime_in_file: None,
+        enabled_unstable_features: &[
+            UnstableFeature::Enums,
+            UnstableFeature::Ownership,
+            UnstableFeature::TraitAsType,
+        ],
+        disable_required_unstable_features: false,
+    };
+
     let shallow = true;
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
@@ -281,7 +293,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         crate_id,
         &mut context,
         def_collector,
-        FrontendOptions::test_default(), // TODO
+        options,
         shallow,
         &mut errors,
     );
