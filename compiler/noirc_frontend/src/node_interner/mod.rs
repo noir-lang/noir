@@ -1522,6 +1522,11 @@ impl NodeInterner {
             entries.retain(|entry| entry.file != file);
         }
 
+        // Clear in reexports
+        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+            reexports.retain(|reexport| reexport.name.location().file != file);
+        }
+
         // Clear in LocationIndices
         self.clear_file_locations(file);
     }
