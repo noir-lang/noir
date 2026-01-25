@@ -865,7 +865,7 @@ pub mod test_utils {
         let def_map = CrateDefMap::new(krate, root_module);
         let root_module_id = def_map.root();
         let mut collector = DefCollector::new(def_map);
-        let shallow = false;
+        let check_existing_modules = false;
 
         collect_defs(
             &mut collector,
@@ -874,7 +874,7 @@ pub mod test_utils {
             root_module_id,
             krate,
             &mut context,
-            shallow,
+            check_existing_modules,
         );
         context.def_maps.insert(krate, collector.def_map);
 

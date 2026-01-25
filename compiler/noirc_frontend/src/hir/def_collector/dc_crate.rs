@@ -363,7 +363,7 @@ impl DefCollector {
         let crate_root = def_map.root();
         let def_collector = DefCollector::new(def_map);
 
-        let shallow = false;
+        let check_existing_modules = false;
         Self::collect_defs_and_elaborate(
             ast,
             root_file_id,
@@ -372,7 +372,7 @@ impl DefCollector {
             context,
             def_collector,
             options,
-            shallow,
+            check_existing_modules,
             &mut errors,
         );
 

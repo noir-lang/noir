@@ -303,7 +303,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     };
 
     // This is when the type-checking of this single file happens
-    let shallow = true;
+    let check_existing_modules = true;
     let mut errors = Vec::new();
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
@@ -313,7 +313,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         &mut context,
         def_collector,
         options,
-        shallow,
+        check_existing_modules,
         &mut errors,
     );
 
