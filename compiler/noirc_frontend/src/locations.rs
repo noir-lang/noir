@@ -61,6 +61,8 @@ impl<'a> ReferencesTracker<'a> {
 pub struct AutoImportEntry {
     /// The item to import.
     pub module_def_id: ModuleDefId,
+    /// The file where the item is defined.
+    pub file: FileId,
     /// The item's visibility.
     pub visibility: ItemVisibility,
     /// If the item is available via a re-export, this contains the module where it's defined.
@@ -354,7 +356,8 @@ impl NodeInterner {
         name: String,
     ) {
         self.add_definition_location(ReferenceId::Module(id), location);
-        self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
+        let id = ModuleDefId::ModuleId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_global(
@@ -365,7 +368,8 @@ impl NodeInterner {
         visibility: ItemVisibility,
     ) {
         self.add_definition_location(ReferenceId::Global(id), location);
-        self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
+        let id = ModuleDefId::GlobalId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_type(
@@ -376,7 +380,8 @@ impl NodeInterner {
         visibility: ItemVisibility,
     ) {
         self.add_definition_location(ReferenceId::Type(id), location);
-        self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
+        let id = ModuleDefId::TypeId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_trait(
@@ -387,7 +392,8 @@ impl NodeInterner {
         visibility: ItemVisibility,
     ) {
         self.add_definition_location(ReferenceId::Trait(id), location);
-        self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
+        let id = ModuleDefId::TraitId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_type_alias(
@@ -398,19 +404,22 @@ impl NodeInterner {
         visibility: ItemVisibility,
     ) {
         self.add_definition_location(ReferenceId::Alias(id), location);
-        self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
+        let id = ModuleDefId::TypeAliasId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
         let name = func_def.name.to_string();
         let id = ModuleDefId::FunctionId(id);
-        self.register_name_for_auto_import(name, id, func_def.visibility, None);
+        let file = func_def.location.file;
+        self.register_name_for_auto_import(name, id, file, func_def.visibility, None);
     }
 
     pub fn register_name_for_auto_import(
         &mut self,
         name: String,
         module_def_id: ModuleDefId,
+        file: FileId,
         visibility: ItemVisibility,
         defining_module: Option<ModuleId>,
     ) {
@@ -419,7 +428,7 @@ impl NodeInterner {
         }
 
         let entry = self.auto_import_names.entry(name).or_default();
-        entry.push(AutoImportEntry { module_def_id, visibility, defining_module });
+        entry.push(AutoImportEntry { module_def_id, file, visibility, defining_module });
     }
 
     #[allow(clippy::type_complexity)]

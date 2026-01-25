@@ -573,6 +573,7 @@ impl DefCollector {
                                     context.def_interner.register_name_for_auto_import(
                                         name.to_string(),
                                         module_def_id,
+                                        file_id,
                                         visibility,
                                         Some(defining_module),
                                     );

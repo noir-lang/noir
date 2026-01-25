@@ -1517,6 +1517,12 @@ impl NodeInterner {
             }
         }
 
+        // Clear in auto import names
+        for (_name, entries) in self.auto_import_names.iter_mut() {
+            entries.retain(|entry| entry.file != file);
+        }
+
+        // Clear in LocationIndices
         self.clear_file_locations(file);
     }
 }
