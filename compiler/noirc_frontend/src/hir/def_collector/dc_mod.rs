@@ -332,7 +332,7 @@ impl ModCollector<'_> {
     ) -> Vec<CompilationError> {
         let mut definition_errors = vec![];
         for struct_definition in types {
-            let (id, the_struct) = collect_struct(
+            if let Some((id, the_struct)) = collect_struct(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
@@ -340,8 +340,9 @@ impl ModCollector<'_> {
                 self.module_id,
                 krate,
                 &mut definition_errors,
-            );
-            self.def_collector.items.structs.insert(id, the_struct);
+            ) {
+                self.def_collector.items.structs.insert(id, the_struct);
+            }
         }
         definition_errors
     }
@@ -465,7 +466,7 @@ impl ModCollector<'_> {
             );
 
             // Create the corresponding module for the trait namespace
-            let module_id = self.push_child_module(
+            let trait_id = match self.push_child_module(
                 context,
                 &name,
                 ItemVisibility::Public,
@@ -475,10 +476,13 @@ impl ModCollector<'_> {
                 false,
                 false, // is contract
                 false, // is struct
-                &mut errors,
-            );
-
-            let trait_id = TraitId(ModuleId { krate, local_id: module_id.local_id });
+            ) {
+                Ok(module_id) => TraitId(ModuleId { krate, local_id: module_id.local_id }),
+                Err(error) => {
+                    errors.push(error.into());
+                    continue;
+                }
+            };
 
             context.def_interner.set_doc_comments(ReferenceId::Trait(trait_id), doc_comments);
 
@@ -542,9 +546,9 @@ impl ModCollector<'_> {
                         second_def: item_name.clone(),
                     };
                     errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
-
-                trait_item_names.insert(item_name.to_string(), item_name.clone());
             }
 
             for trait_item in &trait_definition.items {
@@ -748,7 +752,7 @@ impl ModCollector<'_> {
             let mut doc_comments = submodule.doc_comments;
             let submodule = submodule.item;
 
-            let child = self.push_child_module(
+            match self.push_child_module(
                 context,
                 &submodule.name,
                 submodule.visibility,
@@ -758,40 +762,51 @@ impl ModCollector<'_> {
                 true,
                 submodule.is_contract,
                 false, // is struct
-                &mut errors,
-            );
+            ) {
+                Ok(child) => {
+                    let nargo_doc_primitive = check_nargo_doc_primitive(crate_id, &submodule);
 
-            let nargo_doc_primitive = check_nargo_doc_primitive(crate_id, &submodule);
+                    self.collect_attributes(
+                        submodule.outer_attributes,
+                        file_id,
+                        child.local_id,
+                        file_id,
+                        parent_module_id,
+                        false,
+                    );
 
-            self.collect_attributes(
-                submodule.outer_attributes,
-                file_id,
-                child.local_id,
-                file_id,
-                parent_module_id,
-                false,
-            );
+                    if !(doc_comments.is_empty()
+                        && submodule.contents.inner_doc_comments.is_empty())
+                    {
+                        doc_comments.extend(submodule.contents.inner_doc_comments.clone());
 
-            if !(doc_comments.is_empty() && submodule.contents.inner_doc_comments.is_empty()) {
-                doc_comments.extend(submodule.contents.inner_doc_comments.clone());
+                        if let Some(primitive) = nargo_doc_primitive {
+                            context
+                                .def_interner
+                                .primitive_docs
+                                .insert(primitive, doc_comments.clone());
+                        }
 
-                if let Some(primitive) = nargo_doc_primitive {
-                    context.def_interner.primitive_docs.insert(primitive, doc_comments.clone());
+                        context
+                            .def_interner
+                            .set_doc_comments(ReferenceId::Module(child), doc_comments);
+                    }
+
+                    let shallow = false;
+                    errors.extend(collect_defs(
+                        self.def_collector,
+                        submodule.contents,
+                        file_id,
+                        child.local_id,
+                        crate_id,
+                        context,
+                        shallow,
+                    ));
                 }
-
-                context.def_interner.set_doc_comments(ReferenceId::Module(child), doc_comments);
-            }
-
-            let shallow = false;
-            errors.extend(collect_defs(
-                self.def_collector,
-                submodule.contents,
-                file_id,
-                child.local_id,
-                crate_id,
-                context,
-                shallow,
-            ));
+                Err(error) => {
+                    errors.push(error.into());
+                }
+            };
         }
         errors
     }
@@ -847,7 +862,7 @@ impl ModCollector<'_> {
         errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
 
         // Add module into def collector and get a ModuleId
-        let child_mod_id = self.push_child_module(
+        match self.push_child_module(
             context,
             &mod_decl.ident,
             mod_decl.visibility,
@@ -857,37 +872,43 @@ impl ModCollector<'_> {
             true,
             false, // is contract
             false, // is struct
-            &mut errors,
-        );
+        ) {
+            Ok(child_mod_id) => {
+                self.collect_attributes(
+                    mod_decl.outer_attributes,
+                    child_file_id,
+                    child_mod_id.local_id,
+                    parent_file_id,
+                    parent_module_id,
+                    false,
+                );
 
-        self.collect_attributes(
-            mod_decl.outer_attributes,
-            child_file_id,
-            child_mod_id.local_id,
-            parent_file_id,
-            parent_module_id,
-            false,
-        );
+                // Track that the "foo" in `mod foo;` points to the module "foo"
+                context.def_interner.add_module_reference(child_mod_id, location);
 
-        // Track that the "foo" in `mod foo;` points to the module "foo"
-        context.def_interner.add_module_reference(child_mod_id, location);
+                if !(doc_comments.is_empty() && ast.inner_doc_comments.is_empty()) {
+                    doc_comments.extend(ast.inner_doc_comments.clone());
 
-        if !(doc_comments.is_empty() && ast.inner_doc_comments.is_empty()) {
-            doc_comments.extend(ast.inner_doc_comments.clone());
+                    context
+                        .def_interner
+                        .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
+                }
 
-            context.def_interner.set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
+                let shallow = false;
+                errors.extend(collect_defs(
+                    self.def_collector,
+                    ast,
+                    child_file_id,
+                    child_mod_id.local_id,
+                    crate_id,
+                    context,
+                    shallow,
+                ));
+            }
+            Err(error) => {
+                errors.push(error.into());
+            }
         }
-
-        let shallow = false;
-        errors.extend(collect_defs(
-            self.def_collector,
-            ast,
-            child_file_id,
-            child_mod_id.local_id,
-            crate_id,
-            context,
-            shallow,
-        ));
         errors
     }
 
@@ -905,8 +926,7 @@ impl ModCollector<'_> {
         add_to_parent_scope: bool,
         is_contract: bool,
         is_type: bool,
-        definition_errors: &mut Vec<CompilationError>,
-    ) -> ModuleId {
+    ) -> Result<ModuleId, DefCollectorErrorKind> {
         push_child_module(
             &mut context.def_interner,
             &mut self.def_collector.def_map,
@@ -919,7 +939,6 @@ impl ModCollector<'_> {
             add_to_parent_scope,
             is_contract,
             is_type,
-            definition_errors,
         )
     }
 
@@ -985,8 +1004,7 @@ fn push_child_module(
     add_to_parent_scope: bool,
     is_contract: bool,
     is_type: bool,
-    definition_errors: &mut Vec<CompilationError>,
-) -> ModuleId {
+) -> Result<ModuleId, DefCollectorErrorKind> {
     // Note: the difference between `location` and `mod_location` is:
     // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
     //   if it's an inline module, or the first char of a the file if it's an external module.
@@ -1029,7 +1047,7 @@ fn push_child_module(
                 first_def,
                 second_def,
             };
-            definition_errors.push(err.into());
+            return Err(err);
         }
 
         interner.add_module_attributes(
@@ -1047,7 +1065,7 @@ fn push_child_module(
         }
     }
 
-    mod_id
+    Ok(mod_id)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1149,7 +1167,7 @@ pub fn collect_struct(
     module_id: LocalModuleId,
     krate: CrateId,
     definition_errors: &mut Vec<CompilationError>,
-) -> (TypeId, UnresolvedStruct) {
+) -> Option<(TypeId, UnresolvedStruct)> {
     let doc_comments = struct_definition.doc_comments;
     let struct_definition = struct_definition.item;
     let file_id = struct_definition.location.file;
@@ -1165,7 +1183,7 @@ pub fn collect_struct(
 
     // Create the corresponding module for the struct namespace
     let location = Location::new(name.span(), file_id);
-    let struct_module_id = push_child_module(
+    let id = match push_child_module(
         interner,
         def_map,
         module_id,
@@ -1177,24 +1195,29 @@ pub fn collect_struct(
         false, // add to parent scope
         false, // is contract
         true,  // is struct
-        definition_errors,
-    );
-
-    let struct_name = unresolved.struct_def.name.clone();
-    let span = unresolved.struct_def.location.span;
-    let attributes = unresolved.struct_def.attributes.clone();
-    let struct_local_id = struct_module_id.local_id;
-    let visibility = unresolved.struct_def.visibility;
-    let id = interner.new_type(
-        struct_name,
-        span,
-        attributes,
-        resolved_generics,
-        visibility,
-        krate,
-        struct_local_id,
-        file_id,
-    );
+    ) {
+        Ok(module_id) => {
+            let name = unresolved.struct_def.name.clone();
+            let span = unresolved.struct_def.location.span;
+            let attributes = unresolved.struct_def.attributes.clone();
+            let local_id = module_id.local_id;
+            let visibility = unresolved.struct_def.visibility;
+            interner.new_type(
+                name,
+                span,
+                attributes,
+                resolved_generics,
+                visibility,
+                krate,
+                local_id,
+                file_id,
+            )
+        }
+        Err(error) => {
+            definition_errors.push(error.into());
+            return None;
+        }
+    };
 
     interner.set_doc_comments(ReferenceId::Type(id), doc_comments);
 
@@ -1236,7 +1259,7 @@ pub fn collect_struct(
         interner.register_type(id, name.to_string(), location, visibility);
     }
 
-    (id, unresolved)
+    Some((id, unresolved))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1264,7 +1287,7 @@ pub fn collect_enum(
 
     // Create the corresponding module for the enum namespace
     let location = Location::new(name.span(), file_id);
-    let enum_module_id = push_child_module(
+    let id = match push_child_module(
         interner,
         def_map,
         module_id,
@@ -1276,24 +1299,29 @@ pub fn collect_enum(
         false, // add to parent scope
         false, // is contract
         true,  // is type
-        definition_errors,
-    );
-
-    let enum_name = unresolved.enum_def.name.clone();
-    let span = unresolved.enum_def.location.span;
-    let attributes = unresolved.enum_def.attributes.clone();
-    let local_id = enum_module_id.local_id;
-    let visibility = unresolved.enum_def.visibility;
-    let id = interner.new_type(
-        enum_name,
-        span,
-        attributes,
-        resolved_generics,
-        visibility,
-        krate,
-        local_id,
-        file_id,
-    );
+    ) {
+        Ok(module_id) => {
+            let name = unresolved.enum_def.name.clone();
+            let span = unresolved.enum_def.location.span;
+            let attributes = unresolved.enum_def.attributes.clone();
+            let local_id = module_id.local_id;
+            let visibility = unresolved.enum_def.visibility;
+            interner.new_type(
+                name,
+                span,
+                attributes,
+                resolved_generics,
+                visibility,
+                krate,
+                local_id,
+                file_id,
+            )
+        }
+        Err(error) => {
+            definition_errors.push(error.into());
+            return None;
+        }
+    };
 
     interner.set_doc_comments(ReferenceId::Type(id), doc_comments);
 
