@@ -11,7 +11,7 @@ use crate::{
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileManager, FileMap, PathString};
+use fm::{FileId, FileManager, FileMap, PathString};
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
@@ -21,7 +21,7 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
-use noirc_frontend::hir::def_map::LocalModuleId;
+use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
 use noirc_frontend::parse_program;
 
 use crate::types::{
@@ -262,7 +262,20 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     // Get a hold of the CrateDefMap for this crate, by removing it.
     // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
-    let crate_def_map = def_maps.remove(&crate_id).unwrap();
+    let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
+
+    // Find out the local module ID corresponding to this file
+    let module_index = crate_def_map
+        .modules()
+        .iter()
+        .find(|(_, module_data)| module_data.location.file == file_id)
+        .unwrap()
+        .0;
+    let module_id = LocalModuleId::new(module_index);
+
+    // Clear all the definitions in the existing module (and its children, as long as they happen in
+    // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
+    clear_all_in_file(file_id, module_id, &mut crate_def_map);
 
     // Parse the program and add it to the parsed files
     let (parsed_program, errors) = parse_program(file_source, file_id);
@@ -271,13 +284,6 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     // Prepare some things to create a Context
     let sorted_module = parsed_program.into_sorted();
-    let module_index = crate_def_map
-        .modules()
-        .iter()
-        .find(|(_, module_data)| module_data.location.file == file_id)
-        .unwrap()
-        .0;
-    let module_id = LocalModuleId::new(module_index);
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
@@ -320,6 +326,23 @@ pub(crate) fn process_workspace_for_single_file_change(
     state.package_cache.insert(root_dir.clone(), package_cache);
 
     Ok(())
+}
+
+fn clear_all_in_file(file: FileId, module_id: LocalModuleId, crate_def_map: &mut CrateDefMap) {
+    let mut module_ids = vec![module_id];
+
+    while let Some(module_id) = module_ids.pop() {
+        let module_data = &mut crate_def_map[module_id];
+        if module_data.location.file != file {
+            continue;
+        }
+
+        module_data.clear();
+
+        for child_module_id in module_data.children.values() {
+            module_ids.push(*child_module_id);
+        }
+    }
 }
 
 pub(crate) fn fake_stdlib_workspace() -> Workspace {

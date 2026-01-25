@@ -214,4 +214,13 @@ impl ModuleData {
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
     }
+
+    /// Clears all scope and definitions in this module.
+    /// This isn't used in the compiler. It's only used in the LSP server
+    /// when a file is changed, to clear out all definitions that are meant to be
+    /// replaced with new ones from the changed file.
+    pub fn clear(&mut self) {
+        self.scope.clear();
+        self.definitions.clear();
+    }
 }
