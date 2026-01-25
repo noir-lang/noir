@@ -250,10 +250,12 @@ pub(crate) fn process_workspace_for_single_file_change(
     let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
     file_manager.replace_file(file_id, file_source.to_string());
 
+    let mut node_interner = package_cache.node_interner;
+
     // Clear some locations associated with this file. For example, locations associated
     // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
-    let mut node_interner = package_cache.node_interner;
-    node_interner.clear_file_locations(file_id);
+    // This also removes methods that were defined in this file.
+    node_interner.clear_in_file(file_id);
 
     let mut def_maps = package_cache.def_maps;
     let crate_graph = package_cache.crate_graph;

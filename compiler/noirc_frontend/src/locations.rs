@@ -433,7 +433,7 @@ impl NodeInterner {
     /// this call.
     /// This is only used by LSP when a single file is changed, when just that file
     /// is type-checked again.
-    pub fn clear_file_locations(&mut self, file: FileId) {
+    pub(crate) fn clear_file_locations(&mut self, file: FileId) {
         self.id_to_location.retain(|_index, location| location.file != file);
         self.location_indices.map_file_to_range.remove(&file);
     }

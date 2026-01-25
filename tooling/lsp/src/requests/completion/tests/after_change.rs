@@ -137,16 +137,48 @@ mod tests {
     async fn completes_nested_top_level_function_after_change() {
         let before = r#"
         mod moo {
-            fn hello() {}
+            pub fn hello() {}
         }
         "#;
 
         let after = r#"
         mod moo {
-            fn hello_world() {}
+            pub fn hello_world() {}
         }
 
         fn main() { moo::hel>|< }
+        "#;
+
+        let items = get_completions_after_change(before, after).await;
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].label, "hello_world()");
+    }
+
+    #[test]
+    async fn completes_trait_method_after_change() {
+        let before = r#"
+        trait Trait {
+             fn hello(self);
+        }
+
+        impl Trait for Field {
+             fn hello(self) {}
+        }
+        "#;
+
+        let after = r#"
+        trait Trait {
+             fn hello_world(self);
+        }
+
+        impl Trait for Field {
+             fn hello_world(self) {}
+        }
+
+        fn main() {
+            let field: Field = 1;
+            field.hel>|<
+        }
         "#;
 
         let items = get_completions_after_change(before, after).await;
