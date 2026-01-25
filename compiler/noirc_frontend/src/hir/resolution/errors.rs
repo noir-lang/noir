@@ -174,6 +174,10 @@ pub enum ResolverError {
     NonIntegerGlobalUsedInPattern { location: Location },
     #[error("Cannot match on values of type `{typ}`")]
     TypeUnsupportedInMatch { typ: Type, location: Location },
+    #[error("Cannot define a method on values of type `{typ}`")]
+    TypeUnsupportedForMethod { typ: Type, location: Location },
+    #[error("Cannot define a trait impl on values of type `{typ}`")]
+    TypeUnsupportedForTraitImpl { typ: Type, location: Location },
     #[error("Expected a struct, enum, or literal value in pattern, but found {item}")]
     UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
@@ -267,6 +271,8 @@ impl ResolverError {
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
+            | ResolverError::TypeUnsupportedForMethod { location, .. }
+            | ResolverError::TypeUnsupportedForTraitImpl { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
@@ -811,6 +817,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::TypeUnsupportedForMethod { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot define a method on values of type `{typ}`"),
+                    String::new(),
+                    *location,
+                )
+            }
+            ResolverError::TypeUnsupportedForTraitImpl { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot define a trait impl on values of type `{typ}`"),
+                    String::new(),
+                    *location,
+                )
+            }
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a struct, enum, or literal pattern, but found {item}"),

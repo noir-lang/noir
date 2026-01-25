@@ -1,6 +1,6 @@
 [package]
-name = "test_contract"
-type = "contract"
+name = "regression_10388"
+type = "bin"
 authors = [""]
 
 [dependencies]
