@@ -1014,6 +1014,7 @@ fn push_child_module(
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(
+        mod_name.to_string(),
         Some(parent),
         location,
         outer_attributes,
