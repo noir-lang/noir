@@ -638,12 +638,36 @@
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
 <a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
 //!
 //! Brillig bytecode is distinct from regular [ACIR][acir] in that it does not generate constraints.
+//!
+//! # Input Validation
+//!
+//! **Important:** The VM assumes that all inputs have been validated by the caller before execution.
+//! This includes ensuring that field element values fit within the expected bit sizes for typed
+//! operations (e.g., `u8`, `u16`, `u32`, etc.).
+//!
+//! If invalid inputs are provided, the VM may produce unexpected results without error:
+//! - Cast operations truncate call data values that exceed the target bit size (e.g., casting `256` to `u8` produces `0`)
+//!
+//! When using the VM with Noir programs, the ABI layer handles input validation
+//! automatically. Direct consumers of the VM API must implement their own input validation.
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
