@@ -260,7 +260,7 @@ fn brillig_aes128_encrypt() {
     let src = "
     brillig(inline) fn foo f0 {
       b0(v0: [u8; 16], v1: [u8; 16], v2: [u8; 16]):
-        v3 = call aes128_encrypt(v0, v1, v2) -> [u8; 32]
+        v3 = call aes128_encrypt(v0, v1, v2) -> [u8; 16]
         return v3
     }
     ";
@@ -271,14 +271,14 @@ fn brillig_aes128_encrypt() {
     fn foo
      0: call 0
      1: sp[4] = @1
-     2: sp[5] = const u32 33
+     2: sp[5] = const u32 17
      3: @1 = u32 add @1, sp[5]
      4: sp[4] = indirect const u32 1
      5: sp[5] = u32 add sp[1], @2
      6: sp[6] = u32 add sp[2], @2
      7: sp[7] = u32 add sp[3], @2
      8: sp[8] = u32 add sp[4], @2
-     9: aes_128_encrypt(inputs: [sp[5]; 16], iv: [sp[6]; 16], key: [sp[7]; 16], outputs: [sp[8]; 32])
+     9: aes_128_encrypt(inputs: [sp[5]; 16], iv: [sp[6]; 16], key: [sp[7]; 16], outputs: [sp[8]; 16])
     10: sp[1] = sp[4]
     11: return
     ");
