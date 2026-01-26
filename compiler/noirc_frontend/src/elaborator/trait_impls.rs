@@ -454,8 +454,11 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.trait_bound.trait_id
-                        == override_trait_constraint.trait_bound.trait_id
+                    impl_constraint.typ == override_trait_constraint.typ
+                        && impl_constraint.trait_bound.trait_id
+                            == override_trait_constraint.trait_bound.trait_id
+                        && impl_constraint.trait_bound.trait_generics
+                            == override_trait_constraint.trait_bound.trait_generics
                 });
             if override_constraint_is_from_impl {
                 continue;

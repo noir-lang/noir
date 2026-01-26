@@ -78,6 +78,29 @@ fn impl_stricter_than_trait_different_generics() {
 }
 
 #[test]
+fn impl_stricter_than_trait_same_trait_different_type_in_impl_where_clause() {
+    // The impl has `A: MyTrait` and the method adds `B: MyTrait`,
+    // but the trait method has no constraints on U.
+    let src = r#"
+    trait MyTrait { }
+
+    trait Foo<T> {
+        fn foo<U>();
+           ~~~ definition of `foo` from trait
+    }
+
+    impl<A> Foo<A> for () where A: MyTrait {
+        // B: MyTrait is stricter than the trait (which has no constraint on U).
+        // This should error even though the impl has A: MyTrait with the same trait.
+        fn foo<B>() where B: MyTrait {}
+                             ^^^^^^^ impl has stricter requirements than trait
+                             ~~~~~~~ impl has extra requirement `B: MyTrait`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn impl_stricter_than_trait_different_trait() {
     let src = r#"
     trait Default2 { }
