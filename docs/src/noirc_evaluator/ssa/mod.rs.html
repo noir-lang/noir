@@ -572,8 +572,7 @@
 <a href="#571" id="571">571</a>
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#574" id="574">574</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -704,9 +703,8 @@
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
         SsaPass::new_try(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>)
             .and_then(Ssa::remove_unreachable_functions),
-        <span class="comment">// BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
-        // SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        </span>SsaPass::new(Ssa::remove_paired_rc, <span class="string">"Removing Paired rc_inc &amp; rc_decs"</span>),
+        SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        SsaPass::new(Ssa::remove_paired_rc, <span class="string">"Removing Paired rc_inc &amp; rc_decs"</span>),
         SsaPass::new(Ssa::purity_analysis, <span class="string">"Purity Analysis"</span>),
         SsaPass::new_try(
             <span class="kw">move </span>|ssa| {
