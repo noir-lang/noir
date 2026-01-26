@@ -367,6 +367,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
+    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
@@ -400,8 +401,8 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl_inner(typ_location, ident_location, method, generics)
     }
 
-    /// Variant of elaborate_type_path_impl that accepts already-resolved generics.
-    /// Used when the turbofish generics have already been resolved (e.g., from TypedPathSegment).
+    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
+    /// Used when the turbofish generics have already been resolved.
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
@@ -428,7 +429,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl_inner(typ_location, ident_location, method, resolved_generics)
     }
 
-    /// Common implementation for elaborate_type_path_impl variants.
+    /// Common implementation for type path impl variants.
     fn elaborate_type_path_impl_inner(
         &mut self,
         _typ_location: Location,
