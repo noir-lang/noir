@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769426540854,
+  "lastUpdate": 1769427306446,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ec0990537fafc1116e288a0379c9a0350b9536f3",
-          "message": "chore: add some checks to ACVM blackbox handling (#11232)",
-          "timestamp": "2026-01-16T17:35:10Z",
-          "tree_id": "0b474727600533faee2368fae08b3e664ce51cd0",
-          "url": "https://github.com/noir-lang/noir/commit/ec0990537fafc1116e288a0379c9a0350b9536f3"
-        },
-        "date": 1768586232866,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261197,
-            "range": "± 2218",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230372,
-            "range": "± 2868",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791067,
-            "range": "± 38979",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2797306,
             "range": "± 7666",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "65c84b093f455740accd634fbf42a05a34676df0",
+          "message": "fix(cli): Pass `--include_gates_per_opcode` in call to `bb` in `noir-profiler gates` (#11310)",
+          "timestamp": "2026-01-26T11:13:01Z",
+          "tree_id": "9f7994a3b5f1a3b90cd2510a17ff4d9c05e3ed0f",
+          "url": "https://github.com/noir-lang/noir/commit/65c84b093f455740accd634fbf42a05a34676df0"
+        },
+        "date": 1769427268938,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263872,
+            "range": "± 555",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230682,
+            "range": "± 5207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795510,
+            "range": "± 3802",
             "unit": "ns/iter"
           }
         ]
