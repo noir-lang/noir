@@ -11,7 +11,8 @@ use crate::token::SecondaryAttribute;
 /// children, and scope with all definitions defined within the scope.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleData {
-    pub name: String,
+    /// This module's name. The root module has no name (None).
+    pub name: Option<String>,
     pub parent: Option<LocalModuleId>,
     pub children: HashMap<Ident, LocalModuleId>,
 
@@ -45,7 +46,7 @@ pub struct ModuleData {
 
 impl ModuleData {
     pub fn new(
-        name: String,
+        name: Option<String>,
         parent: Option<LocalModuleId>,
         location: Location,
         outer_attributes: Vec<SecondaryAttribute>,

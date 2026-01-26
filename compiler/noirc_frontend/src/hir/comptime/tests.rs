@@ -29,7 +29,7 @@ pub(crate) fn with_interpreter<T>(
 
     let location = Location::new(Default::default(), file);
     let root_module = ModuleData::new(
-        String::new(),
+        None,
         None,
         location,
         Vec::new(),

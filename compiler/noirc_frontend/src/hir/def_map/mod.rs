@@ -124,7 +124,7 @@ impl CrateDefMap {
         let location = Location::new(Default::default(), root_file_id);
 
         let root_module = ModuleData::new(
-            String::new(),
+            None, // The crate root module has no name
             None,
             location,
             Vec::new(),

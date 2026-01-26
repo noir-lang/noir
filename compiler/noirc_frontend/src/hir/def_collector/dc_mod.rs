@@ -853,7 +853,9 @@ impl ModCollector<'_> {
             let existing_child_module_id =
                 self.def_collector.def_map.modules().iter().find_map(|(index, module_data)| {
                     let file_matches = module_data.location.file == child_file_id;
-                    let name_matches = module_data.name == name.as_str();
+                    let module_name = module_data.name.as_ref();
+                    let name_matches =
+                        module_name.is_some_and(|module_name| module_name == name.as_str());
                     (file_matches && name_matches).then_some(LocalModuleId::new(index))
                 });
             if let Some(existing_child_module_id) = existing_child_module_id {
@@ -1046,7 +1048,7 @@ fn push_child_module(
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(
-        mod_name.to_string(),
+        Some(mod_name.to_string()),
         Some(parent),
         location,
         outer_attributes,
