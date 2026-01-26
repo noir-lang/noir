@@ -1113,7 +1113,8 @@
 <a href="#1112" id="1112">1112</a>
 <a href="#1113" id="1113">1113</a>
 <a href="#1114" id="1114">1114</a>
-<a href="#1115" id="1115">1115</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeSet, str::FromStr};
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeSet, str::FromStr};
 
 <span class="kw">use </span>acir_field::{AcirField, FieldElement};
 
@@ -1486,6 +1487,7 @@
             BlackBoxFunc::AES128Encrypt =&gt; {
                 <span class="kw">let </span>inputs = <span class="self">self</span>.parse_blackbox_inputs(Keyword::Inputs)<span class="question-mark">?</span>;
                 <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
+                <span class="macro">assert!</span>(inputs.len() % <span class="number">16 </span>== <span class="number">0</span>, <span class="string">"input length must be a multiple of 16"</span>);
 
                 <span class="kw">let </span>iv = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">16</span>&gt;(Keyword::Iv)<span class="question-mark">?</span>;
                 <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;

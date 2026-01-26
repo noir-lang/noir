@@ -220,10 +220,7 @@
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
+<a href="#222" id="222">222</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{
     AcirField, BlackBoxFunc, brillig::lengths::FlattenedLength, circuit::opcodes::FunctionInput,
 };
 <span class="kw">use </span>iter_extended::vecmap;
@@ -264,11 +261,8 @@
                     }
                 }<span class="question-mark">?</span>;
 
-                <span class="macro">assert_eq!</span>(
-                    output_count,
-                    input_size + <span class="number">16 </span>- input_size % <span class="number">16</span>,
-                    <span class="string">"output count mismatch"
-                </span>);
+                <span class="macro">assert!</span>(input_size % <span class="number">16 </span>== <span class="number">0</span>, <span class="string">"input length must be a multiple of 16"</span>);
+                <span class="macro">assert_eq!</span>(output_count, input_size, <span class="string">"output count mismatch"</span>);
 
                 Vec::new()
             }

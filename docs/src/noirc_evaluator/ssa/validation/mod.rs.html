@@ -2051,7 +2051,10 @@
 <a href="#2050" id="2050">2050</a>
 <a href="#2051" id="2051">2051</a>
 <a href="#2052" id="2052">2052</a>
-<a href="#2053" id="2053">2053</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2706,15 +2709,19 @@
                 </span>);
             }
             BlackBoxFunc::AES128Encrypt =&gt; {
-                <span class="comment">// fn aes128_encrypt&lt;let N: u32&gt;(
-                //     input: [u8; N],
+                <span class="comment">// fn aes128_encrypt_padded_input&lt;let N: u32&gt;(
+                //     input: [u8; N],  // N must be a multiple of 16
                 //     iv: [u8; 16],
                 //     key: [u8; 16],
-                // ) -&gt; [u8; N + 16 - N % 16] {}
+                // ) -&gt; [u8; N] {}
                 </span><span class="kw">let </span>(input_type, iv_type, key_type) =
                     <span class="self">self</span>.assert_three_arguments(arguments, <span class="string">"aes128_encrypt"</span>);
 
                 <span class="kw">let </span>input_length = assert_u8_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"aes128_encrypt input"</span>);
+                <span class="macro">assert!</span>(
+                    input_length % <span class="number">16 </span>== <span class="number">0</span>,
+                    <span class="string">"aes128_encrypt input length must be a multiple of 16"
+                </span>);
 
                 <span class="kw">let </span>iv_length = assert_u8_array(<span class="kw-2">&amp;</span>iv_type, <span class="string">"aes128_encrypt iv"</span>);
                 assert_array_length(iv_length, <span class="number">16</span>, <span class="string">"aes128_encrypt iv"</span>);
@@ -2725,9 +2732,8 @@
                 <span class="kw">let </span>result_type = <span class="self">self</span>.assert_one_result(instruction, <span class="string">"aes128_encrypt"</span>);
                 <span class="kw">let </span>result_length = assert_u8_array(<span class="kw-2">&amp;</span>result_type, <span class="string">"aes128_encrypt output"</span>);
                 <span class="macro">assert_eq!</span>(
-                    result_length,
-                    input_length + <span class="number">16 </span>- input_length % <span class="number">16</span>,
-                    <span class="string">"aes128_encrypt output length mismatch"
+                    result_length, input_length,
+                    <span class="string">"aes128_encrypt input length must match output length"
                 </span>);
             }
             BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 =&gt; {

@@ -800,7 +800,9 @@
 <a href="#799" id="799">799</a>
 <a href="#800" id="800">800</a>
 <a href="#801" id="801">801</a>
-<a href="#802" id="802">802</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -1426,15 +1428,17 @@
             <span class="kw">let </span>witness_arr_25 = any::&lt;Box&lt;[Witness; <span class="number">25</span>]&gt;&gt;();
             <span class="kw">let </span>witness_arr_32 = any::&lt;Box&lt;[Witness; <span class="number">32</span>]&gt;&gt;();
 
-            <span class="kw">let </span>case_aes128_encrypt = (
-                input_vec.clone(),
-                input_arr_16.clone(),
-                input_arr_16.clone(),
-                witness_vec.clone(),
-            )
-                .prop_map(|(inputs, iv, key, outputs)| {
-                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
-                });
+            <span class="comment">// Input must be a multiple of 16 bytes, and output length must equal input length
+            // Use fixed 16-byte input/output for simplicity
+            </span><span class="kw">let </span>witness_arr_16 = any::&lt;Box&lt;[Witness; <span class="number">16</span>]&gt;&gt;();
+            <span class="kw">let </span>case_aes128_encrypt =
+                (input_arr_16.clone(), input_arr_16.clone(), input_arr_16.clone(), witness_arr_16)
+                    .prop_map(|(inputs, iv, key, outputs)| BlackBoxFuncCall::AES128Encrypt {
+                        inputs: inputs.to_vec(),
+                        iv,
+                        key,
+                        outputs: outputs.to_vec(),
+                    });
 
             <span class="kw">let </span>case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
                 |(lhs, rhs, output)| BlackBoxFuncCall::AND {
