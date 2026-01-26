@@ -3185,7 +3185,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::NoMatchingImplFoundError;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
-<span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
+<span class="kw">use </span><span class="kw">crate</span>::shared::{ForeignCall, Visibility};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::FunctionAttributeKind;
 <span class="kw">use crate</span>::{
@@ -5214,7 +5214,7 @@
 
         <span class="kw">if let </span>ast::Expression::Ident(ident) = original_func.as_ref() {
             <span class="kw">if let </span>Definition::Oracle(name) = <span class="kw-2">&amp;</span>ident.definition {
-                <span class="kw">if </span>name.as_str() == <span class="string">"print" </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(ForeignCall::Print) = ForeignCall::lookup(name) {
                     <span class="comment">// Oracle calls are required to be wrapped in an unconstrained function
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident

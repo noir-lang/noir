@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Signedness","Visibility"],"mod":["signedness","visibility"]};
+window.SIDEBAR_ITEMS = {"enum":["ForeignCall","Signedness","Visibility"],"mod":["foreign_calls","signedness","visibility"]};

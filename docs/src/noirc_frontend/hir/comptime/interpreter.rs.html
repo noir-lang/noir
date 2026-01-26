@@ -2005,7 +2005,7 @@
     undo_instantiation_bindings,
 };
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::GlobalValue;
-<span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
+<span class="kw">use </span><span class="kw">crate</span>::shared::{ForeignCall, Signedness};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{FmtStrFragment, Tokens};
 <span class="kw">use crate</span>::{
@@ -2269,7 +2269,7 @@
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(foreign) = func_attrs.foreign() {
             <span class="self">self</span>.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(oracle) = func_attrs.oracle() {
-            <span class="kw">if </span>oracle == <span class="string">"print" </span>{
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 <span class="self">self</span>.print_oracle(arguments)
             <span class="comment">// Ignore debugger functions
             </span>} <span class="kw">else if </span>oracle.starts_with(<span class="string">"__debug"</span>) {

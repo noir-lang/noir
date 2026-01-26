@@ -227,7 +227,12 @@
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -454,6 +459,11 @@
 
         #[builtin(modulus_le_bytes)]
         pub fn modulus_le_bytes() -&gt; [u8] {}
+    "</span>;
+
+    <span class="kw">pub const </span>PRINT: <span class="kw-2">&amp;</span>str = <span class="string">"
+        #[oracle(print)]
+        unconstrained fn print_oracle&lt;T&gt;(with_newline: bool, input: T) {}
     "</span>;
 }
 </code></pre></div></section></main></body></html>

@@ -8,14 +8,18 @@
 <a href="#7" id="7">7</a>
 <a href="#8" id="8">8</a>
 <a href="#9" id="9">9</a>
-<a href="#10" id="10">10</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `shared` module contains simple types which are using in multiple of Noir's IRs.
+<a href="#10" id="10">10</a>
+<a href="#11" id="11">11</a>
+<a href="#12" id="12">12</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `shared` module contains simple types which are using in multiple of Noir's IRs.
 //!
 //! This is done to avoid each IR from needing to have its own definition of elementary types
 //! while avoiding one IR being embedded within another.
 
-</span><span class="kw">mod </span>signedness;
+</span><span class="kw">mod </span>foreign_calls;
+<span class="kw">mod </span>signedness;
 <span class="kw">mod </span>visibility;
 
+<span class="kw">pub use </span>foreign_calls::ForeignCall;
 <span class="kw">pub use </span>signedness::Signedness;
 <span class="kw">pub use </span>visibility::Visibility;
 </code></pre></div></section></main></body></html>

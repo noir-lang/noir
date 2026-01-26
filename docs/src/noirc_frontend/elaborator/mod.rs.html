@@ -908,7 +908,9 @@
 <a href="#907" id="907">907</a>
 <a href="#908" id="908">908</a>
 <a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1723,6 +1725,8 @@
     <span class="doccomment">/// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     </span><span class="kw">pub fn </span>interpret&lt;W: Write + <span class="lifetime">'static</span>&gt;(
         src: <span class="kw-2">&amp;</span>str,
         output: Rc&lt;RefCell&lt;W&gt;&gt;,
@@ -1760,7 +1764,7 @@
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        <span class="kw">let </span>krate = context.crate_graph.add_crate_root(FileId::dummy());
+        <span class="kw">let </span>krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         <span class="kw">let </span>(module, errors) = parse_program(src, file);
         <span class="comment">// Skip parser warnings
