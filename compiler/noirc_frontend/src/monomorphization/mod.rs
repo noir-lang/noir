@@ -550,8 +550,22 @@ impl<'interner> Monomorphizer<'interner> {
         if unconstrained {
             inline_type = inline_type.into_unconstrained();
         }
+        let is_fold = matches!(inline_type, InlineType::Fold);
+        if is_fold {
+            let allow_empty_arrays = false;
+            for (pattern, typ, _visibility) in &meta.parameters.0 {
+                if let Some(invalid_type) = typ.program_input_validity(allow_empty_arrays) {
+                    let location = pattern.location();
+                    return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                        invalid_type,
+                        location,
+                    });
+                }
+            }
+        }
 
         let parameters = self.parameters(&meta.parameters)?;
+
         let body = self.expr(body_expr_id)?;
         let function = Function {
             id,

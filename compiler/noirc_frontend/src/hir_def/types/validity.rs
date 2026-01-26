@@ -1,4 +1,4 @@
-use noirc_errors::Location;
+use noirc_errors::{CustomDiagnostic, Location};
 
 use crate::{NamedGeneric, TYPE_RECURSION_LIMIT, Type, TypeBinding, ast::Ident};
 
@@ -11,6 +11,73 @@ pub enum InvalidType {
     EmptyString(Type),
     Alias { alias_name: Ident, invalid_type: Box<InvalidType> },
     StructField { struct_name: Ident, field_name: Ident, invalid_type: Box<InvalidType> },
+}
+
+impl InvalidType {
+    pub(crate) fn add_to_diagnostic(&self, location: Location, diagnostic: &mut CustomDiagnostic) {
+        match self {
+            InvalidType::Primitive(typ) => match typ {
+                // Use a slightly better message for common types that might be used as entry point types
+                Type::Unit => {
+                    diagnostic.add_secondary(
+                        "Unit is not a valid entry point type".to_string(),
+                        location,
+                    );
+                }
+                Type::Reference(..) => {
+                    diagnostic.add_secondary(
+                        format!("Reference is not a valid entry point type. Found: {typ}"),
+                        location,
+                    );
+                }
+                Type::Vector(..) => {
+                    diagnostic.add_secondary(
+                        format!("Vector is not a valid entry point type. Found: {typ}"),
+                        location,
+                    );
+                }
+                _ => {
+                    diagnostic.add_secondary(format!("Invalid entry point type: {typ}"), location);
+                }
+            },
+            InvalidType::Enum(typ) => {
+                diagnostic.add_secondary(
+                    format!("Enum is not yet allowed as an entry point type. Found: {typ}"),
+                    location,
+                );
+            }
+            InvalidType::EmptyArray(typ) => {
+                diagnostic.add_secondary(
+                    format!("Empty array is not a valid entry point type. Found: {typ}"),
+                    location,
+                );
+            }
+            InvalidType::EmptyString(typ) => {
+                diagnostic.add_secondary(
+                    format!("Empty string is not a valid entry point type. Found: {typ}"),
+                    location,
+                );
+            }
+            InvalidType::StructField { struct_name, field_name, invalid_type } => {
+                diagnostic.add_secondary(
+                    format!("Struct {struct_name} has an invalid entry point type"),
+                    struct_name.location(),
+                );
+                diagnostic.add_secondary(
+                    format!("Field {field_name} has an invalid entry point type"),
+                    field_name.location(),
+                );
+                invalid_type.add_to_diagnostic(field_name.location(), diagnostic);
+            }
+            InvalidType::Alias { alias_name, invalid_type } => {
+                diagnostic.add_secondary(
+                    format!("Alias {alias_name} has an invalid entry point type"),
+                    alias_name.location(),
+                );
+                invalid_type.add_to_diagnostic(alias_name.location(), diagnostic);
+            }
+        }
+    }
 }
 
 impl Type {
@@ -35,14 +102,10 @@ impl Type {
             match this {
                 // Type::Error is allowed as usual since it indicates an error was already issued and
                 // we don't need to issue further errors about this likely unresolved type
-                // TypeVariable and Generic are allowed here too as they can only result from
-                // generics being declared on the function itself, but we produce a different error in that case.
                 Type::FieldElement
                 | Type::Integer(_, _)
                 | Type::Bool
                 | Type::Constant(_, _)
-                | Type::TypeVariable(_)
-                | Type::NamedGeneric(_)
                 | Type::Error => None,
 
                 Type::Unit
@@ -115,6 +178,16 @@ impl Type {
                     }
                 }
                 Type::InfixExpr(lhs, _, rhs, _) => recur(lhs).or_else(|| recur(rhs)),
+                Type::TypeVariable(type_var)
+                | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                    // Unbound TypeVariable and Generic are allowed here as they can only result from
+                    // generics being declared on the function itself, but we produce a different error in that case.
+                    if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                        recur(typ)
+                    } else {
+                        None
+                    }
+                }
             }
         }
         helper(self, allow_empty_arrays, 0)
