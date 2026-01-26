@@ -1687,7 +1687,16 @@
 <a href="#1686" id="1686">1686</a>
 <a href="#1687" id="1687">1687</a>
 <a href="#1688" id="1688">1688</a>
-<a href="#1689" id="1689">1689</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2770,12 +2779,16 @@
         message: <span class="prelude-ty">Option</span>&lt;String&gt;,
         predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-        <span class="comment">// If `variable` is constant then we don't need to add a constraint.
-        // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = <span class="self">self</span>.var_to_expression(variable)<span class="question-mark">?</span>.to_const() {
-            <span class="kw">if </span>constant.num_bits() &lt;= bit_size {
+        <span class="kw">let </span><span class="kw-2">mut </span>return_zero = <span class="bool-val">false</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = <span class="self">self</span>.var_to_expression(variable)<span class="question-mark">?</span>.to_const() {
+            <span class="comment">// If `variable` is constant and fits in the bit_size range
+            // then we don't need to add a constraint.
+            </span><span class="kw">if </span>constant.num_bits() &lt;= bit_size {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(variable);
             }
+            <span class="comment">// The range check is ensured to fail, unless the predicate is false.
+            // In both cases, the return value does not matter and we can return 0.
+            </span>return_zero = <span class="bool-val">true</span>;
         }
         <span class="comment">// Under a predicate, a range check must not fail, so we
         // range check `predicate * variable` instead.
@@ -2789,7 +2802,12 @@
                 .assertion_payloads
                 .insert(<span class="self">self</span>.acir_ir.last_acir_opcode_location(), payload);
         }
-        <span class="prelude-val">Ok</span>(predicate_range)
+        <span class="kw">if </span>return_zero {
+            <span class="kw">let </span>zero = <span class="self">self</span>.add_constant(F::zero());
+            <span class="prelude-val">Ok</span>(zero)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(predicate_range)
+        }
     }
 
     <span class="doccomment">/// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
