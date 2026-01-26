@@ -3,7 +3,9 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     brillig::assert_u32,
     ssa::{
+        RuntimeError,
         function_builder::data_bus::DataBus,
+        ir::function::Function,
         ir::instruction::ArrayOffset,
         opt::pure::{FunctionPurities, Purity},
     },
@@ -165,6 +167,13 @@ impl From<GlobalsGraph> for DataFlowGraph {
         }
     }
 }
+
+/// Maximum number of elements allowed for return values, or for some arrays.
+/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
+/// 2^24 = 16,777,216 witnesses.
+/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
+/// So this limit should not interfere with real use cases.
+pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -852,6 +861,31 @@ impl DataFlowGraph {
         };
         let results = self.instruction_results(instruction_id);
         results.contains(&return_data)
+    }
+
+    /// Computes the number of flattened values returned by the SSA terminator
+    /// Error if it exceeds MAX_ELEMENTS
+    pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
+        if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
+            func.return_instruction()
+        {
+            let num_return_values: usize = return_values
+                .iter()
+                .map(|result_id| self.type_of_value(*result_id).flattened_size().to_usize())
+                .sum();
+
+            if num_return_values > MAX_ELEMENTS {
+                let call_stack = func.dfg.call_stack_data.get_call_stack(*call_stack);
+                return Err(RuntimeError::ReturnLimitExceeded {
+                    num_witnesses: num_return_values,
+                    max_witnesses: MAX_ELEMENTS,
+                    call_stack,
+                });
+            }
+            return Ok(num_return_values);
+        }
+
+        Ok(0)
     }
 }
 

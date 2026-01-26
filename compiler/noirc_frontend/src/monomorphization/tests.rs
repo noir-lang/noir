@@ -636,10 +636,7 @@ fn repeated_array() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = (1 + 2);
-            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
-        }
+        let _a$l0 = [(1 + 2); 3]
     }
     ");
 }
@@ -658,10 +655,7 @@ fn repeated_array_zero() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = foo$f1();
-            @[]
-        }
+        let _a$l0 = @[foo$f1(); 0]
     }
     fn foo$f1() -> Field {
         (1 + 2)
@@ -1336,4 +1330,15 @@ fn out_of_order_globals() {
         (x$l2 + FOO$g1)
     }
     ");
+}
+
+#[test]
+fn very_large_array() {
+    let src = r#"
+    fn main() {
+        // 1.3 billion elements 
+        let _arr: [Field; 1294967295] = [0; 1294967295];
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
 }

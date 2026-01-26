@@ -246,6 +246,11 @@ impl Context {
                     self.handle_expression(element);
                 }
             }
+
+            Literal::Repeated { element, .. } => {
+                self.handle_expression(element);
+                // Reference counting for repeated arrays is handled in SSA via inc_rc instructions
+            }
         }
     }
 

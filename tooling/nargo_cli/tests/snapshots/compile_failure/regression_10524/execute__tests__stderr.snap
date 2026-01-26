@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: The return value has 4294967294 witnesses which exceeds the limit of 16777216
+   ┌─ src/main.nr:13:5
+   │  
+13 │ ╭     unsafe {
+14 │ │         void_to_array()
+15 │ │     }
+   │ ╰─────'
+   │  
+   = Call stack:
+     1. src/main.nr:13:5
+
+Aborting due to 1 previous error

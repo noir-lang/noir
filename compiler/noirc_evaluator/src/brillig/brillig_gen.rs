@@ -21,7 +21,10 @@ use super::{
         artifact::{BrilligParameter, GeneratedBrillig},
     },
 };
-use crate::{errors::InternalError, ssa::ir::function::Function};
+use crate::{
+    errors::{InternalError, RuntimeError},
+    ssa::ir::function::Function,
+};
 
 /// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
 ///
@@ -37,7 +40,7 @@ use crate::{errors::InternalError, ssa::ir::function::Function};
 ///
 /// # Returns
 /// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
-/// - Err([InternalError]): If linking fails to find a dependency
+/// - Err([RuntimeError]): If the return value exceeds the witness limit or linking fails
 ///
 /// # Panics
 /// - If the global memory size for the function has not been precomputed.
@@ -46,7 +49,14 @@ pub(crate) fn gen_brillig_for(
     arguments: Vec<BrilligParameter>,
     brillig: &Brillig,
     options: &BrilligOptions,
-) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
+) -> Result<GeneratedBrillig<FieldElement>, RuntimeError> {
+    let return_parameters = FunctionContext::return_values(func);
+
+    // Check if the return value size exceeds the limit before generating the entry point.
+    // This is done early to avoid the expensive entry point codegen which iterates over
+    // each element in the return arrays.
+    func.dfg.get_num_return_witnesses(func)?;
+
     // Create the entry point artifact
     let globals_memory_size = brillig
         .globals_memory_size
@@ -58,7 +68,7 @@ pub(crate) fn gen_brillig_for(
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
-        FunctionContext::return_values(func),
+        return_parameters,
         func.id(),
         true,
         globals_memory_size,
@@ -75,7 +85,8 @@ pub(crate) fn gen_brillig_for(
                 return Err(InternalError::General {
                     message: format!("Cannot find linked fn {unresolved_fn_label}"),
                     call_stack: CallStack::new(),
-                });
+                }
+                .into());
             }
         };
         entry_point.link_with(artifact);
