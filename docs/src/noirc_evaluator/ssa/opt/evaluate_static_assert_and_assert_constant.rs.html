@@ -428,7 +428,11 @@
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="doccomment">//! A simple SSA pass to go through each instruction and evaluate:
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="doccomment">//! A simple SSA pass to go through each instruction and evaluate:
 //! - each call to `assert_constant`, issuing an error if any arguments to the function
 //!   are not constants
 //! - each call to `static_assert`, issuing an error if the assertion does not hold,
@@ -608,6 +612,10 @@
 
     <span class="comment">// To turn the arguments into a string we do the same as we'd do if the arguments
     // were passed to the built-in foreign call "print" functions.
+    //
+    // We do this before checking whether the argument to `static_assert` is true because
+    // the message argument might end up being dynamic, and we want to report that error
+    // even if the assertion would have passed.
     </span><span class="kw">let </span><span class="kw-2">mut </span>foreign_call_params = Vec::with_capacity(arguments.len() - <span class="number">1</span>);
     <span class="kw">for </span>arg <span class="kw">in </span>arguments.iter().skip(<span class="number">1</span>) {
         append_foreign_call_param(<span class="kw-2">*</span>arg, <span class="kw-2">&amp;</span>function.dfg, instruction, <span class="kw-2">&amp;mut </span>foreign_call_params)<span class="question-mark">?</span>;
