@@ -1066,7 +1066,35 @@
 <a href="#1065" id="1065">1065</a>
 <a href="#1066" id="1066">1066</a>
 <a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1089,9 +1117,9 @@
     get_type_alias_id, get_type_id,
 };
 <span class="kw">use </span><span class="kw">crate</span>::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item, Link,
-    LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
-    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
+    ItemId, Link, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
+    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 <span class="kw">use </span><span class="kw">crate</span>::links::{CurrentType, LinkFinder};
 <span class="kw">pub use </span>html::to_html;
@@ -1108,10 +1136,23 @@
     def_maps: <span class="kw-2">&amp;</span>DefMaps,
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     file_manager: <span class="kw-2">&amp;</span>FileManager,
+    item_id_to_converted_item: <span class="kw-2">&amp;mut </span>HashMap&lt;ItemId, ConvertedItem&gt;,
 ) -&gt; (Module, Vec&lt;BrokenLink&gt;) {
     <span class="kw">let </span>module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    <span class="kw">let </span><span class="kw-2">mut </span>builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps, file_manager);
-    <span class="kw">let </span><span class="kw-2">mut </span>module = builder.convert_module(module);
+    <span class="kw">let </span><span class="kw-2">mut </span>builder = DocItemBuilder::new(
+        interner,
+        crate_id,
+        crate_graph,
+        def_maps,
+        file_manager,
+        item_id_to_converted_item,
+    );
+    <span class="comment">// Use convert_item here instead of convert_module so that the root module is tracked
+    // in `item_id_to_converted_item`.
+    </span><span class="kw">let </span>item = builder.convert_item(expand_items::Item::Module(module), ItemVisibility::Public);
+    <span class="kw">let </span>Item::Module(<span class="kw-2">mut </span>module) = item <span class="kw">else </span>{
+        <span class="macro">panic!</span>(<span class="string">"Expected root item to be a module"</span>);
+    };
     builder.process_module_reexports(<span class="kw-2">&amp;mut </span>module);
     (module, builder.broken_links)
 }
@@ -1128,12 +1169,12 @@
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
     </span>visibility: ItemVisibility,
-    <span class="doccomment">/// Maps a ModuleDefId to the item it converted to.
+    <span class="doccomment">/// Maps an ItemId to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
     /// include the item directly under the module that publicly exports it.
     /// We do this by looking up the item in this map.
-    </span>module_def_id_to_item: HashMap&lt;ModuleDefId, ConvertedItem&gt;,
+    </span>item_id_to_converted_item: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ItemId, ConvertedItem&gt;,
     module_imports: HashMap&lt;ModuleId, Vec&lt;expand_items::Import&gt;&gt;,
     <span class="doccomment">/// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
@@ -1176,6 +1217,7 @@
         crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
         def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DefMaps,
         file_manager: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FileManager,
+        item_id_to_converted_item: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ItemId, ConvertedItem&gt;,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>current_module_id = def_maps[<span class="kw-2">&amp;</span>crate_id].root();
         <span class="kw">let </span>link_finder = LinkFinder::default();
@@ -1188,7 +1230,7 @@
             current_module_id,
             current_type: <span class="prelude-val">None</span>,
             visibility: ItemVisibility::Public,
-            module_def_id_to_item: HashMap::new(),
+            item_id_to_converted_item,
             module_imports: HashMap::new(),
             trait_constraints: Vec::new(),
             broken_links: Vec::new(),
@@ -1197,8 +1239,9 @@
     }
 }
 
-<span class="kw">struct </span>ConvertedItem {
+<span class="kw">pub struct </span>ConvertedItem {
     item: Item,
+    crate_id: CrateId,
     <span class="comment">// This is the maximum visibility the item has considering it's nested
     // in modules. For example, in `pub(crate) mod a { pub struct B {} }`,
     // struct B will have `pub(crate)` visibility here as it can't be publicly
@@ -1404,9 +1447,14 @@
             expand_items::Item::Function(func_id) =&gt; Item::Function(<span class="self">self</span>.convert_function(func_id)),
         };
         <span class="kw">if let </span><span class="prelude-val">Some</span>(module_def_id) = module_def_id {
-            <span class="self">self</span>.module_def_id_to_item.insert(
-                module_def_id,
-                ConvertedItem { item: converted_item.clone(), visibility: <span class="self">self</span>.visibility },
+            <span class="kw">let </span>id = get_module_def_id(module_def_id, <span class="self">self</span>.interner);
+            <span class="self">self</span>.item_id_to_converted_item.insert(
+                id,
+                ConvertedItem {
+                    item: converted_item.clone(),
+                    crate_id: <span class="self">self</span>.crate_id,
+                    visibility: <span class="self">self</span>.visibility,
+                },
             );
         }
         converted_item
@@ -1724,17 +1772,25 @@
         }
 
         <span class="kw">let </span>imports = <span class="self">self</span>.module_imports.remove(<span class="kw-2">&amp;</span>module.module_id).unwrap();
+
         <span class="kw">for </span>import <span class="kw">in </span>imports {
             <span class="kw">if </span>import.visibility == ItemVisibility::Private {
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(converted_item) = <span class="self">self</span>.module_def_id_to_item.get(<span class="kw-2">&amp;</span>import.id) {
-                <span class="kw">if </span>converted_item.visibility &lt; import.visibility {
-                    <span class="comment">// This is a re-export of a private item. The private item won't show up in
-                    // its module docs (because it's private) so it's included directly under
-                    // the module that re-exports it (this is how rustdoc works too).
-                    </span><span class="kw">let </span><span class="kw-2">mut </span>item = converted_item.item.clone();
+            <span class="kw">let </span>item_id = get_module_def_id(import.id, <span class="self">self</span>.interner);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(converted_item) = <span class="self">self</span>.item_id_to_converted_item.get(<span class="kw-2">&amp;</span>item_id) {
+                <span class="comment">// Check if this is a re-export of a private item. The private item won't show up in
+                // its module docs (because it's private) so it's included directly under
+                // the module that re-exports it (this is how rustdoc works too).
+                //
+                // We also check if this a re-export of an item from another crate. In that
+                // case we'll also include that item directly under this module as the other
+                // crate might not be part of the workspace (just a dependency).
+                </span><span class="kw">if </span>converted_item.visibility &lt; import.visibility
+                    || converted_item.crate_id != <span class="self">self</span>.crate_id
+                {
+                    <span class="kw">let </span><span class="kw-2">mut </span>item = converted_item.item.clone();
                     item.set_name(import.name.to_string());
 
                     module.items.push((import.visibility, item));

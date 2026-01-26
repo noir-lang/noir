@@ -214,7 +214,28 @@
 <a href="#213" id="213">213</a>
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fs};
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fs};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::FileManager;
@@ -224,7 +245,10 @@
     ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
     workspace::Workspace,
 };
-<span class="kw">use </span>nargo_doc::{BrokenLink, crate_module, items::Crate};
+<span class="kw">use </span>nargo_doc::{
+    BrokenLink, ConvertedItem, crate_module,
+    items::{Crate, ItemId},
+};
 <span class="kw">use </span>nargo_toml::{PackageConfig, PackageSelection};
 <span class="kw">use </span>noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
@@ -268,6 +292,8 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>broken_links = Vec::new();
 
+    <span class="kw">let </span><span class="kw-2">mut </span>item_id_to_converted_item: HashMap&lt;ItemId, ConvertedItem&gt; = HashMap::new();
+
     <span class="comment">// Maps a crate's root file to its crate
     </span><span class="kw">let </span><span class="kw-2">mut </span>dependencies = HashMap::new();
 
@@ -278,6 +304,7 @@
             <span class="kw-2">&amp;</span>parsed_files,
             package,
             <span class="kw-2">&amp;</span>args.compile_options,
+            <span class="kw-2">&amp;mut </span>item_id_to_converted_item,
             <span class="kw-2">&amp;mut </span>dependencies,
             <span class="kw-2">&amp;mut </span>broken_links,
         )<span class="question-mark">?</span>;
@@ -343,6 +370,7 @@
     parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
     package: <span class="kw-2">&amp;</span>Package,
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
+    item_id_to_converted_item: <span class="kw-2">&amp;mut </span>HashMap&lt;ItemId, ConvertedItem&gt;,
     dependencies: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Crate&gt;,
     broken_links: <span class="kw-2">&amp;mut </span>Vec&lt;BrokenLink&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Crate, CompileError&gt; {
@@ -350,23 +378,27 @@
 
     check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
 
+    <span class="comment">// Process dependencies first so that if a create publicly re-exports an item
+    // from a dependency, it will be found as a ConvertedItem.
+    </span>collect_dependencies(
+        <span class="kw-2">&amp;</span>context,
+        <span class="prelude-val">Some</span>(package),
+        crate_id,
+        file_manager,
+        item_id_to_converted_item,
+        dependencies,
+        broken_links,
+    )<span class="question-mark">?</span>;
+
     <span class="kw">let </span>(module, module_broken_links) = crate_module(
         crate_id,
         <span class="kw-2">&amp;</span>context.crate_graph,
         <span class="kw-2">&amp;</span>context.def_maps,
         <span class="kw-2">&amp;</span>context.def_interner,
         file_manager,
+        item_id_to_converted_item,
     );
     broken_links.extend(module_broken_links);
-
-    collect_dependencies(
-        <span class="kw-2">&amp;</span>context,
-        <span class="prelude-val">Some</span>(package),
-        crate_id,
-        file_manager,
-        dependencies,
-        broken_links,
-    )<span class="question-mark">?</span>;
 
     <span class="kw">let </span>root_file = <span class="kw-2">&amp;</span>context.crate_graph[crate_id].root_file_id;
     <span class="kw">let </span>root_file = file_manager.path(<span class="kw-2">*</span>root_file).unwrap().display().to_string();
@@ -382,6 +414,7 @@
     package: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Package&gt;,
     crate_id: CrateId,
     file_manager: <span class="kw-2">&amp;</span>FileManager,
+    item_id_to_converted_item: <span class="kw-2">&amp;mut </span>HashMap&lt;ItemId, ConvertedItem&gt;,
     dependencies: <span class="kw-2">&amp;mut </span>HashMap&lt;String, Crate&gt;,
     broken_links: <span class="kw-2">&amp;mut </span>Vec&lt;BrokenLink&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompileError&gt; {
@@ -400,6 +433,7 @@
             <span class="kw-2">&amp;</span>context.def_maps,
             <span class="kw-2">&amp;</span>context.def_interner,
             file_manager,
+            item_id_to_converted_item,
         );
         broken_links.extend(module_broken_links);
 
@@ -426,7 +460,15 @@
         <span class="kw">let </span>krate = Crate { name, version, root_module: module, root_file: root_file.clone() };
         dependencies.insert(root_file, krate);
 
-        collect_dependencies(context, package, crate_id, file_manager, dependencies, broken_links)<span class="question-mark">?</span>;
+        collect_dependencies(
+            context,
+            package,
+            crate_id,
+            file_manager,
+            item_id_to_converted_item,
+            dependencies,
+            broken_links,
+        )<span class="question-mark">?</span>;
     }
     <span class="prelude-val">Ok</span>(())
 }
