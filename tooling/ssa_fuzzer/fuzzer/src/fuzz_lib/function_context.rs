@@ -688,7 +688,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///
     /// SSA block can use variables from predecessor that is not in branch. e.g. b7 can use variables from b4.
     /// This function is used to determine which block's variables can be inherited by merged block.
-    fn find_closest_parent(&mut self, lhs: &StoredBlock, rhs: &StoredBlock) -> BasicBlockId {
+    fn find_closest_parent(&self, lhs: &StoredBlock, rhs: &StoredBlock) -> BasicBlockId {
         for block in &lhs.context.parent_blocks_history {
             if rhs.context.parent_blocks_history.contains(block) {
                 return *block;
