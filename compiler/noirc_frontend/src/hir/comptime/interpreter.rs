@@ -54,7 +54,7 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
-use crate::shared::Signedness;
+use crate::shared::{ForeignCall, Signedness};
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
@@ -318,7 +318,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(foreign) = func_attrs.foreign() {
             self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
-            if oracle == "print" {
+            if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 self.print_oracle(arguments)
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
