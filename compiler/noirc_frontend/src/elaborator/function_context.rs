@@ -3,11 +3,16 @@
 use noirc_errors::Location;
 
 use crate::{
-    Kind, Type,
+    Kind, Type, TypeBindings,
     elaborator::lints::check_integer_literal_fits_its_type,
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{
+        comptime::Value,
+        type_check::{NoMatchingImplFoundError, TypeCheckError},
+    },
     hir_def::traits::TraitConstraint,
-    node_interner::{DefinitionKind, ExprId, GlobalValue, TypeId},
+    node_interner::{
+        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TypeId,
+    },
 };
 use crate::{TypeVariableId, node_interner::DefinitionId};
 
@@ -31,7 +36,7 @@ pub(super) struct FunctionContext {
     /// the resulting trait impl should be the one used for a call (sometimes trait
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
-    trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
+    trait_constraints: Vec<LocalTraitConstraint>,
 
     /// All ExprId in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
@@ -44,6 +49,20 @@ struct RequiredTypeVariable {
     typ: Type,
     kind: BindableTypeVariableKind,
     location: Location,
+}
+
+/// A constraint local to the current [FunctionContext] to solve at the end of the context.
+struct LocalTraitConstraint {
+    constraint: TraitConstraint,
+
+    /// The expression this constraint originated from. Used for its location in error messages,
+    /// and if `select_impl` is true, to be the expression the impl will replace during
+    /// monomorphization.
+    expr: ExprId,
+
+    /// True if a reference to some function in this constraint's trait should replace the
+    /// expression at `self.expr` during monomorphization.
+    select_impl: bool,
 }
 
 /// The kind of required type variable.
@@ -82,10 +101,14 @@ impl Elaborator<'_> {
     pub(super) fn push_trait_constraint(
         &mut self,
         constraint: TraitConstraint,
-        expr_id: ExprId,
+        expr: ExprId,
         select_impl: bool,
     ) {
-        self.get_function_context_mut().trait_constraints.push((constraint, expr_id, select_impl));
+        self.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
+            constraint,
+            expr,
+            select_impl,
+        });
     }
 
     /// Push an `ExprId` that corresponds to an integer literal.
@@ -130,25 +153,83 @@ impl Elaborator<'_> {
         }
     }
 
-    fn check_trait_constraints(&mut self, trait_constraints: Vec<(TraitConstraint, ExprId, bool)>) {
-        for (mut constraint, expr_id, select_impl) in trait_constraints {
-            let location = self.interner.expr_location(&expr_id);
-
-            if matches!(&constraint.typ, Type::Reference(..)) {
-                let (_, dereferenced_typ) =
-                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
+    fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
+        for local in trait_constraints {
+            match local.constraint.find_impl(self.interner) {
+                Ok((impl_kind, instantiation_bindings)) => {
+                    if local.select_impl {
+                        self.select_impl(local.expr, impl_kind, instantiation_bindings);
+                    }
+                }
+                Err(error) => {
+                    let location = self.interner.expr_location(&local.expr);
+                    self.push_trait_constraint_error(&local.constraint.typ, error, location);
+                }
             }
+        }
+    }
 
-            self.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_bound.trait_id,
-                &constraint.trait_bound.trait_generics.ordered,
-                &constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
+    fn select_impl(
+        &mut self,
+        function_ident_id: ExprId,
+        impl_kind: TraitImplKind,
+        instantiation_bindings: TypeBindings,
+    ) {
+        // Insert any additional instantiation bindings into this expression's
+        // instantiation bindings. We should avoid doing this if `select_impl` is
+        // not true since that means we're not solving for this expressions exact
+        // impl anyway. If we ignore this, we may rarely overwrite existing type
+        // bindings causing incorrect types. The `vector_regex` test is one example
+        // of that happening without this being behind `select_impl`.
+        let mut bindings = self.interner.get_instantiation_bindings(function_ident_id).clone();
+
+        // These can clash in the `vector_regex` test which causes us to insert
+        // incorrect type bindings if they override the previous bindings.
+        for (id, binding) in instantiation_bindings {
+            let existing = bindings.insert(id, binding.clone());
+
+            if let Some((_, type_var, existing)) = existing {
+                let existing = existing.follow_bindings();
+                let new = binding.2.follow_bindings();
+
+                // Exact equality on types is intentional here, we never want to
+                // overwrite even type variables but should probably avoid a panic if
+                // the types are exactly the same.
+                if existing != new {
+                    panic!(
+                        "Overwriting an existing type binding with a different type!\n  {type_var:?} <- {existing:?}\n  {type_var:?} <- {new:?}"
+                    );
+                }
+            }
+        }
+
+        self.interner.store_instantiation_bindings(function_ident_id, bindings);
+        self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+    }
+
+    pub(super) fn push_trait_constraint_error(
+        &mut self,
+        object_type: &Type,
+        error: ImplSearchErrorKind,
+        location: Location,
+    ) {
+        match error {
+            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
+            }
+            ImplSearchErrorKind::Nested(constraints) => {
+                if let Some(error) =
+                    NoMatchingImplFoundError::new(self.interner, constraints, location)
+                {
+                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
+                }
+            }
+            ImplSearchErrorKind::MultipleMatching(candidates) => {
+                let object_type = object_type.clone();
+                let err =
+                    TypeCheckError::MultipleMatchingImpls { object_type, location, candidates };
+                self.push_err(err);
+            }
         }
     }
 

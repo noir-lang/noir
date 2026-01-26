@@ -523,11 +523,8 @@ impl Elaborator<'_> {
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(**expr_id, trait_impl);
             } else {
-                self.push_trait_constraint(
-                    method.constraint,
-                    **expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
+                // this constraint should lead to choosing a trait impl method
+                self.push_trait_constraint(method.constraint, **expr_id, true);
             }
         }
 
@@ -568,10 +565,8 @@ impl Elaborator<'_> {
                 {
                     constraint.apply_bindings(&bindings);
 
-                    self.push_trait_constraint(
-                        constraint, **expr_id,
-                        false, // This constraint shouldn't lead to choosing a trait impl method
-                    );
+                    // This constraint shouldn't lead to choosing a trait impl method
+                    self.push_trait_constraint(constraint, **expr_id, false);
                 }
             }
         }
