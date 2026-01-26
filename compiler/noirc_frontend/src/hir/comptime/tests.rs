@@ -53,7 +53,7 @@ pub(crate) fn with_interpreter<T>(
     let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    let check_existing_modules = false;
+    let reuse_existing_module_declarations = false;
     collect_defs(
         &mut collector,
         ast,
@@ -61,7 +61,7 @@ pub(crate) fn with_interpreter<T>(
         root_module_id,
         krate,
         &mut context,
-        check_existing_modules,
+        reuse_existing_module_declarations,
     );
     context.def_maps.insert(krate, collector.def_map);
 

@@ -303,7 +303,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     };
 
     // This is when the type-checking of this single file happens
-    let check_existing_modules = true;
+    let reuse_existing_module_declarations = true;
     let mut errors = Vec::new();
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
@@ -313,7 +313,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         &mut context,
         def_collector,
         options,
-        check_existing_modules,
+        reuse_existing_module_declarations,
         &mut errors,
     );
 

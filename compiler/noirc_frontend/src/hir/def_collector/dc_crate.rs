@@ -363,7 +363,7 @@ impl DefCollector {
         let crate_root = def_map.root();
         let def_collector = DefCollector::new(def_map);
 
-        let check_existing_modules = false;
+        let reuse_existing_module_declarations = false;
         Self::collect_defs_and_elaborate(
             ast,
             root_file_id,
@@ -372,7 +372,7 @@ impl DefCollector {
             context,
             def_collector,
             options,
-            check_existing_modules,
+            reuse_existing_module_declarations,
             &mut errors,
         );
 
@@ -393,7 +393,7 @@ impl DefCollector {
     ///
     /// Any errors are appended to `errors`.
     ///
-    /// If `check_existing_modules` is true, when module declarations like `mod some_module;` are
+    /// If `reuse_existing_module_declarations` is true, when module declarations like `mod some_module;` are
     /// encountered they will try to be found in existing modules in the `def_collector.def_map`
     /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
     /// need to be re-collected and re-type-checked.
@@ -406,7 +406,7 @@ impl DefCollector {
         context: &mut Context,
         mut def_collector: DefCollector,
         options: FrontendOptions,
-        check_existing_modules: bool,
+        reuse_existing_module_declarations: bool,
         errors: &mut Vec<CompilationError>,
     ) {
         let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
@@ -428,7 +428,7 @@ impl DefCollector {
             local_module_id,
             crate_id,
             context,
-            check_existing_modules,
+            reuse_existing_module_declarations,
         ));
 
         let submodules =
