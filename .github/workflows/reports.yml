@@ -107,6 +107,28 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+  build-nargo-no-default-features:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v6
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo with No Default Features
+        run: cargo build --package nargo_cli --release --no-default-features
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-noir-inspector:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -292,7 +314,7 @@ jobs:
 
   generate_memory_report:
     name: Peak memory usage
-    needs: [build-nargo]
+    needs: [build-nargo-no-default-features]
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
