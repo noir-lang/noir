@@ -474,19 +474,12 @@ mod tests {
 
     #[test]
     fn format_must_use_attribute() {
-        dbg!();
         let src = " #[  must_use  ] ";
-        dbg!();
         let expected = "#[must_use]";
-        dbg!();
         assert_format_attribute(src, expected);
-        dbg!();
 
         let src = " #[   must_use   =   \"hey you should really use this thing\"  ]  ";
-        dbg!();
         let expected = "#[must_use = \"hey you should really use this thing\"]";
-        dbg!();
         assert_format_attribute(src, expected);
-        dbg!();
     }
 }

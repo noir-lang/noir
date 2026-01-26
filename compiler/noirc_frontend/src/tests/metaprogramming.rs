@@ -9,7 +9,8 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    tests::check_errors_using_features,
+    test_utils::stdlib_src,
+    tests::{check_errors_using_features, check_errors_with_stdlib},
 };
 
 use crate::tests::{
@@ -96,15 +97,15 @@ fn unquoted_integer_as_integer_token() {
         fn serialize() {
         }
     }
-    
+
     impl Serialize<1> for Field {
         fn serialize() {
         }
     }
-    
+
     pub fn foobar() {
     }
-    
+
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
         let serialized_len: Field = 1_Field;
         quote {
@@ -143,13 +144,13 @@ fn allows_references_to_structs_generated_by_macros() {
             }
         }
     }
-    
+
     struct Bar {
     }
-    
+
     struct Foo {
     }
-    
+
     fn main() {
         let _: Foo = Foo { };
         let _: Bar = Bar { };
@@ -163,7 +164,7 @@ fn generate_function_with_macros() {
     #[foo]
     comptime fn foo(_f: FunctionDefinition) -> Quoted {
         quote {
-            pub fn bar(x: i32) -> i32  {  
+            pub fn bar(x: i32) -> i32  {
                 let y = x + 1;
                 y + 2
             }
@@ -181,7 +182,7 @@ fn generate_function_with_macros() {
             }
         }
     }
-    
+
     pub fn bar(x: i32) -> i32 {
         let y: i32 = x + 1_i32;
         y + 2_i32
@@ -199,7 +200,7 @@ fn generate_function_with_macros_on_trait() {
 
     comptime fn foo(_f: TraitDefinition) -> Quoted {
         quote {
-            pub fn bar(x: i32) -> i32  {  
+            pub fn bar(x: i32) -> i32  {
                 let y = x + 1;
                 y + 2
             }
@@ -211,13 +212,13 @@ fn generate_function_with_macros_on_trait() {
     let expanded = assert_no_errors_and_to_string(src);
     insta::assert_snapshot!(expanded, @r"
     trait MyTrait {
-    
+
     }
-    
+
     impl MyTrait for () {
-    
+
     }
-    
+
     comptime fn foo(_f: TraitDefinition) -> Quoted {
         quote {
             pub fn bar(x: i32) -> i32 {
@@ -226,7 +227,7 @@ fn generate_function_with_macros_on_trait() {
             }
         }
     }
-    
+
     pub fn bar(x: i32) -> i32 {
         let y: i32 = x + 1_i32;
         y + 2_i32
@@ -290,7 +291,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     // errors land on the same span.
     let src = r#"
     comptime fn make_colliding_functions(_s: TypeDefinition) -> Quoted {
-        quote { 
+        quote {
             fn foo() {}
         }
     }
@@ -356,7 +357,7 @@ fn does_not_fail_to_parse_macro_on_parser_warning() {
     comptime fn make_bar(_: FunctionDefinition) -> Quoted {
         quote {
             pub fn bar() {
-                unsafe { 
+                unsafe {
                 ^^^^^^ Unsafe block must have a safety comment above it
                 ~~~~~~ The comment must start with the "Safety: " word
                     foo();
@@ -413,10 +414,10 @@ fn quote_code_fragments_no_failure() {
     fn main() {
         ()
     }
-    
+
     comptime fn concat(a: Quoted, b: Quoted) -> Quoted {
         quote { $a $b }
-    }    
+    }
     ");
 }
 
@@ -494,7 +495,7 @@ fn cannot_generate_module_declarations() {
         #[bad_attr]
         ~~~~~~~~~~~ While running this function attribute
         fn main() {}
-        
+
         comptime fn bad_attr(_: FunctionDefinition) -> Quoted {
             quote { mod new_module; }
                     ^^^^^^^^^^^^^^^ Unsupported statement type to unquote
@@ -1184,4 +1185,63 @@ fn unify_comptime_block_statement_with_target_type() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_explicit_self() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+                              ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                              ~~~~ Comptime-only type used here
+                     ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                     ~~~~ Comptime-only type used here
+            self
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
+    let src = r#"
+    trait Trait {
+        fn foo(self);
+    }
+
+    impl Trait for Quoted {
+        fn foo(self) {
+               ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+               ~~~~ Comptime-only type used here
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn zeroed_comptime_type() {
+    let mut stdlib = stdlib_src::ZEROED.to_string();
+    stdlib.push_str(
+        "
+        #[builtin(module_hash)]
+        comptime fn module_hash(_module: Module) -> Field {}
+    ",
+    );
+    let src = r#"
+    fn main() {
+        comptime {
+            let m: Module = zeroed();
+            let _ = module_hash(m);
+                                ^ Expected a concrete `Module` but a zeroed value was given
+                                ~ A zeroed value of `Module` may be created to satisfy the type system, but it's not expected to be used
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, &stdlib);
 }

@@ -116,16 +116,40 @@ impl Elaborator<'_> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirLetStatement, Type) {
+        let previous_in_comptime_context = self.in_comptime_context;
+
+        // If this is a global we need to evaluate its type and value in a new function context.
+        // Also, if it's a comptime global we check the type in a comptime context (so Quoted
+        // and other comptime-only types are allowed).
+        if let Some(global_id) = global_id {
+            self.in_comptime_context = self.interner.get_global_definition(global_id).comptime;
+            self.push_function_context();
+        }
+
         let no_type = let_stmt.r#type.is_none();
         let wildcard_allowed = if global_id.is_some() {
             WildcardAllowed::No(WildcardDisallowedContext::Global)
         } else {
             WildcardAllowed::Yes
         };
+
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
+
+        // After resolving the type we'll elaborate the global's value. The value is interpreted
+        // at compile time, so we need to switch to a comptime context. For example using `Quoted`
+        // is allowed in global values, even in non-comptime globals, as long as these comptime-only
+        // values do not survive until runtime (if they do survive, the monomorphizer will catch this).
+        if global_id.is_some() {
+            self.in_comptime_context = true;
+        }
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
+
+        // If this is a global, the global's value will be interpreted at compile time later on,
+        // which means the expression must be elaborated in a comptime context. For example
+        // Quoted and other comptime-only types are allowed here (though if they survive until
+        // runtime the monomorphizer will detect this).
         let (expression, expr_type) = if no_type {
             self.elaborate_expression(let_stmt.expression)
         } else {
@@ -182,6 +206,12 @@ impl Elaborator<'_> {
         let is_global_let = let_stmt.is_global_let;
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
+
+        if global_id.is_some() {
+            self.check_and_pop_function_context();
+            self.in_comptime_context = previous_in_comptime_context;
+        }
+
         (let_, Type::Unit)
     }
 
@@ -224,8 +254,8 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
-        let (start, end) = match for_loop.range {
-            ForRange::Range(bounds) => bounds.into_half_open(),
+        let (start, end, inclusive) = match for_loop.range {
+            ForRange::Range(bounds) => (bounds.start, bounds.end, bounds.inclusive),
             ForRange::Array(_) => {
                 let for_stmt =
                     for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.location);
@@ -283,8 +313,13 @@ impl Elaborator<'_> {
         self.pop_scope();
         self.current_loop = old_loop;
 
-        let statement =
-            HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
+        let statement = HirStatement::For(HirForStatement {
+            start_range,
+            end_range,
+            block,
+            identifier,
+            inclusive,
+        });
 
         (statement, Type::Unit)
     }

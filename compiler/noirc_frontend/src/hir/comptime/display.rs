@@ -358,7 +358,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         Ok(())
     }
 
-    fn write_indent(&mut self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn write_indent(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", " ".repeat(self.indent * 4))
     }
 }

@@ -71,11 +71,14 @@ pub(crate) struct Formatter<'a> {
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     pub(crate) max_width: usize,
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: Buffer,
+
+    /// Is the formatter inside a chunk?
+    pub(crate) in_chunk: bool,
 }
 
 impl<'a> Formatter<'a> {
@@ -94,6 +97,7 @@ impl<'a> Formatter<'a> {
             group_tag_counter: 0,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: false,
         };
         formatter.bump();
         formatter
@@ -205,13 +209,6 @@ impl<'a> Formatter<'a> {
     pub(crate) fn write_current_token_and_bump(&mut self) {
         self.write(&self.token.to_string());
         self.bump();
-    }
-
-    /// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    pub(crate) fn write_current_token_trimming_end(&mut self) {
-        self.write(self.token.to_string().trim_end());
     }
 
     /// Writes the current token but without turning it into a string using `to_string()`.

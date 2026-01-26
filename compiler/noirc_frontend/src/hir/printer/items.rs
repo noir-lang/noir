@@ -196,7 +196,7 @@ impl<'context> ItemBuilder<'context> {
         })
     }
 
-    fn build_data_type(&mut self, type_id: TypeId) -> Item {
+    fn build_data_type(&self, type_id: TypeId) -> Item {
         let data_type = self.interner.get_type(type_id);
 
         let impls = if let Some(methods) =
@@ -213,7 +213,7 @@ impl<'context> ItemBuilder<'context> {
         Item::DataType(DataType { id: type_id, impls, trait_impls })
     }
 
-    fn build_impls<'a, 'b>(&'a mut self, methods: impl Iterator<Item = &'b Methods>) -> Vec<Impl> {
+    fn build_impls<'a, 'b>(&'a self, methods: impl Iterator<Item = &'b Methods>) -> Vec<Impl> {
         // Gather all impl methods
         // First split methods by impl methods and trait impl methods
         let mut impl_methods = Vec::new();
@@ -243,7 +243,7 @@ impl<'context> ItemBuilder<'context> {
             .collect()
     }
 
-    fn build_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) -> Impl {
+    fn build_impl(&self, typ: Type, methods: Vec<ImplMethod>) -> Impl {
         let mut generics = BTreeSet::new();
         gather_named_type_vars(&typ, &mut generics);
 
@@ -266,7 +266,7 @@ impl<'context> ItemBuilder<'context> {
         Impl { generics, typ, methods }
     }
 
-    fn build_data_type_trait_impls(&mut self, data_type: &crate::DataType) -> Vec<TraitImpl> {
+    fn build_data_type_trait_impls(&self, data_type: &crate::DataType) -> Vec<TraitImpl> {
         let mut trait_impls = self
             .trait_impls
             .iter()
@@ -286,7 +286,7 @@ impl<'context> ItemBuilder<'context> {
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
-    fn build_trait_impls_for_trait(&mut self, trait_id: TraitId) -> Vec<TraitImpl> {
+    fn build_trait_impls_for_trait(&self, trait_id: TraitId) -> Vec<TraitImpl> {
         let mut trait_impls = Vec::new();
 
         for trait_impl_id in &self.trait_impls {
@@ -304,7 +304,7 @@ impl<'context> ItemBuilder<'context> {
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
-    fn sort_trait_impls(&mut self, trait_impls: &mut [(TraitImplId, Location)]) {
+    fn sort_trait_impls(&self, trait_impls: &mut [(TraitImplId, Location)]) {
         trait_impls.sort_by_key(|(trait_impl_id, location)| {
             let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
             let trait_impl = trait_impl.borrow();
@@ -313,7 +313,7 @@ impl<'context> ItemBuilder<'context> {
         });
     }
 
-    fn build_trait_impl(&mut self, trait_impl_id: TraitImplId) -> TraitImpl {
+    fn build_trait_impl(&self, trait_impl_id: TraitImplId) -> TraitImpl {
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
         let external_types = self.type_only_mention_types_outside_current_crate(&trait_impl.typ);
@@ -332,7 +332,7 @@ impl<'context> ItemBuilder<'context> {
         }
     }
 
-    fn build_trait(&mut self, trait_id: TraitId) -> Item {
+    fn build_trait(&self, trait_id: TraitId) -> Item {
         let trait_ = self.interner.get_trait(trait_id);
 
         let mut func_ids = trait_
@@ -415,7 +415,7 @@ impl<'context> ItemBuilder<'context> {
         }
     }
 
-    pub(super) fn add_primitive_types(&mut self, items: &mut Vec<(ItemVisibility, Item)>) {
+    pub(super) fn add_primitive_types(&self, items: &mut Vec<(ItemVisibility, Item)>) {
         self.add_primitive_type(Type::Bool, items);
         self.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::One), items);
         self.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight), items);
@@ -458,7 +458,7 @@ impl<'context> ItemBuilder<'context> {
         }
     }
 
-    fn add_primitive_type(&mut self, typ: Type, items: &mut Vec<(ItemVisibility, Item)>) {
+    fn add_primitive_type(&self, typ: Type, items: &mut Vec<(ItemVisibility, Item)>) {
         let mut impls = if let Some(methods) = self.interner.get_type_methods(&typ) {
             self.build_impls(methods.values())
         } else {
@@ -474,7 +474,7 @@ impl<'context> ItemBuilder<'context> {
         items.push((ItemVisibility::Public, Item::PrimitiveType(primitive_type)));
     }
 
-    fn build_primitive_type_trait_impls(&mut self, primitive_type: &Type) -> Vec<TraitImpl> {
+    fn build_primitive_type_trait_impls(&self, primitive_type: &Type) -> Vec<TraitImpl> {
         let mut trait_impls = self
             .trait_impls
             .iter()

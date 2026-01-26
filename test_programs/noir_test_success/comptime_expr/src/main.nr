@@ -707,10 +707,19 @@ mod tests {
     fn test_expr_as_for_range_statement() {
         comptime {
             let expr = quote { for x in 2..3 { 4 } }.as_expr().unwrap();
-            let (index, from, to, body) = expr.as_for_range().unwrap();
+            let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
             assert_eq(from.as_integer().unwrap(), (2, false));
             assert_eq(to.as_integer().unwrap(), (3, false));
+            assert(!inclusive);
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (4, false));
+
+            let expr = quote { for x in 2..=3 { 4 } }.as_expr().unwrap();
+            let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
+            assert_eq(index, quote { x });
+            assert_eq(from.as_integer().unwrap(), (2, false));
+            assert_eq(to.as_integer().unwrap(), (3, false));
+            assert(inclusive);
             assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (4, false));
         }
     }
@@ -720,10 +729,11 @@ mod tests {
         comptime {
             let expr = quote { for x in 2..3 { 4 } }.as_expr().unwrap();
             let expr = expr.modify(times_two);
-            let (index, from, to, body) = expr.as_for_range().unwrap();
+            let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
             assert_eq(from.as_integer().unwrap(), (4, false));
             assert_eq(to.as_integer().unwrap(), (6, false));
+            assert(!inclusive);
             assert_eq(
                 body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
                 (8, false),

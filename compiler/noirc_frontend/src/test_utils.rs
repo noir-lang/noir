@@ -52,6 +52,18 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
     get_monomorphized_with_options(src, GetProgramOptions::default())
 }
 
+/// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
+pub fn get_monomorphized_with_stdlib(
+    user_src: &str,
+    stdlib_src: &str,
+) -> Result<Program, MonomorphizationError> {
+    let src = format!("{stdlib_src}\n\n{user_src}");
+    get_monomorphized_with_options(
+        &src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+}
+
 /// Compile and monomorphize a program.
 pub fn get_monomorphized_with_options(
     src: &str,
@@ -61,7 +73,7 @@ pub fn get_monomorphized_with_options(
 
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
-    if !only_warnings || !has_defs && !errors.is_empty() {
+    if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
@@ -113,7 +125,6 @@ pub(crate) fn get_program_with_options(
     let mut fm = FileManager::new(root);
     let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
     let mut context = Context::new(fm, Default::default());
-    context.enable_pedantic_solving();
 
     context.def_interner.populate_dummy_operator_traits();
     let root_crate_id = if options.root_and_stdlib {
@@ -162,4 +173,62 @@ pub(crate) fn get_program_with_options(
     }
 
     (program, context, errors)
+}
+
+/// These snippets can be used in conjunction with `get_program_with_stdlib`.
+pub mod stdlib_src {
+    pub const ZEROED: &str = "
+        #[builtin(zeroed)]
+        pub fn zeroed<T>() -> T {}
+    ";
+
+    pub const EQ: &str = "
+        pub trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+    ";
+
+    pub const NEG: &str = "
+        pub trait Neg {
+            fn neg(self) -> Self;
+        }
+    ";
+
+    pub const ARRAY_LEN: &str = "
+        impl<T, let N: u32> [T; N] {
+            #[builtin(array_len)]
+            pub fn len(self) -> u32 {}
+        }
+    ";
+
+    pub const CHECKED_TRANSMUTE: &str = "
+        #[builtin(checked_transmute)]
+        pub fn checked_transmute<T, U>(value: T) -> U {}
+    ";
+
+    // Note that in the stdlib these are all comptime functions, which I thought meant
+    // that the comptime interpreter was used to evaluate them, however they do seem to
+    // hit the `try_evaluate_call::try_evaluate_call`.
+    // To make sure they are handled here, I removed the `comptime` for these tests.
+    pub const MODULUS: &str = "
+        #[builtin(modulus_num_bits)]
+        pub fn modulus_num_bits() -> u64 {}
+
+        #[builtin(modulus_be_bits)]
+        pub fn modulus_be_bits() -> [u1] {}
+
+        #[builtin(modulus_le_bits)]
+        pub fn modulus_le_bits() -> [u1] {}
+
+        #[builtin(modulus_be_bytes)]
+        pub fn modulus_be_bytes() -> [u8] {}
+
+        #[builtin(modulus_le_bytes)]
+        pub fn modulus_le_bytes() -> [u8] {}
+    ";
+
+    pub const PRINT: &str = "
+        #[oracle(print)]
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+    ";
 }

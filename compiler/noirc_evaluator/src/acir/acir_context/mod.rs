@@ -1452,12 +1452,11 @@ impl<F: AcirField> AcirContext<F> {
         // See issue https://github.com/noir-lang/noir/issues/1439
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-        let expr: Expression<F> = if self.is_constant(&predicate) {
+        let predicate: Expression<F> = if self.is_constant(&predicate) {
             self.var_to_expression(predicate)?
         } else {
             self.var_to_witness(predicate)?.into()
         };
-        let predicate = Some(expr);
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
@@ -1619,7 +1618,7 @@ mod tests {
             )
             .circuit;
 
-            let solver = StubbedBlackBoxSolver::default();
+            let solver = StubbedBlackBoxSolver;
 
             let mut witness_map = WitnessMap::new();
             witness_map.insert(lhs_witness,  FieldElement::from(limit));
@@ -1682,7 +1681,7 @@ mod tests {
         BLACKBOX::RANGE input: w1, bits: 128
         ");
 
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
 
         let mut witness_map = WitnessMap::new();
         witness_map.insert(lhs_witness, limit);
