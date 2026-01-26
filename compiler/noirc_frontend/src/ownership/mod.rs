@@ -247,7 +247,24 @@ impl Context {
                 }
             }
 
-            Literal::Repeated { element, .. } => self.handle_expression(element),
+            Literal::Repeated { element, length, typ, .. } => {
+                self.handle_expression(element);
+
+                // For repeated arrays the element is referenced multiple times, so
+                // we need to clone for each additional reference if the element contains an array.
+                let element_contains_array = match typ {
+                    Type::Array(_, element_type) | Type::Vector(element_type) => {
+                        contains_array_or_str_type(element_type)
+                    }
+                    _ => unreachable!("Repeated literal should have Array or Vector type"),
+                };
+
+                if element_contains_array {
+                    for _ in 1..*length {
+                        clone_expr(element);
+                    }
+                }
+            }
         }
     }
 
