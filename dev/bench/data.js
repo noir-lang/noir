@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769448367722,
+  "lastUpdate": 1769448604542,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ab64f14567602381c173986da1aa7c9f1ff9e0d4",
-          "message": "chore: blackbox function arguments extracted with array indexing (#11260)",
-          "timestamp": "2026-01-19T22:51:38Z",
-          "tree_id": "1f1b4618a9f6a6f2720a1f0d9c7d1f2748c0ee5c",
-          "url": "https://github.com/noir-lang/noir/commit/ab64f14567602381c173986da1aa7c9f1ff9e0d4"
-        },
-        "date": 1768864421831,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263355,
-            "range": "± 1072",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237145,
-            "range": "± 3415",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793046,
-            "range": "± 7711",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2801706,
             "range": "± 9442",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bb123097bfa6a73605c1962ad782ca4bb7fd9856",
+          "message": "fix: error when overflow check fails at compile time (#11256)",
+          "timestamp": "2026-01-26T17:08:06Z",
+          "tree_id": "e40cf22ce4e9aefef51e730aa8acab402cfa7105",
+          "url": "https://github.com/noir-lang/noir/commit/bb123097bfa6a73605c1962ad782ca4bb7fd9856"
+        },
+        "date": 1769448563129,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264330,
+            "range": "± 3556",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232197,
+            "range": "± 3953",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2802943,
+            "range": "± 6636",
             "unit": "ns/iter"
           }
         ]
