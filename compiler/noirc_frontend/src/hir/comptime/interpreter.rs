@@ -54,7 +54,7 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
-use crate::shared::Signedness;
+use crate::shared::{ForeignCall, Signedness};
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
@@ -325,7 +325,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(foreign) = func_attrs.foreign() {
             self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
-            if oracle == "print" {
+            if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 self.print_oracle(arguments)
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
@@ -1243,7 +1243,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Tuple(fields))
     }
 
-    fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
+    fn evaluate_lambda(&self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
         let env = try_vecmap(&lambda.captures, |capture| {
             let value = self.lookup_id(capture.ident.id, location)?;
@@ -1521,7 +1521,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_i128(start_value).expect("Checked above that value is signed type");
             let end = to_i128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
@@ -1537,7 +1541,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
             let end = to_u128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
             let typ = start_type.into_owned();
@@ -1663,7 +1671,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_break(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
@@ -1672,7 +1680,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_continue(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
@@ -1685,10 +1693,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(
-        &mut self,
-        arguments: Vec<(Value, Location)>,
-    ) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
         let Some(output) = self.elaborator.interpreter_output else {
@@ -1954,10 +1959,9 @@ impl Context<'_, '_> {
         let local_id = func_meta.source_module;
         let location = func_meta.location;
         let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
-        let pedantic_solving = self.def_interner.pedantic_solving;
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
-            pedantic_solving,
+
             enabled_unstable_features,
             disable_required_unstable_features: false,
         };

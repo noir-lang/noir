@@ -84,7 +84,6 @@ use crate::{
     hir::{
         def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
         def_map::LocalModuleId,
-        resolution::errors::ResolverError,
     },
     node_interner::{FuncId, TraitId},
 };
@@ -145,7 +144,7 @@ impl Elaborator<'_> {
     pub(super) fn declare_methods_on_data_type(
         &mut self,
         trait_id: Option<TraitId>,
-        functions: &mut UnresolvedFunctions,
+        functions: &UnresolvedFunctions,
         location: Location,
     ) {
         let self_type = functions.self_type.as_ref();
@@ -240,16 +239,9 @@ impl Elaborator<'_> {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
 
-            if let Some(first_fn) =
+            if let Err(error) =
                 self.interner.add_method(self_type, method_name.clone(), *method_id, None)
             {
-                let first_location = self.interner.function_ident(&first_fn).location();
-                let second_location = self.interner.function_ident(method_id).location();
-                let error = ResolverError::DuplicateDefinition {
-                    name: method_name,
-                    first_location,
-                    second_location,
-                };
                 self.push_err(error);
             }
         }

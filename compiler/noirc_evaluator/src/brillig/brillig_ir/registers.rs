@@ -314,7 +314,7 @@ impl GlobalSpace {
     }
 
     /// Expand the global space to fit a new register if necessary.
-    fn update_max_address(&mut self, register: MemoryAddress) {
+    fn expand_max_address(&mut self, register: MemoryAddress) {
         let index = assert_usize(register.unwrap_direct());
         assert!(index >= self.start(), "Global space malformed");
         if index > self.max_memory_address {
@@ -322,6 +322,23 @@ impl GlobalSpace {
         }
     }
 
+    /// Shrink the global space to minimize unused space at the end
+    /// if a temporary register gets deallocated.
+    fn shrink_max_address(&mut self, register: MemoryAddress) {
+        let index = assert_usize(register.unwrap_direct());
+        assert!(index >= self.start(), "Global space malformed");
+        if index == self.max_memory_address {
+            let empty_start = assert_usize(self.empty_registers_start().unwrap_direct());
+            self.max_memory_address =
+                empty_start.saturating_sub(1).max(self.storage.start_register_index);
+        }
+    }
+
+    /// The maximum address occupied by global variables *after* initialization.
+    ///
+    /// Note that during initialization temporary variables may be allocated beyond this address,
+    /// so it is important that the memory after the globals is not populated with data before
+    /// the globals have been initialized, or that data could be overwritten by the init.
     pub(super) fn max_memory_address(&self) -> usize {
         self.max_memory_address
     }
@@ -345,16 +362,17 @@ impl RegisterAllocator for GlobalSpace {
 
     fn allocate_register(&mut self) -> MemoryAddress {
         let allocated = MemoryAddress::direct(assert_u32(self.storage.allocate_register()));
-        self.update_max_address(allocated);
+        self.expand_max_address(allocated);
         allocated
     }
 
     fn deallocate_register(&mut self, register: MemoryAddress) {
         self.storage.deallocate_register(assert_usize(register.unwrap_direct()));
+        self.shrink_max_address(register);
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        self.update_max_address(register);
+        self.expand_max_address(register);
         self.storage.ensure_register_is_allocated(assert_usize(register.unwrap_direct()));
     }
 
@@ -462,10 +480,12 @@ impl DeallocationListAllocator {
         Self { deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
-    /// Find the first register after which there are only free registers.
+    /// Find the first free register after which there are only free registers.
     fn empty_registers_start(&self) -> usize {
         let mut first_free = self.next_free_register_index;
+        // Walk backwards toward the start, as long as we step on deallocated registers.
         while first_free > self.start_register_index {
+            // If the next slot is _not_ deallocated, this is where free starts.
             if !self.deallocated_registers.contains(&(first_free - 1)) {
                 break;
             }
@@ -489,12 +509,12 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Manually deallocates a register which is no longer in use.
     ///
     /// This could be one of the pre-allocated ones which doesn't have automation.
-    pub(crate) fn deallocate_register(&mut self, register: MemoryAddress) {
+    pub(crate) fn deallocate_register(&self, register: MemoryAddress) {
         self.registers_mut().deallocate_register(register);
     }
 
     /// Allocates an unused register.
-    pub(crate) fn allocate_register(&mut self) -> Allocated<MemoryAddress, Registers> {
+    pub(crate) fn allocate_register(&self) -> Allocated<MemoryAddress, Registers> {
         let addr = self.registers_mut().allocate_register();
         Allocated::new_addr(addr, self.registers.clone())
     }
@@ -509,27 +529,25 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [SingleAddrVariable].
     pub(crate) fn allocate_single_addr(
-        &mut self,
+        &self,
         bit_size: u32,
     ) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_register().map(|a| SingleAddrVariable::new(a, bit_size))
     }
 
     /// Allocate a [SingleAddrVariable] with the size of a Brillig memory address.
-    pub(crate) fn allocate_single_addr_usize(
-        &mut self,
-    ) -> Allocated<SingleAddrVariable, Registers> {
+    pub(crate) fn allocate_single_addr_usize(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_register().map(SingleAddrVariable::new_usize)
     }
 
     /// Allocate a [SingleAddrVariable] with a size of 1 bit.
-    pub(crate) fn allocate_single_addr_bool(&mut self) -> Allocated<SingleAddrVariable, Registers> {
+    pub(crate) fn allocate_single_addr_bool(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_single_addr(1)
     }
 
     /// Allocate a [SingleAddrVariable] with a size of `BRILLIG_MEMORY_ADDRESSING_BIT_SIZE` bit.
     #[allow(unused)]
-    pub(crate) fn allocate_single_addr_mem(&mut self) -> Allocated<SingleAddrVariable, Registers> {
+    pub(crate) fn allocate_single_addr_mem(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
@@ -537,7 +555,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     ///
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
     /// That is done by [BrilligContext::codegen_initialize_vector].
-    pub(crate) fn allocate_brillig_vector(&mut self) -> Allocated<BrilligVector, Registers> {
+    pub(crate) fn allocate_brillig_vector(&self) -> Allocated<BrilligVector, Registers> {
         self.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
@@ -546,14 +564,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
     /// That is done by [BrilligContext::codegen_initialize_array].
     pub(crate) fn allocate_brillig_array(
-        &mut self,
+        &self,
         size: SemiFlattenedLength,
     ) -> Allocated<BrilligArray, Registers> {
         self.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
 
     /// Allocate a [HeapVector].
-    pub(crate) fn allocate_heap_vector(&mut self) -> Allocated<HeapVector, Registers> {
+    pub(crate) fn allocate_heap_vector(&self) -> Allocated<HeapVector, Registers> {
         let pointer = self.allocate_register();
         let size = self.allocate_register();
         pointer.map2(size, |pointer, size| HeapVector { pointer, size })
@@ -561,7 +579,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [HeapArray].
     pub(crate) fn allocate_heap_array(
-        &mut self,
+        &self,
         size: SemiFlattenedLength,
     ) -> Allocated<HeapArray, Registers> {
         self.allocate_register().map(|pointer| HeapArray { pointer, size })
@@ -723,7 +741,7 @@ impl<A, R: RegisterAllocator> DerefMut for Allocated<A, R> {
 mod tests {
     use crate::brillig::brillig_ir::{
         LayoutConfig,
-        registers::{DeallocationListAllocator, RegisterAllocator, Stack},
+        registers::{DeallocationListAllocator, GlobalSpace, RegisterAllocator, Stack},
     };
 
     #[test]
@@ -759,5 +777,53 @@ mod tests {
     fn deallocation_list_deallocate_twice() {
         let mut allocator = DeallocationListAllocator::from_preallocated_registers(0, vec![10]);
         allocator.deallocate_register(5);
+    }
+
+    #[test]
+    fn global_space_max_addr_expands_and_shrinks() {
+        let mut global = GlobalSpace::new(LayoutConfig::default());
+        let start = global.storage.start_register_index;
+        assert_eq!(global.max_memory_address(), start, "max initialized to start");
+
+        let reg1 = global.allocate_register();
+        let reg2 = global.allocate_register();
+        let reg3 = global.allocate_register();
+        let reg4 = global.allocate_register();
+        let max1 = global.max_memory_address();
+        assert_eq!(max1, start + 3, "max expands during allocation");
+
+        global.deallocate_register(reg3);
+        assert_eq!(
+            global.max_memory_address(),
+            start + 3,
+            "max does not shrink during when non-max deallocated"
+        );
+
+        global.deallocate_register(reg4);
+        assert_eq!(
+            global.max_memory_address(),
+            start + 1,
+            "max shrinks to precede first free address when max deallocated"
+        );
+
+        global.deallocate_register(reg2);
+        assert_eq!(
+            global.max_memory_address(),
+            start,
+            "max shrinks to start when we only have the first register"
+        );
+
+        global.deallocate_register(reg1);
+        assert_eq!(
+            global.max_memory_address(),
+            start,
+            "max shrinks to start when we have no registers"
+        );
+
+        let reg5 = global.allocate_register();
+        let reg6 = global.allocate_register();
+        assert_eq!(reg5, reg1, "earliest free register is reallocated");
+        assert_eq!(reg6, reg2, "earliest free register is reallocated");
+        assert_eq!(global.max_memory_address(), start + 1, "max expands again");
     }
 }

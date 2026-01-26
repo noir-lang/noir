@@ -139,14 +139,14 @@ mod entry_point {
          0: @2 = const u32 1
          1: @1 = const u32 32839
          2: @0 = const u32 71
-         3: sp[3] = const u32 2
-         4: sp[4] = const u32 0
-         5: @68 = calldata copy [sp[4]; sp[3]]
-         6: @68 = cast @68 to u32
-         7: @69 = cast @69 to u32
-         8: sp[1] = @68
-         9: sp[2] = @69
-        10: call 16
+         3: call 16
+         4: sp[3] = const u32 2
+         5: sp[4] = const u32 0
+         6: @68 = calldata copy [sp[4]; sp[3]]
+         7: @68 = cast @68 to u32
+         8: @69 = cast @69 to u32
+         9: sp[1] = @68
+        10: sp[2] = @69
         11: call 17
         12: @70 = sp[1]
         13: sp[2] = const u32 70
