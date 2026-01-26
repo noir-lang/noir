@@ -548,7 +548,7 @@ mod reflection {
         }
 
         /// Tuples serialize as a vector of underlying data.
-        fn generate_tuple(&mut self, _name: &str, _formats: &[Format]) {
+        fn generate_tuple(&self, _name: &str, _formats: &[Format]) {
             unimplemented!("Until we have a tuple enum in our schema we don't need this.");
         }
 

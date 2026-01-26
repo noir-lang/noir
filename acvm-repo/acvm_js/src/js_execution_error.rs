@@ -45,7 +45,7 @@ impl JsExecutionError {
         acir_function_id: Option<AcirFunctionId>,
         brillig_function_id: Option<BrilligFunctionId>,
     ) -> Self {
-        let mut error = JsExecutionError::constructor(JsString::from(message));
+        let error = JsExecutionError::constructor(JsString::from(message));
         let js_call_stack = match call_stack {
             Some(call_stack) => {
                 let js_array = Array::new();
@@ -89,7 +89,7 @@ impl JsExecutionError {
         error
     }
 
-    fn set_property(&mut self, property: &str, value: JsValue) {
+    fn set_property(&self, property: &str, value: JsValue) {
         assert!(
             Reflect::set(self, &JsValue::from(property), &value).expect("Errors should be objects"),
             "Errors should be writable"

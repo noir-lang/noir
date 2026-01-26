@@ -27,6 +27,10 @@ pub enum InterpreterError {
         actual: Type,
         location: Location,
     },
+    UnexpectedZeroedValue {
+        expected: String,
+        location: Location,
+    },
     NonComptimeVarReferenced {
         name: String,
         location: Location,
@@ -326,6 +330,7 @@ impl InterpreterError {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
+            | InterpreterError::UnexpectedZeroedValue { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
             | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
@@ -433,6 +438,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::TypeMismatch { expected, actual, location } => {
                 let msg = format!("Expected `{expected}` but a value of type `{actual}` was given");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::UnexpectedZeroedValue { expected, location } => {
+                let msg = format!("Expected a concrete `{expected}` but a zeroed value was given");
+                let secondary = format!(
+                    "A zeroed value of `{expected}` may be created to satisfy the type system, but it's not expected to be used"
+                );
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");

@@ -238,7 +238,7 @@ impl AstPrinter {
         }
     }
 
-    fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
+    fn next_line(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f)?;
         for _ in 0..self.indent_level {
             write!(f, "    ")?;

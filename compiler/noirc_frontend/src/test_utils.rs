@@ -227,4 +227,9 @@ pub mod stdlib_src {
         #[builtin(modulus_le_bytes)]
         pub fn modulus_le_bytes() -> [u8] {}
     ";
+
+    pub const PRINT: &str = "
+        #[oracle(print)]
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+    ";
 }

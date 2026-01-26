@@ -65,11 +65,15 @@ pub enum ResolverError {
     #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
-    AbiAttributeOutsideContract { location: Location },
+    AbiAttributeOutsideContract { location: Location, usage_location: Option<Location> },
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
     LowLevelFunctionOutsideOfStdlib { location: Location },
+    #[error(
+        "The name of an `#[oracle]` function clashes with one defined in the Noir standard library"
+    )]
+    OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
@@ -241,7 +245,7 @@ impl ResolverError {
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
-            | ResolverError::AbiAttributeOutsideContract { location }
+            | ResolverError::AbiAttributeOutsideContract { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -283,6 +287,7 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
+            | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
@@ -486,18 +491,32 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
-            ResolverError::AbiAttributeOutsideContract { location } => {
-                Diagnostic::simple_error(
+            ResolverError::AbiAttributeOutsideContract { location, usage_location } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
                     *location,
-                )
-            },
+                );
+                if let Some(usage_location) = usage_location {
+                    diagnostic.add_secondary(
+                        "the type is used outside of a contract".to_string(),
+                        *usage_location,
+                    );
+                }
+                diagnostic
+            }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 *location,
             ),
+            ResolverError::OracleNameClashesWithStdlib { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior".into(),
+                    *location,
+                )
+            },
             ResolverError::OracleMarkedAsConstrained { ident, location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     error.to_string(),
