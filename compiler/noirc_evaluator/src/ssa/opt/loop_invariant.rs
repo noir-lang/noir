@@ -662,7 +662,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// 1. Whether the instruction can be hoisted
     /// 2. If it can be hoisted, does it require an `IncrementRc` instruction.
     fn can_hoist_invariant(
-        &mut self,
+        &self,
         loop_context: &LoopContext,
         block_context: &BlockContext,
         instruction_id: InstructionId,

@@ -21,9 +21,9 @@ use crate::ids::{
     get_type_alias_id, get_type_id,
 };
 use crate::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item, Link,
-    LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField,
-    Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
+    ItemId, Link, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
+    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
 };
 use crate::links::{CurrentType, LinkFinder};
 pub use html::to_html;
@@ -40,10 +40,23 @@ pub fn crate_module(
     def_maps: &DefMaps,
     interner: &NodeInterner,
     file_manager: &FileManager,
+    item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
 ) -> (Module, Vec<BrokenLink>) {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder::new(interner, crate_id, crate_graph, def_maps, file_manager);
-    let mut module = builder.convert_module(module);
+    let mut builder = DocItemBuilder::new(
+        interner,
+        crate_id,
+        crate_graph,
+        def_maps,
+        file_manager,
+        item_id_to_converted_item,
+    );
+    // Use convert_item here instead of convert_module so that the root module is tracked
+    // in `item_id_to_converted_item`.
+    let item = builder.convert_item(expand_items::Item::Module(module), ItemVisibility::Public);
+    let Item::Module(mut module) = item else {
+        panic!("Expected root item to be a module");
+    };
     builder.process_module_reexports(&mut module);
     (module, builder.broken_links)
 }
@@ -60,12 +73,12 @@ struct DocItemBuilder<'a> {
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
     visibility: ItemVisibility,
-    /// Maps a ModuleDefId to the item it converted to.
+    /// Maps an ItemId to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
     /// include the item directly under the module that publicly exports it.
     /// We do this by looking up the item in this map.
-    module_def_id_to_item: HashMap<ModuleDefId, ConvertedItem>,
+    item_id_to_converted_item: &'a mut HashMap<ItemId, ConvertedItem>,
     module_imports: HashMap<ModuleId, Vec<expand_items::Import>>,
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
@@ -108,6 +121,7 @@ impl<'a> DocItemBuilder<'a> {
         crate_graph: &'a CrateGraph,
         def_maps: &'a DefMaps,
         file_manager: &'a FileManager,
+        item_id_to_converted_item: &'a mut HashMap<ItemId, ConvertedItem>,
     ) -> Self {
         let current_module_id = def_maps[&crate_id].root();
         let link_finder = LinkFinder::default();
@@ -120,7 +134,7 @@ impl<'a> DocItemBuilder<'a> {
             current_module_id,
             current_type: None,
             visibility: ItemVisibility::Public,
-            module_def_id_to_item: HashMap::new(),
+            item_id_to_converted_item,
             module_imports: HashMap::new(),
             trait_constraints: Vec::new(),
             broken_links: Vec::new(),
@@ -129,8 +143,9 @@ impl<'a> DocItemBuilder<'a> {
     }
 }
 
-struct ConvertedItem {
+pub struct ConvertedItem {
     item: Item,
+    crate_id: CrateId,
     // This is the maximum visibility the item has considering it's nested
     // in modules. For example, in `pub(crate) mod a { pub struct B {} }`,
     // struct B will have `pub(crate)` visibility here as it can't be publicly
@@ -336,9 +351,14 @@ impl DocItemBuilder<'_> {
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
         };
         if let Some(module_def_id) = module_def_id {
-            self.module_def_id_to_item.insert(
-                module_def_id,
-                ConvertedItem { item: converted_item.clone(), visibility: self.visibility },
+            let id = get_module_def_id(module_def_id, self.interner);
+            self.item_id_to_converted_item.insert(
+                id,
+                ConvertedItem {
+                    item: converted_item.clone(),
+                    crate_id: self.crate_id,
+                    visibility: self.visibility,
+                },
             );
         }
         converted_item
@@ -656,16 +676,24 @@ impl DocItemBuilder<'_> {
         }
 
         let imports = self.module_imports.remove(&module.module_id).unwrap();
+
         for import in imports {
             if import.visibility == ItemVisibility::Private {
                 continue;
             }
 
-            if let Some(converted_item) = self.module_def_id_to_item.get(&import.id) {
-                if converted_item.visibility < import.visibility {
-                    // This is a re-export of a private item. The private item won't show up in
-                    // its module docs (because it's private) so it's included directly under
-                    // the module that re-exports it (this is how rustdoc works too).
+            let item_id = get_module_def_id(import.id, self.interner);
+            if let Some(converted_item) = self.item_id_to_converted_item.get(&item_id) {
+                // Check if this is a re-export of a private item. The private item won't show up in
+                // its module docs (because it's private) so it's included directly under
+                // the module that re-exports it (this is how rustdoc works too).
+                //
+                // We also check if this a re-export of an item from another crate. In that
+                // case we'll also include that item directly under this module as the other
+                // crate might not be part of the workspace (just a dependency).
+                if converted_item.visibility < import.visibility
+                    || converted_item.crate_id != self.crate_id
+                {
                     let mut item = converted_item.item.clone();
                     item.set_name(import.name.to_string());
 

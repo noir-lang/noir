@@ -242,7 +242,7 @@ impl FunctionBuilder {
     }
 
     /// Returns the block currently being inserted into
-    pub(crate) fn current_block(&mut self) -> BasicBlockId {
+    pub(crate) fn current_block(&self) -> BasicBlockId {
         self.current_block
     }
 

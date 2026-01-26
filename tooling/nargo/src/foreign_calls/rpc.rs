@@ -161,7 +161,7 @@ impl RPCForeignCallExecutor {
     }
 
     fn send_foreign_call<F>(
-        &mut self,
+        &self,
         foreign_call: &ForeignCallWaitInfo<F>,
     ) -> Result<ForeignCallResult<F>, jsonrpsee::core::ClientError>
     where
