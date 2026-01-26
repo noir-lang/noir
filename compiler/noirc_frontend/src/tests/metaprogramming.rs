@@ -111,7 +111,7 @@ fn unquoted_integer_as_integer_token() {
         quote {
             impl Serialize < $serialized_len > for Field {
                 fn serialize() {
-
+                    
                 }
             }
         }
@@ -140,7 +140,7 @@ fn allows_references_to_structs_generated_by_macros() {
     comptime fn make_new_struct(_s: TypeDefinition) -> Quoted {
         quote {
             struct Bar {
-
+                
             }
         }
     }
