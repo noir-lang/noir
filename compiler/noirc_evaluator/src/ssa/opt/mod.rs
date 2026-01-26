@@ -7,6 +7,7 @@
 mod array_set;
 mod as_vector_length;
 mod basic_conditional;
+mod black_box_bypass;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;

@@ -686,6 +686,25 @@ fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
 }
 
 #[test]
+fn regression_10763_mutable() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = &mut ();
+
+    impl Foo for Bar {
+                 ^^^ Trait impls are not allowed on aliases to reference types
+                 ~~~ Try using a struct or enum type here instead
+
+        fn foo(self) { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn regression_10756() {
     let src = r#"
     pub type Foo = 0;
@@ -696,6 +715,24 @@ fn regression_10756() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn regression_10763_immutable() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = &();
+
+    impl Foo for Bar {
+                 ^^^ Trait impls are not allowed on aliases to reference types
+                 ~~~ Try using a struct or enum type here instead
+        fn foo(self) { }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }
 
 #[test]
@@ -723,6 +760,154 @@ fn regression_10971() {
 
     fn main() {
         let _ = X;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = impl Foo;
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = impl Foo;
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type_impl() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = impl Foo;
+
+    impl Bar {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic_impl() {
+    let src = r#"
+    type Foo = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore_impl() {
+    let src = r#"
+    type Foo = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
     }
     "#;
     check_errors(src);

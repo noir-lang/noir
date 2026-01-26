@@ -1,7 +1,6 @@
 [package]
-name = "enums"
+name = "regression_10388"
 type = "bin"
 authors = [""]
-compiler_unstable_features = ["enums"]
 
 [dependencies]
