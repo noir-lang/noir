@@ -495,10 +495,10 @@ fn dereference_immutable_reference() {
 }
 
 #[test]
-fn repeated_array_with_nested_array_element_gets_cloned() {
+fn repeated_array_with_nested_array_element() {
     // For repeated arrays like [a; 3] where `a` is an array,
-    // we need to clone the element for each additional reference
-    // to ensure proper reference counting.
+    // reference counting is handled in SSA via inc_rc instructions,
+    // so no clones are inserted at the monomorphization level.
     let src = "
     unconstrained fn main() {
         let a = [1, 2];
@@ -510,11 +510,10 @@ fn repeated_array_with_nested_array_element_gets_cloned() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // `a` should be cloned twice (for the 2nd and 3rd elements)
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let a$l0 = [1, 2];
-        let b$l1 = [a$l0.clone().clone(); 3];
+        let b$l1 = [a$l0; 3];
         use_var$f1(b$l1);
     }
     unconstrained fn use_var$f1(_x$l2: [[Field; 2]; 3]) -> () {
@@ -523,9 +522,9 @@ fn repeated_array_with_nested_array_element_gets_cloned() {
 }
 
 #[test]
-fn repeated_array_with_non_array_element_not_cloned() {
+fn repeated_array_with_non_array_element() {
     // For repeated arrays like [x; 3] where `x` is NOT an array,
-    // no clones is be added.
+    // no special handling is needed.
     let src = "
     unconstrained fn main() {
         let x: Field = 42;
@@ -537,7 +536,6 @@ fn repeated_array_with_non_array_element_not_cloned() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // No clones should be inserted for Field elements
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let x$l0 = 42;

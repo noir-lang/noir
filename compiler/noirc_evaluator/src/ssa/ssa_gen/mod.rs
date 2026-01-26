@@ -283,6 +283,20 @@ impl FunctionContext<'_> {
             }
             ast::Literal::Repeated { element, length, is_vector, typ } => {
                 let element_value = self.codegen_expression(element)?;
+
+                // For repeated arrays, the element is referenced multiple times.
+                // If the element contains arrays, we need to increment their reference counts
+                // for each additional copy to ensure proper reference counting in unconstrained code.
+                if *length > 1 {
+                    for value in element_value.clone().into_value_list(self) {
+                        if self.builder.type_of_value(value).contains_an_array() {
+                            for _ in 1..*length {
+                                self.builder.insert_inc_rc(value);
+                            }
+                        }
+                    }
+                }
+
                 let elements: Vec<_> =
                     std::iter::repeat(element_value).take(*length as usize).collect();
 
