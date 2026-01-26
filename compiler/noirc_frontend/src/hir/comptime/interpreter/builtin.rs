@@ -605,7 +605,7 @@ fn type_def_has_named_attribute(
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
@@ -658,7 +658,7 @@ fn type_def_fields(
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1363,7 +1363,7 @@ fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 
 // fn methods(self) -> [FunctionDefinition]
 fn trait_impl_methods(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1381,7 +1381,7 @@ fn trait_impl_methods(
 
 // fn trait_generic_args(self) -> [Type]
 fn trait_impl_trait_generic_args(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -3157,7 +3157,7 @@ fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 }
 
 fn trait_def_as_trait_constraint(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {

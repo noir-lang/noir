@@ -386,7 +386,7 @@ impl Elaborator<'_> {
     /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program(
-        &mut self,
+        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
@@ -409,7 +409,7 @@ impl Elaborator<'_> {
     }
 
     fn check_if_type_is_valid_for_program_input(
-        &mut self,
+        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
@@ -425,7 +425,7 @@ impl Elaborator<'_> {
     }
 
     fn check_if_type_is_valid_for_program_output(
-        &mut self,
+        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
