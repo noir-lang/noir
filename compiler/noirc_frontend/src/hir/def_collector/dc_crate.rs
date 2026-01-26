@@ -393,9 +393,10 @@ impl DefCollector {
     ///
     /// Any errors are appended to `errors`.
     ///
-    /// If `shallow` is true, module declarations like `mod some_module;` will not
-    /// be collected. This is only useful for LSP where it's faster to skip these
-    /// declarations when there's a change on a single file.
+    /// If `check_existing_modules` is true, when module declarations like `mod some_module;` are
+    /// encountered they will try to be found in existing modules in the `def_collector.def_map`
+    /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
+    /// need to be re-collected and re-type-checked.
     #[allow(clippy::too_many_arguments)]
     pub fn collect_defs_and_elaborate(
         ast: SortedModule,
@@ -405,7 +406,7 @@ impl DefCollector {
         context: &mut Context,
         mut def_collector: DefCollector,
         options: FrontendOptions,
-        shallow: bool,
+        check_existing_modules: bool,
         errors: &mut Vec<CompilationError>,
     ) {
         let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
@@ -427,7 +428,7 @@ impl DefCollector {
             local_module_id,
             crate_id,
             context,
-            shallow,
+            check_existing_modules,
         ));
 
         let submodules =
