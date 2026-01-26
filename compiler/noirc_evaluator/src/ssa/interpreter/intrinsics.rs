@@ -17,7 +17,7 @@ use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, Interpret
 
 impl<W: Write> Interpreter<'_, W> {
     pub(super) fn call_intrinsic(
-        &mut self,
+        &self,
         intrinsic: Intrinsic,
         args: &[ValueId],
         results: &[ValueId],

@@ -813,6 +813,8 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     pub fn interpret<W: Write + 'static>(
         src: &str,
         output: Rc<RefCell<W>>,
@@ -850,7 +852,7 @@ pub mod test_utils {
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         let (module, errors) = parse_program(src, file);
         // Skip parser warnings

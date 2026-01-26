@@ -407,7 +407,7 @@ impl<'a> IntMutator<'a> {
     }
 
     /// Negate a signed value
-    fn negate_signed_int(&mut self, input: &i128, width: u32) -> InputValue {
+    fn negate_signed_int(&self, input: &i128, width: u32) -> InputValue {
         InputValue::Field(match width {
             8 => neg_as_to_field::<i8>(input),
             16 => neg_as_to_field::<i16>(input),
@@ -542,7 +542,7 @@ impl<'a> IntMutator<'a> {
     }
 
     /// Negate an unsigned value
-    fn negate_unsigned_int(&mut self, input: &u128, width: u32) -> InputValue {
+    fn negate_unsigned_int(&self, input: &u128, width: u32) -> InputValue {
         InputValue::Field(match width {
             8 => wrapping_neg_as_to_field::<u8>(input),
             16 => wrapping_neg_as_to_field::<u16>(input),

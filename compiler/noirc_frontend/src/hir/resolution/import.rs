@@ -251,7 +251,7 @@ impl PathResolutionTargetResolver<'_, '_> {
     ///
     /// Returns a path with its kind unchanged, paired up with the importing or defining module itself as the target.
     fn resolve_crate_path(
-        &mut self,
+        &self,
         path: TypedPath,
         krate: CrateId,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
@@ -317,7 +317,7 @@ impl PathResolutionTargetResolver<'_, '_> {
     /// * get the parent of the current importing module
     /// * return the path still with [PathKind::Super], paired up with the parent module
     fn resolve_super_path(
-        &mut self,
+        &self,
         path: TypedPath,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {

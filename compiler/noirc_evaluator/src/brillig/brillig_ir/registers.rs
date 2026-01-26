@@ -509,12 +509,12 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Manually deallocates a register which is no longer in use.
     ///
     /// This could be one of the pre-allocated ones which doesn't have automation.
-    pub(crate) fn deallocate_register(&mut self, register: MemoryAddress) {
+    pub(crate) fn deallocate_register(&self, register: MemoryAddress) {
         self.registers_mut().deallocate_register(register);
     }
 
     /// Allocates an unused register.
-    pub(crate) fn allocate_register(&mut self) -> Allocated<MemoryAddress, Registers> {
+    pub(crate) fn allocate_register(&self) -> Allocated<MemoryAddress, Registers> {
         let addr = self.registers_mut().allocate_register();
         Allocated::new_addr(addr, self.registers.clone())
     }
@@ -529,27 +529,25 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [SingleAddrVariable].
     pub(crate) fn allocate_single_addr(
-        &mut self,
+        &self,
         bit_size: u32,
     ) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_register().map(|a| SingleAddrVariable::new(a, bit_size))
     }
 
     /// Allocate a [SingleAddrVariable] with the size of a Brillig memory address.
-    pub(crate) fn allocate_single_addr_usize(
-        &mut self,
-    ) -> Allocated<SingleAddrVariable, Registers> {
+    pub(crate) fn allocate_single_addr_usize(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_register().map(SingleAddrVariable::new_usize)
     }
 
     /// Allocate a [SingleAddrVariable] with a size of 1 bit.
-    pub(crate) fn allocate_single_addr_bool(&mut self) -> Allocated<SingleAddrVariable, Registers> {
+    pub(crate) fn allocate_single_addr_bool(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_single_addr(1)
     }
 
     /// Allocate a [SingleAddrVariable] with a size of `BRILLIG_MEMORY_ADDRESSING_BIT_SIZE` bit.
     #[allow(unused)]
-    pub(crate) fn allocate_single_addr_mem(&mut self) -> Allocated<SingleAddrVariable, Registers> {
+    pub(crate) fn allocate_single_addr_mem(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
@@ -557,7 +555,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     ///
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
     /// That is done by [BrilligContext::codegen_initialize_vector].
-    pub(crate) fn allocate_brillig_vector(&mut self) -> Allocated<BrilligVector, Registers> {
+    pub(crate) fn allocate_brillig_vector(&self) -> Allocated<BrilligVector, Registers> {
         self.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
@@ -566,14 +564,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
     /// That is done by [BrilligContext::codegen_initialize_array].
     pub(crate) fn allocate_brillig_array(
-        &mut self,
+        &self,
         size: SemiFlattenedLength,
     ) -> Allocated<BrilligArray, Registers> {
         self.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
 
     /// Allocate a [HeapVector].
-    pub(crate) fn allocate_heap_vector(&mut self) -> Allocated<HeapVector, Registers> {
+    pub(crate) fn allocate_heap_vector(&self) -> Allocated<HeapVector, Registers> {
         let pointer = self.allocate_register();
         let size = self.allocate_register();
         pointer.map2(size, |pointer, size| HeapVector { pointer, size })
@@ -581,7 +579,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
 
     /// Allocate a [HeapArray].
     pub(crate) fn allocate_heap_array(
-        &mut self,
+        &self,
         size: SemiFlattenedLength,
     ) -> Allocated<HeapArray, Registers> {
         self.allocate_register().map(|pointer| HeapArray { pointer, size })

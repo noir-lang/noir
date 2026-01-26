@@ -364,7 +364,7 @@ impl Parser<'_> {
         }
     }
 
-    fn empty_for_loop(&mut self, identifier: Ident, start_location: Location) -> ForLoopStatement {
+    fn empty_for_loop(&self, identifier: Ident, start_location: Location) -> ForLoopStatement {
         let location = self.location_at_previous_token_end();
         ForLoopStatement {
             identifier,
