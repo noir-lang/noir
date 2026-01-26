@@ -2323,7 +2323,33 @@
 <a href="#2322" id="2322">2322</a>
 <a href="#2323" id="2323">2323</a>
 <a href="#2324" id="2324">2324</a>
-<a href="#2325" id="2325">2325</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2325" id="2325">2325</a>
+<a href="#2326" id="2326">2326</a>
+<a href="#2327" id="2327">2327</a>
+<a href="#2328" id="2328">2328</a>
+<a href="#2329" id="2329">2329</a>
+<a href="#2330" id="2330">2330</a>
+<a href="#2331" id="2331">2331</a>
+<a href="#2332" id="2332">2332</a>
+<a href="#2333" id="2333">2333</a>
+<a href="#2334" id="2334">2334</a>
+<a href="#2335" id="2335">2335</a>
+<a href="#2336" id="2336">2336</a>
+<a href="#2337" id="2337">2337</a>
+<a href="#2338" id="2338">2338</a>
+<a href="#2339" id="2339">2339</a>
+<a href="#2340" id="2340">2340</a>
+<a href="#2341" id="2341">2341</a>
+<a href="#2342" id="2342">2342</a>
+<a href="#2343" id="2343">2343</a>
+<a href="#2344" id="2344">2344</a>
+<a href="#2345" id="2345">2345</a>
+<a href="#2346" id="2346">2346</a>
+<a href="#2347" id="2347">2347</a>
+<a href="#2348" id="2348">2348</a>
+<a href="#2349" id="2349">2349</a>
+<a href="#2350" id="2350">2350</a>
+<a href="#2351" id="2351">2351</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2568,23 +2594,32 @@
             <span class="kw">return </span>(atom, <span class="bool-val">false</span>);
         }
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(field_name) = <span class="self">self</span>.parse_member_access_field_name() <span class="kw">else </span>{ <span class="kw">return </span>(atom, <span class="bool-val">true</span>) };
+        <span class="kw">let </span><span class="prelude-val">Some</span>((field_name, is_integer)) = <span class="self">self</span>.parse_member_access_field_name() <span class="kw">else </span>{
+            <span class="kw">return </span>(atom, <span class="bool-val">true</span>);
+        };
 
-        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_after_member_access_field_name();
-
-        <span class="kw">let </span>kind = <span class="kw">if let </span><span class="prelude-val">Some</span>(call_arguments) = <span class="self">self</span>.parse_call_arguments() {
-            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: atom,
-                method_name: field_name,
-                generics,
-                arguments: call_arguments.arguments,
-                is_macro_call: call_arguments.is_macro_call,
-            }))
-        } <span class="kw">else </span>{
+        <span class="kw">let </span>kind = <span class="kw">if </span>is_integer {
             ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                 lhs: atom,
                 rhs: field_name,
             }))
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_after_member_access_field_name();
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(call_arguments) = <span class="self">self</span>.parse_call_arguments() {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: atom,
+                    method_name: field_name,
+                    generics,
+                    arguments: call_arguments.arguments,
+                    is_macro_call: call_arguments.is_macro_call,
+                }))
+            } <span class="kw">else </span>{
+                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                    lhs: atom,
+                    rhs: field_name,
+                }))
+            }
         };
 
         <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
@@ -2592,14 +2627,16 @@
         (atom, <span class="bool-val">true</span>)
     }
 
-    <span class="kw">fn </span>parse_member_access_field_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {
+    <span class="doccomment">/// Parses either an identifier or an integer.
+    /// The `bool` in the returned tuple is true if an integer was found.
+    </span><span class="kw">fn </span>parse_member_access_field_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Ident, bool)&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_non_underscore_ident() {
-            <span class="prelude-val">Some</span>(ident)
+            <span class="prelude-val">Some</span>((ident, <span class="bool-val">false</span>))
         <span class="comment">// We allow integer type suffixes on tuple field names since this lets
         // users unquote typed integers in macros to use as a tuple access expression.
         // See https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
         </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>((int, <span class="kw">_</span>)) = <span class="self">self</span>.eat_int() {
-            <span class="prelude-val">Some</span>(Ident::new(int.to_string(), <span class="self">self</span>.previous_token_location))
+            <span class="prelude-val">Some</span>((Ident::new(int.to_string(), <span class="self">self</span>.previous_token_location), <span class="bool-val">true</span>))
         } <span class="kw">else </span>{
             <span class="self">self</span>.push_error(
                 ParserErrorReason::ExpectedFieldName(<span class="self">self</span>.token.token().clone()),
@@ -4646,6 +4683,21 @@
             reason,
             ParserErrorReason::Lexer(LexerErrorKind::IntegerLiteralTooLarge { .. })
         ));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>tuple_member_access_is_not_a_call() {
+        <span class="comment">// Usually `foo.bar()` is parsed as a method call, but this is not true if the member access name is an integer.
+        </span><span class="kw">let </span>src = <span class="string">"tuple.0()"</span>;
+        <span class="kw">let </span>expr = parse_expression_no_errors(src);
+        <span class="kw">let </span>ExpressionKind::Call(call) = expr.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected call expression"</span>);
+        };
+        <span class="kw">let </span>ExpressionKind::MemberAccess(member_access) = call.func.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected member access expression"</span>);
+        };
+        <span class="macro">assert_eq!</span>(member_access.lhs.to_string(), <span class="string">"tuple"</span>);
+        <span class="macro">assert_eq!</span>(member_access.rhs.to_string(), <span class="string">"0"</span>);
     }
 }
 </code></pre></div></section></main></body></html>
