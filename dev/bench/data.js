@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769436467321,
+  "lastUpdate": 1769439328234,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5f81abb976dfa4700a99ad3a6e21678316d9b831",
-          "message": "chore!: remove `ExpressionWidth` (#11229)",
-          "timestamp": "2026-01-19T13:57:59Z",
-          "tree_id": "8f832e5d979e2f30062a797436c8a312d79bd400",
-          "url": "https://github.com/noir-lang/noir/commit/5f81abb976dfa4700a99ad3a6e21678316d9b831"
-        },
-        "date": 1768832468135,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262537,
-            "range": "± 1589",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236869,
-            "range": "± 3272",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792652,
-            "range": "± 17546",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25304,6 +25262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793721,
             "range": "± 5192",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e1b2904367e55e88385af7905c2ded8e86920b49",
+          "message": "fix: Error instead of panic when method is not found (#11330)",
+          "timestamp": "2026-01-26T14:33:50Z",
+          "tree_id": "83a347b9e431c8e369475c7b546f52ceda0c15cb",
+          "url": "https://github.com/noir-lang/noir/commit/e1b2904367e55e88385af7905c2ded8e86920b49"
+        },
+        "date": 1769439290731,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262706,
+            "range": "± 700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229094,
+            "range": "± 18692",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793585,
+            "range": "± 11545",
             "unit": "ns/iter"
           }
         ]
