@@ -438,15 +438,13 @@ impl DefCollector {
 
         inject_prelude(crate_id, context, local_module_id, &mut def_collector.imports);
 
-        for (index, submodule) in submodules.iter().cloned().enumerate() {
-            // We only need to inject the prelude for modules that were collecting in `collect_defs`.
-            // This isn't important or necessary in the compiler. However, in LSP a file might be
-            // re-checked multiple times, ending in new modules in addition to many already existing
-            // before this function call, and there's no need to inject the prelude in those existing
-            // modules (it's very slow).
-            if index >= modules_count_before_collect {
-                inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
-            }
+        // We only need to inject the prelude for modules that were collected in `collect_defs`.
+        // This isn't important or necessary in the compiler. However, in LSP a file might be
+        // re-checked multiple times, ending in new modules in addition to many already existing
+        // before this function call, and there's no need to inject the prelude in those existing
+        // modules (it's very slow).
+        for submodule in submodules.iter().skip(modules_count_before_collect) {
+            inject_prelude(crate_id, context, *submodule, &mut def_collector.imports);
         }
 
         Self::process_imports(def_collector.imports, crate_id, context, errors);
