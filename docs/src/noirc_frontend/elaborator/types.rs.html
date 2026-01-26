@@ -2700,7 +2700,13 @@
 <a href="#2699" id="2699">2699</a>
 <a href="#2700" id="2700">2700</a>
 <a href="#2701" id="2701">2701</a>
-<a href="#2702" id="2702">2702</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -4899,8 +4905,6 @@
     /// * in any of the traits which appear in the constraints of the function
     ///
     /// Pushes an error if the method cannot be found.
-    ///
-    /// Panics if we are not elaborating a function currently.
     </span><span class="kw">fn </span>lookup_method_in_trait_constraints(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         object_type: <span class="kw-2">&amp;</span>Type,
@@ -4910,7 +4914,15 @@
     ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
         <span class="kw">let </span>func_id = <span class="kw">match </span><span class="self">self</span>.current_item {
             <span class="prelude-val">Some</span>(DependencyId::Function(id)) =&gt; id,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"unexpected method outside a function: {method_name}"</span>),
+            <span class="kw">_ </span>=&gt; {
+                <span class="comment">// Unexpected method outside a function.
+                </span><span class="self">self</span>.push_err(TypeCheckError::UnresolvedMethodCall {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    location,
+                });
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            }
         };
         <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
 
