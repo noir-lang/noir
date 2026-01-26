@@ -213,7 +213,22 @@
 <a href="#212" id="212">212</a>
 <a href="#213" id="213">213</a>
 <a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -226,6 +241,8 @@
 /// children, and scope with all definitions defined within the scope.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>ModuleData {
+    <span class="doccomment">/// This module's name. The root module has no name (None).
+    </span><span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
     <span class="kw">pub </span>children: HashMap&lt;Ident, LocalModuleId&gt;,
 
@@ -259,6 +276,7 @@
 
 <span class="kw">impl </span>ModuleData {
     <span class="kw">pub fn </span>new(
+        name: <span class="prelude-ty">Option</span>&lt;String&gt;,
         parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
         location: Location,
         outer_attributes: Vec&lt;SecondaryAttribute&gt;,
@@ -270,6 +288,7 @@
         attributes.extend(inner_attributes);
 
         ModuleData {
+            name,
             parent,
             children: HashMap::new(),
             child_declaration_order: Vec::new(),
@@ -298,15 +317,17 @@
         item_id: ModuleDefId,
         trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), (Ident, Ident)&gt; {
-        <span class="self">self</span>.scope.add_definition(name.clone(), visibility, item_id, trait_id)<span class="question-mark">?</span>;
-
         <span class="kw">if let </span>ModuleDefId::ModuleId(child) = item_id {
             <span class="self">self</span>.child_declaration_order.push(child.local_id);
         }
 
+        <span class="kw">let </span>result1 = <span class="self">self</span>.scope.add_definition(name.clone(), visibility, item_id, trait_id);
+
         <span class="comment">// definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        </span><span class="self">self</span>.definitions.add_definition(name, visibility, item_id, trait_id)
+        </span><span class="kw">let </span>result2 = <span class="self">self</span>.definitions.add_definition(name, visibility, item_id, trait_id);
+
+        result1.or(result2)
     }
 
     <span class="kw">pub fn </span>declare_function(
@@ -426,6 +447,15 @@
     /// excluding any type definitions.
     </span><span class="kw">pub fn </span>value_definitions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = ModuleDefId&gt; + <span class="lifetime">'_ </span>{
         <span class="self">self</span>.definitions.values().values().flat_map(|a| a.values().map(|(id, <span class="kw">_</span>, <span class="kw">_</span>)| <span class="kw-2">*</span>id))
+    }
+
+    <span class="doccomment">/// Clears all scope and definitions in this module.
+    /// This isn't used in the compiler. It's only used in the LSP server
+    /// when a file is changed, to clear out all definitions that are meant to be
+    /// replaced with new ones from the changed file.
+    </span><span class="kw">pub fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.scope.clear();
+        <span class="self">self</span>.definitions.clear();
     }
 }
 </code></pre></div></section></main></body></html>

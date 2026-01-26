@@ -436,14 +436,7 @@
 <a href="#435" id="435">435</a>
 <a href="#436" id="436">436</a>
 <a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#438" id="438">438</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -475,7 +468,6 @@
 };
 <span class="kw">use </span>nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 <span class="kw">use </span>noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-<span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -551,9 +543,6 @@
     package_cache: HashMap&lt;PathBuf, PackageCacheData&gt;,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
-    <span class="doccomment">/// Whenever a file in a workspace is changed we'll add it to this set.
-    </span>workspaces_to_process: HashSet&lt;PathBuf&gt;,
-
     options: LspInitializationOptions,
 
     <span class="comment">// Tracks files that currently have errors, by package root.
@@ -570,8 +559,6 @@
     node_interner: NodeInterner,
     def_maps: BTreeMap&lt;CrateId, CrateDefMap&gt;,
     usage_tracker: UsageTracker,
-    diagnostics: Vec&lt;CustomDiagnostic&gt;,
-    diagnostics_just_published: bool,
 }
 
 <span class="kw">impl </span>LspState {
@@ -588,7 +575,6 @@
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }

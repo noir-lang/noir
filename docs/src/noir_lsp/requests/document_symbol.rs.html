@@ -835,7 +835,7 @@
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::LspState;
-<span class="kw">use </span><span class="kw">crate</span>::requests::process_request_no_type_check;
+<span class="kw">use </span><span class="kw">crate</span>::requests::process_request;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>on_document_symbol_request(
     state: <span class="kw-2">&amp;mut </span>LspState,
@@ -846,7 +846,7 @@
         position: Position { line: <span class="number">0</span>, character: <span class="number">0 </span>},
     };
 
-    <span class="kw">let </span>result = process_request_no_type_check(state, text_document_position_params, |args| {
+    <span class="kw">let </span>result = process_request(state, text_document_position_params, |args| {
         <span class="kw">let </span>file_id = args.location.file;
         <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
         <span class="kw">let </span>source = file.source();

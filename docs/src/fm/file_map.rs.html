@@ -134,10 +134,18 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::{Error, Files, SimpleFile};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::{ops::Range, path::PathBuf};
+
+<span class="kw">use </span><span class="kw">crate</span>::simple_files::SimpleFiles;
 
 <span class="comment">// XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep
@@ -207,6 +215,10 @@
         <span class="kw">let </span>file_id = FileId(<span class="self">self</span>.files.add(file_name.clone(), code));
         <span class="self">self</span>.name_to_id.insert(file_name, file_id);
         file_id
+    }
+
+    <span class="kw">pub fn </span>replace_file(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file_id: FileId, source: String) {
+        <span class="self">self</span>.files.replace(file_id.<span class="number">0</span>, source);
     }
 
     <span class="kw">pub fn </span>get_file(<span class="kw-2">&amp;</span><span class="self">self</span>, file_id: FileId) -&gt; <span class="prelude-ty">Option</span>&lt;File&gt; {

@@ -437,7 +437,8 @@
 <a href="#436" id="436">436</a>
 <a href="#437" id="437">437</a>
 <a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationError, DefCollector};
@@ -563,7 +564,8 @@
         <span class="kw">let </span>location = Location::new(Default::default(), root_file_id);
 
         <span class="kw">let </span>root_module = ModuleData::new(
-            <span class="prelude-val">None</span>,
+            <span class="prelude-val">None</span>, <span class="comment">// The crate root module has no name
+            </span><span class="prelude-val">None</span>,
             location,
             Vec::new(),
             ast.inner_attributes.clone(),

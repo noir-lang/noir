@@ -163,7 +163,17 @@
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="kw">use super</span>::{ModuleDefId, ModuleId, namespace::PerNs};
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a></pre></div><pre class="rust"><code><span class="kw">use super</span>::{ModuleDefId, ModuleId, namespace::PerNs};
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, TraitId};
 
@@ -326,6 +336,16 @@
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
+    }
+
+    <span class="doccomment">/// Clears all definitions in this scope.
+    /// This isn't used in the compiler. It's only used in the LSP server
+    /// when a file is changed, to clear out all definitions that are meant to be
+    /// replaced with new ones from the changed file.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.types.clear();
+        <span class="self">self</span>.values.clear();
+        <span class="self">self</span>.defs.clear();
     }
 }
 </code></pre></div></section></main></body></html>

@@ -900,35 +900,12 @@
 <a href="#899" id="899">899</a>
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
 
 <span class="kw">use </span><span class="kw">crate</span>::notifications::fake_stdlib_workspace;
-<span class="kw">use </span><span class="kw">crate</span>::notifications::process_workspace;
 <span class="kw">use crate</span>::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 <span class="kw">use crate</span>::{
     resolve_workspace_for_source_path,
@@ -1422,10 +1399,7 @@
     file_path: <span class="kw-2">&amp;</span>PathString,
     position: <span class="kw-2">&amp;</span>Position,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;noirc_errors::Location, ResponseError&gt; {
-    <span class="kw">let </span>file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
-        ErrorCode::REQUEST_FAILED,
-        <span class="macro">format!</span>(<span class="string">"Could not find file in file manager. File path: {file_path:?}"</span>),
-    ))<span class="question-mark">?</span>;
+    <span class="kw">let </span>file_id = file_path_to_file_id(files, file_path)<span class="question-mark">?</span>;
     <span class="kw">let </span>byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
@@ -1439,6 +1413,16 @@
     };
 
     <span class="prelude-val">Ok</span>(location)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>file_path_to_file_id(
+    files: <span class="kw-2">&amp;</span>FileMap,
+    file_path: <span class="kw-2">&amp;</span>PathString,
+) -&gt; <span class="prelude-ty">Result</span>&lt;FileId, ResponseError&gt; {
+    files.get_file_id(file_path).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        <span class="macro">format!</span>(<span class="string">"Could not find file in file manager. File path: {file_path:?}"</span>),
+    ))
 }
 
 <span class="kw">fn </span>character_to_line_offset(line: <span class="kw-2">&amp;</span>str, character: u32) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
@@ -1517,51 +1501,13 @@
 <span class="kw">where
     </span>F: FnOnce(ProcessRequestCallbackArgs) -&gt; T,
 {
-    <span class="kw">let </span>type_check = <span class="bool-val">true</span>;
-    process_request_impl(state, text_document_position_params, type_check, callback)
-}
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>process_request_no_type_check&lt;F, T&gt;(
-    state: <span class="kw-2">&amp;mut </span>LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    callback: F,
-) -&gt; <span class="prelude-ty">Result</span>&lt;T, ResponseError&gt;
-<span class="kw">where
-    </span>F: FnOnce(ProcessRequestCallbackArgs) -&gt; T,
-{
-    <span class="kw">let </span>type_check = <span class="bool-val">false</span>;
-    process_request_impl(state, text_document_position_params, type_check, callback)
-}
-
-<span class="kw">fn </span>process_request_impl&lt;F, T&gt;(
-    state: <span class="kw-2">&amp;mut </span>LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    type_check: bool,
-    callback: F,
-) -&gt; <span class="prelude-ty">Result</span>&lt;T, ResponseError&gt;
-<span class="kw">where
-    </span>F: FnOnce(ProcessRequestCallbackArgs) -&gt; T,
-{
     <span class="kw">let </span>uri = text_document_position_params.text_document.uri.clone();
-
-    <span class="kw">let </span>(file_path, workspace) = <span class="kw">if </span>uri.scheme() == <span class="string">"noir-std" </span>{
-        <span class="kw">let </span>workspace = fake_stdlib_workspace();
-        <span class="kw">let </span>file_path =
-            PathBuf::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}{}"</span>, uri.host().unwrap(), uri.path())).unwrap();
-        (file_path, workspace)
+    <span class="kw">let </span>file_path = uri_to_file_path(<span class="kw-2">&amp;</span>uri)<span class="question-mark">?</span>;
+    <span class="kw">let </span>workspace = <span class="kw">if </span>uri.scheme() == <span class="string">"noir-std" </span>{
+        fake_stdlib_workspace()
     } <span class="kw">else </span>{
-        <span class="kw">let </span>file_path = uri.to_file_path().map_err(|<span class="kw">_</span>| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"URI is not a valid file path"</span>)
-        })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-        (file_path, workspace)
+        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
     };
-
-    <span class="comment">// First type-check the workspace if needed
-    </span><span class="kw">if </span>type_check &amp;&amp; state.workspaces_to_process.remove(<span class="kw-2">&amp;</span>workspace.root_dir) {
-        <span class="kw">let _ </span>= process_workspace(state, <span class="kw-2">&amp;</span>workspace, <span class="bool-val">false</span>);
-    }
 
     <span class="kw">let </span>package = <span class="kw">crate</span>::workspace_package_for_file(<span class="kw-2">&amp;</span>workspace, <span class="kw-2">&amp;</span>file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"Could not find package for file"</span>)
@@ -1675,6 +1621,16 @@
         def_maps,
         usage_tracker,
     }))
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>uri_to_file_path(uri: <span class="kw-2">&amp;</span>Url) -&gt; <span class="prelude-ty">Result</span>&lt;PathBuf, ResponseError&gt; {
+    <span class="kw">if </span>uri.scheme() == <span class="string">"noir-std" </span>{
+        <span class="prelude-val">Ok</span>(PathBuf::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}{}"</span>, uri.host().unwrap(), uri.path())).unwrap())
+    } <span class="kw">else </span>{
+        uri.to_file_path().map_err(|<span class="kw">_</span>| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"URI is not a valid file path"</span>)
+        })
+    }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_all_references_in_workspace(

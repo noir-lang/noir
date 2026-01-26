@@ -232,7 +232,8 @@
 <a href="#231" id="231">231</a>
 <a href="#232" id="232">232</a>
 <a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -386,6 +387,7 @@
 
         <span class="kw">let </span>location = Location::new(Default::default(), root_file_id);
         <span class="kw">let </span>root_module = ModuleData::new(
+            <span class="prelude-val">None</span>,
             <span class="prelude-val">None</span>,
             location,
             Vec::new(),

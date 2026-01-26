@@ -1,9 +1,9 @@
 (function() {
-    var implementors = Object.fromEntries([["fm",[["impl&lt;'a&gt; <a class=\"trait\" href=\"fm/codespan_files/trait.Files.html\" title=\"trait fm::codespan_files::Files\">Files</a>&lt;'a&gt; for <a class=\"struct\" href=\"fm/struct.FileMap.html\" title=\"struct fm::FileMap\">FileMap</a>"]]],["noirc_artifacts",[["impl&lt;'a&gt; Files&lt;'a&gt; for <a class=\"struct\" href=\"noirc_artifacts/debug/struct.DebugArtifact.html\" title=\"struct noirc_artifacts::debug::DebugArtifact\">DebugArtifact</a>"]]]]);
+    var implementors = Object.fromEntries([["fm",[["impl&lt;'a&gt; <a class=\"trait\" href=\"fm/codespan_files/trait.Files.html\" title=\"trait fm::codespan_files::Files\">Files</a>&lt;'a&gt; for <a class=\"struct\" href=\"fm/struct.FileMap.html\" title=\"struct fm::FileMap\">FileMap</a>"],["impl&lt;'a, Name, Source&gt; <a class=\"trait\" href=\"fm/codespan_files/trait.Files.html\" title=\"trait fm::codespan_files::Files\">Files</a>&lt;'a&gt; for <a class=\"struct\" href=\"fm/simple_files/struct.SimpleFiles.html\" title=\"struct fm::simple_files::SimpleFiles\">SimpleFiles</a>&lt;Name, Source&gt;<div class=\"where\">where\n    Name: 'a + <a class=\"trait\" href=\"https://doc.rust-lang.org/1.85.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> + <a class=\"trait\" href=\"https://doc.rust-lang.org/1.85.0/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a>,\n    Source: 'a + <a class=\"trait\" href=\"https://doc.rust-lang.org/1.85.0/core/convert/trait.AsRef.html\" title=\"trait core::convert::AsRef\">AsRef</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.85.0/std/primitive.str.html\">str</a>&gt;,</div>"]]],["noirc_artifacts",[["impl&lt;'a&gt; Files&lt;'a&gt; for <a class=\"struct\" href=\"noirc_artifacts/debug/struct.DebugArtifact.html\" title=\"struct noirc_artifacts::debug::DebugArtifact\">DebugArtifact</a>"]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":57,"fragment_lengths":[249,211]}
+//{"start":57,"fragment_lengths":[1144,211]}

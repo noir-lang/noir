@@ -1567,7 +1567,40 @@
 <a href="#1566" id="1566">1566</a>
 <a href="#1567" id="1567">1567</a>
 <a href="#1568" id="1568">1568</a>
-<a href="#1569" id="1569">1569</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -3078,6 +3111,39 @@
                 <span class="self">self</span>.try_definition(ident.id).map(|def| def.name.clone())
             }
         }
+    }
+
+    <span class="doccomment">/// Clears data that is stored in this NodeInterner that is declared at the given file.
+    /// This isn't used by the compiler. It's only used by the LSP server when a file
+    /// changes, to clear the definitions of the previous version of the file.
+    </span><span class="kw">pub fn </span>clear_in_file(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: FileId) {
+        <span class="comment">// Clear in methods
+        </span><span class="kw">for </span>(_key, methods) <span class="kw">in </span><span class="self">self</span>.methods.iter_mut() {
+            <span class="kw">for </span>(_name, methods) <span class="kw">in </span>methods.iter_mut() {
+                methods.direct.retain(|method| {
+                    <span class="kw">let </span>func_id = method.method;
+                    <span class="self">self</span>.func_meta.get(<span class="kw-2">&amp;</span>func_id).unwrap().location.file != file
+                });
+
+                methods.trait_impl_methods.retain(|method| {
+                    <span class="kw">let </span>func_id = method.method;
+                    <span class="self">self</span>.func_meta.get(<span class="kw-2">&amp;</span>func_id).unwrap().location.file != file
+                });
+            }
+        }
+
+        <span class="comment">// Clear in auto import names
+        </span><span class="kw">for </span>(_name, entries) <span class="kw">in </span><span class="self">self</span>.auto_import_names.iter_mut() {
+            entries.retain(|entry| entry.file != file);
+        }
+
+        <span class="comment">// Clear in reexports
+        </span><span class="kw">for </span>(_module_def_if, reexports) <span class="kw">in </span><span class="self">self</span>.reexports.iter_mut() {
+            reexports.retain(|reexport| reexport.name.location().file != file);
+        }
+
+        <span class="comment">// Clear in LocationIndices
+        </span><span class="self">self</span>.clear_file_locations(file);
     }
 }
 

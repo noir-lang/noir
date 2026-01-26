@@ -241,23 +241,227 @@
 <a href="#240" id="240">240</a>
 <a href="#241" id="241">241</a>
 <a href="#242" id="242">242</a>
-<a href="#243" id="243">243</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::{
     ResponseError,
     lsp_types::{Position, TextDocumentPositionParams},
 };
 
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
+<span class="kw">use </span>fm::{FileMap, PathString};
 <span class="kw">use </span>nargo::{package::Package, workspace::Workspace};
-<span class="kw">use </span>noirc_driver::CrateId;
+<span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
-    hir::{
-        FunctionNameMatch,
-        def_map::{DefMaps, ModuleId},
-        get_all_test_functions_in_crate_matching,
-    },
-    node_interner::NodeInterner,
+    ParsedModule,
+    ast::{NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
+    graph::CrateGraph,
+    hir::def_map::{DefMaps, ModuleId, fully_qualified_module_path},
+    node_interner::{NodeInterner, ReferenceId},
+    parser::ParsedSubModule,
 };
 
 <span class="kw">use crate</span>::{
@@ -315,13 +519,17 @@
     };
     process_request(state, text_document_position_params, |args| {
         <span class="kw">let </span>file_id = args.files.get_file_id(<span class="kw-2">&amp;</span>PathString::from_path(file_path))<span class="question-mark">?</span>;
+        <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
+        <span class="kw">let </span>source = file.source();
+        <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+
         <span class="kw">let </span>collected_lenses = collect_lenses_for_file(
-            file_id,
+            parsed_module,
             args.workspace,
             args.package,
-            args.crate_id,
             args.interner,
             args.def_maps,
+            args.crate_graph,
             args.files,
         );
         <span class="kw">if </span>collected_lenses.is_empty() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(collected_lenses) }
@@ -329,71 +537,113 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>collect_lenses_for_file(
-    current_file: FileId,
+    parsed_module: ParsedModule,
     workspace: <span class="kw-2">&amp;</span>Workspace,
     package: <span class="kw-2">&amp;</span>Package,
-    crate_id: CrateId,
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     def_maps: <span class="kw-2">&amp;</span>DefMaps,
+    crate_graph: <span class="kw-2">&amp;</span>CrateGraph,
     files: <span class="kw-2">&amp;</span>FileMap,
 ) -&gt; Vec&lt;CodeLens&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>lenses: Vec&lt;CodeLens&gt; = <span class="macro">vec!</span>[];
-
-    <span class="kw">let </span>tests = get_all_test_functions_in_crate_matching(
-        crate_id,
-        <span class="kw-2">&amp;</span>FunctionNameMatch::Anything,
+    <span class="kw">let </span><span class="kw-2">mut </span>visitor = CodeLensVisitor {
+        workspace,
+        package,
         interner,
         def_maps,
-    );
-    <span class="kw">for </span>(func_name, test_function) <span class="kw">in </span>tests {
-        <span class="kw">let </span>location = interner.function_meta(<span class="kw-2">&amp;</span>test_function.id).name.location;
-        <span class="kw">let </span>file_id = location.file;
-        <span class="kw">if </span>file_id != current_file {
-            <span class="kw">continue</span>;
+        crate_graph,
+        files,
+        nesting: <span class="number">0</span>,
+        lenses: <span class="macro">vec!</span>[],
+    };
+    parsed_module.accept(<span class="kw-2">&amp;mut </span>visitor);
+    visitor.lenses
+}
+
+<span class="kw">struct </span>CodeLensVisitor&lt;<span class="lifetime">'a</span>&gt; {
+    workspace: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Workspace,
+    package: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Package,
+    interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
+    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DefMaps,
+    crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
+    files: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FileMap,
+    nesting: usize,
+    lenses: Vec&lt;CodeLens&gt;,
+}
+
+<span class="kw">impl </span>Visitor <span class="kw">for </span>CodeLensVisitor&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>visit_noir_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>NoirFunction, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="kw">let </span>location = function.name_ident().location();
+
+        <span class="comment">// Check if it's a main function
+        </span><span class="kw">if </span><span class="self">self</span>.nesting == <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.package.is_binary() &amp;&amp; function.name() == <span class="string">"main" </span>{
+            <span class="kw">let </span>range = byte_span_to_range(<span class="self">self</span>.files, location.file, location.span.into())
+                .unwrap_or_default();
+            <span class="self">self</span>.lenses.push(compile_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, range));
+            <span class="self">self</span>.lenses.push(info_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, range));
+            <span class="self">self</span>.lenses.push(execute_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, range));
+            <span class="self">self</span>.lenses.push(debug_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, range));
         }
 
-        <span class="kw">let </span>range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-        lenses.push(test_lens(workspace, package, <span class="kw-2">&amp;</span>func_name, range));
-        lenses.push(debug_test_lens(workspace, package, func_name, range));
-    }
-
-    <span class="kw">if </span>package.is_binary() {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(main_func_id) = def_maps[<span class="kw-2">&amp;</span>crate_id].main_function() {
-            <span class="kw">let </span>location = interner.function_meta(<span class="kw-2">&amp;</span>main_func_id).name.location;
-            <span class="kw">let </span>file_id = location.file;
-            <span class="kw">if </span>file_id == current_file {
-                <span class="kw">let </span>range =
-                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-                lenses.push(compile_lens(workspace, package, range));
-                lenses.push(info_lens(workspace, package, range));
-                lenses.push(execute_lens(workspace, package, range));
-                lenses.push(debug_lens(workspace, package, range));
-            }
-        }
-    }
-
-    <span class="kw">if </span>package.is_contract() {
-        <span class="comment">// Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-        </span><span class="kw">let </span>def_map = def_maps.get(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
-
-        <span class="kw">for </span>contract <span class="kw">in </span>def_map
-            .get_all_contracts()
-            .map(|(local_id, <span class="kw">_</span>)| ModuleId { krate: crate_id, local_id }.module(def_maps))
+        <span class="comment">// Check if it's a test function
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceId::Function(func_id)) = <span class="self">self</span>.interner.reference_at_location(location)
         {
-            <span class="kw">let </span>location = contract.location;
-            <span class="kw">let </span>file_id = location.file;
-            <span class="kw">if </span>file_id != current_file {
-                <span class="kw">continue</span>;
+            <span class="kw">if </span><span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).attributes.is_test_function() {
+                <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
+                <span class="kw">let </span>local_module_id = func_meta.source_module;
+                <span class="kw">let </span>crate_id = func_meta.source_crate;
+                <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: local_module_id };
+                <span class="kw">let </span>module_path = fully_qualified_module_path(
+                    <span class="self">self</span>.def_maps,
+                    <span class="self">self</span>.crate_graph,
+                    <span class="kw-2">&amp;</span>crate_id,
+                    module_id,
+                );
+                <span class="kw">let </span>func_name = <span class="kw">if </span>module_path.is_empty() {
+                    function.name().to_string()
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, module_path, function.name())
+                };
+
+                <span class="kw">let </span>range = byte_span_to_range(<span class="self">self</span>.files, location.file, location.span.into())
+                    .unwrap_or_default();
+                <span class="self">self</span>.lenses.push(test_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, <span class="kw-2">&amp;</span>func_name, range));
+                <span class="self">self</span>.lenses.push(debug_test_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, func_name, range));
             }
+        };
 
-            <span class="kw">let </span>range =
-                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-            lenses.push(compile_lens(workspace, package, range));
-            lenses.push(info_lens(workspace, package, range));
+        <span class="bool-val">false
+    </span>}
+
+    <span class="kw">fn </span>visit_parsed_submodule(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parsed_sub_module: <span class="kw-2">&amp;</span>ParsedSubModule, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="comment">// Check if this is a contract
+        </span><span class="kw">if </span>parsed_sub_module.is_contract &amp;&amp; <span class="self">self</span>.package.is_contract() {
+            <span class="kw">let </span>location = parsed_sub_module.name.location();
+            <span class="kw">let </span>range = byte_span_to_range(<span class="self">self</span>.files, location.file, location.span.into())
+                .unwrap_or_default();
+            <span class="self">self</span>.lenses.push(compile_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, range));
+            <span class="self">self</span>.lenses.push(info_lens(<span class="self">self</span>.workspace, <span class="self">self</span>.package, range));
         }
-    }
 
-    lenses
+        <span class="self">self</span>.nesting += <span class="number">1</span>;
+        parsed_sub_module.accept_children(<span class="self">self</span>);
+        <span class="self">self</span>.nesting -= <span class="number">1</span>;
+        <span class="bool-val">false
+    </span>}
+
+    <span class="kw">fn </span>visit_type_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>TypeImpl, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="comment">// We don't want to find functions inside impl blocks
+        </span><span class="bool-val">false
+    </span>}
+
+    <span class="kw">fn </span>visit_noir_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>NoirTrait, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="comment">// We don't want to find functions inside traits
+        </span><span class="bool-val">false
+    </span>}
+
+    <span class="kw">fn </span>visit_noir_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>NoirTraitImpl, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="comment">// We don't want to find functions inside trait impls
+        </span><span class="bool-val">false
+    </span>}
 }
 
 <span class="kw">fn </span>info_lens(
@@ -460,7 +710,7 @@
         arguments: <span class="prelude-val">Some</span>(
             [
                 package_selection_args(workspace, package),
-                <span class="macro">vec!</span>[<span class="string">"--exact"</span>.into(), <span class="string">"--show-output"</span>.into(), func_name.into()],
+                <span class="macro">vec!</span>[<span class="string">"--exact"</span>.into(), func_name.into(), <span class="string">"--show-output"</span>.into()],
             ]
             .concat(),
         ),
@@ -483,5 +733,163 @@
         ),
     };
     CodeLens { range, command: <span class="prelude-val">Some</span>(debug_test_command), data: <span class="prelude-val">None </span>}
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+
+    <span class="kw">use </span>async_lsp::lsp_types::{
+        CodeLensParams, DidOpenTextDocumentParams, PartialResultParams, TextDocumentIdentifier,
+        TextDocumentItem, WorkDoneProgressParams,
+    };
+    <span class="kw">use </span>iter_extended::vecmap;
+    <span class="kw">use </span>serde_json::Value;
+    <span class="kw">use </span>tokio::test;
+
+    <span class="kw">use crate</span>::{
+        notifications::on_did_open_text_document, requests::on_code_lens_request, test_utils,
+        types::CodeLensResult,
+    };
+
+    <span class="kw">async fn </span>get_code_lens(src: <span class="kw-2">&amp;</span>str, directory: <span class="kw-2">&amp;</span>str) -&gt; CodeLensResult {
+        <span class="kw">let </span>(<span class="kw-2">mut </span>state, noir_text_document) = test_utils::init_lsp_server(directory).<span class="kw">await</span>;
+
+        <span class="kw">let _ </span>= on_did_open_text_document(
+            <span class="kw-2">&amp;mut </span>state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: <span class="string">"noir"</span>.to_string(),
+                    version: <span class="number">0</span>,
+                    text: src.to_string(),
+                },
+            },
+        );
+
+        on_code_lens_request(
+            <span class="kw-2">&amp;mut </span>state,
+            CodeLensParams {
+                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: <span class="prelude-val">None </span>},
+                partial_result_params: PartialResultParams { partial_result_token: <span class="prelude-val">None </span>},
+            },
+        )
+        .<span class="kw">await
+        </span>.expect(<span class="string">"Could not execute on_code_lens_request"</span>)
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_no_code_lens() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        fn foo() {}
+        "#</span>;
+
+        <span class="kw">let </span>code_lens = get_code_lens(src, <span class="string">"document_symbol"</span>).<span class="kw">await</span>;
+        <span class="macro">assert!</span>(code_lens.is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_no_code_lens_on_nested_main() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        mod moo {
+            fn main() {}
+        }
+        "#</span>;
+
+        <span class="kw">let </span>code_lens = get_code_lens(src, <span class="string">"document_symbol"</span>).<span class="kw">await</span>;
+        <span class="macro">assert!</span>(code_lens.is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_main_code_lens() {
+        <span class="kw">let </span>src = <span class="string">r#"fn main() {}"#</span>;
+
+        <span class="kw">let </span>code_lens = get_code_lens(src, <span class="string">"document_symbol"</span>).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(code_lens.len(), <span class="number">4</span>);
+
+        <span class="kw">for </span>lens <span class="kw">in </span><span class="kw-2">&amp;</span>code_lens {
+            <span class="macro">assert_eq!</span>(lens.range.start.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(lens.range.end.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(
+                <span class="kw-2">&amp;</span>src[lens.range.start.character <span class="kw">as </span>usize..lens.range.end.character <span class="kw">as </span>usize],
+                <span class="string">"main"
+            </span>);
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        <span class="macro">assert_eq!</span>(titles, <span class="macro">vec!</span>[<span class="string">"Debug"</span>, <span class="string">"Execute"</span>, <span class="string">"Info"</span>, <span class="string">"▶\u{fe0e} Compile"</span>]);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_test_code_lens() {
+        <span class="kw">let </span>src = <span class="string">r#"#[test] fn some_test() {}"#</span>;
+
+        <span class="kw">let </span>code_lens = get_code_lens(src, <span class="string">"document_symbol"</span>).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(code_lens.len(), <span class="number">2</span>);
+
+        <span class="kw">for </span>lens <span class="kw">in </span><span class="kw-2">&amp;</span>code_lens {
+            <span class="macro">assert_eq!</span>(lens.range.start.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(lens.range.end.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(
+                <span class="kw-2">&amp;</span>src[lens.range.start.character <span class="kw">as </span>usize..lens.range.end.character <span class="kw">as </span>usize],
+                <span class="string">"some_test"
+            </span>);
+            <span class="kw">let </span>arguments = lens.command.as_ref().unwrap().arguments.as_ref().unwrap();
+            <span class="macro">assert!</span>(arguments.contains(<span class="kw-2">&amp;</span>Value::String(<span class="string">"some_test"</span>.into())));
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        <span class="macro">assert_eq!</span>(titles, <span class="macro">vec!</span>[<span class="string">"▶\u{fe0e} Run Test"</span>, <span class="string">"⚙ Debug test"</span>]);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_nested_test_code_lens() {
+        <span class="kw">let </span>src = <span class="string">r#"mod moo { #[test] fn some_test() {} }"#</span>;
+
+        <span class="kw">let </span>code_lens = get_code_lens(src, <span class="string">"document_symbol"</span>).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(code_lens.len(), <span class="number">2</span>);
+
+        <span class="kw">for </span>lens <span class="kw">in </span><span class="kw-2">&amp;</span>code_lens {
+            <span class="macro">assert_eq!</span>(lens.range.start.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(lens.range.end.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(
+                <span class="kw-2">&amp;</span>src[lens.range.start.character <span class="kw">as </span>usize..lens.range.end.character <span class="kw">as </span>usize],
+                <span class="string">"some_test"
+            </span>);
+            <span class="kw">let </span>arguments = lens.command.as_ref().unwrap().arguments.as_ref().unwrap();
+            <span class="macro">assert!</span>(arguments.contains(<span class="kw-2">&amp;</span>Value::String(<span class="string">"moo::some_test"</span>.into())));
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        <span class="macro">assert_eq!</span>(titles, <span class="macro">vec!</span>[<span class="string">"▶\u{fe0e} Run Test"</span>, <span class="string">"⚙ Debug test"</span>]);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>test_contract_code_lens() {
+        <span class="kw">let </span>src = <span class="string">r#"contract SomeContract {}"#</span>;
+
+        <span class="kw">let </span>code_lens = get_code_lens(src, <span class="string">"test_contract"</span>).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(code_lens.len(), <span class="number">2</span>);
+
+        <span class="kw">for </span>lens <span class="kw">in </span><span class="kw-2">&amp;</span>code_lens {
+            <span class="macro">assert_eq!</span>(lens.range.start.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(lens.range.end.line, <span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(
+                <span class="kw-2">&amp;</span>src[lens.range.start.character <span class="kw">as </span>usize..lens.range.end.character <span class="kw">as </span>usize],
+                <span class="string">"SomeContract"
+            </span>);
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>titles = vecmap(code_lens, |lens| lens.command.unwrap().title);
+        titles.sort();
+
+        <span class="macro">assert_eq!</span>(titles, <span class="macro">vec!</span>[<span class="string">"Info"</span>, <span class="string">"▶\u{fe0e} Compile"</span>]);
+    }
 }
 </code></pre></div></section></main></body></html>

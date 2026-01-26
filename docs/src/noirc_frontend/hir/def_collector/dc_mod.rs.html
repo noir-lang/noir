@@ -1823,7 +1823,54 @@
 <a href="#1822" id="1822">1822</a>
 <a href="#1823" id="1823">1823</a>
 <a href="#1824" id="1824">1824</a>
-<a href="#1825" id="1825">1825</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a>
+<a href="#1834" id="1834">1834</a>
+<a href="#1835" id="1835">1835</a>
+<a href="#1836" id="1836">1836</a>
+<a href="#1837" id="1837">1837</a>
+<a href="#1838" id="1838">1838</a>
+<a href="#1839" id="1839">1839</a>
+<a href="#1840" id="1840">1840</a>
+<a href="#1841" id="1841">1841</a>
+<a href="#1842" id="1842">1842</a>
+<a href="#1843" id="1843">1843</a>
+<a href="#1844" id="1844">1844</a>
+<a href="#1845" id="1845">1845</a>
+<a href="#1846" id="1846">1846</a>
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a>
+<a href="#1849" id="1849">1849</a>
+<a href="#1850" id="1850">1850</a>
+<a href="#1851" id="1851">1851</a>
+<a href="#1852" id="1852">1852</a>
+<a href="#1853" id="1853">1853</a>
+<a href="#1854" id="1854">1854</a>
+<a href="#1855" id="1855">1855</a>
+<a href="#1856" id="1856">1856</a>
+<a href="#1857" id="1857">1857</a>
+<a href="#1858" id="1858">1858</a>
+<a href="#1859" id="1859">1859</a>
+<a href="#1860" id="1860">1860</a>
+<a href="#1861" id="1861">1861</a>
+<a href="#1862" id="1862">1862</a>
+<a href="#1863" id="1863">1863</a>
+<a href="#1864" id="1864">1864</a>
+<a href="#1865" id="1865">1865</a>
+<a href="#1866" id="1866">1866</a>
+<a href="#1867" id="1867">1867</a>
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -1877,6 +1924,11 @@
 <span class="doccomment">/// Walk a module and collect its definitions.
 ///
 /// This performs the entirety of the definition collection phase of the name resolution pass.
+///
+/// The `reuse_existing_module_declarations` flag is only used by the LSP server to avoid parsing
+/// and processing the file behind `mod foo;` declarations, as when a file is changed those
+/// modules should already exist and they don't need to be reprocessed (they are added as child modules
+/// to `module_id`, though).
 </span><span class="kw">pub fn </span>collect_defs(
     def_collector: <span class="kw-2">&amp;mut </span>DefCollector,
     ast: SortedModule,
@@ -1884,15 +1936,21 @@
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: <span class="kw-2">&amp;mut </span>Context,
+    reuse_existing_module_declarations: bool,
 ) -&gt; Vec&lt;CompilationError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>collector = ModCollector { def_collector, file_id, module_id };
     <span class="kw">let </span><span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt; = <span class="macro">vec!</span>[];
 
     <span class="comment">// First resolve the module declarations
     </span><span class="kw">for </span>decl <span class="kw">in </span>ast.module_decls {
-        errors.extend(
-            collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
-        );
+        errors.extend(collector.parse_module_declaration(
+            context,
+            decl,
+            crate_id,
+            file_id,
+            module_id,
+            reuse_existing_module_declarations,
+        ));
     }
 
     errors.extend(collector.collect_submodules(
@@ -2610,6 +2668,7 @@
                             .set_doc_comments(ReferenceId::Module(child), doc_comments);
                     }
 
+                    <span class="kw">let </span>reuse_existing_module_declarations = <span class="bool-val">false</span>;
                     errors.extend(collect_defs(
                         <span class="self">self</span>.def_collector,
                         submodule.contents,
@@ -2617,6 +2676,7 @@
                         child.local_id,
                         crate_id,
                         context,
+                        reuse_existing_module_declarations,
                     ));
                 }
                 <span class="prelude-val">Err</span>(error) =&gt; {
@@ -2630,6 +2690,12 @@
     <span class="doccomment">/// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
+    ///
+    /// If `reuse_existing_module_declarations` is true, this will first check if a module is
+    /// already registered in the CrateDefMap at the file where `mod mod_name;` happens, and reuse
+    /// that module declaration's contents.
+    /// This is only used by LSP when a file is modified, to avoid parsing and type-checking nested modules
+    /// that happen in separate files as these were already parsed and type-checked before.
     </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>parse_module_declaration(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -2638,6 +2704,7 @@
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
+        reuse_existing_module_declarations: bool,
     ) -&gt; Vec&lt;CompilationError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>doc_comments = mod_decl.doc_comments;
         <span class="kw">let </span>mod_decl = mod_decl.item;
@@ -2653,6 +2720,30 @@
         };
 
         <span class="kw">let </span>location = Location { file: <span class="self">self</span>.file_id, span: mod_decl.ident.span() };
+
+        <span class="kw">if </span>reuse_existing_module_declarations {
+            <span class="kw">let </span>name = <span class="kw-2">&amp;</span>mod_decl.ident;
+            <span class="kw">let </span>existing_child_module_id =
+                <span class="self">self</span>.def_collector.def_map.modules().iter().find_map(|(index, module_data)| {
+                    <span class="kw">let </span>file_matches = module_data.location.file == child_file_id;
+                    <span class="kw">let </span>module_name = module_data.name.as_ref();
+                    <span class="kw">let </span>name_matches =
+                        module_name.is_some_and(|module_name| module_name == name.as_str());
+                    (file_matches &amp;&amp; name_matches).then_some(LocalModuleId::new(index))
+                });
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(existing_child_module_id) = existing_child_module_id {
+                <span class="kw">let </span>parent_module_data = <span class="kw-2">&amp;mut </span><span class="self">self</span>.def_collector.def_map[parent_module_id];
+                parent_module_data.children.insert(name.clone(), existing_child_module_id);
+                <span class="kw">let </span>child_id = ModuleId { krate: crate_id, local_id: existing_child_module_id };
+                <span class="kw">let _ </span>= parent_module_data.declare_child_module(
+                    name.clone(),
+                    mod_decl.visibility,
+                    child_id,
+                );
+                context.def_interner.add_module_reference(child_id, location);
+                <span class="kw">return </span>errors;
+            }
+        }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(old_location) = context.visited_files.get(<span class="kw-2">&amp;</span>child_file_id) {
             <span class="kw">let </span>error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
@@ -2710,6 +2801,7 @@
                         .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
                 }
 
+                <span class="kw">let </span>reuse_existing_module_declarations = <span class="bool-val">false</span>;
                 errors.extend(collect_defs(
                     <span class="self">self</span>.def_collector,
                     ast,
@@ -2717,6 +2809,7 @@
                     child_mod_id.local_id,
                     crate_id,
                     context,
+                    reuse_existing_module_declarations,
                 ));
             }
             <span class="prelude-val">Err</span>(error) =&gt; {
@@ -2828,6 +2921,7 @@
     // so we keep using `location` so that it continues to work as usual.
     </span><span class="kw">let </span>location = Location::new(mod_name.span(), mod_location.file);
     <span class="kw">let </span>new_module = ModuleData::new(
+        <span class="prelude-val">Some</span>(mod_name.to_string()),
         <span class="prelude-val">Some</span>(parent),
         location,
         outer_attributes,

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FILE_EXTENSION"],"fn":["resolve_components"],"mod":["codespan_files","file_map"],"struct":["File","FileId","FileManager","FileMap","PathString"],"trait":["NormalizePath"]};
+window.SIDEBAR_ITEMS = {"constant":["FILE_EXTENSION"],"fn":["resolve_components"],"mod":["codespan_files","file_map","simple_files"],"struct":["File","FileId","FileManager","FileMap","PathString"],"trait":["NormalizePath"]};

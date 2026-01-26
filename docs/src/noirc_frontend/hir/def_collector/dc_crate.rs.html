@@ -665,7 +665,57 @@
 <a href="#664" id="664">664</a>
 <a href="#665" id="665">665</a>
 <a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -1028,12 +1078,61 @@
         //
         // It is now possible to collect all of the definitions of this crate.
         </span><span class="kw">let </span>crate_root = def_map.root();
-        <span class="kw">let </span><span class="kw-2">mut </span>def_collector = DefCollector::new(def_map);
+        <span class="kw">let </span>def_collector = DefCollector::new(def_map);
 
-        <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: crate_root };
+        <span class="kw">let </span>reuse_existing_module_declarations = <span class="bool-val">false</span>;
+        <span class="self">Self</span>::collect_defs_and_elaborate(
+            ast,
+            root_file_id,
+            crate_root,
+            crate_id,
+            context,
+            def_collector,
+            options,
+            reuse_existing_module_declarations,
+            <span class="kw-2">&amp;mut </span>errors,
+        );
+
+        <span class="self">Self</span>::check_unused_items(context, crate_id, <span class="kw-2">&amp;mut </span>errors);
+
+        <span class="kw">if </span>errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
+        errors
+    }
+
+    <span class="doccomment">/// This method does several things:
+    ///
+    /// 1. Collects definitions in the given module
+    /// 2. Injects the prelude in the collected modules
+    /// 3. Processes all of the imports collected during definition collection
+    /// 4. Elaborates all of the collected items
+    ///
+    /// Any errors are appended to `errors`.
+    ///
+    /// If `reuse_existing_module_declarations` is true, when module declarations like `mod some_module;` are
+    /// encountered they will try to be found in existing modules in the `def_collector.def_map`
+    /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
+    /// need to be re-collected and re-type-checked.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">pub fn </span>collect_defs_and_elaborate(
+        ast: SortedModule,
+        file_id: FileId,
+        local_module_id: LocalModuleId,
+        crate_id: CrateId,
+        context: <span class="kw-2">&amp;mut </span>Context,
+        <span class="kw-2">mut </span>def_collector: DefCollector,
+        options: FrontendOptions,
+        reuse_existing_module_declarations: bool,
+        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+    ) {
+        <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: local_module_id };
         context
             .def_interner
             .set_doc_comments(ReferenceId::Module(module_id), ast.inner_doc_comments.clone());
+
+        <span class="comment">// Check how many modules there were before we start collecting items
+        </span><span class="kw">let </span>modules_count_before_collect = def_collector.def_map.modules().iter().count();
 
         <span class="comment">// Collecting module declarations with ModCollector
         // and lowering the functions
@@ -1042,10 +1141,11 @@
         </span>errors.extend(collect_defs(
             <span class="kw-2">&amp;mut </span>def_collector,
             ast,
-            root_file_id,
-            crate_root,
+            file_id,
+            local_module_id,
             crate_id,
             context,
+            reuse_existing_module_declarations,
         ));
 
         <span class="kw">let </span>submodules =
@@ -1053,17 +1153,23 @@
         <span class="comment">// Add the current crate to the collection of DefMaps
         </span>context.def_maps.insert(crate_id, def_collector.def_map);
 
-        inject_prelude(crate_id, context, crate_root, <span class="kw-2">&amp;mut </span>def_collector.imports);
-        <span class="kw">for </span>submodule <span class="kw">in </span>submodules {
-            inject_prelude(crate_id, context, submodule, <span class="kw-2">&amp;mut </span>def_collector.imports);
+        inject_prelude(crate_id, context, local_module_id, <span class="kw-2">&amp;mut </span>def_collector.imports);
+
+        <span class="comment">// We only need to inject the prelude for modules that were collected in `collect_defs`.
+        // This isn't important or necessary in the compiler. However, in LSP a file might be
+        // re-checked multiple times, ending in new modules in addition to many already existing
+        // before this function call, and there's no need to inject the prelude in those existing
+        // modules (it's very slow).
+        </span><span class="kw">for </span>submodule <span class="kw">in </span>submodules.iter().skip(modules_count_before_collect) {
+            inject_prelude(crate_id, context, <span class="kw-2">*</span>submodule, <span class="kw-2">&amp;mut </span>def_collector.imports);
         }
 
-        <span class="self">Self</span>::process_imports(def_collector.imports, crate_id, context, <span class="kw-2">&amp;mut </span>errors);
+        <span class="self">Self</span>::process_imports(def_collector.imports, crate_id, context, errors);
 
         <span class="kw">let </span>debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
             <span class="kw">let </span>file = context.file_manager.find_by_path_suffix(file_suffix);
             file.unwrap_or_else(|error| {
-                <span class="kw">let </span>location = Location::new(Span::empty(<span class="number">0</span>), root_file_id);
+                <span class="kw">let </span>location = Location::new(Span::empty(<span class="number">0</span>), file_id);
                 errors.push(CompilationError::DebugComptimeScopeNotFound(error, location));
                 <span class="prelude-val">None
             </span>})
@@ -1079,13 +1185,6 @@
             Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
 
         errors.append(<span class="kw-2">&amp;mut </span>more_errors);
-
-        <span class="self">Self</span>::check_unused_items(context, crate_id, <span class="kw-2">&amp;mut </span>errors);
-
-        <span class="kw">if </span>errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        }
-        errors
     }
 
     <span class="kw">fn </span>process_imports(
@@ -1190,6 +1289,7 @@
                                     context.def_interner.register_name_for_auto_import(
                                         name.to_string(),
                                         module_def_id,
+                                        file_id,
                                         visibility,
                                         <span class="prelude-val">Some</span>(defining_module),
                                     );

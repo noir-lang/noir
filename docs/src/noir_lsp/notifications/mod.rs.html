@@ -495,25 +495,128 @@
 <a href="#494" id="494">494</a>
 <a href="#495" id="495">495</a>
 <a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
 <span class="kw">use </span>std::ops::ControlFlow;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::str::FromStr <span class="kw">as _</span>;
 
+<span class="kw">use </span><span class="kw">crate</span>::requests::{file_path_to_file_id, uri_to_file_path};
 <span class="kw">use crate</span>::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 <span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 <span class="kw">use </span>async_lsp::{ErrorCode, LanguageClient, ResponseError};
-<span class="kw">use </span>fm::{FileManager, FileMap};
+<span class="kw">use </span>fm::{FileId, FileManager, FileMap, PathString};
 <span class="kw">use </span>nargo::package::{Package, PackageType};
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>noirc_driver::check_crate;
 <span class="kw">use </span>noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 <span class="kw">use </span>noirc_errors::reporter::CustomLabel;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
+<span class="kw">use </span>noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
+<span class="kw">use </span>noirc_frontend::hir::Context;
+<span class="kw">use </span>noirc_frontend::hir::def_collector::dc_crate::DefCollector;
+<span class="kw">use </span>noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
+<span class="kw">use </span>noirc_frontend::parse_program;
 
 <span class="kw">use </span><span class="kw">crate</span>::types::{
     Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
@@ -547,9 +650,8 @@
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     <span class="kw">let </span>document_uri = params.text_document.uri;
-    <span class="kw">let </span>change = <span class="bool-val">false</span>;
 
-    <span class="kw">match </span>handle_text_document_notification(state, document_uri, change) {
+    <span class="kw">match </span>handle_text_document_open_or_close_notification(state, document_uri) {
         <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; ControlFlow::Continue(()),
         <span class="prelude-val">Err</span>(err) =&gt; ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
     }
@@ -564,9 +666,8 @@
     state.workspace_symbol_cache.reprocess_uri(<span class="kw-2">&amp;</span>params.text_document.uri);
 
     <span class="kw">let </span>document_uri = params.text_document.uri;
-    <span class="kw">let </span>change = <span class="bool-val">true</span>;
 
-    <span class="kw">match </span>handle_text_document_notification(state, document_uri, change) {
+    <span class="kw">match </span>handle_on_did_change_text_document_notification(state, document_uri, <span class="kw-2">&amp;</span>text) {
         <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; ControlFlow::Continue(()),
         <span class="prelude-val">Err</span>(err) =&gt; ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
     }
@@ -580,9 +681,8 @@
     state.workspace_symbol_cache.reprocess_uri(<span class="kw-2">&amp;</span>params.text_document.uri);
 
     <span class="kw">let </span>document_uri = params.text_document.uri;
-    <span class="kw">let </span>change = <span class="bool-val">false</span>;
 
-    <span class="kw">match </span>handle_text_document_notification(state, document_uri, change) {
+    <span class="kw">match </span>handle_text_document_open_or_close_notification(state, document_uri) {
         <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; ControlFlow::Continue(()),
         <span class="prelude-val">Err</span>(err) =&gt; ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
     }
@@ -597,67 +697,40 @@
         <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
     };
 
-    <span class="comment">// Process any pending changes
-    </span><span class="kw">if </span>state.workspaces_to_process.remove(<span class="kw-2">&amp;</span>workspace.root_dir) {
-        <span class="kw">let _ </span>= process_workspace(state, <span class="kw-2">&amp;</span>workspace, <span class="bool-val">false</span>);
+    <span class="kw">match </span>process_workspace(state, <span class="kw-2">&amp;</span>workspace) {
+        <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; ControlFlow::Continue(()),
+        <span class="prelude-val">Err</span>(err) =&gt; ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
     }
-
-    <span class="comment">// Cached data should be here but, if it doesn't, we'll just type-check and output diagnostics
-    </span><span class="kw">let </span>(<span class="prelude-val">Some</span>(workspace_cache), <span class="prelude-val">Some</span>(package_cache)) = (
-        state.workspace_cache.get(<span class="kw-2">&amp;</span>workspace.root_dir),
-        state.package_cache.get(<span class="kw-2">&amp;</span>workspace.root_dir),
-    ) <span class="kw">else </span>{
-        <span class="kw">let </span>output_diagnostics = <span class="bool-val">true</span>;
-        <span class="kw">return match </span>process_workspace(state, <span class="kw-2">&amp;</span>workspace, output_diagnostics) {
-            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; ControlFlow::Continue(()),
-            <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
-        };
-    };
-
-    <span class="comment">// If the last thing the user did was to save a file in the workspace, it could be that
-    // the underlying files in the filesystem have changed (for example a `git checkout`),
-    // so here we force a type-check just in case.
-    </span><span class="kw">if </span>package_cache.diagnostics_just_published {
-        <span class="kw">let </span>output_diagnostics = <span class="bool-val">true</span>;
-        <span class="kw">return match </span>process_workspace(state, <span class="kw-2">&amp;</span>workspace, output_diagnostics) {
-            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; ControlFlow::Continue(()),
-            <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>ControlFlow::Break(<span class="prelude-val">Err</span>(err)),
-        };
-    }
-
-    <span class="comment">// Otherwise, we can publish the diagnostics we computed in the last type-check
-    </span>publish_diagnostics(
-        state,
-        <span class="kw-2">&amp;</span>workspace.root_dir,
-        <span class="kw-2">&amp;</span>workspace_cache.file_manager.clone(),
-        package_cache.diagnostics.clone(),
-    );
-
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(package_cache) = state.package_cache.get_mut(<span class="kw-2">&amp;</span>workspace.root_dir) {
-        package_cache.diagnostics_just_published = <span class="bool-val">true</span>;
-    }
-
-    ControlFlow::Continue(())
 }
 
-<span class="kw">fn </span>handle_text_document_notification(
+<span class="kw">fn </span>handle_text_document_open_or_close_notification(
     state: <span class="kw-2">&amp;mut </span>LspState,
     document_uri: Url,
-    change: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt; {
     <span class="kw">let </span>workspace = workspace_from_document_uri(document_uri.clone())<span class="question-mark">?</span>;
 
     <span class="kw">if </span>state.package_cache.contains_key(<span class="kw-2">&amp;</span>workspace.root_dir) {
-        <span class="comment">// If we have cached data but the file didn't change there's nothing to do
-        </span><span class="kw">if </span>change {
-            state.workspaces_to_process.insert(workspace.root_dir.clone());
-        }
         <span class="prelude-val">Ok</span>(())
     } <span class="kw">else </span>{
         <span class="comment">// If it's the first time we see this package, show diagnostics.
         // This can happen for example when a user opens a Noir file in a package for the first time.
-        </span><span class="kw">let </span>output_diagnostics = <span class="bool-val">true</span>;
-        process_workspace(state, <span class="kw-2">&amp;</span>workspace, output_diagnostics)
+        </span>process_workspace(state, <span class="kw-2">&amp;</span>workspace)
+    }
+}
+
+<span class="kw">fn </span>handle_on_did_change_text_document_notification(
+    state: <span class="kw-2">&amp;mut </span>LspState,
+    document_uri: Url,
+    text: <span class="kw-2">&amp;</span>str,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt; {
+    <span class="kw">let </span>workspace = workspace_from_document_uri(document_uri.clone())<span class="question-mark">?</span>;
+
+    <span class="kw">if </span>state.package_cache.contains_key(<span class="kw-2">&amp;</span>workspace.root_dir) {
+        process_workspace_for_single_file_change(state, <span class="kw-2">&amp;</span>workspace, document_uri, text)
+    } <span class="kw">else </span>{
+        <span class="comment">// If it's the first time we see this package, show diagnostics.
+        // This can happen for example when a user opens a Noir file in a package for the first time.
+        </span>process_workspace(state, <span class="kw-2">&amp;</span>workspace)
     }
 }
 
@@ -685,7 +758,6 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>process_workspace(
     state: <span class="kw-2">&amp;mut </span>LspState,
     workspace: <span class="kw-2">&amp;</span>Workspace,
-    output_diagnostics: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>workspace_file_manager = workspace.new_file_manager();
     <span class="kw">if </span>workspace.is_assumed {
@@ -727,16 +799,12 @@
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
-                diagnostics: file_diagnostics.clone(),
-                diagnostics_just_published: output_diagnostics,
             },
         );
 
         <span class="kw">let </span>fm = <span class="kw-2">&amp;</span>context.file_manager;
 
-        <span class="kw">if </span>output_diagnostics {
-            publish_diagnostics(state, <span class="kw-2">&amp;</span>package.root_dir, fm, file_diagnostics);
-        }
+        publish_diagnostics(state, <span class="kw-2">&amp;</span>package.root_dir, fm, file_diagnostics);
     }
 
     state.workspace_cache.insert(
@@ -745,6 +813,132 @@
     );
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="doccomment">/// Type-checks a single file that changed by using existing cached data for the workspace/package,
+/// such as the cached NodeInterner, CrateGraph and DefMaps.
+///
+/// This greatly improves the responsiveness of the LSP server when editing files. However,
+/// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
+/// from the code, it will still existing in the cached data and it will still be offered as
+/// autocompletion. Or for example if the compiler refuses to re-process a trait because
+/// it's already defined, new methods defined on that trait won't be available for autocompletion.
+/// However, this is solved when the file is saved as the entire package is re-processed then.
+/// We think this is an acceptable trade-off to improve responsiveness, and it could eventually
+/// be further improved.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>process_workspace_for_single_file_change(
+    state: <span class="kw-2">&amp;mut </span>LspState,
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    file_uri: Url,
+    file_source: <span class="kw-2">&amp;</span>str,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt; {
+    <span class="kw">let </span>root_dir = <span class="kw-2">&amp;</span>workspace.root_dir;
+    <span class="kw">let </span><span class="kw-2">mut </span>workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
+    <span class="kw">let </span><span class="kw-2">mut </span>package_cache = state.package_cache.remove(root_dir).unwrap();
+
+    <span class="kw">let </span><span class="kw-2">mut </span>file_manager = workspace_cache.file_manager;
+    <span class="kw">let </span>file_map = file_manager.as_file_map();
+    <span class="kw">let </span>file_path = uri_to_file_path(<span class="kw-2">&amp;</span>file_uri)<span class="question-mark">?</span>;
+
+    <span class="comment">// We need to replace the file's source in the file manager
+    </span><span class="kw">let </span>file_id = file_path_to_file_id(file_map, <span class="kw-2">&amp;</span>PathString::from(<span class="kw-2">&amp;</span>file_path))<span class="question-mark">?</span>;
+    file_manager.replace_file(file_id, file_source.to_string());
+
+    <span class="kw">let </span><span class="kw-2">mut </span>node_interner = package_cache.node_interner;
+
+    <span class="comment">// Clear some locations associated with this file. For example, locations associated
+    // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
+    // This also removes methods that were defined in this file.
+    </span>node_interner.clear_in_file(file_id);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>def_maps = package_cache.def_maps;
+    <span class="kw">let </span>crate_graph = package_cache.crate_graph;
+
+    <span class="kw">let </span>crate_id = package_cache.crate_id;
+
+    <span class="comment">// Get a hold of the CrateDefMap for this crate, by removing it.
+    // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>crate_def_map = def_maps.remove(<span class="kw-2">&amp;</span>crate_id).unwrap();
+
+    <span class="comment">// Find out the local module ID corresponding to this file
+    </span><span class="kw">let </span>module_index = crate_def_map
+        .modules()
+        .iter()
+        .find(|(<span class="kw">_</span>, module_data)| module_data.location.file == file_id)
+        .unwrap()
+        .<span class="number">0</span>;
+    <span class="kw">let </span>module_id = LocalModuleId::new(module_index);
+
+    <span class="comment">// Clear all the definitions in the existing module (and its children, as long as they happen in
+    // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
+    </span>clear_all_in_file(file_id, module_id, <span class="kw-2">&amp;mut </span>crate_def_map);
+
+    <span class="comment">// Parse the program and add it to the parsed files
+    </span><span class="kw">let </span>(parsed_program, errors) = parse_program(file_source, file_id);
+    <span class="kw">let </span><span class="kw-2">mut </span>parsed_files = parse_diff(<span class="kw-2">&amp;</span>file_manager, state);
+    parsed_files.insert(file_id, (parsed_program.clone(), errors));
+
+    <span class="comment">// Prepare some things to create a Context
+    </span><span class="kw">let </span>sorted_module = parsed_program.into_sorted();
+    <span class="kw">let </span>def_collector = DefCollector::new(crate_def_map);
+    <span class="kw">let </span><span class="kw-2">mut </span>context =
+        Context::from_existing(<span class="kw-2">&amp;</span>file_manager, <span class="kw-2">&amp;</span>parsed_files, node_interner, def_maps, crate_graph);
+
+    <span class="comment">// Here we enable all options because we won't show errors to users, so it's easier to
+    // assume all unstable features are enabled.
+    </span><span class="kw">let </span>options = FrontendOptions {
+        debug_comptime_in_file: <span class="prelude-val">None</span>,
+        enabled_unstable_features: <span class="kw-2">&amp;</span>[
+            UnstableFeature::Enums,
+            UnstableFeature::Ownership,
+            UnstableFeature::TraitAsType,
+        ],
+        disable_required_unstable_features: <span class="bool-val">false</span>,
+    };
+
+    <span class="comment">// This is when the type-checking of this single file happens
+    </span><span class="kw">let </span>reuse_existing_module_declarations = <span class="bool-val">true</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+    DefCollector::collect_defs_and_elaborate(
+        sorted_module,
+        file_id,
+        module_id,
+        crate_id,
+        <span class="kw-2">&amp;mut </span>context,
+        def_collector,
+        options,
+        reuse_existing_module_declarations,
+        <span class="kw-2">&amp;mut </span>errors,
+    );
+
+    <span class="comment">// Put some things back before restoring the cached data
+    </span>package_cache.node_interner = context.def_interner;
+    package_cache.def_maps = context.def_maps;
+    package_cache.crate_graph = context.crate_graph;
+
+    workspace_cache.file_manager = file_manager;
+
+    state.workspace_cache.insert(root_dir.clone(), workspace_cache);
+    state.package_cache.insert(root_dir.clone(), package_cache);
+
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn </span>clear_all_in_file(file: FileId, module_id: LocalModuleId, crate_def_map: <span class="kw-2">&amp;mut </span>CrateDefMap) {
+    <span class="kw">let </span><span class="kw-2">mut </span>module_ids = <span class="macro">vec!</span>[module_id];
+
+    <span class="kw">while let </span><span class="prelude-val">Some</span>(module_id) = module_ids.pop() {
+        <span class="kw">let </span>module_data = <span class="kw-2">&amp;mut </span>crate_def_map[module_id];
+        <span class="kw">if </span>module_data.location.file != file {
+            <span class="kw">continue</span>;
+        }
+
+        module_data.clear();
+
+        <span class="kw">for </span>child_module_id <span class="kw">in </span>module_data.children.values() {
+            module_ids.push(<span class="kw-2">*</span>child_module_id);
+        }
+    }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fake_stdlib_workspace() -&gt; Workspace {
