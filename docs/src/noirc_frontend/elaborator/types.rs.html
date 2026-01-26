@@ -2702,7 +2702,8 @@
 <a href="#2701" id="2701">2701</a>
 <a href="#2702" id="2702">2702</a>
 <a href="#2703" id="2703">2703</a>
-<a href="#2704" id="2704">2704</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3073,6 +3074,7 @@
                 {
                     <span class="self">self</span>.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: data_type.borrow().name.location(),
+                        usage_location: <span class="prelude-val">Some</span>(path.location),
                     });
                 }
 

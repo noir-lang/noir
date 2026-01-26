@@ -989,7 +989,14 @@
 <a href="#988" id="988">988</a>
 <a href="#989" id="989">989</a>
 <a href="#990" id="990">990</a>
-<a href="#991" id="991">991</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -1056,7 +1063,7 @@
     <span class="attr">#[error(<span class="string">"Nested vectors, i.e. vectors within an array or vector, are not supported"</span>)]
     </span>NestedVectors { location: Location },
     <span class="attr">#[error(<span class="string">"#[abi(tag)] attribute is only allowed in contracts"</span>)]
-    </span>AbiAttributeOutsideContract { location: Location },
+    </span>AbiAttributeOutsideContract { location: Location, usage_location: <span class="prelude-ty">Option</span>&lt;Location&gt; },
     <span class="attr">#[error(
         <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     </span>)]
@@ -1232,7 +1239,7 @@
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
-            | ResolverError::AbiAttributeOutsideContract { location }
+            | ResolverError::AbiAttributeOutsideContract { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -1477,13 +1484,20 @@
                 <span class="string">"Try to use a constant sized array or BoundedVec instead"</span>.into(),
                 <span class="kw-2">*</span>location,
             ),
-            ResolverError::AbiAttributeOutsideContract { location } =&gt; {
-                Diagnostic::simple_error(
+            ResolverError::AbiAttributeOutsideContract { location, usage_location } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
                     <span class="string">"#[abi(tag)] attributes can only be used in contracts"</span>.to_string(),
                     <span class="string">"misplaced #[abi(tag)] attribute"</span>.to_string(),
                     <span class="kw-2">*</span>location,
-                )
-            },
+                );
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(usage_location) = usage_location {
+                    diagnostic.add_secondary(
+                        <span class="string">"the type is used outside of a contract"</span>.to_string(),
+                        <span class="kw-2">*</span>usage_location,
+                    );
+                }
+                diagnostic
+            }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"Definition of low-level function outside of standard library"</span>.into(),
                 <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"</span>.into(),

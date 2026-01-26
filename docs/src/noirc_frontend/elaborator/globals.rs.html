@@ -165,7 +165,8 @@
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
 //!
 //! ## Design
 //!
@@ -243,6 +244,7 @@
                 <span class="kw">if </span><span class="macro">matches!</span>(attr.kind, SecondaryAttributeKind::Abi(<span class="kw">_</span>)) {
                     <span class="self">self</span>.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: attr.location,
+                        usage_location: <span class="prelude-val">None</span>,
                     });
                 }
             }
