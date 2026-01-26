@@ -867,7 +867,19 @@
 <a href="#866" id="866">866</a>
 <a href="#867" id="867">867</a>
 <a href="#868" id="868">868</a>
-<a href="#869" id="869">869</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -894,6 +906,10 @@
     TypeMismatch {
         expected: String,
         actual: Type,
+        location: Location,
+    },
+    UnexpectedZeroedValue {
+        expected: String,
         location: Location,
     },
     NonComptimeVarReferenced {
@@ -1195,6 +1211,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
+            | InterpreterError::UnexpectedZeroedValue { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
             | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
@@ -1302,6 +1319,13 @@
             InterpreterError::TypeMismatch { expected, actual, location } =&gt; {
                 <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Expected `{expected}` but a value of type `{actual}` was given"</span>);
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
+            }
+            InterpreterError::UnexpectedZeroedValue { expected, location } =&gt; {
+                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Expected a concrete `{expected}` but a zeroed value was given"</span>);
+                <span class="kw">let </span>secondary = <span class="macro">format!</span>(
+                    <span class="string">"A zeroed value of `{expected}` may be created to satisfy the type system, but it's not expected to be used"
+                </span>);
+                CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } =&gt; {
                 <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Non-comptime variable `{name}` referenced in comptime code"</span>);
