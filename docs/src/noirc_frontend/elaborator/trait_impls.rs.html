@@ -1202,7 +1202,7 @@
             <span class="self">self</span>.collect_trait_impl_methods(trait_id, trait_impl, <span class="kw-2">&amp;</span>where_clause);
 
             <span class="kw">let </span>location = trait_impl.object_type.location;
-            <span class="self">self</span>.declare_methods_on_data_type(<span class="prelude-val">Some</span>(trait_id), <span class="kw-2">&amp;mut </span>trait_impl.methods, location);
+            <span class="self">self</span>.declare_methods_on_data_type(<span class="prelude-val">Some</span>(trait_id), <span class="kw-2">&amp;</span>trait_impl.methods, location);
 
             <span class="kw">let </span>trait_visibility = <span class="self">self</span>.interner.get_trait(trait_id).visibility;
 
@@ -1697,7 +1697,7 @@
 
     <span class="comment">// Replace implicitly added unbound named generics with fresh type variables
     </span><span class="kw">fn </span>bind_to_fresh_variable(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         named_generics: <span class="kw-2">&amp;mut </span>[NamedType],
         bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
     ) {

@@ -378,7 +378,7 @@
     /// some of the instructions in a group are used but not all of them, no check
     /// is inserted, so this method might return `false`.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>replace_array_instructions_with_out_of_bounds_checks(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         function: <span class="kw-2">&amp;mut </span>Function,
         block_id: BasicBlockId,
         possible_index_out_of_bounds_indexes: <span class="kw-2">&amp;mut </span>Vec&lt;usize&gt;,

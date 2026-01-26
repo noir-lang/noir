@@ -927,7 +927,7 @@
 
 <span class="kw">impl</span>&lt;W: Write&gt; Interpreter&lt;<span class="lifetime">'_</span>, W&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>call_intrinsic(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         intrinsic: Intrinsic,
         args: <span class="kw-2">&amp;</span>[ValueId],
         results: <span class="kw-2">&amp;</span>[ValueId],

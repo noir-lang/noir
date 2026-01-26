@@ -993,7 +993,7 @@
     /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     </span><span class="kw">fn </span>check_if_type_is_valid_for_program(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
@@ -1016,7 +1016,7 @@
     }
 
     <span class="kw">fn </span>check_if_type_is_valid_for_program_input(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
@@ -1032,7 +1032,7 @@
     }
 
     <span class="kw">fn </span>check_if_type_is_valid_for_program_output(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>Type,
         is_entry_point: bool,
         has_inline_attribute: bool,

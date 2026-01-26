@@ -3499,7 +3499,7 @@
         IdentId(id)
     }
 
-    <span class="kw">fn </span>lookup_local(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: node_interner::DefinitionId) -&gt; <span class="prelude-ty">Option</span>&lt;Definition&gt; {
+    <span class="kw">fn </span>lookup_local(<span class="kw-2">&amp;</span><span class="self">self</span>, id: node_interner::DefinitionId) -&gt; <span class="prelude-ty">Option</span>&lt;Definition&gt; {
         <span class="self">self</span>.locals.get(<span class="kw-2">&amp;</span>id).copied().map(Definition::Local)
     }
 
@@ -4362,7 +4362,7 @@
     }
 
     <span class="doccomment">/// Find a captured variable in the innermost closure, and construct an expression
-    </span><span class="kw">fn </span>lookup_captured_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: node_interner::DefinitionId) -&gt; <span class="prelude-ty">Option</span>&lt;ast::Expression&gt; {
+    </span><span class="kw">fn </span>lookup_captured_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, id: node_interner::DefinitionId) -&gt; <span class="prelude-ty">Option</span>&lt;ast::Expression&gt; {
         <span class="kw">let </span>ctx = <span class="self">self</span>.lambda_envs_stack.last()<span class="question-mark">?</span>;
         ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
             ast::Expression::ExtractTupleField(
@@ -4373,7 +4373,7 @@
     }
 
     <span class="doccomment">/// Find a captured variable in the innermost closure construct a LValue
-    </span><span class="kw">fn </span>lookup_captured_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: node_interner::DefinitionId) -&gt; <span class="prelude-ty">Option</span>&lt;ast::LValue&gt; {
+    </span><span class="kw">fn </span>lookup_captured_lvalue(<span class="kw-2">&amp;</span><span class="self">self</span>, id: node_interner::DefinitionId) -&gt; <span class="prelude-ty">Option</span>&lt;ast::LValue&gt; {
         <span class="kw">let </span>ctx = <span class="self">self</span>.lambda_envs_stack.last()<span class="question-mark">?</span>;
         ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
             ast::LValue::MemberAccess {
@@ -5279,7 +5279,7 @@
     }
 
     <span class="kw">fn </span>check_arguments_crossing_runtime_boundaries(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         call: <span class="kw-2">&amp;</span>HirCallExpression,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
         <span class="kw">for </span>argument <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {
@@ -5298,7 +5298,7 @@
     }
 
     <span class="kw">fn </span>check_return_type_crossing_runtime_boundaries(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         return_type: <span class="kw-2">&amp;</span>Type,
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
@@ -5322,7 +5322,7 @@
     }
 
     <span class="kw">fn </span>check_return_type_returned_from_oracle(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         return_type: <span class="kw-2">&amp;</span>Type,
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
@@ -5353,7 +5353,7 @@
     /// The caller that is running a Noir program should then deserialize the `PrintableType`,
     /// and accurately decode the list of field elements passed to the foreign call.
     </span><span class="kw">fn </span>append_printable_type_info(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         hir_argument: <span class="kw-2">&amp;</span>HirExpression,
         arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;,
     ) {
@@ -6117,7 +6117,7 @@
 /// However, we can bind `M` to `N`, so it eventually resolves to `2`,
 /// which is what this method does.
 </span><span class="kw">fn </span>bind_trait_impl_func_generics_to_trait_func_generics(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     method_id: TraitItemId,
     impl_id: node_interner::TraitImplId,
     bindings: <span class="kw-2">&amp;mut </span>TypeBindings,

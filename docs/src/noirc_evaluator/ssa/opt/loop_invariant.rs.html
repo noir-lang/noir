@@ -4365,7 +4365,7 @@
     /// 1. Whether the instruction can be hoisted
     /// 2. If it can be hoisted, does it require an `IncrementRc` instruction.
     </span><span class="kw">fn </span>can_hoist_invariant(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         loop_context: <span class="kw-2">&amp;</span>LoopContext,
         block_context: <span class="kw-2">&amp;</span>BlockContext,
         instruction_id: InstructionId,

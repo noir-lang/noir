@@ -944,7 +944,7 @@
         Param { visibility, pattern, typ, location: <span class="self">self</span>.location_since(start_location) }
     }
 
-    <span class="kw">fn </span>self_pattern_param(<span class="kw-2">&amp;mut </span><span class="self">self</span>, self_pattern: SelfPattern) -&gt; Param {
+    <span class="kw">fn </span>self_pattern_param(<span class="kw-2">&amp;</span><span class="self">self</span>, self_pattern: SelfPattern) -&gt; Param {
         <span class="kw">let </span>ident_location = <span class="self">self</span>.previous_token_location;
         <span class="kw">let </span>ident = Ident::new(<span class="string">"self"</span>.to_string(), ident_location);
         <span class="kw">let </span>path = Path::from_single(<span class="string">"Self"</span>.to_owned(), ident_location);

@@ -1946,10 +1946,7 @@
 <a href="#1945" id="1945">1945</a>
 <a href="#1946" id="1946">1946</a>
 <a href="#1947" id="1947">1947</a>
-<a href="#1948" id="1948">1948</a>
-<a href="#1949" id="1949">1949</a>
-<a href="#1950" id="1950">1950</a>
-<a href="#1951" id="1951">1951</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1948" id="1948">1948</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -3185,7 +3182,7 @@
         <span class="prelude-val">Ok</span>(Value::Tuple(fields))
     }
 
-    <span class="kw">fn </span>evaluate_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lambda: HirLambda, id: ExprId) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>evaluate_lambda(<span class="kw-2">&amp;</span><span class="self">self</span>, lambda: HirLambda, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
         <span class="kw">let </span>env = try_vecmap(<span class="kw-2">&amp;</span>lambda.captures, |capture| {
             <span class="kw">let </span>value = <span class="self">self</span>.lookup_id(capture.ident.id, location)<span class="question-mark">?</span>;
@@ -3609,7 +3606,7 @@
         }
     }
 
-    <span class="kw">fn </span>evaluate_break(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: StmtId) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>evaluate_break(<span class="kw-2">&amp;</span><span class="self">self</span>, id: StmtId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">if </span><span class="self">self</span>.in_loop {
             <span class="prelude-val">Err</span>(InterpreterError::Break)
         } <span class="kw">else </span>{
@@ -3618,7 +3615,7 @@
         }
     }
 
-    <span class="kw">fn </span>evaluate_continue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: StmtId) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>evaluate_continue(<span class="kw-2">&amp;</span><span class="self">self</span>, id: StmtId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">if </span><span class="self">self</span>.in_loop {
             <span class="prelude-val">Err</span>(InterpreterError::Continue)
         } <span class="kw">else </span>{
@@ -3631,10 +3628,7 @@
         <span class="self">self</span>.evaluate_statement(statement)
     }
 
-    <span class="kw">fn </span>print_oracle(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        arguments: Vec&lt;(Value, Location)&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Value, InterpreterError&gt; {
+    <span class="kw">fn </span>print_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>, arguments: Vec&lt;(Value, Location)&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Value, InterpreterError&gt; {
         <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">2</span>);
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(output) = <span class="self">self</span>.elaborator.interpreter_output <span class="kw">else </span>{

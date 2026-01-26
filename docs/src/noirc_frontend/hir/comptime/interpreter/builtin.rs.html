@@ -3875,7 +3875,7 @@
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 </span><span class="kw">fn </span>type_def_fields(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
     call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
@@ -3928,7 +3928,7 @@
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 </span><span class="kw">fn </span>type_def_fields_as_written(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
@@ -4633,7 +4633,7 @@
 
 <span class="comment">// fn methods(self) -&gt; [FunctionDefinition]
 </span><span class="kw">fn </span>trait_impl_methods(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
@@ -4651,7 +4651,7 @@
 
 <span class="comment">// fn trait_generic_args(self) -&gt; [Type]
 </span><span class="kw">fn </span>trait_impl_trait_generic_args(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
@@ -6427,7 +6427,7 @@
 }
 
 <span class="kw">fn </span>trait_def_as_trait_constraint(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {

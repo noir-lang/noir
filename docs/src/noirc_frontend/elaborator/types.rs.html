@@ -2700,10 +2700,7 @@
 <a href="#2699" id="2699">2699</a>
 <a href="#2700" id="2700">2700</a>
 <a href="#2701" id="2701">2701</a>
-<a href="#2702" id="2702">2702</a>
-<a href="#2703" id="2703">2703</a>
-<a href="#2704" id="2704">2704</a>
-<a href="#2705" id="2705">2705</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2702" id="2702">2702</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3613,10 +3610,7 @@
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
-    </span><span class="kw">fn </span>resolve_trait_static_method_by_self(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: <span class="kw-2">&amp;</span>TypedPath,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
+    </span><span class="kw">fn </span>resolve_trait_static_method_by_self(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="comment">// If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
         // to solve the path via trait method lookup.
         </span><span class="kw">if </span><span class="self">self</span>.current_trait_impl.is_some() {

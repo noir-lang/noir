@@ -3365,7 +3365,7 @@
     }
 
     <span class="kw">fn </span>try_get_comptime_function(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         func: ExprId,
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;FuncId&gt;, ResolverError&gt; {

@@ -2766,7 +2766,7 @@
 
     <span class="doccomment">/// Return the variable that was referred to the most in `rows`, or panic if there are zero
     /// `rows`
-    </span><span class="kw">fn </span>branch_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rows: <span class="kw-2">&amp;</span>[Row]) -&gt; DefinitionId {
+    </span><span class="kw">fn </span>branch_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, rows: <span class="kw-2">&amp;</span>[Row]) -&gt; DefinitionId {
         <span class="macro">assert!</span>(!rows.is_empty(), <span class="string">"ICE branch_variable: expected at least one row"</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>counts = HashMap::default();
 

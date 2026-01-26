@@ -143,7 +143,7 @@ export type ExecutionError = Error &amp; {
         acir_function_id: <span class="prelude-ty">Option</span>&lt;AcirFunctionId&gt;,
         brillig_function_id: <span class="prelude-ty">Option</span>&lt;BrilligFunctionId&gt;,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>error = JsExecutionError::constructor(JsString::from(message));
+        <span class="kw">let </span>error = JsExecutionError::constructor(JsString::from(message));
         <span class="kw">let </span>js_call_stack = <span class="kw">match </span>call_stack {
             <span class="prelude-val">Some</span>(call_stack) =&gt; {
                 <span class="kw">let </span>js_array = Array::new();
@@ -187,7 +187,7 @@ export type ExecutionError = Error &amp; {
         error
     }
 
-    <span class="kw">fn </span>set_property(<span class="kw-2">&amp;mut </span><span class="self">self</span>, property: <span class="kw-2">&amp;</span>str, value: JsValue) {
+    <span class="kw">fn </span>set_property(<span class="kw-2">&amp;</span><span class="self">self</span>, property: <span class="kw-2">&amp;</span>str, value: JsValue) {
         <span class="macro">assert!</span>(
             Reflect::set(<span class="self">self</span>, <span class="kw-2">&amp;</span>JsValue::from(property), <span class="kw-2">&amp;</span>value).expect(<span class="string">"Errors should be objects"</span>),
             <span class="string">"Errors should be writable"

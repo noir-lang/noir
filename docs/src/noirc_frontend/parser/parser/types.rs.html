@@ -902,7 +902,7 @@
         <span class="kw">if </span><span class="self">self</span>.eat_colon() { <span class="prelude-val">Some</span>(<span class="self">self</span>.parse_type_or_error()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
     }
 
-    <span class="kw">fn </span>error_type_at_previous_token_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; UnresolvedType {
+    <span class="kw">fn </span>error_type_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; UnresolvedType {
         UnresolvedTypeData::Error.with_location(<span class="self">self</span>.location_at_previous_token_end())
     }
 }

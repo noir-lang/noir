@@ -947,7 +947,7 @@
         }
     }
 
-    <span class="kw">fn </span>next_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
+    <span class="kw">fn </span>next_line(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
         <span class="macro">writeln!</span>(f)<span class="question-mark">?</span>;
         <span class="kw">for _ in </span><span class="number">0</span>..<span class="self">self</span>.indent_level {
             <span class="macro">write!</span>(f, <span class="string">"    "</span>)<span class="question-mark">?</span>;

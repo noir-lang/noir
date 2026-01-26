@@ -1726,7 +1726,7 @@
 ///
 /// This does not type check the body of the impl function.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>check_trait_impl_method_matches_declaration(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
     function: FuncId,
     noir_function: <span class="kw-2">&amp;</span>NoirFunction,
 ) -&gt; Vec&lt;TypeCheckError&gt; {

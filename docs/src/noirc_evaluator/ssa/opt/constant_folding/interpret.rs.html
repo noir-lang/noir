@@ -221,7 +221,7 @@
 </span><span class="kw">fn </span>evaluate_const_argument_call(
     instruction: <span class="kw-2">&amp;</span>Instruction,
     interpreter: <span class="kw-2">&amp;mut </span>Interpreter&lt;Empty&gt;,
-    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
+    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 ) -&gt; EvaluationResult {
     <span class="kw">let </span>Instruction::Call { func: func_id, arguments } = instruction <span class="kw">else </span>{
         <span class="kw">return </span>EvaluationResult::NotABrilligCall;

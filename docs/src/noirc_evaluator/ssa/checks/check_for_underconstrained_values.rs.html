@@ -1517,7 +1517,9 @@
 <a href="#1516" id="1516">1516</a>
 <a href="#1517" id="1517">1517</a>
 <a href="#1518" id="1518">1518</a>
-<a href="#1519" id="1519">1519</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::basic_block::BasicBlockId;
@@ -1539,6 +1541,7 @@
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
     /// Go through each top-level non-Brillig function and detect if it has independent subgraphs
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    #[allow(clippy::needless_pass_by_ref_mut)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>check_for_underconstrained_values(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;SsaReport&gt; {
         <span class="self">self</span>.functions
             .values()
@@ -1559,6 +1562,7 @@
 
     <span class="doccomment">/// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
+    </span><span class="attr">#[allow(clippy::needless_pass_by_ref_mut)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>check_for_missing_brillig_constraints(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         enable_lookback: bool,
@@ -2088,7 +2092,7 @@
 
     <span class="doccomment">/// Every Brillig call not properly constrained should remain in the tainted set
     /// at this point. For each, emit a corresponding warning.
-    </span><span class="kw">fn </span>collect_warnings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;SsaReport&gt; {
+    </span><span class="kw">fn </span>collect_warnings(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;SsaReport&gt; {
         <span class="kw">let </span>warnings: Vec&lt;SsaReport&gt; = <span class="self">self
             </span>.tainted
             .keys()
@@ -2209,7 +2213,7 @@
     ///
     /// Goes through each set of connected ValueIds and see if function arguments or return values are in the set
     </span><span class="kw">fn </span>find_sets_connected_to_function_inputs_or_outputs(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         function: <span class="kw-2">&amp;</span>Function,
     ) -&gt; BTreeSet&lt;usize&gt; {
         <span class="kw">let </span>returns = function.returns().unwrap_or_default();

@@ -293,7 +293,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>define_variable&lt;Registers: RegisterAllocator&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;mut </span>FunctionContext,
-        brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
+        brillig_context: <span class="kw-2">&amp;</span>BrilligContext&lt;FieldElement, Registers&gt;,
         value_id: ValueId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; BrilligVariable {
@@ -318,7 +318,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>define_single_addr_variable&lt;Registers: RegisterAllocator&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;mut </span>FunctionContext,
-        brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
+        brillig_context: <span class="kw-2">&amp;</span>BrilligContext&lt;FieldElement, Registers&gt;,
         value: ValueId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; SingleAddrVariable {
@@ -330,8 +330,8 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_variable&lt;Registers: RegisterAllocator&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value_id: <span class="kw-2">&amp;</span>ValueId,
-        function_context: <span class="kw-2">&amp;mut </span>FunctionContext,
-        brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
+        function_context: <span class="kw-2">&amp;</span>FunctionContext,
+        brillig_context: <span class="kw-2">&amp;</span>BrilligContext&lt;FieldElement, Registers&gt;,
     ) {
         <span class="macro">assert!</span>(<span class="self">self</span>.available_variables.remove(value_id), <span class="string">"ICE: Variable is not available"</span>);
 
@@ -358,7 +358,7 @@
     /// * the variable is not in [Self::available_variables], which means it is no longer live
     /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_allocation(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         function_context: <span class="kw-2">&amp;</span>FunctionContext,
         value_id: ValueId,
     ) -&gt; BrilligVariable {
@@ -387,7 +387,7 @@
 <span class="doccomment">/// For a given [ValueId], allocates the necessary registers to hold it.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_value&lt;F, Registers: RegisterAllocator&gt;(
     value_id: ValueId,
-    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+    brillig_context: <span class="kw-2">&amp;</span>BrilligContext&lt;F, Registers&gt;,
     dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 ) -&gt; Allocated&lt;BrilligVariable, Registers&gt; {
     <span class="kw">let </span>typ = dfg.type_of_value(value_id);
@@ -397,7 +397,7 @@
 
 <span class="doccomment">/// For a given [Type], allocates the necessary registers to hold it.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_value_with_type&lt;F, Registers: RegisterAllocator&gt;(
-    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+    brillig_context: <span class="kw-2">&amp;</span>BrilligContext&lt;F, Registers&gt;,
     typ: Type,
 ) -&gt; Allocated&lt;BrilligVariable, Registers&gt; {
     <span class="kw">match </span>typ {

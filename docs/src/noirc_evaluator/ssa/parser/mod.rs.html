@@ -2507,71 +2507,71 @@
         <span class="self">self</span>.lexer.next_token().map_err(ParserError::LexerError)
     }
 
-    <span class="kw">fn </span>expected_instruction_or_terminator&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_instruction_or_terminator&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedInstructionOrTerminator {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_string&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_string&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedString {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_string_or_data&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_string_or_data&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedStringOrData {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_byte_string&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_byte_string&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedByteString {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_identifier&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_identifier&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedIdentifier {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_int&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_int&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedInt { found: <span class="self">self</span>.token.token().clone(), span: <span class="self">self</span>.token.span() })
     }
 
-    <span class="kw">fn </span>unexpected_offset&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, found: Token, span: Span) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>unexpected_offset&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, found: Token, span: Span) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::UnexpectedOffset { found, span })
     }
 
-    <span class="kw">fn </span>expected_type&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_type&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedType {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_value&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_value&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedValue {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_global_value&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_global_value&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedGlobalValue {
             found: <span class="self">self</span>.token.token().clone(),
             span: <span class="self">self</span>.token.span(),
         })
     }
 
-    <span class="kw">fn </span>expected_token&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_token&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, token: Token) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedToken {
             token,
             found: <span class="self">self</span>.token.token().clone(),
@@ -2579,7 +2579,7 @@
         })
     }
 
-    <span class="kw">fn </span>expected_one_of_tokens&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tokens: <span class="kw-2">&amp;</span>[Token]) -&gt; ParseResult&lt;T&gt; {
+    <span class="kw">fn </span>expected_one_of_tokens&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, tokens: <span class="kw-2">&amp;</span>[Token]) -&gt; ParseResult&lt;T&gt; {
         <span class="prelude-val">Err</span>(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: <span class="self">self</span>.token.token().clone(),

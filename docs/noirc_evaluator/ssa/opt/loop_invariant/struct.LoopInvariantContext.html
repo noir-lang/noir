@@ -67,7 +67,7 @@ the constant value, the maximum and minimum values of the induction variable, ba
 and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
 if <code>only_outer_induction</code>, we only consider outer induction variables, else we also consider the induction variables from the current loop.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.simplify_induction_variable_in_binary" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant/simplify.rs.html#244-332">Source</a><h4 class="code-header">fn <a href="#method.simplify_induction_variable_in_binary" class="fn">simplify_induction_variable_in_binary</a>(
-    &amp;mut self,
+    &amp;self,
     loop_context: &amp;<a class="struct" href="struct.LoopContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopContext">LoopContext</a>,
     binary: &amp;<a class="struct" href="../../ir/instruction/binary/struct.Binary.html" title="struct noirc_evaluator::ssa::ir::instruction::binary::Binary">Binary</a>,
     is_header: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
@@ -130,7 +130,7 @@ could potentially cause the program to fail when it is not meant to fail.</p>
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
 ) -&gt; <a class="struct" href="struct.BlockContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::BlockContext">BlockContext</a></h4></section></summary><div class="docblock"><p>Create a <code>BlockContext</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.can_hoist_invariant" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#664-722">Source</a><h4 class="code-header">fn <a href="#method.can_hoist_invariant" class="fn">can_hoist_invariant</a>(
-    &amp;mut self,
+    &amp;self,
     loop_context: &amp;<a class="struct" href="struct.LoopContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopContext">LoopContext</a>,
     block_context: &amp;<a class="struct" href="struct.BlockContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::BlockContext">BlockContext</a>,
     instruction_id: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,

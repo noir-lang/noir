@@ -827,9 +827,7 @@
 <a href="#826" id="826">826</a>
 <a href="#827" id="827">827</a>
 <a href="#828" id="828">828</a>
-<a href="#829" id="829">829</a>
-<a href="#830" id="830">830</a>
-<a href="#831" id="831">831</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
+<a href="#829" id="829">829</a></pre></div><pre class="rust"><code><span class="doccomment">//! Memory layout and register allocation for Brillig programs.
 //!
 //! Brillig execution splits its memory/register space into fixed and dynamic regions. The layout
 //! is strictly enforced by the register allocators defined in this module.
@@ -1340,12 +1338,12 @@
     <span class="doccomment">/// Manually deallocates a register which is no longer in use.
     ///
     /// This could be one of the pre-allocated ones which doesn't have automation.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deallocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, register: MemoryAddress) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deallocate_register(<span class="kw-2">&amp;</span><span class="self">self</span>, register: MemoryAddress) {
         <span class="self">self</span>.registers_mut().deallocate_register(register);
     }
 
     <span class="doccomment">/// Allocates an unused register.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_register(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Allocated&lt;MemoryAddress, Registers&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_register(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Allocated&lt;MemoryAddress, Registers&gt; {
         <span class="kw">let </span>addr = <span class="self">self</span>.registers_mut().allocate_register();
         Allocated::new_addr(addr, <span class="self">self</span>.registers.clone())
     }
@@ -1360,27 +1358,25 @@
 
     <span class="doccomment">/// Allocate a [SingleAddrVariable].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         bit_size: u32,
     ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|a| SingleAddrVariable::new(a, bit_size))
     }
 
     <span class="doccomment">/// Allocate a [SingleAddrVariable] with the size of a Brillig memory address.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr_usize(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-    ) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr_usize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(SingleAddrVariable::new_usize)
     }
 
     <span class="doccomment">/// Allocate a [SingleAddrVariable] with a size of 1 bit.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr_bool(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr_bool(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
         <span class="self">self</span>.allocate_single_addr(<span class="number">1</span>)
     }
 
     <span class="doccomment">/// Allocate a [SingleAddrVariable] with a size of `BRILLIG_MEMORY_ADDRESSING_BIT_SIZE` bit.
     </span><span class="attr">#[allow(unused)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr_mem(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_single_addr_mem(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Allocated&lt;SingleAddrVariable, Registers&gt; {
         <span class="self">self</span>.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
@@ -1388,7 +1384,7 @@
     ///
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
     /// That is done by [BrilligContext::codegen_initialize_vector].
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_brillig_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Allocated&lt;BrilligVector, Registers&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_brillig_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Allocated&lt;BrilligVector, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
@@ -1397,14 +1393,14 @@
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
     /// That is done by [BrilligContext::codegen_initialize_array].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_brillig_array(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         size: SemiFlattenedLength,
     ) -&gt; Allocated&lt;BrilligArray, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
 
     <span class="doccomment">/// Allocate a [HeapVector].
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Allocated&lt;HeapVector, Registers&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_vector(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Allocated&lt;HeapVector, Registers&gt; {
         <span class="kw">let </span>pointer = <span class="self">self</span>.allocate_register();
         <span class="kw">let </span>size = <span class="self">self</span>.allocate_register();
         pointer.map2(size, |pointer, size| HeapVector { pointer, size })
@@ -1412,7 +1408,7 @@
 
     <span class="doccomment">/// Allocate a [HeapArray].
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate_heap_array(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         size: SemiFlattenedLength,
     ) -&gt; Allocated&lt;HeapArray, Registers&gt; {
         <span class="self">self</span>.allocate_register().map(|pointer| HeapArray { pointer, size })

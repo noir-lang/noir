@@ -2366,11 +2366,7 @@
 <a href="#2365" id="2365">2365</a>
 <a href="#2366" id="2366">2366</a>
 <a href="#2367" id="2367">2367</a>
-<a href="#2368" id="2368">2368</a>
-<a href="#2369" id="2369">2369</a>
-<a href="#2370" id="2370">2370</a>
-<a href="#2371" id="2371">2371</a>
-<a href="#2372" id="2372">2372</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2368" id="2368">2368</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -4321,11 +4317,7 @@
     }
 
     <span class="doccomment">/// Generate a random field that can be used in the match constructor of a numeric type.
-    </span><span class="kw">fn </span>gen_num_field(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        u: <span class="kw-2">&amp;mut </span>Unstructured,
-        typ: <span class="kw-2">&amp;</span>Type,
-    ) -&gt; arbitrary::Result&lt;SignedField&gt; {
+    </span><span class="kw">fn </span>gen_num_field(<span class="kw-2">&amp;</span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;SignedField&gt; {
         <span class="kw">let </span>literal = <span class="self">self</span>.gen_literal(u, typ)<span class="question-mark">?</span>;
         <span class="kw">let </span>Expression::Literal(Literal::Integer(field, <span class="kw">_</span>, <span class="kw">_</span>)) = literal <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"expected Literal::Integer; got {literal:?}"</span>);
@@ -4335,7 +4327,7 @@
 
     <span class="doccomment">/// Generate a match constructor for a numeric type.
     </span><span class="kw">fn </span>gen_num_match_constructor(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
     ) -&gt; arbitrary::Result&lt;Constructor&gt; {

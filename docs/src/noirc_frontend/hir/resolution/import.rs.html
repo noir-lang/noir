@@ -722,7 +722,7 @@
     ///
     /// Returns a path with its kind unchanged, paired up with the importing or defining module itself as the target.
     </span><span class="kw">fn </span>resolve_crate_path(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         path: TypedPath,
         krate: CrateId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
@@ -788,7 +788,7 @@
     /// * get the parent of the current importing module
     /// * return the path still with [PathKind::Super], paired up with the parent module
     </span><span class="kw">fn </span>resolve_super_path(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         path: TypedPath,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>(parent_module_id) = get_module(<span class="self">self</span>.def_maps, <span class="self">self</span>.importing_module).parent <span class="kw">else </span>{

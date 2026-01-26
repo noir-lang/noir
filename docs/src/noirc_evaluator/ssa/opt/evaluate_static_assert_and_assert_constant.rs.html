@@ -550,7 +550,7 @@
 /// This returns Ok(true) if the given instruction should be kept in the block and
 /// Ok(false) if it should be removed.
 </span><span class="kw">fn </span>check_instruction(
-    function: <span class="kw-2">&amp;mut </span>Function,
+    function: <span class="kw-2">&amp;</span>Function,
     instruction: InstructionId,
     assert_constant_id: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
     static_assert_id: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,

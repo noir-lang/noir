@@ -270,7 +270,7 @@
     }
 
     <span class="doccomment">/// Get an instruction and make sure all the values in it are freshly resolved.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: InstructionId) -&gt; (Instruction, CallStackId) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; (Instruction, CallStackId) {
         <span class="kw">let </span><span class="kw-2">mut </span>instruction = <span class="self">self</span>.function.dfg[id].clone();
         instruction.map_values_mut(|id| <span class="self">self</span>.resolve(id));
         (instruction, <span class="self">self</span>.function.dfg.get_instruction_call_stack_id(id))

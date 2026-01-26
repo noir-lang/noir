@@ -865,7 +865,7 @@
         })
     }
 
-    <span class="kw">fn </span>build_data_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeId) -&gt; Item {
+    <span class="kw">fn </span>build_data_type(<span class="kw-2">&amp;</span><span class="self">self</span>, type_id: TypeId) -&gt; Item {
         <span class="kw">let </span>data_type = <span class="self">self</span>.interner.get_type(type_id);
 
         <span class="kw">let </span>impls = <span class="kw">if let </span><span class="prelude-val">Some</span>(methods) =
@@ -882,7 +882,7 @@
         Item::DataType(DataType { id: type_id, impls, trait_impls })
     }
 
-    <span class="kw">fn </span>build_impls&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>, methods: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'b </span>Methods&gt;) -&gt; Vec&lt;Impl&gt; {
+    <span class="kw">fn </span>build_impls&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>, methods: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'b </span>Methods&gt;) -&gt; Vec&lt;Impl&gt; {
         <span class="comment">// Gather all impl methods
         // First split methods by impl methods and trait impl methods
         </span><span class="kw">let </span><span class="kw-2">mut </span>impl_methods = Vec::new();
@@ -912,7 +912,7 @@
             .collect()
     }
 
-    <span class="kw">fn </span>build_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type, methods: Vec&lt;ImplMethod&gt;) -&gt; Impl {
+    <span class="kw">fn </span>build_impl(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: Type, methods: Vec&lt;ImplMethod&gt;) -&gt; Impl {
         <span class="kw">let </span><span class="kw-2">mut </span>generics = BTreeSet::new();
         gather_named_type_vars(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;mut </span>generics);
 
@@ -935,7 +935,7 @@
         Impl { generics, typ, methods }
     }
 
-    <span class="kw">fn </span>build_data_type_trait_impls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data_type: <span class="kw-2">&amp;</span><span class="kw">crate</span>::DataType) -&gt; Vec&lt;TraitImpl&gt; {
+    <span class="kw">fn </span>build_data_type_trait_impls(<span class="kw-2">&amp;</span><span class="self">self</span>, data_type: <span class="kw-2">&amp;</span><span class="kw">crate</span>::DataType) -&gt; Vec&lt;TraitImpl&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = <span class="self">self
             </span>.trait_impls
             .iter()
@@ -955,7 +955,7 @@
         trait_impls.into_iter().map(|(trait_impl, <span class="kw">_</span>)| <span class="self">self</span>.build_trait_impl(trait_impl)).collect()
     }
 
-    <span class="kw">fn </span>build_trait_impls_for_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) -&gt; Vec&lt;TraitImpl&gt; {
+    <span class="kw">fn </span>build_trait_impls_for_trait(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_id: TraitId) -&gt; Vec&lt;TraitImpl&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = Vec::new();
 
         <span class="kw">for </span>trait_impl_id <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.trait_impls {
@@ -973,7 +973,7 @@
         trait_impls.into_iter().map(|(trait_impl, <span class="kw">_</span>)| <span class="self">self</span>.build_trait_impl(trait_impl)).collect()
     }
 
-    <span class="kw">fn </span>sort_trait_impls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impls: <span class="kw-2">&amp;mut </span>[(TraitImplId, Location)]) {
+    <span class="kw">fn </span>sort_trait_impls(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_impls: <span class="kw-2">&amp;mut </span>[(TraitImplId, Location)]) {
         trait_impls.sort_by_key(|(trait_impl_id, location)| {
             <span class="kw">let </span>trait_impl = <span class="self">self</span>.interner.get_trait_implementation(<span class="kw-2">*</span>trait_impl_id);
             <span class="kw">let </span>trait_impl = trait_impl.borrow();
@@ -982,7 +982,7 @@
         });
     }
 
-    <span class="kw">fn </span>build_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl_id: TraitImplId) -&gt; TraitImpl {
+    <span class="kw">fn </span>build_trait_impl(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_impl_id: TraitImplId) -&gt; TraitImpl {
         <span class="kw">let </span>trait_impl = <span class="self">self</span>.interner.get_trait_implementation(trait_impl_id);
         <span class="kw">let </span>trait_impl = trait_impl.borrow();
         <span class="kw">let </span>external_types = <span class="self">self</span>.type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span>trait_impl.typ);
@@ -1001,7 +1001,7 @@
         }
     }
 
-    <span class="kw">fn </span>build_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) -&gt; Item {
+    <span class="kw">fn </span>build_trait(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_id: TraitId) -&gt; Item {
         <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
 
         <span class="kw">let </span><span class="kw-2">mut </span>func_ids = trait_
@@ -1084,7 +1084,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_primitive_types(<span class="kw-2">&amp;mut </span><span class="self">self</span>, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_primitive_types(<span class="kw-2">&amp;</span><span class="self">self</span>, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
         <span class="self">self</span>.add_primitive_type(Type::Bool, items);
         <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::One), items);
         <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight), items);
@@ -1127,7 +1127,7 @@
         }
     }
 
-    <span class="kw">fn </span>add_primitive_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
+    <span class="kw">fn </span>add_primitive_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: Type, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
         <span class="kw">let </span><span class="kw-2">mut </span>impls = <span class="kw">if let </span><span class="prelude-val">Some</span>(methods) = <span class="self">self</span>.interner.get_type_methods(<span class="kw-2">&amp;</span>typ) {
             <span class="self">self</span>.build_impls(methods.values())
         } <span class="kw">else </span>{
@@ -1143,7 +1143,7 @@
         items.push((ItemVisibility::Public, Item::PrimitiveType(primitive_type)));
     }
 
-    <span class="kw">fn </span>build_primitive_type_trait_impls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, primitive_type: <span class="kw-2">&amp;</span>Type) -&gt; Vec&lt;TraitImpl&gt; {
+    <span class="kw">fn </span>build_primitive_type_trait_impls(<span class="kw-2">&amp;</span><span class="self">self</span>, primitive_type: <span class="kw-2">&amp;</span>Type) -&gt; Vec&lt;TraitImpl&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = <span class="self">self
             </span>.trait_impls
             .iter()

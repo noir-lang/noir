@@ -667,7 +667,7 @@
     }
 
     <span class="kw">fn </span>send_foreign_call&lt;F&gt;(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         foreign_call: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ForeignCallResult&lt;F&gt;, jsonrpsee::core::ClientError&gt;
     <span class="kw">where

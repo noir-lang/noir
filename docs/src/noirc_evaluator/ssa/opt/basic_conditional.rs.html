@@ -628,7 +628,7 @@
             no_predicates.insert(function.id(), function.is_no_predicates());
         }
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-            flatten_function(function, <span class="kw-2">&amp;mut </span>no_predicates);
+            flatten_function(function, <span class="kw-2">&amp;</span>no_predicates);
         }
         <span class="self">self
     </span>}
@@ -820,7 +820,7 @@
 }
 
 <span class="doccomment">/// Identifies all simple conditionals in the function and flattens them
-</span><span class="kw">fn </span>flatten_function(function: <span class="kw-2">&amp;mut </span>Function, no_predicates: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, bool&gt;) {
+</span><span class="kw">fn </span>flatten_function(function: <span class="kw-2">&amp;mut </span>Function, no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;) {
     <span class="comment">// This pass is dedicated to brillig functions
     </span><span class="kw">if </span>!function.runtime().is_brillig() {
         <span class="kw">return</span>;
@@ -874,7 +874,7 @@
 </span><span class="kw">fn </span>flatten_multiple(
     conditionals: <span class="kw-2">&amp;</span>Vec&lt;BasicConditional&gt;,
     function: <span class="kw-2">&amp;mut </span>Function,
-    no_predicates: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, bool&gt;,
+    no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;,
 ) {
     <span class="comment">// 1. process each basic conditional, using a new context per conditional
     </span><span class="kw">let </span>post_order = PostOrder::with_function(function);
@@ -920,7 +920,7 @@
     </span><span class="kw">fn </span>flatten_single_conditional(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         conditional: <span class="kw-2">&amp;</span>BasicConditional,
-        no_predicates: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, bool&gt;,
+        no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;,
     ) {
         <span class="comment">// Manually inline 'then', 'else' and 'exit' into the entry block
         //0. initialize the context for flattening a 'single conditional'

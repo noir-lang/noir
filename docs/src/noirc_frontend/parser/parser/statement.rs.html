@@ -1271,7 +1271,7 @@
         }
     }
 
-    <span class="kw">fn </span>empty_for_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, identifier: Ident, start_location: Location) -&gt; ForLoopStatement {
+    <span class="kw">fn </span>empty_for_loop(<span class="kw-2">&amp;</span><span class="self">self</span>, identifier: Ident, start_location: Location) -&gt; ForLoopStatement {
         <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
         ForLoopStatement {
             identifier,

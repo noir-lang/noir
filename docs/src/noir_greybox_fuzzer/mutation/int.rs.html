@@ -1091,7 +1091,7 @@
     }
 
     <span class="doccomment">/// Negate a signed value
-    </span><span class="kw">fn </span>negate_signed_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>i128, width: u32) -&gt; InputValue {
+    </span><span class="kw">fn </span>negate_signed_int(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>i128, width: u32) -&gt; InputValue {
         InputValue::Field(<span class="kw">match </span>width {
             <span class="number">8 </span>=&gt; neg_as_to_field::&lt;i8&gt;(input),
             <span class="number">16 </span>=&gt; neg_as_to_field::&lt;i16&gt;(input),
@@ -1226,7 +1226,7 @@
     }
 
     <span class="doccomment">/// Negate an unsigned value
-    </span><span class="kw">fn </span>negate_unsigned_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>u128, width: u32) -&gt; InputValue {
+    </span><span class="kw">fn </span>negate_unsigned_int(<span class="kw-2">&amp;</span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>u128, width: u32) -&gt; InputValue {
         InputValue::Field(<span class="kw">match </span>width {
             <span class="number">8 </span>=&gt; wrapping_neg_as_to_field::&lt;u8&gt;(input),
             <span class="number">16 </span>=&gt; wrapping_neg_as_to_field::&lt;u16&gt;(input),

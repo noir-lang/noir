@@ -963,7 +963,7 @@
         }
     }
 
-    <span class="kw">fn </span>send_status(<span class="kw-2">&amp;mut </span><span class="self">self</span>, status: DebuggerStatus) {
+    <span class="kw">fn </span>send_status(<span class="kw-2">&amp;</span><span class="self">self</span>, status: DebuggerStatus) {
         <span class="self">self</span>.status_sender.send(status).expect(<span class="string">"Downstream channel closed"</span>);
     }
 
@@ -1032,25 +1032,25 @@
                         <span class="self">Self</span>::add_breakpoint_at_line(<span class="kw-2">&amp;mut </span>context, line_number);
                     }
                     DebugCommandAPI::ShowVariables =&gt; {
-                        <span class="self">Self</span>::show_variables(<span class="kw-2">&amp;mut </span>context);
+                        <span class="self">Self</span>::show_variables(<span class="kw-2">&amp;</span>context);
                     }
                     DebugCommandAPI::ShowWitnessMap =&gt; {
-                        <span class="self">Self</span>::show_witness_map(<span class="kw-2">&amp;mut </span>context);
+                        <span class="self">Self</span>::show_witness_map(<span class="kw-2">&amp;</span>context);
                     }
                     DebugCommandAPI::ShowWitness(index) =&gt; {
-                        <span class="self">Self</span>::show_witness(<span class="kw-2">&amp;mut </span>context, index);
+                        <span class="self">Self</span>::show_witness(<span class="kw-2">&amp;</span>context, index);
                     }
                     DebugCommandAPI::ShowBrilligMemory =&gt; {
-                        <span class="self">Self</span>::show_brillig_memory(<span class="kw-2">&amp;mut </span>context);
+                        <span class="self">Self</span>::show_brillig_memory(<span class="kw-2">&amp;</span>context);
                     }
                     DebugCommandAPI::ShowCurrentCallStack =&gt; {
-                        <span class="self">self</span>.show_current_call_stack(<span class="kw-2">&amp;mut </span>context);
+                        <span class="self">self</span>.show_current_call_stack(<span class="kw-2">&amp;</span>context);
                     }
                     DebugCommandAPI::ShowOpcodes =&gt; {
-                        <span class="self">self</span>.show_opcodes(<span class="kw-2">&amp;mut </span>context);
+                        <span class="self">self</span>.show_opcodes(<span class="kw-2">&amp;</span>context);
                     }
                     DebugCommandAPI::ShowCurrentVmStatus =&gt; {
-                        <span class="self">self</span>.show_current_vm_status(<span class="kw-2">&amp;mut </span>context);
+                        <span class="self">self</span>.show_current_vm_status(<span class="kw-2">&amp;</span>context);
                     }
                     DebugCommandAPI::Terminate =&gt; {
                         <span class="self">self</span>.terminate(context);
@@ -1065,7 +1065,7 @@
         }
     }
 
-    <span class="kw">fn </span>show_current_vm_status(<span class="kw-2">&amp;</span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="kw">fn </span>show_current_vm_status(<span class="kw-2">&amp;</span><span class="self">self</span>, context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">let </span>location = context.get_current_debug_location();
 
         <span class="kw">match </span>location {
@@ -1104,7 +1104,7 @@
 
     <span class="kw">fn </span>show_stack_frame(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;,
+        context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;,
         index: usize,
         debug_location: <span class="kw-2">&amp;</span>DebugLocation,
     ) {
@@ -1133,7 +1133,7 @@
         print_source_code_location(<span class="self">self</span>.debug_artifact, <span class="kw-2">&amp;</span>locations, <span class="self">self</span>.raw_source_printing);
     }
 
-    <span class="kw">fn </span>show_current_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="kw">fn </span>show_current_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">let </span>call_stack = context.get_call_stack();
 
         <span class="kw">if </span>call_stack.is_empty() {
@@ -1146,13 +1146,13 @@
         }
     }
 
-    <span class="kw">fn </span>show_opcodes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="kw">fn </span>show_opcodes(<span class="kw-2">&amp;</span><span class="self">self</span>, context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.circuits.len() {
             <span class="self">self</span>.show_opcodes_of_circuit(context, i <span class="kw">as </span>u32);
         }
     }
 
-    <span class="kw">fn </span>show_opcodes_of_circuit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, circuit_id: u32) {
+    <span class="kw">fn </span>show_opcodes_of_circuit(<span class="kw-2">&amp;</span><span class="self">self</span>, context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, circuit_id: u32) {
         <span class="kw">let </span>current_opcode_location =
             context.get_current_debug_location().and_then(|debug_location| {
                 <span class="kw">if </span>debug_location.circuit_id == circuit_id {
@@ -1303,7 +1303,7 @@
         <span class="self">self</span>.show_current_vm_status(context);
     }
 
-    <span class="kw">fn </span>show_witness_map(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="kw">fn </span>show_witness_map(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">let </span>witness_map = context.get_witness_map();
         <span class="comment">// NOTE: we need to clone() here to get the iterator
         </span><span class="kw">for </span>(witness, value) <span class="kw">in </span>witness_map.clone().into_iter() {
@@ -1311,7 +1311,7 @@
         }
     }
 
-    <span class="kw">fn </span>show_witness(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, index: u32) {
+    <span class="kw">fn </span>show_witness(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, index: u32) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = context.get_witness_map().get_index(index) {
             <span class="macro">println!</span>(<span class="string">"_{index} = {value}"</span>);
         }
@@ -1328,7 +1328,7 @@
         <span class="macro">println!</span>(<span class="string">"_{index} = {value}"</span>);
     }
 
-    <span class="kw">fn </span>show_brillig_memory(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="kw">fn </span>show_brillig_memory(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">if </span>!context.is_executing_brillig() {
             <span class="macro">println!</span>(<span class="string">"Not executing a Brillig block"</span>);
             <span class="kw">return</span>;
@@ -1370,7 +1370,7 @@
         context.write_brillig_memory(index, field_value, bit_size);
     }
 
-    <span class="kw">fn </span>show_variables(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="kw">fn </span>show_variables(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) {
         <span class="kw">let </span>variables: Vec&lt;DebugStackFrame&lt;FieldElement&gt;&gt; =
             context.get_variables().iter().map(DebugStackFrame::from).collect();
         <span class="kw">for </span>frame <span class="kw">in </span>variables {

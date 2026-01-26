@@ -1214,7 +1214,7 @@
     /// The inputs are:
     /// * the `pointer` to the array/vector
     /// * the `rc` address of the vector where we have the current RC loaded already
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _pointer: MemoryAddress, _rc: MemoryAddress) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, _pointer: MemoryAddress, _rc: MemoryAddress) {
         <span class="comment">// In benchmarks having this on didn't have a noticeable performance benefit,
         // but it does have a small increase in byte code size and the number of executed opcodes.
         // When we disabled `dec_rc` in SSA, the performance improved, so for now we disabled this,

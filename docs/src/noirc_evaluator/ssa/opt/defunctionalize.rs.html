@@ -2623,7 +2623,7 @@
 
 <span class="kw">impl </span>DefunctionalizationContext {
     <span class="doccomment">/// Defunctionalize all functions in the SSA
-    </span><span class="kw">fn </span>defunctionalize_all(<span class="kw-2">mut </span><span class="self">self</span>, ssa: <span class="kw-2">&amp;mut </span>Ssa) {
+    </span><span class="kw">fn </span>defunctionalize_all(<span class="self">self</span>, ssa: <span class="kw-2">&amp;mut </span>Ssa) {
         <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values_mut() {
             <span class="comment">// We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
@@ -2639,7 +2639,7 @@
     <span class="doccomment">/// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    </span><span class="kw">fn </span>replace_first_class_calls_with_apply_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
+    </span><span class="kw">fn </span>replace_first_class_calls_with_apply_function(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
         <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
             <span class="kw">let </span>block = <span class="kw-2">&amp;mut </span>func.dfg[block_id];
 
@@ -2689,7 +2689,7 @@
     }
 
     <span class="doccomment">/// Defunctionalize a single function
-    </span><span class="kw">fn </span>defunctionalize(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
+    </span><span class="kw">fn </span>defunctionalize(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
         <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
             <span class="kw">let </span>block = <span class="kw-2">&amp;mut </span>func.dfg[block_id];
 

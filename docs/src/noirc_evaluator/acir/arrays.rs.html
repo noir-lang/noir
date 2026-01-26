@@ -1729,7 +1729,7 @@
     /// cf. &lt;https://github.com/noir-lang/noir/pull/4971&gt;
     /// For simplicity we compute the offset only for simple arrays
     </span><span class="kw">fn </span>compute_offset(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         instruction: InstructionId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         array_typ: <span class="kw-2">&amp;</span>Type,

@@ -385,7 +385,7 @@
 
 <span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>call_foreign(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         name: <span class="kw-2">&amp;</span>str,
         arguments: Vec&lt;(Value, Location)&gt;,
         return_type: Type,
