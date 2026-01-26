@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
 use crate::{
-    Type, TypeBindings,
+    Kind, Type, TypeBindings, TypeVariableId,
+    hir_def::types::NamedGeneric,
     node_interner::{FuncId, TraitId},
 };
 
@@ -33,6 +36,7 @@ pub struct Methods {
 }
 
 impl Methods {
+    /// Adds a method to this collection, without checking for overlaps.
     pub(super) fn add_method(&mut self, method: FuncId, typ: Type, trait_id: Option<TraitId>) {
         if let Some(trait_id) = trait_id {
             let trait_impl_method = TraitImplMethod { typ, method, trait_id };
@@ -40,6 +44,116 @@ impl Methods {
         } else {
             let impl_method = ImplMethod { typ, method };
             self.direct.push(impl_method);
+        }
+    }
+
+    /// Finds an existing direct (inherent) method whose type overlaps with the given type.
+    /// Returns `Some((method_id, method_type))` if an overlap is found.
+    ///
+    /// Two types overlap if there exist concrete types that could match both.
+    /// For example:
+    /// - `Foo<T>` and `Foo<U>` overlap
+    /// - `Foo<T>` and `Foo<i32>` overlap (T can be i32)
+    /// - `Foo<i32>` and `Foo<u64>` don't overlap
+    pub(super) fn find_overlapping_method(
+        &self,
+        typ: &Type,
+        interner: &NodeInterner,
+    ) -> Option<(FuncId, Type)> {
+        for existing in &self.direct {
+            // Check if two types overlap, by instantiating both types (replacing NamedGenerics
+            // with fresh TypeVariables) and then checking if they can unify.
+            let instantiate_existing = Self::instantiate_named_generics(&existing.typ, interner);
+            let instantiate_typ = Self::instantiate_named_generics(typ, interner);
+
+            if Self::types_can_unify(&instantiate_existing, &instantiate_typ) {
+                return Some((existing.method, existing.typ.clone()));
+            }
+        }
+        None
+    }
+
+    /// Instantiate a type by finding all NamedGenerics and replacing them with
+    /// fresh type variables.
+    fn instantiate_named_generics(typ: &Type, interner: &NodeInterner) -> Type {
+        let mut named_generics = Vec::new();
+        Self::collect_named_generics(typ, &mut named_generics, &mut HashSet::new());
+
+        if named_generics.is_empty() {
+            return typ.clone();
+        }
+
+        // Create substitutions from each NamedGeneric to a fresh type variable
+        let substitutions: TypeBindings = named_generics
+            .into_iter()
+            .map(|(id, type_var, kind)| {
+                let fresh = interner.next_type_variable_with_kind(kind.clone());
+                (id, (type_var, kind, fresh))
+            })
+            .collect();
+
+        typ.substitute(&substitutions)
+    }
+
+    /// Recursively collect all NamedGenerics from a type.
+    fn collect_named_generics(
+        typ: &Type,
+        result: &mut Vec<(TypeVariableId, crate::TypeVariable, Kind)>,
+        seen: &mut HashSet<TypeVariableId>,
+    ) {
+        match typ {
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                let id = type_var.id();
+                if !seen.contains(&id) {
+                    seen.insert(id);
+                    result.push((id, type_var.clone(), type_var.kind()));
+                }
+            }
+            Type::Array(size, element) => {
+                Self::collect_named_generics(size, result, seen);
+                Self::collect_named_generics(element, result, seen);
+            }
+            Type::Vector(element) | Type::String(element) | Type::Reference(element, _) => {
+                Self::collect_named_generics(element, result, seen);
+            }
+            Type::FmtString(size, fields) | Type::CheckedCast { from: size, to: fields } => {
+                Self::collect_named_generics(size, result, seen);
+                Self::collect_named_generics(fields, result, seen);
+            }
+            Type::DataType(_, args) | Type::Alias(_, args) => {
+                for arg in args {
+                    Self::collect_named_generics(arg, result, seen);
+                }
+            }
+            Type::Tuple(fields) => {
+                for field in fields {
+                    Self::collect_named_generics(field, result, seen);
+                }
+            }
+            Type::Function(args, ret, env, _) => {
+                for arg in args {
+                    Self::collect_named_generics(arg, result, seen);
+                }
+                Self::collect_named_generics(ret, result, seen);
+                Self::collect_named_generics(env, result, seen);
+            }
+            Type::Forall(_, inner) => {
+                Self::collect_named_generics(inner, result, seen);
+            }
+            Type::InfixExpr(left, _, right, _) => {
+                Self::collect_named_generics(left, result, seen);
+                Self::collect_named_generics(right, result, seen);
+            }
+            // These types don't contain NamedGenerics
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Error
+            | Type::TypeVariable(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..) => {}
         }
     }
 

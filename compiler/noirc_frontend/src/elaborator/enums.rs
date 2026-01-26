@@ -21,7 +21,7 @@ use crate::{
     },
     hir::{
         comptime::Value,
-        def_collector::dc_crate::{CompilationError, UnresolvedEnum},
+        def_collector::dc_crate::UnresolvedEnum,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -335,19 +335,6 @@ impl Elaborator<'_> {
 
         self.interner.push_fn_meta(meta, method_id);
         if let Err(error) = self.interner.add_method(self_type, name_string, method_id, None) {
-            let error = if matches!(
-                error,
-                CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
-            ) {
-                // Expecting a DefCollectorErrorKind::Duplicate error in this case
-                TypeCheckError::ExpectingOtherError {
-                    message: "define_enum_variant_function: duplicate definition".to_string(),
-                    location,
-                }
-                .into()
-            } else {
-                error
-            };
             self.push_err(error);
         }
 

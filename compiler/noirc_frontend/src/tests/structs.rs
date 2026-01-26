@@ -91,10 +91,10 @@ fn check_impl_duplicate_method_without_self() {
 
     impl Foo {
         fn foo() {}
-           ~~~ first definition found here
+           ~~~ Previous impl defined here
         fn foo() {}
-           ^^^ duplicate definitions of foo found
-           ~~~ second definition found here
+           ^^^ Impl for type `Foo` overlaps with existing impl
+           ~~~ Overlapping impl
     }
     ";
     check_errors(src);
@@ -344,4 +344,49 @@ fn abi_attribute_outside_contract() {
         fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn overlapping_inherent_impls() {
+    let src = r#"
+        struct Foo<T> { _x: T }
+
+        impl<T> Foo<T> {
+            fn method(_self: Self) {}
+               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
+               ~~~~~~ Overlapping impl
+        }
+
+        impl Foo<i32> {
+            fn method(_self: Self) {}
+               ~~~~~~ Previous impl defined here
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1 };
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn non_overlapping_inherent_impls() {
+    // Different concrete types don't overlap
+    let src = r#"
+        struct Foo<T> { _x: T }
+
+        impl Foo<i32> {
+            fn method(_self: Self) {}
+        }
+
+        impl Foo<u64> {
+            fn method(_self: Self) {}
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1_i32 };
+            let _ = Foo { _x: 1_u64 };
+        }
+    "#;
+    assert_no_errors(src);
 }
