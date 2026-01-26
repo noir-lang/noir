@@ -1088,19 +1088,6 @@ impl<F: AcirField> AcirContext<F> {
             if constant.num_bits() <= bit_size {
                 return Ok(variable);
             }
-            // If `variable` is constant and does not fits in the bit_size range
-            // then we can fail at compile time if the predicate is one.
-            if let Some(predicate_const) = self.var_to_expression(predicate)?.to_const() {
-                if predicate_const.is_one() {
-                    // Range check is failing at compile time, so we return an error.
-                    let message =
-                        message.unwrap_or_else(|| "value does not fit in range".to_string());
-                    return Err(RuntimeError::StaticAssertFailed {
-                        message,
-                        call_stack: self.get_call_stack(),
-                    });
-                }
-            }
             // The range check is ensured to fail, unless the predicate is false.
             // In both cases, the return value does not matter and we can return 0.
             return_zero = true;
