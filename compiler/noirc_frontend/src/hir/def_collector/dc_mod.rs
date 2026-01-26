@@ -852,13 +852,9 @@ impl ModCollector<'_> {
             let name = &mod_decl.ident;
             let existing_child_module_id =
                 self.def_collector.def_map.modules().iter().find_map(|(index, module_data)| {
-                    if module_data.location.file == child_file_id
-                        && module_data.name == name.as_str()
-                    {
-                        Some(LocalModuleId::new(index))
-                    } else {
-                        None
-                    }
+                    let file_matches = module_data.location.file == child_file_id;
+                    let name_matches = module_data.name == name.as_str();
+                    (file_matches && name_matches).then_some(LocalModuleId::new(index))
                 });
             if let Some(existing_child_module_id) = existing_child_module_id {
                 let parent_module_data = &mut self.def_collector.def_map[parent_module_id];
