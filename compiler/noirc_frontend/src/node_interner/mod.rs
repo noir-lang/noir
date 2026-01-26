@@ -1510,6 +1510,39 @@ impl NodeInterner {
             }
         }
     }
+
+    /// Clears data that is stored in this NodeInterner that is declared at the given file.
+    /// This isn't used by the compiler. It's only used by the LSP server when a file
+    /// changes, to clear the definitions of the previous version of the file.
+    pub fn clear_in_file(&mut self, file: FileId) {
+        // Clear in methods
+        for (_key, methods) in self.methods.iter_mut() {
+            for (_name, methods) in methods.iter_mut() {
+                methods.direct.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+
+                methods.trait_impl_methods.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+            }
+        }
+
+        // Clear in auto import names
+        for (_name, entries) in self.auto_import_names.iter_mut() {
+            entries.retain(|entry| entry.file != file);
+        }
+
+        // Clear in reexports
+        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+            reexports.retain(|reexport| reexport.name.location().file != file);
+        }
+
+        // Clear in LocationIndices
+        self.clear_file_locations(file);
+    }
 }
 
 /// These are the primitive type variants that we support adding methods to
