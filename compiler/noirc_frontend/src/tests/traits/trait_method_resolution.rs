@@ -264,7 +264,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     fn main() {
         let _ = Bar::foo();
                      ^^^ Multiple applicable items in scope
-                     ~~~ All traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+                     ~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -401,7 +401,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
         let bar = Bar { x : 42 };
         let _ = bar.foo();
                 ^^^^^^^^^ Multiple applicable items in scope
-                ~~~~~~~~~ All traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+                ~~~~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -642,7 +642,7 @@ fn ambiguous_trait_method_multiple_bounds_with_self() {
     fn foo<T: One + Two>(x: T) {
         x.method();
         ^^^^^^^^^^ Multiple applicable items in scope
-        ~~~~~~~~~~ All traits which provide `method` are implemented and in scope: `One`, `Two`
+        ~~~~~~~~~~ Multiple traits which provide `method` are implemented and in scope: `One`, `Two`
     }
 
     fn main() {
@@ -666,7 +666,7 @@ fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
     pub fn foo<T: Child>(x: T) {
         x.foo();
         ^^^^^^^ Multiple applicable items in scope
-        ~~~~~~~ All traits which provide `foo` are implemented and in scope: `Child`, `Parent`
+        ~~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}
@@ -688,7 +688,7 @@ fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
     pub fn foo<T: Child>() {
         T::foo();
         ^^^^^^ Multiple applicable items in scope
-        ~~~~~~ All traits which provide `foo` are implemented and in scope: `Child`, `Parent`
+        ~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}

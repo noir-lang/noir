@@ -1441,16 +1441,22 @@ impl NodeInterner {
         let mut results = Vec::new();
 
         for (impl_id, constants) in &self.trait_impl_associated_constants {
-            if let Some((def_id, _typ)) = constants.get(constant_name) {
-                // Get the impl's object type and check if it matches
-                if let Some(trait_impl) = self.try_get_trait_implementation(*impl_id) {
-                    let trait_impl = trait_impl.borrow();
-                    let impl_type = &trait_impl.typ;
-                    // Use a fresh set of bindings for unification
-                    let mut bindings = TypeBindings::default();
-                    if impl_type.try_unify(typ, &mut bindings).is_ok() {
-                        results.push((*def_id, trait_impl.trait_id, *impl_id));
-                    }
+            let Some((def_id, _constant_type)) = constants.get(constant_name) else {
+                continue;
+            };
+            let Some(trait_impl) = self.try_get_trait_implementation(*impl_id) else {
+                continue;
+            };
+
+            let trait_id = trait_impl.borrow().trait_id;
+
+            // Check if typ implements the trait
+            // This handles instantiation and unification correctly for generic impls
+            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
+                self.try_lookup_trait_implementation(typ, trait_id, &[], &[])
+            {
+                if found_impl_id == *impl_id {
+                    results.push((*def_id, trait_id, *impl_id));
                 }
             }
         }

@@ -854,12 +854,17 @@ impl Elaborator<'_> {
         importing_module: ModuleId,
     ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
         // Extract type info
-        let type_id = match intermediate_item {
-            IntermediatePathResolutionItem::Type(id, _turbofish) => *id,
+        let (type_id, turbofish) = match intermediate_item {
+            IntermediatePathResolutionItem::Type(id, turbofish) => (*id, turbofish),
             _ => return None,
         };
         let datatype = self.interner.get_type(type_id);
-        let generics = datatype.borrow().generic_types();
+        // Use concrete types from turbofish if present, otherwise fresh type variables
+        let generics = if let Some(turbofish) = turbofish {
+            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
+        } else {
+            datatype.borrow().generic_types()
+        };
         let self_type = Type::DataType(datatype, generics);
 
         // Look up constants matching the identifier

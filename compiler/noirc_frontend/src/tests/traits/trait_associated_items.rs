@@ -692,7 +692,7 @@ fn associated_constant_direct_access_ambiguous() {
     fn main() {
         let _ = Bar::N;
                      ^ Multiple applicable items in scope
-                     ~ All traits which provide `N` are implemented and in scope: `Trait1`, `Trait2`
+                     ~ Multiple traits which provide `N` are implemented and in scope: `Trait1`, `Trait2`
     }
     "#;
     check_errors(src);
