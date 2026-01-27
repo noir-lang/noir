@@ -517,3 +517,25 @@ fn associated_and_generic_type_share_name() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn associated_and_type_mismatch_across_traits() {
+    let src = r#"
+    pub trait Spam {
+        type Item;
+        fn give_spam() -> Self::Item;
+    }
+
+    pub trait Eggs {
+        type Item;
+        fn take_eggs(eggs: Self::Item);
+    }
+
+    pub fn mix<A: Spam, B: Eggs>() {
+        B::take_eggs(A::give_spam());
+                     ^^^^^^^^^^^^^^ Expected type <B as Eggs>::Item, found type <A as Spam>::Item
+    }
+    "#;
+    // TODO: Add error markup
+    check_errors(src);
+}
