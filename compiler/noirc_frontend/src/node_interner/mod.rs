@@ -1431,6 +1431,32 @@ impl NodeInterner {
         self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
     }
 
+    /// Looks up associated constants for a type by name.
+    /// Returns all matching constants with their trait info.
+    pub fn lookup_trait_impl_constants_for_type(
+        &self,
+        typ: &Type,
+        constant_name: &str,
+    ) -> Vec<(DefinitionId, TraitId, TraitImplId)> {
+        let mut results = Vec::new();
+
+        for (impl_id, constants) in &self.trait_impl_associated_constants {
+            if let Some((def_id, _typ)) = constants.get(constant_name) {
+                // Get the impl's object type and check if it matches
+                if let Some(trait_impl) = self.try_get_trait_implementation(*impl_id) {
+                    let trait_impl = trait_impl.borrow();
+                    let impl_type = &trait_impl.typ;
+                    // Use a fresh set of bindings for unification
+                    let mut bindings = TypeBindings::default();
+                    if impl_type.try_unify(typ, &mut bindings).is_ok() {
+                        results.push((*def_id, trait_impl.trait_id, *impl_id));
+                    }
+                }
+            }
+        }
+        results
+    }
+
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
     pub fn trait_to_impl_bindings(
         &self,

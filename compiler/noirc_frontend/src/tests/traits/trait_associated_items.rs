@@ -517,3 +517,113 @@ fn associated_and_generic_type_share_name() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn associated_constant_direct_access() {
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _: u32 = Foo::N;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_ambiguous() {
+    let src = r#"
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _ = Bar::N;
+                     ^ Multiple applicable items in scope
+                     ~ All traits which provide `N` are implemented and in scope: `Trait1`, `Trait2`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_ambiguous_resolved_with_fully_qualified_path() {
+    let src = "
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _: u32 = <Bar as Trait1>::N;
+        let _: u32 = <Bar as Trait2>::N;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_no_impl() {
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl MyTrait for Bar {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: u32 = Foo::N;
+                          ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
+#[test]
+fn associated_type_direct_access_not_yet_supported() {
+    let src = r#"
+    pub struct CustomType {}
+
+    trait MyTrait {
+        type MyType;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        type MyType = CustomType;
+    }
+    fn main() {
+        // Succeeds
+        // let _: <Foo as MyTrait>::MyType = CustomType { };
+        // Currently fails
+        let _: Foo::MyType = CustomType { };
+                    ^^^^^^ Could not resolve 'MyType' in path
+    }
+    "#;
+    check_errors(src);
+}

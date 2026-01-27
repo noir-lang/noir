@@ -137,7 +137,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
-                        "All these trait which provide `{ident}` are implemented and in scope: {}",
+                        "All traits which provide `{ident}` are implemented and in scope: {}",
                         traits.join(", ")
                     ),
                     ident.location(),

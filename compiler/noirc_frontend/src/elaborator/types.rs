@@ -1099,7 +1099,8 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
             | PathResolutionItem::TypeTraitFunction(..)
-            | PathResolutionItem::PrimitiveFunction(..) => {
+            | PathResolutionItem::PrimitiveFunction(..)
+            | PathResolutionItem::TraitConstant(..) => {
                 return None;
             }
         };
