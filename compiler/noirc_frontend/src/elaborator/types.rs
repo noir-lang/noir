@@ -702,7 +702,10 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                let global_value_biguint = global_value.to_biguint();
+                let Ok(global_value_biguint) =
+                    kind.ensure_value_fits(global_value_biguint, location)
+                else {
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
@@ -711,7 +714,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                Some(Type::Constant(global_value, kind))
+                Some(Type::Constant(global_value_biguint, kind))
             }
             _ => None,
         }
@@ -784,7 +787,7 @@ impl Elaborator<'_> {
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location) {
+                        match op.function(lhs.clone(), rhs.clone(), &lhs_kind, location) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
@@ -1394,14 +1397,13 @@ impl Elaborator<'_> {
             }
         };
 
-        // TODO(https://github.com/noir-lang/noir/issues/6247):
-        // handle negative literals
         // when casting a polymorphic value to a specifically sized type,
         // check that it fits or throw a warning
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
         {
-            if from_is_polymorphic && from_value > to_maximum_size {
+            let to_max_biguint = to_maximum_size.get_maximum_size();
+            if from_is_polymorphic && from_value > to_max_biguint {
                 let from = from.clone();
                 let to = to.clone();
                 let reason = format!(

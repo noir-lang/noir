@@ -1040,7 +1040,9 @@ fn to_le_radix(
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                (limb_count.to_field_element(), element_type)
+                use num_traits::ToPrimitive;
+                let limb_count = limb_count.to_u128().unwrap_or(0);
+                (FieldElement::from(limb_count), element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -3246,10 +3248,14 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+        embedded_curve_point_fields.insert(
+            x_field_name.clone(),
+            Shared::new(Value::Field(SignedField::from_field_element(x))),
+        );
+        embedded_curve_point_fields.insert(
+            y_field_name.clone(),
+            Shared::new(Value::Field(SignedField::from_field_element(y))),
+        );
         embedded_curve_point_fields
             .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =

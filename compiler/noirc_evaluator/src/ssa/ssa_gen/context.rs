@@ -287,7 +287,7 @@ impl<'a> FunctionContext<'a> {
         value: SignedField,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
-        if let Some(range) = numeric_type.value_is_outside_limits(value) {
+        if let Some(range) = numeric_type.value_is_outside_limits(value.clone()) {
             let call_stack = self.builder.get_call_stack();
             return Err(RuntimeError::IntegerOutOfBounds {
                 value,
@@ -299,15 +299,18 @@ impl<'a> FunctionContext<'a> {
 
         let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value.absolute_value(),
+                NumericType::NativeField => -value.to_field_element(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                    // Two's complement: 2^bit_size - |value|
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.absolute_value()
+                    let abs_value =
+                        FieldElement::from_be_bytes_reduce(&value.absolute_value().to_bytes_be());
+                    FieldElement::from(base) - abs_value
                 }
             }
         } else {
-            value.absolute_value()
+            value.to_field_element()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))

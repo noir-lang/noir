@@ -9,6 +9,7 @@ use crate::{
 };
 use acvm::{AcirField, FieldElement, acir::acir_field::truncate_to};
 use noirc_errors::Location;
+use num_bigint::BigUint;
 
 fn bit_size(typ: &Type) -> u32 {
     match typ {
@@ -87,14 +88,20 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
     }
 }
 
-/// Convert the input value to a (field, sign) pair.
+/// Convert the input value to a (BigUint, sign) pair.
 /// Crucially, this is _not_ equivalent to a `SignedField` because negatives
-/// in the field component are represented in two's complement instead of their
+/// in the BigUint component are represented in two's complement instead of their
 /// positive absolute values.
-fn convert_to_field(value: Value, location: Location) -> IResult<(FieldElement, bool)> {
+fn convert_to_integer(value: Value, location: Location) -> IResult<(BigUint, bool)> {
     Ok(match value {
-        Value::Field(value) if value.is_negative() => (-value.absolute_value(), true),
-        Value::Field(value) => (value.absolute_value(), false),
+        Value::Field(value) if value.is_negative() => {
+            let mut value = value.absolute_value();
+            while value >= FieldElement::modulus() {
+                value -= FieldElement::modulus();
+            }
+            (FieldElement::modulus() - value, true)
+        }
+        Value::Field(value) => (value.absolute_value() % FieldElement::modulus(), false),
         Value::U1(value) => (u128::from(value).into(), false),
         Value::U8(value) => (u128::from(value).into(), false),
         Value::U16(value) => (u128::from(value).into(), false),
@@ -103,11 +110,11 @@ fn convert_to_field(value: Value, location: Location) -> IResult<(FieldElement, 
         Value::U128(value) => (value.into(), false),
         // `is_negative` is only used for conversions to Field in which case
         // these should always be positive so that `-1 as i8 as Field == 255`
-        Value::I8(value) => (FieldElement::from(i128::from(value as u8)), false),
-        Value::I16(value) => (FieldElement::from(i128::from(value as u16)), false),
-        Value::I32(value) => (FieldElement::from(i128::from(value as u32)), false),
-        Value::I64(value) => (FieldElement::from(i128::from(value as u64)), false),
-        Value::Bool(value) => (FieldElement::from(value), false),
+        Value::I8(value) => ((value as u8).into(), false),
+        Value::I16(value) => ((value as u16).into(), false),
+        Value::I32(value) => ((value as u32).into(), false),
+        Value::I64(value) => ((value as u64).into(), false),
+        Value::Bool(value) => (value.into(), false),
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonNumericCasted { typ, location });
@@ -122,17 +129,21 @@ pub(super) fn evaluate_cast_one_step(
     evaluated_lhs: Value,
 ) -> IResult<Value> {
     let lhs_type = evaluated_lhs.get_type().into_owned();
-    let (lhs, lhs_is_negative) = convert_to_field(evaluated_lhs, location)?;
+    let (lhs, lhs_is_negative) = convert_to_integer(evaluated_lhs, location)?;
 
     let cast_kind = classify_cast(&lhs_type, output_type);
-    let lhs = perform_cast(cast_kind, lhs);
+    let lhs = perform_cast(cast_kind, FieldElement::from_be_bytes_reduce(&lhs.to_bytes_be()));
 
     // Now just wrap the Result in a Value
     match output_type.follow_bindings() {
-        Type::FieldElement => Ok(Value::Field(SignedField::new(lhs, lhs_is_negative))),
+        Type::FieldElement => Ok(Value::Field(SignedField::new(
+            BigUint::from_bytes_be(&lhs.to_be_bytes()),
+            lhs_is_negative,
+        ))),
         typ @ Type::Integer(sign, bit_size) => match (sign, bit_size) {
-            // These casts are expected to be no-ops
-            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U1(lhs.to_u128() != 0)),
+            (Signedness::Unsigned, IntegerBitSize::One) => {
+                Err(InterpreterError::TypeUnsupported { typ: output_type.clone(), location })
+            }
             (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(lhs.to_u128() as u8)),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(lhs.to_u128() as u16)),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {

@@ -16,6 +16,8 @@ mod visitor;
 
 use noirc_errors::Located;
 use noirc_errors::Location;
+use num_bigint::BigUint;
+use num_traits::Zero;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 
@@ -34,7 +36,6 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
-use crate::signed_field::SignedField;
 use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
@@ -225,7 +226,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(SignedField, Option<IntegerTypeSuffix>, Location),
+    Constant(BigUint, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -488,12 +489,12 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
-                Ok(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
+                Ok(UnresolvedTypeExpression::Constant(int.to_biguint(), suffix, expr.location))
             }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    SignedField::zero(),
+                    BigUint::zero(),
                     None,
                     expr.location,
                 ));
@@ -534,11 +535,12 @@ impl UnresolvedTypeExpression {
     }
 
     pub fn to_expression_kind(&self) -> ExpressionKind {
+        use crate::signed_field::SignedField;
         match self {
             UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
-            UnresolvedTypeExpression::Constant(int, suffix, _) => {
-                ExpressionKind::Literal(Literal::Integer(*int, *suffix))
-            }
+            UnresolvedTypeExpression::Constant(int, suffix, _) => ExpressionKind::Literal(
+                Literal::Integer(SignedField::positive(int.clone()), *suffix),
+            ),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: Expression { kind: lhs.to_expression_kind(), location: *location },

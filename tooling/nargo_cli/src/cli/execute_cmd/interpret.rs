@@ -210,7 +210,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Field(value) = input else {
                 panic!("expected field input for field element type");
             };
-            Value::Field(SignedField::positive(*value))
+            Value::Field(SignedField::from_field_element(*value))
         }
         Type::Array(length, element_typ) => {
             let length =

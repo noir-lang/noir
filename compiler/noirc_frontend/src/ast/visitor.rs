@@ -1,4 +1,5 @@
 use noirc_errors::{Location, Span};
+use num_bigint::BigUint;
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -468,7 +469,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: SignedField,
+        _value: BigUint,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -1007,7 +1008,7 @@ impl Literal {
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
             Literal::Integer(value, suffix) => {
-                visitor.visit_literal_integer(*value, *suffix, span);
+                visitor.visit_literal_integer(value.clone(), *suffix, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
@@ -1565,7 +1566,7 @@ impl UnresolvedTypeExpression {
                 }
             }
             UnresolvedTypeExpression::Constant(value, suffix, location) => {
-                visitor.visit_constant_type_expression(*value, *suffix, location.span);
+                visitor.visit_constant_type_expression(value.clone(), *suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 if visitor.visit_binary_type_expression(lhs, *op, rhs, location.span) {

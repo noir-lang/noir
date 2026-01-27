@@ -1,8 +1,10 @@
+use num_bigint::BigUint;
+use num_traits::Zero;
+
 use crate::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserError, labels::ParsingRuleLabel},
-    signed_field::SignedField,
     token::Token,
 };
 
@@ -116,11 +118,8 @@ impl Parser<'_> {
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(
-                        SignedField::zero(),
-                        None,
-                        start_location,
-                    );
+                    let lhs =
+                        UnresolvedTypeExpression::Constant(BigUint::zero(), None, start_location);
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     Some(UnresolvedTypeExpression::BinaryOperation(
@@ -168,8 +167,7 @@ impl Parser<'_> {
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let (int, suffix) = self.eat_int()?;
-        let signed_field = SignedField::positive(int);
-        Some(UnresolvedTypeExpression::Constant(signed_field, suffix, self.previous_token_location))
+        Some(UnresolvedTypeExpression::Constant(int, suffix, self.previous_token_location))
     }
 
     /// VariableTypeExpression = Path
@@ -257,11 +255,8 @@ impl Parser<'_> {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(
-                        SignedField::zero(),
-                        None,
-                        start_location,
-                    );
+                    let lhs =
+                        UnresolvedTypeExpression::Constant(BigUint::zero(), None, start_location);
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(

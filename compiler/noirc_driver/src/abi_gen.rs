@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use acvm::AcirField;
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::vecmap;
 use noirc_abi::{
@@ -234,7 +233,7 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },
             HirLiteral::Integer(value) => AbiValue::Integer {
-                value: value.absolute_value().to_hex(),
+                value: format!("{:x}", value.absolute_value()),
                 sign: value.is_negative(),
             },
             _ => unreachable!("Literal cannot be used in the abi"),
