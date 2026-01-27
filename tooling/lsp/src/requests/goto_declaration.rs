@@ -1,8 +1,8 @@
-use std::future::{self, Future};
+use std::future::Future;
 
-use crate::LspState;
 use crate::types::GotoDeclarationResult;
-use async_lsp::ResponseError;
+use crate::{LspState, Request};
+use async_lsp::{ErrorCode, ResponseError};
 
 use async_lsp::lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};
 
@@ -12,15 +12,27 @@ pub(crate) fn on_goto_declaration_request(
     state: &mut LspState,
     params: GotoDeclarationParams,
 ) -> impl Future<Output = Result<GotoDeclarationResult, ResponseError>> + use<> {
-    let result = on_goto_definition_inner(state, params);
-    future::ready(result)
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_goto_declaration_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::GotoDeclaration { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Goto declaration request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
 }
 
-fn on_goto_definition_inner(
+pub(crate) fn on_goto_declaration_request_inner(
     state: &mut LspState,
     params: GotoDeclarationParams,
 ) -> Result<GotoDeclarationResult, ResponseError> {
-    process_request(state, params.text_document_position_params, |args| {
+    process_request("goto_definition", state, params.text_document_position_params, |args| {
         args.interner.get_declaration_location_from(args.location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(args.files, file_id, found_location.span)?;

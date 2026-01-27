@@ -5,10 +5,10 @@
 //!   be colorized as a function reference (only if such function actually exists).
 //! - code blocks inside doc comments. If these are Noir or Rust code blocks, a Lexer
 //!   will be used to colorize keywords and such.
-use std::{collections::HashMap, future};
+use std::collections::HashMap;
 
 use async_lsp::{
-    ResponseError,
+    ErrorCode, ResponseError,
     lsp_types::{
         self, Position, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensParams,
         SemanticTokensResult, TextDocumentPositionParams,
@@ -31,7 +31,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    LspState,
+    LspState, Request,
     doc_comments::current_module_and_type,
     requests::{
         ProcessRequestCallbackArgs, process_request, semantic_token_types_map, to_lsp_location,
@@ -42,12 +42,32 @@ pub(crate) fn on_semantic_tokens_full_request(
     state: &mut LspState,
     params: SemanticTokensParams,
 ) -> impl Future<Output = Result<Option<SemanticTokensResult>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_semantic_tokens_full_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::SemanticTokens { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Semantic tokens request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_semantic_tokens_full_request_inner(
+    state: &mut LspState,
+    params: SemanticTokensParams,
+) -> Result<Option<SemanticTokensResult>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request("semantic_tokens", state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -56,8 +76,7 @@ pub(crate) fn on_semantic_tokens_full_request(
         let mut collector = SemanticTokenCollector::new(source, file_id, &args);
         let tokens = collector.collect(&parsed_module);
         Some(SemanticTokensResult::Tokens(SemanticTokens { result_id: None, data: tokens }))
-    });
-    future::ready(result)
+    })
 }
 
 struct SemanticTokenCollector<'args> {

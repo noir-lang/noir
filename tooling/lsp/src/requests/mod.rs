@@ -71,16 +71,25 @@ mod tests;
 mod workspace_symbol;
 
 pub(crate) use {
-    code_action::on_code_action_request, code_lens_request::on_code_lens_request,
-    completion::on_completion_request, document_symbol::on_document_symbol_request,
-    expand::on_expand_request, folding_range::on_folding_range_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
+    code_action::on_code_action_request, code_action::on_code_action_request_inner,
+    code_lens_request::on_code_lens_request, completion::on_completion_request,
+    completion::on_completion_request_inner, document_symbol::on_document_symbol_request,
+    document_symbol::on_document_symbol_request_inner, expand::on_expand_request,
+    expand::on_expand_request_inner, folding_range::on_folding_range_request,
+    folding_range::on_folding_range_request_inner, goto_declaration::on_goto_declaration_request,
+    goto_declaration::on_goto_declaration_request_inner,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_definition_request_inner,
     goto_definition::on_goto_type_definition_request, hover::on_hover_request,
-    inlay_hint::on_inlay_hint_request, references::on_references_request,
-    rename::on_prepare_rename_request, rename::on_rename_request,
-    semantic_tokens::on_semantic_tokens_full_request, signature_help::on_signature_help_request,
+    hover::on_hover_request_inner, inlay_hint::on_inlay_hint_request,
+    inlay_hint::on_inlay_hint_request_inner, references::on_references_request,
+    references::on_references_request_inner, rename::on_prepare_rename_request,
+    rename::on_prepare_rename_request_inner, rename::on_rename_request,
+    rename::on_rename_request_inner, semantic_tokens::on_semantic_tokens_full_request,
+    semantic_tokens::on_semantic_tokens_full_request_inner,
+    signature_help::on_signature_help_request, signature_help::on_signature_help_request_inner,
     std_source_code::on_std_source_code_request, test_run::on_test_run_request,
     tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
+    workspace_symbol::on_workspace_symbol_request_inner,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -592,6 +601,9 @@ impl<'a> ProcessRequestCallbackArgs<'a> {
 }
 
 pub(crate) fn process_request<F, T>(
+    // The name is unused. However, it's useful for debugging the server to know which
+    // request is being invoked by the client.
+    _name: &'static str,
     state: &mut LspState,
     text_document_position_params: TextDocumentPositionParams,
     callback: F,
@@ -599,8 +611,6 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
-    eprintln!("Process request");
-
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
@@ -664,8 +674,6 @@ pub(crate) fn process_request_no_workspace_cache<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
-    eprintln!("Process request no workspace cache");
-
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")

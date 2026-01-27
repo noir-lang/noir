@@ -1,9 +1,9 @@
-use std::future::{self, Future};
+use std::future::Future;
 
-use crate::utils;
 use crate::visitor_reference_finder::VisitorReferenceFinder;
 use crate::{LspState, types::GotoDefinitionResult};
-use async_lsp::ResponseError;
+use crate::{Request, utils};
+use async_lsp::{ErrorCode, ResponseError};
 
 use async_lsp::lsp_types::{self, LocationLink};
 use lsp_types::request::GotoTypeDefinitionParams;
@@ -15,25 +15,49 @@ pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
-    let result = on_goto_definition_inner(state, params, false);
-    future::ready(result)
+    on_goto_definition_request_helper(state, params, false)
 }
 
 pub(crate) fn on_goto_type_definition_request(
     state: &mut LspState,
     params: GotoTypeDefinitionParams,
 ) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
-    let result = on_goto_definition_inner(state, params, true);
-    future::ready(result)
+    on_goto_definition_request_helper(state, params, true)
 }
 
-fn on_goto_definition_inner(
+fn on_goto_definition_request_helper(
+    state: &mut LspState,
+    params: GotoDefinitionParams,
+    return_type_location_instead: bool,
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ =
+            tx.send(on_goto_definition_request_inner(state, params, return_type_location_instead));
+    } else {
+        state.request_queue.push(Request::GotoDefinition {
+            params,
+            return_type_location_instead,
+            tx,
+        });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Goto definition request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_goto_definition_request_inner(
     state: &mut LspState,
     params: GotoDefinitionParams,
     return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
     let position = params.text_document_position_params.position;
-    process_request(state, params.text_document_position_params, |args| {
+    process_request("goto_definition", state, params.text_document_position_params, |args| {
         let file_id = args.location.file;
         let result =
             utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {

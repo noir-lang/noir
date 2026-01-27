@@ -1,9 +1,9 @@
-use std::future::{self, Future};
+use std::future::Future;
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
+use async_lsp::{ErrorCode, ResponseError};
 use fm::FileId;
 use noirc_errors::{Location, Span};
 use noirc_frontend::ast::AttributeTarget;
@@ -20,7 +20,7 @@ use noirc_frontend::{
     parser::Item,
 };
 
-use crate::{LspState, utils};
+use crate::{LspState, Request, utils};
 
 use super::process_request;
 
@@ -30,7 +30,27 @@ pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
 ) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
-    let result = process_request(state, params.text_document_position_params.clone(), |args| {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_signature_help_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::SignatureHelp { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Signature help request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_signature_help_request_inner(
+    state: &mut LspState,
+    params: SignatureHelpParams,
+) -> Result<Option<SignatureHelp>, ResponseError> {
+    process_request("signature_help", state, params.text_document_position_params.clone(), |args| {
         let file_id = args.location.file;
         utils::position_to_byte_index(
             args.files,
@@ -45,8 +65,7 @@ pub(crate) fn on_signature_help_request(
             let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
             finder.find(&parsed_module)
         })
-    });
-    future::ready(result)
+    })
 }
 
 struct SignatureFinder<'a> {

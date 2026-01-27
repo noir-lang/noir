@@ -70,7 +70,7 @@ fn on_code_lens_request_inner(
         text_document: params.text_document,
         position: Position::new(0, 0),
     };
-    process_request(state, text_document_position_params, |args| {
+    process_request("code_lens", state, text_document_position_params, |args| {
         let file_id = args.files.get_file_id(&PathString::from_path(file_path))?;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();

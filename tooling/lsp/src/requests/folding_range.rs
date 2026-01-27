@@ -1,12 +1,10 @@
-use std::future;
-
 use async_lsp::{
-    ResponseError,
+    ErrorCode, ResponseError,
     lsp_types::{FoldingRange, FoldingRangeParams, Position, TextDocumentPositionParams},
 };
 
 use crate::{
-    LspState,
+    LspState, Request,
     requests::{
         folding_range::{comments_collector::CommentsCollector, nodes_collector::NodesCollector},
         process_request,
@@ -22,12 +20,32 @@ pub(crate) fn on_folding_range_request(
     state: &mut LspState,
     params: FoldingRangeParams,
 ) -> impl Future<Output = Result<Option<Vec<FoldingRange>>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_folding_range_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::FoldingRange { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Folding ragne request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_folding_range_request_inner(
+    state: &mut LspState,
+    params: FoldingRangeParams,
+) -> Result<Option<Vec<FoldingRange>>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request("folding_range", state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -41,7 +59,5 @@ pub(crate) fn on_folding_range_request(
         ranges.extend(node_ranges);
 
         Some(ranges)
-    });
-
-    future::ready(result)
+    })
 }

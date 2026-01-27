@@ -1,16 +1,13 @@
-use std::{
-    collections::HashMap,
-    future::{self, Future},
-};
+use std::{collections::HashMap, future::Future};
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types;
+use async_lsp::{ErrorCode, ResponseError};
 use lsp_types::{
     PrepareRenameResponse, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
 use noirc_frontend::node_interner::ReferenceId;
 
-use crate::LspState;
+use crate::{LspState, Request};
 
 use super::{find_all_references_in_workspace, process_request};
 
@@ -18,7 +15,27 @@ pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
 ) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> + use<> {
-    let result = process_request(state, params, |args| {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_prepare_rename_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::PrepareRename { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Prepare rename request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_prepare_rename_request_inner(
+    state: &mut LspState,
+    params: TextDocumentPositionParams,
+) -> Result<Option<PrepareRenameResponse>, ResponseError> {
+    process_request("prepare_rename", state, params, |args| {
         let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
             // Rename shouldn't be possible when triggered on top of "Self"
@@ -27,15 +44,34 @@ pub(crate) fn on_prepare_rename_request(
             None => false,
         };
         Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
-    });
-    future::ready(result)
+    })
 }
 
 pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
 ) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> + use<> {
-    let result = process_request(state, params.text_document_position, |args| {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_rename_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::Rename { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Rename request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_rename_request_inner(
+    state: &mut LspState,
+    params: RenameParams,
+) -> Result<Option<WorkspaceEdit>, ResponseError> {
+    process_request("rename", state, params.text_document_position, |args| {
         let rename_changes = find_all_references_in_workspace(
             args.location,
             args.interner,
@@ -63,8 +99,7 @@ pub(crate) fn on_rename_request(
         };
 
         Some(response)
-    });
-    future::ready(result)
+    })
 }
 
 #[cfg(test)]

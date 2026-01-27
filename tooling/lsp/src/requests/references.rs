@@ -1,9 +1,9 @@
-use std::future::{self, Future};
+use std::future::Future;
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types::{Location, ReferenceParams};
+use async_lsp::{ErrorCode, ResponseError};
 
-use crate::LspState;
+use crate::{LspState, Request};
 
 use super::{find_all_references_in_workspace, process_request};
 
@@ -11,8 +11,28 @@ pub(crate) fn on_references_request(
     state: &mut LspState,
     params: ReferenceParams,
 ) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_references_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::References { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "References request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_references_request_inner(
+    state: &mut LspState,
+    params: ReferenceParams,
+) -> Result<Option<Vec<Location>>, ResponseError> {
     let include_declaration = params.context.include_declaration;
-    let result = process_request(state, params.text_document_position, |args| {
+    process_request("references", state, params.text_document_position, |args| {
         find_all_references_in_workspace(
             args.location,
             args.interner,
@@ -21,8 +41,7 @@ pub(crate) fn on_references_request(
             include_declaration,
             true,
         )
-    });
-    future::ready(result)
+    })
 }
 
 #[cfg(test)]

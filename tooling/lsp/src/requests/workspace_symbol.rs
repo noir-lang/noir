@@ -1,14 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
-    future::{self, Future},
+    future::Future,
     path::PathBuf,
 };
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
     SymbolKind, Url, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
+use async_lsp::{ErrorCode, ResponseError};
 use fm::{FileManager, FileMap};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use nargo::{insert_all_files_under_path, parse_all};
@@ -21,7 +21,7 @@ use noirc_frontend::{
     parser::ParsedSubModule,
 };
 
-use crate::{LspState, source_code_overrides};
+use crate::{LspState, Request, source_code_overrides};
 
 use super::to_lsp_location;
 
@@ -29,8 +29,28 @@ pub(crate) fn on_workspace_symbol_request(
     state: &mut LspState,
     params: WorkspaceSymbolParams,
 ) -> impl Future<Output = Result<Option<WorkspaceSymbolResponse>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_workspace_symbol_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::WorkspaceSymbol { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Workspace symbol request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_workspace_symbol_request_inner(
+    state: &mut LspState,
+    params: WorkspaceSymbolParams,
+) -> Result<Option<WorkspaceSymbolResponse>, ResponseError> {
     let Some(root_path) = state.root_path.clone() else {
-        return future::ready(Ok(None));
+        return Ok(None);
     };
 
     let overrides = source_code_overrides(&state.input_files);
@@ -93,7 +113,7 @@ pub(crate) fn on_workspace_symbol_request(
         })
         .collect::<Vec<_>>();
 
-    future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))
+    Ok(Some(WorkspaceSymbolResponse::Nested(symbols)))
 }
 
 #[derive(Default)]

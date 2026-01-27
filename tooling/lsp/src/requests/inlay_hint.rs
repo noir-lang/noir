@@ -1,5 +1,6 @@
-use std::future::{self, Future};
+use std::future::Future;
 
+use async_lsp::ErrorCode;
 use async_lsp::ResponseError;
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
@@ -19,6 +20,7 @@ use noirc_frontend::{
     parser::{Item, ParsedSubModule},
 };
 
+use crate::Request;
 use crate::{LspState, utils};
 
 use super::{InlayHintsOptions, process_request, to_lsp_location};
@@ -27,6 +29,26 @@ pub(crate) fn on_inlay_hint_request(
     state: &mut LspState,
     params: InlayHintParams,
 ) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_inlay_hint_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::InlayHint { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Inlay hint request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_inlay_hint_request_inner(
+    state: &mut LspState,
+    params: InlayHintParams,
+) -> Result<Option<Vec<InlayHint>>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
@@ -34,7 +56,7 @@ pub(crate) fn on_inlay_hint_request(
 
     let options = state.options.inlay_hints;
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request("inlay_hint", state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -47,8 +69,7 @@ pub(crate) fn on_inlay_hint_request(
             InlayHintCollector::new(args.files, file_id, args.interner, span, options);
         parsed_module.accept(&mut collector);
         Some(collector.inlay_hints)
-    });
-    future::ready(result)
+    })
 }
 
 pub(crate) struct InlayHintCollector<'a> {

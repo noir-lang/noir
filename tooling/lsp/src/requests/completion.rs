@@ -1,13 +1,13 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    future::{self, Future},
+    future::Future,
     ops::Deref,
 };
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse,
 };
+use async_lsp::{ErrorCode, ResponseError};
 use completion_items::{
     field_completion_item, simple_completion_item, snippet_completion_item,
     trait_impl_method_completion_item,
@@ -45,7 +45,7 @@ use noirc_frontend::{
 use sort_text::underscore_sort_text;
 
 use crate::{
-    LspState, requests::to_lsp_location,
+    LspState, Request, requests::to_lsp_location,
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
     use_segment_positions::UseSegmentPositions, utils,
 };
@@ -63,7 +63,26 @@ pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
 ) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
-    let result = process_request(state, params.text_document_position.clone(), |args| {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_completion_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::Completion { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "Completion request failed".to_string())
+        })?
+    }
+}
+
+pub(crate) fn on_completion_request_inner(
+    state: &mut LspState,
+    params: CompletionParams,
+) -> Result<Option<CompletionResponse>, ResponseError> {
+    process_request("completion", state, params.text_document_position.clone(), |args| {
         let file_id = args.location.file;
         utils::position_to_byte_index(args.files, file_id, &params.text_document_position.position)
             .and_then(|byte_index| {
@@ -85,8 +104,7 @@ pub(crate) fn on_completion_request(
                 );
                 finder.find(&parsed_module)
             })
-    });
-    future::ready(result)
+    })
 }
 
 struct NodeFinder<'a> {

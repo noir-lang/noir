@@ -1,10 +1,10 @@
-use std::future::{self, Future};
+use std::future::Future;
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+use async_lsp::{ErrorCode, ResponseError};
 use fm::{FileId, FileMap};
 use noirc_errors::Span;
 use noirc_frontend::ast::TraitBound;
@@ -17,19 +17,39 @@ use noirc_frontend::{
     parser::ParsedSubModule,
 };
 
-use crate::LspState;
 use crate::requests::process_request;
+use crate::{LspState, Request};
 
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
 ) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_document_symbol_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::DocumentSymbol { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            let msg = "Document symbol request failed".to_string();
+            ResponseError::new(ErrorCode::REQUEST_FAILED, msg)
+        })?
+    }
+}
+
+pub(crate) fn on_document_symbol_request_inner(
+    state: &mut LspState,
+    params: DocumentSymbolParams,
+) -> Result<Option<DocumentSymbolResponse>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request("document_symbol", state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -38,9 +58,7 @@ pub(crate) fn on_document_symbol_request(
         let mut collector = DocumentSymbolCollector::new(file_id, args.files);
         let symbols = collector.collect(&parsed_module);
         Some(DocumentSymbolResponse::Nested(symbols))
-    });
-
-    future::ready(result)
+    })
 }
 
 struct DocumentSymbolCollector<'a> {

@@ -1,14 +1,14 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    future::{self, Future},
+    future::Future,
     ops::Range,
 };
 
-use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
+use async_lsp::{ErrorCode, ResponseError};
 use fm::{FileId, FileMap};
 use noirc_errors::Span;
 use noirc_frontend::{
@@ -27,7 +27,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 
-use crate::{LspState, use_segment_positions::UseSegmentPositions, utils};
+use crate::{LspState, Request, use_segment_positions::UseSegmentPositions, utils};
 
 use super::{process_request, to_lsp_location};
 
@@ -43,12 +43,31 @@ pub(crate) fn on_code_action_request(
     state: &mut LspState,
     params: CodeActionParams,
 ) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> + use<> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    if state.pending_type_check_events == 0 {
+        let _ = tx.send(on_code_action_request_inner(state, params));
+    } else {
+        state.request_queue.push(Request::CodeAction { params, tx });
+    }
+
+    async move {
+        rx.await.map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "Code action request failed".to_string())
+        })?
+    }
+}
+
+pub(crate) fn on_code_action_request_inner(
+    state: &mut LspState,
+    params: CodeActionParams,
+) -> Result<Option<CodeActionResponse>, ResponseError> {
     let uri = params.text_document.clone().uri;
     let position = params.range.start;
     let text_document_position_params =
         TextDocumentPositionParams { text_document: params.text_document, position };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request("code_action", state, text_document_position_params, |args| {
         let file_id = args.location.file;
         utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
             let file = args.files.get_file(file_id).unwrap();
@@ -69,8 +88,7 @@ pub(crate) fn on_code_action_request(
             );
             finder.find(&parsed_module)
         })
-    });
-    future::ready(result)
+    })
 }
 
 struct CodeActionFinder<'a> {

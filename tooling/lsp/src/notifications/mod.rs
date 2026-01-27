@@ -149,7 +149,6 @@ pub(crate) fn process_workspace(
     workspace: Workspace,
 ) -> Result<(), async_lsp::Error> {
     state.pending_type_check_events += 1;
-    state.processing_type_check_events.send(true).ok();
 
     let mut file_manager = workspace.new_file_manager();
     if workspace.is_assumed {
@@ -162,7 +161,7 @@ pub(crate) fn process_workspace(
     let parsed_files = parse_diff(&file_manager, state);
 
     let client = state.client.clone();
-    let _ = tokio::spawn(async move {
+    tokio::spawn(async move {
         let event = ProcessWorkspaceEvent { workspace, file_manager, parsed_files };
         let _ = client.emit(event);
     });
@@ -188,11 +187,10 @@ pub(crate) fn process_workspace_for_single_file_change(
     file_source: &str,
 ) -> Result<(), async_lsp::Error> {
     state.pending_type_check_events += 1;
-    state.processing_type_check_events.send(true).ok();
 
     let file_source = file_source.to_string();
     let client = state.client.clone();
-    let _ = tokio::spawn(async move {
+    tokio::spawn(async move {
         let event = ProcessWorkspaceForSingleFileChangeEvent { workspace, file_uri, file_source };
         let _ = client.emit(event);
     });

@@ -13,10 +13,18 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use async_lsp::lsp_types::request::{
-    CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
-    InlayHintRequest, PrepareRenameRequest, References, Rename, SemanticTokensFullRequest,
-    SignatureHelpRequest, WorkspaceSymbolRequest,
+use async_lsp::lsp_types::{
+    CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
+    DocumentSymbolParams, DocumentSymbolResponse, FoldingRange, FoldingRangeParams,
+    GotoDefinitionParams, Hover, HoverParams, InlayHint, InlayHintParams, Location,
+    PrepareRenameResponse, ReferenceParams, RenameParams, SemanticTokensParams,
+    SemanticTokensResult, SignatureHelp, SignatureHelpParams, TextDocumentPositionParams,
+    WorkspaceEdit, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    request::{
+        CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest,
+        GotoDeclarationParams, HoverRequest, InlayHintRequest, PrepareRenameRequest, References,
+        Rename, SemanticTokensFullRequest, SignatureHelpRequest, WorkspaceSymbolRequest,
+    },
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -58,7 +66,6 @@ use requests::{
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
-use tokio::sync::watch;
 use tower::Service;
 
 mod doc_comments;
@@ -82,12 +89,18 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
-    events::{on_process_workspace_event, on_process_workspace_for_single_file_change},
+    events::{
+        on_process_request_queue_event, on_process_workspace_event,
+        on_process_workspace_for_single_file_change,
+    },
     requests::{
         on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
         on_std_source_code_request,
     },
-    types::request::{NargoExpand, NargoStdSourceCode},
+    types::{
+        GotoDeclarationResult, NargoExpandResult,
+        request::{NargoExpand, NargoStdSourceCode},
+    },
 };
 
 #[derive(Debug, Error)]
@@ -113,33 +126,74 @@ pub struct LspState {
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
 
+    request_queue: Vec<Request>,
+
     /// How many events are still pending processing.
     pending_type_check_events: usize,
-    processing_type_check_events: watch::Sender<bool>,
 }
 
-impl LspState {
-    pub(crate) fn wait_for_type_check_events_to_finish<F, Fut, T>(
-        &self,
-        f: F,
-    ) -> impl Future<Output = T>
-    where
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = T>,
-    {
-        let mut rx = self.processing_type_check_events.subscribe();
-
-        async move {
-            // Wait for the 'busy' flag to drop
-            while *rx.borrow() == true {
-                if rx.changed().await.is_err() {
-                    break;
-                }
-            }
-            // Now run the actual request logic
-            f().await
-        }
-    }
+pub(crate) enum Request {
+    Completion {
+        params: CompletionParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<CompletionResponse>, ResponseError>>,
+    },
+    CodeAction {
+        params: CodeActionParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<CodeActionResponse>, ResponseError>>,
+    },
+    DocumentSymbol {
+        params: DocumentSymbolParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<DocumentSymbolResponse>, ResponseError>>,
+    },
+    InlayHint {
+        params: InlayHintParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<Vec<InlayHint>>, ResponseError>>,
+    },
+    Expand {
+        params: types::NargoExpandParams,
+        tx: tokio::sync::oneshot::Sender<Result<NargoExpandResult, ResponseError>>,
+    },
+    FoldingRange {
+        params: FoldingRangeParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<Vec<FoldingRange>>, ResponseError>>,
+    },
+    GotoDeclaration {
+        params: GotoDeclarationParams,
+        tx: tokio::sync::oneshot::Sender<Result<GotoDeclarationResult, ResponseError>>,
+    },
+    GotoDefinition {
+        params: GotoDefinitionParams,
+        return_type_location_instead: bool,
+        tx: tokio::sync::oneshot::Sender<Result<types::GotoDefinitionResult, ResponseError>>,
+    },
+    Hover {
+        params: HoverParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<Hover>, ResponseError>>,
+    },
+    References {
+        params: ReferenceParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<Vec<Location>>, ResponseError>>,
+    },
+    PrepareRename {
+        params: TextDocumentPositionParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<PrepareRenameResponse>, ResponseError>>,
+    },
+    Rename {
+        params: RenameParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<WorkspaceEdit>, ResponseError>>,
+    },
+    SemanticTokens {
+        params: SemanticTokensParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<SemanticTokensResult>, ResponseError>>,
+    },
+    SignatureHelp {
+        params: SignatureHelpParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<SignatureHelp>, ResponseError>>,
+    },
+    WorkspaceSymbol {
+        params: WorkspaceSymbolParams,
+        tx: tokio::sync::oneshot::Sender<Result<Option<WorkspaceSymbolResponse>, ResponseError>>,
+    },
 }
 
 struct WorkspaceCacheData {
@@ -170,8 +224,8 @@ impl LspState {
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
+            request_queue: Vec::new(),
             pending_type_check_events: 0,
-            processing_type_check_events: watch::channel(false).0,
         }
     }
 }
@@ -221,7 +275,8 @@ impl NargoLspService {
             .event::<events::ProcessWorkspaceEvent>(on_process_workspace_event)
             .event::<events::ProcessWorkspaceForSingleFileChangeEvent>(
                 on_process_workspace_for_single_file_change,
-            );
+            )
+            .event::<events::ProcessRequestQueueEvent>(on_process_request_queue_event);
         Self { router }
     }
 }

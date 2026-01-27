@@ -7,12 +7,19 @@ use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
 use noirc_frontend::hir::ParsedFiles;
 
-use crate::requests::uri_to_file_path;
+use crate::requests::{
+    on_code_action_request_inner, on_completion_request_inner, on_document_symbol_request_inner,
+    on_expand_request_inner, on_folding_range_request_inner, on_goto_declaration_request_inner,
+    on_goto_definition_request_inner, on_hover_request_inner, on_inlay_hint_request_inner,
+    on_prepare_rename_request_inner, on_references_request_inner, on_rename_request_inner,
+    on_semantic_tokens_full_request_inner, on_signature_help_request_inner,
+    on_workspace_symbol_request_inner, uri_to_file_path,
+};
 use crate::{
     LspState, PackageCacheData, get_package_tests_in_crate,
     types::{NargoPackageTests, notification},
 };
-use crate::{WorkspaceCacheData, parse_diff};
+use crate::{Request, WorkspaceCacheData, parse_diff};
 use async_lsp::LanguageClient;
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
@@ -41,8 +48,6 @@ pub(crate) fn on_process_workspace_event(
     state: &mut LspState,
     event: ProcessWorkspaceEvent,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    eprintln!("Process workspace event");
-
     let workspace = event.workspace;
     let file_manager = event.file_manager;
     let parsed_files = event.parsed_files;
@@ -96,8 +101,6 @@ pub(crate) fn on_process_workspace_for_single_file_change(
     state: &mut LspState,
     event: ProcessWorkspaceForSingleFileChangeEvent,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    eprintln!("Process workspace for single file change event");
-
     let workspace = event.workspace;
     let file_uri = event.file_uri;
     let file_source = &event.file_source;
@@ -211,8 +214,83 @@ pub(crate) fn on_process_workspace_for_single_file_change(
 fn finish_type_checking(state: &mut LspState) {
     state.pending_type_check_events -= 1;
     if state.pending_type_check_events == 0 {
-        state.processing_type_check_events.send(false).ok();
+        let _ = state.client.emit(ProcessRequestQueueEvent);
     }
+}
+
+pub(crate) struct ProcessRequestQueueEvent;
+
+pub(crate) fn on_process_request_queue_event(
+    state: &mut LspState,
+    _event: ProcessRequestQueueEvent,
+) -> ControlFlow<Result<(), async_lsp::Error>> {
+    for request in std::mem::take(&mut state.request_queue) {
+        match request {
+            Request::Completion { params, tx } => {
+                let result = on_completion_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::CodeAction { params, tx } => {
+                let result = on_code_action_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::DocumentSymbol { params, tx } => {
+                let result = on_document_symbol_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::InlayHint { params, tx } => {
+                let result = on_inlay_hint_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::Expand { params, tx } => {
+                let result = on_expand_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::FoldingRange { params, tx } => {
+                let result = on_folding_range_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::GotoDeclaration { params, tx } => {
+                let result = on_goto_declaration_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::GotoDefinition { params, return_type_location_instead, tx } => {
+                let result =
+                    on_goto_definition_request_inner(state, params, return_type_location_instead);
+                let _ = tx.send(result);
+            }
+            Request::Hover { params, tx } => {
+                let result = on_hover_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::References { params, tx } => {
+                let result = on_references_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::PrepareRename { params, tx } => {
+                let result = on_prepare_rename_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::Rename { params, tx } => {
+                let result = on_rename_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::SemanticTokens { params, tx } => {
+                let result = on_semantic_tokens_full_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::SignatureHelp { params, tx } => {
+                let result = on_signature_help_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+            Request::WorkspaceSymbol { params, tx } => {
+                let result = on_workspace_symbol_request_inner(state, params);
+                let _ = tx.send(result);
+            }
+        }
+    }
+
+    ControlFlow::Continue(())
 }
 
 fn publish_diagnostics(
