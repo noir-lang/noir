@@ -599,6 +599,8 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
+    eprintln!("Process request");
+
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
@@ -662,6 +664,8 @@ pub(crate) fn process_request_no_workspace_cache<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
+    eprintln!("Process request no workspace cache");
+
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")

@@ -58,9 +58,11 @@ use requests::{
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
+use tokio::sync::watch;
 use tower::Service;
 
 mod doc_comments;
+mod events;
 mod notifications;
 mod requests;
 mod solver;
@@ -80,6 +82,7 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
+    events::{on_process_workspace_event, on_process_workspace_for_single_file_change},
     requests::{
         on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
         on_std_source_code_request,
@@ -109,6 +112,34 @@ pub struct LspState {
 
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+
+    /// How many events are still pending processing.
+    pending_type_check_events: usize,
+    processing_type_check_events: watch::Sender<bool>,
+}
+
+impl LspState {
+    pub(crate) fn wait_for_type_check_events_to_finish<F, Fut, T>(
+        &self,
+        f: F,
+    ) -> impl Future<Output = T>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = T>,
+    {
+        let mut rx = self.processing_type_check_events.subscribe();
+
+        async move {
+            // Wait for the 'busy' flag to drop
+            while *rx.borrow() == true {
+                if rx.changed().await.is_err() {
+                    break;
+                }
+            }
+            // Now run the actual request logic
+            f().await
+        }
+    }
 }
 
 struct WorkspaceCacheData {
@@ -139,6 +170,8 @@ impl LspState {
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
+            pending_type_check_events: 0,
+            processing_type_check_events: watch::channel(false).0,
         }
     }
 }
@@ -184,7 +217,11 @@ impl NargoLspService {
             .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
             .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
             .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
-            .notification::<notification::Exit>(on_exit);
+            .notification::<notification::Exit>(on_exit)
+            .event::<events::ProcessWorkspaceEvent>(on_process_workspace_event)
+            .event::<events::ProcessWorkspaceForSingleFileChangeEvent>(
+                on_process_workspace_for_single_file_change,
+            );
         Self { router }
     }
 }

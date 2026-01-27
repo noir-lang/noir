@@ -115,7 +115,7 @@ mod references_tests {
         // We call this to open the document, so that the entire workspace is analyzed
         let workspace = workspace_from_document_uri(one_lib.clone()).unwrap();
 
-        notifications::process_workspace(&mut state, &workspace).unwrap();
+        notifications::process_workspace(&mut state, workspace).unwrap();
 
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
