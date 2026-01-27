@@ -443,7 +443,7 @@ impl ResolvedGeneric {
     /// If an object and trait pair are given in `as_trait`, this is assumed
     /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
     /// to disambiguate from other generics in scope.
-    pub fn as_named_generic(self, as_trait: Option<(&str, &str)>) -> Type {
+    pub fn into_named_generic(self, as_trait: Option<(&str, &str)>) -> Type {
         Type::NamedGeneric(NamedGeneric {
             type_var: self.type_var,
             name: match as_trait {
@@ -558,7 +558,7 @@ impl DataType {
 
     /// Return the generics on this type as a vector of types
     pub fn generic_types(&self) -> Vec<Type> {
-        vecmap(&self.generics, |generic| generic.clone().as_named_generic(None))
+        vecmap(&self.generics, |generic| generic.clone().into_named_generic(None))
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.

@@ -252,20 +252,20 @@ impl Trait {
     /// Returns both the ordered generics of this type, and its named, associated types.
     /// These types are all as-is and are not instantiated.
     pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic(None));
+        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
-            generic.clone().as_named_generic(Some((SELF_TYPE_NAME, self.name.as_str())))
+            generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str())))
         });
         (ordered, named)
     }
 
     pub fn get_trait_generics(&self, location: Location) -> TraitGenerics {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic(None));
+        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), location);
             NamedType {
                 name,
-                typ: generic.clone().as_named_generic(Some((SELF_TYPE_NAME, self.name.as_str()))),
+                typ: generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str()))),
             }
         });
         TraitGenerics { ordered, named }

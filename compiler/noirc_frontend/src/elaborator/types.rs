@@ -293,7 +293,7 @@ impl Elaborator<'_> {
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
                     return Some(
                         typ.clone()
-                            .as_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
+                            .into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
                     );
                 }
             }
@@ -651,7 +651,7 @@ impl Elaborator<'_> {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
-                return Some(generic.as_named_generic(None));
+                return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
             if let Some(last_segment) = path.segments.last() {

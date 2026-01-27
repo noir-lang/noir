@@ -424,7 +424,7 @@ impl Elaborator<'_> {
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = impl_fn_resolved_generic.clone().as_named_generic(None);
+            let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
 
             if self.check_kind(
                 trait_fn_kind.clone(),
