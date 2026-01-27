@@ -1375,6 +1375,5 @@ fn many_non_recursive_attributes_do_not_trigger_macro_expansion_limit() {
     }}
     "#
     );
-    println!("{src}");
     assert_no_errors(&src);
 }
