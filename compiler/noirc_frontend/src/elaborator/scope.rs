@@ -39,7 +39,7 @@ impl Elaborator<'_> {
         self.interner.get_type(type_id)
     }
 
-    pub(super) fn get_trait(&mut self, trait_id: TraitId) -> &Trait {
+    pub(super) fn get_trait(&self, trait_id: TraitId) -> &Trait {
         self.interner.get_trait(trait_id)
     }
 

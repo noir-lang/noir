@@ -23,7 +23,7 @@ fn run_foreign_call_test<F: AcirField>(
     foreign_call_result: Vec<ForeignCallParam<F>>,
     expected_final_status: VMStatus<F>,
 ) -> (Memory<F>, usize) {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
 
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 

@@ -184,6 +184,11 @@ pub struct Elaborator<'context> {
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
+    /// These are the globals that have yet to be elaborated.
+    /// This map is used to lazily evaluate these globals if they're encountered before
+    /// they are elaborated (e.g. in a function's type or another global's RHS).
+    unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
+
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
 
@@ -252,11 +257,6 @@ pub struct Elaborator<'context> {
 
     crate_id: CrateId,
 
-    /// These are the globals that have yet to be elaborated.
-    /// This map is used to lazily evaluate these globals if they're encountered before
-    /// they are elaborated (e.g. in a function's type or another global's RHS).
-    unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
-
     interpreter_call_stack: im::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
@@ -309,6 +309,7 @@ impl<'context> Elaborator<'context> {
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
+        unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -323,6 +324,7 @@ impl<'context> Elaborator<'context> {
             crate_graph,
             interpreter_output,
             required_unstable_features,
+            unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -335,7 +337,6 @@ impl<'context> Elaborator<'context> {
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
-            unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
@@ -372,6 +373,7 @@ impl<'context> Elaborator<'context> {
             &context.crate_graph,
             &context.interpreter_output,
             &context.required_unstable_features,
+            &mut context.unresolved_globals,
             crate_id,
             im::Vector::new(),
             options,
@@ -458,11 +460,6 @@ impl<'context> Elaborator<'context> {
         }
 
         self.push_errors(self.interner.check_for_dependency_cycles());
-    }
-
-    /// True if we should use pedantic ACVM solving
-    pub fn pedantic_solving(&self) -> bool {
-        self.options.pedantic_solving
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
@@ -816,6 +813,8 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     pub fn interpret<W: Write + 'static>(
         src: &str,
         output: Rc<RefCell<W>>,
@@ -840,6 +839,7 @@ pub mod test_utils {
         let location = Location::new(Default::default(), file);
         let root_module = ModuleData::new(
             None,
+            None,
             location,
             Vec::new(),
             Vec::new(),
@@ -850,11 +850,10 @@ pub mod test_utils {
         let file_manager = FileManager::new(&PathBuf::new());
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
-        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         let (module, errors) = parse_program(src, file);
         // Skip parser warnings
@@ -868,8 +867,17 @@ pub mod test_utils {
         let def_map = CrateDefMap::new(krate, root_module);
         let root_module_id = def_map.root();
         let mut collector = DefCollector::new(def_map);
+        let reuse_existing_module_declarations = false;
 
-        collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+        collect_defs(
+            &mut collector,
+            ast,
+            FileId::dummy(),
+            root_module_id,
+            krate,
+            &mut context,
+            reuse_existing_module_declarations,
+        );
         context.def_maps.insert(krate, collector.def_map);
 
         let main = context.get_main_function(&krate).expect("Expected 'main' function");

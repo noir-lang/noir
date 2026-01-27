@@ -64,8 +64,8 @@ fn foo_tests() {
     let _c: Foo<Field> = Foo::C(4_Field);
     let _d: fn() -> Foo<(i32, i32)> = Foo::D;
     let _d: Foo<(i32, i32)> = Foo::D();
-    let _e: Foo<u16> = Foo::<T>::E;
-    let _e: Foo<u32> = Foo::<T>::E;
+    let _e: Foo<u16> = Foo::<u16>::E;
+    let _e: Foo<u32> = Foo::<u32>::E;
     let _many_cs: [Foo<Field>; 3] = [1_Field, 2_Field, 3_Field].map(Foo::C);
     {
         let internal___variable: Foo<u16> = _b;

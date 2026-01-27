@@ -55,8 +55,7 @@ mod reflection {
 
     use crate::{
         circuit::{
-            AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
-            Program,
+            AssertionPayload, Circuit, ExpressionOrMemory, Opcode, OpcodeLocation, Program,
             brillig::{BrilligInputs, BrilligOutputs},
             opcodes::{BlackBoxFuncCall, BlockType, FunctionInput},
         },
@@ -90,7 +89,6 @@ mod reflection {
         tracer.trace_simple_type::<Program<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ProgramWithoutBrillig<FieldElement>>().unwrap();
         tracer.trace_simple_type::<Circuit<FieldElement>>().unwrap();
-        tracer.trace_simple_type::<ExpressionWidth>().unwrap();
         tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
@@ -550,7 +548,7 @@ mod reflection {
         }
 
         /// Tuples serialize as a vector of underlying data.
-        fn generate_tuple(&mut self, _name: &str, _formats: &[Format]) {
+        fn generate_tuple(&self, _name: &str, _formats: &[Format]) {
             unimplemented!("Until we have a tuple enum in our schema we don't need this.");
         }
 

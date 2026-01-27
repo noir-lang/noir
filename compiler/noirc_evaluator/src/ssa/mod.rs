@@ -123,13 +123,13 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 /// The default SSA optimization pipeline.
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
+        SsaPass::new(Ssa::black_box_bypass, "black_box bypass"),
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        // BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
-        // SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new_try(

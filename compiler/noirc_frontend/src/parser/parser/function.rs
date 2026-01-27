@@ -244,7 +244,7 @@ impl Parser<'_> {
         Param { visibility, pattern, typ, location: self.location_since(start_location) }
     }
 
-    fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
+    fn self_pattern_param(&self, self_pattern: SelfPattern) -> Param {
         let ident_location = self.previous_token_location;
         let ident = Ident::new("self".to_string(), ident_location);
         let path = Path::from_single("Self".to_owned(), ident_location);

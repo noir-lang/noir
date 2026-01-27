@@ -22,7 +22,7 @@ use crate::{
     Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, get_type_method_key},
 };
 
 use iter_extended::vecmap;
@@ -75,10 +75,27 @@ impl Elaborator<'_> {
         let previous_self_type = self.self_type.replace(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::Reference(..)) {
+        if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+            let is_alias = matches!(self_type, Type::Alias(..));
             self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
+                is_alias,
                 location: self_type_location,
             });
+        } else if get_type_method_key(&self_type).is_none() {
+            let error: CompilationError = if self_type == Type::Error {
+                TypeCheckError::ExpectingOtherError {
+                    message: "collect_trait_impl: missing trait type".to_string(),
+                    location: self_type_location,
+                }
+                .into()
+            } else {
+                ResolverError::TypeUnsupportedForTraitImpl {
+                    typ: self_type.clone(),
+                    location: self_type_location,
+                }
+                .into()
+            };
+            self.push_err(error);
         }
 
         self.check_generics_appear_in_types(
@@ -174,7 +191,7 @@ impl Elaborator<'_> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let location = trait_impl.object_type.location;
-            self.declare_methods_on_data_type(Some(trait_id), &mut trait_impl.methods, location);
+            self.declare_methods_on_data_type(Some(trait_id), &trait_impl.methods, location);
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
@@ -669,7 +686,7 @@ impl Elaborator<'_> {
 
     // Replace implicitly added unbound named generics with fresh type variables
     fn bind_to_fresh_variable(
-        &mut self,
+        &self,
         named_generics: &mut [NamedType],
         bindings: &mut TypeBindings,
     ) {
