@@ -16,7 +16,8 @@ pub(crate) fn on_expand_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_expand_request_inner(state, params));
     } else {
-        state.pending_requests.push(PendingRequest::Expand { params, tx });
+        let type_check_version = state.type_check_version;
+        state.pending_requests.push(PendingRequest::Expand { params, tx, type_check_version });
     }
 
     async move {

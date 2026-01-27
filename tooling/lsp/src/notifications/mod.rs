@@ -152,7 +152,7 @@ pub(crate) fn process_workspace(
     // The reason is that according to the LSP spec, notifications should be handled quickly
     // as otherwise they block the main UI thread.
 
-    state.pending_type_check_events += 1;
+    start_type_checking(state);
 
     let mut file_manager = workspace.new_file_manager();
     if workspace.is_assumed {
@@ -194,7 +194,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     // The reason is that according to the LSP spec, notifications should be handled quickly
     // as otherwise they block the main UI thread.
 
-    state.pending_type_check_events += 1;
+    start_type_checking(state);
 
     let file_source = file_source.to_string();
     let client = state.client.clone();
@@ -204,6 +204,11 @@ pub(crate) fn process_workspace_for_single_file_change(
     });
 
     Ok(())
+}
+
+fn start_type_checking(state: &mut LspState) {
+    state.pending_type_check_events += 1;
+    state.type_check_version = state.type_check_version.wrapping_add(1);
 }
 
 pub(crate) fn fake_stdlib_workspace() -> Workspace {

@@ -34,7 +34,8 @@ pub(crate) fn on_inlay_hint_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_inlay_hint_request_inner(state, params));
     } else {
-        state.pending_requests.push(PendingRequest::InlayHint { params, tx });
+        let type_check_version = state.type_check_version;
+        state.pending_requests.push(PendingRequest::InlayHint { params, tx, type_check_version });
     }
 
     async move {

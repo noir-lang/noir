@@ -25,9 +25,9 @@ use crate::{
     types::{NargoPackageTests, notification},
 };
 use crate::{PendingRequest, WorkspaceCacheData, parse_diff};
-use async_lsp::LanguageClient;
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
+use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::FileMap;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
@@ -236,71 +236,139 @@ pub(crate) fn on_process_request_queue_event(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     for request in std::mem::take(&mut state.pending_requests) {
         match request {
-            PendingRequest::Completion { params, tx } => {
-                let result = on_completion_request_inner(state, params);
+            PendingRequest::Completion { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_completion_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::CodeAction { params, tx } => {
-                let result = on_code_action_request_inner(state, params);
+            PendingRequest::CodeAction { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_code_action_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::DocumentSymbol { params, tx } => {
-                let result = on_document_symbol_request_inner(state, params);
+            PendingRequest::DocumentSymbol { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_document_symbol_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::InlayHint { params, tx } => {
-                let result = on_inlay_hint_request_inner(state, params);
+            PendingRequest::InlayHint { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_inlay_hint_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::Expand { params, tx } => {
-                let result = on_expand_request_inner(state, params);
+            PendingRequest::Expand { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_expand_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::FoldingRange { params, tx } => {
-                let result = on_folding_range_request_inner(state, params);
+            PendingRequest::FoldingRange { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_folding_range_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::GotoDeclaration { params, tx } => {
-                let result = on_goto_declaration_request_inner(state, params);
+            PendingRequest::GotoDeclaration { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_goto_declaration_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::GotoDefinition { params, return_type_location_instead, tx } => {
-                let result =
-                    on_goto_definition_request_inner(state, params, return_type_location_instead);
+            PendingRequest::GotoDefinition {
+                params,
+                return_type_location_instead,
+                tx,
+                type_check_version,
+            } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_goto_definition_request_inner(state, params, return_type_location_instead)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::Hover { params, tx } => {
-                let result = on_hover_request_inner(state, params);
+            PendingRequest::Hover { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_hover_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::References { params, tx } => {
-                let result = on_references_request_inner(state, params);
+            PendingRequest::References { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_references_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::PrepareRename { params, tx } => {
-                let result = on_prepare_rename_request_inner(state, params);
+            PendingRequest::PrepareRename { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_prepare_rename_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::Rename { params, tx } => {
-                let result = on_rename_request_inner(state, params);
+            PendingRequest::Rename { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_rename_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::SemanticTokens { params, tx } => {
-                let result = on_semantic_tokens_full_request_inner(state, params);
+            PendingRequest::SemanticTokens { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_semantic_tokens_full_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::SignatureHelp { params, tx } => {
-                let result = on_signature_help_request_inner(state, params);
+            PendingRequest::SignatureHelp { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_signature_help_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
-            PendingRequest::WorkspaceSymbol { params, tx } => {
-                let result = on_workspace_symbol_request_inner(state, params);
+            PendingRequest::WorkspaceSymbol { params, tx, type_check_version } => {
+                let result = if state.type_check_version == type_check_version {
+                    on_workspace_symbol_request_inner(state, params)
+                } else {
+                    request_cancelled()
+                };
                 let _ = tx.send(result);
             }
         }
     }
 
     ControlFlow::Continue(())
+}
+
+fn request_cancelled<T>() -> Result<T, ResponseError> {
+    Err(ResponseError::new(ErrorCode::SERVER_CANCELLED, "Request too old".to_string()))
 }
 
 fn publish_diagnostics(

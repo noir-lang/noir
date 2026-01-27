@@ -68,7 +68,8 @@ pub(crate) fn on_completion_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_completion_request_inner(state, params));
     } else {
-        state.pending_requests.push(PendingRequest::Completion { params, tx });
+        let type_check_version = state.type_check_version;
+        state.pending_requests.push(PendingRequest::Completion { params, tx, type_check_version });
     }
 
     async move {

@@ -133,69 +133,91 @@ pub struct LspState {
 
     /// How many events are still pending processing.
     pending_type_check_events: usize,
+
+    /// The type check version. This is incremented whenever a type-check finishes,
+    /// and it wraps around.
+    type_check_version: usize,
 }
 
 /// A request that's pending processing.
 /// All variants include a oneshot Sender to send the response back once processed.
+/// Also all variants include a `type_check_version`. If that version is outdated with
+/// respect to the current `LspState`'s `type_check_version`, the request is cancelled
+/// as it's too old.
 pub(crate) enum PendingRequest {
     Completion {
+        type_check_version: usize,
         params: CompletionParams,
         tx: Sender<Result<Option<CompletionResponse>, ResponseError>>,
     },
     CodeAction {
+        type_check_version: usize,
         params: CodeActionParams,
         tx: Sender<Result<Option<CodeActionResponse>, ResponseError>>,
     },
     DocumentSymbol {
+        type_check_version: usize,
         params: DocumentSymbolParams,
         tx: Sender<Result<Option<DocumentSymbolResponse>, ResponseError>>,
     },
     InlayHint {
+        type_check_version: usize,
         params: InlayHintParams,
         tx: Sender<Result<Option<Vec<InlayHint>>, ResponseError>>,
     },
     Expand {
+        type_check_version: usize,
         params: types::NargoExpandParams,
         tx: Sender<Result<NargoExpandResult, ResponseError>>,
     },
     FoldingRange {
+        type_check_version: usize,
         params: FoldingRangeParams,
         tx: Sender<Result<Option<Vec<FoldingRange>>, ResponseError>>,
     },
     GotoDeclaration {
+        type_check_version: usize,
         params: GotoDeclarationParams,
         tx: Sender<Result<GotoDeclarationResult, ResponseError>>,
     },
     GotoDefinition {
+        type_check_version: usize,
         params: GotoDefinitionParams,
         return_type_location_instead: bool,
         tx: Sender<Result<types::GotoDefinitionResult, ResponseError>>,
     },
     Hover {
+        type_check_version: usize,
         params: HoverParams,
         tx: Sender<Result<Option<Hover>, ResponseError>>,
     },
     References {
+        type_check_version: usize,
         params: ReferenceParams,
         tx: Sender<Result<Option<Vec<Location>>, ResponseError>>,
     },
     PrepareRename {
+        type_check_version: usize,
         params: TextDocumentPositionParams,
         tx: Sender<Result<Option<PrepareRenameResponse>, ResponseError>>,
     },
     Rename {
+        type_check_version: usize,
         params: RenameParams,
         tx: Sender<Result<Option<WorkspaceEdit>, ResponseError>>,
     },
     SemanticTokens {
+        type_check_version: usize,
         params: SemanticTokensParams,
         tx: Sender<Result<Option<SemanticTokensResult>, ResponseError>>,
     },
     SignatureHelp {
+        type_check_version: usize,
         params: SignatureHelpParams,
         tx: Sender<Result<Option<SignatureHelp>, ResponseError>>,
     },
     WorkspaceSymbol {
+        type_check_version: usize,
         params: WorkspaceSymbolParams,
         tx: Sender<Result<Option<WorkspaceSymbolResponse>, ResponseError>>,
     },
@@ -231,6 +253,7 @@ impl LspState {
             files_with_errors: HashMap::new(),
             pending_requests: Vec::new(),
             pending_type_check_events: 0,
+            type_check_version: 0,
         }
     }
 }

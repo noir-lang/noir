@@ -20,7 +20,12 @@ pub(crate) fn on_prepare_rename_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_prepare_rename_request_inner(state, params));
     } else {
-        state.pending_requests.push(PendingRequest::PrepareRename { params, tx });
+        let type_check_version = state.type_check_version;
+        state.pending_requests.push(PendingRequest::PrepareRename {
+            params,
+            tx,
+            type_check_version,
+        });
     }
 
     async move {
@@ -56,7 +61,8 @@ pub(crate) fn on_rename_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_rename_request_inner(state, params));
     } else {
-        state.pending_requests.push(PendingRequest::Rename { params, tx });
+        let type_check_version = state.type_check_version;
+        state.pending_requests.push(PendingRequest::Rename { params, tx, type_check_version });
     }
 
     async move {

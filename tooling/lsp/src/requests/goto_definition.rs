@@ -36,10 +36,12 @@ fn on_goto_definition_request_helper(
         let _ =
             tx.send(on_goto_definition_request_inner(state, params, return_type_location_instead));
     } else {
+        let type_check_version = state.type_check_version;
         state.pending_requests.push(PendingRequest::GotoDefinition {
             params,
             return_type_location_instead,
             tx,
+            type_check_version,
         });
     }
 
