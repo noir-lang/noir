@@ -30,6 +30,7 @@ pub(crate) fn with_interpreter<T>(
     let location = Location::new(Default::default(), file);
     let root_module = ModuleData::new(
         None,
+        None,
         location,
         Vec::new(),
         Vec::new(),
@@ -52,7 +53,16 @@ pub(crate) fn with_interpreter<T>(
     let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+    let reuse_existing_module_declarations = false;
+    collect_defs(
+        &mut collector,
+        ast,
+        FileId::dummy(),
+        root_module_id,
+        krate,
+        &mut context,
+        reuse_existing_module_declarations,
+    );
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
