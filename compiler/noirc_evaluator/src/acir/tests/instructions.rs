@@ -1,7 +1,6 @@
 use acvm::assert_circuit_snapshot;
 
 use crate::acir::tests::ssa_to_acir_program;
-
 mod binary;
 
 #[test]
@@ -357,6 +356,21 @@ fn truncate_underflow() {
         v2 = sub v0, v1
         v3 = truncate v2 to 6 bits, max_bit_size: 253
         return v3
+    }
+    ";
+    let _ = ssa_to_acir_program(src);
+}
+
+/// The underflow of v0 should not trigger a compile time error,
+/// nor a xor black box input error.
+#[test]
+fn regression_11249() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = sub u64 162, u64 7089289267698293936
+        v1 = xor v0, u64 12326866836579951866
+        return v1
     }
     ";
     let _ = ssa_to_acir_program(src);

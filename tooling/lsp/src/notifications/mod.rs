@@ -4,19 +4,25 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
+use crate::requests::{file_path_to_file_id, uri_to_file_path};
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileManager, FileMap};
+use fm::{FileId, FileManager, FileMap, PathString};
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
+use noirc_frontend::hir::Context;
+use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
+use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
+use noirc_frontend::parse_program;
 
 use crate::types::{
     Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
@@ -50,9 +56,8 @@ pub(crate) fn on_did_open_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
-    let change = false;
 
-    match handle_text_document_notification(state, document_uri, change) {
+    match handle_text_document_open_or_close_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -67,9 +72,8 @@ pub(super) fn on_did_change_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
-    let change = true;
 
-    match handle_text_document_notification(state, document_uri, change) {
+    match handle_on_did_change_text_document_notification(state, document_uri, &text) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -83,9 +87,8 @@ pub(super) fn on_did_close_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
-    let change = false;
 
-    match handle_text_document_notification(state, document_uri, change) {
+    match handle_text_document_open_or_close_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -100,67 +103,40 @@ pub(super) fn on_did_save_text_document(
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
-    // Process any pending changes
-    if state.workspaces_to_process.remove(&workspace.root_dir) {
-        let _ = process_workspace(state, &workspace, false);
+    match process_workspace(state, &workspace) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
     }
-
-    // Cached data should be here but, if it doesn't, we'll just type-check and output diagnostics
-    let (Some(workspace_cache), Some(package_cache)) = (
-        state.workspace_cache.get(&workspace.root_dir),
-        state.package_cache.get(&workspace.root_dir),
-    ) else {
-        let output_diagnostics = true;
-        return match process_workspace(state, &workspace, output_diagnostics) {
-            Ok(_) => ControlFlow::Continue(()),
-            Err(err) => return ControlFlow::Break(Err(err)),
-        };
-    };
-
-    // If the last thing the user did was to save a file in the workspace, it could be that
-    // the underlying files in the filesystem have changed (for example a `git checkout`),
-    // so here we force a type-check just in case.
-    if package_cache.diagnostics_just_published {
-        let output_diagnostics = true;
-        return match process_workspace(state, &workspace, output_diagnostics) {
-            Ok(_) => ControlFlow::Continue(()),
-            Err(err) => return ControlFlow::Break(Err(err)),
-        };
-    }
-
-    // Otherwise, we can publish the diagnostics we computed in the last type-check
-    publish_diagnostics(
-        state,
-        &workspace.root_dir,
-        &workspace_cache.file_manager.clone(),
-        package_cache.diagnostics.clone(),
-    );
-
-    if let Some(package_cache) = state.package_cache.get_mut(&workspace.root_dir) {
-        package_cache.diagnostics_just_published = true;
-    }
-
-    ControlFlow::Continue(())
 }
 
-fn handle_text_document_notification(
+fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
-    change: bool,
 ) -> Result<(), async_lsp::Error> {
     let workspace = workspace_from_document_uri(document_uri.clone())?;
 
     if state.package_cache.contains_key(&workspace.root_dir) {
-        // If we have cached data but the file didn't change there's nothing to do
-        if change {
-            state.workspaces_to_process.insert(workspace.root_dir.clone());
-        }
         Ok(())
     } else {
         // If it's the first time we see this package, show diagnostics.
         // This can happen for example when a user opens a Noir file in a package for the first time.
-        let output_diagnostics = true;
-        process_workspace(state, &workspace, output_diagnostics)
+        process_workspace(state, &workspace)
+    }
+}
+
+fn handle_on_did_change_text_document_notification(
+    state: &mut LspState,
+    document_uri: Url,
+    text: &str,
+) -> Result<(), async_lsp::Error> {
+    let workspace = workspace_from_document_uri(document_uri.clone())?;
+
+    if state.package_cache.contains_key(&workspace.root_dir) {
+        process_workspace_for_single_file_change(state, &workspace, document_uri, text)
+    } else {
+        // If it's the first time we see this package, show diagnostics.
+        // This can happen for example when a user opens a Noir file in a package for the first time.
+        process_workspace(state, &workspace)
     }
 }
 
@@ -188,7 +164,6 @@ pub(crate) fn workspace_from_document_uri(
 pub(crate) fn process_workspace(
     state: &mut LspState,
     workspace: &Workspace,
-    output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
     let mut workspace_file_manager = workspace.new_file_manager();
     if workspace.is_assumed {
@@ -230,16 +205,12 @@ pub(crate) fn process_workspace(
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
-                diagnostics: file_diagnostics.clone(),
-                diagnostics_just_published: output_diagnostics,
             },
         );
 
         let fm = &context.file_manager;
 
-        if output_diagnostics {
-            publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
-        }
+        publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
     }
 
     state.workspace_cache.insert(
@@ -248,6 +219,132 @@ pub(crate) fn process_workspace(
     );
 
     Ok(())
+}
+
+/// Type-checks a single file that changed by using existing cached data for the workspace/package,
+/// such as the cached NodeInterner, CrateGraph and DefMaps.
+///
+/// This greatly improves the responsiveness of the LSP server when editing files. However,
+/// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
+/// from the code, it will still existing in the cached data and it will still be offered as
+/// autocompletion. Or for example if the compiler refuses to re-process a trait because
+/// it's already defined, new methods defined on that trait won't be available for autocompletion.
+/// However, this is solved when the file is saved as the entire package is re-processed then.
+/// We think this is an acceptable trade-off to improve responsiveness, and it could eventually
+/// be further improved.
+pub(crate) fn process_workspace_for_single_file_change(
+    state: &mut LspState,
+    workspace: &Workspace,
+    file_uri: Url,
+    file_source: &str,
+) -> Result<(), async_lsp::Error> {
+    let root_dir = &workspace.root_dir;
+    let mut workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
+    let mut package_cache = state.package_cache.remove(root_dir).unwrap();
+
+    let mut file_manager = workspace_cache.file_manager;
+    let file_map = file_manager.as_file_map();
+    let file_path = uri_to_file_path(&file_uri)?;
+
+    // We need to replace the file's source in the file manager
+    let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
+    file_manager.replace_file(file_id, file_source.to_string());
+
+    let mut node_interner = package_cache.node_interner;
+
+    // Clear some locations associated with this file. For example, locations associated
+    // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
+    // This also removes methods that were defined in this file.
+    node_interner.clear_in_file(file_id);
+
+    let mut def_maps = package_cache.def_maps;
+    let crate_graph = package_cache.crate_graph;
+
+    let crate_id = package_cache.crate_id;
+
+    // Get a hold of the CrateDefMap for this crate, by removing it.
+    // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
+    let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
+
+    // Find out the local module ID corresponding to this file
+    let module_index = crate_def_map
+        .modules()
+        .iter()
+        .find(|(_, module_data)| module_data.location.file == file_id)
+        .unwrap()
+        .0;
+    let module_id = LocalModuleId::new(module_index);
+
+    // Clear all the definitions in the existing module (and its children, as long as they happen in
+    // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
+    clear_all_in_file(file_id, module_id, &mut crate_def_map);
+
+    // Parse the program and add it to the parsed files
+    let (parsed_program, errors) = parse_program(file_source, file_id);
+    let mut parsed_files = parse_diff(&file_manager, state);
+    parsed_files.insert(file_id, (parsed_program.clone(), errors));
+
+    // Prepare some things to create a Context
+    let sorted_module = parsed_program.into_sorted();
+    let def_collector = DefCollector::new(crate_def_map);
+    let mut context =
+        Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+
+    // Here we enable all options because we won't show errors to users, so it's easier to
+    // assume all unstable features are enabled.
+    let options = FrontendOptions {
+        debug_comptime_in_file: None,
+        enabled_unstable_features: &[
+            UnstableFeature::Enums,
+            UnstableFeature::Ownership,
+            UnstableFeature::TraitAsType,
+        ],
+        disable_required_unstable_features: false,
+    };
+
+    // This is when the type-checking of this single file happens
+    let reuse_existing_module_declarations = true;
+    let mut errors = Vec::new();
+    DefCollector::collect_defs_and_elaborate(
+        sorted_module,
+        file_id,
+        module_id,
+        crate_id,
+        &mut context,
+        def_collector,
+        options,
+        reuse_existing_module_declarations,
+        &mut errors,
+    );
+
+    // Put some things back before restoring the cached data
+    package_cache.node_interner = context.def_interner;
+    package_cache.def_maps = context.def_maps;
+    package_cache.crate_graph = context.crate_graph;
+
+    workspace_cache.file_manager = file_manager;
+
+    state.workspace_cache.insert(root_dir.clone(), workspace_cache);
+    state.package_cache.insert(root_dir.clone(), package_cache);
+
+    Ok(())
+}
+
+fn clear_all_in_file(file: FileId, module_id: LocalModuleId, crate_def_map: &mut CrateDefMap) {
+    let mut module_ids = vec![module_id];
+
+    while let Some(module_id) = module_ids.pop() {
+        let module_data = &mut crate_def_map[module_id];
+        if module_data.location.file != file {
+            continue;
+        }
+
+        module_data.clear();
+
+        for child_module_id in module_data.children.values() {
+            module_ids.push(*child_module_id);
+        }
+    }
 }
 
 pub(crate) fn fake_stdlib_workspace() -> Workspace {
