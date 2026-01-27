@@ -1,0 +1,7 @@
+[package]
+name = "ecdsa_secp256k1_invalid_inputs"
+description = "ECDSA secp256k1 verification should return false when inputs are invalid"
+type = "bin"
+authors = [""]
+
+[dependencies]
