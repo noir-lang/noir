@@ -1,4 +1,4 @@
-/// Local variables should be suggested before antying else.
+/// Local variables should be suggested before anything else.
 pub(super) fn local_variable_sort_text() -> String {
     "a".to_string()
 }
