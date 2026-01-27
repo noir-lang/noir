@@ -213,29 +213,15 @@ impl Type {
             }
 
             (
-                NamedGeneric(types::NamedGeneric {
-                    type_var: binding_a,
-                    name: name_a,
-                    trait_id: trait_a,
-                    ..
-                }),
-                NamedGeneric(types::NamedGeneric {
-                    type_var: binding_b,
-                    name: name_b,
-                    trait_id: trait_b,
-                    ..
-                }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
             ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
                 if name_a == name_b {
-                    match (trait_a, trait_b) {
-                        (Some(a), Some(b)) if a != b => Err(UnificationError),
-                        (Some(_), None) | (None, Some(_)) => Err(UnificationError),
-                        _ => binding_a.kind().unify(&binding_b.kind()),
-                    }
+                    binding_a.kind().unify(&binding_b.kind())
                 } else {
                     Err(UnificationError)
                 }

@@ -291,7 +291,10 @@ impl Elaborator<'_> {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
-                    return Some(typ.clone().as_named_generic(Some(trait_id)));
+                    return Some(
+                        typ.clone()
+                            .as_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
+                    );
                 }
             }
 

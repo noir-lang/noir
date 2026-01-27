@@ -3,6 +3,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
+use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind};
 use crate::{
@@ -253,7 +254,7 @@ impl Trait {
     pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
         let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
-            generic.clone().as_named_generic(Some(self.id))
+            generic.clone().as_named_generic(Some((SELF_TYPE_NAME, self.name.as_str())))
         });
         (ordered, named)
     }
@@ -262,7 +263,10 @@ impl Trait {
         let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), location);
-            NamedType { name, typ: generic.clone().as_named_generic(Some(self.id)) }
+            NamedType {
+                name,
+                typ: generic.clone().as_named_generic(Some((SELF_TYPE_NAME, self.name.as_str()))),
+            }
         });
         TraitGenerics { ordered, named }
     }

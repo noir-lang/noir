@@ -417,7 +417,6 @@ mod tests {
             type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
             name: std::rc::Rc::new("N".to_owned()),
             implicit: false,
-            trait_id: None,
         });
         let n_minus_one: Type = n.clone() - 1u32.into();
         let checked_cast_n_minus_one =
