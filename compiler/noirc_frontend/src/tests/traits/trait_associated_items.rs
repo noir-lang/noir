@@ -536,6 +536,5 @@ fn associated_and_type_mismatch_across_traits() {
                      ^^^^^^^^^^^^^^ Expected type <B as Eggs>::Item, found type <A as Spam>::Item
     }
     "#;
-    // TODO: Add error markup
     check_errors(src);
 }
