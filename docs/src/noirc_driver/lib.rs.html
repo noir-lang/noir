@@ -959,7 +959,8 @@
 <a href="#958" id="958">958</a>
 <a href="#959" id="959">959</a>
 <a href="#960" id="960">960</a>
-<a href="#961" id="961">961</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::hash::BuildHasher;
@@ -1388,9 +1389,10 @@
         .expect(<span class="string">"cyclic dependency triggered"</span>);
 }
 
-<span class="doccomment">/// Run the lexing, parsing, name resolution, and type checking passes.
+<span class="doccomment">/// Run the def collection, elaboration and type checking passes.
 ///
-/// This returns a (possibly empty) vector of any warnings found on success.
+/// On success, this returns () alongside any warnings found during checking.
+///
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 </span><span class="kw">pub fn </span>check_crate(
