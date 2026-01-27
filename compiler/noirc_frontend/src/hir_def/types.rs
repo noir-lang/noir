@@ -168,7 +168,7 @@ pub struct NamedGeneric {
 impl NamedGeneric {
     /// Create a [NamedGeneric].
     ///
-    /// If an object and trait pair are given in `as_trait`, this is assumed
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
     /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
     /// to disambiguate from other generics in scope.
     pub fn new(
@@ -1067,6 +1067,11 @@ impl TypeVariable {
         }
     }
 
+    /// Create a [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
     pub(crate) fn into_named_generic(
         self,
         name: &Rc<String>,
@@ -1075,6 +1080,11 @@ impl TypeVariable {
         Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait))
     }
 
+    /// Create a implicit [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
     pub(crate) fn into_implicit_named_generic(
         self,
         name: &Rc<String>,
