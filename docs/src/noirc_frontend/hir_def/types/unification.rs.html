@@ -873,14 +873,7 @@
 <a href="#872" id="872">872</a>
 <a href="#873" id="873">873</a>
 <a href="#874" id="874">874</a>
-<a href="#875" id="875">875</a>
-<a href="#876" id="876">876</a>
-<a href="#877" id="877">877</a>
-<a href="#878" id="878">878</a>
-<a href="#879" id="879">879</a>
-<a href="#880" id="880">880</a>
-<a href="#881" id="881">881</a>
-<a href="#882" id="882">882</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#875" id="875">875</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -980,13 +973,6 @@
         bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), UnificationError&gt; {
         <span class="kw">use </span>Type::<span class="kw-2">*</span>;
-
-        <span class="comment">// If the two types are exactly the same then they trivially unify.
-        // This check avoids potentially unifying very complex types (usually infix
-        // expressions) when they are the same.
-        </span><span class="kw">if </span><span class="self">self </span>== other {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-        }
 
         <span class="kw">let </span>lhs = <span class="self">self</span>.follow_bindings_shallow();
         <span class="kw">let </span>rhs = other.follow_bindings_shallow();
@@ -1095,14 +1081,14 @@
             }
 
             (
-                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, .. }),
             ) =&gt; {
                 <span class="comment">// Bound NamedGenerics are caught by the check above
                 </span><span class="macro">assert!</span>(binding_a.borrow().is_unbound());
                 <span class="macro">assert!</span>(binding_b.borrow().is_unbound());
 
-                <span class="kw">if </span>name_a == name_b {
+                <span class="kw">if </span>binding_a.<span class="number">0 </span>== binding_b.<span class="number">0 </span>{
                     binding_a.kind().unify(<span class="kw-2">&amp;</span>binding_b.kind())
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Err</span>(UnificationError)
