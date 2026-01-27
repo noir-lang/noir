@@ -178,7 +178,8 @@ impl NamedGeneric {
         as_trait: Option<(&str, &str)>,
     ) -> Self {
         let name = match as_trait {
-            // XXX: The parser rejects trait methods such as `fn foo_bar() -> <Self as Foo>::Bar;` (unlike Rust).
+            // TODO(#10858): The compiler rejects `trait Foo { fn foo_bar() -> <Self as Foo>::Bar; }` (unlike Rust),
+            // so in order to be able to parse back expanded code, we have to format it as `Self::Bar`.
             Some((object, _)) if object == SELF_TYPE_NAME => Rc::new(format!("{object}::{name}")),
             Some((object, trait_name)) => Rc::new(format!("<{object} as {trait_name}>::{name}")),
             None => name.clone(),
