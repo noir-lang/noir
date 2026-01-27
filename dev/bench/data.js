@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769519374031,
+  "lastUpdate": 1769524131907,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d0bf6e086c4a05b30fb869d0a26e0abd8ba312a4",
-          "message": "fix: let ExpressionSolver combine mul terms on failure (#11262)",
-          "timestamp": "2026-01-20T15:28:44Z",
-          "tree_id": "d91fbaf906a8c6d17e1713efd15b671eee47e866",
-          "url": "https://github.com/noir-lang/noir/commit/d0bf6e086c4a05b30fb869d0a26e0abd8ba312a4"
-        },
-        "date": 1768924205717,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255569,
-            "range": "± 1682",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227207,
-            "range": "± 3895",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791474,
-            "range": "± 1900",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2802156,
             "range": "± 2757",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b8d4eea2f8be5213bd570374c8106f1c176b2910",
+          "message": "fix: share closure environment for constrained/unconstrained variants of a lambda function (#11271)",
+          "timestamp": "2026-01-27T14:00:33Z",
+          "tree_id": "dba06e3d263c46696ac8ab463334e9bdfa384a96",
+          "url": "https://github.com/noir-lang/noir/commit/b8d4eea2f8be5213bd570374c8106f1c176b2910"
+        },
+        "date": 1769524094242,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 231147,
+            "range": "± 1239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217935,
+            "range": "± 8036",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3187735,
+            "range": "± 2826",
             "unit": "ns/iter"
           }
         ]
