@@ -546,8 +546,8 @@ impl Type {
         }
     }
 
-    // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
-    // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+    /// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    /// Returns `None` if no coercion can be applied, otherwise returns `self` coerced to `expected`.
     fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
         // If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.

@@ -10,6 +10,7 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
+    elaborator::types::SELF_TYPE_NAME,
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -155,9 +156,36 @@ pub enum Type {
 #[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Debug)]
 pub struct NamedGeneric {
     pub type_var: TypeVariable,
+    /// The name of the generic type.
+    ///
+    /// If this is an associated type, then it has the format `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
     pub name: Rc<String>,
     /// Was this named generic implicitly added?
     pub implicit: bool,
+}
+
+impl NamedGeneric {
+    /// Create a [NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
+    pub fn new(
+        type_var: TypeVariable,
+        implicit: bool,
+        name: &Rc<String>,
+        as_trait: Option<(&str, &str)>,
+    ) -> Self {
+        let name = match as_trait {
+            // TODO(#10858): The compiler rejects `trait Foo { fn foo_bar() -> <Self as Foo>::Bar; }` (unlike Rust),
+            // so in order to be able to parse back expanded code, we have to format it as `Self::Bar`.
+            Some((object, _)) if object == SELF_TYPE_NAME => Rc::new(format!("{object}::{name}")),
+            Some((object, trait_name)) => Rc::new(format!("<{object} as {trait_name}>::{name}")),
+            None => name.clone(),
+        };
+        Self { type_var, name, implicit }
+    }
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -434,12 +462,9 @@ pub struct ResolvedGeneric {
 }
 
 impl ResolvedGeneric {
-    pub fn as_named_generic(self) -> Type {
-        Type::NamedGeneric(NamedGeneric {
-            type_var: self.type_var,
-            name: self.name,
-            implicit: false,
-        })
+    /// Create a [Type::NamedGeneric] from this [ResolvedGeneric].
+    pub fn into_named_generic(self, as_trait: Option<(&str, &str)>) -> Type {
+        Type::NamedGeneric(NamedGeneric::new(self.type_var, false, &self.name, as_trait))
     }
 
     pub fn kind(&self) -> Kind {
@@ -544,7 +569,7 @@ impl DataType {
 
     /// Return the generics on this type as a vector of types
     pub fn generic_types(&self) -> Vec<Type> {
-        vecmap(&self.generics, |generic| generic.clone().as_named_generic())
+        vecmap(&self.generics, |generic| generic.clone().into_named_generic(None))
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
@@ -1042,12 +1067,30 @@ impl TypeVariable {
         }
     }
 
-    pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
+    /// Create a [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
+    pub(crate) fn into_named_generic(
+        self,
+        name: &Rc<String>,
+        as_trait: Option<(&str, &str)>,
+    ) -> Type {
+        Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait))
     }
 
-    pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
+    /// Create a implicit [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
+    pub(crate) fn into_implicit_named_generic(
+        self,
+        name: &Rc<String>,
+        as_trait: Option<(&str, &str)>,
+    ) -> Type {
+        Type::NamedGeneric(NamedGeneric::new(self, true, name, as_trait))
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
@@ -3403,10 +3446,22 @@ impl PartialEq for Type {
             }
             // Two implicitly added unbound named generics are equal
             (
-                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: true, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: true, .. }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: lhs_var,
+                    implicit: true,
+                    name: lhs_name,
+                    ..
+                }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: rhs_var,
+                    implicit: true,
+                    name: rhs_name,
+                    ..
+                }),
             ) => {
-                lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound()
+                lhs_var.borrow().is_unbound()
+                    && rhs_var.borrow().is_unbound()
+                    && lhs_name == rhs_name
                     || lhs_var.id() == rhs_var.id()
             }
             // Special case: we consider unbound named generics and type variables to be equal to each
