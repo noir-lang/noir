@@ -501,17 +501,17 @@ fn associated_and_generic_type_share_name() {
         type Bar;
 
         fn gen_to_assoc(x: Bar) -> Self::Bar {
-                                   ^^^^^^^^^ expected type <Self as Foo>::Bar, found type Bar
-                                   ~~~~~~~~~ expected <Self as Foo>::Bar because of return type
+                                   ^^^^^^^^^ expected type Self::Bar, found type Bar
+                                   ~~~~~~~~~ expected Self::Bar because of return type
             x
             ~ Bar returned here
         }
 
         fn assoc_to_gen(x: Self::Bar) -> Bar {
-                                         ^^^ expected type Bar, found type <Self as Foo>::Bar
+                                         ^^^ expected type Bar, found type Self::Bar
                                          ~~~ expected Bar because of return type
             x
-            ~ <Self as Foo>::Bar returned here
+            ~ Self::Bar returned here
         }
     }
     "#;

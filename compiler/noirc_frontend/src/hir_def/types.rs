@@ -10,6 +10,7 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
+    elaborator::types::SELF_TYPE_NAME,
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -177,6 +178,8 @@ impl NamedGeneric {
         as_trait: Option<(&str, &str)>,
     ) -> Self {
         let name = match as_trait {
+            // XXX: The parser rejects trait methods such as `fn foo_bar() -> <Self as Foo>::Bar;` (unlike Rust).
+            Some((object, _)) if object == SELF_TYPE_NAME => Rc::new(format!("{object}::{name}")),
             Some((object, trait_name)) => Rc::new(format!("<{object} as {trait_name}>::{name}")),
             None => name.clone(),
         };
