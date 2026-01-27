@@ -285,13 +285,16 @@ impl Elaborator<'_> {
         self.check_type_kind(resolved_type, kind, location)
     }
 
-    /// Resolve Self::Foo to an associated type on the current trait or trait impl
+    /// Resolve `Self::Foo` to an associated type on the current trait or trait impl.
     fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
-                    return Some(typ.clone().as_named_generic());
+                    return Some(
+                        typ.clone()
+                            .into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
+                    );
                 }
             }
 
@@ -648,7 +651,7 @@ impl Elaborator<'_> {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
-                return Some(generic.as_named_generic());
+                return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
             if let Some(last_segment) = path.segments.last() {
@@ -2497,7 +2500,9 @@ impl Elaborator<'_> {
         let (expr_location, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
 
-        let func_location = self.interner.expr_location(&body_id); // TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        // TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_location = self.interner.expr_location(&body_id);
+
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             self.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             if self

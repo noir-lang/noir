@@ -115,7 +115,7 @@ fn accesses_associated_type_inside_trait_and_impl_using_self() {
 
     impl Trait for i32 {
         type Output = CustomType;
-        
+
         fn foo() -> Self::Output {
             CustomType {}
         }
@@ -135,12 +135,12 @@ fn accesses_associated_constant_on_data_type_using_self() {
         let N: u32;
         fn get_item() -> u32;
     }
-    
+
     struct MyContainer {}
 
     impl Container for MyContainer {
         let N: u32 = 10;
-        
+
         fn get_item() -> u32 {
             Self::N
         }
@@ -402,11 +402,11 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     }
 
     trait Foo {
-        fn foo<B>(b: B) where B: Bar; 
+        fn foo<B>(b: B) where B: Bar;
     }
 
     impl Foo for Field{
-        fn foo<B>(_: B) where B: Bar {} 
+        fn foo<B>(_: B) where B: Bar {}
     }
     ";
     assert_no_errors(src);
@@ -490,6 +490,30 @@ fn self_associated_constant_does_not_cross_trait_boundaries() {
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_and_generic_type_share_name() {
+    let src = r#"
+    pub trait Foo<Bar> {
+        type Bar;
+
+        fn gen_to_assoc(x: Bar) -> Self::Bar {
+                                   ^^^^^^^^^ expected type Self::Bar, found type Bar
+                                   ~~~~~~~~~ expected Self::Bar because of return type
+            x
+            ~ Bar returned here
+        }
+
+        fn assoc_to_gen(x: Self::Bar) -> Bar {
+                                         ^^^ expected type Bar, found type Self::Bar
+                                         ~~~ expected Bar because of return type
+            x
+            ~ Self::Bar returned here
+        }
+    }
     "#;
     check_errors(src);
 }

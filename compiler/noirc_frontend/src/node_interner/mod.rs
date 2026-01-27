@@ -1410,6 +1410,9 @@ impl NodeInterner {
         &self.trait_impl_associated_types[&impl_id]
     }
 
+    /// Find an associated type in a trait implementation by the last segment in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn find_associated_type_for_impl(
         &self,
         impl_id: TraitImplId,
