@@ -4,7 +4,7 @@ use async_lsp::{
 };
 
 use crate::{
-    LspState, PendingRequest,
+    LspState, PendingRequest, PendingRequestKind,
     requests::{
         folding_range::{comments_collector::CommentsCollector, nodes_collector::NodesCollector},
         process_request,
@@ -26,11 +26,10 @@ pub(crate) fn on_folding_range_request(
         let _ = tx.send(on_folding_range_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::FoldingRange {
-            params,
-            tx,
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::FoldingRange { params, tx },
             type_check_version,
-        });
+        ));
     }
 
     async move {

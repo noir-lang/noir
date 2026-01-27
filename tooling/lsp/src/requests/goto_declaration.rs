@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use crate::types::GotoDeclarationResult;
-use crate::{LspState, PendingRequest};
+use crate::{LspState, PendingRequest, PendingRequestKind};
 use async_lsp::{ErrorCode, ResponseError};
 
 use async_lsp::lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};
@@ -18,11 +18,10 @@ pub(crate) fn on_goto_declaration_request(
         let _ = tx.send(on_goto_declaration_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::GotoDeclaration {
-            params,
-            tx,
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::GotoDeclaration { params, tx },
             type_check_version,
-        });
+        ));
     }
 
     async move {

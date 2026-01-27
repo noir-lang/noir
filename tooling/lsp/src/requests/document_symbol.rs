@@ -18,7 +18,7 @@ use noirc_frontend::{
 };
 
 use crate::requests::process_request;
-use crate::{LspState, PendingRequest};
+use crate::{LspState, PendingRequest, PendingRequestKind};
 
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
@@ -30,11 +30,10 @@ pub(crate) fn on_document_symbol_request(
         let _ = tx.send(on_document_symbol_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::DocumentSymbol {
-            params,
-            tx,
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::DocumentSymbol { params, tx },
             type_check_version,
-        });
+        ));
     }
 
     async move {

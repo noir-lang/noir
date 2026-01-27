@@ -2,7 +2,7 @@ use std::future::Future;
 
 use crate::visitor_reference_finder::VisitorReferenceFinder;
 use crate::{LspState, types::GotoDefinitionResult};
-use crate::{PendingRequest, utils};
+use crate::{PendingRequest, PendingRequestKind, utils};
 use async_lsp::{ErrorCode, ResponseError};
 
 use async_lsp::lsp_types::{self, LocationLink};
@@ -37,12 +37,10 @@ fn on_goto_definition_request_helper(
             tx.send(on_goto_definition_request_inner(state, params, return_type_location_instead));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::GotoDefinition {
-            params,
-            return_type_location_instead,
-            tx,
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::GotoDefinition { params, return_type_location_instead, tx },
             type_check_version,
-        });
+        ));
     }
 
     async move {

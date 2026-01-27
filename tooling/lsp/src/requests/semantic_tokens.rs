@@ -31,7 +31,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    LspState, PendingRequest,
+    LspState, PendingRequest, PendingRequestKind,
     doc_comments::current_module_and_type,
     requests::{
         ProcessRequestCallbackArgs, process_request, semantic_token_types_map, to_lsp_location,
@@ -48,11 +48,10 @@ pub(crate) fn on_semantic_tokens_full_request(
         let _ = tx.send(on_semantic_tokens_full_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::SemanticTokens {
-            params,
-            tx,
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::SemanticTokens { params, tx },
             type_check_version,
-        });
+        ));
     }
 
     async move {

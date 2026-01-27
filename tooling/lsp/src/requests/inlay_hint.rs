@@ -21,6 +21,7 @@ use noirc_frontend::{
 };
 
 use crate::PendingRequest;
+use crate::PendingRequestKind;
 use crate::{LspState, utils};
 
 use super::{InlayHintsOptions, process_request, to_lsp_location};
@@ -35,7 +36,10 @@ pub(crate) fn on_inlay_hint_request(
         let _ = tx.send(on_inlay_hint_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::InlayHint { params, tx, type_check_version });
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::InlayHint { params, tx },
+            type_check_version,
+        ));
     }
 
     async move {

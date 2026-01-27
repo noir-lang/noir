@@ -21,7 +21,7 @@ use noirc_frontend::{
     parser::ParsedSubModule,
 };
 
-use crate::{LspState, PendingRequest, source_code_overrides};
+use crate::{LspState, PendingRequest, PendingRequestKind, source_code_overrides};
 
 use super::to_lsp_location;
 
@@ -35,11 +35,10 @@ pub(crate) fn on_workspace_symbol_request(
         let _ = tx.send(on_workspace_symbol_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::WorkspaceSymbol {
-            params,
-            tx,
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::WorkspaceSymbol { params, tx },
             type_check_version,
-        });
+        ));
     }
 
     async move {

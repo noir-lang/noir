@@ -24,7 +24,7 @@ use crate::{
     LspState, PackageCacheData, get_package_tests_in_crate,
     types::{NargoPackageTests, notification},
 };
-use crate::{PendingRequest, WorkspaceCacheData, parse_diff};
+use crate::{PendingRequestKind, WorkspaceCacheData, parse_diff};
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
@@ -235,8 +235,9 @@ pub(crate) fn on_process_request_queue_event(
     _event: ProcessRequestQueueEvent,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     for request in std::mem::take(&mut state.pending_requests) {
-        match request {
-            PendingRequest::Completion { params, tx, type_check_version } => {
+        let type_check_version = request.type_check_version;
+        match request.kind {
+            PendingRequestKind::Completion { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_completion_request_inner(state, params)
                 } else {
@@ -244,7 +245,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::CodeAction { params, tx, type_check_version } => {
+            PendingRequestKind::CodeAction { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_code_action_request_inner(state, params)
                 } else {
@@ -252,7 +253,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::DocumentSymbol { params, tx, type_check_version } => {
+            PendingRequestKind::DocumentSymbol { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_document_symbol_request_inner(state, params)
                 } else {
@@ -260,7 +261,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::InlayHint { params, tx, type_check_version } => {
+            PendingRequestKind::InlayHint { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_inlay_hint_request_inner(state, params)
                 } else {
@@ -268,7 +269,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::Expand { params, tx, type_check_version } => {
+            PendingRequestKind::Expand { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_expand_request_inner(state, params)
                 } else {
@@ -276,7 +277,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::FoldingRange { params, tx, type_check_version } => {
+            PendingRequestKind::FoldingRange { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_folding_range_request_inner(state, params)
                 } else {
@@ -284,7 +285,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::GotoDeclaration { params, tx, type_check_version } => {
+            PendingRequestKind::GotoDeclaration { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_goto_declaration_request_inner(state, params)
                 } else {
@@ -292,12 +293,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::GotoDefinition {
-                params,
-                return_type_location_instead,
-                tx,
-                type_check_version,
-            } => {
+            PendingRequestKind::GotoDefinition { params, return_type_location_instead, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_goto_definition_request_inner(state, params, return_type_location_instead)
                 } else {
@@ -305,7 +301,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::Hover { params, tx, type_check_version } => {
+            PendingRequestKind::Hover { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_hover_request_inner(state, params)
                 } else {
@@ -313,7 +309,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::References { params, tx, type_check_version } => {
+            PendingRequestKind::References { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_references_request_inner(state, params)
                 } else {
@@ -321,7 +317,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::PrepareRename { params, tx, type_check_version } => {
+            PendingRequestKind::PrepareRename { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_prepare_rename_request_inner(state, params)
                 } else {
@@ -329,7 +325,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::Rename { params, tx, type_check_version } => {
+            PendingRequestKind::Rename { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_rename_request_inner(state, params)
                 } else {
@@ -337,7 +333,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::SemanticTokens { params, tx, type_check_version } => {
+            PendingRequestKind::SemanticTokens { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_semantic_tokens_full_request_inner(state, params)
                 } else {
@@ -345,7 +341,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::SignatureHelp { params, tx, type_check_version } => {
+            PendingRequestKind::SignatureHelp { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_signature_help_request_inner(state, params)
                 } else {
@@ -353,7 +349,7 @@ pub(crate) fn on_process_request_queue_event(
                 };
                 let _ = tx.send(result);
             }
-            PendingRequest::WorkspaceSymbol { params, tx, type_check_version } => {
+            PendingRequestKind::WorkspaceSymbol { params, tx } => {
                 let result = if state.type_check_version == type_check_version {
                     on_workspace_symbol_request_inner(state, params)
                 } else {

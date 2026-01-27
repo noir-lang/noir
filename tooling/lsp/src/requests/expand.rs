@@ -2,7 +2,7 @@ use async_lsp::{ErrorCode, ResponseError, lsp_types::TextDocumentPositionParams}
 use nargo_expand::get_expanded_crate;
 
 use crate::{
-    LspState, PendingRequest,
+    LspState, PendingRequest, PendingRequestKind,
     requests::process_request,
     types::{NargoExpandParams, NargoExpandResult},
 };
@@ -17,7 +17,10 @@ pub(crate) fn on_expand_request(
         let _ = tx.send(on_expand_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::Expand { params, tx, type_check_version });
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::Expand { params, tx },
+            type_check_version,
+        ));
     }
 
     async move {

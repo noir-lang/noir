@@ -3,7 +3,7 @@ use std::future::Future;
 use async_lsp::lsp_types::{Location, ReferenceParams};
 use async_lsp::{ErrorCode, ResponseError};
 
-use crate::{LspState, PendingRequest};
+use crate::{LspState, PendingRequest, PendingRequestKind};
 
 use super::{find_all_references_in_workspace, process_request};
 
@@ -17,7 +17,10 @@ pub(crate) fn on_references_request(
         let _ = tx.send(on_references_request_inner(state, params));
     } else {
         let type_check_version = state.type_check_version;
-        state.pending_requests.push(PendingRequest::References { params, tx, type_check_version });
+        state.pending_requests.push(PendingRequest::new(
+            PendingRequestKind::References { params, tx },
+            type_check_version,
+        ));
     }
 
     async move {
