@@ -18,6 +18,7 @@ use crate::ast::{
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
@@ -990,10 +991,11 @@ impl NodeInterner {
         }
     }
 
-    /// Adds a non-trait method to a type.
+    /// Adds a method to a type.
     ///
-    /// Returns `Some(duplicate)` if a matching method was already defined.
-    /// Returns `None` otherwise.
+    /// For inherent (non-trait) methods, this checks for overlapping implementations.
+    /// Returns `Ok(())` if the method was added successfully.
+    /// Returns `Err(error)` if there was an error (e.g., overlapping impl or unsupported type).
     pub fn add_method(
         &mut self,
         self_type: &Type,
@@ -1016,25 +1018,29 @@ impl NodeInterner {
                     return Err(error.into());
                 };
 
-                if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    let check_self_param = false;
-                    if let Some(existing) =
-                        self.lookup_direct_method(self_type, &method_name, check_self_param)
+                let typ = self_type.clone();
+
+                // For inherent (non-trait) methods, check for overlapping implementations.
+                if trait_id.is_none() {
+                    if let Some(existing_methods) =
+                        self.methods.get(&key).and_then(|m| m.get(&method_name))
                     {
-                        let first_location = self.function_ident(&existing).location();
-                        let second_location = self.function_ident(&method_id).location();
-                        let error = ResolverError::DuplicateDefinition {
-                            name: method_name,
-                            first_location,
-                            second_location,
-                        };
-                        return Err(error.into());
+                        if let Some((existing_method, existing_type)) =
+                            existing_methods.find_overlapping_method(&typ, self)
+                        {
+                            let prev_location = self.function_ident(&existing_method).location();
+                            let location = self.function_ident(&method_id).location();
+                            let error = DefCollectorErrorKind::OverlappingImpl {
+                                typ: existing_type,
+                                location,
+                                prev_location,
+                            };
+                            return Err(error.into());
+                        }
                     }
                 }
 
-                // Only remember the actual type if it's FieldOrInt,
-                // so later we can disambiguate on calls like `u32::call`.
-                let typ = self_type.clone();
+                // Add the method to the collection
                 self.methods
                     .entry(key)
                     .or_default()
