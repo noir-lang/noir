@@ -3131,7 +3131,54 @@
 <a href="#3130" id="3130">3130</a>
 <a href="#3131" id="3131">3131</a>
 <a href="#3132" id="3132">3132</a>
-<a href="#3133" id="3133">3133</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3133" id="3133">3133</a>
+<a href="#3134" id="3134">3134</a>
+<a href="#3135" id="3135">3135</a>
+<a href="#3136" id="3136">3136</a>
+<a href="#3137" id="3137">3137</a>
+<a href="#3138" id="3138">3138</a>
+<a href="#3139" id="3139">3139</a>
+<a href="#3140" id="3140">3140</a>
+<a href="#3141" id="3141">3141</a>
+<a href="#3142" id="3142">3142</a>
+<a href="#3143" id="3143">3143</a>
+<a href="#3144" id="3144">3144</a>
+<a href="#3145" id="3145">3145</a>
+<a href="#3146" id="3146">3146</a>
+<a href="#3147" id="3147">3147</a>
+<a href="#3148" id="3148">3148</a>
+<a href="#3149" id="3149">3149</a>
+<a href="#3150" id="3150">3150</a>
+<a href="#3151" id="3151">3151</a>
+<a href="#3152" id="3152">3152</a>
+<a href="#3153" id="3153">3153</a>
+<a href="#3154" id="3154">3154</a>
+<a href="#3155" id="3155">3155</a>
+<a href="#3156" id="3156">3156</a>
+<a href="#3157" id="3157">3157</a>
+<a href="#3158" id="3158">3158</a>
+<a href="#3159" id="3159">3159</a>
+<a href="#3160" id="3160">3160</a>
+<a href="#3161" id="3161">3161</a>
+<a href="#3162" id="3162">3162</a>
+<a href="#3163" id="3163">3163</a>
+<a href="#3164" id="3164">3164</a>
+<a href="#3165" id="3165">3165</a>
+<a href="#3166" id="3166">3166</a>
+<a href="#3167" id="3167">3167</a>
+<a href="#3168" id="3168">3168</a>
+<a href="#3169" id="3169">3169</a>
+<a href="#3170" id="3170">3170</a>
+<a href="#3171" id="3171">3171</a>
+<a href="#3172" id="3172">3172</a>
+<a href="#3173" id="3173">3173</a>
+<a href="#3174" id="3174">3174</a>
+<a href="#3175" id="3175">3175</a>
+<a href="#3176" id="3176">3176</a>
+<a href="#3177" id="3177">3177</a>
+<a href="#3178" id="3178">3178</a>
+<a href="#3179" id="3179">3179</a>
+<a href="#3180" id="3180">3180</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -5483,18 +5530,18 @@
         expr: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="comment">// Function values are represented as a tuple of (constrained version, unconstrained version)
-        </span><span class="self">self</span>.monomorphize_constrained_and_unconstrained(
-            <span class="bool-val">false</span>,
-            <span class="self">self</span>.force_unconstrained || lambda.unconstrained,
-            |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>| {
-                <span class="kw">if </span>lambda.captures.is_empty() {
-                    this.lambda_no_capture(lambda, expr)
-                } <span class="kw">else </span>{
-                    <span class="kw">let </span>(setup, closure_variable) = this.closure(lambda, expr)<span class="question-mark">?</span>;
-                    <span class="prelude-val">Ok</span>(ast::Expression::Block(<span class="macro">vec!</span>[setup, closure_variable]))
-                }
-            },
-        )
+        </span><span class="kw">if </span>lambda.captures.is_empty() {
+            <span class="self">self</span>.monomorphize_constrained_and_unconstrained(
+                <span class="bool-val">false</span>,
+                <span class="self">self</span>.force_unconstrained || lambda.unconstrained,
+                |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>| this.lambda_no_capture(lambda, expr),
+            )
+        } <span class="kw">else </span>{
+            <span class="comment">// For closures with captures, we build a shared environment to avoid
+            // exponential blowup when closures capture other closures.
+            // Both variants share the same environment.
+            </span><span class="self">self</span>.closure_with_shared_env(lambda, expr)
+        }
     }
 
     <span class="kw">fn </span>lambda_no_capture(
@@ -5547,47 +5594,31 @@
         }))
     }
 
-    <span class="doccomment">/// Monomorphize a closure, returning it along with its environment as `(env, closure)`.
+    <span class="doccomment">/// Monomorphize a closure with captures, creating both constrained and unconstrained
+    /// variants that share the same environment.
     ///
-    /// Note that this returns only a single function value in the `closure` slot. To obtain
-    /// a `(constrained, unconstrained)` pair, this function would need to be called twice,
-    /// e.g. via [Self::monomorphize_constrained_and_unconstrained].
-    </span><span class="kw">fn </span>closure(
+    /// Sharing the same environment avoids exponential blowup when closures capture other closures.
+    </span><span class="kw">fn </span>closure_with_shared_env(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lambda: HirLambda,
         expr: ExprId,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(ast::Expression, ast::Expression), MonomorphizationError&gt; {
-        <span class="comment">// returns (&lt;closure env&gt;, &lt;function variable&gt;)
-        //   which can be used directly in callsites or transformed
-        //   directly to a single `Expression`
-        // for other cases by `lambda` which is called by `expr`
-        //
-        // it solves the problem of detecting special cases where
-        // we call something like
-        // `{let env$.. = ..;}.1({let env$.. = ..;}.0, ..)`
-        // which was leading to redefinition errors
-        //
-        // instead of detecting and extracting
-        // patterns in the resulting tree,
-        // which seems more fragile, we directly reuse the return parameters
-        // of this function in those cases
-        </span><span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
         <span class="kw">let </span>ret_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>lambda.return_type, location)<span class="question-mark">?</span>;
         <span class="kw">let </span>lambda_name = <span class="string">"lambda"</span>;
         <span class="kw">let </span>parameter_types =
             try_vecmap(<span class="kw-2">&amp;</span>lambda.parameters, |(<span class="kw">_</span>, typ)| <span class="self">Self</span>::convert_type(typ, location))<span class="question-mark">?</span>;
 
         <span class="comment">// Manually convert to Parameters type so we can reuse the self.parameters method
-        </span><span class="kw">let </span>parameters =
-            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
+        </span><span class="kw">let </span>parameters: Parameters = vecmap(<span class="kw-2">&amp;</span>lambda.parameters, |(pattern, typ)| {
+            (pattern.clone(), typ.clone(), Visibility::Private)
+        })
+        .into();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>converted_parameters = <span class="self">self</span>.parameters(<span class="kw-2">&amp;</span>parameters)<span class="question-mark">?</span>;
+        <span class="kw">let </span>converted_parameters = <span class="self">self</span>.parameters(<span class="kw-2">&amp;</span>parameters)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>id = <span class="self">self</span>.next_function_id();
-        <span class="kw">let </span>name = lambda_name.to_owned();
-        <span class="kw">let </span>return_type = ret_type.clone();
-
-        <span class="kw">let </span>env_local_id = <span class="self">self</span>.next_local_id();
+        <span class="comment">// Build the shared environment - captured closures stay as (constrained, unconstrained) pairs
+        </span><span class="kw">let </span>env_local_id = <span class="self">self</span>.next_local_id();
         <span class="kw">let </span>env_name = <span class="string">"env"</span>;
         <span class="kw">let </span>env_tuple =
             ast::Expression::Tuple(try_vecmap(<span class="kw-2">&amp;</span>lambda.captures, |capture| {
@@ -5622,79 +5653,142 @@
             expression: Box::new(env_tuple),
         });
 
-        <span class="kw">let </span>location = <span class="prelude-val">None</span>; <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
-        </span><span class="kw">let </span>mutable = <span class="bool-val">true</span>;
-        <span class="kw">let </span>definition = Definition::Local(env_local_id);
-
         <span class="kw">let </span>env_ident = ast::Ident {
-            location,
-            mutable,
-            definition,
+            location: <span class="prelude-val">Some</span>(location),
+            mutable: <span class="bool-val">true</span>,
+            definition: Definition::Local(env_local_id),
             name: env_name.to_string(),
             typ: env_typ.clone(),
             id: <span class="self">self</span>.next_ident_id(),
         };
 
-        <span class="self">self</span>.lambda_envs_stack
-            .push(LambdaContext { env_ident: env_ident.clone(), captures: lambda.captures });
-        <span class="kw">let </span>body = <span class="self">self</span>.expr(lambda.body)<span class="question-mark">?</span>;
-        <span class="self">self</span>.lambda_envs_stack.pop();
-
-        <span class="kw">let </span>lambda_fn_typ: ast::Type = ast::Type::Function(
-            parameter_types,
-            Box::new(ret_type),
-            Box::new(env_typ.clone()),
-            <span class="bool-val">false</span>,
-        );
-        <span class="kw">let </span>lambda_fn = ast::Expression::Ident(ast::Ident {
-            definition: Definition::Function(id),
-            mutable: <span class="bool-val">false</span>,
-            location: <span class="prelude-val">None</span>, <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
-            </span>name: name.clone(),
-            typ: lambda_fn_typ.clone(),
-            id: <span class="self">self</span>.next_ident_id(),
+        <span class="comment">// Push the shared environment context for processing both lambda bodies
+        </span><span class="self">self</span>.lambda_envs_stack.push(LambdaContext {
+            env_ident: env_ident.clone(),
+            captures: lambda.captures.clone(),
         });
 
-        <span class="kw">let </span><span class="kw-2">mut </span>parameters =
-            <span class="macro">vec!</span>[(env_local_id, <span class="bool-val">true</span>, env_name.to_string(), env_typ.clone(), Visibility::Private)];
-        parameters.append(<span class="kw-2">&amp;mut </span>converted_parameters);
+        <span class="comment">// Determine if we should force unconstrained for both variants.
+        // If we're already in an unconstrained context or force_unconstrained is set,
+        // both variants will be unconstrained, so we only need to create one function.
+        </span><span class="kw">let </span>force_both_unconstrained = <span class="self">self</span>.force_unconstrained || lambda.unconstrained;
+        <span class="kw">let </span>both_unconstrained = force_both_unconstrained || <span class="self">self</span>.in_unconstrained_function;
 
-        <span class="kw">let </span>function = Function {
-            id,
-            name,
-            parameters,
-            body,
-            return_type,
+        <span class="kw">let </span>old_unconstrained = <span class="self">self</span>.in_unconstrained_function;
+
+        <span class="comment">// Build shared parameters structure
+        </span><span class="kw">let </span><span class="kw-2">mut </span>parameters =
+            <span class="macro">vec!</span>[(env_local_id, <span class="bool-val">true</span>, env_name.to_string(), env_typ.clone(), Visibility::Private)];
+        parameters.extend(converted_parameters);
+
+        <span class="comment">// Create constrained variant (or first unconstrained if both are unconstrained)
+        </span><span class="self">self</span>.in_unconstrained_function = both_unconstrained;
+        <span class="kw">let </span>constrained_id = <span class="self">self</span>.next_function_id();
+        <span class="kw">let </span>constrained_body = <span class="self">self</span>.expr(lambda.body)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>lambda_fn = Function {
+            id: constrained_id,
+            name: lambda_name.to_owned(),
+            parameters: parameters.to_vec(),
+            body: constrained_body,
+            return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
             unconstrained: <span class="self">self</span>.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: <span class="bool-val">false</span>,
         };
-        <span class="self">self</span>.push_function(id, function);
+        <span class="self">self</span>.push_function(constrained_id, lambda_fn.clone());
 
-        <span class="kw">let </span>lambda_value =
-            ast::Expression::Tuple(<span class="macro">vec!</span>[ast::Expression::Ident(env_ident), lambda_fn]);
-        <span class="kw">let </span>block_local_id = <span class="self">self</span>.next_local_id();
+        <span class="comment">// Create unconstrained variant unless the previous variant is already unconstrained
+        </span><span class="kw">let </span>unconstrained_id = <span class="kw">if </span>both_unconstrained {
+            <span class="comment">// Both variants are unconstrained, reuse the same function
+            </span>constrained_id
+        } <span class="kw">else </span>{
+            <span class="comment">// Create a separate unconstrained variant
+            </span><span class="self">self</span>.in_unconstrained_function = <span class="bool-val">true</span>;
+            <span class="kw">let </span>unconstrained_id = <span class="self">self</span>.next_function_id();
+            <span class="kw">let </span>unconstrained_body = <span class="self">self</span>.expr(lambda.body)<span class="question-mark">?</span>;
+            lambda_fn.id = unconstrained_id;
+            lambda_fn.unconstrained = <span class="bool-val">true</span>;
+            lambda_fn.body = unconstrained_body;
+            <span class="self">self</span>.push_function(unconstrained_id, lambda_fn);
+            unconstrained_id
+        };
+
+        <span class="comment">// Restore state
+        </span><span class="self">self</span>.in_unconstrained_function = old_unconstrained;
+        <span class="self">self</span>.lambda_envs_stack.pop();
+
+        <span class="comment">// Build the function type for both variants
+        </span><span class="kw">let </span>constrained_fn_typ = ast::Type::Function(
+            parameter_types.clone(),
+            Box::new(ret_type.clone()),
+            Box::new(env_typ.clone()),
+            both_unconstrained,
+        );
+        <span class="kw">let </span>unconstrained_fn_typ = ast::Type::Function(
+            parameter_types,
+            Box::new(ret_type),
+            Box::new(env_typ.clone()),
+            <span class="bool-val">true</span>,
+        );
+
+        <span class="comment">// Build closure tuples: (env, fn) for each variant
+        </span><span class="kw">let </span>constrained_closure_typ =
+            ast::Type::Tuple(<span class="macro">vec!</span>[env_typ.clone(), constrained_fn_typ.clone()]);
+        <span class="kw">let </span>unconstrained_closure_typ =
+            ast::Type::Tuple(<span class="macro">vec!</span>[env_typ, unconstrained_fn_typ.clone()]);
+
+        <span class="comment">// Create the expression that builds both closure variants sharing the same env:
+        // ((env, constrained_fn), (env, unconstrained_fn))
+        </span><span class="kw">let </span>constrained_fn_ident = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(constrained_id),
+            mutable: <span class="bool-val">false</span>,
+            location: <span class="prelude-val">Some</span>(location),
+            name: lambda_name.to_owned(),
+            typ: constrained_fn_typ,
+            id: <span class="self">self</span>.next_ident_id(),
+        });
+
+        <span class="kw">let </span>unconstrained_fn_ident = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(unconstrained_id),
+            mutable: <span class="bool-val">false</span>,
+            location: <span class="prelude-val">Some</span>(location),
+            name: lambda_name.to_owned(),
+            typ: unconstrained_fn_typ,
+            id: <span class="self">self</span>.next_ident_id(),
+        });
+
+        <span class="kw">let </span>env_expr = ast::Expression::Ident(env_ident);
+
+        <span class="kw">let </span>constrained_closure =
+            ast::Expression::Tuple(<span class="macro">vec!</span>[env_expr.clone(), constrained_fn_ident]);
+        <span class="kw">let </span>unconstrained_closure = ast::Expression::Tuple(<span class="macro">vec!</span>[env_expr, unconstrained_fn_ident]);
+
+        <span class="kw">let </span>closure_pair = ast::Expression::Tuple(<span class="macro">vec!</span>[constrained_closure, unconstrained_closure]);
+
+        <span class="comment">// Wrap in a block with the env let statement
+        </span><span class="kw">let </span>block_local_id = <span class="self">self</span>.next_local_id();
         <span class="kw">let </span>block_ident_name = <span class="string">"closure_variable"</span>;
+
         <span class="kw">let </span>block_let_stmt = ast::Expression::Let(ast::Let {
             id: block_local_id,
             mutable: <span class="bool-val">false</span>,
             name: block_ident_name.to_string(),
-            expression: Box::new(ast::Expression::Block(<span class="macro">vec!</span>[env_let_stmt, lambda_value])),
+            expression: Box::new(ast::Expression::Block(<span class="macro">vec!</span>[env_let_stmt, closure_pair])),
         });
 
-        <span class="kw">let </span>closure_definition = Definition::Local(block_local_id);
+        <span class="kw">let </span>result_typ = ast::Type::Tuple(<span class="macro">vec!</span>[constrained_closure_typ, unconstrained_closure_typ]);
 
         <span class="kw">let </span>closure_ident = ast::Expression::Ident(ast::Ident {
-            location,
+            location: <span class="prelude-val">Some</span>(location),
             mutable: <span class="bool-val">false</span>,
-            definition: closure_definition,
+            definition: Definition::Local(block_local_id),
             name: block_ident_name.to_string(),
-            typ: ast::Type::Tuple(<span class="macro">vec!</span>[env_typ, lambda_fn_typ]),
+            typ: result_typ,
             id: <span class="self">self</span>.next_ident_id(),
         });
 
-        <span class="prelude-val">Ok</span>((block_let_stmt, closure_ident))
+        <span class="prelude-val">Ok</span>(ast::Expression::Block(<span class="macro">vec!</span>[block_let_stmt, closure_ident]))
     }
 
     <span class="kw">fn </span>match_expr(
