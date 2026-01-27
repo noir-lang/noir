@@ -16,7 +16,7 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
-    shared::{Signedness, Visibility},
+    shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
 
@@ -94,6 +94,28 @@ pub(super) fn low_level_function_outside_stdlib(
     let attribute = modifiers.attributes.function()?;
     if attribute.kind.is_low_level() {
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { location: attribute.location })
+    } else {
+        None
+    }
+}
+
+/// Attempting to define an `#[oracle]` functions with a name that clashes with those in the stdlib is disallowed.
+pub(super) fn oracle_name_clashes_with_stdlib(
+    modifiers: &FunctionModifiers,
+    crate_id: CrateId,
+) -> Option<ResolverError> {
+    if crate_id.is_stdlib() {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+
+    let FunctionAttributeKind::Oracle(name) = &attribute.kind else {
+        return None;
+    };
+
+    if ForeignCall::lookup(name).is_some() {
+        Some(ResolverError::OracleNameClashesWithStdlib { location: attribute.location })
     } else {
         None
     }
@@ -197,6 +219,25 @@ pub(super) fn oracle_returns_reference(
     if func.return_type().contains_reference() {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsReference { location: ident.location() })
+    } else {
+        None
+    }
+}
+
+/// Oracles cannot return vectors containing nested arrays because
+/// deflattening is not yet implemented in the VM.
+pub(super) fn oracle_returns_vector_with_nested_array(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    if func.return_type().is_vector_with_nested_array() {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleReturnsVectorWithNestedArray { location: ident.location() })
     } else {
         None
     }

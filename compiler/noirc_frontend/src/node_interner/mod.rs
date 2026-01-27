@@ -17,8 +17,9 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;
-use crate::hir::def_collector::dc_crate::{UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
@@ -244,8 +245,6 @@ pub struct NodeInterner {
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
-
-    pub(crate) pedantic_solving: bool,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -489,7 +488,6 @@ impl Default for NodeInterner {
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
-            pedantic_solving: false,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -872,7 +870,7 @@ impl NodeInterner {
     ///
     /// Returns:
     /// * `Ok` if it was able to substitute the type, either because it's not an `impl Trait`
-    ///    or because the type of the body of the function is already known
+    ///   or because the type of the body of the function is already known
     /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
         let typ = self.definition_type(def_id);
@@ -1002,23 +1000,35 @@ impl NodeInterner {
         method_name: String,
         method_id: FuncId,
         trait_id: Option<TraitId>,
-    ) -> Option<FuncId> {
+    ) -> Result<(), CompilationError> {
         match self_type {
-            Type::Error => None,
+            Type::Error => Ok(()),
             Type::Reference(element, _mutable) => {
                 self.add_method(element, method_name, method_id, trait_id)
             }
             _ => {
-                let key = get_type_method_key(self_type).unwrap_or_else(|| {
-                    unreachable!("Cannot add a method to the unsupported type '{}'", self_type)
-                });
+                let Some(key) = get_type_method_key(self_type) else {
+                    let location = self.function_ident(&method_id).location();
+                    let error = ResolverError::TypeUnsupportedForMethod {
+                        typ: self_type.clone(),
+                        location,
+                    };
+                    return Err(error.into());
+                };
 
                 if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
                     let check_self_param = false;
                     if let Some(existing) =
                         self.lookup_direct_method(self_type, &method_name, check_self_param)
                     {
-                        return Some(existing);
+                        let first_location = self.function_ident(&existing).location();
+                        let second_location = self.function_ident(&method_id).location();
+                        let error = ResolverError::DuplicateDefinition {
+                            name: method_name,
+                            first_location,
+                            second_location,
+                        };
+                        return Err(error.into());
                     }
                 }
 
@@ -1031,7 +1041,7 @@ impl NodeInterner {
                     .entry(method_name)
                     .or_default()
                     .add_method(method_id, typ, trait_id);
-                None
+                Ok(())
             }
         }
     }
@@ -1504,7 +1514,7 @@ impl NodeInterner {
 
 /// These are the primitive type variants that we support adding methods to
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-enum TypeMethodKey {
+pub(crate) enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
@@ -1521,7 +1531,7 @@ enum TypeMethodKey {
     Struct(TypeId),
 }
 
-fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
+pub(crate) fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {

@@ -4,7 +4,11 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::{get_monomorphized, get_monomorphized_with_stdlib, stdlib_src};
+use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::test_utils::{
+    GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+    get_monomorphized_with_stdlib, stdlib_src,
+};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -456,6 +460,36 @@ fn while_condition_with_array_last_use() {
     }
     unconstrained fn check$f1(a$l1: [Field; 3]) -> bool {
         false
+    }
+    ");
+}
+
+#[test]
+fn dereference_immutable_reference() {
+    // Dereferencing an immutable reference should work.
+    let src = "
+    fn main() {
+        let x: u32 = 0;
+        let y: &u32 = &x;
+        let _: u32 = *y;
+    }
+    ";
+
+    let options = GetProgramOptions {
+        frontend_options: FrontendOptions {
+            debug_comptime_in_file: None,
+            enabled_unstable_features: &[UnstableFeature::Ownership],
+            disable_required_unstable_features: true,
+        },
+        ..Default::default()
+    };
+
+    let program = get_monomorphized_with_options(src, options).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let x$l0 = 0;
+        let y$l1 = (&x$l0);
+        let _$l2 = (*y$l1)
     }
     ");
 }

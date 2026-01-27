@@ -462,11 +462,6 @@ impl<'context> Elaborator<'context> {
         self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
-    /// True if we should use pedantic ACVM solving
-    pub fn pedantic_solving(&self) -> bool {
-        self.options.pedantic_solving
-    }
-
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
@@ -824,6 +819,8 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     pub fn interpret<W: Write + 'static>(
         src: &str,
         output: Rc<RefCell<W>>,
@@ -858,11 +855,10 @@ pub mod test_utils {
         let file_manager = FileManager::new(&PathBuf::new());
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
-        context.enable_pedantic_solving();
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         let (module, errors) = parse_program(src, file);
         // Skip parser warnings

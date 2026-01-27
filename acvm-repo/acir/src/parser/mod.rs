@@ -941,7 +941,7 @@ impl<'a> Parser<'a> {
         if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
     }
 
-    fn at(&mut self, token: Token) -> bool {
+    fn at(&self, token: Token) -> bool {
         self.token.token() == &token
     }
 
@@ -970,42 +970,42 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expected_identifier<T>(&mut self) -> ParseResult<T> {
+    fn expected_identifier<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_field_element<T>(&mut self) -> ParseResult<T> {
+    fn expected_field_element<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedFieldElement {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_witness<T>(&mut self) -> ParseResult<T> {
+    fn expected_witness<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedWitness {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_block_id<T>(&mut self) -> ParseResult<T> {
+    fn expected_block_id<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedBlockId {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_term<T>(&mut self) -> ParseResult<T> {
+    fn expected_term<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedTerm {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
+    fn expected_token<T>(&self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
             found: self.token.token().clone(),
@@ -1013,7 +1013,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expected_one_of_tokens<T>(&mut self, tokens: &[Token]) -> ParseResult<T> {
+    fn expected_one_of_tokens<T>(&self, tokens: &[Token]) -> ParseResult<T> {
         Err(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: self.token.token().clone(),

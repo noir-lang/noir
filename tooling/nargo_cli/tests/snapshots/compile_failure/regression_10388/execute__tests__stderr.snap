@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: No matching impl found for `&mut i8: Not`
+  ┌─ src/main.nr:3:11
+  │
+3 │   let _ = !(&mut x);
+  │           --------- No impl for `&mut i8: Not`
+  │
+
+Aborting due to 1 previous error

@@ -241,8 +241,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
@@ -340,8 +339,7 @@ fn properly_constrains_quotient_when_truncating_fields_to_u128() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
@@ -427,8 +425,7 @@ fn execute_ssa(
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
     let status = acvm.solve();
