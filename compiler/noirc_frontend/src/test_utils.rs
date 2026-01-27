@@ -153,6 +153,7 @@ pub(crate) fn get_program_with_options(
         let location = Location::new(Default::default(), root_file_id);
         let root_module = ModuleData::new(
             None,
+            None,
             location,
             Vec::new(),
             inner_attributes.clone(),

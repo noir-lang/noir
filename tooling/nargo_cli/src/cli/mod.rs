@@ -235,6 +235,13 @@ where
     C: WorkspaceCommand,
     R: FnOnce(C, Workspace) -> Result<(), CliError>,
 {
+    if !config.program_dir.exists() {
+        return Err(CliError::ProgramDirDoesNotExist(config.program_dir));
+    }
+    if !config.program_dir.is_dir() {
+        return Err(CliError::ProgramDirIsNotADirectory(config.program_dir));
+    }
+
     // All commands need to run on the workspace level, because that's where the `target` directory is.
     let workspace_dir = nargo_toml::find_root(&config.program_dir, true)?;
     let package_dir = nargo_toml::find_root(&config.program_dir, false)?;
