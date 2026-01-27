@@ -99,13 +99,6 @@ impl Type {
     ) -> Result<(), UnificationError> {
         use Type::*;
 
-        // If the two types are exactly the same then they trivially unify.
-        // This check avoids potentially unifying very complex types (usually infix
-        // expressions) when they are the same.
-        if self == other {
-            return Ok(());
-        }
-
         let lhs = self.follow_bindings_shallow();
         let rhs = other.follow_bindings_shallow();
 
@@ -213,14 +206,14 @@ impl Type {
             }
 
             (
-                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, .. }),
             ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
-                if name_a == name_b {
+                if binding_a.0 == binding_b.0 {
                     binding_a.kind().unify(&binding_b.kind())
                 } else {
                     Err(UnificationError)
