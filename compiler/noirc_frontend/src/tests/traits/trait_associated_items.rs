@@ -584,6 +584,27 @@ fn associated_constant_direct_access() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11362): Improve error message for missing associated constants
+#[test]
+fn associated_constant_direct_access_no_impl() {
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl MyTrait for Bar {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: u32 = Foo::N;
+                          ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn associated_constant_direct_access_generic_impl() {
     // Verify that Foo::N works when the impl is generic.
@@ -699,26 +720,6 @@ fn associated_constant_direct_access_ambiguous_resolved_with_fully_qualified_pat
     }
     ";
     assert_no_errors(src);
-}
-
-#[test]
-fn associated_constant_direct_access_no_impl() {
-    let src = r#"
-    trait MyTrait {
-        let N: u32;
-    }
-    struct Foo {}
-    struct Bar {}
-    impl MyTrait for Bar {
-        let N: u32 = 5;
-    }
-    fn main() {
-        let _ = Bar {};
-        let _: u32 = Foo::N;
-                          ^ Could not resolve 'N' in path
-    }
-    "#;
-    check_errors(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
