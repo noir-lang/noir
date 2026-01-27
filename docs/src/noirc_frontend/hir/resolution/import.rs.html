@@ -608,7 +608,7 @@
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     <span class="macro">format!</span>(
-                        <span class="string">"All these trait which provide `{ident}` are implemented and in scope: {}"</span>,
+                        <span class="string">"Multiple traits which provide `{ident}` are implemented and in scope: {}"</span>,
                         traits.join(<span class="string">", "</span>)
                     ),
                     ident.location(),

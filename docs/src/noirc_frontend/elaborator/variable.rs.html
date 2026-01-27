@@ -675,7 +675,8 @@
 <a href="#674" id="674">674</a>
 <a href="#675" id="675">675</a>
 <a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a></pre></div><pre class="rust"><code><span class="doccomment">//! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
 </span><span class="kw">use </span><span class="kw">super</span>::Elaborator;
@@ -1001,7 +1002,8 @@
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..) =&gt; (Vec::new(), <span class="prelude-val">None</span>),
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::TraitConstant(..) =&gt; (Vec::new(), <span class="prelude-val">None</span>),
         }
     }
 

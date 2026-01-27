@@ -2711,7 +2711,8 @@
 <a href="#2710" id="2710">2710</a>
 <a href="#2711" id="2711">2711</a>
 <a href="#2712" id="2712">2712</a>
-<a href="#2713" id="2713">2713</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2713" id="2713">2713</a>
+<a href="#2714" id="2714">2714</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3812,7 +3813,8 @@
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
             | PathResolutionItem::TypeTraitFunction(..)
-            | PathResolutionItem::PrimitiveFunction(..) =&gt; {
+            | PathResolutionItem::PrimitiveFunction(..)
+            | PathResolutionItem::TraitConstant(..) =&gt; {
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             }
         };
