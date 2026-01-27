@@ -2496,10 +2496,10 @@ impl Elaborator<'_> {
     pub fn type_check_function_body(&mut self, body_type: Type, meta: &FuncMeta, body_id: ExprId) {
         let (expr_location, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
+        let last_expr_location = self.last_expr_location(body_id);
 
-        let func_location = self.interner.expr_location(&body_id); // TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
-            self.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
+            self.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
             if self
                 .interner
                 .lookup_trait_implementation(
@@ -2513,7 +2513,7 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: body_type,
-                    location: func_location,
+                    location: last_expr_location,
                     source: Source::Return(meta.return_type.clone(), expr_location),
                 });
             }
@@ -2522,12 +2522,12 @@ impl Elaborator<'_> {
                 &body_type,
                 declared_return_type,
                 body_id,
-                func_location,
+                last_expr_location,
                 || {
                     let mut error = TypeCheckError::TypeMismatchWithSource {
                         expected: declared_return_type.clone(),
                         actual: body_type.clone(),
-                        location: func_location,
+                        location: last_expr_location,
                         source: Source::Return(meta.return_type.clone(), expr_location),
                     };
 
@@ -2539,6 +2539,24 @@ impl Elaborator<'_> {
                     CompilationError::TypeError(error)
                 },
             );
+        }
+    }
+
+    /// Grab a best-effort approximation of the last expression or statement in the function.
+    /// Due to the typing rules of blocks, it is expected that the type of this expression/statement
+    /// matches the return type of the function.
+    fn last_expr_location(&self, expr: ExprId) -> Location {
+        match self.interner.expression(&expr) {
+            HirExpression::Block(block) if !block.statements.is_empty() => {
+                let last = block.statements.last().unwrap();
+                match self.interner.statement(last) {
+                    HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
+                        self.last_expr_location(expr)
+                    }
+                    _ => self.interner.statement_location(*last),
+                }
+            }
+            _ => self.interner.expr_location(&expr),
         }
     }
 
