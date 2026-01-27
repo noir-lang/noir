@@ -3446,10 +3446,22 @@ impl PartialEq for Type {
             }
             // Two implicitly added unbound named generics are equal
             (
-                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: true, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: true, .. }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: lhs_var,
+                    implicit: true,
+                    name: lhs_name,
+                    ..
+                }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: rhs_var,
+                    implicit: true,
+                    name: rhs_name,
+                    ..
+                }),
             ) => {
-                lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound()
+                lhs_var.borrow().is_unbound()
+                    && rhs_var.borrow().is_unbound()
+                    && lhs_name == rhs_name
                     || lhs_var.id() == rhs_var.id()
             }
             // Special case: we consider unbound named generics and type variables to be equal to each
