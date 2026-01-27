@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769535366674,
+  "lastUpdate": 1769536823063,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d8ef7f8cca063c54deb5be3bcd3ac1cf73a9b9ab",
-          "message": "chore: remove `pedantic_solving` flag (#11274)",
-          "timestamp": "2026-01-21T12:49:25Z",
-          "tree_id": "fba2c6013b55f867f7ef34c75684217a273c533e",
-          "url": "https://github.com/noir-lang/noir/commit/d8ef7f8cca063c54deb5be3bcd3ac1cf73a9b9ab"
-        },
-        "date": 1769001288031,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264124,
-            "range": "± 423",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232042,
-            "range": "± 4048",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2803136,
-            "range": "± 980",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2802970,
             "range": "± 32543",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4a862a26c6718a1763d85cf564e583a1bc2c5f98",
+          "message": "fix(hir): Do not ignore the name in `PartialEq` for `Type::NamedGeneric` for implicit unbound (#11351)",
+          "timestamp": "2026-01-27T17:37:14Z",
+          "tree_id": "987d9b43db6d74830ad69ef2c0c9462860d507b8",
+          "url": "https://github.com/noir-lang/noir/commit/4a862a26c6718a1763d85cf564e583a1bc2c5f98"
+        },
+        "date": 1769536784409,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258005,
+            "range": "± 1302",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229331,
+            "range": "± 6597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800564,
+            "range": "± 4397",
             "unit": "ns/iter"
           }
         ]
