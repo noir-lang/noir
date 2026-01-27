@@ -213,15 +213,29 @@ impl Type {
             }
 
             (
-                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: binding_a,
+                    name: name_a,
+                    trait_id: trait_a,
+                    ..
+                }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: binding_b,
+                    name: name_b,
+                    trait_id: trait_b,
+                    ..
+                }),
             ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
                 if name_a == name_b {
-                    binding_a.kind().unify(&binding_b.kind())
+                    match (trait_a, trait_b) {
+                        (Some(a), Some(b)) if a != b => Err(UnificationError),
+                        (Some(_), None) | (None, Some(_)) => Err(UnificationError),
+                        _ => binding_a.kind().unify(&binding_b.kind()),
+                    }
                 } else {
                     Err(UnificationError)
                 }
@@ -546,8 +560,8 @@ impl Type {
         }
     }
 
-    // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
-    // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+    /// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    /// Returns `None` if no coercion can be applied, otherwise returns `self` coerced to `expected`.
     fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
         // If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.

@@ -241,6 +241,9 @@ impl Trait {
         self.associated_constant_ids.get(name).copied()
     }
 
+    /// Find an associated type by the last segments in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {
         self.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
     }
@@ -248,16 +251,18 @@ impl Trait {
     /// Returns both the ordered generics of this type, and its named, associated types.
     /// These types are all as-is and are not instantiated.
     pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
-        let named = vecmap(&self.associated_types, |generic| generic.clone().as_named_generic());
+        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic(None));
+        let named = vecmap(&self.associated_types, |generic| {
+            generic.clone().as_named_generic(Some(self.id))
+        });
         (ordered, named)
     }
 
     pub fn get_trait_generics(&self, location: Location) -> TraitGenerics {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
+        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), location);
-            NamedType { name, typ: generic.clone().as_named_generic() }
+            NamedType { name, typ: generic.clone().as_named_generic(Some(self.id)) }
         });
         TraitGenerics { ordered, named }
     }

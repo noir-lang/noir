@@ -424,7 +424,7 @@ impl Elaborator<'_> {
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = impl_fn_resolved_generic.clone().as_named_generic();
+            let arg = impl_fn_resolved_generic.clone().as_named_generic(None);
 
             if self.check_kind(
                 trait_fn_kind.clone(),
@@ -964,7 +964,8 @@ impl Elaborator<'_> {
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()));
+            let typ =
+                type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()), trait_id);
             let typ = self.interner.push_quoted_type(typ);
             let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)

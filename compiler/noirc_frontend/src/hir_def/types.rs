@@ -158,6 +158,8 @@ pub struct NamedGeneric {
     pub name: Rc<String>,
     /// Was this named generic implicitly added?
     pub implicit: bool,
+    /// Is this an associated type in a trait?
+    pub trait_id: Option<TraitId>,
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -434,11 +436,19 @@ pub struct ResolvedGeneric {
 }
 
 impl ResolvedGeneric {
-    pub fn as_named_generic(self) -> Type {
+    /// Create a [Type::NamedGeneric] from this [ResolvedGeneric].
+    ///
+    /// If `trait_id` is supplied, this is assumed to be an associated type.
+    /// An alternative would be to supply a name to qualify associated types with.
+    /// For example we need an associated type `Foo` to appear with the name `"Foo"`
+    /// here in order to print it, but when comparing with another named generic
+    /// in scope, it should be treated as `"<{object} as {trait}>::Foo"`.
+    pub fn as_named_generic(self, trait_id: Option<TraitId>) -> Type {
         Type::NamedGeneric(NamedGeneric {
             type_var: self.type_var,
             name: self.name,
             implicit: false,
+            trait_id,
         })
     }
 
@@ -544,7 +554,7 @@ impl DataType {
 
     /// Return the generics on this type as a vector of types
     pub fn generic_types(&self) -> Vec<Type> {
-        vecmap(&self.generics, |generic| generic.clone().as_named_generic())
+        vecmap(&self.generics, |generic| generic.clone().as_named_generic(None))
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
@@ -1042,12 +1052,16 @@ impl TypeVariable {
         }
     }
 
-    pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
+    pub(crate) fn into_named_generic(self, name: Rc<String>, trait_id: Option<TraitId>) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false, trait_id })
     }
 
-    pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
+    pub(crate) fn into_implicit_named_generic(
+        self,
+        name: Rc<String>,
+        trait_id: Option<TraitId>,
+    ) -> Type {
+        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true, trait_id })
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail

@@ -391,7 +391,8 @@ impl Elaborator<'_> {
                 let location = bound.trait_path.location;
                 let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
                 let name = Rc::new(name);
-                let typ = type_var.clone().into_implicit_named_generic(name.clone());
+                let typ =
+                    type_var.clone().into_implicit_named_generic(name.clone(), Some(trait_id));
                 let typ = self.interner.push_quoted_type(typ);
                 let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                 let ident = Ident::new(associated_type.name.as_ref().clone(), location);
@@ -429,7 +430,7 @@ impl Elaborator<'_> {
         generics.push(new_generic.clone());
 
         let name = format!("impl {trait_path}");
-        let generic_type = new_generic.into_named_generic(Rc::new(name));
+        let generic_type = new_generic.into_named_generic(Rc::new(name), None);
         let trait_bound = TraitBound { trait_path, trait_generics };
 
         if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
@@ -840,7 +841,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = impl_fn_generic.clone().into_named_generic(name.clone());
+            let arg = impl_fn_generic.clone().into_named_generic(name.clone(), None);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
