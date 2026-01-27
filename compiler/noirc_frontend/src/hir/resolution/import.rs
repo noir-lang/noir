@@ -183,7 +183,7 @@ fn path_to_typed_path(path: Path) -> TypedPath {
 
 fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment {
     assert!(segment.generics.is_none(), "generics should not be present in a use path segment");
-    TypedPathSegment { ident: segment.ident, generics: None, location: segment.location }
+    TypedPathSegment::without_generics(segment.ident, segment.location)
 }
 
 /// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`

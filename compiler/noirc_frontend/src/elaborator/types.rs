@@ -43,7 +43,7 @@ use crate::{
 
 use super::{
     Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
-    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
+    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment},
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -1758,12 +1758,13 @@ impl Elaborator<'_> {
         object_type: &Type,
         return_type: &Type,
         location: Location,
+        is_non_equality_comparator: bool,
     ) {
         let method_type = self.interner.definition_type(trait_method_id.item_id);
         let (method_type, mut bindings) = method_type.instantiate(self.interner);
 
         match method_type {
-            Type::Function(args, ret, env, _unconstrained) => {
+            Type::Function(mut args, ret, env, _unconstrained) => {
                 assert!(
                     !args.is_empty(),
                     "type_check_operator_method ICE: expected operator method to have at least one argument type"
@@ -1775,30 +1776,77 @@ impl Elaborator<'_> {
                     expr_location: location,
                 });
 
-                let mut bindings = TypeBindings::default();
-                let unifies = ret.try_unify(return_type, &mut bindings).is_ok();
-                if !unifies {
-                    // // TODO(https://github.com/noir-lang/noir/issues/10537): the following comment
-                    // // on unifying 'object_type' with 'expected_object_type' is out of date because
-                    // // attempting to unify the return type of 'method_type' with 'result_type' is
-                    // // failing sometimes, e.g. the following 'panic!' message is being reached when running
-                    // // 'cargo run check' in the 'noir_stdlib':
-                    // // type_check_operator_method: ret: Ordering, return_type: bool, args: ['6832, '6832], object_type: T'67, definition_name: "cmp"
-                    // let definition_name = &self.interner.definition(trait_method_id.item_id).name;
-                    // panic!("type_check_operator_method: ret: {ret:?}, return_type: {return_type:?}, args: {args:?}, object_type: {object_type:?}, definition_name: {definition_name:?}");
+                if is_non_equality_comparator {
+                    let mut ordering_type_path_segments = vec![];
+                    let ordering_type_path_kind = if self.crate_id.is_stdlib() {
+                        PathKind::Crate
+                    } else {
+                        ordering_type_path_segments.push(TypedPathSegment::without_generics(
+                            Ident::new("std".to_string(), location),
+                            location,
+                        ));
+                        PathKind::Dep
+                    };
+                    ordering_type_path_segments.push(TypedPathSegment::without_generics(
+                        Ident::new("cmp".to_string(), location),
+                        location,
+                    ));
+                    ordering_type_path_segments.push(TypedPathSegment::without_generics(
+                        Ident::new("Ordering".to_string(), location),
+                        location,
+                    ));
+                    let ordering_type_path = TypedPath {
+                        segments: ordering_type_path_segments,
+                        kind: ordering_type_path_kind,
+                        location,
+                        kind_location: location,
+                    };
+                    let ordering_type = self.resolve_named_type(
+                        ordering_type_path,
+                        GenericTypeArgs::default(),
+                        PathResolutionMode::MarkAsReferenced,
+                        WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn),
+                    );
+
+                    self.unify(&Type::Bool, return_type, || TypeCheckError::TypeMismatch {
+                        expr_typ: ret.to_string(),
+                        expected_typ: Type::Bool.to_string(),
+                        expr_location: location,
+                    });
+                    self.unify(&ordering_type, &ret, || TypeCheckError::TypeMismatch {
+                        expr_typ: ret.to_string(),
+                        expected_typ: ordering_type.to_string(),
+                        expr_location: location,
+                    });
+                } else {
+                    self.unify(&ret, return_type, || TypeCheckError::TypeMismatch {
+                        expr_typ: ret.to_string(),
+                        expected_typ: return_type.to_string(),
+                        expr_location: location,
+                    });
+                };
+
+                let expected_object_type = args.pop().unwrap_or_else(|| {
+                    unreachable!("ICE: expected operator method on {object_type} to take arguments, but found no arguments")
+                });
+                for arg in args {
+                    self.unify(&arg, &expected_object_type, || TypeCheckError::TypeMismatch {
+                        expected_typ: expected_object_type.to_string(),
+                        expr_typ: arg.to_string(),
+                        expr_location: location,
+                    });
                 }
 
-                // We can cheat a bit and match against only the object type here since no operator
-                // overload uses other generic parameters or return types aside from the object type.
-                let expected_object_type = &args[0];
-                self.unify(object_type, expected_object_type, || TypeCheckError::TypeMismatch {
+                self.unify(object_type, &expected_object_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_object_type.to_string(),
                     expr_typ: object_type.to_string(),
                     expr_location: location,
                 });
             }
             other => {
-                unreachable!("Expected operator method to have a function type, but found {other}")
+                unreachable!(
+                    "Expected operator method on {object_type} to have a function type, but found {other}"
+                )
             }
         }
 
