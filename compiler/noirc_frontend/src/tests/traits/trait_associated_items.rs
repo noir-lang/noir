@@ -519,6 +519,55 @@ fn associated_and_generic_type_share_name() {
 }
 
 #[test]
+fn associated_and_type_mismatch_across_traits() {
+    let src = r#"
+    pub trait Spam {
+        type Item;
+        fn give_spam() -> Self::Item;
+    }
+
+    pub trait Eggs {
+        type Item;
+        fn take_eggs(eggs: Self::Item);
+    }
+
+    pub fn mix<A: Spam, B: Eggs>() {
+        B::take_eggs(A::give_spam());
+                     ^^^^^^^^^^^^^^ Expected type <B as Eggs>::Item, found type <A as Spam>::Item
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_mismatch_with_identical_names() {
+    // Error message is confusing here but it is an improvement over no error
+    let src = r#"
+        pub mod one {
+            pub trait Eggs {
+                type Item;
+                fn give() -> Self::Item;
+            }
+        }
+
+        pub mod two {
+            pub trait Eggs {
+                type Item;
+                fn take(eggs: Self::Item);
+            }
+        }
+
+        pub fn mix<T: one::Eggs + two::Eggs>() {
+            T::take(T::give());
+                    ^^^^^^^^^ Expected type <T as Eggs>::Item, found type <T as Eggs>::Item
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access() {
     let src = "
     trait MyTrait {
@@ -691,7 +740,6 @@ fn associated_type_direct_access() {
         // Fails
         let _: Foo::MyType = CustomType { };
                     ^^^^^^ Could not resolve 'MyType' in path
-    }
-    "#;
+    }"#;
     check_errors(src);
 }
