@@ -1126,7 +1126,7 @@
     <span class="attr">#[error(<span class="string">"Functions cannot be returned from an unconstrained runtime to a constrained runtime"</span>)]
     </span>UnconstrainedFunctionReturnToConstrained { location: Location },
     <span class="attr">#[error(
-        <span class="string">"Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
+        <span class="string">"Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block"
     </span>)]
     </span>Unsafe { location: Location },
     <span class="attr">#[error(<span class="string">"Converting an unconstrained fn to a non-unconstrained fn is unsafe"</span>)]
