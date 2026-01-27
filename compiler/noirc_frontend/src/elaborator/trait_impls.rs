@@ -1,5 +1,7 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
+use std::rc::Rc;
+
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
@@ -957,27 +959,19 @@ impl Elaborator<'_> {
         // Add each associated type to the list of named type arguments
         let associated_types = self.take_unresolved_associated_types(trait_impl);
 
-        let as_trait = trait_id.map(|id| {
-            let the_trait = self.interner.get_trait(id);
-            let trait_name = the_trait.name.to_string();
-            let object = trait_impl.object_type.to_string();
-            (object, trait_name)
-        });
-
         // Put every associated type behind a type variable (inside a NamedGeneric).
         // This way associated types can be referred to even if their actual value (for associated constants)
         // is not known yet. This is to allow associated constants to refer to associated constants
         // in other trait impls.
+        let object = trait_impl.object_type.to_string();
+        let trait_name = trait_id.map(|id| self.interner.get_trait(id).name.to_string());
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let generic_name = match &as_trait {
-                Some((object, trait_name)) => {
-                    format!("<{} as {}>::{}", object, trait_name, name.as_str())
-                }
-                None => name.to_string(),
-            };
-            let typ = type_var.clone().into_named_generic(std::rc::Rc::new(generic_name));
+            let typ = type_var.clone().into_named_generic(
+                &Rc::new(name.to_string()),
+                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
+            );
             let typ = self.interner.push_quoted_type(typ);
             let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)
