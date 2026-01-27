@@ -14,6 +14,12 @@ pub enum CliError {
     #[error("Error: destination {} already exists\n\nUse `new init` to initialize the directory", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
+    #[error("Error: --program-directory '{}' does not exist", .0.display())]
+    ProgramDirDoesNotExist(PathBuf),
+
+    #[error("Error: --program-directory '{}' is not a directory", .0.display())]
+    ProgramDirIsNotADirectory(PathBuf),
+
     #[error(
         "Error: `nargo init` cannot be run on existing packages.\nNote: `Nargo.toml` already exists."
     )]

@@ -1,5 +1,7 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
+use std::rc::Rc;
+
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
@@ -424,7 +426,7 @@ impl Elaborator<'_> {
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = impl_fn_resolved_generic.clone().as_named_generic();
+            let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
 
             if self.check_kind(
                 trait_fn_kind.clone(),
@@ -454,8 +456,11 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.trait_bound.trait_id
-                        == override_trait_constraint.trait_bound.trait_id
+                    impl_constraint.typ == override_trait_constraint.typ
+                        && impl_constraint.trait_bound.trait_id
+                            == override_trait_constraint.trait_bound.trait_id
+                        && impl_constraint.trait_bound.trait_generics
+                            == override_trait_constraint.trait_bound.trait_generics
                 });
             if override_constraint_is_from_impl {
                 continue;
@@ -961,10 +966,15 @@ impl Elaborator<'_> {
         // This way associated types can be referred to even if their actual value (for associated constants)
         // is not known yet. This is to allow associated constants to refer to associated constants
         // in other trait impls.
+        let object = trait_impl.object_type.to_string();
+        let trait_name = trait_id.map(|id| self.interner.get_trait(id).name.to_string());
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()));
+            let typ = type_var.clone().into_named_generic(
+                &Rc::new(name.to_string()),
+                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
+            );
             let typ = self.interner.push_quoted_type(typ);
             let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)
