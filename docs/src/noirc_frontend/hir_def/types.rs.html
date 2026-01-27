@@ -3465,7 +3465,19 @@
 <a href="#3464" id="3464">3464</a>
 <a href="#3465" id="3465">3465</a>
 <a href="#3466" id="3466">3466</a>
-<a href="#3467" id="3467">3467</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3467" id="3467">3467</a>
+<a href="#3468" id="3468">3468</a>
+<a href="#3469" id="3469">3469</a>
+<a href="#3470" id="3470">3470</a>
+<a href="#3471" id="3471">3471</a>
+<a href="#3472" id="3472">3472</a>
+<a href="#3473" id="3473">3473</a>
+<a href="#3474" id="3474">3474</a>
+<a href="#3475" id="3475">3475</a>
+<a href="#3476" id="3476">3476</a>
+<a href="#3477" id="3477">3477</a>
+<a href="#3478" id="3478">3478</a>
+<a href="#3479" id="3479">3479</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -6913,10 +6925,22 @@
             }
             <span class="comment">// Two implicitly added unbound named generics are equal
             </span>(
-                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: <span class="bool-val">true</span>, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: <span class="bool-val">true</span>, .. }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: lhs_var,
+                    implicit: <span class="bool-val">true</span>,
+                    name: lhs_name,
+                    ..
+                }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: rhs_var,
+                    implicit: <span class="bool-val">true</span>,
+                    name: rhs_name,
+                    ..
+                }),
             ) =&gt; {
-                lhs_var.borrow().is_unbound() &amp;&amp; rhs_var.borrow().is_unbound()
+                lhs_var.borrow().is_unbound()
+                    &amp;&amp; rhs_var.borrow().is_unbound()
+                    &amp;&amp; lhs_name == rhs_name
                     || lhs_var.id() == rhs_var.id()
             }
             <span class="comment">// Special case: we consider unbound named generics and type variables to be equal to each
