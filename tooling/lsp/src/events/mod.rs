@@ -223,6 +223,11 @@ pub(crate) fn on_process_workspace_for_single_file_change(
 }
 
 fn finish_type_checking(state: &mut LspState, is_save: bool) {
+    if state.test_mode {
+        on_process_request_queue_event(state, ProcessRequestQueueEvent);
+        return;
+    }
+
     // Always process requests on save.
     // If for some reason we fail to decrement `pending_type_check_events`, it
     // will never reach zero again and all future requests will never execute.

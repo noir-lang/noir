@@ -137,6 +137,11 @@ pub struct LspState {
     /// The type check version. This is incremented whenever a type-check finishes,
     /// and it wraps around.
     type_check_version: usize,
+
+    /// True if this is running in test mode.
+    /// In this mode events run right away, as otherwise tests would need
+    /// to replicate the event loop.
+    test_mode: bool,
 }
 
 pub(crate) struct PendingRequest {
@@ -250,6 +255,7 @@ impl LspState {
             pending_requests: Vec::new(),
             pending_type_check_events: 0,
             type_check_version: 0,
+            test_mode: false,
         }
     }
 }

@@ -3,7 +3,10 @@ use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::str::FromStr as _;
 
-use crate::events::{ProcessWorkspaceEvent, ProcessWorkspaceForSingleFileChangeEvent};
+use crate::events::{
+    ProcessWorkspaceEvent, ProcessWorkspaceForSingleFileChangeEvent, on_process_workspace_event,
+    on_process_workspace_for_single_file_change,
+};
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::lsp_types::Url;
 use async_lsp::{ErrorCode, ResponseError};
@@ -165,10 +168,16 @@ pub(crate) fn process_workspace(
     let parsed_files = parse_diff(&file_manager, state);
 
     let client = state.client.clone();
-    tokio::spawn(async move {
+
+    if state.test_mode {
         let event = ProcessWorkspaceEvent { workspace, file_manager, parsed_files };
-        let _ = client.emit(event);
-    });
+        on_process_workspace_event(state, event);
+    } else {
+        tokio::spawn(async move {
+            let event = ProcessWorkspaceEvent { workspace, file_manager, parsed_files };
+            let _ = client.emit(event);
+        });
+    }
 
     Ok(())
 }
@@ -198,17 +207,27 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     let file_source = file_source.to_string();
     let client = state.client.clone();
-    tokio::spawn(async move {
+
+    if state.test_mode {
         let event = ProcessWorkspaceForSingleFileChangeEvent { workspace, file_uri, file_source };
-        let _ = client.emit(event);
-    });
+        on_process_workspace_for_single_file_change(state, event);
+    } else {
+        tokio::spawn(async move {
+            let event =
+                ProcessWorkspaceForSingleFileChangeEvent { workspace, file_uri, file_source };
+            let _ = client.emit(event);
+        });
+    }
 
     Ok(())
 }
 
 fn start_type_checking(state: &mut LspState) {
-    state.pending_type_check_events += 1;
     state.type_check_version = state.type_check_version.wrapping_add(1);
+
+    if !state.test_mode {
+        state.pending_type_check_events += 1;
+    }
 }
 
 pub(crate) fn fake_stdlib_workspace() -> Workspace {
