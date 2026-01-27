@@ -2706,7 +2706,12 @@
 <a href="#2705" id="2705">2705</a>
 <a href="#2706" id="2706">2706</a>
 <a href="#2707" id="2707">2707</a>
-<a href="#2708" id="2708">2708</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a>
+<a href="#2710" id="2710">2710</a>
+<a href="#2711" id="2711">2711</a>
+<a href="#2712" id="2712">2712</a>
+<a href="#2713" id="2713">2713</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2993,13 +2998,16 @@
         <span class="self">self</span>.check_type_kind(resolved_type, kind, location)
     }
 
-    <span class="doccomment">/// Resolve Self::Foo to an associated type on the current trait or trait impl
+    <span class="doccomment">/// Resolve `Self::Foo` to an associated type on the current trait or trait impl.
     </span><span class="kw">fn </span>lookup_associated_type_on_self(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">if </span>path.segments.len() == <span class="number">2 </span>&amp;&amp; path.first_name() == <span class="prelude-val">Some</span>(SELF_TYPE_NAME) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = <span class="self">self</span>.current_trait {
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = the_trait.get_associated_type(path.last_name()) {
-                    <span class="kw">return </span><span class="prelude-val">Some</span>(typ.clone().as_named_generic());
+                    <span class="kw">return </span><span class="prelude-val">Some</span>(
+                        typ.clone()
+                            .into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, the_trait.name.as_str()))),
+                    );
                 }
             }
 
@@ -3356,7 +3364,7 @@
             <span class="kw">let </span>name = path.last_name();
             <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.find_generic(name) {
                 <span class="kw">let </span>generic = generic.clone();
-                <span class="kw">return </span><span class="prelude-val">Some</span>(generic.as_named_generic());
+                <span class="kw">return </span><span class="prelude-val">Some</span>(generic.into_named_generic(<span class="prelude-val">None</span>));
             }
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_associated_type_on_self(path) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(last_segment) = path.segments.last() {
@@ -5205,8 +5213,10 @@
         <span class="kw">let </span>(expr_location, empty_function) = <span class="self">self</span>.function_info(body_id);
         <span class="kw">let </span>declared_return_type = meta.return_type();
 
-        <span class="kw">let </span>func_location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>body_id); <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        </span><span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
+        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        </span><span class="kw">let </span>func_location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>body_id);
+
+        <span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
             <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
             <span class="kw">if </span><span class="self">self
                 </span>.interner

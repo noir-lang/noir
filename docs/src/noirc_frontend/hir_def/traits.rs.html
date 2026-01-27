@@ -310,11 +310,21 @@
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ResolvedGeneric;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, NoirFunction};
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::types::SELF_TYPE_NAME;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind};
 <span class="kw">use crate</span>::{
@@ -553,23 +563,31 @@
         <span class="self">self</span>.associated_constant_ids.get(name).copied()
     }
 
-    <span class="kw">pub fn </span>get_associated_type(<span class="kw-2">&amp;</span><span class="self">self</span>, last_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
+    <span class="doccomment">/// Find an associated type by the last segments in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
+    </span><span class="kw">pub fn </span>get_associated_type(<span class="kw-2">&amp;</span><span class="self">self</span>, last_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
         <span class="self">self</span>.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
     }
 
     <span class="doccomment">/// Returns both the ordered generics of this type, and its named, associated types.
     /// These types are all as-is and are not instantiated.
     </span><span class="kw">pub fn </span>get_generics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Vec&lt;Type&gt;, Vec&lt;Type&gt;) {
-        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().as_named_generic());
-        <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| generic.clone().as_named_generic());
+        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
+        <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| {
+            generic.clone().into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, <span class="self">self</span>.name.as_str())))
+        });
         (ordered, named)
     }
 
     <span class="kw">pub fn </span>get_trait_generics(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; TraitGenerics {
-        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().as_named_generic());
+        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
         <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| {
             <span class="kw">let </span>name = Ident::new(generic.name.to_string(), location);
-            NamedType { name, typ: generic.clone().as_named_generic() }
+            NamedType {
+                name,
+                typ: generic.clone().into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, <span class="self">self</span>.name.as_str()))),
+            }
         });
         TraitGenerics { ordered, named }
     }

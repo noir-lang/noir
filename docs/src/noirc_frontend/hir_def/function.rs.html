@@ -222,7 +222,11 @@
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
@@ -328,7 +332,11 @@
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     </span><span class="kw">pub </span>parameter_idents: Vec&lt;HirIdent&gt;,
 
-    <span class="kw">pub </span>return_type: FunctionReturnType,
+    <span class="doccomment">/// The return type as (and if) it appears in the AST.
+    ///
+    /// This is distinct from the `FuncMeta::return_type()` method,
+    /// which gets the return type from the [FuncMeta::typ] field.
+    </span><span class="kw">pub </span>return_type: FunctionReturnType,
 
     <span class="kw">pub </span>return_visibility: Visibility,
 

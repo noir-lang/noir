@@ -945,7 +945,15 @@
 <a href="#944" id="944">944</a>
 <a href="#945" id="945">945</a>
 <a href="#946" id="946">946</a>
-<a href="#947" id="947">947</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait definition collection, bounds resolution, and associated types.
 //!
 //! # Terminology:
 //!
@@ -1117,7 +1125,7 @@
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings, TypeVariable,
     ast::{
         FunctionDefinition, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Path, TraitBound,
         TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
@@ -1320,6 +1328,7 @@
 
         <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
         <span class="kw">let </span>trait_name = the_trait.name.to_string();
+        <span class="kw">let </span>object_name = object.to_string();
         <span class="kw">let </span>associated_type_bounds = the_trait.associated_type_bounds.clone();
 
         <span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>the_trait.associated_types.clone() {
@@ -1336,9 +1345,16 @@
                 <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind);
 
                 <span class="kw">let </span>location = bound.trait_path.location;
-                <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"&lt;{object} as {trait_name}&gt;::{}"</span>, associated_type.name);
-                <span class="kw">let </span>name = Rc::new(name);
-                <span class="kw">let </span>typ = type_var.clone().into_implicit_named_generic(name.clone());
+                <span class="kw">let </span>typ = type_var.clone().into_implicit_named_generic(
+                    <span class="kw-2">&amp;</span>associated_type.name,
+                    <span class="prelude-val">Some</span>((object_name.as_str(), trait_name.as_str())),
+                );
+
+                <span class="kw">let </span>name = <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
+                    Type::NamedGeneric(NamedGeneric { name, .. }) =&gt; name.clone(),
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"into_implicit_named_generic returns a NamedGeneric"</span>),
+                };
+
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.push_quoted_type(typ);
                 <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                 <span class="kw">let </span>ident = Ident::new(associated_type.name.as_ref().clone(), location);
@@ -1376,7 +1392,7 @@
         generics.push(new_generic.clone());
 
         <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"impl {trait_path}"</span>);
-        <span class="kw">let </span>generic_type = new_generic.into_named_generic(Rc::new(name));
+        <span class="kw">let </span>generic_type = new_generic.into_named_generic(<span class="kw-2">&amp;</span>Rc::new(name), <span class="prelude-val">None</span>);
         <span class="kw">let </span>trait_bound = TraitBound { trait_path, trait_generics };
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.resolve_trait_bound(<span class="kw-2">&amp;</span>trait_bound) {
@@ -1787,7 +1803,7 @@
         ) <span class="kw">in </span>trait_fn_meta.direct_generics.iter().zip(<span class="kw-2">&amp;</span>meta.direct_generics)
         {
             <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
-            <span class="kw">let </span>arg = impl_fn_generic.clone().into_named_generic(name.clone());
+            <span class="kw">let </span>arg = impl_fn_generic.clone().into_named_generic(name, <span class="prelude-val">None</span>);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 

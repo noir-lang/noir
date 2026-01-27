@@ -3422,7 +3422,50 @@
 <a href="#3421" id="3421">3421</a>
 <a href="#3422" id="3422">3422</a>
 <a href="#3423" id="3423">3423</a>
-<a href="#3424" id="3424">3424</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3424" id="3424">3424</a>
+<a href="#3425" id="3425">3425</a>
+<a href="#3426" id="3426">3426</a>
+<a href="#3427" id="3427">3427</a>
+<a href="#3428" id="3428">3428</a>
+<a href="#3429" id="3429">3429</a>
+<a href="#3430" id="3430">3430</a>
+<a href="#3431" id="3431">3431</a>
+<a href="#3432" id="3432">3432</a>
+<a href="#3433" id="3433">3433</a>
+<a href="#3434" id="3434">3434</a>
+<a href="#3435" id="3435">3435</a>
+<a href="#3436" id="3436">3436</a>
+<a href="#3437" id="3437">3437</a>
+<a href="#3438" id="3438">3438</a>
+<a href="#3439" id="3439">3439</a>
+<a href="#3440" id="3440">3440</a>
+<a href="#3441" id="3441">3441</a>
+<a href="#3442" id="3442">3442</a>
+<a href="#3443" id="3443">3443</a>
+<a href="#3444" id="3444">3444</a>
+<a href="#3445" id="3445">3445</a>
+<a href="#3446" id="3446">3446</a>
+<a href="#3447" id="3447">3447</a>
+<a href="#3448" id="3448">3448</a>
+<a href="#3449" id="3449">3449</a>
+<a href="#3450" id="3450">3450</a>
+<a href="#3451" id="3451">3451</a>
+<a href="#3452" id="3452">3452</a>
+<a href="#3453" id="3453">3453</a>
+<a href="#3454" id="3454">3454</a>
+<a href="#3455" id="3455">3455</a>
+<a href="#3456" id="3456">3456</a>
+<a href="#3457" id="3457">3457</a>
+<a href="#3458" id="3458">3458</a>
+<a href="#3459" id="3459">3459</a>
+<a href="#3460" id="3460">3460</a>
+<a href="#3461" id="3461">3461</a>
+<a href="#3462" id="3462">3462</a>
+<a href="#3463" id="3463">3463</a>
+<a href="#3464" id="3464">3464</a>
+<a href="#3465" id="3465">3465</a>
+<a href="#3466" id="3466">3466</a>
+<a href="#3467" id="3467">3467</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -3434,6 +3477,7 @@
 
 <span class="kw">use crate</span>::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
+    elaborator::types::SELF_TYPE_NAME,
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -3579,9 +3623,36 @@
 <span class="attr">#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Debug)]
 </span><span class="kw">pub struct </span>NamedGeneric {
     <span class="kw">pub </span>type_var: TypeVariable,
-    <span class="kw">pub </span>name: Rc&lt;String&gt;,
+    <span class="doccomment">/// The name of the generic type.
+    ///
+    /// If this is an associated type, then it has the format `"&lt;{object} as {trait}&gt;::{name}"`
+    /// to disambiguate from other generics in scope.
+    </span><span class="kw">pub </span>name: Rc&lt;String&gt;,
     <span class="doccomment">/// Was this named generic implicitly added?
     </span><span class="kw">pub </span>implicit: bool,
+}
+
+<span class="kw">impl </span>NamedGeneric {
+    <span class="doccomment">/// Create a [NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"&lt;{object} as {trait}&gt;::{name}"`
+    /// to disambiguate from other generics in scope.
+    </span><span class="kw">pub fn </span>new(
+        type_var: TypeVariable,
+        implicit: bool,
+        name: <span class="kw-2">&amp;</span>Rc&lt;String&gt;,
+        as_trait: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>name = <span class="kw">match </span>as_trait {
+            <span class="comment">// TODO(#10858): The compiler rejects `trait Foo { fn foo_bar() -&gt; &lt;Self as Foo&gt;::Bar; }` (unlike Rust),
+            // so in order to be able to parse back expanded code, we have to format it as `Self::Bar`.
+            </span><span class="prelude-val">Some</span>((object, <span class="kw">_</span>)) <span class="kw">if </span>object == SELF_TYPE_NAME =&gt; Rc::new(<span class="macro">format!</span>(<span class="string">"{object}::{name}"</span>)),
+            <span class="prelude-val">Some</span>((object, trait_name)) =&gt; Rc::new(<span class="macro">format!</span>(<span class="string">"&lt;{object} as {trait_name}&gt;::{name}"</span>)),
+            <span class="prelude-val">None </span>=&gt; name.clone(),
+        };
+        <span class="self">Self </span>{ type_var, name, implicit }
+    }
 }
 
 <span class="doccomment">/// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -3858,12 +3929,9 @@
 }
 
 <span class="kw">impl </span>ResolvedGeneric {
-    <span class="kw">pub fn </span>as_named_generic(<span class="self">self</span>) -&gt; Type {
-        Type::NamedGeneric(NamedGeneric {
-            type_var: <span class="self">self</span>.type_var,
-            name: <span class="self">self</span>.name,
-            implicit: <span class="bool-val">false</span>,
-        })
+    <span class="doccomment">/// Create a [Type::NamedGeneric] from this [ResolvedGeneric].
+    </span><span class="kw">pub fn </span>into_named_generic(<span class="self">self</span>, as_trait: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)&gt;) -&gt; Type {
+        Type::NamedGeneric(NamedGeneric::new(<span class="self">self</span>.type_var, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.name, as_trait))
     }
 
     <span class="kw">pub fn </span>kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Kind {
@@ -3968,7 +4036,7 @@
 
     <span class="doccomment">/// Return the generics on this type as a vector of types
     </span><span class="kw">pub fn </span>generic_types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Type&gt; {
-        vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().as_named_generic())
+        vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>))
     }
 
     <span class="doccomment">/// Returns the field matching the given field name, as well as its visibility and field index.
@@ -4466,12 +4534,30 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_named_generic(<span class="self">self</span>, name: Rc&lt;String&gt;) -&gt; Type {
-        Type::NamedGeneric(NamedGeneric { type_var: <span class="self">self</span>, name, implicit: <span class="bool-val">false </span>})
+    <span class="doccomment">/// Create a [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"&lt;{object} as {trait}&gt;::{name}"`
+    /// to disambiguate from other generics in scope.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_named_generic(
+        <span class="self">self</span>,
+        name: <span class="kw-2">&amp;</span>Rc&lt;String&gt;,
+        as_trait: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)&gt;,
+    ) -&gt; Type {
+        Type::NamedGeneric(NamedGeneric::new(<span class="self">self</span>, <span class="bool-val">false</span>, name, as_trait))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_implicit_named_generic(<span class="self">self</span>, name: Rc&lt;String&gt;) -&gt; Type {
-        Type::NamedGeneric(NamedGeneric { type_var: <span class="self">self</span>, name, implicit: <span class="bool-val">true </span>})
+    <span class="doccomment">/// Create a implicit [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"&lt;{object} as {trait}&gt;::{name}"`
+    /// to disambiguate from other generics in scope.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_implicit_named_generic(
+        <span class="self">self</span>,
+        name: <span class="kw-2">&amp;</span>Rc&lt;String&gt;,
+        as_trait: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)&gt;,
+    ) -&gt; Type {
+        Type::NamedGeneric(NamedGeneric::new(<span class="self">self</span>, <span class="bool-val">true</span>, name, as_trait))
     }
 
     <span class="doccomment">/// See [`Type::has_cyclic_alias`] for more detail

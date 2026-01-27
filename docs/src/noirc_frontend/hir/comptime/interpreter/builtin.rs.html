@@ -3751,7 +3751,7 @@
 
     <span class="kw">let </span>type_var_kind = Kind::Normal;
     <span class="kw">let </span>type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    <span class="kw">let </span>typ = type_var.clone().into_named_generic(name.clone());
+    <span class="kw">let </span>typ = type_var.clone().into_named_generic(<span class="kw-2">&amp;</span>name, <span class="prelude-val">None</span>);
     <span class="kw">let </span>new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -3769,7 +3769,7 @@
     <span class="kw">let </span>type_def_rc = interner.get_type(struct_id);
     <span class="kw">let </span>type_def = type_def_rc.borrow();
 
-    <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span>type_def.generics, |generic| generic.clone().as_named_generic());
+    <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span>type_def.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
 
     drop(type_def);
     <span class="prelude-val">Ok</span>(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -3836,7 +3836,7 @@
         .generics
         .iter()
         .map(|generic| {
-            <span class="kw">let </span>generic_as_named = generic.clone().as_named_generic();
+            <span class="kw">let </span>generic_as_named = generic.clone().into_named_generic(<span class="prelude-val">None</span>);
             <span class="kw">let </span>numeric_type = <span class="kw">match </span>generic_as_named.kind() {
                 Kind::Numeric(numeric_type) =&gt; <span class="prelude-val">Some</span>(Value::Type(<span class="kw-2">*</span>numeric_type)),
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,

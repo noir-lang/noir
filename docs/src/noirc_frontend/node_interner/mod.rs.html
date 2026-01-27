@@ -1600,7 +1600,10 @@
 <a href="#1599" id="1599">1599</a>
 <a href="#1600" id="1600">1600</a>
 <a href="#1601" id="1601">1601</a>
-<a href="#1602" id="1602">1602</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -3012,7 +3015,10 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.trait_impl_associated_types[<span class="kw-2">&amp;</span>impl_id]
     }
 
-    <span class="kw">pub fn </span>find_associated_type_for_impl(
+    <span class="doccomment">/// Find an associated type in a trait implementation by the last segment in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
+    </span><span class="kw">pub fn </span>find_associated_type_for_impl(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         impl_id: TraitImplId,
         type_name: <span class="kw-2">&amp;</span>str,

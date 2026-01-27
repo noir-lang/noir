@@ -1012,9 +1012,18 @@
 <a href="#1011" id="1011">1011</a>
 <a href="#1012" id="1012">1012</a>
 <a href="#1013" id="1013">1013</a>
-<a href="#1014" id="1014">1014</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
-</span><span class="kw">use crate</span>::{
+</span><span class="kw">use </span>std::rc::Rc;
+
+<span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{
@@ -1438,7 +1447,7 @@
             </span>method.direct_generics.iter().zip(<span class="kw-2">&amp;</span>override_meta.direct_generics)
         {
             <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
-            <span class="kw">let </span>arg = impl_fn_resolved_generic.clone().as_named_generic();
+            <span class="kw">let </span>arg = impl_fn_resolved_generic.clone().into_named_generic(<span class="prelude-val">None</span>);
 
             <span class="kw">if </span><span class="self">self</span>.check_kind(
                 trait_fn_kind.clone(),
@@ -1978,10 +1987,15 @@
         // This way associated types can be referred to even if their actual value (for associated constants)
         // is not known yet. This is to allow associated constants to refer to associated constants
         // in other trait impls.
-        </span><span class="kw">let </span>associated_types_behind_type_vars = vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
+        </span><span class="kw">let </span>object = trait_impl.object_type.to_string();
+        <span class="kw">let </span>trait_name = trait_id.map(|id| <span class="self">self</span>.interner.get_trait(id).name.to_string());
+        <span class="kw">let </span>associated_types_behind_type_vars = vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
             <span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
             <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            <span class="kw">let </span>typ = type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()));
+            <span class="kw">let </span>typ = type_var.clone().into_named_generic(
+                <span class="kw-2">&amp;</span>Rc::new(name.to_string()),
+                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
+            );
             <span class="kw">let </span>typ = <span class="self">self</span>.interner.push_quoted_type(typ);
             <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)

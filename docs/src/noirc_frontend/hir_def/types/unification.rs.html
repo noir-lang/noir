@@ -1428,8 +1428,8 @@
         }
     }
 
-    <span class="comment">// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
-    // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+    <span class="doccomment">/// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    /// Returns `None` if no coercion can be applied, otherwise returns `self` coerced to `expected`.
     </span><span class="kw">fn </span>try_fn_to_unconstrained_fn_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, expected: <span class="kw-2">&amp;</span>Type) -&gt; FunctionCoercionResult {
         <span class="comment">// If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.

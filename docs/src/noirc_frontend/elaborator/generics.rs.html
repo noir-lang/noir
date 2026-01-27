@@ -336,7 +336,8 @@
 <a href="#335" id="335">335</a>
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a></pre></div><pre class="rust"><code><span class="doccomment">//! Generic parameter resolution and type parameter handling.
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="doccomment">//! Generic parameter resolution and type parameter handling.
 
 </span><span class="kw">use </span>std::rc::Rc;
 
@@ -458,7 +459,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, target_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
+    <span class="doccomment">/// Find a generic variable among the generics of the current struct or function.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, target_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
         <span class="self">self</span>.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
