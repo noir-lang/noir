@@ -807,7 +807,18 @@
 <a href="#806" id="806">806</a>
 <a href="#807" id="807">807</a>
 <a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
 <span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>ark_std::io::Write;
 <span class="kw">use </span>num_bigint::BigUint;
@@ -1290,6 +1301,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::{AcirField, FieldElement};
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+    <span class="kw">use </span>std::ops::Neg;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>requires_zero_bit_to_hold_zero() {
@@ -1466,17 +1478,27 @@
         </span><span class="macro">assert_eq!</span>(F::zero().try_into_i128(), <span class="prelude-val">Some</span>(<span class="number">0</span>));
         <span class="macro">assert_eq!</span>(F::from(<span class="number">42_i128</span>).try_into_i128(), <span class="prelude-val">Some</span>(<span class="number">42</span>));
         <span class="macro">assert_eq!</span>(F::from(i128::MAX).try_into_i128(), <span class="prelude-val">Some</span>(i128::MAX));
+        <span class="macro">assert_eq!</span>(F::from(-i128::MAX).try_into_i128(), <span class="prelude-val">Some</span>(-i128::MAX));
 
         <span class="comment">// Valid negative conversions
         </span><span class="macro">assert_eq!</span>(F::from(-<span class="number">1_i128</span>).try_into_i128(), <span class="prelude-val">Some</span>(-<span class="number">1</span>));
         <span class="macro">assert_eq!</span>(F::from(-<span class="number">42_i128</span>).try_into_i128(), <span class="prelude-val">Some</span>(-<span class="number">42</span>));
         <span class="macro">assert_eq!</span>(F::from(i128::MIN + <span class="number">1</span>).try_into_i128(), <span class="prelude-val">Some</span>(i128::MIN + <span class="number">1</span>));
-
+        <span class="macro">assert_eq!</span>(F::from(i128::MAX - <span class="number">1</span>).try_into_i128(), <span class="prelude-val">Some</span>(i128::MAX - <span class="number">1</span>));
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">1_i128 </span>&lt;&lt; <span class="number">126</span>).try_into_i128(), <span class="prelude-val">Some</span>(<span class="number">1_i128 </span>&lt;&lt; <span class="number">126</span>));
+        <span class="macro">assert_eq!</span>(F::from(-((<span class="number">1_i128 </span>&lt;&lt; <span class="number">126</span>) - <span class="number">1</span>)).try_into_i128(), <span class="prelude-val">Some</span>(-((<span class="number">1_i128 </span>&lt;&lt; <span class="number">126</span>) - <span class="number">1</span>)));
         <span class="comment">// Invalid conversions
         </span><span class="macro">assert_eq!</span>(F::from(<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>).try_into_i128(), <span class="prelude-val">None</span>);
         <span class="macro">assert_eq!</span>(F::from(u128::MAX).try_into_i128(), <span class="prelude-val">None</span>);
         <span class="comment">// i128::MIN doesn't fit due to implementation
         </span><span class="macro">assert_eq!</span>(F::from(i128::MIN).try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="comment">// A few other invalid values
+        </span><span class="macro">assert_eq!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) + <span class="number">1</span>).try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) + <span class="number">1000</span>).try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(F::from(<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>).neg().try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) + <span class="number">1</span>).neg().try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) + <span class="number">100</span>).try_into_i128(), <span class="prelude-val">None</span>);
+        <span class="macro">assert_eq!</span>(F::from((<span class="number">1_u128 </span>&lt;&lt; <span class="number">127</span>) + <span class="number">100</span>).neg().try_into_i128(), <span class="prelude-val">None</span>);
     }
 
     <span class="attr">#[test]
