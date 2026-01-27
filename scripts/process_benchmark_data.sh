@@ -51,7 +51,7 @@ compilation_time() {
 }
 
 # This measures the time taken for definition collection along with elaboration/type checking. This notably includes
-# comptime macro expansion as well however stops short of the monomorphization and code generation phases.
+# comptime macro expansion as well, however stops short of the monomorphization and code generation phases.
 #
 # This is roughly equivalent to the time taken by `nargo check`, ignoring time spent on I/O along with lexing and parsing.
 elaboration_time() {
