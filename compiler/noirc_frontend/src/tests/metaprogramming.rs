@@ -1247,7 +1247,8 @@ fn zeroed_comptime_type() {
 }
 
 #[test]
-fn recursive_attribute_causes_recursion_limit_error() {
+fn recursive_attribute_causes_expansion_limit_error() {
+    use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
     use crate::hir::comptime::InterpreterError;
 
     let src = r#"
@@ -1263,6 +1264,11 @@ fn recursive_attribute_causes_recursion_limit_error() {
     "#;
     // Fetch the errors directly as we will get many repeated errors up until the recursion limit is hit
     let errors = get_program_errors(src);
+    dbg!(errors.len());
+    // Ignore any unused function warnings
+    let errors = errors.into_iter().filter(|err| err.is_error()).collect::<Vec<_>>();
+    dbg!(errors.len());
+    assert!(errors.len() <= MAX_MACRO_EXPANSION_DEPTH);
 
     // Helper to check for the recursion limit error, which may be wrapped in ComptimeError::ErrorRunningAttribute
     fn is_recursion_limit_error(error: &CompilationError) -> bool {
@@ -1282,12 +1288,76 @@ fn recursive_attribute_causes_recursion_limit_error() {
     assert!(has_recursion_limit_error, "Expected AttributeRecursionLimitExceeded error");
 }
 
+/// Verifies that mutually recursive attributes are caught by the global macro expansion depth limit.
+/// Three mutually recursive attributes: foo -> bar -> baz -> foo -> ...
+/// With a global counter, this correctly errors at 32 total expansions.
 #[test]
-fn many_non_recursive_attributes_do_not_trigger_recursion_limit() {
+fn mutually_recursive_attributes_cause_expansion_limit_error() {
+    use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
+    use crate::hir::comptime::InterpreterError;
+
+    let src = r#"
+    #[foo]
+    comptime fn foo(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[bar]
+            fn generated_by_foo() {}
+        }
+    }
+
+    #[bar]
+    comptime fn bar(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[baz]
+            fn generated_by_bar() {}
+        }
+    }
+
+    #[baz]
+    comptime fn baz(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[foo]
+            fn generated_by_baz() {}
+        }
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    // Ignore any unused function warnings
+    let errors = errors.into_iter().filter(|err| err.is_error()).collect::<Vec<_>>();
+    // With a global depth counter, mutual recursion is detected at the same depth as single-function
+    // recursion. If tracking were per-function, 3 mutually recursive functions could generate up to
+    // 3 × MAX_MACRO_EXPANSION_DEPTH errors before any single counter hit the limit.
+    assert!(errors.len() <= MAX_MACRO_EXPANSION_DEPTH);
+
+    fn is_recursion_limit_error(error: &CompilationError) -> bool {
+        match error {
+            CompilationError::InterpreterError(
+                InterpreterError::AttributeRecursionLimitExceeded { .. },
+            ) => true,
+            CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute {
+                error, ..
+            }) => is_recursion_limit_error(error),
+            _ => false,
+        }
+    }
+
+    let has_recursion_limit_error = errors.iter().any(is_recursion_limit_error);
+    assert!(
+        has_recursion_limit_error,
+        "Expected AttributeRecursionLimitExceeded error for mutually recursive attributes"
+    );
+}
+
+#[test]
+fn many_non_recursive_attributes_do_not_trigger_macro_expansion_limit() {
     use std::fmt::Write;
 
-    // Verifies that the recursion limit is tracked per-attribute-function, not globally.
-    // A program with many uses of the same non-recursive attribute should work.
+    // Verifies that the recursion limit tracks depth, not total calls.
+    // A program with many sequential (non-nested) uses of the same attribute should work
+    // because each attribute completes before the next starts, keeping depth at 1.
     let count = 50;
     let functions: String = (1..=count).fold(String::new(), |mut output, i| {
         let _ = writeln!(output, "    #[attr] fn f{i}() {{}}");
@@ -1307,5 +1377,6 @@ fn many_non_recursive_attributes_do_not_trigger_recursion_limit() {
     }}
     "#
     );
+    println!("{src}");
     assert_no_errors(&src);
 }

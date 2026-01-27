@@ -38,7 +38,7 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, MAX_ATTRIBUTE_RECURSION_DEPTH, ResolverMeta};
+use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -737,8 +737,8 @@ impl<'context> Elaborator<'context> {
 
         // Execute each collected attribute
         for attr in attributes_to_run {
-            // Check recursion limit for this specific attribute function to prevent
-            // infinite recursion when an attribute generates code with the same attribute.
+            // Check macro expansion depth to prevent infinite recursion when an attribute
+            // generates code that triggers further attribute expansion (including mutual recursion).
             //
             // Note: This check is intentionally here in `run_attributes` rather than in
             // `run_attribute` because the recursion path is:
@@ -746,9 +746,7 @@ impl<'context> Elaborator<'context> {
             // If we put the increment/decrement in `run_attribute`, the decrement would
             // happen before `elaborate_items` is called, so the depth counter would reset
             // before the recursive call and fail to detect the recursion.
-            let current_depth =
-                self.attribute_recursion_depth.get(&attr.function).copied().unwrap_or(0);
-            if current_depth >= MAX_ATTRIBUTE_RECURSION_DEPTH {
+            if self.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
                 self.push_err(InterpreterError::AttributeRecursionLimitExceeded {
                     location: attr.location,
                 });
@@ -756,7 +754,7 @@ impl<'context> Elaborator<'context> {
                 self.comptime_evaluation_halted = true;
                 return;
             }
-            *self.attribute_recursion_depth.entry(attr.function).or_insert(0) += 1;
+            self.macro_expansion_depth += 1;
 
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
@@ -779,7 +777,7 @@ impl<'context> Elaborator<'context> {
                 });
             }
 
-            *self.attribute_recursion_depth.get_mut(&attr.function).unwrap() -= 1;
+            self.macro_expansion_depth -= 1;
         }
     }
 
