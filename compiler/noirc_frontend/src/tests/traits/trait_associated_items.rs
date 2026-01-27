@@ -566,3 +566,25 @@ fn associated_mismatch_with_identical_names() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn associated_constant_in_trait_method_missing_in_impl() {
+    // When an impl is missing an associated constant that is accessed in a default trait method,
+    // we should only get ONE error (the "missing associated type" error)
+    let src = "
+    trait MyTrait {
+        let N: u32;
+
+        fn foo() {
+            let _ = Self::N;
+        }
+    }
+
+    impl MyTrait for i32 {
+         ^^^^^^^ `MyTrait` is missing the associated type `N`
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
