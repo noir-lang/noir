@@ -42,7 +42,7 @@ impl Default for Foo {
 }
 
 comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
-    let mut result: [Quoted] = &[];
+    let mut result: [Quoted] = [].as_vector();
     {
         let ___i0: [(Quoted, Type, Quoted)] = fields;
         for ___i1 in 0_u32..___i0.len() {

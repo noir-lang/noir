@@ -154,7 +154,13 @@ impl ChunkFormatter<'_, '_> {
 
         group.text(self.chunk(|formatter| {
             if is_vector {
-                formatter.write_token(Token::VectorStart);
+                if formatter.is_at(Token::DeprecatedVectorStart) {
+                    // Support the old vector syntax `&[1, 2, 3]`
+                    formatter.bump();
+                    formatter.write("@");
+                } else {
+                    formatter.write_token(Token::At);
+                }
             }
             formatter.write_left_bracket();
         }));
@@ -565,7 +571,7 @@ impl ChunkFormatter<'_, '_> {
             group.trailing_comma();
         }
 
-        group.text(chunk);
+        group.trailing_comment_at_block_end(chunk);
 
         if force_trailing_comma {
             group.text(TextChunk::new(",".to_string()));
@@ -1292,7 +1298,7 @@ impl ChunkFormatter<'_, '_> {
         }
 
         // Finally format the comment, if any
-        group.text(self.chunk(|formatter| {
+        group.trailing_comment_at_block_end(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
@@ -1435,8 +1441,15 @@ mod tests {
 
     #[test]
     fn format_standard_vector() {
-        let src = "global x = & [ 1 , 2 , 3 , ] ;";
-        let expected = "global x = &[1, 2, 3];\n";
+        let src = "global x = @ [ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_old_vector_syntax() {
+        let src = "global x = &[ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
         assert_format(src, expected);
     }
 

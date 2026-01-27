@@ -78,6 +78,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
+
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
@@ -113,6 +117,8 @@ jobs:
     runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we need apply changes to the sticky comment.
     if: ${{ always() && needs.release-please.outputs.release-pr }}
+    permissions:
+      pull-requests: write
 
     needs:
       - release-please

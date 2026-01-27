@@ -577,14 +577,20 @@ mod cmp_tests {
 
     #[test]
     fn correctly_handles_unequal_length_vectors() {
-        let vector_1 = &[0, 1, 2, 3];
-        let vector_2 = &[0, 1, 2];
+        let vector_1 = [0, 1, 2, 3].as_vector();
+        let vector_2 = [0, 1, 2].as_vector();
         assert(!vector_1.eq(vector_2));
     }
 
     #[test]
     fn lexicographic_ordering_for_vectors() {
-        assert(&[2_u32].cmp(&[1_u32, 1_u32, 1_u32]) == super::Ordering::greater());
-        assert(&[1_u32, 2_u32].cmp(&[1_u32, 2_u32, 3_u32]) == super::Ordering::less());
+        assert(
+            [2_u32].as_vector().cmp([1_u32, 1_u32, 1_u32].as_vector())
+                == super::Ordering::greater(),
+        );
+        assert(
+            [1_u32, 2_u32].as_vector().cmp([1_u32, 2_u32, 3_u32].as_vector())
+                == super::Ordering::less(),
+        );
     }
 }

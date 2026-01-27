@@ -54,7 +54,7 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
-use crate::shared::Signedness;
+use crate::shared::{ForeignCall, Signedness};
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
@@ -318,7 +318,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(foreign) = func_attrs.foreign() {
             self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
-            if oracle == "print" {
+            if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 self.print_oracle(arguments)
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
@@ -754,9 +754,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => self.evaluate_integer(value, id),
-                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
-                        typ: associated_type.typ.clone(),
-                        err: Some(Box::new(err)),
+                    Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
+                        err: Box::new(err),
                         location,
                     }),
                 }
@@ -771,10 +770,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let value = value
             .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
-                let typ = value;
-                let err = Some(Box::new(err));
+                let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
-                InterpreterError::NonIntegerArrayLength { typ, err, location }
+                InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
         self.evaluate_integer(value, id)
@@ -900,9 +898,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Ok(Value::Array(elements, typ))
                     }
                     Err(err) => {
-                        let err = Some(Box::new(err));
+                        let err = Box::new(err);
                         let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ: length, err, location })
+                        Err(InterpreterError::InvalidArrayLength { err, location })
                     }
                 }
             }
@@ -954,7 +952,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
-        let method = infix.trait_method_id;
+        let method = infix
+            .trait_method_id
+            .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
         let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
@@ -1234,7 +1234,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Tuple(fields))
     }
 
-    fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
+    fn evaluate_lambda(&self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
         let env = try_vecmap(&lambda.captures, |capture| {
             let value = self.lookup_id(capture.ident.id, location)?;
@@ -1508,7 +1508,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_i128(start_value).expect("Checked above that value is signed type");
             let end = to_i128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
@@ -1524,7 +1528,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
             let end = to_u128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
             let typ = start_type.into_owned();
@@ -1650,7 +1658,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_break(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
@@ -1659,7 +1667,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_continue(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
@@ -1672,10 +1680,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(
-        &mut self,
-        arguments: Vec<(Value, Location)>,
-    ) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
         let Some(output) = self.elaborator.interpreter_output else {
@@ -1788,7 +1793,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 }
 
 /// Bounds check the given array and index pair.
-/// This will also ensure the given arguments are in fact an array and integer.
+/// This will also ensure the given arguments are in fact an array and u32.
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
     let collection = match array {
         Value::Array(array, _) => array,
@@ -1800,32 +1805,15 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
     };
 
     let index = match index {
-        Value::Field(value) => {
-            let u64: Option<u64> = value.try_to_unsigned();
-            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                let typ = Type::default_int_type();
-                InterpreterError::IntegerOutOfRangeForType { value, typ, location }
-            })?
-        }
-        Value::I8(value) => value as usize,
-        Value::I16(value) => value as usize,
-        Value::I32(value) => value as usize,
-        Value::I64(value) => value as usize,
-        Value::U1(value) => {
-            if value {
-                1_usize
-            } else {
-                0_usize
-            }
-        }
-        Value::U8(value) => value as usize,
-        Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
-        Value::U64(value) => value as usize,
-        Value::U128(value) => value as usize,
         value => {
             let typ = value.get_type().into_owned();
-            return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
+            let expected_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            return Err(InterpreterError::TypeMismatch {
+                expected: expected_type.to_string(),
+                actual: typ,
+                location,
+            });
         }
     };
 
@@ -1944,7 +1932,7 @@ impl Context<'_, '_> {
         let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: false,
+
             enabled_unstable_features,
             disable_required_unstable_features: false,
         };

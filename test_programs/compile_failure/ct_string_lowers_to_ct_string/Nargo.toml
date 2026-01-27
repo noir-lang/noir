@@ -1,0 +1,7 @@
+[package]
+name = "ct_string_lowers_to_ct_string"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

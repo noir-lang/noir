@@ -616,7 +616,7 @@ pub fn run_session<R: Read, W: Write>(
         file_map: project.compiled_program.file_map.clone(),
     };
 
-    let solver = Bn254BlackBoxSolver(run_params.pedantic_solving);
+    let solver = Bn254BlackBoxSolver;
     let mut session =
         DapSession::new(server, &solver, &project, &debug_artifact, run_params.oracle_resolver_url);
 

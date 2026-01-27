@@ -48,19 +48,19 @@
 //! an unconstrained lambda being passed into and called in constrained code. This is possible
 //! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 //! which shouldn't leave the current context.
-use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
+use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
-use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
+use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
-use crate::shared::{Signedness, Visibility};
+use crate::shared::{ForeignCall, Visibility};
 use crate::signed_field::SignedField;
-use crate::token::FmtStrFragment;
+use crate::token::FunctionAttributeKind;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
     hir_def::{
         expr::*,
-        function::{FunctionSignature, Parameters},
+        function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
@@ -72,6 +72,7 @@ use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::borrow::Cow;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -85,6 +86,7 @@ use self::{
 };
 
 pub mod ast;
+mod builtin;
 mod debug;
 pub mod debug_types;
 pub mod errors;
@@ -116,8 +118,12 @@ pub struct Monomorphizer<'interner> {
     /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
-    /// Globals are keyed by their unique ID because they are never duplicated during monomorphization.
-    globals: HashMap<node_interner::GlobalId, GlobalId>,
+    /// Globals are keyed by their unique ID and their type, which should create a single global
+    /// instance per generic combination.
+    ///
+    /// The alternative would be to use default types for unused generic parameters,
+    /// but that could fail during SSA validation.
+    globals: HashMap<node_interner::GlobalId, HashMap<HirType, GlobalId>>,
 
     finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
 
@@ -132,11 +138,11 @@ pub struct Monomorphizer<'interner> {
         Location,
     )>,
 
-    /// When a function finishes being monomorphized, the monomorphized ast::Function is
-    /// stored here along with its FuncId.
+    /// When a function finishes being monomorphized, the monomorphized [ast::Function] is
+    /// stored here along with its [FuncId].
     finished_functions: BTreeMap<FuncId, Function>,
 
-    /// Used to reference existing definitions in the HIR
+    /// Used to reference existing definitions in the HIR.
     interner: &'interner mut NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
@@ -146,12 +152,13 @@ pub struct Monomorphizer<'interner> {
     next_function_id: u32,
     next_ident_id: u32,
 
-    is_range_loop: bool,
-
+    /// Location of the last statement in the `main` function, determined during compilation.
     return_location: Option<Location>,
 
     debug_type_tracker: DebugTypeTracker,
 
+    /// Indicate that we are currently monomorphizing an unconstrained function, which causes
+    /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
 
     /// Set to true to force every function to be unconstrained.
@@ -161,6 +168,8 @@ pub struct Monomorphizer<'interner> {
 }
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
+///
+/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics) -> monomorphized FuncId
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
@@ -200,10 +209,10 @@ pub fn monomorphize_debug(
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
     let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
-    let function_sig = monomorphizer.compile_main(main)?;
+    monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
-    Ok(monomorphizer.into_program(function_sig))
+    Ok(monomorphizer.into_program())
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -225,7 +234,6 @@ impl<'interner> Monomorphizer<'interner> {
             next_ident_id: 0,
             interner,
             lambda_envs_stack: Vec::new(),
-            is_range_loop: false,
             return_location: None,
             debug_type_tracker,
             in_unconstrained_function: force_unconstrained,
@@ -311,31 +319,19 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// This will also run the ownership and proxies passes on the resulting
     /// program.
-    pub fn into_program(self, function_sig: FunctionSignature) -> Program {
-        let force_unconstrained = self.force_unconstrained;
-        let func_sigs = self
-            .finished_functions
-            .iter()
-            .flat_map(|(_, f)| {
-                if (!force_unconstrained && f.inline_type.is_entry_point())
-                    || f.id == Program::main_id()
-                {
-                    Some(f.func_sig.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let functions = vecmap(self.finished_functions, |(_, f)| f);
+    pub fn into_program(self) -> Program {
+        let mut functions = vecmap(self.finished_functions, |(_, f)| f);
         let globals = self.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
         let (debug_variables, debug_functions, debug_types) =
             self.debug_type_tracker.extract_vars_and_types();
 
+        for f in functions.iter_mut() {
+            let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
+            f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
+        }
+
         Program::new(
             functions,
-            func_sigs,
-            function_sig,
             self.return_location,
             globals,
             debug_variables,
@@ -370,7 +366,7 @@ impl<'interner> Monomorphizer<'interner> {
         IdentId(id)
     }
 
-    fn lookup_local(&mut self, id: node_interner::DefinitionId) -> Option<Definition> {
+    fn lookup_local(&self, id: node_interner::DefinitionId) -> Option<Definition> {
         self.locals.get(&id).copied().map(Definition::Local)
     }
 
@@ -385,16 +381,17 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         turbofish_generics: &[HirType],
         trait_method: Option<TraitItemId>,
-    ) -> Definition {
+        evaluate_builtin: bool,
+    ) -> Result<Definition, MonomorphizationError> {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
         let is_unconstrained = self.is_unconstrained(id);
 
-        match self
+        let definition = match self
             .functions
             .get(&(id, is_unconstrained))
-            .and_then(|inner_map| inner_map.get(&typ))
-            .and_then(|inner_map| inner_map.get(&turbofish_generics))
+            .and_then(|by_func_type| by_func_type.get(&typ))
+            .and_then(|by_turbofish| by_turbofish.get(&turbofish_generics))
         {
             Some(id) => Definition::Function(*id),
             None => {
@@ -404,16 +401,33 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::LowLevel => {
                         let attribute = attributes.function().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.foreign().expect(
-                            "ice: function marked as foreign, but attribute kind does not match this",
+                            "ICE: function marked as foreign, but attribute kind does not match this",
                         );
                         Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.builtin().expect(
-                            "ice: function marked as builtin, but attribute kind does not match this",
+                            "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Builtin(opcode.to_string())
+                        let location = self.interner.expr_location(&expr_id);
+                        let opcode = opcode.to_string();
+
+                        if evaluate_builtin {
+                            match self.try_evaluate_builtin(
+                                &opcode,
+                                typ,
+                                turbofish_generics,
+                                is_unconstrained,
+                                id,
+                                location,
+                            )? {
+                                Some(id) => Definition::Function(id),
+                                None => Definition::Builtin(opcode),
+                            }
+                        } else {
+                            Definition::Builtin(opcode)
+                        }
                     }
                     FunctionKind::Normal | FunctionKind::TraitFunctionWithoutBody => {
                         let id =
@@ -423,21 +437,28 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::Oracle => {
                         let attribute = attributes.function().expect("all oracle functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.oracle().expect(
-                            "ice: function marked as builtin, but attribute kind does not match this",
+                            "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         Definition::Oracle(opcode.to_string())
                     }
                 }
             }
-        }
+        };
+        Ok(definition)
     }
 
+    /// Store the local variable ID created for a definition.
+    ///
+    /// Note that this might overwrite a previous association, which happens when
+    /// we define a (constrained, unconstrained) pair of lambdas, which share
+    /// the same list of parameter definitions, but will have different
+    /// monomorphized variable IDs created for both function instance.
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: LocalId) {
         self.locals.insert(id, new_id);
     }
 
-    /// Prerequisite: typ = typ.follow_bindings()
-    ///          and: turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)
+    /// Prerequisite: `typ = typ.follow_bindings()`
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
     fn define_function(
         &mut self,
         id: node_interner::FuncId,
@@ -454,13 +475,17 @@ impl<'interner> Monomorphizer<'interner> {
             .insert(turbofish_generics, new_id);
     }
 
-    /// Monomorphize the `main` function, ensuring it has the id expected by [Program::main_id].
+    /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
+    ///
+    /// Sets the `return_location` expected by `into_program` later.
+    ///
+    /// Panics if some other function has already been monomorphized before.
     pub fn compile_main(
         &mut self,
         main_id: node_interner::FuncId,
-    ) -> Result<FunctionSignature, MonomorphizationError> {
+    ) -> Result<(), MonomorphizationError> {
         let new_main_id = self.next_function_id();
-        assert_eq!(new_main_id, Program::main_id());
+        assert_eq!(new_main_id, Program::main_id(), "expected main to be monomorphized first");
 
         let location = self.interner.function_meta(&main_id).location;
         self.in_unconstrained_function = self.is_unconstrained(main_id);
@@ -473,8 +498,7 @@ impl<'interner> Monomorphizer<'interner> {
                     _ => None,
                 },
             );
-        let main_meta = self.interner.function_meta(&main_id);
-        Ok(main_meta.function_signature())
+        Ok(())
     }
 
     /// Monomorphizes the given function.
@@ -499,14 +523,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
-
-        let mut func_sig = meta.function_signature();
-        // Follow the bindings of the function signature for entry points
-        // which are not `main` such as foldable functions.
-        for param in func_sig.0.iter_mut() {
-            param.1 = param.1.follow_bindings();
-        }
-        func_sig.1 = func_sig.1.map(|return_type| return_type.follow_bindings());
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -546,16 +562,19 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility,
             unconstrained,
             inline_type,
-            func_sig,
+            is_entry_point: false,
         };
 
         self.push_function(id, function);
         Ok(())
     }
 
+    /// Store a monomorphized [Function] among the finished ones.
+    ///
+    /// Panics if the function has already been pushed.
     fn push_function(&mut self, id: FuncId, function: Function) {
         let existing = self.finished_functions.insert(id, function);
-        assert!(existing.is_none());
+        assert!(existing.is_none(), "ICE: Redefined function");
     }
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
@@ -572,6 +591,8 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(new_params)
     }
 
+    /// Monomorphize a single function parameters, potentially expanding it into multiple parameters
+    /// if it's a tuple/struct pattern, appending the new parameters to an accumulator.
     fn parameter(
         &mut self,
         param: &HirPattern,
@@ -593,14 +614,22 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
-
+                assert_eq!(
+                    fields.len(),
+                    tuple_field_types.len(),
+                    "ICE: Unexpected number of tuple pattern fields"
+                );
                 for (field, typ) in fields.iter().zip(tuple_field_types) {
                     self.parameter(field, &typ, visibility, new_params)?;
                 }
             }
             HirPattern::Struct(_, fields, location) => {
                 let struct_field_types = unwrap_struct_type(typ, *location)?;
-                assert_eq!(struct_field_types.len(), fields.len());
+                assert_eq!(
+                    struct_field_types.len(),
+                    fields.len(),
+                    "ICE: Unexpected number of struct pattern fields"
+                );
 
                 let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
 
@@ -618,13 +647,28 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    /// Monomorphize an expression
+    /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
+        self.expr_with_target_type(expr, None)
+    }
+
+    /// Monomorphize an expression with a target type.
+    ///
+    /// This can be used when we have a type that contains bound type variables on the LHS,
+    /// and a type with unbound named generic on the RHS, and we don't want the unbound
+    /// types to be converted to default values.
+    fn expr_with_target_type(
+        &mut self,
+        expr: ExprId,
+        target_type: Option<&Type>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
         let expr = match self.interner.expression(&expr) {
-            HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics, false)?,
+            HirExpression::Ident(ident, generics) => {
+                self.ident(ident, expr, generics, false, true)?
+            }
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(fragments, idents, _length)) => {
                 let fields = try_vecmap(idents, |ident| self.expr(ident))?;
@@ -668,7 +712,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = prefix
                         .trait_method_id
-                        .expect("ice: missing trait method if when impl was found");
+                        .expect("ICE: missing trait method when impl was found");
 
                     // `true` here to use the current runtime since we're immediately calling this
                     // method in our current runtime.
@@ -701,8 +745,9 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = infix.trait_method_id;
 
-                    // True here since we're immediately calling this operator method in the
-                    // current runtime.
+                    let method = method.expect("ICE: Monomorphizer::expr: expected the infix operator method to be resolved by monomorphization");
+                    // `true` here to use the current runtime since we're immediately calling this
+                    // operator method in the current runtime.
                     let func = self.resolve_trait_item_expr(expr, function_type, method, true)?;
                     let operator = infix.operator;
                     self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
@@ -790,7 +835,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let frontend_type = self.interner.id_type(expr);
                 let typ = Self::convert_type(&frontend_type, location)?;
 
-                if !self.in_unconstrained_function && Self::contains_reference(&frontend_type) {
+                if !self.in_unconstrained_function && frontend_type.contains_reference() {
                     let typ = frontend_type.to_string();
                     return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
                         typ,
@@ -807,76 +852,46 @@ impl<'interner> Monomorphizer<'interner> {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
                 ast::Expression::Tuple(fields)
             }
-            HirExpression::Constructor(constructor) => self.constructor(constructor, expr)?,
+            HirExpression::Constructor(constructor) => {
+                let typ = self.expr_or_target_type(expr, target_type);
+                self.constructor(constructor, expr, typ.as_ref())?
+            }
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
-            HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
+            HirExpression::Quote(_) => {
+                let location = self.interner.expr_location(&expr);
+                return Err(MonomorphizationError::ComptimeTypeInRuntimeCode {
+                    typ: "Quoted".to_string(),
+                    location,
+                });
+            }
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
-                self.enum_constructor(constructor, expr)?
+                let typ = self.expr_or_target_type(expr, target_type);
+                self.enum_constructor(constructor, expr, typ.as_ref())?
             }
         };
 
         Ok(expr)
     }
 
-    /// True if a value of the given type contains a reference value.
+    /// Return the target type if given, or the type of the expression if the target is empty.
     ///
-    /// Note that the above wording excludes function types with reference parameters.
-    fn contains_reference(typ: &Type) -> bool {
-        match typ {
-            Type::FieldElement
-            | Type::Bool
-            | Type::String(_)
-            | Type::Integer(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
-
-            Type::Reference(_, _) => true,
-
-            Type::Array(_len, element) => Self::contains_reference(element),
-            Type::Vector(element) => Self::contains_reference(element),
-            Type::FmtString(_, environment) => Self::contains_reference(environment),
-            Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
-            Type::DataType(datatype, generics) => {
-                let datatype = datatype.borrow();
-                if let Some(fields) = datatype.get_fields(generics) {
-                    fields.iter().any(|(_, field, _)| Self::contains_reference(field))
-                } else if let Some(variants) = datatype.get_variants(generics) {
-                    variants
-                        .iter()
-                        .any(|(_, variant_args)| variant_args.iter().any(Self::contains_reference))
-                } else {
-                    false
-                }
-            }
-            Type::Alias(alias, generics) => {
-                Self::contains_reference(&alias.borrow().get_type(generics))
-            }
-            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
-                TypeBinding::Bound(binding) => Self::contains_reference(binding),
-                TypeBinding::Unbound(..) => false,
-            },
-            Type::CheckedCast { to, .. } => Self::contains_reference(to),
-            Type::Function(_args, _ret, env, _unconstrained) => {
-                // Only the environment of a function is counted as an actual reference value.
-                // Otherwise we can't return functions accepting references as arguments from if
-                // expressions.
-                Self::contains_reference(env)
-            }
-            Type::Forall(_, typ) => Self::contains_reference(typ),
+    /// This is used in cases where the target type might have more bound generic type variables
+    /// than the expression, and unification is not feasible because the expression uses unbound
+    /// named generics, which don't get unified.
+    fn expr_or_target_type<'a>(
+        &self,
+        expr: ExprId,
+        target_type: Option<&'a Type>,
+    ) -> Cow<'a, HirType> {
+        match target_type {
+            Some(typ) => Cow::Borrowed(typ),
+            None => Cow::Owned(self.interner.id_type(expr)),
         }
     }
 
@@ -898,7 +913,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Monomorphize an array with repeated elements, such as `[3; 10]`.
+    /// Monomorphize an array or vector with repeated elements, such as `[3; 10]`.
     fn repeated_array(
         &mut self,
         array: ExprId,
@@ -911,7 +926,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let length = length.evaluate_to_u32(location).map_err(|err| {
             let location = self.interner.expr_location(&array);
-            MonomorphizationError::UnknownArrayLength { location, err, length }
+            MonomorphizationError::UnknownArrayLength { location, err }
         })?;
 
         // Represent `[expr; n]` as:
@@ -923,6 +938,8 @@ impl<'interner> Monomorphizer<'interner> {
         //
         // That is, `expr` is only evaluated once, assigned to a local variable,
         // and the array consists of references to that local variable.
+        //
+        // Note that `expr` is evaluated even if the length is 0 (same as in Rust).
         let element = self.expr(repeated_element)?;
         let local_id = self.next_local_id();
 
@@ -970,10 +987,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
-                self.is_range_loop = true;
                 let start = self.expr(for_loop.start_range)?;
                 let end = self.expr(for_loop.end_range)?;
-                self.is_range_loop = false;
                 let index_variable = self.next_local_id();
                 self.define_local(for_loop.identifier.id, index_variable);
 
@@ -988,6 +1003,7 @@ impl<'interner> Monomorphizer<'interner> {
                     index_type,
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    inclusive: for_loop.inclusive,
                     start_range_location: self.interner.expr_location(&for_loop.start_range),
                     end_range_location: self.interner.expr_location(&for_loop.end_range),
                     block,
@@ -1028,11 +1044,11 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         constructor: HirConstructorExpression,
         id: ExprId,
+        typ: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
 
-        let typ = self.interner.id_type(id);
-        let field_types = unwrap_struct_type(&typ, location)?;
+        let field_types = unwrap_struct_type(typ, location)?;
 
         let field_type_map =
             btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
@@ -1085,12 +1101,13 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// For an enum like:
+    /// ```text
     /// enum Foo {
     ///    A(i32, u32),
     ///    B(Field),
     ///    C
     /// }
-    ///
+    /// ```
     /// this will translate the call `Foo::A(1, 2)` into `(0, (1, 2), (0,), ())` where
     /// the first field `0` is the tag value, the second is `A`, third is `B`, and fourth is `C`.
     /// Each variant that isn't the desired variant has zeroed values filled in for its data.
@@ -1098,16 +1115,21 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         constructor: HirEnumConstructorExpression,
         id: ExprId,
+        typ: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
-        let typ = self.interner.id_type(id);
-        let variants = unwrap_enum_type(&typ, location)?;
+        let variants = unwrap_enum_type(typ, location)?;
+
+        let tag_value = FieldElement::from(constructor.variant_index);
+        let tag_value = SignedField::positive(tag_value);
+        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
+        let mut fields = vec![ast::Expression::Literal(tag)];
 
         // Fill in each field of the translated enum tuple.
         // For most fields this will be simply `std::mem::zeroed::<T>()`,
         // but for the given variant we just pack all the arguments into a tuple for that field.
-        let mut fields = try_vecmap(variants.into_iter().enumerate(), |(i, (_, arg_types))| {
-            let fields = if i == constructor.variant_index {
+        for (i, (_, arg_types)) in variants.into_iter().enumerate() {
+            let args = if i == constructor.variant_index {
                 try_vecmap(&constructor.arguments, |arg| self.expr(*arg))
             } else {
                 try_vecmap(arg_types, |typ| {
@@ -1115,13 +1137,8 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(self.zeroed_value_of_type(&typ, location))
                 })
             }?;
-            Ok(ast::Expression::Tuple(fields))
-        })?;
-
-        let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
-        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
-        fields.insert(0, ast::Expression::Literal(tag));
+            fields.push(ast::Expression::Tuple(args));
+        }
 
         Ok(ast::Expression::Tuple(fields))
     }
@@ -1212,7 +1229,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Find a captured variable in the innermost closure, and construct an expression
-    fn lookup_captured_expr(&mut self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
+    fn lookup_captured_expr(&self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
         let ctx = self.lambda_envs_stack.last()?;
         ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
             ast::Expression::ExtractTupleField(
@@ -1223,7 +1240,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Find a captured variable in the innermost closure construct a LValue
-    fn lookup_captured_lvalue(&mut self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
+    fn lookup_captured_lvalue(&self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
         let ctx = self.lambda_envs_stack.last()?;
         ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
             ast::LValue::MemberAccess {
@@ -1262,6 +1279,10 @@ impl<'interner> Monomorphizer<'interner> {
         // of both (constrained, unconstrained). This is used only as an optimization to avoid
         // unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
+        // If true, evaluate some builtins to function values. This is disabled when codegening the
+        // function in a function call since we can avoid creating a new function and instead
+        // inline the body directly which keeps some minimal SSA pass tests working.
+        evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
@@ -1305,6 +1326,7 @@ impl<'interner> Monomorphizer<'interner> {
                             expr_id,
                             &typ,
                             generics,
+                            evaluate_builtin,
                         )
                     },
                 )
@@ -1370,9 +1392,16 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: ExprId,
         typ: &Type,
         generics: Option<Vec<HirType>>,
+        evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let definition =
-            self.lookup_function(func_id, expr_id, typ, &generics.unwrap_or_default(), None);
+        let definition = self.lookup_function(
+            func_id,
+            expr_id,
+            typ,
+            &generics.unwrap_or_default(),
+            None,
+            evaluate_builtin,
+        )?;
         let typ = Self::convert_type(typ, location)?;
         let location = Some(location);
         let id = self.next_ident_id();
@@ -1399,13 +1428,9 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        let value = value.evaluate_to_signed_field(&expected_kind, location).map_err(|err| {
-            MonomorphizationError::UnknownArrayLength {
-                length: value.follow_bindings(),
-                err,
-                location,
-            }
-        })?;
+        let value = value
+            .evaluate_to_signed_field(&expected_kind, location)
+            .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
         let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
         if !expected_kind.unifies(&expr_kind) {
@@ -1426,8 +1451,12 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
-        let expr = if let Some(seen_global) = self.globals.get(&id) {
-            let typ = Self::convert_type(typ, location)?;
+
+        // Follow bindings otherwise it's not safe to use it as a hash map key.
+        let typ = typ.follow_bindings();
+
+        let expr = if let Some(seen_global) = self.globals.get(&id).and_then(|m| m.get(&typ)) {
+            let typ = Self::convert_type(&typ, location)?;
             let ident = ast::Ident {
                 location: Some(location),
                 definition: Definition::Global(*seen_global),
@@ -1438,12 +1467,13 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
+            // Globals have been evaluated with the comptime interpreter. Convert that value to HIR.
             let (expr, contains_function) = if let GlobalValue::Resolved(value) =
                 global.value.clone()
             {
                 let contains_function = value.contains_function_or_closure();
                 let expr = value
-                    .into_hir_expression(self.interner, global.location)
+                    .into_runtime_hir_expression(self.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, contains_function)
             } else {
@@ -1452,7 +1482,11 @@ impl<'interner> Monomorphizer<'interner> {
                 );
             };
 
-            let expr = self.expr(expr)?;
+            // The type of the expression on the RHS itself might be a `Forall` and/or contain unbound `NamedGeneric`s,
+            // while the type of the type on the LHS has bound `TypeVariable` variables. We cannot bind them,
+            // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
+            // into expression specific to the LHS, so we are using it as the target type.
+            let expr = self.expr_with_target_type(expr, Some(&typ))?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
@@ -1463,8 +1497,8 @@ impl<'interner> Monomorphizer<'interner> {
             // placing a closure in the global context to change the final result of the program.
             if !contains_function {
                 let new_id = self.next_global_id();
-                self.globals.insert(id, new_id);
-                let typ = Self::convert_type(typ, location)?;
+                self.globals.entry(id).or_default().insert(typ.clone(), new_id);
+                let typ = Self::convert_type(&typ, location)?;
                 self.finished_globals.insert(new_id, (name.clone(), typ.clone(), expr));
                 let ident = ast::Ident {
                     location: Some(location),
@@ -1512,15 +1546,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
-                        let length = size.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 ast::Type::String(size)
@@ -1528,15 +1555,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(size, fields) => {
                 let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
-                    // only default variable sizes to size 0
-                    Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
                     Err(err) => {
-                        let length = size.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 let fields =
@@ -1553,12 +1573,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
-                        let length = length.as_ref().clone();
-                        return Err(MonomorphizationError::UnknownArrayLength {
-                            location,
-                            err,
-                            length,
-                        });
+                        return Err(MonomorphizationError::UnknownArrayLength { location, err });
                     }
                 };
                 ast::Type::Array(length, element)
@@ -1578,12 +1593,8 @@ impl<'interner> Monomorphizer<'interner> {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                type_var.bind(HirType::default_int_or_field_type());
-                ast::Type::Field
+                // This used to default to Field, but doing so could result in an invalid SSA.
+                return Err(MonomorphizationError::NoDefaultType { location });
             }
 
             HirType::CheckedCast { from, to } => {
@@ -1836,9 +1847,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that the 'from' and to' sides of a CheckedCast unify and
-    /// that if the 'to' side evaluates to a field element, that the 'from' side
-    /// evaluates to the same field element
+    /// Check that the 'from' and to' sides of a `CheckedCast` unify and
+    /// that if the 'to' side evaluates to a field element, then the 'from' side
+    /// evaluates to the same field element as well.
     fn check_checked_cast(
         from: &Type,
         to: &Type,
@@ -1894,6 +1905,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Resolve a trait item and monomorphize it either as:
+    /// * an associated numeric constant, or
+    /// * a tuple of (constrained, unconstrained) functions
     fn resolve_trait_item_expr(
         &mut self,
         expr_id: ExprId,
@@ -1921,6 +1935,8 @@ impl<'interner> Monomorphizer<'interner> {
         )
     }
 
+    /// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
+    /// and return and identifier to it.
     fn resolve_trait_method_expr(
         &mut self,
         func_id: node_interner::FuncId,
@@ -1934,7 +1950,8 @@ impl<'interner> Monomorphizer<'interner> {
             &function_type,
             &[],
             Some(trait_item_id),
-        ) {
+            true,
+        )? {
             Definition::Function(func_id) => func_id,
             _ => unreachable!(),
         };
@@ -2005,6 +2022,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let crossing_runtime_boundaries =
             !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+        let is_oracle = self.function_is_oracle(call.func);
 
         if crossing_runtime_boundaries {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
@@ -2051,6 +2069,10 @@ impl<'interner> Monomorphizer<'interner> {
             self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
         }
 
+        if is_oracle {
+            self.check_return_type_returned_from_oracle(&return_type, location)?;
+        }
+
         let return_type = Self::convert_type(&return_type, location)?;
 
         let location = call.location;
@@ -2059,7 +2081,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "print" {
+                if let Some(ForeignCall::Print) = ForeignCall::lookup(name) {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident
@@ -2112,7 +2134,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let call = self
-            .try_evaluate_call(&func, &id, &call.arguments, &arguments, &return_type)?
+            .try_evaluate_builtin_call(&func, &id, &call.arguments, &arguments, &return_type)?
             .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
 
         if !block_expressions.is_empty() {
@@ -2124,7 +2146,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn check_arguments_crossing_runtime_boundaries(
-        &mut self,
+        &self,
         call: &HirCallExpression,
     ) -> Result<(), MonomorphizationError> {
         for argument in &call.arguments {
@@ -2143,7 +2165,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn check_return_type_crossing_runtime_boundaries(
-        &mut self,
+        &self,
         return_type: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
@@ -2166,6 +2188,27 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    fn check_return_type_returned_from_oracle(
+        &self,
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if return_type.contains_reference() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
+        }
+
+        if return_type.is_vector_with_nested_array() {
+            let typ = return_type.to_string();
+            return Err(MonomorphizationError::VectorWithNestedArrayReturnedFromOracle {
+                typ,
+                location,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Adds a function argument that contains type metadata that is required to tell
     /// `println` how to convert values passed to an foreign call back to a human-readable string.
     /// The values passed to an foreign call will be a simple list of field elements,
@@ -2177,7 +2220,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// The caller that is running a Noir program should then deserialize the `PrintableType`,
     /// and accurately decode the list of field elements passed to the foreign call.
     fn append_printable_type_info(
-        &mut self,
+        &self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
     ) {
@@ -2190,103 +2233,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
-    /// at their call site.
-    /// NOTE: Evaluating at the call site means we cannot track aliased functions.
-    ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
-    ///       To fix this we need to evaluate on the identifier instead, which
-    ///       requires us to evaluate to a Lambda value which isn't in noir yet.
-    fn try_evaluate_call(
-        &mut self,
-        func: &ast::Expression,
-        expr_id: &ExprId,
-        arguments: &[ExprId],
-        argument_values: &[ast::Expression],
-        result_type: &ast::Type,
-    ) -> Result<Option<ast::Expression>, MonomorphizationError> {
-        if let ast::Expression::Ident(ident) = func {
-            if let Definition::Builtin(opcode) = &ident.definition {
-                // TODO(#1736): Move this builtin to the SSA pass
-                let location = self.interner.expr_location(expr_id);
-                return Ok(match opcode.as_str() {
-                    "modulus_num_bits" => {
-                        let bits = FieldElement::max_num_bits();
-                        let typ =
-                            ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                        let bits = SignedField::positive(bits);
-                        Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
-                    }
-                    "zeroed" => {
-                        let location = self.interner.expr_location(expr_id);
-                        Some(self.zeroed_value_of_type(result_type, location))
-                    }
-                    "modulus_le_bits" => {
-                        let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_vector_literal(bits, IntegerBitSize::One, location))
-                    }
-                    "modulus_be_bits" => {
-                        let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_vector_literal(bits, IntegerBitSize::One, location))
-                    }
-                    "modulus_be_bytes" => {
-                        let bytes = FieldElement::modulus().to_bytes_be();
-                        Some(self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
-                    }
-                    "modulus_le_bytes" => {
-                        let bytes = FieldElement::modulus().to_bytes_le();
-                        Some(self.modulus_vector_literal(bytes, IntegerBitSize::Eight, location))
-                    }
-                    "checked_transmute" => {
-                        Some(self.checked_transmute(*expr_id, arguments, argument_values)?)
-                    }
-                    _ => None,
-                });
-            }
-        }
-        Ok(None)
-    }
-
-    fn checked_transmute(
-        &mut self,
-        expr_id: ExprId,
-        arguments: &[ExprId],
-        argument_values: &[ast::Expression],
-    ) -> Result<ast::Expression, MonomorphizationError> {
-        let location = self.interner.expr_location(&expr_id);
-        let actual = self.interner.id_type(arguments[0]).follow_bindings();
-        let expected = self.interner.id_type(expr_id).follow_bindings();
-
-        if actual.unify(&expected).is_err() {
-            Err(MonomorphizationError::CheckedTransmuteFailed { actual, expected, location })
-        } else {
-            // Evaluate `checked_transmute(arg)` to `{ arg }`
-            // in case the user did `&mut checked_transmute(arg)`. Wrapping the
-            // arg in a block prevents mutating the original argument.
-            let argument = argument_values[0].clone();
-            Ok(ast::Expression::Block(vec![argument]))
-        }
-    }
-
-    fn modulus_vector_literal(
-        &self,
-        bytes: Vec<u8>,
-        arr_elem_bits: IntegerBitSize,
-        location: Location,
-    ) -> ast::Expression {
-        use ast::*;
-
-        let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
-
-        let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(u32::from(byte));
-            Expression::Literal(Literal::Integer(value, int_type.clone(), location))
-        });
-
-        let typ = Type::Vector(Box::new(int_type));
-        let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
-        Expression::Literal(Literal::Vector(arr_literal))
-    }
-
+    /// Look up the instantiation bindings of a function expression and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
     fn queue_function(
         &mut self,
         id: node_interner::FuncId,
@@ -2308,6 +2257,9 @@ impl<'interner> Monomorphizer<'interner> {
         )
     }
 
+    /// Store the definition of a function and enqueue it for monomorphization.
+    ///
+    /// Returns the monomorphized ID assigned to the function.
     pub fn queue_function_with_bindings(
         &mut self,
         id: node_interner::FuncId,
@@ -2355,7 +2307,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.interner.id_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
-        if !self.in_unconstrained_function && Self::contains_reference(&expression_type) {
+        if !self.in_unconstrained_function && expression_type.contains_reference() {
             let typ = expression_type.to_string();
             return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
         }
@@ -2398,18 +2350,18 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         // Function values are represented as a tuple of (constrained version, unconstrained version)
-        self.monomorphize_constrained_and_unconstrained(
-            false,
-            self.force_unconstrained || lambda.unconstrained,
-            |this: &mut Self| {
-                if lambda.captures.is_empty() {
-                    this.lambda_no_capture(lambda, expr)
-                } else {
-                    let (setup, closure_variable) = this.closure(lambda, expr)?;
-                    Ok(ast::Expression::Block(vec![setup, closure_variable]))
-                }
-            },
-        )
+        if lambda.captures.is_empty() {
+            self.monomorphize_constrained_and_unconstrained(
+                false,
+                self.force_unconstrained || lambda.unconstrained,
+                |this: &mut Self| this.lambda_no_capture(lambda, expr),
+            )
+        } else {
+            // For closures with captures, we build a shared environment to avoid
+            // exponential blowup when closures capture other closures.
+            // Both variants share the same environment.
+            self.closure_with_shared_env(lambda, expr)
+        }
     }
 
     fn lambda_no_capture(
@@ -2440,7 +2392,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
         self.push_function(id, function);
 
@@ -2462,30 +2414,15 @@ impl<'interner> Monomorphizer<'interner> {
         }))
     }
 
-    /// Monomorphize a closure, returning it along with its environment as `(env, closure)`.
+    /// Monomorphize a closure with captures, creating both constrained and unconstrained
+    /// variants that share the same environment.
     ///
-    /// Note that this returns only a single function value in the `closure` slot. To obtain
-    /// a `(constrained, unconstrained)` pair, this function would need to be called twice,
-    /// e.g. via [Self::monomorphize_constrained_and_unconstrained].
-    fn closure(
+    /// Sharing the same environment avoids exponential blowup when closures capture other closures.
+    fn closure_with_shared_env(
         &mut self,
         lambda: HirLambda,
         expr: ExprId,
-    ) -> Result<(ast::Expression, ast::Expression), MonomorphizationError> {
-        // returns (<closure env>, <function variable>)
-        //   which can be used directly in callsites or transformed
-        //   directly to a single `Expression`
-        // for other cases by `lambda` which is called by `expr`
-        //
-        // it solves the problem of detecting special cases where
-        // we call something like
-        // `{let env$.. = ..;}.1({let env$.. = ..;}.0, ..)`
-        // which was leading to redefinition errors
-        //
-        // instead of detecting and extracting
-        // patterns in the resulting tree,
-        // which seems more fragile, we directly reuse the return parameters
-        // of this function in those cases
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&expr);
         let ret_type = Self::convert_type(&lambda.return_type, location)?;
         let lambda_name = "lambda";
@@ -2493,15 +2430,14 @@ impl<'interner> Monomorphizer<'interner> {
             try_vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ, location))?;
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters =
-            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
+        let parameters: Parameters = vecmap(&lambda.parameters, |(pattern, typ)| {
+            (pattern.clone(), typ.clone(), Visibility::Private)
+        })
+        .into();
 
-        let mut converted_parameters = self.parameters(&parameters)?;
+        let converted_parameters = self.parameters(&parameters)?;
 
-        let id = self.next_function_id();
-        let name = lambda_name.to_owned();
-        let return_type = ret_type.clone();
-
+        // Build the shared environment - captured closures stay as (constrained, unconstrained) pairs
         let env_local_id = self.next_local_id();
         let env_name = "env";
         let env_tuple =
@@ -2537,79 +2473,142 @@ impl<'interner> Monomorphizer<'interner> {
             expression: Box::new(env_tuple),
         });
 
-        let location = None; // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
-        let mutable = true;
-        let definition = Definition::Local(env_local_id);
-
         let env_ident = ast::Ident {
-            location,
-            mutable,
-            definition,
+            location: Some(location),
+            mutable: true,
+            definition: Definition::Local(env_local_id),
             name: env_name.to_string(),
             typ: env_typ.clone(),
             id: self.next_ident_id(),
         };
 
-        self.lambda_envs_stack
-            .push(LambdaContext { env_ident: env_ident.clone(), captures: lambda.captures });
-        let body = self.expr(lambda.body)?;
-        self.lambda_envs_stack.pop();
-
-        let lambda_fn_typ: ast::Type = ast::Type::Function(
-            parameter_types,
-            Box::new(ret_type),
-            Box::new(env_typ.clone()),
-            false,
-        );
-        let lambda_fn = ast::Expression::Ident(ast::Ident {
-            definition: Definition::Function(id),
-            mutable: false,
-            location: None, // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
-            name: name.clone(),
-            typ: lambda_fn_typ.clone(),
-            id: self.next_ident_id(),
+        // Push the shared environment context for processing both lambda bodies
+        self.lambda_envs_stack.push(LambdaContext {
+            env_ident: env_ident.clone(),
+            captures: lambda.captures.clone(),
         });
 
+        // Determine if we should force unconstrained for both variants.
+        // If we're already in an unconstrained context or force_unconstrained is set,
+        // both variants will be unconstrained, so we only need to create one function.
+        let force_both_unconstrained = self.force_unconstrained || lambda.unconstrained;
+        let both_unconstrained = force_both_unconstrained || self.in_unconstrained_function;
+
+        let old_unconstrained = self.in_unconstrained_function;
+
+        // Build shared parameters structure
         let mut parameters =
             vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
-        parameters.append(&mut converted_parameters);
+        parameters.extend(converted_parameters);
 
-        let function = Function {
-            id,
-            name,
-            parameters,
-            body,
-            return_type,
+        // Create constrained variant (or first unconstrained if both are unconstrained)
+        self.in_unconstrained_function = both_unconstrained;
+        let constrained_id = self.next_function_id();
+        let constrained_body = self.expr(lambda.body)?;
+        let mut lambda_fn = Function {
+            id: constrained_id,
+            name: lambda_name.to_owned(),
+            parameters: parameters.to_vec(),
+            body: constrained_body,
+            return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
+            is_entry_point: false,
         };
-        self.push_function(id, function);
+        self.push_function(constrained_id, lambda_fn.clone());
 
-        let lambda_value =
-            ast::Expression::Tuple(vec![ast::Expression::Ident(env_ident), lambda_fn]);
+        // Create unconstrained variant unless the previous variant is already unconstrained
+        let unconstrained_id = if both_unconstrained {
+            // Both variants are unconstrained, reuse the same function
+            constrained_id
+        } else {
+            // Create a separate unconstrained variant
+            self.in_unconstrained_function = true;
+            let unconstrained_id = self.next_function_id();
+            let unconstrained_body = self.expr(lambda.body)?;
+            lambda_fn.id = unconstrained_id;
+            lambda_fn.unconstrained = true;
+            lambda_fn.body = unconstrained_body;
+            self.push_function(unconstrained_id, lambda_fn);
+            unconstrained_id
+        };
+
+        // Restore state
+        self.in_unconstrained_function = old_unconstrained;
+        self.lambda_envs_stack.pop();
+
+        // Build the function type for both variants
+        let constrained_fn_typ = ast::Type::Function(
+            parameter_types.clone(),
+            Box::new(ret_type.clone()),
+            Box::new(env_typ.clone()),
+            both_unconstrained,
+        );
+        let unconstrained_fn_typ = ast::Type::Function(
+            parameter_types,
+            Box::new(ret_type),
+            Box::new(env_typ.clone()),
+            true,
+        );
+
+        // Build closure tuples: (env, fn) for each variant
+        let constrained_closure_typ =
+            ast::Type::Tuple(vec![env_typ.clone(), constrained_fn_typ.clone()]);
+        let unconstrained_closure_typ =
+            ast::Type::Tuple(vec![env_typ, unconstrained_fn_typ.clone()]);
+
+        // Create the expression that builds both closure variants sharing the same env:
+        // ((env, constrained_fn), (env, unconstrained_fn))
+        let constrained_fn_ident = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(constrained_id),
+            mutable: false,
+            location: Some(location),
+            name: lambda_name.to_owned(),
+            typ: constrained_fn_typ,
+            id: self.next_ident_id(),
+        });
+
+        let unconstrained_fn_ident = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(unconstrained_id),
+            mutable: false,
+            location: Some(location),
+            name: lambda_name.to_owned(),
+            typ: unconstrained_fn_typ,
+            id: self.next_ident_id(),
+        });
+
+        let env_expr = ast::Expression::Ident(env_ident);
+
+        let constrained_closure =
+            ast::Expression::Tuple(vec![env_expr.clone(), constrained_fn_ident]);
+        let unconstrained_closure = ast::Expression::Tuple(vec![env_expr, unconstrained_fn_ident]);
+
+        let closure_pair = ast::Expression::Tuple(vec![constrained_closure, unconstrained_closure]);
+
+        // Wrap in a block with the env let statement
         let block_local_id = self.next_local_id();
         let block_ident_name = "closure_variable";
+
         let block_let_stmt = ast::Expression::Let(ast::Let {
             id: block_local_id,
             mutable: false,
             name: block_ident_name.to_string(),
-            expression: Box::new(ast::Expression::Block(vec![env_let_stmt, lambda_value])),
+            expression: Box::new(ast::Expression::Block(vec![env_let_stmt, closure_pair])),
         });
 
-        let closure_definition = Definition::Local(block_local_id);
+        let result_typ = ast::Type::Tuple(vec![constrained_closure_typ, unconstrained_closure_typ]);
 
         let closure_ident = ast::Expression::Ident(ast::Ident {
-            location,
+            location: Some(location),
             mutable: false,
-            definition: closure_definition,
+            definition: Definition::Local(block_local_id),
             name: block_ident_name.to_string(),
-            typ: ast::Type::Tuple(vec![env_typ, lambda_fn_typ]),
+            typ: result_typ,
             id: self.next_ident_id(),
         });
 
-        Ok((block_let_stmt, closure_ident))
+        Ok(ast::Expression::Block(vec![block_let_stmt, closure_ident]))
     }
 
     fn match_expr(
@@ -2620,7 +2619,7 @@ impl<'interner> Monomorphizer<'interner> {
         let result_type = self.interner.id_type(expr_id);
         let location = self.interner.expr_location(&expr_id);
 
-        if !self.in_unconstrained_function && Self::contains_reference(&result_type) {
+        if !self.in_unconstrained_function && result_type.contains_reference() {
             let typ = result_type.to_string();
             return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
         }
@@ -2632,9 +2631,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg = "match failure";
                 let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
 
-                let u32_type = HirType::u32();
-                let length = (msg.len() as u128).into();
-                let length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
+                let length: u32 = msg.len().try_into().expect(
+                    "ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32",
+                );
+                let length = length.into();
                 let msg_type = HirType::String(Box::new(length));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
@@ -2679,122 +2679,6 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
         }
-    }
-
-    /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed
-    /// ast literal or collection node for the given type. Note that for functions
-    /// there is no obvious zeroed value so this should be considered unsafe to use.
-    fn zeroed_value_of_type(&mut self, typ: &ast::Type, location: Location) -> ast::Expression {
-        match typ {
-            ast::Type::Field | ast::Type::Integer(..) => {
-                let typ = typ.clone();
-                let zero = SignedField::positive(0u32);
-                ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
-            }
-            ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
-            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
-            ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type.as_ref(), location);
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: vec![element; *length as usize],
-                    typ: ast::Type::Array(*length, element_type.clone()),
-                }))
-            }
-            ast::Type::String(length) => {
-                ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
-            }
-            ast::Type::FmtString(length, fields) => {
-                let zeroed_tuple = self.zeroed_value_of_type(fields, location);
-                let fields_len = match &zeroed_tuple {
-                    ast::Expression::Tuple(fields) => fields.len() as u64,
-                    _ => unreachable!(
-                        "ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"
-                    ),
-                };
-                ast::Expression::Literal(ast::Literal::FmtStr(
-                    vec![FmtStrFragment::String("\0".repeat(*length as usize))],
-                    fields_len,
-                    Box::new(zeroed_tuple),
-                ))
-            }
-            ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
-                self.zeroed_value_of_type(field, location)
-            })),
-            ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
-                .create_zeroed_function(parameter_types, ret_type, env, *unconstrained, location),
-            ast::Type::Vector(element_type) => {
-                ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral {
-                    contents: vec![],
-                    typ: ast::Type::Vector(element_type.clone()),
-                }))
-            }
-            ast::Type::Reference(element, mutable) => {
-                use UnaryOp::Reference;
-                let rhs = Box::new(self.zeroed_value_of_type(element, location));
-                let result_type = typ.clone();
-                ast::Expression::Unary(ast::Unary {
-                    rhs,
-                    result_type,
-                    operator: Reference { mutable: *mutable },
-                    location,
-                    skip: false,
-                })
-            }
-        }
-    }
-
-    // Creating a zeroed function value is almost always an error if it is used later,
-    // Hence why std::unsafe_func::zeroed is unsafe.
-    //
-    // To avoid confusing later passes, we arbitrarily choose to construct a function
-    // that satisfies the input type by discarding all its parameters and returning a
-    // zeroed value of the result type.
-    fn create_zeroed_function(
-        &mut self,
-        parameter_types: &[ast::Type],
-        ret_type: &ast::Type,
-        env_type: &ast::Type,
-        unconstrained: bool,
-        location: Location,
-    ) -> ast::Expression {
-        let lambda_name = "zeroed_lambda";
-
-        let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone(), Visibility::Private)
-        });
-
-        let body = self.zeroed_value_of_type(ret_type, location);
-
-        let id = self.next_function_id();
-        let return_type = ret_type.clone();
-        let name = lambda_name.to_owned();
-
-        let function = Function {
-            id,
-            name,
-            parameters,
-            body,
-            return_type,
-            return_visibility: Visibility::Private,
-            unconstrained,
-            inline_type: InlineType::default(),
-            func_sig: FunctionSignature::default(),
-        };
-        self.push_function(id, function);
-
-        ast::Expression::Ident(ast::Ident {
-            definition: Definition::Function(id),
-            mutable: false,
-            location: None,
-            name: lambda_name.to_owned(),
-            typ: ast::Type::Function(
-                parameter_types.to_owned(),
-                Box::new(ret_type.clone()),
-                Box::new(env_type.clone()),
-                unconstrained,
-            ),
-            id: self.next_ident_id(),
-        })
     }
 
     /// Call an infix operator overloading method for the given operator.
@@ -2878,6 +2762,8 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 
+    /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
+    /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
         self.in_unconstrained_function
             || self.interner.function_modifiers(&func_id).is_unconstrained
@@ -2894,7 +2780,7 @@ impl<'interner> Monomorphizer<'interner> {
         if let HirExpression::Ident(ident, generics) = self.interner.expression(&function) {
             // Check if this directly refers to a function
             if matches!(self.interner.definition(ident.id).kind, DefinitionKind::Function(_)) {
-                return self.ident(ident, function, generics, true);
+                return self.ident(ident, function, generics, true, false);
             }
         }
 
@@ -2914,6 +2800,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    /// Check that an identifier refers to an unconstrained user defined function.
+    ///
+    /// Returns `false` for any other kind of expression.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
         if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
             if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
@@ -2921,6 +2810,23 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
+        false
+    }
+
+    fn function_is_oracle(&self, function: ExprId) -> bool {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
+            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+                return self
+                    .interner
+                    .function_modifiers(&func_id)
+                    .attributes
+                    .function
+                    .as_ref()
+                    .is_some_and(|(attribute, _)| {
+                        matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
+                    });
+            }
+        }
         false
     }
 }
@@ -2956,7 +2862,7 @@ fn unwrap_enum_type(
     typ: &HirType,
     location: Location,
 ) -> Result<Vec<(String, Vec<HirType>)>, MonomorphizationError> {
-    match typ.unwrap_forall().1.follow_bindings() {
+    match typ.as_monotype().follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {
@@ -3024,7 +2930,7 @@ pub fn perform_impl_bindings(
     Ok(bindings)
 }
 
-/// Resolve a trait item to a particular impl, returning the id of that impl or an error on failure.
+/// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
 fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3120,12 +3026,12 @@ fn resolve_trait_item_impl(
 ///
 /// During monomorphization, on the specific call to `foo::<Field>()`,
 /// the compiler will know that `K` refers to `Field`, and that `K::baz::<2>`
-/// refers to the `baz` method on the `Field` impl for `Bar`. In that method
+/// refers to the `baz` method on the `Bar` impl for `Field`. In that method
 /// the type variable `M` is unbound. Looking up its value will fail.
 /// However, we can bind `M` to `N`, so it eventually resolves to `2`,
 /// which is what this method does.
 fn bind_trait_impl_func_generics_to_trait_func_generics(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     method_id: TraitItemId,
     impl_id: node_interner::TraitImplId,
     bindings: &mut TypeBindings,
@@ -3170,6 +3076,10 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
     }
 }
 
+/// Look up a specific member of a trait, then look through the trait methods
+/// and associated constants until an item with a matching name is found.
+///
+/// Panics if the name cannot be matched to anything.
 pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3208,7 +3118,7 @@ pub(crate) fn resolve_trait_item(
         }
     }
 
-    unreachable!("No method named `{name}` in impl")
+    unreachable!("No method or constant named `{name}` in impl")
 }
 
 pub(crate) enum TraitItem {
@@ -3217,6 +3127,9 @@ pub(crate) enum TraitItem {
 }
 
 impl TraitItem {
+    /// Get the function ID from a [TraitItem::Method].
+    ///
+    /// Panics if called on a [TraitItem::Constant].
     pub(crate) fn unwrap_method(&self) -> node_interner::FuncId {
         match self {
             TraitItem::Method(func_id) => *func_id,
@@ -3227,15 +3140,16 @@ impl TraitItem {
     }
 }
 
-/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
-/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
-/// value, and another `bool` to show if the print is using a format string, or a raw
-/// value.
+/// Extend the arguments to `print` (which so far is a `bool` to show if newline is needed and
+/// value to be printed itself) with further metadata:
+/// * if we print a raw value, then append a JSON serialized `PrintableType` to describe it
+/// * if we are using a format string with multiple interpolations, append a separate JSON for each value in it
+/// * finally another `bool` to show if the print is using a format string, or a raw value
 pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::Expression>) {
     let typ: Type = typ.follow_bindings();
     let is_fmt_str = match typ {
         // A format string has many different possible types that need to be handled.
-        // Loop over each element in the format string to fetch each type's relevant metadata
+        // Loop over each element in the format string to fetch each type's relevant metadata.
         Type::FmtString(_, elements) => {
             match *elements {
                 Type::Tuple(element_types) => {

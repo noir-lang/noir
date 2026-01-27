@@ -139,19 +139,19 @@ mod entry_point {
          0: @2 = const u32 1
          1: @1 = const u32 32839
          2: @0 = const u32 71
-         3: sp[3] = const u32 2
-         4: sp[4] = const u32 0
-         5: @68 = calldata copy [sp[4]; sp[3]]
-         6: @68 = cast @68 to u32
-         7: @69 = cast @69 to u32
-         8: sp[1] = @68
-         9: sp[2] = @69
-        10: call 16
+         3: call 16
+         4: sp[3] = const u32 2
+         5: sp[4] = const u32 0
+         6: @68 = calldata copy [sp[4]; sp[3]]
+         7: @68 = cast @68 to u32
+         8: @69 = cast @69 to u32
+         9: sp[1] = @68
+        10: sp[2] = @69
         11: call 17
         12: @70 = sp[1]
         13: sp[2] = const u32 70
         14: sp[3] = const u32 1
-        15: stop &[sp[2]; sp[3]]
+        15: stop @[sp[2]; sp[3]]
         16: return
         17: call 24
         18: sp[3] = u32 add sp[1], sp[2]
@@ -164,10 +164,10 @@ mod entry_point {
         25: @3 = u32 lt @0, @4
         26: jump if @3 to 29
         27: @1 = indirect const u64 15764276373176857197
-        28: trap &[@1; @2]
+        28: trap @[@1; @2]
         29: return
         30: @1 = indirect const u64 14990209321349310352
-        31: trap &[@1; @2]
+        31: trap @[@1; @2]
         32: return
         ");
     }

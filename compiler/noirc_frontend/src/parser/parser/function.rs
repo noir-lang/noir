@@ -87,7 +87,7 @@ impl Parser<'_> {
         allow_optional_body: bool,
         allow_self: bool,
     ) -> FunctionDefinitionWithOptionalBody {
-        let name = if let Some(name) = self.eat_ident() {
+        let name = if let Some(name) = self.eat_non_underscore_ident() {
             name
         } else if self.at(Token::LeftParen) || self.at(Token::Less) {
             // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function
@@ -244,7 +244,7 @@ impl Parser<'_> {
         Param { visibility, pattern, typ, location: self.location_since(start_location) }
     }
 
-    fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
+    fn self_pattern_param(&self, self_pattern: SelfPattern) -> Param {
         let ident_location = self.previous_token_location;
         let ident = Ident::new("self".to_string(), ident_location);
         let path = Path::from_single("Self".to_owned(), ident_location);

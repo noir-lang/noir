@@ -4,7 +4,11 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::get_monomorphized;
+use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::test_utils::{
+    GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+    get_monomorphized_with_stdlib, stdlib_src,
+};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -22,7 +26,7 @@ fn last_use_in_if_branches() {
     fn eq(lhs: [Field; 2], rhs: [Field; 2]) -> bool {
         (lhs[0] == rhs[0]) & (lhs[1] == rhs[1])
     }
-    
+
     fn len(arr: [Field; 2]) -> u32 {
         2
     }
@@ -378,6 +382,114 @@ fn handle_reference_expression_cases() {
     }
     unconstrained fn lambda$f2(x$l8: [Field; 1]) -> [Field; 1] {
         x$l8
+    }
+    ");
+}
+
+#[test]
+fn clone_nested_array_in_lvalue() {
+    let src = "
+    unconstrained fn main(i: u32, j: u32) -> pub u32 {
+        let mut a = [[1, 2], [3, 4]];
+        a[i][j] = 5;
+        a[0][0]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // A clone is inserted in the lvalue position, because the array could be aliased somewhere else,
+    // and even if it was cloned, the RC was only increased for the outer array, not the nested one.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
+        let mut a$l2 = [[1, 2], [3, 4]];
+        a$l2[i$l0].clone()[j$l1] = 5;
+        a$l2[0][0]
+    }
+    ");
+}
+
+#[test]
+fn pure_builtin_args_get_cloned() {
+    let src = "
+    unconstrained fn main() -> pub u32 {
+        let a = [1, 2, 3];
+        let x = a.len();
+        let y = a.len();
+        x + y
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+
+    // The ownership pass doesn't know which builtin functions are pure and which ones
+    // modifies the arguments, so this optimization is deferred to the SSA generation.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub u32 {
+        let a$l0 = [1, 2, 3];
+        let x$l1 = len$array_len(a$l0.clone());
+        let y$l2 = len$array_len(a$l0);
+        (x$l1 + y$l2)
+    }
+    ");
+}
+
+#[test]
+fn while_condition_with_array_last_use() {
+    // The arrays last use should be in the while condition
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        while check(arr) {
+            break;
+        }
+    }
+
+    fn check(a: [Field; 3]) -> bool {
+        false
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // `arr` should be cloned in the while condition since it's evaluated multiple times
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        while check$f1(arr$l0.clone()) {
+            break
+        }
+    }
+    unconstrained fn check$f1(a$l1: [Field; 3]) -> bool {
+        false
+    }
+    ");
+}
+
+#[test]
+fn dereference_immutable_reference() {
+    // Dereferencing an immutable reference should work.
+    let src = "
+    fn main() {
+        let x: u32 = 0;
+        let y: &u32 = &x;
+        let _: u32 = *y;
+    }
+    ";
+
+    let options = GetProgramOptions {
+        frontend_options: FrontendOptions {
+            debug_comptime_in_file: None,
+            enabled_unstable_features: &[UnstableFeature::Ownership],
+            disable_required_unstable_features: true,
+        },
+        ..Default::default()
+    };
+
+    let program = get_monomorphized_with_options(src, options).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let x$l0 = 0;
+        let y$l1 = (&x$l0);
+        let _$l2 = (*y$l1)
     }
     ");
 }

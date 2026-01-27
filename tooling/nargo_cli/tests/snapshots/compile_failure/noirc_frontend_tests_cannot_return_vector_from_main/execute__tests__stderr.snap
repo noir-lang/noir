@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Invalid type found in the entry point to a program
-  ┌─ src/main.nr:2:8
+  ┌─ src/main.nr:2:22
   │
 2 │     fn main() -> pub [Field]{
-  │        ---- Vector is not a valid entry point type. Found: [Field]
+  │                      ------- Vector is not a valid entry point type. Found: [Field]
   │
   = Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
 

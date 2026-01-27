@@ -37,7 +37,7 @@ pub enum ResolverError {
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
-    Expected { location: Location, expected: &'static str, got: &'static str },
+    Expected { location: Location, expected: &'static str, found: String },
     #[error("Duplicate field in constructor")]
     DuplicateField { field: Ident },
     #[error("No such field in struct")]
@@ -65,15 +65,23 @@ pub enum ResolverError {
     #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
-    AbiAttributeOutsideContract { location: Location },
+    AbiAttributeOutsideContract { location: Location, usage_location: Option<Location> },
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
     LowLevelFunctionOutsideOfStdlib { location: Location },
+    #[error(
+        "The name of an `#[oracle]` function clashes with one defined in the Noir standard library"
+    )]
+    OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
+    #[error("Oracle functions cannot return references")]
+    OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot return vectors containing nested arrays")]
+    OracleReturnsVectorWithNestedArray { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -110,6 +118,8 @@ pub enum ResolverError {
     NoPredicatesAttributeOnEntryPoint { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident, location: Location },
+    #[error("#[inline_never] attribute is only allowed on unconstrained functions")]
+    InlineNeverAttributeOnConstrained { ident: Ident, location: Location },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
     #[error("Invalid syntax in macro call")]
@@ -168,8 +178,12 @@ pub enum ResolverError {
     NonIntegerGlobalUsedInPattern { location: Location },
     #[error("Cannot match on values of type `{typ}`")]
     TypeUnsupportedInMatch { typ: Type, location: Location },
-    #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
-    UnexpectedItemInPattern { location: Location, item: &'static str },
+    #[error("Cannot define a method on values of type `{typ}`")]
+    TypeUnsupportedForMethod { typ: Type, location: Location },
+    #[error("Cannot define a trait impl on values of type `{typ}`")]
+    TypeUnsupportedForTraitImpl { typ: Type, location: Location },
+    #[error("Expected a struct, enum, or literal value in pattern, but found {item}")]
+    UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
     #[error("Cannot use a type alias inside a type alias")]
@@ -202,6 +216,14 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, ident: Ident },
+    #[error("Associated type in `impl` without body")]
+    AssociatedTypeInImplWithoutBody { ident: Ident },
+    #[error("#[varargs] can only be applied to comptime functions")]
+    VarargsOnNonComptimeFunction { location: Location },
+    #[error("#[varargs] requires its function to have at least one parameter")]
+    VarargsOnFunctionWithNoParameters { location: Location },
+    #[error("The last parameter of a #[varargs] function must be a vector")]
+    VarargsLastParameterIsNotAVector { location: Location },
 }
 
 impl ResolverError {
@@ -223,7 +245,7 @@ impl ResolverError {
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
-            | ResolverError::AbiAttributeOutsideContract { location }
+            | ResolverError::AbiAttributeOutsideContract { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -253,6 +275,8 @@ impl ResolverError {
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
+            | ResolverError::TypeUnsupportedForMethod { location, .. }
+            | ResolverError::TypeUnsupportedForTraitImpl { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
@@ -262,8 +286,12 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
+            | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
+            | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
+            | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -271,7 +299,10 @@ impl ResolverError {
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
-            | ResolverError::BuiltinWithBody { location } => *location,
+            | ResolverError::BuiltinWithBody { location }
+            | ResolverError::VarargsOnNonComptimeFunction { location }
+            | ResolverError::VarargsOnFunctionWithNoParameters { location }
+            | ResolverError::VarargsLastParameterIsNotAVector { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -280,7 +311,8 @@ impl ResolverError {
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
             | ResolverError::DataBusOnNonEntryPoint { ident, .. }
-            | ResolverError::PatternBoundMoreThanOnce { ident } => ident.location(),
+            | ResolverError::PatternBoundMoreThanOnce { ident }
+            | ResolverError::AssociatedTypeInImplWithoutBody { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
             }
@@ -360,8 +392,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 }
             }
             ResolverError::PathResolutionError(error) => error.into(),
-            ResolverError::Expected { location, expected, got } => Diagnostic::simple_error(
-                format!("expected {expected} got {got}"),
+            ResolverError::Expected { location, expected, found: got } => Diagnostic::simple_error(
+                format!("expected {expected}, found {got}"),
                 String::new(),
                 *location,
             ),
@@ -459,18 +491,32 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
-            ResolverError::AbiAttributeOutsideContract { location } => {
-                Diagnostic::simple_error(
+            ResolverError::AbiAttributeOutsideContract { location, usage_location } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
                     *location,
-                )
-            },
+                );
+                if let Some(usage_location) = usage_location {
+                    diagnostic.add_secondary(
+                        "the type is used outside of a contract".to_string(),
+                        *usage_location,
+                    );
+                }
+                diagnostic
+            }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 *location,
             ),
+            ResolverError::OracleNameClashesWithStdlib { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior".into(),
+                    *location,
+                )
+            },
             ResolverError::OracleMarkedAsConstrained { ident, location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     error.to_string(),
@@ -484,6 +530,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleReturnsReference { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleReturnsVectorWithNestedArray { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
             },
@@ -610,6 +670,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
+                diag
+            }
+            ResolverError::InlineNeverAttributeOnConstrained { ident, location } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("misplaced #[inline_never] attribute on constrained function {ident}. Only allowed on unconstrained functions"),
+                    "misplaced #[inline_never] attribute".to_string(),
+                    *location,
+                );
+
+                diag.add_note("The `#[inline_never]` attribute prevents inlining of unconstrained functions".to_owned());
                 diag
             }
             ResolverError::UnquoteUsedOutsideQuote { location } => {
@@ -766,9 +836,23 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::TypeUnsupportedForMethod { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot define a method on values of type `{typ}`"),
+                    String::new(),
+                    *location,
+                )
+            }
+            ResolverError::TypeUnsupportedForTraitImpl { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot define a trait impl on values of type `{typ}`"),
+                    String::new(),
+                    *location,
+                )
+            }
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
-                    format!("Expected a struct, enum, or literal pattern, but found a {item}"),
+                    format!("Expected a struct, enum, or literal pattern, but found {item}"),
                     String::new(),
                     *location,
                 )
@@ -892,6 +976,34 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
+            },
+            ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
+                Diagnostic::simple_error(
+                    "Associated type in impl without body".to_string(),
+                    "Provide a definition for the type: ` = <type>;`".to_string(),
+                    ident.location(),
+                )
+            },
+            ResolverError::VarargsOnNonComptimeFunction { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] can only be applied to comptime functions".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsOnFunctionWithNoParameters { location } => {
+                Diagnostic::simple_error(
+                    "#[varargs] requires its function to have at least one parameter".to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::VarargsLastParameterIsNotAVector { location } => {
+                Diagnostic::simple_error(
+                    "The last parameter of a #[varargs] function must be a vector".to_string(),
+                    String::new(),
+                    *location,
+                )
             },
         }
     }

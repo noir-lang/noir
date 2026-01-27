@@ -48,7 +48,7 @@ export default {
     ],
   ],
   customFields: {
-    MATOMO_ENV: process.env.ENV,
+    ENV: process.env.ENV,
   },
   themeConfig: {
     colorMode: {
@@ -186,9 +186,6 @@ export default {
         disableSources: true,
         excludePrivate: true,
         skipErrorChecking: true,
-        sidebar: {
-          filteredIds: ['reference/NoirJS/noir_js/index'],
-        },
         readme: 'none',
         hidePageHeader: true,
         hideBreadcrumbs: true,
@@ -215,9 +212,6 @@ export default {
         disableSources: true,
         excludePrivate: true,
         skipErrorChecking: true,
-        sidebar: {
-          filteredIds: ['reference/noir_wasm/index'],
-        },
         readme: 'none',
         hidePageHeader: true,
         hideBreadcrumbs: true,

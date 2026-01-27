@@ -1,4 +1,4 @@
-use noirc_frontend::token::{DocStyle, Token};
+use noirc_frontend::token::{DocStyle, Token, TokenKind};
 
 use super::Formatter;
 
@@ -7,15 +7,22 @@ impl Formatter<'_> {
         loop {
             self.skip_comments_and_whitespace();
 
-            match self.token {
-                Token::LineComment(_, Some(DocStyle::Inner))
-                | Token::BlockComment(_, Some(DocStyle::Inner)) => {
+            if self.token.kind() != TokenKind::InnerDocComment {
+                break;
+            }
+
+            match self.bump() {
+                Token::LineComment(comment, Some(DocStyle::Inner)) => {
                     self.write_indentation();
-                    self.write_current_token_trimming_end();
-                    self.bump();
+                    self.write_line_comment(&comment, "//!");
                     self.write_line();
                 }
-                _ => break,
+                Token::BlockComment(comment, Some(DocStyle::Inner)) => {
+                    self.write_indentation();
+                    self.write_block_comment(&comment, "/*!");
+                    self.write_line();
+                }
+                _ => unreachable!("Expected an inner doc comment"),
             }
         }
     }
@@ -24,15 +31,24 @@ impl Formatter<'_> {
         loop {
             self.skip_comments_and_whitespace();
 
-            match self.token {
-                Token::LineComment(_, Some(DocStyle::Outer))
-                | Token::BlockComment(_, Some(DocStyle::Outer)) => {
+            if self.token.kind() != TokenKind::OuterDocComment {
+                break;
+            }
+
+            match self.bump() {
+                Token::LineComment(comment, Some(DocStyle::Outer)) => {
+                    let comment = comment.clone();
                     self.write_indentation();
-                    self.write_current_token_trimming_end();
-                    self.bump();
+                    self.write_line_comment(&comment, "///");
                     self.write_line();
                 }
-                _ => break,
+                Token::BlockComment(comment, Some(DocStyle::Outer)) => {
+                    let comment = comment.clone();
+                    self.write_indentation();
+                    self.write_block_comment(&comment, "/**");
+                    self.write_line();
+                }
+                _ => unreachable!("Expected an outer doc comment"),
             }
         }
     }
@@ -82,7 +98,12 @@ impl Formatter<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
+    use crate::{Config, assert_format, assert_format_with_config};
+
+    fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
+        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
 
     #[test]
     fn format_inner_doc_comments() {
@@ -108,6 +129,76 @@ mod tests {
         let src = " #![hello]    /* foo */    #![world]";
         let expected = "#![hello] /* foo */
 #![world]
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn wraps_line_outer_doc_comments() {
+        let src = "
+        /// This is a long comment that's going to be wrapped.
+        global x: Field = 1;
+        ";
+        let expected = "/// This is a long comment
+/// that's going to be
+/// wrapped.
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_line_inner_doc_comments() {
+        let src = "
+        //! This is a long comment that's going to be wrapped.
+        global x: Field = 1;
+        ";
+        let expected = "//! This is a long comment
+//! that's going to be
+//! wrapped.
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_outer_doc_comments() {
+        let src = "
+        /** This is a long comment that's going to be wrapped. */
+        global x: Field = 1;
+        ";
+        let expected = "/** This is a long comment
+that's going to be wrapped.
+*/
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_inner_doc_comments() {
+        let src = "
+        /*! This is a long comment that's going to be wrapped. */
+        global x: Field = 1;
+        ";
+        let expected = "/*! This is a long comment
+that's going to be wrapped.
+*/
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn doc_comment_followed_by_comment() {
+        let src = "
+        /// Some doc comment
+        // Some comment
+        global x: Field = 1;
+        ";
+        let expected = "/// Some doc comment
+// Some comment
+global x: Field = 1;
 ";
         assert_format(src, expected);
     }

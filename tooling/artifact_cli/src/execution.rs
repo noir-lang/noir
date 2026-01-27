@@ -4,8 +4,7 @@ use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, Sign, input_parser::InputValue};
-use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::CompiledProgram;
+use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 use crate::{
     errors::CliError,

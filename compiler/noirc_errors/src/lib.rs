@@ -2,7 +2,6 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 pub mod call_stack;
-pub mod debug_info;
 mod position;
 pub mod reporter;
 pub use noirc_span::{Span, Spanned};

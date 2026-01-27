@@ -62,7 +62,10 @@
 //! This case is similar to unsigned shift-left.
 use std::{borrow::Cow, sync::Arc};
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{AcirField, brillig::lengths::SemanticLength},
+};
 
 use crate::ssa::{
     ir::{
@@ -328,9 +331,15 @@ impl Context<'_, '_, '_> {
         let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
             1
         } else {
-            self.context.dfg.type_of_value(exponent).bit_size().ilog2()
+            let exponent_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
+            assert!(
+                exponent_bit_size.is_power_of_two(),
+                "ICE: exponent type bit size is expected to be a power of two"
+            );
+            exponent_bit_size.ilog2()
         };
-        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
+        let result_types =
+            vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(max_exponent_bits))];
 
         // A call to ToBits can only be done with a field argument (exponent is always u8 here)
         let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);

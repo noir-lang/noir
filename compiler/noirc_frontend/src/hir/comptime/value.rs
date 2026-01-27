@@ -10,9 +10,9 @@ use strum_macros::Display;
 use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, LetStatement, Literal, Pattern, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Literal, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -162,8 +162,11 @@ impl Value {
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
             }
             Value::String(value) => {
-                let length = Type::Constant(value.len().into(), Kind::u32());
-                Type::String(Box::new(length))
+                let length: u32 = value
+                    .len()
+                    .try_into()
+                    .expect("ICE: Value::get_type: value.len() is expected to fit into a u32");
+                Type::String(Box::new(length.into()))
             }
             Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
@@ -255,8 +258,37 @@ impl Value {
                 SignedField::positive(value),
                 Some(IntegerTypeSuffix::U128),
             )),
-            Value::String(value) | Value::CtString(value) => {
-                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::CtString(value) => {
+                // Lower to `std::meta::AsCtString::as_ctstring(contents)`
+                let ident = |name: &str| Ident::new(name.to_string(), location);
+                let segment = |name: &str| PathSegment::from(ident(name));
+                let path = |segments| Path {
+                    segments,
+                    location,
+                    kind: PathKind::Plain,
+                    kind_location: location,
+                };
+                let call = |path, arguments| {
+                    ExpressionKind::Call(Box::new(CallExpression {
+                        func: Box::new(Expression {
+                            kind: ExpressionKind::Variable(path),
+                            location,
+                        }),
+                        arguments,
+                        is_macro_call: false,
+                    }))
+                };
+                let as_ctstring = path(vec![
+                    segment("std"),
+                    segment("meta"),
+                    segment("ctstring"),
+                    segment("AsCtString"),
+                    segment("as_ctstring"),
+                ]);
+                let contents = Literal::Str(unwrap_rc(value));
+                let contents = Expression { kind: ExpressionKind::Literal(contents), location };
+                call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
                 // When turning a format string into an expression we could either:
@@ -354,7 +386,7 @@ impl Value {
                 ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
             }
             value @ Value::Enum(..) => {
-                let hir = value.into_hir_expression(elaborator.interner, location)?;
+                let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
                 ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
@@ -442,10 +474,11 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
-    /// Lowers this compile-time value into a HIR expression. This is similar to
-    /// [Self::into_expression] but is used in some cases in the monomorphizer where
-    /// code must already be in HIR.
-    pub(crate) fn into_hir_expression(
+    /// Lowers this compile-time value into a HIR expression to be used at runtime.
+    /// This means that comptime-only types will panic.
+    /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
+    /// where code must already be in HIR.
+    pub(crate) fn into_runtime_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,
@@ -485,9 +518,7 @@ impl Value {
             Value::U128(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::String(value) | Value::CtString(value) => {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
-            }
+            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
@@ -497,7 +528,8 @@ impl Value {
                             new_fragments.push(FmtStrFragment::String(string.clone()));
                         }
                         FormatStringFragment::Value { name, value } => {
-                            let expr_id = value.clone().into_hir_expression(interner, location)?;
+                            let expr_id =
+                                value.clone().into_runtime_hir_expression(interner, location)?;
                             captures.push(expr_id);
                             new_fragments
                                 .push(FmtStrFragment::Interpolation(name.clone(), location));
@@ -517,13 +549,14 @@ impl Value {
             }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| {
-                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                    field.unwrap_or_clone().into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_hir_expression(interner, location)?;
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -546,7 +579,7 @@ impl Value {
                 };
 
                 let arguments =
-                    try_vecmap(args, |arg| arg.into_hir_expression(interner, location))?;
+                    try_vecmap(args, |arg| arg.into_runtime_hir_expression(interner, location))?;
 
                 HirExpression::EnumConstructor(HirEnumConstructorExpression {
                     r#type,
@@ -556,25 +589,25 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
-            Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
-            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
+            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
             Value::Pointer(element, true, _) => {
-                return element.unwrap_or_clone().into_hir_expression(interner, location);
+                return element.unwrap_or_clone().into_runtime_hir_expression(interner, location);
             }
-            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
-            Value::TypedExpr(TypedExpr::StmtId(..))
+            Value::CtString(..)
+            | Value::Quoted(..)
+            | Value::TypedExpr(..)
             | Value::Expr(..)
             | Value::Pointer(..)
             | Value::TypeDefinition(_)
@@ -723,7 +756,9 @@ impl Value {
                 let string = fragments_to_string(&fragments, interner);
                 vec![Token::Str(string)]
             }
-            other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
+            other => {
+                vec![Token::UnquoteMarker(other.into_runtime_hir_expression(interner, location)?)]
+            }
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         Ok(tokens)
@@ -819,25 +854,31 @@ impl Value {
 
     /// Converts any integral `Value` into a `SignedField`.
     /// Returns `None` for non-integral `Value`s and negative numbers.
+    pub(crate) fn to_non_negative_signed_field(&self) -> Option<SignedField> {
+        let value = self.to_signed_field()?;
+        value.is_positive().then_some(value)
+    }
+
+    /// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s
     pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
         match self {
-            Self::Field(value) => Some(*value),
-
-            Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U1(value) => Some(if *value { SignedField::one() } else { SignedField::zero() }),
-            Self::U8(value) => Some(u128::from(*value).into()),
-            Self::U16(value) => Some(u128::from(*value).into()),
-            Self::U32(value) => Some(u128::from(*value).into()),
-            Self::U64(value) => Some(u128::from(*value).into()),
-            Self::U128(value) => Some((*value).into()),
+            Value::Field(value) => Some(value.into()),
+            Value::I8(value) => Some(value.into()),
+            Value::I16(value) => Some(value.into()),
+            Value::I32(value) => Some(value.into()),
+            Value::I64(value) => Some(value.into()),
+            Value::U1(value) => Some(value.into()),
+            Value::U8(value) => Some(value.into()),
+            Value::U16(value) => Some(value.into()),
+            Value::U32(value) => Some(value.into()),
+            Value::U64(value) => Some(value.into()),
+            Value::U128(value) => Some(value.into()),
             _ => None,
         }
     }
 
-    /// Similar to [Self::into_expression] or [Self::into_hir_expression] but for converting
+    /// Similar to [Self::into_expression] or [Self::into_runtime_hir_expression] but for converting
     /// into top-level item(s). Unlike those other methods, most expressions are invalid
     /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
     /// this method is significantly simpler because we only have to parse `Quoted` values

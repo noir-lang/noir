@@ -40,7 +40,7 @@ pub(crate) enum Chunk {
     /// (for example for a call we'll add a trailing comma to the last argument).
     TrailingComma,
     /// A trailing comment (happens at the end of a line, and always after something else have been written).
-    TrailingComment(TextChunk),
+    TrailingComment(TextChunk, bool /* at_block_end */),
     /// A leading comment. Happens at the beginning of a line.
     LeadingComment(TextChunk),
     /// A group of chunks.
@@ -64,7 +64,7 @@ impl Chunk {
     pub(crate) fn width(&self) -> usize {
         match self {
             Chunk::Text(chunk, _)
-            | Chunk::TrailingComment(chunk)
+            | Chunk::TrailingComment(chunk, _)
             | Chunk::LeadingComment(chunk) => chunk.width,
             Chunk::Group(group) => group.width(),
             Chunk::SpaceOrLine => 1,
@@ -94,7 +94,7 @@ impl Chunk {
     pub(crate) fn has_newlines(&self) -> bool {
         match self {
             Chunk::Text(chunk, _)
-            | Chunk::TrailingComment(chunk)
+            | Chunk::TrailingComment(chunk, _)
             | Chunk::LeadingComment(chunk) => chunk.has_newlines,
             Chunk::Group(group) => group.has_newlines(),
             Chunk::TrailingComma
@@ -117,7 +117,7 @@ impl Display for Chunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Chunk::Text(text_chunk, _)
-            | Chunk::TrailingComment(text_chunk)
+            | Chunk::TrailingComment(text_chunk, _)
             | Chunk::LeadingComment(text_chunk) => {
                 write!(f, "{}", text_chunk.string)
             }
@@ -263,7 +263,15 @@ impl ChunkGroup {
     /// Appends a trailing comment (it's formatted slightly differently than a regular text chunk).
     pub(crate) fn trailing_comment(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
-            self.push(Chunk::TrailingComment(chunk));
+            self.push(Chunk::TrailingComment(chunk, false));
+        }
+    }
+
+    /// Similar to `trailing_comment` but happens in a block end so no newline+indent will be
+    /// produced afterwards.
+    pub(crate) fn trailing_comment_at_block_end(&mut self, chunk: TextChunk) {
+        if chunk.width > 0 {
+            self.push(Chunk::TrailingComment(chunk, true));
         }
     }
 
@@ -385,7 +393,13 @@ impl ChunkGroup {
                     // so that it glues with the last text present there (if any)
                     group.add_trailing_comma_to_last_text();
                 }
-                Chunk::TrailingComment(chunk) => group.trailing_comment(chunk),
+                Chunk::TrailingComment(chunk, at_block_end) => {
+                    if at_block_end {
+                        group.trailing_comment_at_block_end(chunk);
+                    } else {
+                        group.trailing_comment(chunk);
+                    }
+                }
                 Chunk::LeadingComment(chunk) => group.leading_comment(chunk),
                 Chunk::Group(inner_group) => group.group(inner_group),
                 Chunk::Line { two } => group.lines(two),
@@ -414,7 +428,7 @@ impl ChunkGroup {
         for chunk in &self.chunks {
             match chunk {
                 Chunk::Text(text_chunk, _)
-                | Chunk::TrailingComment(text_chunk)
+                | Chunk::TrailingComment(text_chunk, _)
                 | Chunk::LeadingComment(text_chunk) => {
                     width += text_chunk.width;
                 }
@@ -507,7 +521,7 @@ pub(crate) enum GroupKind {
     /// This is a chunk that has a list of expression in it, for example:
     /// a call, a method call, an array literal, a tuple literal, etc.
     /// `prefix_width` is the width of whatever is before the actual expression list.
-    /// For example, for an array this is 1 (for "["), for a vector it's 2 ("&["), etc.
+    /// For example, for an array this is 1 (for "["), for a vector it's 2 ("@["), etc.
     ExpressionList { prefix_width: usize, expressions_count: usize },
     /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
@@ -569,11 +583,14 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(crate) fn chunk(&mut self, f: impl FnOnce(&mut Formatter)) -> TextChunk {
         let previous_buffer = std::mem::take(&mut self.0.buffer);
         let previous_indentation = self.0.indentation;
+        let previous_in_chunk = self.0.in_chunk;
         self.0.indentation = 0;
+        self.0.in_chunk = true;
 
         f(self.0);
 
         self.0.indentation = previous_indentation;
+        self.0.in_chunk = previous_in_chunk;
 
         let buffer = std::mem::replace(&mut self.0.buffer, previous_buffer);
         TextChunk::new(buffer.contents())
@@ -790,7 +807,7 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        // Check if the group first in the remainder of the current line.
+        // Check if the group fits in the remainder of the current line.
         if total_width > self.max_width {
             // If this chunk is the value of an assignment (either a normal assignment or a let statement)
             // and it doesn't fit the current line, we check if it fits the next line with an increased
@@ -912,7 +929,10 @@ impl<'a> Formatter<'a> {
                 Chunk::Text(text_chunk, _) => {
                     self.write(&text_chunk.string);
                 }
-                Chunk::TrailingComment(text_chunk) | Chunk::LeadingComment(text_chunk) => {
+                Chunk::TrailingComment(text_chunk, _) => {
+                    self.write(&text_chunk.string);
+                }
+                Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
                     self.write_space_without_skipping_whitespace_and_comments();
                 }
@@ -958,7 +978,7 @@ impl<'a> Formatter<'a> {
                     if verbatim {
                         self.write(&text_chunk.string);
                     } else if text_chunk.has_newlines {
-                        self.write_chunk_lines(&text_chunk.string);
+                        self.write_chunk_lines(&text_chunk.string, false);
                     } else {
                         // If we didn't exceed the max width, but this chunk will, insert a newline,
                         // increase indentation and indent (the indentation will be undone
@@ -977,16 +997,20 @@ impl<'a> Formatter<'a> {
                         self.write(&text_chunk.string);
                     }
                 }
-                Chunk::TrailingComment(text_chunk) => {
-                    self.write_chunk_lines(&text_chunk.string);
-                    self.write_line_without_skipping_whitespace_and_comments();
-                    self.write_indentation();
+                Chunk::TrailingComment(text_chunk, at_block_end) => {
+                    let is_comment = true;
+                    self.write_chunk_lines(&text_chunk.string, is_comment);
+                    if !at_block_end {
+                        self.write_line_without_skipping_whitespace_and_comments();
+                        self.write_indentation();
+                    }
                 }
                 Chunk::LeadingComment(text_chunk) => {
                     let ends_with_multiple_newlines = text_chunk.string.ends_with("\n\n");
                     let ends_with_newline =
                         ends_with_multiple_newlines || text_chunk.string.ends_with('\n');
-                    self.write_chunk_lines(text_chunk.string.trim());
+                    let is_comment = true;
+                    self.write_chunk_lines(text_chunk.string.trim(), is_comment);
 
                     // Respect whether the leading comment had a newline before what comes next or not
                     if ends_with_multiple_newlines {
@@ -1078,12 +1102,23 @@ impl<'a> Formatter<'a> {
     }
 
     /// Appends the string to the current buffer line by line, with some pre-checks.
-    fn write_chunk_lines(&mut self, string: &str) {
+    fn write_chunk_lines(&mut self, string: &str, is_comment: bool) {
+        // Here we also wrap comments if this chunk is a comment.
+        // The logic involves checking whether each line is part of a line or block comment
+        // and wrapping those accordingly.
+        let mut inside_block_comment = false;
+
         let lines: Vec<_> = string.lines().collect();
 
         let mut index = 0;
         while index < lines.len() {
-            let line = &lines[index];
+            let mut line = lines[index];
+
+            let starts_with_space = line.starts_with(' ');
+            let is_line_comment =
+                is_comment && !inside_block_comment && line.trim_start().starts_with("//");
+            let is_block_comment =
+                is_comment && !inside_block_comment && line.trim_start().starts_with("/*");
 
             // Don't indent the first line (it should already be indented).
             // Also don't indent if the current line already has a space as the last char
@@ -1100,7 +1135,27 @@ impl<'a> Formatter<'a> {
             // If we already have a space in the buffer and the line starts with a space,
             // don't repeat that space.
             if self.buffer.ends_with_space() && line.starts_with(' ') {
-                self.write(line.trim_start());
+                line = line.trim_start();
+            }
+
+            if is_line_comment && self.config.wrap_comments {
+                if starts_with_space && !self.buffer.ends_with_space() {
+                    self.write(" ");
+                }
+                self.write_comment_with_prefix(
+                    line.trim_start().strip_prefix("//").unwrap_or(line),
+                    "//",
+                );
+            } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
+                // Only append a space if it's the start of a block comment (no leading spaces in following lines)
+                if starts_with_space && is_block_comment && !self.buffer.ends_with_space() {
+                    self.write(" ");
+                }
+                self.write_comment_with_prefix(line, "");
+                if inside_block_comment {
+                    self.start_new_line();
+                }
+                inside_block_comment = true;
             } else {
                 self.write(line);
             }
@@ -1111,6 +1166,10 @@ impl<'a> Formatter<'a> {
             while index < lines.len() && lines[index].is_empty() {
                 self.write_multiple_lines_without_skipping_whitespace_and_comments();
                 index += 1;
+            }
+
+            if inside_block_comment && line.trim_end().ends_with("*/") {
+                inside_block_comment = false;
             }
         }
     }

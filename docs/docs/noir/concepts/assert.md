@@ -73,7 +73,7 @@ fn main(x : Field, y : Field) {
     // this fails because `x` is not known at compile-time
     static_assert(x == 2, "expected x to be known at compile-time and equal to 2");
 
-    let mut example_vector = &[];
+    let mut example_vector = @[];
     if y == 4 {
         example_vector = example_vector.push_back(0);
     }

@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
@@ -376,4 +376,539 @@ fn call_function_alias_type() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn regression_10415() {
+    let src = r#"
+    type Nothing = ();
+
+    fn main() -> Nothing {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10415_without_alias() {
+    let src = r#"
+    fn main() -> () {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10429() {
+    let src = r#"
+    struct Struct {}
+
+    type Alias = Struct;
+
+    impl Alias {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10429_with_trait() {
+    let src = r#"
+    struct Struct {}
+
+    type Alias = Struct;
+
+    trait Foo {
+        fn foo() -> Self;
+    }
+
+    impl Foo for Alias {
+        fn foo() -> Self {
+            Struct {}
+        }
+    }
+
+    fn main() {
+        let _alias: Alias = <Alias as Foo>::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10352_parameter() {
+    let src = r#"
+    type Alias = Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_tuple() {
+    let src = r#"
+    type Alias = (Alias,);
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_struct() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    type Alias = Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_enum() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    type Alias = Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_array() {
+    let src = r#"
+    type Alias = [Alias; 3];
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_slice() {
+    let src = r#"
+    type Alias = [Alias];
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_trait_as_type() {
+    let src = r#"
+    trait Foo<T> {}
+
+    type Alias = impl Foo<Alias>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10352_string() {
+    let src = r#"
+    type Alias = str<Alias>;
+    
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_format_string_len() {
+    let src = r#"
+    type Alias = fmtstr<Alias, ()>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_format_string_env() {
+    let src = r#"
+    type Alias = fmtstr<0, (Alias,)>;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_parameter() {
+    let src = r#"
+    type Alias = fn(Alias);
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_return() {
+    let src = r#"
+    type Alias = fn() -> Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_function_env() {
+    let src = r#"
+    type Alias = fn[(Alias,)]();
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10352_immutable_reference() {
+    let src = r#"
+    type Alias = &Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn regression_10352_mutable_reference() {
+    let src = r#"
+    type Alias = &mut Alias;
+
+    fn main(_: Alias) {}
+               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
+               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases() {
+    let src = r#"
+    type K = Field;
+    type V = Field;
+
+    fn field_lt(_x: Field, _y: Field) -> bool { true }
+
+    pub global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| field_lt(a.0, b.0);
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases() {
+    let src = r#"
+    pub type TReturnElem = [Field; 3];
+    pub type TReturn = [TReturnElem; 2];
+
+    pub fn t_return_elem() -> TReturnElem {
+        [0; 3]
+    }
+
+    pub fn t_return() -> TReturn {
+        [t_return_elem(); 2]
+    }
+
+    pub unconstrained fn two_nested_return_unconstrained() -> (Field, TReturn, Field, TReturn) {
+        (0, t_return(), 0, t_return())
+    }
+
+    pub unconstrained fn foo_return_unconstrained() -> (Field, TReturn, TestTypeFoo) {
+        (0, t_return(), test_type_foo())
+    }
+
+    pub struct TestTypeFoo {
+        a: Field,
+        b: [[[Field; 3]; 4]; 2],
+        c: [TReturnElem; 2],
+        d: TReturnElem,
+    }
+
+    pub fn test_type_foo() -> TestTypeFoo {
+        TestTypeFoo {
+            a: 0,
+            b: [[[0; 3]; 4]; 2],
+            c: [t_return_elem(); 2],
+            d: t_return_elem(),
+        }
+    }
+
+    pub unconstrained fn complex_struct_return() {
+        let _: (Field, [[Field; 3]; 2], TestTypeFoo) = foo_return_unconstrained();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10763_mutable() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = &mut ();
+
+    impl Foo for Bar {
+                 ^^^ Trait impls are not allowed on aliases to reference types
+                 ~~~ Try using a struct or enum type here instead
+
+        fn foo(self) { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10756() {
+    let src = r#"
+    pub type Foo = 0;
+                   ^ type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`
+
+    fn main() {
+        let _: Foo = std::mem::zeroed();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10763_immutable() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = &();
+
+    impl Foo for Bar {
+                 ^^^ Trait impls are not allowed on aliases to reference types
+                 ~~~ Try using a struct or enum type here instead
+        fn foo(self) { }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn signed_numeric_type_alias_with_negative_operand() {
+    // Regression test for https://github.com/noir-lang/noir/issues/10969
+    // Numeric type alias expressions should use their declared type.
+    // The expression `0 % (-1)` must be elaborated as a i32.
+    // An unsigned type would cause an "attempt to subtract with overflow" errors.
+    let src = r#"
+    pub type X: i32 = 0 % (-1);
+
+    fn main() {
+        let _: i32 = X;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10971() {
+    // Regression test for https://github.com/noir-lang/noir/issues/10971
+    let src = r#"
+    pub type X: u8 = 257;
+    ^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+
+    fn main() {
+        let _ = X;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = impl Foo;
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = impl Foo;
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type_impl() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = impl Foo;
+
+    impl Bar {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic_impl() {
+    let src = r#"
+    type Foo = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore_impl() {
+    let src = r#"
+    type Foo = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors(src);
 }

@@ -1,4 +1,6 @@
-use acvm::acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput};
+use acvm::acir::{
+    AcirField, BlackBoxFunc, brillig::lengths::FlattenedLength, circuit::opcodes::FunctionInput,
+};
 use iter_extended::vecmap;
 
 use crate::{
@@ -16,16 +18,19 @@ impl<F: AcirField> AcirContext<F> {
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
         num_bits: Option<u32>,
-        output_count: usize,
+        output_count: FlattenedLength,
         predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let output_count = output_count.to_usize();
         // Separate out any arguments that should be constants
         let constant_inputs = match name {
             BlackBoxFunc::AES128Encrypt => {
                 let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
                 let input_size: usize = match inputs.first().expect(invalid_input) {
                     AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
-                    AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError>(dyn_array.len),
+                    AcirValue::DynamicArray(dyn_array) => {
+                        Ok::<usize, RuntimeError>(dyn_array.len.to_usize())
+                    }
                     _ => {
                         return Err(RuntimeError::InternalError(InternalError::General {
                             message: "aes128_encrypt requires an array of inputs".to_string(),
@@ -34,11 +39,8 @@ impl<F: AcirField> AcirContext<F> {
                     }
                 }?;
 
-                assert_eq!(
-                    output_count,
-                    input_size + 16 - input_size % 16,
-                    "output count mismatch"
-                );
+                assert!(input_size % 16 == 0, "input length must be a multiple of 16");
+                assert_eq!(output_count, input_size, "output count mismatch");
 
                 Vec::new()
             }

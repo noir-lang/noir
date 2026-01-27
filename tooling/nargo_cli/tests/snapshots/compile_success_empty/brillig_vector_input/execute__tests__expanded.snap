@@ -18,7 +18,7 @@ unconstrained fn sum_vector(vector: [[Point; 2]]) -> Field {
 }
 
 fn main() {
-    let mut vector: [[Point; 2]] = &[];
+    let mut vector: [[Point; 2]] = [].as_vector();
     vector =
         vector.push_back([Point { x: 13_Field, y: 14_Field }, Point { x: 20_Field, y: 8_Field }]);
     // Safety: comment added by `nargo expand`

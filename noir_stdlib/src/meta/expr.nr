@@ -80,10 +80,10 @@ impl Expr {
     // docs:end:as_for
 
     /// If this expression is a for statement over a range, return the identifier,
-    /// the range start, the range end and the for loop body.
+    /// the range start, the range end, whether the range is inclusive, and the for loop body.
     #[builtin(expr_as_for_range)]
     // docs:start:as_for_range
-    pub comptime fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)> {}
+    pub comptime fn as_for_range(self) -> Option<(Quoted, Expr, Expr, bool, Expr)> {}
     // docs:end:as_for_range
 
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
@@ -165,14 +165,14 @@ impl Expr {
     #[deprecated("This method has been renamed to `as_repeated_element_vector`")]
     pub comptime fn as_repeated_element_slice(self) -> Option<(Expr, Expr)> {}
 
-    /// If this expression is a vector literal `&[elem1, ..., elemN]`,
+    /// If this expression is a vector literal `@[elem1, ..., elemN]`,
     /// return each element of the vector.
     #[builtin(expr_as_vector)]
     // docs:start:as_vector
     pub comptime fn as_vector(self) -> Option<[Expr]> {}
     // docs:end:as_vector
 
-    /// If this expression is a vector literal `&[elem1, ..., elemN]`,
+    /// If this expression is a vector literal `@[elem1, ..., elemN]`,
     /// return each element of the vector.
     /// This method is deprecated in favor of `as_vector`
     #[builtin(expr_as_vector)]
@@ -238,8 +238,8 @@ impl Expr {
     ///
     /// This happens recursively for every expression within `self`.
     ///
-    /// For example, calling `modify` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
-    /// for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
+    /// For example, calling `modify` on `(@[1], @[2, 3])` with an `f` that returns `Option::some`
+    /// for expressions that are integers, doubling them, would return `(@[2], @[4, 6])`.
     // docs:start:modify
     pub comptime fn modify<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         // docs:end:modify
@@ -404,11 +404,11 @@ comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Opt
 }
 
 comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_for_range().map(|(identifier, from, to, body)| {
+    expr.as_for_range().map(|(identifier, from, to, inclusive, body)| {
         let from = from.modify(f);
         let to = to.modify(f);
         let body = body.modify(f);
-        new_for_range(identifier, from, to, body)
+        new_for_range(identifier, from, to, inclusive, body)
     })
 }
 
@@ -564,8 +564,19 @@ comptime fn new_for(identifier: Quoted, array: Expr, body: Expr) -> Expr {
     quote { for $identifier in $array { $body } }.as_expr().unwrap()
 }
 
-comptime fn new_for_range(identifier: Quoted, from: Expr, to: Expr, body: Expr) -> Expr {
-    quote { for $identifier in $from .. $to { $body } }.as_expr().unwrap()
+comptime fn new_for_range(
+    identifier: Quoted,
+    from: Expr,
+    to: Expr,
+    inclusive: bool,
+    body: Expr,
+) -> Expr {
+    let dots = if inclusive {
+        quote { ..= }
+    } else {
+        quote { .. }
+    };
+    quote { for $identifier in $from $dots $to { $body } }.as_expr().unwrap()
 }
 
 comptime fn new_index(object: Expr, index: Expr) -> Expr {
@@ -636,12 +647,12 @@ comptime fn new_repeated_element_array(expr: Expr, length: Expr) -> Expr {
 }
 
 comptime fn new_repeated_element_vector(expr: Expr, length: Expr) -> Expr {
-    quote { &[$expr; $length] }.as_expr().unwrap()
+    quote { @[$expr; $length] }.as_expr().unwrap()
 }
 
 comptime fn new_vector(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
-    quote { &[$exprs]}.as_expr().unwrap()
+    quote { @[$exprs] }.as_expr().unwrap()
 }
 
 comptime fn new_tuple(exprs: [Expr]) -> Expr {

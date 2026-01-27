@@ -14,7 +14,6 @@ use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
 use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
-use serde::{Deserialize, Serialize};
 
 pub type RtResult<T> = Result<T, RuntimeError>;
 
@@ -95,70 +94,6 @@ pub enum RuntimeError {
     },
     #[error("SSA validation failed: {message}")]
     SsaValidationError { message: String, call_stack: CallStack },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
-pub enum SsaReport {
-    Warning(InternalWarning),
-    Bug(InternalBug),
-}
-
-impl From<SsaReport> for CustomDiagnostic {
-    fn from(error: SsaReport) -> CustomDiagnostic {
-        match error {
-            SsaReport::Warning(warning) => {
-                let message = warning.to_string();
-                let (secondary_message, call_stack) = match warning {
-                    InternalWarning::ReturnConstant { call_stack } => {
-                        ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
-                    },
-                };
-                let call_stack = vecmap(call_stack, |location| location);
-                let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic =
-                    CustomDiagnostic::simple_warning(message, secondary_message, *location);
-                diagnostic.with_call_stack(call_stack)
-            }
-            SsaReport::Bug(bug) => {
-                let mut message = bug.to_string();
-                let (secondary_message, call_stack) = match bug {
-                    InternalBug::IndependentSubgraph { call_stack } => {
-                        ("There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
-                    }
-                    InternalBug::UncheckedBrilligCall { call_stack } => {
-                        ("This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
-                    }
-                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } => {
-                        if let Some(assertion_failure_message) = assertion_failure_message {
-                            message.push_str(&format!(": {assertion_failure_message}"));
-                        }
-                        ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
-                    }
-                };
-                let call_stack = vecmap(call_stack, |location| location);
-                let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic =
-                    CustomDiagnostic::simple_bug(message, secondary_message, *location);
-                diagnostic.with_call_stack(call_stack)
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
-pub enum InternalWarning {
-    #[error("Return variable contains a constant value")]
-    ReturnConstant { call_stack: CallStack },
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
-pub enum InternalBug {
-    #[error("Input to Brillig function is in a separate subgraph to output")]
-    IndependentSubgraph { call_stack: CallStack },
-    #[error("Brillig function call isn't properly covered by a manual constraint")]
-    UncheckedBrilligCall { call_stack: CallStack },
-    #[error("Assertion is always false")]
-    AssertFailed { call_stack: CallStack, message: Option<String> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]

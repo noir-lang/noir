@@ -1,7 +1,7 @@
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
+use noirc_artifacts::debug::DebugVarId;
 use noirc_errors::Location;
-use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::PrintableType;
 
 use crate::debug::{SourceFieldId, SourceVarId};

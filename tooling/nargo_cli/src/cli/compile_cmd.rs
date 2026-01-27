@@ -12,8 +12,9 @@ use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::{
     read_program_from_file, save_contract_to_file, save_program_to_file,
 };
+use noirc_artifacts::contract::CompiledContract;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
+use noirc_driver::{CompilationResult, CompileOptions};
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;

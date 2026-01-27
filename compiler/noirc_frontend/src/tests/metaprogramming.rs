@@ -9,12 +9,12 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    tests::check_errors_using_features,
+    test_utils::stdlib_src,
+    tests::{check_errors_using_features, check_errors_with_stdlib},
 };
 
 use crate::tests::{
-    assert_no_errors, assert_no_errors_and_to_string, assert_no_errors_without_report,
-    check_errors, get_program_errors,
+    assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
 };
 
 // Regression for #5388
@@ -97,15 +97,15 @@ fn unquoted_integer_as_integer_token() {
         fn serialize() {
         }
     }
-    
+
     impl Serialize<1> for Field {
         fn serialize() {
         }
     }
-    
+
     pub fn foobar() {
     }
-    
+
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
         let serialized_len: Field = 1_Field;
         quote {
@@ -144,13 +144,13 @@ fn allows_references_to_structs_generated_by_macros() {
             }
         }
     }
-    
+
     struct Bar {
     }
-    
+
     struct Foo {
     }
-    
+
     fn main() {
         let _: Foo = Foo { };
         let _: Bar = Bar { };
@@ -164,7 +164,7 @@ fn generate_function_with_macros() {
     #[foo]
     comptime fn foo(_f: FunctionDefinition) -> Quoted {
         quote {
-            pub fn bar(x: i32) -> i32  {  
+            pub fn bar(x: i32) -> i32  {
                 let y = x + 1;
                 y + 2
             }
@@ -182,7 +182,7 @@ fn generate_function_with_macros() {
             }
         }
     }
-    
+
     pub fn bar(x: i32) -> i32 {
         let y: i32 = x + 1_i32;
         y + 2_i32
@@ -200,7 +200,7 @@ fn generate_function_with_macros_on_trait() {
 
     comptime fn foo(_f: TraitDefinition) -> Quoted {
         quote {
-            pub fn bar(x: i32) -> i32  {  
+            pub fn bar(x: i32) -> i32  {
                 let y = x + 1;
                 y + 2
             }
@@ -212,13 +212,13 @@ fn generate_function_with_macros_on_trait() {
     let expanded = assert_no_errors_and_to_string(src);
     insta::assert_snapshot!(expanded, @r"
     trait MyTrait {
-    
+
     }
-    
+
     impl MyTrait for () {
-    
+
     }
-    
+
     comptime fn foo(_f: TraitDefinition) -> Quoted {
         quote {
             pub fn bar(x: i32) -> i32 {
@@ -227,7 +227,7 @@ fn generate_function_with_macros_on_trait() {
             }
         }
     }
-    
+
     pub fn bar(x: i32) -> i32 {
         let y: i32 = x + 1_i32;
         y + 2_i32
@@ -291,7 +291,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     // errors land on the same span.
     let src = r#"
     comptime fn make_colliding_functions(_s: TypeDefinition) -> Quoted {
-        quote { 
+        quote {
             fn foo() {}
         }
     }
@@ -357,7 +357,7 @@ fn does_not_fail_to_parse_macro_on_parser_warning() {
     comptime fn make_bar(_: FunctionDefinition) -> Quoted {
         quote {
             pub fn bar() {
-                unsafe { 
+                unsafe {
                 ^^^^^^ Unsafe block must have a safety comment above it
                 ~~~~~~ The comment must start with the "Safety: " word
                     foo();
@@ -414,10 +414,10 @@ fn quote_code_fragments_no_failure() {
     fn main() {
         ()
     }
-    
+
     comptime fn concat(a: Quoted, b: Quoted) -> Quoted {
         quote { $a $b }
-    }    
+    }
     ");
 }
 
@@ -495,7 +495,7 @@ fn cannot_generate_module_declarations() {
         #[bad_attr]
         ~~~~~~~~~~~ While running this function attribute
         fn main() {}
-        
+
         comptime fn bad_attr(_: FunctionDefinition) -> Quoted {
             quote { mod new_module; }
                     ^^^^^^^^^^^^^^^ Unsupported statement type to unquote
@@ -756,10 +756,8 @@ fn multiple_comptime_blocks_share_scope() {
     assert_no_errors(src);
 }
 
-// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic(expected = "Expected no errors")]
-fn nested_comptime_accesses_outer_comptime_variable() {
+fn nested_comptime_statement_accesses_outer_comptime_variable() {
     let src = r#"
         fn main() {
             comptime {
@@ -771,14 +769,24 @@ fn nested_comptime_accesses_outer_comptime_variable() {
             }
         }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic(expected = "Expected no errors")]
+fn nested_comptime_expression_accesses_outer_comptime_variable() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let x = 5;
+                let y = comptime { x + 1 } ;
+                assert_eq(y, 6);
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn nested_comptime_accesses_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -789,14 +797,10 @@ fn nested_comptime_accesses_outer_comptime_func_variable() {
         }
     }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn nested_comptime_with_mut_variable() {
     let src = r#"
         fn main() {
@@ -809,14 +813,10 @@ fn nested_comptime_with_mut_variable() {
             }
         }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn nested_comptime_mut_outer_comptime_func_variable() {
     let src = r#"
     comptime fn main() {
@@ -827,20 +827,17 @@ fn nested_comptime_mut_outer_comptime_func_variable() {
         assert_eq(x, 5);
     }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn comptime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         comptime fn helper(x: Field) -> Field {
             comptime {
                 assert_eq(x, 5);
             }
+            x + 1
         }
 
         fn main() {
@@ -851,20 +848,19 @@ fn comptime_function_with_comptime_block_called_from_comptime() {
             }
         }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-// TODO: Reactivate once https://github.com/noir-lang/noir/issues/10397 is resolved
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn runtime_function_with_comptime_block_called_from_comptime() {
     let src = r#"
         fn helper(x: Field) -> Field {
             comptime {
                 assert_eq(x, 5);
+                          ^ Non-comptime variable `x` referenced in comptime code
+                          ~ Non-comptime variables can't be used in comptime code
             }
+            x + 1
         }
 
         fn main() {
@@ -875,9 +871,7 @@ fn runtime_function_with_comptime_block_called_from_comptime() {
             }
         }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10397): use `assert_no_errors` once is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1038,7 +1032,7 @@ fn comptime_uhashmap_of_vectors() {
     }
 
     pub fn example_umap<T>() -> UHashMap<u32, T> {
-        let _table = &[];
+        let _table = @[];
         let _len = 0;
         UHashMap { _table, _len }
     }
@@ -1085,14 +1079,14 @@ fn comptime_uhashmap_of_vectors_attribute() {
     impl<K, V> UHashMap<K, V> {
         fn default_umap(zeroed_value: (K, V)) -> UHashMap<K, V>
         {
-            let _table = &[Slot::default_slot(zeroed_value)];
+            let _table = @[Slot::default_slot(zeroed_value)];
             let _len = 0;
             UHashMap { _table, _len }
         }
     }
 
     comptime fn empty_function_definition_vector() -> [FunctionDefinition] {
-        &[]
+        @[]
     }
 
     comptime mut global REGISTRY: UHashMap<bool, [FunctionDefinition]> =
@@ -1132,4 +1126,122 @@ fn regression_11016() {
     }
     ";
     check_errors(src);
+}
+
+#[test]
+fn varargs_on_non_comptime_function() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] can only be applied to comptime functions
+    fn main() {
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_arguments() {
+    let src = "
+    #[varargs]
+    ^^^^^^^^^^ #[varargs] requires its function to have at least one parameter
+    pub comptime fn foo() {}
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn varargs_on_function_without_last_vector_parameter() {
+    let src = "
+    #[foo(1, 2, 3, 4)] // Make sure no error is triggered here because of the varargs error
+    #[varargs]
+    pub comptime fn foo(_: FunctionDefinition, _x: Field, _y: Field) {}
+                                                          ^^ The last parameter of a #[varargs] function must be a vector
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unify_comptime_block_expression_with_target_type() {
+    let src = r#"
+    fn main() {
+        let _: u8 = comptime { 1 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unify_comptime_block_statement_with_target_type() {
+    let src = r#"
+    fn main() {
+    }
+
+    pub fn foo() -> u8 {
+        comptime { 1 }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_explicit_self() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+                              ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                              ~~~~ Comptime-only type used here
+                     ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                     ~~~~ Comptime-only type used here
+            self
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
+    let src = r#"
+    trait Trait {
+        fn foo(self);
+    }
+
+    impl Trait for Quoted {
+        fn foo(self) {
+               ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+               ~~~~ Comptime-only type used here
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn zeroed_comptime_type() {
+    let mut stdlib = stdlib_src::ZEROED.to_string();
+    stdlib.push_str(
+        "
+        #[builtin(module_hash)]
+        comptime fn module_hash(_module: Module) -> Field {}
+    ",
+    );
+    let src = r#"
+    fn main() {
+        comptime {
+            let m: Module = zeroed();
+            let _ = module_hash(m);
+                                ^ Expected a concrete `Module` but a zeroed value was given
+                                ~ A zeroed value of `Module` may be created to satisfy the type system, but it's not expected to be used
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, &stdlib);
 }

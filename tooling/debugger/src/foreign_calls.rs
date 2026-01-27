@@ -8,8 +8,7 @@ use acvm::{
 use nargo::foreign_calls::{
     DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
 };
-use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
-use noirc_errors::debug_info::{DebugFnId, DebugVarId};
+use noirc_artifacts::debug::{DebugArtifact, DebugFnId, DebugVarId, DebugVars, StackFrame};
 
 pub(crate) enum DebugForeignCall {
     VarAssign,

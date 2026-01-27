@@ -105,7 +105,7 @@ impl CircuitSimulator {
                     self.mark_solvable(w);
                     true
                 } else {
-                    self.try_solve(&Opcode::AssertZero(op.value.clone()))
+                    self.can_solve_expression(&op.value)
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } => {
@@ -122,10 +122,8 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
+                if !self.can_solve_expression(predicate) {
+                    return false;
                 }
                 for output in outputs {
                     match output {
@@ -145,10 +143,8 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
+                if !self.can_solve_expression(predicate) {
+                    return false;
                 }
                 for w in outputs {
                     self.mark_solvable(*w);
@@ -179,7 +175,7 @@ impl CircuitSimulator {
         true
     }
 
-    fn can_solve_brillig_input<F>(&mut self, input: &BrilligInputs<F>) -> bool {
+    fn can_solve_brillig_input<F>(&self, input: &BrilligInputs<F>) -> bool {
         match input {
             BrilligInputs::Single(expr) => self.can_solve_expression(expr),
             BrilligInputs::Array(exprs) => {
@@ -292,7 +288,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        CALL func: 0, inputs: [w0], outputs: [w1]
+        CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -305,7 +301,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -363,5 +359,31 @@ mod tests {
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(0));
+    }
+
+    #[test]
+    fn reports_some_when_write_has_a_single_unknown_witness_in_its_value() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
+    }
+
+    #[test]
+    fn reports_none_when_write_has_known_witnesses_in_its_value() {
+        let src = "
+        private parameters: [w0, w1, w2]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), None);
     }
 }

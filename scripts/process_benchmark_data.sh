@@ -22,9 +22,9 @@ average_times() {
           current_time = substr($1, 0, seconds)
           return current_time;
         }
-        
+
         printf "Could not parse time: %" $1 > "/dev/stderr"
-        
+
         printf "ERROR"
         exit 1
     }
@@ -34,7 +34,7 @@ average_times() {
       sum += seconds;
       n++;
     }
-    END {   
+    END {
       if (n > 0)
         printf "%.3f\n", sum / n
       else
@@ -48,6 +48,18 @@ compilation_time() {
   AVG_TIME=$(average_times "${TIMES[@]}")
 
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+}
+
+# This measures the time taken for definition collection along with elaboration/type checking. This notably includes
+# comptime macro expansion as well, however stops short of the monomorphization and code generation phases.
+#
+# This is roughly equivalent to the time taken by `nargo check`, ignoring time spent on I/O along with lexing and parsing.
+elaboration_time() {
+  TIMES=($(jq -r '. | select(.target == "noirc_driver" and .span.name == "check_crate" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/compilation.jsonl"))
+
+  AVG_TIME=$(average_times "${TIMES[@]}")
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"elaboration_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 execution_time() {
@@ -70,4 +82,26 @@ num_opcodes() {
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"num_opcodes\", value: \""$num_opcodes"\" | tonumber, unit: \"opcodes\"}" --null-input
 }
 
-jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(execution_time)$(artifact_size)$(num_opcodes)"
+brillig_compilation_time() {
+  TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_compilation.jsonl"))
+
+  AVG_TIME=$(average_times "${TIMES[@]}")
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+}
+
+brillig_execution_time() {
+  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_execution.jsonl"))
+
+  AVG_TIME=$(average_times "${TIMES[@]}")
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+}
+
+brillig_artifact_size() {
+  ARTIFACT_SIZE=$(wc -c <"$INPUT_DIR/brillig_artifact.json" | awk '{printf "%.1f\n", $1/1000}')
+
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
+}
+
+jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(elaboration_time)$(execution_time)$(artifact_size)$(num_opcodes)$(brillig_compilation_time)$(brillig_execution_time)$(brillig_artifact_size)"

@@ -1,6 +1,22 @@
 import * as buffer from 'buffer-esm';
 const Buffer = buffer.BufferShim;
 
+// Fix slice method - Uint8Array.slice uses Symbol.species which breaks with BufferShim's constructor
+// We need to override slice to return a proper BufferShim instance
+Buffer.prototype.slice = function (start, end) {
+  // Use Uint8Array.prototype.slice to get the sliced data, then create a new BufferShim from it
+  const sliced = Uint8Array.prototype.slice.call(this, start, end);
+  return new Buffer(sliced.buffer);
+};
+
+// Override Symbol.species to return Uint8Array for slice operations
+// This prevents the constructor issue when slice tries to create a new BufferShim
+Object.defineProperty(Buffer, Symbol.species, {
+  get: function () {
+    return Uint8Array;
+  },
+});
+
 // bb.js requires `allocUnsafeSlow` which is not present in buffer-esm
 if (!Buffer.allocUnsafeSlow) {
   Buffer.allocUnsafeSlow = Buffer.allocUnsafe;

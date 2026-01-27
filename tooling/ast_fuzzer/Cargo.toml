@@ -34,6 +34,7 @@ noirc_driver.workspace = true
 noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
+noirc_artifacts.workspace = true
 noir_greybox_fuzzer.workspace = true
 
 [dev-dependencies]

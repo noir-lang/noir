@@ -17,7 +17,7 @@ If this is a mutable reference type `&mut T`, returns the mutable type `T`.
 
 #include_code as_vector noir_stdlib/src/meta/unresolved_type.nr rust
 
-If this is a vector `&[T]`, returns the element type `T`.
+If this is a vector `@[T]`, returns the element type `T`.
 
 ### is_bool
 

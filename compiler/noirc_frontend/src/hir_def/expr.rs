@@ -2,7 +2,6 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
@@ -11,6 +10,7 @@ use crate::node_interner::{
 };
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
+use crate::{Shared, TypeBindings};
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -174,7 +174,7 @@ pub struct HirInfixExpression {
     /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
     /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
     /// after the call to `Eq::eq` to get the result of the `!=` operator.
-    pub trait_method_id: TraitItemId,
+    pub trait_method_id: Option<TraitItemId>,
 }
 
 /// This is always a struct field access `my_struct.field`
@@ -297,7 +297,7 @@ impl HirMethodReference {
                 assumed,
             }) => {
                 let constraint = TraitConstraint {
-                    typ: object_type,
+                    typ: Self::find_self_type(definition, object_type, interner),
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
@@ -309,6 +309,46 @@ impl HirMethodReference {
             .push_expr(HirExpression::Ident(func_var.clone(), generics))
             .push_location(interner, location);
         (func, func_var)
+    }
+
+    /// Find what the trait's Self type should be to construct the trait constraint, given the type
+    /// of its first argument. Assuming this is a method call, it should be sufficient to expect
+    /// Self is somewhere within the first argument. Usually the first parameter is either `Self`
+    /// or `&mut Self`.
+    ///
+    /// This defaults to `object_type` if there are any unexpected type errors (expected to be
+    /// issued elsewhere).
+    fn find_self_type(
+        definition: DefinitionId,
+        object_type: Type,
+        interner: &NodeInterner,
+    ) -> Type {
+        // Get the function type, e.g: `fn(&mut Self, i32) -> Field`
+        let function_type = interner.definition_type(definition);
+
+        // Instantiate, e.g: `fn(&mut ?Self, A, B) -> C`
+        let (instantiated, _bindings) = function_type.instantiate(interner);
+        let instantiated = instantiated.follow_bindings_shallow();
+
+        let first_parameter = match instantiated.as_ref() {
+            Type::Function(parameters, _, _, _) if !parameters.is_empty() => &parameters[0],
+            _ => return object_type,
+        };
+
+        // Match the first parameter, expected to be `?Self` or `&mut ?Self` to our object type. If
+        // successful, we expect `bindings` to have a single binding of `?Self` to either our
+        // object type or its element type, if it is a reference. Note that unifying here also
+        // handles the case where `object_type` is unbound but is discovered (here) that it must at
+        // least be a reference.
+        let mut bindings = TypeBindings::default();
+        if object_type.try_unify(first_parameter, &mut bindings).is_ok() && bindings.len() == 1 {
+            // We're expecting `Self` or `&mut Self`, where `Self` becomes a type variable after
+            // instantiation, so the value of `Self` for the constraint should be what it is bound
+            // to in `bindings`.
+            bindings.into_values().next().unwrap().2
+        } else {
+            object_type
+        }
     }
 }
 

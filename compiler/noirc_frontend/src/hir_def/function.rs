@@ -89,8 +89,6 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
-pub type FunctionSignature = (Vec<Param>, Option<Type>);
-
 /// A FuncMeta contains the signature of the function and any associated meta data like
 /// the function's Location, FunctionKind, and attributes. If the function's body is
 /// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
@@ -106,6 +104,10 @@ pub struct FuncMeta {
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     pub parameter_idents: Vec<HirIdent>,
 
+    /// The return type as (and if) it appears in the AST.
+    ///
+    /// This is distinct from the `FuncMeta::return_type()` method,
+    /// which gets the return type from the [FuncMeta::typ] field.
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
@@ -191,14 +193,6 @@ impl FuncMeta {
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
         self.kind.can_ignore_return_type()
-    }
-
-    pub fn function_signature(&self) -> FunctionSignature {
-        let return_type = match self.return_type() {
-            Type::Unit => None,
-            typ => Some(typ.clone()),
-        };
-        (self.parameters.0.clone(), return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.

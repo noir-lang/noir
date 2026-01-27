@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    Parser,
+    MAX_PARSER_RECURSION_DEPTH, Parser,
     parse_many::{
         separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
         without_separator,
@@ -66,7 +66,29 @@ impl Parser<'_> {
     }
 
     fn parse_expression_impl(&mut self, allow_constructors: bool) -> Option<Expression> {
-        self.parse_equal_or_not_equal(allow_constructors)
+        // Check recursion depth to prevent stack overflow
+        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
+            self.push_error(
+                ParserErrorReason::MaximumRecursionDepthExceeded,
+                self.current_token_location,
+            );
+            // Skip to a recovery point to avoid cascading errors
+            self.skip_to_recovery_point();
+            // Set flag to suppress cascading errors during stack unwinding
+            self.recovering_from_depth_overflow = true;
+            return None;
+        }
+
+        self.recursion_depth += 1;
+        let result = self.parse_equal_or_not_equal(allow_constructors);
+        self.recursion_depth -= 1;
+
+        // Clear recovery flag when we've fully unwound (back at top level)
+        if self.recursion_depth == 0 {
+            self.recovering_from_depth_overflow = false;
+        }
+
+        result
     }
 
     /// Term
@@ -221,23 +243,32 @@ impl Parser<'_> {
             return (atom, false);
         }
 
-        let Some(field_name) = self.parse_member_access_field_name() else { return (atom, true) };
+        let Some((field_name, is_integer)) = self.parse_member_access_field_name() else {
+            return (atom, true);
+        };
 
-        let generics = self.parse_generics_after_member_access_field_name();
-
-        let kind = if let Some(call_arguments) = self.parse_call_arguments() {
-            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: atom,
-                method_name: field_name,
-                generics,
-                arguments: call_arguments.arguments,
-                is_macro_call: call_arguments.is_macro_call,
-            }))
-        } else {
+        let kind = if is_integer {
             ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                 lhs: atom,
                 rhs: field_name,
             }))
+        } else {
+            let generics = self.parse_generics_after_member_access_field_name();
+
+            if let Some(call_arguments) = self.parse_call_arguments() {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: atom,
+                    method_name: field_name,
+                    generics,
+                    arguments: call_arguments.arguments,
+                    is_macro_call: call_arguments.is_macro_call,
+                }))
+            } else {
+                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                    lhs: atom,
+                    rhs: field_name,
+                }))
+            }
         };
 
         let location = self.location_since(start_location);
@@ -245,14 +276,16 @@ impl Parser<'_> {
         (atom, true)
     }
 
-    fn parse_member_access_field_name(&mut self) -> Option<Ident> {
-        if let Some(ident) = self.eat_ident() {
-            Some(ident)
+    /// Parses either an identifier or an integer.
+    /// The `bool` in the returned tuple is true if an integer was found.
+    fn parse_member_access_field_name(&mut self) -> Option<(Ident, bool)> {
+        if let Some(ident) = self.eat_non_underscore_ident() {
+            Some((ident, false))
         // We allow integer type suffixes on tuple field names since this lets
         // users unquote typed integers in macros to use as a tuple access expression.
         // See https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
         } else if let Some((int, _)) = self.eat_int() {
-            Some(Ident::new(int.to_string(), self.previous_token_location))
+            Some((Ident::new(int.to_string(), self.previous_token_location), true))
         } else {
             self.push_error(
                 ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
@@ -534,7 +567,7 @@ impl Parser<'_> {
                 continue;
             }
 
-            let ident = self.eat_ident()?;
+            let ident = self.eat_non_underscore_ident()?;
 
             return Some(if self.eat_colon() {
                 let expression = self.parse_expression_or_error();
@@ -553,6 +586,8 @@ impl Parser<'_> {
 
     /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
+        let if_keyword_location = self.current_token_location;
+
         if !self.eat_keyword(Keyword::If) {
             return None;
         }
@@ -561,6 +596,20 @@ impl Parser<'_> {
 
         let start_location = self.current_token_location;
         let Some(consequence) = self.parse_block() else {
+            // If it's `if { ... }` and a block doesn't come next, the user likely forgot
+            // to include a condition.
+            if matches!(condition.kind, ExpressionKind::Block(..)) {
+                self.push_error(ParserErrorReason::MissingIfCondition, if_keyword_location);
+                return Some(ExpressionKind::If(Box::new(IfExpression {
+                    condition: Expression {
+                        kind: ExpressionKind::Error,
+                        location: if_keyword_location,
+                    },
+                    consequence: condition,
+                    alternative: None,
+                })));
+            }
+
             self.expected_token(Token::LeftBrace);
             let location = self.location_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
@@ -706,7 +755,7 @@ impl Parser<'_> {
     fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
         self.eat_or_error(Token::DoubleColon);
 
-        let item = if let Some(ident) = self.eat_ident() {
+        let item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();
@@ -862,9 +911,11 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// VectorExpression = '&' ArrayLiteral
+    /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::VectorStart) && self.next_is(Token::LeftBracket)) {
+        if !((self.at(Token::At) || self.at(Token::DeprecatedVectorStart))
+            && self.next_is(Token::LeftBracket))
+        {
             return None;
         }
 
@@ -939,7 +990,10 @@ impl Parser<'_> {
         if let Some(expr) = self.parse_expression() {
             Some(expr)
         } else {
-            self.expected_label(ParsingRuleLabel::Expression);
+            // Don't generate cascading errors when recovering from depth overflow
+            if !self.recovering_from_depth_overflow {
+                self.expected_label(ParsingRuleLabel::Expression);
+            }
             None
         }
     }
@@ -1047,6 +1101,7 @@ mod tests {
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp,
         },
+        lexer::errors::LexerErrorKind,
         parse_program_with_dummy_file,
         parser::{
             Parser, ParserErrorReason,
@@ -1416,7 +1471,7 @@ mod tests {
 
     #[test]
     fn parses_empty_vector_expression() {
-        let src = "&[]";
+        let src = "@[]";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -2241,5 +2296,56 @@ mod tests {
         ";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parses_if_missing_condition() {
+        let src = "
+        if { 1 }
+        ^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert!(matches!(expression.kind, ExpressionKind::If(..)));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
+    }
+
+    /// When an integer is too large, the lexer will issue an error instead of an integer token.
+    /// The parser in this case recovers by filling in extra integers in place of these errors.
+    #[test]
+    fn only_one_error_on_array_with_too_large_integers() {
+        // The fifth integer here should overflow bn254
+        let src = "
+            @[0, 1, 23, 3444, 21888242871839275222246405745257275088548364400416034343698204186575808495617, 43, 2, 32, 4]
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expression = parser.parse_expression_or_error();
+        assert!(matches!(expression.kind, ExpressionKind::Literal(Literal::Vector(_))));
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(
+            reason,
+            ParserErrorReason::Lexer(LexerErrorKind::IntegerLiteralTooLarge { .. })
+        ));
+    }
+
+    #[test]
+    fn tuple_member_access_is_not_a_call() {
+        // Usually `foo.bar()` is parsed as a method call, but this is not true if the member access name is an integer.
+        let src = "tuple.0()";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        let ExpressionKind::MemberAccess(member_access) = call.func.kind else {
+            panic!("Expected member access expression");
+        };
+        assert_eq!(member_access.lhs.to_string(), "tuple");
+        assert_eq!(member_access.rhs.to_string(), "0");
     }
 }

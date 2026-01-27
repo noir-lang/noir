@@ -27,6 +27,10 @@ pub enum InterpreterError {
         actual: Type,
         location: Location,
     },
+    UnexpectedZeroedValue {
+        expected: String,
+        location: Location,
+    },
     NonComptimeVarReferenced {
         name: String,
         location: Location,
@@ -92,14 +96,16 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
-    NonIntegerArrayLength {
-        typ: Type,
-        err: Option<Box<TypeCheckError>>,
+    InvalidArrayLength {
+        err: Box<TypeCheckError>,
         location: Location,
     },
-    NonIntegerAssociatedConstant {
-        typ: Type,
-        err: Option<Box<TypeCheckError>>,
+    InvalidAssociatedConstant {
+        err: Box<TypeCheckError>,
+        location: Location,
+    },
+    InvalidNumericGeneric {
+        err: Box<TypeCheckError>,
         location: Location,
     },
     NonNumericCasted {
@@ -316,7 +322,7 @@ impl InterpreterError {
             self,
             InterpreterError::Break
                 | InterpreterError::Continue
-                | InterpreterError::SkippedDueToEarlierErrors { .. }
+                | InterpreterError::SkippedDueToEarlierErrors
         )
     }
 
@@ -324,6 +330,7 @@ impl InterpreterError {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
+            | InterpreterError::UnexpectedZeroedValue { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
             | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
@@ -340,8 +347,9 @@ impl InterpreterError {
             | InterpreterError::NonArrayIndexed { location, .. }
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
-            | InterpreterError::NonIntegerArrayLength { location, .. }
-            | InterpreterError::NonIntegerAssociatedConstant { location, .. }
+            | InterpreterError::InvalidArrayLength { location, .. }
+            | InterpreterError::InvalidAssociatedConstant { location, .. }
+            | InterpreterError::InvalidNumericGeneric { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -431,6 +439,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Expected `{expected}` but a value of type `{actual}` was given");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
+            InterpreterError::UnexpectedZeroedValue { expected, location } => {
+                let msg = format!("Expected a concrete `{expected}` but a zeroed value was given");
+                let secondary = format!(
+                    "A zeroed value of `{expected}` may be created to satisfy the type system, but it's not expected to be used"
+                );
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
                 let secondary = "Non-comptime variables can't be used in comptime code".to_string();
@@ -517,26 +532,19 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerArrayLength { typ, err, location } => {
-                let msg = format!("Non-integer array length: `{typ}`");
-                let secondary = if let Some(err) = err {
-                    format!(
-                        "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
-                    )
-                } else {
-                    "Array lengths must be integers".to_string()
-                };
+            InterpreterError::InvalidArrayLength { err, location } => {
+                let msg = "Invalid array length".to_string();
+                let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerAssociatedConstant { typ, err, location } => {
-                let msg = format!("Non-integer associated constant: `{typ}`");
-                let secondary = if let Some(err) = err {
-                    format!(
-                        "Associated constants must be integers, but evaluating `{typ}` resulted in `{err}`"
-                    )
-                } else {
-                    "Associated constants must be integers".to_string()
-                };
+            InterpreterError::InvalidAssociatedConstant { err, location } => {
+                let msg = "Invalid associated constant".to_string();
+                let secondary = err.to_string();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::InvalidNumericGeneric { err, location } => {
+                let msg = "Invalid numeric generic".to_string();
+                let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonNumericCasted { typ, location } => {

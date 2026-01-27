@@ -21,7 +21,7 @@ use crate::{
     },
     hir::{
         comptime::Value,
-        def_collector::dc_crate::UnresolvedEnum,
+        def_collector::dc_crate::{CompilationError, UnresolvedEnum},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -277,7 +277,7 @@ impl Elaborator<'_> {
         let datatype_ref = datatype.borrow();
         let location = variant.name.location();
 
-        let id = self.interner.push_empty_fn();
+        let method_id = self.interner.push_empty_fn();
 
         let modifiers = FunctionModifiers {
             name: name_string.clone(),
@@ -288,15 +288,19 @@ impl Elaborator<'_> {
             is_comptime: false,
             name_location: location,
         };
-        let definition_id =
-            self.interner.push_function_definition(id, modifiers, type_id.module_id(), location);
+        let definition_id = self.interner.push_function_definition(
+            method_id,
+            modifiers,
+            type_id.module_id(),
+            location,
+        );
 
         let hir_name = HirIdent::non_trait_method(definition_id, location);
         let parameters = self.make_enum_variant_parameters(variant_arg_types, location);
 
         let body =
             self.make_enum_variant_constructor(datatype, variant_index, &parameters, location);
-        self.interner.update_fn(id, HirFunction::unchecked_from_expr(body));
+        self.interner.update_fn(method_id, HirFunction::unchecked_from_expr(body));
 
         let function_type =
             datatype_ref.variant_function_type_with_forall(variant_index, datatype.clone());
@@ -329,12 +333,27 @@ impl Elaborator<'_> {
             self_type: None,
         };
 
-        self.interner.push_fn_meta(meta, id);
-        self.interner.add_method(self_type, name_string, id, None);
+        self.interner.push_fn_meta(meta, method_id);
+        if let Err(error) = self.interner.add_method(self_type, name_string, method_id, None) {
+            let error = if matches!(
+                error,
+                CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
+            ) {
+                // Expecting a DefCollectorErrorKind::Duplicate error in this case
+                TypeCheckError::ExpectingOtherError {
+                    message: "define_enum_variant_function: duplicate definition".to_string(),
+                    location,
+                }
+                .into()
+            } else {
+                error
+            };
+            self.push_err(error);
+        }
 
         let name = variant.name.clone();
         Self::get_module_mut(self.def_maps, type_id.module_id())
-            .declare_function(name, enum_.visibility, id)
+            .declare_function(name, enum_.visibility, method_id)
             .ok();
     }
 
@@ -764,7 +783,7 @@ impl Elaborator<'_> {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(func_id);
                 let Some(variant_index) = meta.enum_variant_index else {
-                    let item = resolution.description();
+                    let item = resolution.description(self.interner);
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     return Pattern::Error;
                 };
@@ -803,7 +822,7 @@ impl Elaborator<'_> {
                         variables_defined,
                     );
                 } else {
-                    let item = resolution.description();
+                    let item = resolution.description(self.interner);
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     return Pattern::Error;
                 }
@@ -1248,7 +1267,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Return the variable that was referred to the most in `rows`, or panic if there are zero
     /// `rows`
-    fn branch_variable(&mut self, rows: &[Row]) -> DefinitionId {
+    fn branch_variable(&self, rows: &[Row]) -> DefinitionId {
         assert!(!rows.is_empty(), "ICE branch_variable: expected at least one row");
         let mut counts = HashMap::default();
 

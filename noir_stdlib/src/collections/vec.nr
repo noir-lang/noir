@@ -6,7 +6,7 @@ pub struct Vec<T> {
 impl<T> Vec<T> {
     #[deprecated("std::collections::vec::Vec is deprecated, use the built-in vector type instead")]
     pub fn new() -> Self {
-        Self { vector: &[] }
+        Self { vector: [].as_vector() }
     }
 
     // Create a Vec containing each element from the given vector.
@@ -89,7 +89,7 @@ mod vec_tests {
 
         #[test]
         fn creates_vector_with_elements() {
-            let vector = &[1, 2, 3, 4, 5];
+            let vector = [1, 2, 3, 4, 5].as_vector();
             let vec = Vec::from_vector(vector);
             assert_eq(vec.len(), 5);
             assert_eq(vec.vector, vector);
@@ -101,7 +101,7 @@ mod vec_tests {
 
         #[test]
         fn retrieves_elements_correctly() {
-            let vec = Vec { vector: &[10, 20, 30, 40, 50] };
+            let vec = Vec { vector: [10, 20, 30, 40, 50].as_vector() };
 
             assert_eq(vec.get(0), 10);
             assert_eq(vec.get(1), 20);
@@ -112,7 +112,7 @@ mod vec_tests {
 
         #[test(should_fail_with = "Index out of bounds")]
         fn panics_on_out_of_bounds() {
-            let vec = Vec { vector: &[1, 2, 3] };
+            let vec = Vec { vector: [1, 2, 3].as_vector() };
             let _ = vec.get(3);
         }
     }
@@ -122,22 +122,22 @@ mod vec_tests {
 
         #[test]
         fn updates_values_properly() {
-            let mut vec = Vec { vector: &[0, 0, 0, 0, 0] };
+            let mut vec = Vec { vector: [0, 0, 0, 0, 0].as_vector() };
 
             vec.set(0, 42);
-            assert_eq(vec.vector, &[42, 0, 0, 0, 0]);
+            assert_eq(vec.vector, [42, 0, 0, 0, 0].as_vector());
 
             vec.set(1, 43);
-            assert_eq(vec.vector, &[42, 43, 0, 0, 0]);
+            assert_eq(vec.vector, [42, 43, 0, 0, 0].as_vector());
 
             vec.set(2, 44);
-            assert_eq(vec.vector, &[42, 43, 44, 0, 0]);
+            assert_eq(vec.vector, [42, 43, 44, 0, 0].as_vector());
 
             vec.set(1, 10);
-            assert_eq(vec.vector, &[42, 10, 44, 0, 0]);
+            assert_eq(vec.vector, [42, 10, 44, 0, 0].as_vector());
 
             vec.set(0, 0);
-            assert_eq(vec.vector, &[0, 10, 44, 0, 0]);
+            assert_eq(vec.vector, [0, 10, 44, 0, 0].as_vector());
         }
 
         #[test(should_fail_with = "Index out of bounds")]
@@ -154,7 +154,7 @@ mod vec_tests {
 
         #[test]
         fn adds_element_to_end() {
-            let mut vec = Vec { vector: &[1, 2, 3] };
+            let mut vec = Vec { vector: [1, 2, 3].as_vector() };
             let original_len = vec.len();
 
             vec.push(4);
@@ -178,7 +178,7 @@ mod vec_tests {
 
         #[test]
         fn removes_last_element() {
-            let mut vec = Vec { vector: &[1, 2, 3, 4, 5] };
+            let mut vec = Vec { vector: [1, 2, 3, 4, 5].as_vector() };
             let original_len = vec.len();
 
             let popped = vec.pop();
@@ -200,7 +200,7 @@ mod vec_tests {
 
         #[test]
         fn at_beginning() {
-            let mut vec = Vec { vector: &[1, 2, 3] };
+            let mut vec = Vec { vector: [1, 2, 3].as_vector() };
             vec.insert(0, 0);
 
             assert_eq(vec.len(), 4);
@@ -212,7 +212,7 @@ mod vec_tests {
 
         #[test]
         fn at_middle() {
-            let mut vec = Vec { vector: &[1, 2, 4, 5] };
+            let mut vec = Vec { vector: [1, 2, 4, 5].as_vector() };
             vec.insert(2, 3);
 
             assert_eq(vec.len(), 5);
@@ -225,7 +225,7 @@ mod vec_tests {
 
         #[test]
         fn at_end() {
-            let mut vec = Vec { vector: &[1, 2, 3] };
+            let mut vec = Vec { vector: [1, 2, 3].as_vector() };
             vec.insert(3, 4);
 
             assert_eq(vec.len(), 4);
@@ -237,7 +237,7 @@ mod vec_tests {
 
         #[test(should_fail_with = "Index out of bounds")]
         fn beyond_length_panics() {
-            let mut vec = Vec { vector: &[1, 2, 3] };
+            let mut vec = Vec { vector: [1, 2, 3].as_vector() };
             vec.insert(4, 5);
         }
     }
@@ -247,7 +247,7 @@ mod vec_tests {
 
         #[test]
         fn from_beginning() {
-            let mut vec = Vec { vector: &[0, 1, 2, 3, 4] };
+            let mut vec = Vec { vector: [0, 1, 2, 3, 4].as_vector() };
             let removed = vec.remove(0);
 
             assert_eq(removed, 0);
@@ -260,7 +260,7 @@ mod vec_tests {
 
         #[test]
         fn from_middle() {
-            let mut vec = Vec { vector: &[1, 2, 3, 4, 5] };
+            let mut vec = Vec { vector: [1, 2, 3, 4, 5].as_vector() };
             let removed = vec.remove(2);
 
             assert_eq(removed, 3);
@@ -273,7 +273,7 @@ mod vec_tests {
 
         #[test]
         fn from_end() {
-            let mut vec = Vec { vector: &[1, 2, 3, 4, 5] };
+            let mut vec = Vec { vector: [1, 2, 3, 4, 5].as_vector() };
             let removed = vec.remove(4);
 
             assert_eq(removed, 5);
@@ -286,7 +286,7 @@ mod vec_tests {
 
         #[test(should_fail_with = "Index out of bounds")]
         fn beyond_length_panics() {
-            let mut vec = Vec { vector: &[1, 2, 3] };
+            let mut vec = Vec { vector: [1, 2, 3].as_vector() };
             let _ = vec.remove(3);
         }
     }
@@ -299,10 +299,10 @@ mod vec_tests {
             let empty_vec: Vec<Field> = Vec::new();
             assert_eq(empty_vec.len(), 0);
 
-            let single_vec = Vec { vector: &[42] };
+            let single_vec = Vec { vector: [42].as_vector() };
             assert_eq(single_vec.len(), 1);
 
-            let multi_vec = Vec { vector: &[1, 2, 3, 4, 5] };
+            let multi_vec = Vec { vector: [1, 2, 3, 4, 5].as_vector() };
             assert_eq(multi_vec.len(), 5);
         }
     }
@@ -353,7 +353,7 @@ mod vec_tests {
 
         #[test]
         fn vector_with_custom_types() {
-            let mut vec = Vec { vector: &[true, false, true] };
+            let mut vec = Vec { vector: [true, false, true].as_vector() };
 
             assert_eq(vec.len(), 3);
             assert_eq(vec.get(0), true);

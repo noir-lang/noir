@@ -26,30 +26,6 @@ impl CallStackId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
-pub struct LocationNodeDebugInfo {
-    pub parent: Option<CallStackId>,
-    pub value: Location,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
-pub struct LocationTree {
-    pub locations: Vec<LocationNodeDebugInfo>,
-}
-
-impl LocationTree {
-    /// Construct a CallStack from a CallStackId
-    pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
-        let mut result = Vec::new();
-        while let Some(parent) = self.locations[call_stack.index()].parent {
-            result.push(self.locations[call_stack.index()].value);
-            call_stack = parent;
-        }
-        result.reverse();
-        result
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocationNode {
     pub parent: Option<CallStackId>,
@@ -145,16 +121,5 @@ impl CallStackHelper {
     /// Get (or create) a CallStackId corresponding to the given locations.
     pub fn get_or_insert_locations(&mut self, locations: &CallStack) -> CallStackId {
         self.extend_call_stack(CallStackId::root(), locations)
-    }
-
-    // Clone the locations into a LocationTree
-    pub fn to_location_tree(&self) -> LocationTree {
-        LocationTree {
-            locations: self
-                .locations
-                .iter()
-                .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
-                .collect(),
-        }
     }
 }

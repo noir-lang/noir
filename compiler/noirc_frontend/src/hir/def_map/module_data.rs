@@ -11,6 +11,8 @@ use crate::token::SecondaryAttribute;
 /// children, and scope with all definitions defined within the scope.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleData {
+    /// This module's name. The root module has no name (None).
+    pub name: Option<String>,
     pub parent: Option<LocalModuleId>,
     pub children: HashMap<Ident, LocalModuleId>,
 
@@ -44,6 +46,7 @@ pub struct ModuleData {
 
 impl ModuleData {
     pub fn new(
+        name: Option<String>,
         parent: Option<LocalModuleId>,
         location: Location,
         outer_attributes: Vec<SecondaryAttribute>,
@@ -55,6 +58,7 @@ impl ModuleData {
         attributes.extend(inner_attributes);
 
         ModuleData {
+            name,
             parent,
             children: HashMap::new(),
             child_declaration_order: Vec::new(),
@@ -83,15 +87,17 @@ impl ModuleData {
         item_id: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
-
         if let ModuleDefId::ModuleId(child) = item_id {
             self.child_declaration_order.push(child.local_id);
         }
 
+        let result1 = self.scope.add_definition(name.clone(), visibility, item_id, trait_id);
+
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        self.definitions.add_definition(name, visibility, item_id, trait_id)
+        let result2 = self.definitions.add_definition(name, visibility, item_id, trait_id);
+
+        result1.or(result2)
     }
 
     pub fn declare_function(
@@ -211,5 +217,14 @@ impl ModuleData {
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
+    }
+
+    /// Clears all scope and definitions in this module.
+    /// This isn't used in the compiler. It's only used in the LSP server
+    /// when a file is changed, to clear out all definitions that are meant to be
+    /// replaced with new ones from the changed file.
+    pub fn clear(&mut self) {
+        self.scope.clear();
+        self.definitions.clear();
     }
 }

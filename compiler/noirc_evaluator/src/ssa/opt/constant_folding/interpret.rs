@@ -53,7 +53,7 @@ enum EvaluationResult {
 fn evaluate_const_argument_call(
     instruction: &Instruction,
     interpreter: &mut Interpreter<Empty>,
-    dfg: &mut DataFlowGraph,
+    dfg: &DataFlowGraph,
 ) -> EvaluationResult {
     let Instruction::Call { func: func_id, arguments } = instruction else {
         return EvaluationResult::NotABrilligCall;

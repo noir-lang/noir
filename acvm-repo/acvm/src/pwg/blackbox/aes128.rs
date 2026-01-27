@@ -16,12 +16,13 @@ pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     key: &[FunctionInput<F>; 16],
     outputs: &[Witness],
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let scalars = to_u8_vec(initial_witness, inputs)?;
+    let ciphertext = execute_aes128_encryption_opcode(initial_witness, inputs, iv, key)?;
 
-    let iv = to_u8_array(initial_witness, iv)?;
-    let key = to_u8_array(initial_witness, key)?;
-
-    let ciphertext = aes128_encrypt(&scalars, iv, key)?;
+    assert_eq!(
+        outputs.len(),
+        ciphertext.len(),
+        "Number of outputs does not match number of ciphertext bytes"
+    );
 
     // Write witness assignments
     for (output_witness, value) in outputs.iter().zip(ciphertext.into_iter()) {
@@ -29,6 +30,22 @@ pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     }
 
     Ok(())
+}
+
+pub(crate) fn execute_aes128_encryption_opcode<F: AcirField>(
+    initial_witness: &WitnessMap<F>,
+    inputs: &[FunctionInput<F>],
+    iv: &[FunctionInput<F>; 16],
+    key: &[FunctionInput<F>; 16],
+) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
+    let scalars = to_u8_vec(initial_witness, inputs)?;
+
+    let iv = to_u8_array(initial_witness, iv)?;
+    let key = to_u8_array(initial_witness, key)?;
+
+    let ciphertext = aes128_encrypt(&scalars, iv, key)?;
+
+    Ok(ciphertext)
 }
 
 #[cfg(test)]
@@ -149,8 +166,10 @@ mod tests {
             (Witness(95), FieldElement::from(0x37u128)),
             (Witness(96), FieldElement::from(0x10u128)),
         ]));
+        const INPUT_LENGTH: usize = 64;
+
         let mut inputs = [FunctionInput::Witness(Witness(0)); 64];
-        for i in 0..64 {
+        for i in 0..INPUT_LENGTH {
             inputs[i] = FunctionInput::Witness(Witness(33 + i as u32));
         }
         let mut iv = [FunctionInput::Witness(Witness(0)); 16];
@@ -161,13 +180,17 @@ mod tests {
         for i in 0..16 {
             key[i] = FunctionInput::Witness(Witness(1 + i as u32));
         }
+        // With auto padding disabled, output length equals input length
+        const OUTPUT_LENGTH: usize = INPUT_LENGTH;
         let mut outputs = vec![];
-        for i in 97..161 {
-            outputs.push(Witness(i));
+        for i in 97..97 + OUTPUT_LENGTH {
+            outputs.push(Witness(i as u32));
         }
 
         solve_aes128_encryption_opcode(&mut initial_witness, &inputs, &iv, &key, &outputs).unwrap();
-        let expected_output: [u128; 64] = [
+        // Expected output from NIST test vectors (without padding block)
+        // See: https://github.com/keepsimple1/libaes/blob/e45afaa1e9f248375e797a52eaf40eeb0ba8515a/tests/aes.rs#L14
+        let expected_output: [u128; OUTPUT_LENGTH] = [
             0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46, 0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9,
             0x19, 0x7d, 0x50, 0x86, 0xcb, 0x9b, 0x50, 0x72, 0x19, 0xee, 0x95, 0xdb, 0x11, 0x3a,
             0x91, 0x76, 0x78, 0xb2, 0x73, 0xbe, 0xd6, 0xb8, 0xe3, 0xc1, 0x74, 0x3b, 0x71, 0x16,
@@ -176,7 +199,7 @@ mod tests {
         ];
         let expected_output = expected_output.map(FieldElement::from);
         let expected_output: Vec<&FieldElement> = expected_output.iter().collect();
-        for i in 0..64 {
+        for i in 0..OUTPUT_LENGTH {
             assert_eq!(initial_witness[&Witness(97 + i as u32)], *expected_output[i]);
         }
     }

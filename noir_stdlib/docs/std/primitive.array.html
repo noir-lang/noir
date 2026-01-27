@@ -97,9 +97,6 @@
 <li><a href="fn.println.html">println</a></div></li>
 <li><a href="fn.static_assert.html">static_assert</a></div></li>
 <li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
-<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
-<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
-<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
 </ul>
 </nav>
 <main>
@@ -117,6 +114,44 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
+<div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort"><span class="fn">sort</span></a>(self) -> Self
+<div class="where-clause">where
+    T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
+    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
+only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
+logic it uses internally is optimized specifically for these values. If you need a sort function to
+sort any type, you should use the <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a> function.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
+    <span class="kw">let</span> sorted = arr.sort();
+    <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
+<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
+<div class="where-clause">where
+    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a new sorted array by sorting it with a custom comparison function.
+The original array remains untouched.
+The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
+<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
+    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
+    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
+
+    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
+    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
 <div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -133,7 +168,7 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 <p>Returns this array as a vector.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> vector = array.as_vector();
-<span class="kw">assert_eq</span>(vector, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
+<span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
 </div><code id="as_slice" class="code-header">pub fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> [T]</code>
 
 <div class="padded-description"><div class="deprecated">
@@ -145,7 +180,7 @@ Deprecated: This method has been renamed to `as_vector`
 This method is deprecated in favor of <code>as_vector</code>.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> vector = array.as_slice();
-<span class="kw">assert_eq</span>(vector, &[<span class="number">1</span>, <span class="number">2</span>]);</code></pre></div>
+<span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
 </div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U; N]</code>
 
 <div class="padded-description"><div class="comments">
@@ -245,44 +280,6 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
     <span class="kw">let</span> arr2 = [<span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>];
     <span class="kw">let</span> concatenated_arr = arr1.concat(arr2);
     <span class="kw">assert</span>(concatenated_arr == [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>]);
-}</code></pre></div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
-
-<div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort"><span class="fn">sort</span></a>(self) -> Self
-<div class="where-clause">where
-    T: <a href="../std/cmp/trait.Ord.html" class="trait">Ord</a>,
-    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
-only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
-logic it uses internally is optimized specifically for these values. If you need a sort function to
-sort any type, you should use the <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a> function.</p>
-<p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
-    <span class="kw">let</span> sorted = arr.sort();
-    <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
-}</code></pre></div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
-
-<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
-<div class="where-clause">where
-    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns a new sorted array by sorting it with a custom comparison function.
-The original array remains untouched.
-The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
-<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
-<p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
-    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
-    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
-
-    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
-    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
 

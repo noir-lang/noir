@@ -21,8 +21,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings,
-    TypeVariable,
+    Kind, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -482,11 +481,7 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = Type::NamedGeneric(NamedGeneric {
-        type_var: type_var.clone(),
-        name: name.clone(),
-        implicit: false,
-    });
+    let typ = type_var.clone().into_named_generic(&name, None);
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -504,7 +499,7 @@ fn type_def_as_type(
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().into_named_generic(None));
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -571,7 +566,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let generic_as_named = generic.clone().as_named_generic();
+            let generic_as_named = generic.clone().into_named_generic(None);
             let numeric_type = match generic_as_named.kind() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
@@ -610,7 +605,7 @@ fn type_def_has_named_attribute(
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
@@ -663,7 +658,7 @@ fn type_def_fields(
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1079,10 +1074,11 @@ fn to_le_radix(
         if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
     });
 
-    let result_type = Type::Array(
-        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
-        element_type,
-    );
+    let len: u32 = decomposed_integer
+        .len()
+        .try_into()
+        .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
+    let result_type = Type::Array(Box::new(len.into()), element_type);
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
@@ -1132,8 +1128,8 @@ fn type_as_constant(
                 if err.is_non_constant_evaluated() {
                     Ok(None)
                 } else {
-                    let err = Some(Box::new(err));
-                    Err(InterpreterError::NonIntegerArrayLength { typ, err, location })
+                    let err = Box::new(err);
+                    Err(InterpreterError::InvalidArrayLength { err, location })
                 }
             }
         }
@@ -1367,7 +1363,7 @@ fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 
 // fn methods(self) -> [FunctionDefinition]
 fn trait_impl_methods(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1385,7 +1381,7 @@ fn trait_impl_methods(
 
 // fn trait_generic_args(self) -> [Type]
 fn trait_impl_trait_generic_args(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1951,7 +1947,7 @@ fn expr_as_for(
     })
 }
 
-// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, bool, Expr)>
 fn expr_as_for_range(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1961,14 +1957,14 @@ fn expr_as_for_range(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
-                let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
-                let from = Shared::new(Value::expression(from.kind));
-                let to = Shared::new(Value::expression(to.kind));
+                let from = Shared::new(Value::expression(bounds.start.kind));
+                let to = Shared::new(Value::expression(bounds.end.kind));
+                let inclusive = Shared::new(Value::Bool(bounds.inclusive));
                 let body = Shared::new(Value::expression(for_statement.block.kind));
-                Some(Value::Tuple(vec![identifier, from, to, body]))
+                Some(Value::Tuple(vec![identifier, from, to, inclusive, body]))
             } else {
                 None
             }
@@ -3161,7 +3157,7 @@ fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 }
 
 fn trait_def_as_trait_constraint(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {

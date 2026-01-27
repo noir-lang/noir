@@ -17,6 +17,7 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
+use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
     ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
@@ -51,7 +52,7 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// This function will generate the SSA but does not perform any optimizations on it.
 pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
-    let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
+    let is_databus = DataBusBuilder::is_databus(program.main_function_parameters());
 
     let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
@@ -509,8 +510,9 @@ impl FunctionContext<'_> {
                 // except when the inner elements have no size, because the array access can be optimized out in that case.
                 // We then only need to inject it for brillig functions or for 'unit' elements.
                 if runtime.is_brillig() || type_size_usize == 0 {
-                    let len =
-                        self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
+                    let len = self
+                        .builder
+                        .numeric_constant(u128::from(len.0), NumericType::length_type());
                     self.codegen_access_check(index, len);
                 }
             }
@@ -576,7 +578,7 @@ impl FunctionContext<'_> {
             // to assert that the index fits in the relevant number of bits.
             let array_len_constant = array_len_constant.expect("array checked to be constant");
             let array_len_bits = array_len_constant.ilog2();
-            debug_assert_eq!(2u32.pow(array_len_bits), array_len_constant);
+            assert_eq!(2u32.pow(array_len_bits), array_len_constant);
             // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
             // There's an optimization here that we should find automatically.
             let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
@@ -626,15 +628,22 @@ impl FunctionContext<'_> {
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
 
         self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+        let mut end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
         let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
 
         if let (Some(start_constant), Some(end_constant)) =
             (range_bound(start_index), range_bound(end_index))
         {
-            // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
-            if start_constant >= end_constant {
+            // For inclusive ranges (e.g., `0..=255`), the loop should run if start <= end.
+            // For exclusive ranges (e.g., `0..256`), the loop should run if start < end.
+            // If the condition is false, skip the loop entirely.
+            let should_skip = if for_expr.inclusive {
+                start_constant > end_constant
+            } else {
+                start_constant >= end_constant
+            };
+            if should_skip {
                 return Ok(Self::unit_value());
             }
         }
@@ -645,11 +654,86 @@ impl FunctionContext<'_> {
 
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
-        let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
+        let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
+
+        let mut inclusive = for_expr.inclusive;
+
+        // If this is an inclusive for loop, check if the end index is not the maximum value for its type.
+        // In that case we can generate an exclusive for loop up to `end + 1`, which is simpler than
+        // the code of an inclusive loop.
+        if inclusive {
+            if let Some(end_constant) =
+                self.builder.current_function.dfg.get_integer_constant(end_index)
+            {
+                let index_type = index_type.unwrap_numeric();
+                let bit_size = match index_type {
+                    NumericType::Signed { bit_size } => bit_size - 1,
+                    NumericType::Unsigned { bit_size } => bit_size,
+                    NumericType::NativeField => panic!("Cannot iterate over Field"),
+                };
+                let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
+
+                if end_constant.into_numeric_constant().0.to_u128() < max_value {
+                    let end_constant_plus_one = end_constant.inc();
+                    end_index = self.builder.numeric_constant(
+                        end_constant_plus_one.into_numeric_constant().0,
+                        index_type,
+                    );
+                    inclusive = false;
+                }
+            }
+        }
+
+        // For inclusive ranges we could generate a loop like:
+        //
+        // ```noir
+        // let index = start;
+        // while start <= end {
+        //   body;
+        //   if index == end { break; }
+        //   index += 1;
+        // }
+        // ``
+        //
+        // We could do that in order to avoid an overflow at `index += 1` when `end` is the maximum
+        // value for the range type.
+        //
+        // However, an SSA like above breaks some assumptions in the unrolling optimization pass.
+        //
+        // Instead, we generate something like this:
+        //
+        // ```noir
+        // let index = start;
+        // // did_not_hit_break is set to false if a break is hit in the for body
+        // let did_not_hit_break = true;
+        // for index in start..end {
+        //   body;
+        // }
+        // if start <= end && did_not_hit_break {
+        //   index = end;
+        //   body;
+        // }
+        // ```
+        //
+        // That is, we generate an exclusive for loop and include an extra final iteration that
+        // is only executed if the start is less than the end, and if no break was hit in the loop body.
+        let did_not_hit_break_var = if inclusive {
+            let did_not_hit_break_var = self.builder.insert_allocate(Type::bool());
+            let zero = self.builder.numeric_constant(true, NumericType::bool());
+            self.builder.insert_store(did_not_hit_break_var, zero);
+            Some(did_not_hit_break_var)
+        } else {
+            None
+        };
 
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
-        self.enter_loop(Loop { loop_entry, loop_index: Some(loop_index), loop_end });
+        self.enter_loop(Loop {
+            loop_entry,
+            loop_index: Some(loop_index),
+            loop_end,
+            did_not_hit_break_var,
+        });
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -659,7 +743,7 @@ impl FunctionContext<'_> {
         // Compile the loop entry block
         self.builder.switch_to_block(loop_entry);
 
-        // Set the location of the ending Lt instruction and the jmpif back-edge of the loop to the
+        // Set the location of the ending comparison instruction and the jmpif back-edge of the loop to the
         // end range. These are the instructions used to issue an error if the end of the range
         // cannot be determined at compile-time.
         self.builder.set_location(for_expr.end_range_location);
@@ -671,7 +755,7 @@ impl FunctionContext<'_> {
         self.define(for_expr.index_variable, loop_index.into());
 
         let result = self.codegen_expression(&for_expr.block);
-        self.codegen_unless_break_or_continue(result, |this, _| {
+        self.codegen_unless_break_or_continue(result.clone(), |this, _| {
             let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
@@ -679,6 +763,63 @@ impl FunctionContext<'_> {
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
         self.exit_loop();
+
+        // Generate the final iteration for inclusive ranges
+        if let Some(did_not_hit_break_var) = did_not_hit_break_var {
+            let final_iteration = self.builder.insert_block();
+            let final_iteration_end = self.builder.insert_block();
+
+            let did_not_hit_break = self.builder.insert_load(did_not_hit_break_var, Type::bool());
+            // `start <= end` is equivalent to `!(start > end)`
+            let end_is_less_than_start =
+                self.builder.insert_binary(end_index, BinaryOp::Lt, start_index);
+            let start_is_less_than_or_equal_to_end =
+                self.builder.insert_not(end_is_less_than_start);
+            let should_execute_loop_body = self.builder.insert_binary(
+                did_not_hit_break,
+                BinaryOp::And,
+                start_is_less_than_or_equal_to_end,
+            );
+            self.builder.terminate_with_jmpif(
+                should_execute_loop_body,
+                final_iteration,
+                final_iteration_end,
+            );
+
+            self.builder.switch_to_block(final_iteration);
+
+            // We need to be in the context of a loop because a `break` in the loop, in the final
+            // iteration, has to jump somewhere.
+            // We set both `loop_entry` and `loop_end` to `final_iteration_end` because:
+            // - `break` will jump to `loop_end`
+            // - `continue` will jump to `loop_entry`, but here we also want to jump to the end
+            self.enter_loop(Loop {
+                loop_entry: final_iteration_end,
+                loop_index: None,
+                loop_end: final_iteration_end,
+                did_not_hit_break_var: None,
+            });
+
+            // Temporarily allow redefinitions because:
+            // 1. We'll override the index variable
+            // 2. We'll generate the for loop body again
+            let old_redefinitions_allowed = self.redefinitions_allowed;
+            self.redefinitions_allowed = true;
+
+            self.define(for_expr.index_variable, end_index.into());
+
+            let result = self.codegen_expression(&for_expr.block);
+            self.codegen_unless_break_or_continue(result, |this, _| {
+                this.builder.terminate_with_jmp(final_iteration_end, vec![]);
+            })?;
+
+            self.redefinitions_allowed = old_redefinitions_allowed;
+
+            self.builder.switch_to_block(final_iteration_end);
+
+            self.exit_loop();
+        }
+
         Ok(Self::unit_value())
     }
 
@@ -699,7 +840,12 @@ impl FunctionContext<'_> {
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
 
-        self.enter_loop(Loop { loop_entry: loop_body, loop_index: None, loop_end });
+        self.enter_loop(Loop {
+            loop_entry: loop_body,
+            loop_index: None,
+            loop_end,
+            did_not_hit_break_var: None,
+        });
 
         self.builder.terminate_with_jmp(loop_body, vec![]);
 
@@ -744,7 +890,12 @@ impl FunctionContext<'_> {
         let condition = self.codegen_non_tuple_expression(&while_.condition)?;
         self.builder.terminate_with_jmpif(condition, while_body, while_end);
 
-        self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
+        self.enter_loop(Loop {
+            loop_entry: while_entry,
+            loop_index: None,
+            loop_end: while_end,
+            did_not_hit_break_var: None,
+        });
 
         // Codegen the body
         self.builder.switch_to_block(while_body);
@@ -1083,8 +1234,19 @@ impl FunctionContext<'_> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
+        // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
+        let can_modify_args = !is_pure_builtin_func(&call.func) && !is_oracle_func(&call.func);
+
         for argument in &call.arguments {
-            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            // The ownership pass inserts `Clone` around call arguments, however if we know that
+            // we are calling a builtin function that will not modify the argument, then we can
+            // skip generating an `IncrementRc` for cloned arrays.
+            // The purity information isn't currently available to the ownership pass.
+            let arg = match argument {
+                Expression::Clone(arg) if !can_modify_args => arg.as_ref(),
+                other => other,
+            };
+            let mut values = self.codegen_expression(arg)?.into_value_list(self);
             arguments.append(&mut values);
         }
 
@@ -1228,7 +1390,15 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_break(&mut self) -> Result<Values, RuntimeError> {
-        let loop_end = self.current_loop().loop_end;
+        let current_loop = self.current_loop();
+
+        if let Some(did_not_hit_break_var) = current_loop.did_not_hit_break_var {
+            // `did_not_hit_break_var = false` means we hit a break
+            let zero = self.builder.numeric_constant(false, NumericType::bool());
+            self.builder.insert_store(did_not_hit_break_var, zero);
+        }
+
+        let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
         Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
@@ -1288,4 +1458,24 @@ impl FunctionContext<'_> {
             Err(err) => Err(err),
         }
     }
+}
+
+/// Return whether the expression refers to a pure builtin or low level function.
+fn is_pure_builtin_func(expr: &Expression) -> bool {
+    let Expression::Ident(ident) = expr else {
+        return false;
+    };
+    let (ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = &ident.definition
+    else {
+        return false;
+    };
+    let Some(intrinsic) = Intrinsic::lookup(name) else {
+        return false;
+    };
+    matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+}
+
+/// Return whether the expression refers to a foreign function.
+fn is_oracle_func(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
 }

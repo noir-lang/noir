@@ -13,9 +13,10 @@ use nargo::NargoError;
 use nargo::errors::ExecutionError;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 use noirc_abi::Abi;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
+    prepare_crate,
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::SsaProgramArtifact;
@@ -240,7 +241,7 @@ impl CompareComptime {
         program: &acir::circuit::Program<FieldElement>,
         initial_witness: WitnessMap<FieldElement>,
     ) -> ExecResult {
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let mut output = Vec::new();
 
         let mut foreign_call_executor =

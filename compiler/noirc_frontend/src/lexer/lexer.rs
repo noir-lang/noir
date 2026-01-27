@@ -85,24 +85,24 @@ impl<'a> Lexer<'a> {
     }
 
     /// Peeks at the next char. Does not iterate the cursor
-    fn peek_char(&mut self) -> Option<char> {
+    fn peek_char(&self) -> Option<char> {
         self.chars.clone().next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the character two positions ahead. Does not iterate the cursor
-    fn peek2_char(&mut self) -> Option<char> {
+    fn peek2_char(&self) -> Option<char> {
         let mut chars = self.chars.clone();
         chars.next();
         chars.next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
-    fn peek_char_is(&mut self, ch: char) -> bool {
+    fn peek_char_is(&self, ch: char) -> bool {
         self.peek_char() == Some(ch)
     }
 
     /// Peeks at the character two positions ahead and returns true if it is equal to the char argument
-    fn peek2_char_is(&mut self, ch: char) -> bool {
+    fn peek2_char_is(&self, ch: char) -> bool {
         self.peek2_char() == Some(ch)
     }
 
@@ -112,7 +112,7 @@ impl<'a> Lexer<'a> {
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
         } else if self.peek_char_is('[') {
-            self.single_char_token(Token::VectorStart)
+            self.single_char_token(Token::DeprecatedVectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -175,6 +175,7 @@ impl<'a> Lexer<'a> {
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('$') => self.single_char_token(Token::DollarSign),
+            Some('@') => self.single_char_token(Token::At),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),

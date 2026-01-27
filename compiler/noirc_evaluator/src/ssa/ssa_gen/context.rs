@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -38,6 +39,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// is the only part of the context that needs to be shared between threads.
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
+    pub(super) redefinitions_allowed: bool,
 
     pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,
@@ -93,6 +95,18 @@ pub(super) struct Loop {
     /// The loop index will be `Some` for a `for` and `None` for a `loop`
     pub(super) loop_index: Option<ValueId>,
     pub(super) loop_end: BasicBlockId,
+    /// A variable that tracks whether a `break` was hit or not:
+    /// `false` if a `break` was hit, `true` if not.
+    /// This is only `Some` in the case of an inclusive for loop which is
+    /// generated as an exclusive for loop with an extra iteration for the
+    /// end of the loop. This extra iteration is only done if no `break` was hit
+    /// in the exclusive iterations (and if `start <= end`).
+    /// We track the negated value because we execute the last iteration
+    /// if we did not hit a break, in the end being `did_not_hit_break && (start <= end)`.
+    /// If we tracked whether we hit a break or not, the condition to execute
+    /// the last iteration would be `(not hit_break) && (start <= end)`, which is larger
+    /// by one instruction.
+    pub(super) did_not_hit_break_var: Option<ValueId>,
 }
 
 /// The queue of functions remaining to compile
@@ -125,7 +139,13 @@ impl<'a> FunctionContext<'a> {
         builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
-        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
+        let mut this = Self {
+            definitions,
+            builder,
+            shared_context,
+            loops: Vec::new(),
+            redefinitions_allowed: false,
+        };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -250,7 +270,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element).flatten();
-                Type::Array(Arc::new(element_types), *len)
+                Type::Array(Arc::new(element_types), SemanticLength(*len))
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
@@ -554,7 +574,9 @@ impl<'a> FunctionContext<'a> {
     /// by calling self.lookup(id)
     pub(super) fn define(&mut self, id: LocalId, value: Values) {
         let existing = self.definitions.insert(id, value);
-        assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
+        if !self.redefinitions_allowed && existing.is_some() {
+            panic!("Variable {id:?} was defined twice in ssa-gen pass");
+        }
     }
 
     /// Looks up the value of a given local variable. Expects the variable to have
@@ -637,9 +659,11 @@ impl<'a> FunctionContext<'a> {
     ///                  construct the larger value as needed until we can `store` to the nearest
     ///                  allocation.
     ///
+    /// ```text
     /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
     /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
     /// store v5 in v0                   ; and store the result in the only mutable reference
+    /// ```
     ///
     /// The returned `LValueRef` tracks the current value at each step of the lvalue.
     /// This is later used by `assign_new_value` to construct a new updated value that
@@ -791,7 +815,7 @@ impl<'a> FunctionContext<'a> {
                         if self.builder.current_function.runtime().is_brillig() {
                             let len = self
                                 .builder
-                                .numeric_constant(u128::from(*len), NumericType::length_type());
+                                .numeric_constant(u128::from(len.0), NumericType::length_type());
                             self.codegen_access_check(index, len);
                         }
                     }
@@ -865,7 +889,7 @@ impl<'a> FunctionContext<'a> {
 
     fn element_size(&self, array: ValueId) -> FieldElement {
         let size = self.builder.type_of_value(array).element_size();
-        FieldElement::from(size as u128)
+        FieldElement::from(size.0)
     }
 
     /// Given an lhs containing only references, create a store instruction to store each value of

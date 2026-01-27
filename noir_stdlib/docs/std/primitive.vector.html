@@ -101,9 +101,6 @@
 <li><a href="fn.println.html">println</a></div></li>
 <li><a href="fn.static_assert.html">static_assert</a></div></li>
 <li><a href="fn.verify_proof_with_type.html">verify_proof_with_type</a></div></li>
-<li><a href="fn.wrapping_add.html">wrapping_add</a></div></li>
-<li><a href="fn.wrapping_mul.html">wrapping_mul</a></div></li>
-<li><a href="fn.wrapping_sub.html">wrapping_sub</a></div></li>
 </ul>
 </nav>
 <main>
@@ -113,8 +110,8 @@
 <p>A dynamically-sized view into a contiguous sequence, <code>[T]</code>.</p>
 <p>There are two syntactic forms for creating a vector:</p>
 <ul>
-<li>A vector with each element, i.e., <code>&amp;[x, y, z]</code>.</li>
-<li>A repeat expression <code>&amp;[expr; N]</code> where <code>N</code> is how many times to repeat <code>expr</code> in the vector.</li>
+<li>A vector with each element, i.e., <code>[x, y, z].as_vector()</code>.</li>
+<li>A repeat expression <code>[expr; N].as_vector()</code> where <code>N</code> is how many times to repeat <code>expr</code> in the vector.</li>
 </ul>
 </div>
 <h2>Implementations</h2>

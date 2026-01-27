@@ -13,7 +13,7 @@ use super::{
     opt::pure::Purity,
 };
 
-use acvm::FieldElement;
+use acvm::{FieldElement, acir::brillig::lengths::SemanticLength};
 use ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -27,9 +27,12 @@ use noirc_frontend::{
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
-use crate::ssa::{
-    ir::{function::RuntimeType, instruction::ArrayOffset},
-    parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{function::RuntimeType, instruction::ArrayOffset},
+        parser::ast::{ParsedCallData, ParsedDataBus, ParsedTerminator},
+    },
 };
 
 mod ast;
@@ -263,6 +266,8 @@ impl<'a> Parser<'a> {
             Ok(InlineType::Inline)
         } else if self.eat_keyword(Keyword::InlineAlways)? {
             Ok(InlineType::InlineAlways)
+        } else if self.eat_keyword(Keyword::InlineNever)? {
+            Ok(InlineType::InlineNever)
         } else if self.eat_keyword(Keyword::Fold)? {
             Ok(InlineType::Fold)
         } else if self.eat_keyword(Keyword::NoPredicates)? {
@@ -271,6 +276,7 @@ impl<'a> Parser<'a> {
             self.expected_one_of_tokens(&[
                 Token::Keyword(Keyword::Inline),
                 Token::Keyword(Keyword::InlineAlways),
+                Token::Keyword(Keyword::InlineNever),
                 Token::Keyword(Keyword::Fold),
                 Token::Keyword(Keyword::NoPredicates),
             ])
@@ -751,7 +757,8 @@ impl<'a> Parser<'a> {
             ParsedMakeArray { elements, typ }
         } else if let Some(string) = self.eat_byte_str()? {
             let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-            let typ = Type::Array(Arc::new(vec![u8.clone()]), string.len() as u32);
+            let typ =
+                Type::Array(Arc::new(vec![u8.clone()]), SemanticLength(assert_u32(string.len())));
             let elements = string
                 .bytes()
                 .map(|byte| {
@@ -974,7 +981,10 @@ impl<'a> Parser<'a> {
             if self.eat(Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
+                return Ok(Type::Array(
+                    Arc::new(element_types),
+                    SemanticLength(length.try_to_unsigned().unwrap()),
+                ));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Vector(Arc::new(element_types)));
@@ -1167,71 +1177,71 @@ impl<'a> Parser<'a> {
         self.lexer.next_token().map_err(ParserError::LexerError)
     }
 
-    fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
+    fn expected_instruction_or_terminator<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedInstructionOrTerminator {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_string<T>(&mut self) -> ParseResult<T> {
+    fn expected_string<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedString {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_string_or_data<T>(&mut self) -> ParseResult<T> {
+    fn expected_string_or_data<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedStringOrData {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_byte_string<T>(&mut self) -> ParseResult<T> {
+    fn expected_byte_string<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedByteString {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_identifier<T>(&mut self) -> ParseResult<T> {
+    fn expected_identifier<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_int<T>(&mut self) -> ParseResult<T> {
+    fn expected_int<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedInt { found: self.token.token().clone(), span: self.token.span() })
     }
 
-    fn unexpected_offset<T>(&mut self, found: Token, span: Span) -> ParseResult<T> {
+    fn unexpected_offset<T>(&self, found: Token, span: Span) -> ParseResult<T> {
         Err(ParserError::UnexpectedOffset { found, span })
     }
 
-    fn expected_type<T>(&mut self) -> ParseResult<T> {
+    fn expected_type<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedType {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_value<T>(&mut self) -> ParseResult<T> {
+    fn expected_value<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedValue {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_global_value<T>(&mut self) -> ParseResult<T> {
+    fn expected_global_value<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedGlobalValue {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
+    fn expected_token<T>(&self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
             found: self.token.token().clone(),
@@ -1239,7 +1249,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expected_one_of_tokens<T>(&mut self, tokens: &[Token]) -> ParseResult<T> {
+    fn expected_one_of_tokens<T>(&self, tokens: &[Token]) -> ParseResult<T> {
         Err(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: self.token.token().clone(),

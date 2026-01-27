@@ -1,6 +1,6 @@
 fn main() {
     // Expecting error: type annotations needed (N not known)
-    let _ = vector_to_array(&[1, 2, 3]);
+    let _ = vector_to_array([1, 2, 3].as_vector());
 }
 
 fn vector_to_array<N>(vector: [Field]) -> [Field; N] {

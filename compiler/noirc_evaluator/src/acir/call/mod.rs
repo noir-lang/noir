@@ -1,12 +1,18 @@
 use acvm::AcirField;
+use acvm::acir::brillig::lengths::{
+    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+    SemiFlattenedLength,
+};
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
+use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
-use crate::errors::{RuntimeError, SsaReport};
+use crate::errors::RuntimeError;
 use crate::ssa::ir::value::Value;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
@@ -98,10 +104,8 @@ impl Context<'_> {
         }
 
         let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-        let output_count: usize = result_ids
-            .iter()
-            .map(|result_id| dfg.type_of_value(*result_id).flattened_size() as usize)
-            .sum();
+        let output_count: FlattenedLength =
+            result_ids.iter().map(|result_id| dfg.type_of_value(*result_id).flattened_size()).sum();
 
         let Some(acir_function_id) = ssa.get_entry_point_index(func_id) else {
             unreachable!(
@@ -194,14 +198,23 @@ impl Context<'_> {
                             // len holds the flattened length of all elements in the vector,
                             // so to get the no-flattened length we need to divide by the flattened
                             // length of a single vector entry
-                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            if sum == 0 { 0 } else { *len / sum as usize }
+                            let sum: FlattenedLength =
+                                item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            if sum.0 == 0 {
+                                SemanticLength(0)
+                            } else {
+                                *len / ElementsFlattenedLength::from(sum)
+                            }
                         }
                         AcirValue::Array(array) => {
-                            // len holds the non-flattened length of all elements in the vector,
-                            // so here we need to divide by the non-flattened length of a single
-                            // vector entry
-                            if item_types.is_empty() { 0 } else { array.len() / item_types.len() }
+                            if item_types.is_empty() {
+                                SemanticLength(0)
+                            } else {
+                                // len holds the semi-flattened length of all elements in the vector,
+                                // so here we need to divide by elements length of the item types
+                                let len = SemiFlattenedLength(assert_u32(array.len()));
+                                len / ElementTypesLength(assert_u32(item_types.len()))
+                            }
                         }
                         _ => unreachable!("ICE: Vector value is not an array"),
                     };
@@ -229,7 +242,7 @@ impl Context<'_> {
                 let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size() as usize
+                    array_typ.flattened_size()
                 } else {
                     arrays::flattened_value_size(&output)
                 };
@@ -288,7 +301,7 @@ impl Context<'_> {
         match result_type {
             Type::Array(elements, size) => {
                 let mut element_values = im::Vector::new();
-                for _ in 0..*size {
+                for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);
                         element_values.push_back(element);

@@ -11,11 +11,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{
-    acir::ssa::Artifacts,
-    brillig::BrilligOptions,
-    errors::{RuntimeError, SsaReport},
-};
+use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
 use acvm::{
     FieldElement,
     acir::{
@@ -25,13 +21,15 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::{
-    call_stack::CallStackId,
-    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+use iter_extended::vecmap;
+use noirc_artifacts::{
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
+    ssa::SsaReport,
 };
+use noirc_errors::call_stack::CallStackId;
 
-use noirc_frontend::shared::Visibility;
-use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
+use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{monomorphization::ast, shared::Visibility};
 use ssa_gen::Ssa;
 use tracing::{Level, span};
 
@@ -125,13 +123,13 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 /// The default SSA optimization pipeline.
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
+        SsaPass::new(Ssa::black_box_bypass, "black_box bypass"),
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        // BUG: Enabling this mem2reg causes test failures in aztec-nr; specifically `state_vars::private_mutable::test::initialize_and_get_pending`
-        // SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new_try(
@@ -418,8 +416,8 @@ pub fn create_program_with_passes(
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
 
-    let arg_size_and_visibilities: Vec<Vec<(u32, Visibility)>> =
-        program.function_signatures.iter().map(resolve_function_signature).collect();
+    let entry_points = program.functions.iter().filter(|function| function.is_entry_point);
+    let arg_size_and_visibilities = vecmap(entry_points, resolve_function_signature);
 
     let artifacts = optimize_into_acir(program, options, passes, files)?;
 
@@ -470,11 +468,12 @@ pub fn combine_artifacts(
     SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
-fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
-    func_sig
-        .0
+/// Given a function, return each parameter's field count and visibility
+fn resolve_function_signature(function: &ast::Function) -> Vec<(u32, Visibility)> {
+    function
+        .parameters
         .iter()
-        .map(|(pattern, typ, visibility)| (typ.field_count(&pattern.location()), *visibility))
+        .map(|(_, _, _, typ, visibility)| (typ.entry_point_field_count(), *visibility))
         .collect()
 }
 
@@ -521,7 +520,7 @@ pub fn convert_generated_acir_into_circuit(
             OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-    let location_tree = generated_acir.call_stacks.to_location_tree();
+    let location_tree = LocationTree::from(&generated_acir.call_stacks);
     let mut debug_info = DebugInfo::new(
         brillig_locations,
         acir_location_map,

@@ -94,7 +94,7 @@ impl<'f> FunctionInserter<'f> {
     }
 
     /// Get an instruction and make sure all the values in it are freshly resolved.
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStackId) {
+    pub(crate) fn map_instruction(&self, id: InstructionId) -> (Instruction, CallStackId) {
         let mut instruction = self.function.dfg[id].clone();
         instruction.map_values_mut(|id| self.resolve(id));
         (instruction, self.function.dfg.get_instruction_call_stack_id(id))

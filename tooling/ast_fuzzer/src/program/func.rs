@@ -9,11 +9,7 @@ use strum::IntoEnumIterator;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
-    hir_def::{
-        self,
-        expr::{Constructor, HirIdent},
-        stmt::HirPattern,
-    },
+    hir_def::expr::Constructor,
     monomorphization::{
         append_printable_type_info_for_type,
         ast::{
@@ -22,7 +18,6 @@ use noirc_frontend::{
             Parameters, Program, Type, While,
         },
     },
-    node_interner::DefinitionId,
     shared::{Signedness, Visibility},
     signed_field::SignedField,
 };
@@ -55,20 +50,6 @@ pub(super) struct FunctionDeclaration {
 }
 
 impl FunctionDeclaration {
-    /// Generate a HIR function signature.
-    pub(super) fn signature(&self) -> hir_def::function::FunctionSignature {
-        let param_types = self
-            .params
-            .iter()
-            .map(|(_id, mutable, _name, typ, vis)| hir_param(*mutable, typ, *vis))
-            .collect();
-
-        let return_type =
-            (!types::is_unit(&self.return_type)).then(|| types::to_hir_type(&self.return_type));
-
-        (param_types, return_type)
-    }
-
     /// Check if the return type contain a reference.
     pub(super) fn returns_refs(&self) -> bool {
         types::contains_reference(&self.return_type)
@@ -84,28 +65,6 @@ impl FunctionDeclaration {
         self.returns_refs()
             || self.params.iter().any(|(_, _, _, typ, _)| types::contains_reference(typ))
     }
-}
-
-/// HIR representation of a function parameter.
-pub(crate) fn hir_param(
-    mutable: bool,
-    typ: &Type,
-    vis: Visibility,
-) -> (HirPattern, hir_def::types::Type, Visibility) {
-    // The pattern doesn't seem to be used in `ssa::create_program`,
-    // apart from its location, so it shouldn't matter what we put into it.
-    let mut pat = HirPattern::Identifier(HirIdent {
-        location: Location::dummy(),
-        id: DefinitionId::dummy_id(),
-        impl_kind: hir_def::expr::ImplKind::NotATraitMethod,
-    });
-    if mutable {
-        pat = HirPattern::Mutable(Box::new(pat), Location::dummy());
-    }
-
-    let typ = types::to_hir_type(typ);
-
-    (pat, typ, vis)
 }
 
 /// Help avoid infinite recursion by limiting which function can call which other one.
@@ -1640,6 +1599,7 @@ impl<'a> FunctionContext<'a> {
             start_range: Box::new(start_range),
             end_range: Box::new(end_range),
             block: Box::new(block),
+            inclusive: bool::arbitrary(u)?,
             start_range_location: Location::dummy(),
             end_range_location: Location::dummy(),
         });
@@ -1989,11 +1949,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate a random field that can be used in the match constructor of a numeric type.
-    fn gen_num_field(
-        &mut self,
-        u: &mut Unstructured,
-        typ: &Type,
-    ) -> arbitrary::Result<SignedField> {
+    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
         let literal = self.gen_literal(u, typ)?;
         let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
             unreachable!("expected Literal::Integer; got {literal:?}");
@@ -2003,7 +1959,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a match constructor for a numeric type.
     fn gen_num_match_constructor(
-        &mut self,
+        &self,
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Constructor> {

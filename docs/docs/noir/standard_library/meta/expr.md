@@ -162,7 +162,7 @@ the repeated element and the length expressions.
 
 #include_code as_vector noir_stdlib/src/meta/expr.nr rust
 
-If this expression is a vector literal `&[elem1, ..., elemN]`,
+If this expression is a vector literal `@[elem1, ..., elemN]`,
 return each element of the vector.
 
 ### as_tuple
@@ -226,8 +226,8 @@ Applies a mapping function to this expression and to all of its sub-expressions.
 
 This happens recursively for every expression within `self`.
 
-For example, calling `modify` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
-for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
+For example, calling `modify` on `(@[1], @[2, 3])` with an `f` that returns `Option::some`
+for expressions that are integers, doubling them, would return `(@[2], @[4, 6])`.
 
 ### quoted
 

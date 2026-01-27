@@ -11,7 +11,7 @@ fn check_trait_impl_for_non_type() {
     }
 
     impl Default2 for main {
-                      ^^^^ expected type got function
+                      ^^^^ expected type, found function `main`
         fn default(x: Field, y: Field) -> Field {
             x + y
         }
@@ -254,6 +254,24 @@ fn check_trait_not_in_scope() {
             Self { bar: x, array: [x,y] }
         }
     }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_associated_type_without_body() {
+    let src = "
+    pub trait Trait {
+        type Assoc;
+    }
+
+    impl Trait for Field {
+        type Assoc;
+             ^^^^^ Associated type in impl without body
+             ~~~~~ Provide a definition for the type: ` = <type>;`
+    }
+
+    fn main() {}
     ";
     check_errors(src);
 }

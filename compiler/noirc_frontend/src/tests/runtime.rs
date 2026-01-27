@@ -8,7 +8,7 @@ fn cannot_call_unconstrained_function_outside_of_unsafe() {
     let src = r#"
     fn main() {
         foo();
-        ^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+        ^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
     }
 
     unconstrained fn foo() {}
@@ -22,13 +22,13 @@ fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
     fn main() {
         let func = foo;
         func();
-        ^^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+        ^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
         inner(func);
     }
 
     fn inner(x: unconstrained fn() -> ()) {
         x();
-        ^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+        ^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
     }
 
     unconstrained fn foo() {}
@@ -67,7 +67,7 @@ fn missing_unsafe_block_when_needing_type_annotations() {
     impl<let N: u32> BigNumTrait for BigNum<N> {
         fn __is_zero(self) -> bool {
             self.__is_zero_impl()
-            ^^^^^^^^^^^^^^^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+            ^^^^^^^^^^^^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
         }
     }
     "#;
@@ -294,6 +294,19 @@ fn deny_fold_attribute_on_unconstrained() {
 }
 
 #[test]
+fn deny_inline_never_attribute_on_constrained() {
+    let src = r#"
+        #[inline_never]
+        ^^^^^^^^^^^^^^^ misplaced #[inline_never] attribute on constrained function foo. Only allowed on unconstrained functions
+        ~~~~~~~~~~~~~~~ misplaced #[inline_never] attribute
+        pub fn foo(x: Field, y: Field) {
+            assert(x != y);
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_no_predicates_attribute_on_entry_point() {
     let src = r#"
         #[no_predicates]
@@ -403,4 +416,58 @@ fn disallows_export_attribute_on_trait_impl_method() {
         }
     ";
     check_errors(src);
+}
+
+#[test]
+fn regression_10413() {
+    let src = "
+    fn main() {
+        foo(());
+    }
+
+    #[fold]
+    fn foo(_: ()) {}
+              ^^ Invalid type found in the entry point to a program
+              ~~ Unit is not a valid entry point type
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn user_defined_verify_proof_with_type_is_allowed_in_brillig() {
+    // User-defined functions having verify_proof_with_type name should not error.
+    // The lint only applies to std::verify_proof_with_type from the standard library.
+    let src = r#"
+    unconstrained fn main() {
+        let verification_key: [Field; 114] = [0; 114];
+        let proof: [Field; 94] = [0; 94];
+        let public_inputs: [Field; 1] = [0];
+        let key_hash: Field = 0;
+        let proof_type: u32 = 0;
+
+        // This is OK: it's a user-defined function, not std::verify_proof_with_type
+        verify_proof_with_type(verification_key, proof, public_inputs, key_hash, proof_type);
+    }
+
+    fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+        _verification_key: [Field; N],
+        _proof: [Field; M],
+        _public_inputs: [Field; K],
+        _key_hash: Field,
+        _proof_type: u32,
+    ) {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Globals are evaluated in a `comptime` context so they can call unconstrained functions without `unsafe` blocks
+#[test]
+fn call_unconstrained_function_in_lambda_in_global() {
+    let src = r#"
+    pub global foo: fn() = || bar();
+    unconstrained fn bar() {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }

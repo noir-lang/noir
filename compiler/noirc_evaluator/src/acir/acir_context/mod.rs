@@ -10,6 +10,7 @@
 
 use acvm::acir::{
     AcirField, BlackBoxFunc,
+    brillig::lengths::{FlattenedLength, SemanticLength},
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
@@ -17,6 +18,7 @@ use acvm::acir::{
     native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
+use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
@@ -26,7 +28,7 @@ use std::borrow::Cow;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use crate::{
     ErrorType,
-    errors::{InternalBug, InternalError, RuntimeError, SsaReport},
+    errors::{InternalError, RuntimeError},
 };
 
 mod black_box;
@@ -199,15 +201,21 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         var: AcirVar,
     ) -> Result<AcirVar, InternalError> {
-        if self.var_to_expression(var)?.to_witness().is_some() {
+        let expression = self.var_to_expression(var)?;
+        if expression.to_witness().is_some() {
             // If called with a variable which is already a witness then return the same variable.
             return Ok(var);
         }
 
         let var_as_witness = self.var_to_witness(var)?;
-
         let witness_var = self.add_data(AcirVarData::Witness(var_as_witness));
-        self.mark_variables_equivalent(var, witness_var)?;
+
+        // Issue https://github.com/noir-lang/noir/issues/11045
+        // Do not mark witness_var as equivalent to a constant
+        if expression.to_const().is_none() {
+            self.mark_variables_equivalent(var, witness_var)?;
+        }
+        assert!(self.var_to_expression(witness_var)?.to_witness().is_some());
 
         Ok(witness_var)
     }
@@ -362,8 +370,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
-                let outputs =
-                    self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1, None)?;
+                let outputs = self.black_box_function(
+                    BlackBoxFunc::XOR,
+                    inputs,
+                    Some(bit_size),
+                    FlattenedLength(1),
+                    None,
+                )?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -398,8 +411,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ), AcirValue::Var(rhs, typ)];
-                let outputs =
-                    self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1, None)?;
+                let outputs = self.black_box_function(
+                    BlackBoxFunc::AND,
+                    inputs,
+                    Some(bit_size),
+                    FlattenedLength(1),
+                    None,
+                )?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -548,12 +566,6 @@ impl<F: AcirField> AcirContext<F> {
         let msg = self.generate_assertion_message_payload(msg);
         let zero = self.add_constant(F::zero());
         self.assert_eq_var(var, zero, Some(msg))
-    }
-
-    /// Add an always-fail assertion with a message.
-    pub(crate) fn assert_always_fail(&mut self, msg: String) -> Result<(), RuntimeError> {
-        let one = self.add_constant(F::one());
-        self.assert_zero_var(one, msg)
     }
 
     pub(crate) fn values_to_expressions_or_memory(
@@ -826,7 +838,7 @@ impl<F: AcirField> AcirContext<F> {
                 let msg = format!(
                     "attempted to divide by constant larger than operand type: {rhs_bits} > {bit_size}"
                 );
-                self.assert_always_fail(msg)?;
+                self.assert_zero_var(predicate, msg)?;
                 return Ok((zero, zero));
             }
 
@@ -1069,12 +1081,16 @@ impl<F: AcirField> AcirContext<F> {
         message: Option<String>,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        // If `variable` is constant then we don't need to add a constraint.
-        // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+        let mut return_zero = false;
         if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+            // If `variable` is constant and fits in the bit_size range
+            // then we don't need to add a constraint.
             if constant.num_bits() <= bit_size {
                 return Ok(variable);
             }
+            // The range check is ensured to fail, unless the predicate is false.
+            // In both cases, the return value does not matter and we can return 0.
+            return_zero = true;
         }
         // Under a predicate, a range check must not fail, so we
         // range check `predicate * variable` instead.
@@ -1088,7 +1104,12 @@ impl<F: AcirField> AcirContext<F> {
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
-        Ok(predicate_range)
+        if return_zero {
+            let zero = self.add_constant(F::zero());
+            Ok(zero)
+        } else {
+            Ok(predicate_range)
+        }
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
@@ -1206,7 +1227,7 @@ impl<F: AcirField> AcirContext<F> {
         endian: Endian,
         input_var: AcirVar,
         radix_var: AcirVar,
-        limb_count: u32,
+        limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
         let radix = match self.vars[&radix_var].as_constant() {
@@ -1246,7 +1267,7 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         endian: Endian,
         input_var: AcirVar,
-        limb_count: u32,
+        limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
         let two_var = self.add_constant(2_u128);
@@ -1270,7 +1291,7 @@ impl<F: AcirField> AcirContext<F> {
                 Ok(values)
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                try_vecmap(0..len, |i| {
+                try_vecmap(0..len.to_usize(), |i| {
                     let index_var = self.add_constant(i);
 
                     Ok::<(AcirVar, NumericType), InternalError>((
@@ -1358,10 +1379,11 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn initialize_array(
         &mut self,
         block_id: BlockId,
-        len: usize,
+        len: FlattenedLength,
         optional_value: Option<AcirValue>,
         databus: BlockType,
     ) -> Result<(), InternalError> {
+        let len = len.to_usize();
         let initialized_values = match optional_value {
             None => {
                 let zero = self.add_constant(F::zero());
@@ -1396,7 +1418,7 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                for i in 0..len {
+                for i in 0..len.to_usize() {
                     let index_var = self.add_constant(i);
                     let read = self.read_from_memory(block_id, &index_var)?;
                     let typ = value_types[i % value_types.len()];
@@ -1412,9 +1434,11 @@ impl<F: AcirField> AcirContext<F> {
         &mut self,
         id: AcirFunctionId,
         inputs: Vec<AcirValue>,
-        output_count: usize,
+        output_count: FlattenedLength,
         predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let output_count = output_count.to_usize();
+
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs
             .iter()
@@ -1428,8 +1452,11 @@ impl<F: AcirField> AcirContext<F> {
         // See issue https://github.com/noir-lang/noir/issues/1439
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
-
-        let predicate = Some(self.var_to_expression(predicate)?);
+        let predicate: Expression<F> = if self.is_constant(&predicate) {
+            self.var_to_expression(predicate)?
+        } else {
+            self.var_to_witness(predicate)?.into()
+        };
         self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
@@ -1561,7 +1588,14 @@ mod tests {
 
 
         #[test]
-        fn fuzz_bound_constraint_with_offset(limit: u128, offset: bool) {
+        fn fuzz_bound_constraint_with_offset(
+            (limit, offset) in prop_oneof![
+                // Specific case: strict inequality with 2^127 + 1
+                Just((170141183460469231731687303715884105729u128, true)),
+                // Random cases
+                (any::<u128>(), any::<bool>())
+            ]
+        ) {
             let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
 
             let lhs = context.add_variable();
@@ -1584,7 +1618,7 @@ mod tests {
             )
             .circuit;
 
-            let solver = StubbedBlackBoxSolver::default();
+            let solver = StubbedBlackBoxSolver;
 
             let mut witness_map = WitnessMap::new();
             witness_map.insert(lhs_witness,  FieldElement::from(limit));
@@ -1647,7 +1681,7 @@ mod tests {
         BLACKBOX::RANGE input: w1, bits: 128
         ");
 
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
 
         let mut witness_map = WitnessMap::new();
         witness_map.insert(lhs_witness, limit);

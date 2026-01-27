@@ -5,11 +5,12 @@ expression: expanded_code
 use std::append::Append;
 
 fn main() {
-    let vector: [u32] = &[1_u32, 2_u32, 3_u32, 4_u32, 5_u32];
+    let vector: [u32] = [1_u32, 2_u32, 3_u32, 4_u32, 5_u32].as_vector();
     let odds: [u32] = vector.filter(|x: u32| -> bool { (x % 2_u32) == 1_u32 });
-    assert(odds == &[1_u32, 3_u32, 5_u32]);
-    let odds_and_evens: [u32] = append_three(odds, &[100_u32], &[2_u32, 4_u32]);
-    assert(odds_and_evens == &[1_u32, 3_u32, 5_u32, 100_u32, 2_u32, 4_u32]);
+    assert(odds == [1_u32, 3_u32, 5_u32].as_vector());
+    let odds_and_evens: [u32] =
+        append_three(odds, [100_u32].as_vector(), [2_u32, 4_u32].as_vector());
+    assert(odds_and_evens == [1_u32, 3_u32, 5_u32, 100_u32, 2_u32, 4_u32].as_vector());
 }
 
 fn append_three<T>(one: T, two: T, three: T) -> T

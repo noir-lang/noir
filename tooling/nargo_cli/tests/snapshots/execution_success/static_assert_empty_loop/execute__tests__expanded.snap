@@ -12,27 +12,27 @@ fn main() {
     let x: [Field; 0] = unsafe { foo() };
     let _: [Field] = x.as_vector().map(|_: Field| -> Field {
         assert(false, "test");
-        panic(f"test");
+        panic("test");
         std::static_assert(false, "test");
         assert_constant(x);
         0_Field
     });
     let _: [Field] = x.as_vector().mapi(|_: u32, _: Field| -> Field {
         assert(false, "test");
-        panic(f"test");
+        panic("test");
         std::static_assert(false, "test");
         assert_constant(x);
         0_Field
     });
     x.as_vector().for_each(|_: Field| {
         assert(false, "test");
-        panic(f"test");
+        panic("test");
         std::static_assert(false, "test");
         assert_constant(x);
     });
     x.as_vector().for_eachi(|_: u32, _: Field| {
         assert(false, "test");
-        panic(f"test");
+        panic("test");
         std::static_assert(false, "test");
         assert_constant(x);
     });
@@ -42,7 +42,7 @@ fn main() {
             let _: Field = ___i0[___i1];
             {
                 assert(false, "test");
-                panic(f"test");
+                panic("test");
                 std::static_assert(false, "test");
                 assert_constant(x);
             }
@@ -51,7 +51,7 @@ fn main() {
     let _: [(); 0] = x.map(|_: Field| {
         std::static_assert(false, "test");
         assert(false, "test");
-        panic(f"test");
+        panic("test");
         assert_constant(x);
     });
     {
@@ -61,7 +61,7 @@ fn main() {
             {
                 std::static_assert(false, "test");
                 assert(false, "test");
-                panic(f"test");
+                panic("test");
                 assert_constant(x);
             }
         }
@@ -74,7 +74,7 @@ fn main() {
             {
                 std::static_assert(false, "test");
                 assert(false, "test");
-                panic(f"test");
+                panic("test");
                 assert_constant(x);
             }
         }
@@ -82,7 +82,7 @@ fn main() {
     for _ in 0_u32..0_u32 {
         std::static_assert(false, "test");
         assert(false, "test");
-        panic(f"test");
+        panic("test");
         assert_constant(x);
     }
 }

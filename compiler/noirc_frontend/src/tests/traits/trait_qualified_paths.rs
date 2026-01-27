@@ -1,10 +1,11 @@
 //! Tests for qualified path syntax (`<T as Trait>`) and `Self` type usage.
 //! Validates disambiguation of trait methods, associated item access, and trait renaming during imports.
 
+use crate::test_utils::GetProgramOptions;
+use crate::test_utils::get_program_with_options;
 use crate::tests::{
     assert_no_errors, assert_no_errors_without_report, check_errors, check_monomorphization_error,
 };
-use crate::{elaborator::FrontendOptions, test_utils::get_program_with_options};
 
 #[test]
 fn as_trait_path_in_expression() {
@@ -148,9 +149,8 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
         }
     "#;
 
-    let allow_parser_errors = true;
-    let options = FrontendOptions::test_default();
-    let (_, _, errors) = get_program_with_options(src, allow_parser_errors, options);
+    let options = GetProgramOptions { allow_parser_errors: true, ..Default::default() };
+    let (_, _, errors) = get_program_with_options(src, options);
     assert!(!errors.is_empty());
 }
 
@@ -280,11 +280,11 @@ fn as_trait_path_with_method_turbofish() {
     trait Foo {
         fn bar<U>(x: U) -> U;
     }
-    
+
     impl Foo for u32 {
         fn bar<U>(x: U) -> U { x }
     }
-    
+
     fn main() {
         let _x: i32 = <u32 as Foo>::bar(42);
         // Explicitly specify U instead of relying on inference
@@ -389,17 +389,17 @@ fn self_with_non_associated_item_access() {
     struct Outer {
         inner: Inner
     }
-    
+
     struct Inner {}
-    
+
     impl Inner {
         fn method() -> u32 { 42 }
     }
-    
+
     trait MyTrait {
         fn test() -> u32;
     }
-    
+
     impl MyTrait for Outer {
         fn test() -> u32 {
             Self::inner::method()

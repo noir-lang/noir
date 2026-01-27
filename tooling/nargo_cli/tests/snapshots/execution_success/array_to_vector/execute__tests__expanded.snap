@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn as_vector_push<T, let N: u32>(xs: [T; N]) -> [T] {
-    let mut vector: [T] = &[];
+    let mut vector: [T] = [].as_vector();
     {
         let ___i0: [T; N] = xs;
         for ___i1 in 0_u32..___i0.len() {

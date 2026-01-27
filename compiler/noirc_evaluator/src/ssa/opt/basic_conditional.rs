@@ -50,7 +50,7 @@ impl Ssa {
             no_predicates.insert(function.id(), function.is_no_predicates());
         }
         for function in self.functions.values_mut() {
-            flatten_function(function, &mut no_predicates);
+            flatten_function(function, &no_predicates);
         }
         self
     }
@@ -216,7 +216,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
                 // check if index is in bound
                 if let (Some(index), Some(len)) = (dfg.get_numeric_constant(*index), dfg.try_get_array_length(*array)) {
                     // The index is in-bounds
-                    if index.to_u128() < u128::from(len) {
+                    if index.to_u128() < u128::from(len.0) {
                         in_bound = true;
                     }
                 }
@@ -242,7 +242,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
 }
 
 /// Identifies all simple conditionals in the function and flattens them
-fn flatten_function(function: &mut Function, no_predicates: &mut HashMap<FunctionId, bool>) {
+fn flatten_function(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
     // This pass is dedicated to brillig functions
     if !function.runtime().is_brillig() {
         return;
@@ -296,7 +296,7 @@ fn flatten_function(function: &mut Function, no_predicates: &mut HashMap<Functio
 fn flatten_multiple(
     conditionals: &Vec<BasicConditional>,
     function: &mut Function,
-    no_predicates: &mut HashMap<FunctionId, bool>,
+    no_predicates: &HashMap<FunctionId, bool>,
 ) {
     // 1. process each basic conditional, using a new context per conditional
     let post_order = PostOrder::with_function(function);
@@ -342,7 +342,7 @@ impl Context<'_> {
     fn flatten_single_conditional(
         &mut self,
         conditional: &BasicConditional,
-        no_predicates: &mut HashMap<FunctionId, bool>,
+        no_predicates: &HashMap<FunctionId, bool>,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
         //0. initialize the context for flattening a 'single conditional'

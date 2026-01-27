@@ -11,6 +11,7 @@ use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
@@ -67,10 +68,24 @@ impl Elaborator<'_> {
             // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
+                // Extract the declared numeric type from the type alias's kind.
+                let declared_type = match type_alias.borrow().typ.kind() {
+                    Kind::Numeric(declared_type) => declared_type,
+                    _ => Box::new(Type::Error),
+                };
+                let declared_type = *declared_type;
+                let expr_location = type_alias.borrow().location;
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                let expr = Expression::new(expr, type_alias.borrow().location);
+                let expr = Expression::new(expr, expr_location);
                 let (id, typ) = self.elaborate_expression(expr);
-                return (id, typ, false, location);
+                // Unify the expression's type with the declared type from the type alias
+                // to ensure proper type checking.
+                self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: declared_type.to_string(),
+                    expr_typ: typ.to_string(),
+                    expr_location,
+                });
+                return (id, declared_type, false, location);
             }
         }
 
@@ -114,6 +129,13 @@ impl Elaborator<'_> {
             // and if the turbofish operator was used.
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
+            if let Some(unused_resolved_turbofish) = resolved_turbofish {
+                let message = format!(
+                    "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
+                );
+                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+            }
+
             None
         };
 
@@ -475,7 +497,7 @@ impl Elaborator<'_> {
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
-        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+        let t = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.try_definition(ident.id);
         let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
@@ -501,11 +523,8 @@ impl Elaborator<'_> {
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(**expr_id, trait_impl);
             } else {
-                self.push_trait_constraint(
-                    method.constraint,
-                    **expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
+                // this constraint should lead to choosing a trait impl method
+                self.push_trait_constraint(method.constraint, **expr_id, true);
             }
         }
 
@@ -546,10 +565,8 @@ impl Elaborator<'_> {
                 {
                     constraint.apply_bindings(&bindings);
 
-                    self.push_trait_constraint(
-                        constraint, **expr_id,
-                        false, // This constraint shouldn't lead to choosing a trait impl method
-                    );
+                    // This constraint shouldn't lead to choosing a trait impl method
+                    self.push_trait_constraint(constraint, **expr_id, false);
                 }
             }
         }
@@ -567,6 +584,37 @@ impl Elaborator<'_> {
 
         self.interner.store_instantiation_bindings(**expr_id, bindings);
         typ
+    }
+
+    /// If the type of the [HirIdent] is a function that returns an `impl Trait`,
+    /// then it might need elaboration before it can be substituted to a [Type].
+    /// Try to elaborate it now.
+    ///
+    /// Returns a type error if the callee cannot be resolved on a second try,
+    /// which indicates a dependency cycle.
+    fn type_substitute_trait_as_type(&mut self, ident: &HirIdent) -> Type {
+        let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id) {
+            Ok(typ) => return typ,
+            Err(func_id) => func_id,
+        };
+
+        // Try to elaborate, so we get an expression for the body.
+        self.elaborate_function(func_id);
+
+        // Now try again. If it's still not working, give up.
+        match self.interner.id_type_substitute_trait_as_type(ident.id) {
+            Ok(typ) => typ,
+            Err(_) => {
+                let def = self.interner.definition(ident.id);
+                self.push_err(ResolverError::DependencyCycle {
+                    location: ident.location,
+                    item: def.name.clone(),
+                    cycle: "'impl Trait' could not be resolved to the type of the function body"
+                        .to_string(),
+                });
+                Type::Error
+            }
+        }
     }
 
     /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially

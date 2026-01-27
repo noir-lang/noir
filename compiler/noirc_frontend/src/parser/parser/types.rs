@@ -234,7 +234,7 @@ impl Parser<'_> {
         }
 
         // The `&` may be lexed as a vector start if this is an array or vector type
-        if self.eat(Token::Ampersand) || self.eat(Token::VectorStart) {
+        if self.eat(Token::Ampersand) || self.eat(Token::DeprecatedVectorStart) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -307,7 +307,7 @@ impl Parser<'_> {
         if self.eat_colon() { Some(self.parse_type_or_error()) } else { None }
     }
 
-    fn error_type_at_previous_token_end(&mut self) -> UnresolvedType {
+    fn error_type_at_previous_token_end(&self) -> UnresolvedType {
         UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
     }
 }

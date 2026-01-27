@@ -7,7 +7,7 @@ global GLOBAL_THREE: Field = GLOBAL_ONE + GLOBAL_TWO;
 // contents known at compile time
 // length known at compile time
 global GLOBAL_ARRAY_PAIR: [Field; 2] = [GLOBAL_ONE, GLOBAL_TWO];
-global GLOBAL_VECTOR_PAIR: [Field] = &[GLOBAL_ONE, GLOBAL_TWO];
+global GLOBAL_VECTOR_PAIR: [Field] = [GLOBAL_ONE, GLOBAL_TWO].as_vector();
 
 struct Foo {
     field: Field,
@@ -22,7 +22,7 @@ fn main(
     // contents unknown at compile time
     // length known at compile time
     let dynamic_array_pair = [dynamic_one, dynamic_two];
-    let dynamic_vector_pair = &[dynamic_one, dynamic_two];
+    let dynamic_vector_pair = [dynamic_one, dynamic_two].as_vector();
 
     assert_constant(true);
     assert_constant(false);
@@ -37,7 +37,7 @@ fn main(
     let local_two = 2;
     let local_three = local_one + local_two;
     let local_array_pair = [local_one, local_two];
-    let local_vector_pair = &[local_one, local_two];
+    let local_vector_pair = [local_one, local_two].as_vector();
 
     assert_constant(local_one);
     assert_constant(local_three);
@@ -54,6 +54,6 @@ fn main(
     static_assert(dynamic_array_pair.len() == 2, "");
     static_assert(dynamic_vector_pair.len() == 2, "");
 
-    let foo = Foo { field: 0, array: [1, 2, 3], vector: &[] };
+    let foo = Foo { field: 0, array: [1, 2, 3], vector: [].as_vector() };
     assert_constant(foo);
 }

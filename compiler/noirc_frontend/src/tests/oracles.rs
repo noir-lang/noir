@@ -1,4 +1,7 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::elaborator::UnstableFeature;
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
+};
 
 #[test]
 fn deny_oracle_attribute_on_non_unconstrained() {
@@ -112,4 +115,79 @@ fn does_not_error_if_oracle_called_from_constrained_via_other() {
       unconstrained fn foo() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_returns_reference() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> &mut Field {}
+                         ^^^^^^^^^^^ Oracle functions cannot return references
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_returns_reference_in_tuple() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> (Field, &Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot return references
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn errors_if_oracle_returns_reference_in_struct() {
+    let src = r#"
+    pub struct Foo {
+        field: &Field,
+    }
+
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> Foo {}
+                         ^^^^^^^^^^^ Oracle functions cannot return references
+    "#;
+    //check_errors(src);
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn errors_if_oracle_returns_vector_with_nested_array() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> [[(u8, u8); 3]] {}
+                         ^^^^^^^^^^^ Oracle functions cannot return vectors containing nested arrays
+                         ~~~~~~~~~~~ Vectors with nested arrays are not yet supported for foreign call returns
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn vector_with_nested_array_behind_generics_returned_from_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        let _result: [[(u8, u8); 3]] = get_array();
+                                       ^^^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
+    }
+
+    #[oracle(get_array)]
+    unconstrained fn get_array<T>() -> [T] {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn errors_if_oracle_clashes_with_stdlib() {
+    let src = r#"
+    #[oracle(create_mock)]
+    ^^^^^^^^^^^^^^^^^^^^^^ The name of an `#[oracle]` function clashes with one defined in the Noir standard library
+    ~~~~~~~~~~~~~~~~~~~~~~ Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior
+    unconstrained fn create_mock_oracle() {}
+
+    unconstrained fn main() {
+        create_mock_oracle();
+    }
+    "#;
+    check_errors(src);
 }

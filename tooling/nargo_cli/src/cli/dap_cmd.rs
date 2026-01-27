@@ -18,8 +18,9 @@ use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_errors::debug_info::DebugInfo;
+use noirc_artifacts::debug::DebugInfo;
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
@@ -52,12 +53,6 @@ pub(crate) struct DapCommand {
 
     #[clap(long)]
     preflight_test_name: Option<String>,
-
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    #[arg(long, default_value = "false")]
-    pedantic_solving: bool,
 }
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
@@ -167,10 +162,7 @@ fn load_and_compile_project(
     Ok((project, test_def))
 }
 
-fn loop_uninitialized_dap<R: Read, W: Write>(
-    mut server: Server<R, W>,
-    pedantic_solving: bool,
-) -> Result<(), DapError> {
+fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result<(), DapError> {
     while let Some(req) = server.poll_request()? {
         match req.command {
             Command::Initialize(_) => {
@@ -239,11 +231,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                         let result = noir_debugger::run_dap_loop(
                             &mut server,
                             project,
-                            RunParams {
-                                oracle_resolver_url,
-                                pedantic_solving,
-                                raw_source_printing: None,
-                            },
+                            RunParams { oracle_resolver_url, raw_source_printing: None },
                         )?;
 
                         if let Some(test) = test {
@@ -361,5 +349,5 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.pedantic_solving).map_err(CliError::DapError)
+    loop_uninitialized_dap(server).map_err(CliError::DapError)
 }
