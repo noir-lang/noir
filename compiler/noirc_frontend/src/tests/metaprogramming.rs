@@ -1264,10 +1264,8 @@ fn recursive_attribute_causes_expansion_limit_error() {
     "#;
     // Fetch the errors directly as we will get many repeated errors up until the recursion limit is hit
     let errors = get_program_errors(src);
-    dbg!(errors.len());
     // Ignore any unused function warnings
     let errors = errors.into_iter().filter(|err| err.is_error()).collect::<Vec<_>>();
-    dbg!(errors.len());
     assert!(errors.len() <= MAX_MACRO_EXPANSION_DEPTH);
 
     // Helper to check for the recursion limit error, which may be wrapped in ComptimeError::ErrorRunningAttribute
@@ -1290,7 +1288,7 @@ fn recursive_attribute_causes_expansion_limit_error() {
 
 /// Verifies that mutually recursive attributes are caught by the global macro expansion depth limit.
 /// Three mutually recursive attributes: foo -> bar -> baz -> foo -> ...
-/// With a global counter, this correctly errors at 32 total expansions.
+/// With a global counter, this correctly errors at [crate::elaborator::MAX_MACRO_EXPANSION_DEPTH] total expansions.
 #[test]
 fn mutually_recursive_attributes_cause_expansion_limit_error() {
     use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
