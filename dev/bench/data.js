@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769550033755,
+  "lastUpdate": 1769556543676,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "80ff67310fe7e6630ff6def2df7e216e94e2049b",
-          "message": "fix(doc): consider [`...`] to be links too, even if they have nested … (#11293)",
-          "timestamp": "2026-01-22T15:47:31Z",
-          "tree_id": "58190e6564fc833ed2bdfdb998673cb54a9c3d39",
-          "url": "https://github.com/noir-lang/noir/commit/80ff67310fe7e6630ff6def2df7e216e94e2049b"
-        },
-        "date": 1769098169826,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264934,
-            "range": "± 1079",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233991,
-            "range": "± 2161",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2803053,
-            "range": "± 2040",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2802906,
             "range": "± 3988",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "27c3ff41aa6109a2dc33477daae21af837068e4a",
+          "message": "feat(frontend): Direct access of associated constants (#11361)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-27T23:06:21Z",
+          "tree_id": "caac2105020e2bfe1a15c4ebf2326d8e1bef99c9",
+          "url": "https://github.com/noir-lang/noir/commit/27c3ff41aa6109a2dc33477daae21af837068e4a"
+        },
+        "date": 1769556502663,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258719,
+            "range": "± 700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228867,
+            "range": "± 5579",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2807231,
+            "range": "± 7884",
             "unit": "ns/iter"
           }
         ]
