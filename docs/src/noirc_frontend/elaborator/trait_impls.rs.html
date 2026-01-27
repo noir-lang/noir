@@ -1009,7 +1009,10 @@
 <a href="#1008" id="1008">1008</a>
 <a href="#1009" id="1009">1009</a>
 <a href="#1010" id="1010">1010</a>
-<a href="#1011" id="1011">1011</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a></pre></div><pre class="rust"><code><span class="doccomment">//! Trait implementation collection, method matching, and coherence checking.
 
 </span><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -1465,8 +1468,11 @@
         <span class="kw">for </span>override_trait_constraint <span class="kw">in </span>override_meta.trait_constraints.clone() {
             <span class="kw">let </span>override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.trait_bound.trait_id
-                        == override_trait_constraint.trait_bound.trait_id
+                    impl_constraint.typ == override_trait_constraint.typ
+                        &amp;&amp; impl_constraint.trait_bound.trait_id
+                            == override_trait_constraint.trait_bound.trait_id
+                        &amp;&amp; impl_constraint.trait_bound.trait_generics
+                            == override_trait_constraint.trait_bound.trait_generics
                 });
             <span class="kw">if </span>override_constraint_is_from_impl {
                 <span class="kw">continue</span>;
