@@ -20,7 +20,7 @@ use noirc_frontend::{
     parser::{Item, ParsedSubModule},
 };
 
-use crate::Request;
+use crate::PendingRequest;
 use crate::{LspState, utils};
 
 use super::{InlayHintsOptions, process_request, to_lsp_location};
@@ -34,7 +34,7 @@ pub(crate) fn on_inlay_hint_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_inlay_hint_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::InlayHint { params, tx });
+        state.pending_requests.push(PendingRequest::InlayHint { params, tx });
     }
 
     async move {

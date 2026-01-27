@@ -148,6 +148,10 @@ pub(crate) fn process_workspace(
     state: &mut LspState,
     workspace: Workspace,
 ) -> Result<(), async_lsp::Error> {
+    // Here we don't actually do the processing. Instead, we queue an event for that.
+    // The reason is that according to the LSP spec, notifications should be handled quickly
+    // as otherwise they block the main UI thread.
+
     state.pending_type_check_events += 1;
 
     let mut file_manager = workspace.new_file_manager();
@@ -186,6 +190,10 @@ pub(crate) fn process_workspace_for_single_file_change(
     file_uri: Url,
     file_source: &str,
 ) -> Result<(), async_lsp::Error> {
+    // Here we don't actually do the processing. Instead, we queue an event for that.
+    // The reason is that according to the LSP spec, notifications should be handled quickly
+    // as otherwise they block the main UI thread.
+
     state.pending_type_check_events += 1;
 
     let file_source = file_source.to_string();

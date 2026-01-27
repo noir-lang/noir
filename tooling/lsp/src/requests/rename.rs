@@ -7,7 +7,7 @@ use lsp_types::{
 };
 use noirc_frontend::node_interner::ReferenceId;
 
-use crate::{LspState, Request};
+use crate::{LspState, PendingRequest};
 
 use super::{find_all_references_in_workspace, process_request};
 
@@ -20,7 +20,7 @@ pub(crate) fn on_prepare_rename_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_prepare_rename_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::PrepareRename { params, tx });
+        state.pending_requests.push(PendingRequest::PrepareRename { params, tx });
     }
 
     async move {
@@ -56,7 +56,7 @@ pub(crate) fn on_rename_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_rename_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::Rename { params, tx });
+        state.pending_requests.push(PendingRequest::Rename { params, tx });
     }
 
     async move {

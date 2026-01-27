@@ -5,7 +5,7 @@ use async_lsp::{ErrorCode, ResponseError};
 use from_reference::hover_from_reference;
 use from_visitor::hover_from_visitor;
 
-use crate::{LspState, Request};
+use crate::{LspState, PendingRequest};
 
 use super::process_request;
 
@@ -21,7 +21,7 @@ pub(crate) fn on_hover_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_hover_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::Hover { params, tx });
+        state.pending_requests.push(PendingRequest::Hover { params, tx });
     }
 
     async move {

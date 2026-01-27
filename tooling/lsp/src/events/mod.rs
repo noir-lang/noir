@@ -1,3 +1,8 @@
+//! Includes various internal events and event handlers so that processing of LSP
+//! notifications and requests is done correctly. That is:
+//! - notifications should be handled quickly, as they are synchronous and block the main UI thread
+//! - requests can be hanled slowly, as they are asynchronous
+
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
@@ -19,7 +24,7 @@ use crate::{
     LspState, PackageCacheData, get_package_tests_in_crate,
     types::{NargoPackageTests, notification},
 };
-use crate::{Request, WorkspaceCacheData, parse_diff};
+use crate::{PendingRequest, WorkspaceCacheData, parse_diff};
 use async_lsp::LanguageClient;
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
@@ -38,6 +43,7 @@ use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
 use noirc_frontend::parse_program;
 
+/// An event to type-check the entire workspace.
 pub(crate) struct ProcessWorkspaceEvent {
     pub(crate) workspace: Workspace,
     pub(crate) file_manager: FileManager,
@@ -91,6 +97,7 @@ pub(crate) fn on_process_workspace_event(
     ControlFlow::Continue(())
 }
 
+/// An event to type-check only a single file that has changed.
 pub(crate) struct ProcessWorkspaceForSingleFileChangeEvent {
     pub(crate) workspace: Workspace,
     pub(crate) file_uri: Url,
@@ -218,72 +225,75 @@ fn finish_type_checking(state: &mut LspState) {
     }
 }
 
+/// An event to process all pending requests in the queue.
+/// This event is triggered when a type-checking operation finished and there are no
+/// more type-checking operations to do.
 pub(crate) struct ProcessRequestQueueEvent;
 
 pub(crate) fn on_process_request_queue_event(
     state: &mut LspState,
     _event: ProcessRequestQueueEvent,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    for request in std::mem::take(&mut state.request_queue) {
+    for request in std::mem::take(&mut state.pending_requests) {
         match request {
-            Request::Completion { params, tx } => {
+            PendingRequest::Completion { params, tx } => {
                 let result = on_completion_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::CodeAction { params, tx } => {
+            PendingRequest::CodeAction { params, tx } => {
                 let result = on_code_action_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::DocumentSymbol { params, tx } => {
+            PendingRequest::DocumentSymbol { params, tx } => {
                 let result = on_document_symbol_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::InlayHint { params, tx } => {
+            PendingRequest::InlayHint { params, tx } => {
                 let result = on_inlay_hint_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::Expand { params, tx } => {
+            PendingRequest::Expand { params, tx } => {
                 let result = on_expand_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::FoldingRange { params, tx } => {
+            PendingRequest::FoldingRange { params, tx } => {
                 let result = on_folding_range_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::GotoDeclaration { params, tx } => {
+            PendingRequest::GotoDeclaration { params, tx } => {
                 let result = on_goto_declaration_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::GotoDefinition { params, return_type_location_instead, tx } => {
+            PendingRequest::GotoDefinition { params, return_type_location_instead, tx } => {
                 let result =
                     on_goto_definition_request_inner(state, params, return_type_location_instead);
                 let _ = tx.send(result);
             }
-            Request::Hover { params, tx } => {
+            PendingRequest::Hover { params, tx } => {
                 let result = on_hover_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::References { params, tx } => {
+            PendingRequest::References { params, tx } => {
                 let result = on_references_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::PrepareRename { params, tx } => {
+            PendingRequest::PrepareRename { params, tx } => {
                 let result = on_prepare_rename_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::Rename { params, tx } => {
+            PendingRequest::Rename { params, tx } => {
                 let result = on_rename_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::SemanticTokens { params, tx } => {
+            PendingRequest::SemanticTokens { params, tx } => {
                 let result = on_semantic_tokens_full_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::SignatureHelp { params, tx } => {
+            PendingRequest::SignatureHelp { params, tx } => {
                 let result = on_signature_help_request_inner(state, params);
                 let _ = tx.send(result);
             }
-            Request::WorkspaceSymbol { params, tx } => {
+            PendingRequest::WorkspaceSymbol { params, tx } => {
                 let result = on_workspace_symbol_request_inner(state, params);
                 let _ = tx.send(result);
             }

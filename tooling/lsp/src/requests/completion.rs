@@ -45,7 +45,7 @@ use noirc_frontend::{
 use sort_text::underscore_sort_text;
 
 use crate::{
-    LspState, Request, requests::to_lsp_location,
+    LspState, PendingRequest, requests::to_lsp_location,
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
     use_segment_positions::UseSegmentPositions, utils,
 };
@@ -68,7 +68,7 @@ pub(crate) fn on_completion_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_completion_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::Completion { params, tx });
+        state.pending_requests.push(PendingRequest::Completion { params, tx });
     }
 
     async move {

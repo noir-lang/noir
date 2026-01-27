@@ -51,6 +51,7 @@ use noirc_frontend::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use tokio::sync::oneshot::Sender;
 
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
@@ -126,73 +127,77 @@ pub struct LspState {
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
 
-    request_queue: Vec<Request>,
+    /// Whenever a request comes in, it's stored in this Vec if there are pending type-check events.
+    /// Once all type-check events are processed, the requests will be processed.
+    pending_requests: Vec<PendingRequest>,
 
     /// How many events are still pending processing.
     pending_type_check_events: usize,
 }
 
-pub(crate) enum Request {
+/// A request that's pending processing.
+/// All variants include a oneshot Sender to send the response back once processed.
+pub(crate) enum PendingRequest {
     Completion {
         params: CompletionParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<CompletionResponse>, ResponseError>>,
+        tx: Sender<Result<Option<CompletionResponse>, ResponseError>>,
     },
     CodeAction {
         params: CodeActionParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<CodeActionResponse>, ResponseError>>,
+        tx: Sender<Result<Option<CodeActionResponse>, ResponseError>>,
     },
     DocumentSymbol {
         params: DocumentSymbolParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<DocumentSymbolResponse>, ResponseError>>,
+        tx: Sender<Result<Option<DocumentSymbolResponse>, ResponseError>>,
     },
     InlayHint {
         params: InlayHintParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<Vec<InlayHint>>, ResponseError>>,
+        tx: Sender<Result<Option<Vec<InlayHint>>, ResponseError>>,
     },
     Expand {
         params: types::NargoExpandParams,
-        tx: tokio::sync::oneshot::Sender<Result<NargoExpandResult, ResponseError>>,
+        tx: Sender<Result<NargoExpandResult, ResponseError>>,
     },
     FoldingRange {
         params: FoldingRangeParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<Vec<FoldingRange>>, ResponseError>>,
+        tx: Sender<Result<Option<Vec<FoldingRange>>, ResponseError>>,
     },
     GotoDeclaration {
         params: GotoDeclarationParams,
-        tx: tokio::sync::oneshot::Sender<Result<GotoDeclarationResult, ResponseError>>,
+        tx: Sender<Result<GotoDeclarationResult, ResponseError>>,
     },
     GotoDefinition {
         params: GotoDefinitionParams,
         return_type_location_instead: bool,
-        tx: tokio::sync::oneshot::Sender<Result<types::GotoDefinitionResult, ResponseError>>,
+        tx: Sender<Result<types::GotoDefinitionResult, ResponseError>>,
     },
     Hover {
         params: HoverParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<Hover>, ResponseError>>,
+        tx: Sender<Result<Option<Hover>, ResponseError>>,
     },
     References {
         params: ReferenceParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<Vec<Location>>, ResponseError>>,
+        tx: Sender<Result<Option<Vec<Location>>, ResponseError>>,
     },
     PrepareRename {
         params: TextDocumentPositionParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<PrepareRenameResponse>, ResponseError>>,
+        tx: Sender<Result<Option<PrepareRenameResponse>, ResponseError>>,
     },
     Rename {
         params: RenameParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<WorkspaceEdit>, ResponseError>>,
+        tx: Sender<Result<Option<WorkspaceEdit>, ResponseError>>,
     },
     SemanticTokens {
         params: SemanticTokensParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<SemanticTokensResult>, ResponseError>>,
+        tx: Sender<Result<Option<SemanticTokensResult>, ResponseError>>,
     },
     SignatureHelp {
         params: SignatureHelpParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<SignatureHelp>, ResponseError>>,
+        tx: Sender<Result<Option<SignatureHelp>, ResponseError>>,
     },
     WorkspaceSymbol {
         params: WorkspaceSymbolParams,
-        tx: tokio::sync::oneshot::Sender<Result<Option<WorkspaceSymbolResponse>, ResponseError>>,
+        tx: Sender<Result<Option<WorkspaceSymbolResponse>, ResponseError>>,
     },
 }
 
@@ -224,7 +229,7 @@ impl LspState {
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
-            request_queue: Vec::new(),
+            pending_requests: Vec::new(),
             pending_type_check_events: 0,
         }
     }

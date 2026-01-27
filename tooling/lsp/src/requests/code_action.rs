@@ -27,7 +27,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 
-use crate::{LspState, Request, use_segment_positions::UseSegmentPositions, utils};
+use crate::{LspState, PendingRequest, use_segment_positions::UseSegmentPositions, utils};
 
 use super::{process_request, to_lsp_location};
 
@@ -48,7 +48,7 @@ pub(crate) fn on_code_action_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_code_action_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::CodeAction { params, tx });
+        state.pending_requests.push(PendingRequest::CodeAction { params, tx });
     }
 
     async move {

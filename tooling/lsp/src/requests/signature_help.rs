@@ -20,7 +20,7 @@ use noirc_frontend::{
     parser::Item,
 };
 
-use crate::{LspState, Request, utils};
+use crate::{LspState, PendingRequest, utils};
 
 use super::process_request;
 
@@ -35,7 +35,7 @@ pub(crate) fn on_signature_help_request(
     if state.pending_type_check_events == 0 {
         let _ = tx.send(on_signature_help_request_inner(state, params));
     } else {
-        state.request_queue.push(Request::SignatureHelp { params, tx });
+        state.pending_requests.push(PendingRequest::SignatureHelp { params, tx });
     }
 
     async move {
