@@ -55,7 +55,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.5",
     "mocha": "^11.7.5",
-    "prettier": "3.8.0",
+    "prettier": "3.8.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3"
