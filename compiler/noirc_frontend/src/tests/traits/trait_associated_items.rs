@@ -538,3 +538,31 @@ fn associated_and_type_mismatch_across_traits() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn associated_mismatch_with_identical_names() {
+    // Error message is confusing here but it is an improvement over no error
+    let src = r#"
+        pub mod one {
+            pub trait Eggs {
+                type Item;
+                fn give() -> Self::Item;
+            }
+        }
+
+        pub mod two {
+            pub trait Eggs {
+                type Item;
+                fn take(eggs: Self::Item);
+            }
+        }
+
+        pub fn mix<T: one::Eggs + two::Eggs>() {
+            T::take(T::give());
+                    ^^^^^^^^^ Expected type <T as Eggs>::Item, found type <T as Eggs>::Item
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
