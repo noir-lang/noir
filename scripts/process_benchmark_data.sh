@@ -55,7 +55,7 @@ compilation_time() {
 #
 # This is roughly equivalent to the time taken by `nargo check`, ignoring time spent on I/O along with lexing and parsing.
 elaboration_time() {
-  TIMES=($(jq -r '. | select(.target == "noirc_driver" and .span.name == "check_crate") | .fields."time.busy"' "$INPUT_DIR/compilation.jsonl"))
+  TIMES=($(jq -r '. | select(.target == "noirc_driver" and .span.name == "check_crate" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/compilation.jsonl"))
 
   AVG_TIME=$(average_times "${TIMES[@]}")
 
