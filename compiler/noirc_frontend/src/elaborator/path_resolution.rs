@@ -662,9 +662,8 @@ impl Elaborator<'_> {
                             &intermediate_item,
                             current_ident,
                             importing_module,
-                            &mut errors,
                         ) {
-                            return Ok(result);
+                            return result.map(|item| PathResolution { item, errors });
                         }
 
                         // Fall back to the original error handling
@@ -845,15 +844,15 @@ impl Elaborator<'_> {
 
     /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
     ///
-    /// Returns `Some(PathResolution)` if the constant was found (or if there's an ambiguity error),
+    /// Returns `Some(Ok(PathResolutionItem))` if the constant was found,
+    /// `Some(Err(PathResolutionError))` if there's an ambiguity error,
     /// or `None` if no matching constant was found.
     fn try_resolve_trait_constant(
         &self,
         intermediate_item: &IntermediatePathResolutionItem,
         ident: &Ident,
         importing_module: ModuleId,
-        errors: &mut Vec<PathResolutionError>,
-    ) -> Option<PathResolution> {
+    ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
         // Extract type info from intermediate_item
         let type_id = match intermediate_item {
             IntermediatePathResolutionItem::Type(id, _turbofish) => *id,
@@ -862,9 +861,7 @@ impl Elaborator<'_> {
 
         // Get the actual Type from the TypeId
         let datatype = self.interner.get_type(type_id);
-        let datatype_ref = datatype.borrow();
-        let generics = datatype_ref.generic_types();
-        drop(datatype_ref);
+        let generics = datatype.borrow().generic_types();
         let self_type = Type::DataType(datatype, generics);
 
         // Look up constants matching the identifier
@@ -892,8 +889,7 @@ impl Elaborator<'_> {
             1 => {
                 // Exactly one matching constant with trait in scope
                 let (def_id, trait_id, _impl_id) = in_scope[0];
-                let item = PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id);
-                Some(PathResolution { item, errors: errors.clone() })
+                Some(Ok(PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id)))
             }
             _ => {
                 // Multiple traits in scope have the same constant - ambiguous
@@ -901,15 +897,10 @@ impl Elaborator<'_> {
                     let trait_ = self.interner.get_trait(*trait_id);
                     self.fully_qualified_trait_path(trait_)
                 });
-                // Add error but still return the first one to continue compilation
-                errors.push(PathResolutionError::MultipleTraitsInScope {
+                Some(Err(PathResolutionError::MultipleTraitsInScope {
                     ident: ident.clone(),
                     traits,
-                });
-                // Return the first one to allow compilation to continue
-                let (def_id, trait_id, _impl_id) = in_scope[0];
-                let item = PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id);
-                Some(PathResolution { item, errors: errors.clone() })
+                }))
             }
         }
     }

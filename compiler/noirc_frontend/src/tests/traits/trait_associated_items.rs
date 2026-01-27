@@ -536,6 +536,74 @@ fn associated_constant_direct_access() {
 }
 
 #[test]
+fn associated_constant_direct_access_generic_impl() {
+    // Verify that Foo::N works when the impl is generic.
+    // The impl is for Wrapper<T>, and we access Wrapper<Field>::N.
+    // This requires unification to match Wrapper<Field> against Wrapper<T>.
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Wrapper<T> { inner: T }
+    impl<T> MyTrait for Wrapper<T> {
+        let N: u32 = 10;
+    }
+    fn main() {
+        let _: u32 = Wrapper::<Field>::N;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_generic_impl_wrong_struct() {
+    // Verify that unification correctly rejects non-matching struct types.
+    // We have impl MyTrait for Wrapper<T>, but try to access Other<Field>::N.
+    // Unification should NOT match Wrapper<T> with Other<Field>.
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Wrapper<T> { inner: T }
+    struct Other<T> { inner: T }
+    impl<T> MyTrait for Wrapper<T> {
+        let N: u32 = 10;
+    }
+    fn main() {
+        let _ = Wrapper::<Field> { inner: 1 };
+        let _ = Other::<Field> { inner: 1 };
+        let _: u32 = Other::<Field>::N;
+                                     ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_generic_impl_wrong_type_arg() {
+    // Verify that unification correctly distinguishes between
+    // different concrete instantiations of the same generic type.
+    // We have impl MyTrait for Wrapper<Field>, but try to access Wrapper<u32>::N.
+    // Unification should NOT match Wrapper<Field> with Wrapper<u32>.
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Wrapper<T> { inner: T }
+    impl MyTrait for Wrapper<Field> {
+        let N: u32 = 10;
+    }
+    fn main() {
+        let _ = Wrapper::<Field> { inner: 1 };
+        let _ = Wrapper::<u32> { inner: 1 };
+        let _: u32 = Wrapper::<u32>::N;
+                                     ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access_ambiguous() {
     let src = r#"
     trait Trait1 {
@@ -606,7 +674,7 @@ fn associated_constant_direct_access_no_impl() {
 
 // TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
 #[test]
-fn associated_type_direct_access_not_yet_supported() {
+fn associated_type_direct_access() {
     let src = r#"
     pub struct CustomType {}
 
@@ -620,7 +688,7 @@ fn associated_type_direct_access_not_yet_supported() {
     fn main() {
         // Succeeds
         // let _: <Foo as MyTrait>::MyType = CustomType { };
-        // Currently fails
+        // Fails
         let _: Foo::MyType = CustomType { };
                     ^^^^^^ Could not resolve 'MyType' in path
     }
