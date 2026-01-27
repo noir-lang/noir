@@ -1284,12 +1284,19 @@ fn recursive_attribute_causes_recursion_limit_error() {
 
 #[test]
 fn many_non_recursive_attributes_do_not_trigger_recursion_limit() {
+    use std::fmt::Write;
+
     // Verifies that the recursion limit is tracked per-attribute-function, not globally.
     // A program with many uses of the same non-recursive attribute should work.
     let count = 50;
-    let functions: String = (1..=count).map(|i| format!("    #[attr] fn f{i}() {{}}\n")).collect();
-    let calls: String = (1..=count).map(|i| format!("f{i}(); ")).collect();
-
+    let functions: String = (1..=count).fold(String::new(), |mut output, i| {
+        let _ = writeln!(output, "    #[attr] fn f{i}() {{}}");
+        output
+    });
+    let calls: String = (1..=count).fold(String::new(), |mut output, i| {
+        let _ = write!(output, "f{i}(); ");
+        output
+    });
     let src = format!(
         r#"
     comptime fn attr(_: FunctionDefinition) {{}}
