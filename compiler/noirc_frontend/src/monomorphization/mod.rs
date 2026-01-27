@@ -2496,20 +2496,19 @@ impl<'interner> Monomorphizer<'interner> {
 
         let old_unconstrained = self.in_unconstrained_function;
 
+        // Build shared parameters structure
+        let mut parameters =
+            vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
+        parameters.extend(converted_parameters);
+
         // Create constrained variant (or first unconstrained if both are unconstrained)
         self.in_unconstrained_function = both_unconstrained;
-
         let constrained_id = self.next_function_id();
         let constrained_body = self.expr(lambda.body)?;
-
-        let mut constrained_params =
-            vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
-        constrained_params.extend(converted_parameters.clone());
-
-        let constrained_fn = Function {
+        let mut lambda_fn = Function {
             id: constrained_id,
             name: lambda_name.to_owned(),
-            parameters: constrained_params,
+            parameters: parameters.to_vec(),
             body: constrained_body,
             return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
@@ -2517,7 +2516,7 @@ impl<'interner> Monomorphizer<'interner> {
             inline_type: InlineType::default(),
             is_entry_point: false,
         };
-        self.push_function(constrained_id, constrained_fn);
+        self.push_function(constrained_id, lambda_fn.clone());
 
         // Create unconstrained variant unless the previous variant is already unconstrained
         let unconstrained_id = if both_unconstrained {
@@ -2526,32 +2525,12 @@ impl<'interner> Monomorphizer<'interner> {
         } else {
             // Create a separate unconstrained variant
             self.in_unconstrained_function = true;
-
             let unconstrained_id = self.next_function_id();
             let unconstrained_body = self.expr(lambda.body)?;
-
-            let mut unconstrained_params = vec![(
-                env_local_id,
-                true,
-                env_name.to_string(),
-                env_typ.clone(),
-                Visibility::Private,
-            )];
-            unconstrained_params.extend(converted_parameters);
-
-            let unconstrained_fn = Function {
-                id: unconstrained_id,
-                name: lambda_name.to_owned(),
-                parameters: unconstrained_params,
-                body: unconstrained_body,
-                return_type: ret_type.clone(),
-                return_visibility: Visibility::Private,
-                unconstrained: true,
-                inline_type: InlineType::default(),
-                is_entry_point: false,
-            };
-            self.push_function(unconstrained_id, unconstrained_fn);
-
+            lambda_fn.id = unconstrained_id;
+            lambda_fn.unconstrained = true;
+            lambda_fn.body = unconstrained_body;
+            self.push_function(unconstrained_id, lambda_fn);
             unconstrained_id
         };
 
