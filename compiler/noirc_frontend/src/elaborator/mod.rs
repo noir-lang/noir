@@ -80,7 +80,7 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
 };
@@ -119,6 +119,7 @@ pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
+use rustc_hash::FxHashMap as HashMap;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
@@ -136,6 +137,17 @@ pub use primitive_types::PrimitiveType;
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Maximum depth of recursive attribute application.
+///
+/// This prevents infinite recursion when an attribute generates code that
+/// also has the same attribute applied, which would otherwise cause a
+/// Rust stack overflow.
+///
+/// This limit is lower than the [interpreter call stack limit][MAX_INTERPRETER_CALL_STACK_SIZE] because attribute
+/// execution involves more stack frames per recursion level (elaboration,
+/// comptime evaluation, etc.).
+pub(crate) const MAX_ATTRIBUTE_RECURSION_DEPTH: usize = 32;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -276,6 +288,11 @@ pub struct Elaborator<'context> {
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     pub(crate) comptime_evaluation_halted: bool,
+
+    /// Tracks the current recursion depth for each attribute function to prevent
+    /// infinite recursion when an attribute generates code with the same attribute applied.
+    /// The key is the attribute function's FuncId, the value is the current recursion depth.
+    pub(crate) attribute_recursion_depth: HashMap<FuncId, usize>,
 }
 
 #[derive(Copy, Clone)]
@@ -345,6 +362,7 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
+            attribute_recursion_depth: HashMap::default(),
         }
     }
 

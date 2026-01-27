@@ -1245,3 +1245,60 @@ fn zeroed_comptime_type() {
     "#;
     check_errors_with_stdlib(src, &stdlib);
 }
+
+#[test]
+fn recursive_attribute_causes_recursion_limit_error() {
+    use crate::hir::comptime::InterpreterError;
+
+    let src = r#"
+    #[foo]
+    comptime fn foo(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[foo]
+            fn bar() {}
+        }
+    }
+
+    fn main() {}
+    "#;
+    // Fetch the errors directly as we will get many repeated errors up until the recursion limit is hit
+    let errors = get_program_errors(src);
+
+    // Helper to check for the recursion limit error, which may be wrapped in ComptimeError::ErrorRunningAttribute
+    fn is_recursion_limit_error(error: &CompilationError) -> bool {
+        match error {
+            CompilationError::InterpreterError(
+                InterpreterError::AttributeRecursionLimitExceeded { .. },
+            ) => true,
+            CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute {
+                error, ..
+            }) => is_recursion_limit_error(error),
+            _ => false,
+        }
+    }
+
+    // The test should produce the recursion limit error
+    let has_recursion_limit_error = errors.iter().any(is_recursion_limit_error);
+    assert!(has_recursion_limit_error, "Expected AttributeRecursionLimitExceeded error");
+}
+
+#[test]
+fn many_non_recursive_attributes_do_not_trigger_recursion_limit() {
+    // Vrifies that the recursion limit is tracked per-attribute-function, not globally.
+    // A program with many uses of the same non-recursive attribute should work.
+    let count = 50;
+    let functions: String = (1..=count).map(|i| format!("    #[attr] fn f{i}() {{}}\n")).collect();
+    let calls: String = (1..=count).map(|i| format!("f{i}(); ")).collect();
+
+    let src = format!(
+        r#"
+    comptime fn attr(_: FunctionDefinition) {{}}
+
+{functions}
+    fn main() {{
+        {calls}
+    }}
+    "#
+    );
+    assert_no_errors(&src);
+}
