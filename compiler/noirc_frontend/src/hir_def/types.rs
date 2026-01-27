@@ -1056,7 +1056,6 @@ impl TypeVariable {
         }
     }
 
-    // TODO: Add object type and trait
     pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
         Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
     }
