@@ -217,3 +217,20 @@ fn comptime_global_using_nested_quoted_type() {
     ";
     assert_no_errors(src);
 }
+
+#[test]
+fn global_closure_with_undefined_variable_method_call() {
+    // A global contained a closure with a method call on an undefined variable.
+    // It should report an error, and not panic.
+    let src = r#"
+    global foo: fn() -> Field = || {
+        v0.bar()
+        ^^ cannot find `v0` in this scope
+        ~~ not found in this scope
+    };
+    fn main() {
+        let _ = foo;
+    }
+    "#;
+    check_errors(src);
+}

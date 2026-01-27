@@ -1,3 +1,5 @@
+mod after_change;
+
 #[cfg(test)]
 mod completion_tests {
     use crate::{

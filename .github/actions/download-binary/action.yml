@@ -1,0 +1,21 @@
+name: Download Binary
+description: Downloads a binary from an artifact and adds it to the path
+inputs:
+  name:
+    description: Name of the binary to download, e.g. 'nargo'
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Download ${{ inputs.name }} binary
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: ./${{ inputs.name }}
+
+    - name: Set ${{ inputs.name }} on PATH
+      shell: bash
+      run: |
+        binary="${{ github.workspace }}/${{ inputs.name }}/${{ inputs.name }}"
+        chmod +x $binary
+        echo "$(dirname $binary)" >> $GITHUB_PATH
