@@ -163,16 +163,26 @@
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
-<span class="kw">use </span>p256::elliptic_curve::PrimeField;
-<span class="kw">use </span>p256::elliptic_curve::sec1::FromEncodedPoint;
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 
-<span class="kw">use </span>p256::FieldBytes;
 <span class="kw">use </span>p256::{
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
+        PrimeField,
+        ops::Reduce,
         scalar::IsHigh,
-        sec1::{Coordinates, ToEncodedPoint},
+        sec1::{Coordinates, FromEncodedPoint, ToEncodedPoint},
     },
 };
 <span class="kw">use </span>p256::{Scalar, ecdsa::Signature};
@@ -233,12 +243,10 @@
     };
     <span class="kw">let </span>pubkey = pubkey.unwrap();
 
-    <span class="comment">// Note: This will panic if `hashed_msg &gt;= p256::NistP256::ORDER`.
-    // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
-    </span><span class="kw">let </span>z = Scalar::from_repr(
-        FieldBytes::try_from_iter(hashed_msg.iter().copied()).expect(<span class="string">"slice length mismatch"</span>),
-    )
-    .unwrap();
+    <span class="comment">// Convert the hashed message to a scalar.
+    // Per ECDSA specification (SEC 1, section 4.1.4), if `hashed_msg &gt;= p256::NistP256::ORDER`,
+    // the message hash should be reduced modulo the curve order.
+    </span><span class="kw">let </span>z = &lt;Scalar <span class="kw">as </span>Reduce&lt;p256::U256&gt;&gt;::reduce(<span class="kw-2">&amp;</span>p256::U256::from_be_slice(hashed_msg));
 
     <span class="comment">// Finished converting bytes into data structures
 
@@ -263,9 +271,23 @@
         .to_affine();
 
     <span class="kw">match </span>R.to_encoded_point(<span class="bool-val">false</span>).coordinates() {
-        Coordinates::Uncompressed { x, y: <span class="kw">_ </span>} =&gt; <span class="prelude-val">Ok</span>(Scalar::from_repr(<span class="kw-2">*</span>x).unwrap().eq(<span class="kw-2">&amp;</span>r)),
+        Coordinates::Uncompressed { x, y: <span class="kw">_ </span>} =&gt; {
+            <span class="comment">// The conversion from R.x to a scalar can fail if R.x &gt;= curve_order (a possible but rare case).
+            // In this case, the signature is invalid per ECDSA specification, so we return false.
+            // The prover will handle this gracefully - it should generate a proof that fails verification.
+            </span><span class="prelude-val">Ok</span>(Scalar::from_repr(<span class="kw-2">*</span>x).into_option().map_or_else(
+                || {
+                    <span class="macro">log::warn!</span>(<span class="string">"Failed to convert R.x coordinate to scalar for ECDSA verification"</span>);
+                    <span class="bool-val">false
+                </span>},
+                |scalar| scalar == <span class="kw-2">*</span>r,
+            ))
+        }
         Coordinates::Identity =&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
-        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Point is uncompressed"</span>),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256r1,
+            <span class="string">"Unexpected coordinate encoding"</span>.to_string(),
+        )),
     }
 }
 
