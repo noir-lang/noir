@@ -92,7 +92,8 @@ pub(crate) fn on_process_workspace_event(
 
     state.workspace_cache.insert(workspace.root_dir.clone(), WorkspaceCacheData { file_manager });
 
-    finish_type_checking(state);
+    let is_save = true;
+    finish_type_checking(state, is_save);
 
     ControlFlow::Continue(())
 }
@@ -121,7 +122,8 @@ pub(crate) fn on_process_workspace_for_single_file_change(
     let file_path = match uri_to_file_path(&file_uri) {
         Ok(file_path) => file_path,
         Err(err) => {
-            finish_type_checking(state);
+            let is_save = false;
+            finish_type_checking(state, is_save);
             return ControlFlow::Break(Err(async_lsp::Error::Response(err)));
         }
     };
@@ -130,7 +132,8 @@ pub(crate) fn on_process_workspace_for_single_file_change(
     let file_id = match file_path_to_file_id(file_map, &PathString::from(&file_path)) {
         Ok(file_id) => file_id,
         Err(err) => {
-            finish_type_checking(state);
+            let is_save = false;
+            finish_type_checking(state, is_save);
             return ControlFlow::Break(Err(async_lsp::Error::Response(err)));
         }
     };
@@ -213,13 +216,19 @@ pub(crate) fn on_process_workspace_for_single_file_change(
     state.workspace_cache.insert(root_dir.clone(), workspace_cache);
     state.package_cache.insert(root_dir.clone(), package_cache);
 
-    finish_type_checking(state);
+    let is_save = false;
+    finish_type_checking(state, is_save);
 
     ControlFlow::Continue(())
 }
 
-fn finish_type_checking(state: &mut LspState) {
-    state.pending_type_check_events -= 1;
+fn finish_type_checking(state: &mut LspState, is_save: bool) {
+    // Always process requests on save.
+    // If for some reason we fail to decrement `pending_type_check_events`, it
+    // will never reach zero again and all future requests will never execute.
+    // If we set it to zero on save we avoid the above scenario.
+    state.pending_type_check_events =
+        if is_save { 0 } else { state.pending_type_check_events.saturating_sub(1) };
     if state.pending_type_check_events == 0 {
         let _ = state.client.emit(ProcessRequestQueueEvent);
     }
