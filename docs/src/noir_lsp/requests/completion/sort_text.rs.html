@@ -37,43 +37,53 @@
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
-<a href="#39" id="39">39</a></pre></div><pre class="rust"><code><span class="doccomment">/// Sort text for "new" methods: we want these to show up before anything else,
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a></pre></div><pre class="rust"><code><span class="doccomment">/// Local variables should be suggested before anything else.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>local_variable_sort_text() -&gt; String {
+    <span class="string">"a"</span>.to_string()
+}
+
+<span class="doccomment">/// Sort text for "new" methods: we want these to show up before anything else,
 /// if we are completing at something like `Foo::`
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_sort_text() -&gt; String {
-    <span class="string">"a"</span>.to_string()
+    <span class="string">"b"</span>.to_string()
 }
 
 <span class="doccomment">/// This is the default sort text.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>default_sort_text() -&gt; String {
-    <span class="string">"b"</span>.to_string()
+    <span class="string">"c"</span>.to_string()
 }
 
 <span class="doccomment">/// We want crates and modules to show up after other things (for example
 /// local variables, functions or types)
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>crate_or_module_sort_text() -&gt; String {
-    <span class="string">"c"</span>.to_string()
+    <span class="string">"d"</span>.to_string()
 }
 
 <span class="doccomment">/// Sort text for auto-import items. We want these to show up after local definitions.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>auto_import_sort_text() -&gt; String {
-    <span class="string">"d"</span>.to_string()
+    <span class="string">"e"</span>.to_string()
 }
 
 <span class="doccomment">/// When completing something like `Foo::`, we want to show methods that take
 /// self after the other ones.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>self_mismatch_sort_text() -&gt; String {
-    <span class="string">"e"</span>.to_string()
+    <span class="string">"f"</span>.to_string()
 }
 
 <span class="doccomment">/// We want to show operator methods last.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>operator_sort_text() -&gt; String {
-    <span class="string">"f"</span>.to_string()
+    <span class="string">"g"</span>.to_string()
 }
 
 <span class="doccomment">/// If a name begins with underscore it's likely something that's meant to
 /// be private (but visibility doesn't exist everywhere yet, so for now
 /// we assume that)
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>underscore_sort_text() -&gt; String {
-    <span class="string">"g"</span>.to_string()
+    <span class="string">"h"</span>.to_string()
 }
 </code></pre></div></section></main></body></html>

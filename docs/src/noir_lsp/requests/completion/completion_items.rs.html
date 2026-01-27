@@ -719,7 +719,18 @@
 <a href="#718" id="718">718</a>
 <a href="#719" id="719">719</a>
 <a href="#720" id="720">720</a>
-<a href="#721" id="721">721</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
@@ -735,8 +746,11 @@
     },
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::use_segment_positions::{
-    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+<span class="kw">use crate</span>::{
+    requests::completion::sort_text::local_variable_sort_text,
+    use_segment_positions::{
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+    },
 };
 
 <span class="kw">use super</span>::{
@@ -1357,6 +1371,14 @@
     } <span class="kw">else </span>{
         simple_completion_item(field, CompletionItemKind::FIELD, <span class="prelude-val">Some</span>(typ.into()))
     }
+}
+
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>variable_completion_item(
+    label: <span class="kw">impl </span>Into&lt;String&gt;,
+    description: <span class="prelude-ty">Option</span>&lt;String&gt;,
+) -&gt; CompletionItem {
+    <span class="kw">let </span>item = simple_completion_item(label, CompletionItemKind::VALUE, description);
+    completion_item_with_sort_text(item, local_variable_sort_text())
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>simple_completion_item(

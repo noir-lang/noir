@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["auto_import_sort_text","crate_or_module_sort_text","default_sort_text","new_sort_text","operator_sort_text","self_mismatch_sort_text","underscore_sort_text"]};
+window.SIDEBAR_ITEMS = {"fn":["auto_import_sort_text","crate_or_module_sort_text","default_sort_text","local_variable_sort_text","new_sort_text","operator_sort_text","self_mismatch_sort_text","underscore_sort_text"]};
