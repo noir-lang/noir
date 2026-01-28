@@ -766,3 +766,81 @@ fn associated_constant_in_trait_method_missing_in_impl() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn generic_associated_type_access_direct_bound() {
+    // T::Qux works when T: Baz and Baz defines Qux (direct bound syntax)
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Baz { type Qux; }
+
+    impl<T: Baz> Foo for T {
+        type Bar = T::Qux;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_associated_type_access_where_clause() {
+    // T::Qux works when T: Baz and Baz defines Qux (where clause syntax)
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Baz { type Qux; }
+
+    impl<T> Foo for T where T: Baz {
+        type Bar = T::Qux;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_associated_type_in_function_signature() {
+    // T::Output works in generic function signatures
+    let src = r#"
+    trait Foo { type Bar; }
+
+    pub fn use_bar<T>(_x: T::Bar) where T: Foo {
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_associated_type_ambiguous() {
+    // Error when multiple traits define the same associated type
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Trait1 { type Qux; }
+    trait Trait2 { type Qux; }
+
+    impl<T> Foo for T where T: Trait1 + Trait2 {
+        type Bar = T::Qux;
+                   ^^^^^^ Multiple applicable items in scope
+                   ~~~~~~ Multiple traits which provide `Qux` are implemented and in scope: `Trait1`, `Trait2`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_associated_type_not_found() {
+    // Error when no trait defines the associated type - falls through to normal resolution
+    // which fails because 'T' is a generic
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Baz { type Other; }
+
+    impl<T> Foo for T where T: Baz {
+        type Bar = T::Qux;
+                   ^ Could not resolve 'T' in path
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
