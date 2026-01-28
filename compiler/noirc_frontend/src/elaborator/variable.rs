@@ -324,7 +324,8 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
         }
     }
 

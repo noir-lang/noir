@@ -1410,6 +1410,9 @@ impl NodeInterner {
         &self.trait_impl_associated_types[&impl_id]
     }
 
+    /// Find an associated type in a trait implementation by the last segment in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn find_associated_type_for_impl(
         &self,
         impl_id: TraitImplId,
@@ -1426,6 +1429,38 @@ impl NodeInterner {
         name: &str,
     ) -> Option<&(DefinitionId, Type)> {
         self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
+    }
+
+    /// Looks up associated constants for a type by name.
+    /// Returns all matching constants with their trait info.
+    pub fn lookup_trait_impl_constants_for_type(
+        &self,
+        typ: &Type,
+        constant_name: &str,
+    ) -> Vec<(DefinitionId, TraitId, TraitImplId)> {
+        let mut results = Vec::new();
+
+        for (impl_id, constants) in &self.trait_impl_associated_constants {
+            let Some((def_id, _constant_type)) = constants.get(constant_name) else {
+                continue;
+            };
+            let Some(trait_impl) = self.try_get_trait_implementation(*impl_id) else {
+                continue;
+            };
+
+            let trait_id = trait_impl.borrow().trait_id;
+
+            // Check if typ implements the trait
+            // This handles instantiation and unification correctly for generic impls
+            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
+                self.try_lookup_trait_implementation(typ, trait_id, &[], &[])
+            {
+                if found_impl_id == *impl_id {
+                    results.push((*def_id, trait_id, *impl_id));
+                }
+            }
+        }
+        results
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
@@ -1509,6 +1544,39 @@ impl NodeInterner {
                 self.try_definition(ident.id).map(|def| def.name.clone())
             }
         }
+    }
+
+    /// Clears data that is stored in this NodeInterner that is declared at the given file.
+    /// This isn't used by the compiler. It's only used by the LSP server when a file
+    /// changes, to clear the definitions of the previous version of the file.
+    pub fn clear_in_file(&mut self, file: FileId) {
+        // Clear in methods
+        for (_key, methods) in self.methods.iter_mut() {
+            for (_name, methods) in methods.iter_mut() {
+                methods.direct.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+
+                methods.trait_impl_methods.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+            }
+        }
+
+        // Clear in auto import names
+        for (_name, entries) in self.auto_import_names.iter_mut() {
+            entries.retain(|entry| entry.file != file);
+        }
+
+        // Clear in reexports
+        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+            reexports.retain(|reexport| reexport.name.location().file != file);
+        }
+
+        // Clear in LocationIndices
+        self.clear_file_locations(file);
     }
 }
 

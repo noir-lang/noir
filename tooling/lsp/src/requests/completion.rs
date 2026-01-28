@@ -45,9 +45,11 @@ use noirc_frontend::{
 use sort_text::underscore_sort_text;
 
 use crate::{
-    LspState, requests::to_lsp_location,
+    LspState,
+    requests::{completion::completion_items::variable_completion_item, to_lsp_location},
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils,
+    use_segment_positions::UseSegmentPositions,
+    utils,
 };
 
 use super::{TraitReexport, process_request};
@@ -433,11 +435,7 @@ impl<'a> NodeFinder<'a> {
                     None
                 };
 
-                self.completion_items.push(simple_completion_item(
-                    name,
-                    CompletionItemKind::VARIABLE,
-                    description,
-                ));
+                self.completion_items.push(variable_completion_item(name, description));
             }
         }
     }

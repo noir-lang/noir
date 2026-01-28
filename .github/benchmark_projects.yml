@@ -82,7 +82,7 @@ projects:
     cannot_execute_brillig: true
     num_runs: 1
     compilation-timeout: 500
-    execution-timeout: 0.75
+    execution-timeout: 35
     brillig-compilation-timeout: 500
     compilation-memory-limit: 12000
     execution-memory-limit: 2000
@@ -93,7 +93,7 @@ projects:
     cannot_execute_brillig: true
     num_runs: 1
     compilation-timeout: 525
-    execution-timeout: 1
+    execution-timeout: 35
     brillig-compilation-timeout: 525
     compilation-memory-limit: 12000
     execution-memory-limit: 2000

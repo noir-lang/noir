@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Binding `Bar` here to the `_` inside would create a cyclic type
+error: Binding `<() as Foo>::Bar` here to the `_` inside would create a cyclic type
   ┌─ src/main.nr:7:16
   │
 7 │     type Bar = Self::Bar;

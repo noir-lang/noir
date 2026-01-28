@@ -205,7 +205,7 @@ pub enum TypeCheckError {
     #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedFunctionReturnToConstrained { location: Location },
     #[error(
-        "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
+        "Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
     Unsafe { location: Location },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]

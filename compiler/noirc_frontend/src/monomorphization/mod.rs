@@ -2364,18 +2364,18 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         // Function values are represented as a tuple of (constrained version, unconstrained version)
-        self.monomorphize_constrained_and_unconstrained(
-            false,
-            self.force_unconstrained || lambda.unconstrained,
-            |this: &mut Self| {
-                if lambda.captures.is_empty() {
-                    this.lambda_no_capture(lambda, expr)
-                } else {
-                    let (setup, closure_variable) = this.closure(lambda, expr)?;
-                    Ok(ast::Expression::Block(vec![setup, closure_variable]))
-                }
-            },
-        )
+        if lambda.captures.is_empty() {
+            self.monomorphize_constrained_and_unconstrained(
+                false,
+                self.force_unconstrained || lambda.unconstrained,
+                |this: &mut Self| this.lambda_no_capture(lambda, expr),
+            )
+        } else {
+            // For closures with captures, we build a shared environment to avoid
+            // exponential blowup when closures capture other closures.
+            // Both variants share the same environment.
+            self.closure_with_shared_env(lambda, expr)
+        }
     }
 
     fn lambda_no_capture(
@@ -2428,30 +2428,15 @@ impl<'interner> Monomorphizer<'interner> {
         }))
     }
 
-    /// Monomorphize a closure, returning it along with its environment as `(env, closure)`.
+    /// Monomorphize a closure with captures, creating both constrained and unconstrained
+    /// variants that share the same environment.
     ///
-    /// Note that this returns only a single function value in the `closure` slot. To obtain
-    /// a `(constrained, unconstrained)` pair, this function would need to be called twice,
-    /// e.g. via [Self::monomorphize_constrained_and_unconstrained].
-    fn closure(
+    /// Sharing the same environment avoids exponential blowup when closures capture other closures.
+    fn closure_with_shared_env(
         &mut self,
         lambda: HirLambda,
         expr: ExprId,
-    ) -> Result<(ast::Expression, ast::Expression), MonomorphizationError> {
-        // returns (<closure env>, <function variable>)
-        //   which can be used directly in callsites or transformed
-        //   directly to a single `Expression`
-        // for other cases by `lambda` which is called by `expr`
-        //
-        // it solves the problem of detecting special cases where
-        // we call something like
-        // `{let env$.. = ..;}.1({let env$.. = ..;}.0, ..)`
-        // which was leading to redefinition errors
-        //
-        // instead of detecting and extracting
-        // patterns in the resulting tree,
-        // which seems more fragile, we directly reuse the return parameters
-        // of this function in those cases
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&expr);
         let ret_type = Self::convert_type(&lambda.return_type, location)?;
         let lambda_name = "lambda";
@@ -2459,15 +2444,14 @@ impl<'interner> Monomorphizer<'interner> {
             try_vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ, location))?;
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters =
-            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
+        let parameters: Parameters = vecmap(&lambda.parameters, |(pattern, typ)| {
+            (pattern.clone(), typ.clone(), Visibility::Private)
+        })
+        .into();
 
-        let mut converted_parameters = self.parameters(&parameters)?;
+        let converted_parameters = self.parameters(&parameters)?;
 
-        let id = self.next_function_id();
-        let name = lambda_name.to_owned();
-        let return_type = ret_type.clone();
-
+        // Build the shared environment - captured closures stay as (constrained, unconstrained) pairs
         let env_local_id = self.next_local_id();
         let env_name = "env";
         let env_tuple =
@@ -2503,79 +2487,142 @@ impl<'interner> Monomorphizer<'interner> {
             expression: Box::new(env_tuple),
         });
 
-        let location = None; // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
-        let mutable = true;
-        let definition = Definition::Local(env_local_id);
-
         let env_ident = ast::Ident {
-            location,
-            mutable,
-            definition,
+            location: Some(location),
+            mutable: true,
+            definition: Definition::Local(env_local_id),
             name: env_name.to_string(),
             typ: env_typ.clone(),
             id: self.next_ident_id(),
         };
 
-        self.lambda_envs_stack
-            .push(LambdaContext { env_ident: env_ident.clone(), captures: lambda.captures });
-        let body = self.expr(lambda.body)?;
-        self.lambda_envs_stack.pop();
-
-        let lambda_fn_typ: ast::Type = ast::Type::Function(
-            parameter_types,
-            Box::new(ret_type),
-            Box::new(env_typ.clone()),
-            false,
-        );
-        let lambda_fn = ast::Expression::Ident(ast::Ident {
-            definition: Definition::Function(id),
-            mutable: false,
-            location: None, // TODO(https://github.com/noir-lang/noir/issues/10556): This should match the location of the lambda expression
-            name: name.clone(),
-            typ: lambda_fn_typ.clone(),
-            id: self.next_ident_id(),
+        // Push the shared environment context for processing both lambda bodies
+        self.lambda_envs_stack.push(LambdaContext {
+            env_ident: env_ident.clone(),
+            captures: lambda.captures.clone(),
         });
 
+        // Determine if we should force unconstrained for both variants.
+        // If we're already in an unconstrained context or force_unconstrained is set,
+        // both variants will be unconstrained, so we only need to create one function.
+        let force_both_unconstrained = self.force_unconstrained || lambda.unconstrained;
+        let both_unconstrained = force_both_unconstrained || self.in_unconstrained_function;
+
+        let old_unconstrained = self.in_unconstrained_function;
+
+        // Build shared parameters structure
         let mut parameters =
             vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
-        parameters.append(&mut converted_parameters);
+        parameters.extend(converted_parameters);
 
-        let function = Function {
-            id,
-            name,
-            parameters,
-            body,
-            return_type,
+        // Create constrained variant (or first unconstrained if both are unconstrained)
+        self.in_unconstrained_function = both_unconstrained;
+        let constrained_id = self.next_function_id();
+        let constrained_body = self.expr(lambda.body)?;
+        let mut lambda_fn = Function {
+            id: constrained_id,
+            name: lambda_name.to_owned(),
+            parameters: parameters.to_vec(),
+            body: constrained_body,
+            return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
         };
-        self.push_function(id, function);
+        self.push_function(constrained_id, lambda_fn.clone());
 
-        let lambda_value =
-            ast::Expression::Tuple(vec![ast::Expression::Ident(env_ident), lambda_fn]);
+        // Create unconstrained variant unless the previous variant is already unconstrained
+        let unconstrained_id = if both_unconstrained {
+            // Both variants are unconstrained, reuse the same function
+            constrained_id
+        } else {
+            // Create a separate unconstrained variant
+            self.in_unconstrained_function = true;
+            let unconstrained_id = self.next_function_id();
+            let unconstrained_body = self.expr(lambda.body)?;
+            lambda_fn.id = unconstrained_id;
+            lambda_fn.unconstrained = true;
+            lambda_fn.body = unconstrained_body;
+            self.push_function(unconstrained_id, lambda_fn);
+            unconstrained_id
+        };
+
+        // Restore state
+        self.in_unconstrained_function = old_unconstrained;
+        self.lambda_envs_stack.pop();
+
+        // Build the function type for both variants
+        let constrained_fn_typ = ast::Type::Function(
+            parameter_types.clone(),
+            Box::new(ret_type.clone()),
+            Box::new(env_typ.clone()),
+            both_unconstrained,
+        );
+        let unconstrained_fn_typ = ast::Type::Function(
+            parameter_types,
+            Box::new(ret_type),
+            Box::new(env_typ.clone()),
+            true,
+        );
+
+        // Build closure tuples: (env, fn) for each variant
+        let constrained_closure_typ =
+            ast::Type::Tuple(vec![env_typ.clone(), constrained_fn_typ.clone()]);
+        let unconstrained_closure_typ =
+            ast::Type::Tuple(vec![env_typ, unconstrained_fn_typ.clone()]);
+
+        // Create the expression that builds both closure variants sharing the same env:
+        // ((env, constrained_fn), (env, unconstrained_fn))
+        let constrained_fn_ident = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(constrained_id),
+            mutable: false,
+            location: Some(location),
+            name: lambda_name.to_owned(),
+            typ: constrained_fn_typ,
+            id: self.next_ident_id(),
+        });
+
+        let unconstrained_fn_ident = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(unconstrained_id),
+            mutable: false,
+            location: Some(location),
+            name: lambda_name.to_owned(),
+            typ: unconstrained_fn_typ,
+            id: self.next_ident_id(),
+        });
+
+        let env_expr = ast::Expression::Ident(env_ident);
+
+        let constrained_closure =
+            ast::Expression::Tuple(vec![env_expr.clone(), constrained_fn_ident]);
+        let unconstrained_closure = ast::Expression::Tuple(vec![env_expr, unconstrained_fn_ident]);
+
+        let closure_pair = ast::Expression::Tuple(vec![constrained_closure, unconstrained_closure]);
+
+        // Wrap in a block with the env let statement
         let block_local_id = self.next_local_id();
         let block_ident_name = "closure_variable";
+
         let block_let_stmt = ast::Expression::Let(ast::Let {
             id: block_local_id,
             mutable: false,
             name: block_ident_name.to_string(),
-            expression: Box::new(ast::Expression::Block(vec![env_let_stmt, lambda_value])),
+            expression: Box::new(ast::Expression::Block(vec![env_let_stmt, closure_pair])),
         });
 
-        let closure_definition = Definition::Local(block_local_id);
+        let result_typ = ast::Type::Tuple(vec![constrained_closure_typ, unconstrained_closure_typ]);
 
         let closure_ident = ast::Expression::Ident(ast::Ident {
-            location,
+            location: Some(location),
             mutable: false,
-            definition: closure_definition,
+            definition: Definition::Local(block_local_id),
             name: block_ident_name.to_string(),
-            typ: ast::Type::Tuple(vec![env_typ, lambda_fn_typ]),
+            typ: result_typ,
             id: self.next_ident_id(),
         });
 
-        Ok((block_let_stmt, closure_ident))
+        Ok(ast::Expression::Block(vec![block_let_stmt, closure_ident]))
     }
 
     fn match_expr(
