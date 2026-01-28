@@ -862,7 +862,27 @@ fn associated_type_through_multiple_traits() {
 }
 
 #[test]
-fn associated_type_in_trait_impl_method() {
+fn associated_type_in_trait_impl_method_direct_bound() {
+    // T::Bar in a trait impl method
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait WithMethod {
+        type Output;
+        fn use_bar(x: Self::Output);
+    }
+
+    impl<T: Foo> WithMethod for T {
+        type Output = T::Bar;
+        fn use_bar(_x: T::Bar) {}
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_in_trait_impl_method_where_clause() {
     // T::Bar in a trait impl method
     let src = "
     trait HasQux { type Qux; }
@@ -879,4 +899,22 @@ fn associated_type_in_trait_impl_method() {
     fn main() {}
     ";
     assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
+#[test]
+fn fully_qualified_nested_associated_type() {
+    let src = "                                                                                                                              
+    trait HasQux { type Qux; }                                                                                                               
+    trait Foo { type Bar: HasQux; }                                                                                                          
+    trait Result { type Output; }                                                                                                            
+                                                                                                                                             
+    impl<T> Result for T where T: Foo {                                                                                                      
+        type Output = <T::Bar as HasQux>::Qux;  
+                                 ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
+                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`                                                                             
+    }                                                                                                                                        
+    fn main() {}                                                                                                                             
+    ";
+    check_errors(src);
 }
