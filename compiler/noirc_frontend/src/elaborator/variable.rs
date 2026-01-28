@@ -217,6 +217,20 @@ impl Elaborator<'_> {
             return Some((id, numeric_type));
         }
 
+        // Check if the constant exists in the trait definition (even if impl is missing it).
+        // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
+        // since the "missing associated constant" error is reported elsewhere.
+        let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+        let trait_id = trait_impl.borrow().trait_id;
+        let trait_ = self.interner.get_trait(trait_id);
+        if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
+            let numeric_type = self.interner.definition_type(definition_id);
+            let hir_ident = HirIdent::non_trait_method(definition_id, location);
+            let hir_expr = HirExpression::Ident(hir_ident, None);
+            let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+            return Some((id, numeric_type));
+        }
+
         // Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
         if matches!(self.self_type, Some(Type::DataType(..))) {
             return None;
