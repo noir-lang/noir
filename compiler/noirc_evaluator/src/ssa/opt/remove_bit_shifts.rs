@@ -270,8 +270,7 @@ impl Context<'_, '_, '_> {
                 let add = BinaryOp::Add { unchecked: true };
                 let div_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
                 let div_complement = self.insert_truncate(div_complement, bit_size, bit_size + 1);
-                let div_complement =
-                    self.insert_cast(div_complement, NumericType::signed(bit_size));
+                let div_complement = self.insert_cast(div_complement, lhs_typ);
                 // Performs the division on the adjusted complement (or the operand if positive)
                 let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
                 // For negative numbers, convert back to 2-complement by subtracting 1.
