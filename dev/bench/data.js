@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769564134647,
+  "lastUpdate": 1769608435660,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "46c199403c82c0c81f3116901911a07ada74da26",
-          "message": "fix(lsp): don't always process crate root doc comments (#11296)",
-          "timestamp": "2026-01-22T16:28:23Z",
-          "tree_id": "302238de3995e476c2880f1521e34ea0f3516f99",
-          "url": "https://github.com/noir-lang/noir/commit/46c199403c82c0c81f3116901911a07ada74da26"
-        },
-        "date": 1769100665136,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264326,
-            "range": "± 1517",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231840,
-            "range": "± 3786",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2796125,
-            "range": "± 5460",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2801460,
             "range": "± 2063",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46ffc80bbca34fc5b252bc7324f88611757987b2",
+          "message": "fix(comptime): Attribute macro expansion depth limit (#11352)",
+          "timestamp": "2026-01-28T13:32:28Z",
+          "tree_id": "1073088a3cb5fb048539b3165ea87b2d99d5f266",
+          "url": "https://github.com/noir-lang/noir/commit/46ffc80bbca34fc5b252bc7324f88611757987b2"
+        },
+        "date": 1769608396686,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257636,
+            "range": "± 1851",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220325,
+            "range": "± 6192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2739099,
+            "range": "± 48600",
             "unit": "ns/iter"
           }
         ]
