@@ -1131,8 +1131,7 @@
 <a href="#1130" id="1130">1130</a>
 <a href="#1131" id="1131">1131</a>
 <a href="#1132" id="1132">1132</a>
-<a href="#1133" id="1133">1133</a>
-<a href="#1134" id="1134">1134</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
+<a href="#1133" id="1133">1133</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
 //! arithmetic instructions since ACIR doesn't directly support bit shifts.
 //!
 //! In all cases, if the shift amount is equal to or exceeds the operand's number of bits,
@@ -1404,8 +1403,7 @@
                 </span><span class="kw">let </span>add = BinaryOp::Add { unchecked: <span class="bool-val">true </span>};
                 <span class="kw">let </span>div_complement = <span class="self">self</span>.insert_binary(lhs_sign_as_field, add, lhs_as_field);
                 <span class="kw">let </span>div_complement = <span class="self">self</span>.insert_truncate(div_complement, bit_size, bit_size + <span class="number">1</span>);
-                <span class="kw">let </span>div_complement =
-                    <span class="self">self</span>.insert_cast(div_complement, NumericType::signed(bit_size));
+                <span class="kw">let </span>div_complement = <span class="self">self</span>.insert_cast(div_complement, lhs_typ);
                 <span class="comment">// Performs the division on the adjusted complement (or the operand if positive)
                 </span><span class="kw">let </span>shifted_complement = <span class="self">self</span>.insert_binary(div_complement, BinaryOp::Div, pow);
                 <span class="comment">// For negative numbers, convert back to 2-complement by subtracting 1.
