@@ -2896,7 +2896,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_make_array_alias_ref() {
+    fn missing_make_array_alias_from_array_set_result() {
         let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u8, v2: u8):
