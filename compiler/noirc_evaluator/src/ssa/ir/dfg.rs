@@ -879,6 +879,16 @@ impl std::ops::Index<ValueId> for DataFlowGraph {
     }
 }
 
+impl std::ops::IndexMut<ValueId> for DataFlowGraph {
+    fn index_mut(&mut self, id: ValueId) -> &mut Self::Output {
+        let value = &mut self.values[id];
+        if matches!(value, Value::Global(_)) {
+            panic!("Cannot mutate a global ValueId! {id}");
+        }
+        value
+    }
+}
+
 impl std::ops::Index<BasicBlockId> for DataFlowGraph {
     type Output = BasicBlock;
     fn index(&self, id: BasicBlockId) -> &Self::Output {

@@ -524,8 +524,9 @@ fn can_be_eliminated_if_unused(
 /// pass and after the last mem2reg pass. This is currently the case for the DIE
 /// pass where this check is done, but does mean that we cannot perform mem2reg
 /// after the DIE pass.
-fn should_remove_store(func: &Function, flattened: bool) -> bool {
-    flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
+fn should_remove_store(_func: &Function, _flattened: bool) -> bool {
+    // Removing stores breaks mem2reg_simple
+    false //&& flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
 }
 
 /// Check pre-execution properties:

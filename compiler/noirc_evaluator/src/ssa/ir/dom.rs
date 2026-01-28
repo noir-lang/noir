@@ -112,6 +112,9 @@ impl DominatorTree {
         // comparison on the reverse post-order may allow to test whether we have passed "a"
         // without waiting until we reach the root of the tree.
         loop {
+            if let Some(res) = self.cache.get(&(block_a_id, block_b_id)) {
+                return *res;
+            }
             match self.reverse_post_order_cmp(block_a_id, block_b_id) {
                 Ordering::Less => {
                     block_b_id = match self.immediate_dominator(block_b_id) {

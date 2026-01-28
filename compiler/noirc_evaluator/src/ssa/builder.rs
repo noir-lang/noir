@@ -7,6 +7,7 @@ use noirc_errors::println_to_stdout;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::errors::RuntimeError;
+use crate::ssa::ssa_gen::validate_ssa;
 
 use super::ssa_gen::generate_ssa;
 use super::{Ssa, SsaLogging};
@@ -149,6 +150,7 @@ impl<'local> SsaBuilder<'local> {
     pub fn run_passes(mut self, passes: &[SsaPass]) -> Result<Self, RuntimeError> {
         for pass in passes {
             self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg)?;
+            validate_ssa(&self.ssa);
         }
         Ok(self)
     }
