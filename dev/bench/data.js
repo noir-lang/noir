@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769620921958,
+  "lastUpdate": 1769621029853,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e78f9c8db0c1e6e0570481a8e13b59bf6768a6cf",
-          "message": "fix(ssa): Set the vector length of `black_box` inputs if they are constant (#11273)",
-          "timestamp": "2026-01-22T20:32:12Z",
-          "tree_id": "dd7270fc94e9cfc63a744e40a4a8f7ecd618d158",
-          "url": "https://github.com/noir-lang/noir/commit/e78f9c8db0c1e6e0570481a8e13b59bf6768a6cf"
-        },
-        "date": 1769115231898,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264399,
-            "range": "± 825",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230714,
-            "range": "± 3277",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794149,
-            "range": "± 3512",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2750798,
             "range": "± 20085",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fba32b4e883f2b63c695d285327c32bbf655cd7e",
+          "message": "fix: expand unquote inside nested quote (#11369)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-01-28T17:02:27Z",
+          "tree_id": "6b7258b776c6aadfefcfccd43f80ea658c78c02f",
+          "url": "https://github.com/noir-lang/noir/commit/fba32b4e883f2b63c695d285327c32bbf655cd7e"
+        },
+        "date": 1769620990846,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263930,
+            "range": "± 1028",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234854,
+            "range": "± 6950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801592,
+            "range": "± 2106",
             "unit": "ns/iter"
           }
         ]
