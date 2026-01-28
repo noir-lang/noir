@@ -799,7 +799,7 @@ fn generic_associated_type_access_where_clause() {
 
 #[test]
 fn generic_associated_type_in_function_signature() {
-    // T::Output works in generic function signatures
+    // T::Bar works in generic function signatures
     let src = r#"
     trait Foo { type Bar; }
 
@@ -843,4 +843,40 @@ fn generic_associated_type_not_found() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn associated_type_through_multiple_traits() {
+    // T::Bar works when T: Foo and Foo has associated type Bar
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait Result { type Output; }
+
+    impl<T> Result for T where T: Foo {
+        type Output = T::Bar;
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_in_trait_impl_method() {
+    // T::Bar in a trait impl method
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait WithMethod {
+        type Output;
+        fn use_bar(x: Self::Output);
+    }
+
+    impl<T> WithMethod for T where T: Foo {
+        type Output = T::Bar;
+        fn use_bar(_x: T::Bar) {}
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
 }
