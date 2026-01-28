@@ -806,3 +806,174 @@ fn associated_constant_in_trait_method_missing_in_impl() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn generic_associated_type_access_direct_bound() {
+    // T::Qux works when T: Baz and Baz defines Qux (direct bound syntax)
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Baz { type Qux; }
+
+    impl<T: Baz> Foo for T {
+        type Bar = T::Qux;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_associated_type_access_where_clause() {
+    // T::Qux works when T: Baz and Baz defines Qux (where clause syntax)
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Baz { type Qux; }
+
+    impl<T> Foo for T where T: Baz {
+        type Bar = T::Qux;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_associated_type_in_function_signature() {
+    // T::Bar works in generic function signatures
+    let src = r#"
+    trait Foo { type Bar; }
+
+    pub fn use_bar<T>(_x: T::Bar) where T: Foo {
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_associated_type_ambiguous() {
+    // Error when multiple traits define the same associated type
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Trait1 { type Qux; }
+    trait Trait2 { type Qux; }
+
+    impl<T> Foo for T where T: Trait1 + Trait2 {
+        type Bar = T::Qux;
+                   ^^^^^^ Multiple applicable items in scope
+                   ~~~~~~ Multiple traits which provide `Qux` are implemented and in scope: `Trait1`, `Trait2`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_associated_type_not_found() {
+    // Error when no trait defines the associated type - falls through to normal resolution
+    // which fails because 'T' is a generic
+    let src = r#"
+    trait Foo { type Bar; }
+    trait Baz { type Other; }
+
+    impl<T> Foo for T where T: Baz {
+        type Bar = T::Qux;
+                   ^ Could not resolve 'T' in path
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_through_multiple_traits() {
+    // T::Bar works when T: Foo and Foo has associated type Bar
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait Result { type Output; }
+
+    impl<T> Result for T where T: Foo {
+        type Output = T::Bar;
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_in_trait_impl_method_direct_bound() {
+    // T::Bar in a trait impl method
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait WithMethod {
+        type Output;
+        fn use_bar(x: Self::Output);
+    }
+
+    impl<T: Foo> WithMethod for T {
+        type Output = T::Bar;
+        fn use_bar(_x: T::Bar) {}
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_in_trait_impl_method_where_clause() {
+    // T::Bar in a trait impl method
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait WithMethod {
+        type Output;
+        fn use_bar(x: Self::Output);
+    }
+
+    impl<T> WithMethod for T where T: Foo {
+        type Output = T::Bar;
+        fn use_bar(_x: T::Bar) {}
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_accessed_through_self_in_trait_impl_method() {
+    let src = "  
+    trait HasQux { type Qux; }                                                                                                                            
+    trait Foo { type Bar: HasQux; }                                                                                                                  
+    trait Result { 
+        type Output;
+        fn use_bar(_x: Self::Output) {}   
+    }                                                                                                                                       
+                                                                                                                                             
+    impl<T> Result for T where T: Foo {                                                                                   
+        type Output = T::Bar;  
+        fn use_bar(_x: Self::Output) {}                                                                          
+    }                                                                                                                                        
+    fn main() { }                                                                                                                             
+    ";
+    check_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
+#[test]
+fn fully_qualified_nested_associated_type() {
+    let src = "                                                                                                                              
+    trait HasQux { type Qux; }                                                                                                               
+    trait Foo { type Bar: HasQux; }                                                                                                          
+    trait Result { type Output; }                                                                                                            
+                                                                                                                                             
+    impl<T> Result for T where T: Foo {                                                                                                      
+        type Output = <T::Bar as HasQux>::Qux;  
+                                 ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
+                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`                                                                             
+    }                                                                                                                                        
+    fn main() {}                                                                                                                             
+    ";
+    check_errors(src);
+}

@@ -533,6 +533,8 @@ impl Elaborator<'_> {
         for constraint in constraints {
             self.interner
                 .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
+            // Also remove from trait_bounds
+            self.trait_bounds.retain(|c| c.trait_bound.trait_id != constraint.trait_bound.trait_id);
         }
 
         // Also remove the assumed trait implementation for `self` if this is a trait definition
@@ -573,7 +575,10 @@ impl Elaborator<'_> {
 
         self.add_trait_bound_to_scope(location, &typ, &trait_bound, trait_bound.trait_id);
 
-        Some(TraitConstraint { typ, trait_bound })
+        let constraint = TraitConstraint { typ, trait_bound };
+        // Also add to trait_bounds so that T::AssocType syntax can be resolved
+        self.trait_bounds.push(constraint.clone());
+        Some(constraint)
     }
 
     /// Adds an assumed trait implementation for the given object type and trait bound.
