@@ -484,7 +484,9 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        Store { .. } => should_remove_store(function, flattened),
+        Store { address, .. } => {
+            should_remove_store(function, flattened) && !used_values.contains(address)
+        }
 
         Constrain(..)
         | ConstrainNotEqual(..)
@@ -1316,5 +1318,22 @@ mod tests {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+    }
+
+    #[test]
+    fn does_not_remove_store_if_reference_is_used_across_call() {
+        let src = r#"
+        acir(inline) impure fn main f0 {
+        b0():
+            v0 = allocate -> &mut [u8; 2]
+            v3 = make_array [u8 1, u8 10] : [u8; 2]
+            store v3 at v0
+            v5 = call black_box(v0) -> &mut [u8; 2]
+            v6 = load v0 -> [u8; 2]
+            return v6
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }
