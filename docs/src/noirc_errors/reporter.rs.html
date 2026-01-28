@@ -306,7 +306,14 @@
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::IsTerminal;
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::IsTerminal;
 
 <span class="kw">use </span><span class="kw">crate</span>::Location;
 <span class="kw">use </span>codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -442,7 +449,14 @@
     }
 
     <span class="kw">pub fn </span>add_secondary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: String, location: Location) {
-        <span class="self">self</span>.secondaries.push(CustomLabel::new(message, location));
+        <span class="comment">// Avoid adding duplicate labels (can happen during recursive attribute execution)
+        </span><span class="kw">let </span>is_duplicate = <span class="self">self
+            </span>.secondaries
+            .iter()
+            .any(|label| label.message == message &amp;&amp; label.location == location);
+        <span class="kw">if </span>!is_duplicate {
+            <span class="self">self</span>.secondaries.push(CustomLabel::new(message, location));
+        }
     }
 
     <span class="kw">pub fn </span>is_error(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {

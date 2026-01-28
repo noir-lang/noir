@@ -920,7 +920,22 @@
 <a href="#919" id="919">919</a>
 <a href="#920" id="920">920</a>
 <a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a></pre></div><pre class="rust"><code><span class="doccomment">//! # The Elaborator
 //!
 //! The elaborator is the core semantic analysis phase of the compiler. It transforms collected,
 //! unresolved AST items into fully resolved and type-checked HIR through simultaneous and intertwined
@@ -1033,6 +1048,7 @@
 <span class="kw">mod </span>variable;
 <span class="kw">mod </span>visibility;
 
+<span class="kw">use </span><span class="self">self</span>::traits::check_trait_impl_method_matches_declaration;
 <span class="kw">use </span>function_context::FunctionContext;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>options::ElaboratorOptions;
@@ -1041,8 +1057,6 @@
 <span class="kw">use </span>path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
-
-<span class="kw">use </span><span class="self">self</span>::traits::check_trait_impl_method_matches_declaration;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>path_resolution::{TypedPath, TypedPathSegment};
 <span class="kw">pub use </span>primitive_types::PrimitiveType;
 
@@ -1058,6 +1072,16 @@
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 </span><span class="kw">const </span>MAX_INTERPRETER_CALL_STACK_SIZE: usize = <span class="number">100</span>;
+
+<span class="doccomment">/// Maximum depth of macro expansion (attribute execution).
+///
+/// This prevents infinite recursion when an attribute generates code that
+/// triggers further attribute expansion, which would otherwise cause a
+/// Rust stack overflow.
+///
+/// This limit is lower than the [interpreter call stack limit][MAX_INTERPRETER_CALL_STACK_SIZE] because macro
+/// expansion involves more stack frames per level (elaboration, comptime evaluation, etc.).
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_MACRO_EXPANSION_DEPTH: usize = <span class="number">32</span>;
 
 <span class="doccomment">/// ResolverMetas are tagged onto each definition to track how many times they are used
 </span><span class="attr">#[derive(Debug, PartialEq, Eq)]
@@ -1198,6 +1222,11 @@
     <span class="doccomment">/// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) comptime_evaluation_halted: bool,
+
+    <span class="doccomment">/// Tracks the current macro expansion depth to prevent infinite recursion
+    /// when an attribute generates code that triggers further attribute expansion.
+    /// This is a global counter that catches both single-function and mutual recursion.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) macro_expansion_depth: usize,
 }
 
 <span class="attr">#[derive(Copy, Clone)]
@@ -1267,6 +1296,7 @@
             options,
             elaborate_reasons,
             comptime_evaluation_halted: <span class="bool-val">false</span>,
+            macro_expansion_depth: <span class="number">0</span>,
         }
     }
 

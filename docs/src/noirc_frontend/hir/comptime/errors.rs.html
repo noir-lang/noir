@@ -879,7 +879,18 @@
 <a href="#878" id="878">878</a>
 <a href="#879" id="879">879</a>
 <a href="#880" id="880">880</a>
-<a href="#881" id="881">881</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -1177,6 +1188,9 @@
         location: Location,
         call_stack: im::Vector&lt;Location&gt;,
     },
+    AttributeRecursionLimitExceeded {
+        location: Location,
+    },
 
     <span class="comment">// These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -1274,7 +1288,8 @@
             | InterpreterError::GlobalCouldNotBeResolved { location }
             | InterpreterError::StackOverflow { location, .. }
             | InterpreterError::EvaluationDepthOverflow { location, .. }
-            | InterpreterError::CheckedTransmuteFailed { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | InterpreterError::CheckedTransmuteFailed { location, .. }
+            | InterpreterError::AttributeRecursionLimitExceeded { location } =&gt; <span class="kw-2">*</span>location,
             InterpreterError::FailedToParseMacro { error, .. } =&gt; error.location(),
             InterpreterError::NoMatchingImplFound { error } =&gt; error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } =&gt; name.location(),
@@ -1715,6 +1730,13 @@
                     <span class="kw-2">*</span>location,
                 );
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+            }
+            InterpreterError::AttributeRecursionLimitExceeded { location } =&gt; {
+                CustomDiagnostic::simple_error(
+                    <span class="string">"Attribute recursion limit exceeded"</span>.to_string(),
+                    <span class="string">"This attribute generates code with the same attribute, causing infinite recursion"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
             }
         }
     }
