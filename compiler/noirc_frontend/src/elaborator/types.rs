@@ -321,9 +321,7 @@ impl Elaborator<'_> {
         let assoc_name = path.last_name();
 
         // Check if first segment is a generic parameter
-        if self.find_generic(type_name).is_none() {
-            return None;
-        }
+        self.find_generic(type_name)?;
 
         // Search trait bounds for this generic to find the associated type
         let mut found_types = Vec::new();
