@@ -519,7 +519,7 @@ fn associated_and_generic_type_share_name() {
 }
 
 #[test]
-fn associated_and_type_mismatch_across_traits() {
+fn associated_type_mismatch_across_traits() {
     let src = r#"
     pub trait Spam {
         type Item;
@@ -540,7 +540,7 @@ fn associated_and_type_mismatch_across_traits() {
 }
 
 #[test]
-fn associated_mismatch_with_identical_names() {
+fn associated_type_mismatch_across_modules() {
     // Error message is confusing here but it is an improvement over no error
     let src = r#"
         pub mod one {
@@ -563,6 +563,20 @@ fn associated_mismatch_with_identical_names() {
         }
 
         fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_referred_to_by_self_as_trait() {
+    // Both of the following forms should work.
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn bar_one() -> Self::Bar;
+        fn bar_two() -> <Self as Foo>::Bar;
+    }
+    fn main() {}
     "#;
     check_errors(src);
 }
