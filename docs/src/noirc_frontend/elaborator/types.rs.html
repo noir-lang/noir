@@ -2712,7 +2712,23 @@
 <a href="#2711" id="2711">2711</a>
 <a href="#2712" id="2712">2712</a>
 <a href="#2713" id="2713">2713</a>
-<a href="#2714" id="2714">2714</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2714" id="2714">2714</a>
+<a href="#2715" id="2715">2715</a>
+<a href="#2716" id="2716">2716</a>
+<a href="#2717" id="2717">2717</a>
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -5214,12 +5230,10 @@
     <span class="kw">pub fn </span>type_check_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body_type: Type, meta: <span class="kw-2">&amp;</span>FuncMeta, body_id: ExprId) {
         <span class="kw">let </span>(expr_location, empty_function) = <span class="self">self</span>.function_info(body_id);
         <span class="kw">let </span>declared_return_type = meta.return_type();
-
-        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        </span><span class="kw">let </span>func_location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>body_id);
+        <span class="kw">let </span>last_expr_location = <span class="self">self</span>.last_expr_location(body_id);
 
         <span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
-            <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
+            <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
             <span class="kw">if </span><span class="self">self
                 </span>.interner
                 .lookup_trait_implementation(
@@ -5233,7 +5247,7 @@
                 <span class="self">self</span>.push_err(TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: body_type,
-                    location: func_location,
+                    location: last_expr_location,
                     source: Source::Return(meta.return_type.clone(), expr_location),
                 });
             }
@@ -5242,12 +5256,12 @@
                 <span class="kw-2">&amp;</span>body_type,
                 declared_return_type,
                 body_id,
-                func_location,
+                last_expr_location,
                 || {
                     <span class="kw">let </span><span class="kw-2">mut </span>error = TypeCheckError::TypeMismatchWithSource {
                         expected: declared_return_type.clone(),
                         actual: body_type.clone(),
-                        location: func_location,
+                        location: last_expr_location,
                         source: Source::Return(meta.return_type.clone(), expr_location),
                     };
 
@@ -5259,6 +5273,24 @@
                     CompilationError::TypeError(error)
                 },
             );
+        }
+    }
+
+    <span class="doccomment">/// Grab a best-effort approximation of the last expression or statement in the function.
+    /// Due to the typing rules of blocks, it is expected that the type of this expression/statement
+    /// matches the return type of the function.
+    </span><span class="kw">fn </span>last_expr_location(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: ExprId) -&gt; Location {
+        <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr) {
+            HirExpression::Block(block) <span class="kw">if </span>!block.statements.is_empty() =&gt; {
+                <span class="kw">let </span>last = block.statements.last().unwrap();
+                <span class="kw">match </span><span class="self">self</span>.interner.statement(last) {
+                    HirStatement::Expression(expr) | HirStatement::Semi(expr) =&gt; {
+                        <span class="self">self</span>.last_expr_location(expr)
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="self">self</span>.interner.statement_location(<span class="kw-2">*</span>last),
+                }
+            }
+            <span class="kw">_ </span>=&gt; <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr),
         }
     }
 
