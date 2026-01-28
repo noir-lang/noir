@@ -927,7 +927,7 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, interpreter::value::Value, opt::assert_ssa_does_not_change},
+        ssa::{Ssa, interpreter::{errors::InterpreterError, value::Value}, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -2885,5 +2885,47 @@ mod tests {
           return v9
       }
       ");
+    }
+
+    #[test]
+    fn missing_make_array_alias_ref() {
+        let ssa = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u8, v2: u8):
+            v3 = allocate -> &mut u8
+            store v1 at v3
+            v4 = allocate -> &mut [&mut u8; 1]
+            v5 = make_array [v3] : [&mut u8; 1]
+            store v5 at v4
+
+            constrain v0 == u32 0
+            v6 = load v4 -> [&mut u8; 1]
+            v7 = array_set v6, index v0, value v3
+            v8 = allocate -> &mut u8
+            store u8 0 at v8
+            v9 = make_array [v8] : [&mut u8; 1]
+            v10 = make_array [v7, v9] : [[&mut u8; 1]; 2]
+            v11 = array_get v10, index v0 -> [&mut u8; 1]
+            v12 = array_get v11, index u32 0 -> &mut u8
+            store v2 at v3
+            v13 = load v12 -> u8
+            constrain v13 == v2
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(ssa).unwrap();
+
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(0)]);
+        assert_eq!(result, Ok(vec![]));
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(1)]);
+        assert_eq!(result, Ok(vec![]));
+
+        let ssa = ssa.mem2reg();
+
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(0)]);
+        assert_eq!(result, Ok(vec![]));
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(1)]);
+        assert_eq!(result, Ok(vec![]));
     }
 }
