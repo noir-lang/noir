@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769614660543,
+  "lastUpdate": 1769614662321,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -50254,6 +50254,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d2adb3642f864516845097b1cd0886824c655d9",
+          "message": "fix(frontend): Do not error in trait method when impl is missing associated constant declaration (#11363)",
+          "timestamp": "2026-01-28T15:03:41Z",
+          "tree_id": "01efe5fae338fb018f894873f8836190177aa130",
+          "url": "https://github.com/noir-lang/noir/commit/6d2adb3642f864516845097b1cd0886824c655d9"
+        },
+        "date": 1769614620742,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.758,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.782,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.782,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.192,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.166,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.122,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.107,
             "unit": "s"
           }
         ]
