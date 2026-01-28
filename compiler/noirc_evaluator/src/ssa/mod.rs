@@ -167,6 +167,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
