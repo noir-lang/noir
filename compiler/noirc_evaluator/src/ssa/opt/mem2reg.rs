@@ -877,6 +877,15 @@ impl<'f> PerFunctionContext<'f> {
                         Type::Reference(_) => {
                             if let Some(expression) = references.expressions.get(argument) {
                                 if let Some(aliases) = references.aliases.get_mut(expression) {
+                                    // If the argument has unknown aliases, we must be conservative
+                                    // and mark all destination parameters as unknown. Otherwise,
+                                    // inserting into an unknown alias set is a no-op and destination parameters
+                                    // would incorrectly end up in separate alias sets.
+                                    if aliases.is_unknown() {
+                                        self.mark_all_unknown(destination_parameters, references);
+                                        return;
+                                    }
+
                                     let argument = *argument;
 
                                     // The argument reference is possibly aliased by this block parameter
@@ -2029,7 +2038,7 @@ mod tests {
     #[test]
     fn aliases_block_parameter_to_its_argument() {
         // Here:
-        // - v0 and v1 are potentially aliases of each other
+        // - v0 and v1 are aliases of each other
         // - v2 must be an alias of v0 (there was a bug around this)
         // - v3 must be an alias of v1 (same as previous point)
         // - `v4 = load v2` cannot be replaced with `Field 2` because
@@ -2046,6 +2055,30 @@ mod tests {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn aliases_unknown_block_arguments() {
+        // Here:
+        // - v0 and v1 both have unknown alias sets
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0
+        // - v3 must be an alias of v1
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
+        let ssa = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field, v1_arr: [&mut Field; 1]):
+            v1 = array_get v1_arr, index u32 0 -> &mut Field
+            jmp b1(v0, v1)
+          b1(v2: &mut Field, v3: &mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v4 = load v2 -> Field
+            return v4
+        }
+        "#;
+        assert_ssa_does_not_change(ssa, Ssa::mem2reg);
     }
 
     #[test]
