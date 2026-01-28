@@ -29,7 +29,13 @@
 <a href="#28" id="28">28</a>
 <a href="#29" id="29">29</a>
 <a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     hir::comptime::errors::IResult,
     token::{LocatedToken, Token, Tokens},
 };
@@ -47,13 +53,19 @@
         <span class="kw">let </span><span class="kw-2">mut </span>new_tokens = Vec::with_capacity(tokens.<span class="number">0</span>.len());
 
         <span class="kw">for </span>token <span class="kw">in </span>tokens.<span class="number">0 </span>{
-            <span class="kw">match </span>token.token() {
+            <span class="kw">let </span>location = token.location();
+            <span class="kw">match </span>token.into_token() {
                 Token::UnquoteMarker(id) =&gt; {
-                    <span class="kw">let </span>value = <span class="self">self</span>.evaluate(<span class="kw-2">*</span>id)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>tokens = value.into_tokens(<span class="self">self</span>.elaborator.interner, token.location())<span class="question-mark">?</span>;
+                    <span class="kw">let </span>value = <span class="self">self</span>.evaluate(id)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>tokens = value.into_tokens(<span class="self">self</span>.elaborator.interner, location)<span class="question-mark">?</span>;
                     new_tokens.extend(tokens);
                 }
-                <span class="kw">_ </span>=&gt; new_tokens.push(token),
+                Token::Quote(tokens) =&gt; {
+                    <span class="comment">// Make sure to substitute in nested `quote { ... }` as well.
+                    </span><span class="kw">let </span>tokens = <span class="self">self</span>.substitute_unquoted_values_into_tokens(tokens)<span class="question-mark">?</span>;
+                    new_tokens.push(LocatedToken::new(Token::Quote(Tokens(tokens)), location));
+                }
+                token =&gt; new_tokens.push(LocatedToken::new(token, location)),
             }
         }
 

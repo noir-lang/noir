@@ -2887,9 +2887,7 @@
 <a href="#2886" id="2886">2886</a>
 <a href="#2887" id="2887">2887</a>
 <a href="#2888" id="2888">2888</a>
-<a href="#2889" id="2889">2889</a>
-<a href="#2890" id="2890">2890</a>
-<a href="#2891" id="2891">2891</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2889" id="2889">2889</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3565,9 +3563,7 @@
                     } <span class="kw">else if let </span><span class="prelude-val">Some</span>((elements, <span class="kw">_</span>)) =
                         <span class="self">self</span>.inserter.function.dfg.get_array_constant(array)
                     {
-                        <span class="kw">let </span>aliases = references.collect_all_aliases(elements);
-                        <span class="self">self</span>.set_aliases(references, array, aliases.clone());
-                        aliases
+                        references.collect_all_aliases(elements)
                     } <span class="kw">else </span>{
                         AliasSet::unknown()
                     };
