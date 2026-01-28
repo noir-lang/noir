@@ -594,6 +594,20 @@ fn associated_type_behind_self_as_trait_with_generics() {
 }
 
 #[test]
+fn associated_type_behind_self_as_trait_with_different_generics() {
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar() -> <Self as Foo<u32>>::Bar;
+                             ^^^ No matching impl found for `Self: Foo<u32, Bar = _>`
+                             ~~~ No impl for `Self: Foo<u32, Bar = _>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access() {
     let src = "
     trait MyTrait {
