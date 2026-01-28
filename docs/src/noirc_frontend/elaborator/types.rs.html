@@ -2728,7 +2728,74 @@
 <a href="#2727" id="2727">2727</a>
 <a href="#2728" id="2728">2728</a>
 <a href="#2729" id="2729">2729</a>
-<a href="#2730" id="2730">2730</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a>
+<a href="#2740" id="2740">2740</a>
+<a href="#2741" id="2741">2741</a>
+<a href="#2742" id="2742">2742</a>
+<a href="#2743" id="2743">2743</a>
+<a href="#2744" id="2744">2744</a>
+<a href="#2745" id="2745">2745</a>
+<a href="#2746" id="2746">2746</a>
+<a href="#2747" id="2747">2747</a>
+<a href="#2748" id="2748">2748</a>
+<a href="#2749" id="2749">2749</a>
+<a href="#2750" id="2750">2750</a>
+<a href="#2751" id="2751">2751</a>
+<a href="#2752" id="2752">2752</a>
+<a href="#2753" id="2753">2753</a>
+<a href="#2754" id="2754">2754</a>
+<a href="#2755" id="2755">2755</a>
+<a href="#2756" id="2756">2756</a>
+<a href="#2757" id="2757">2757</a>
+<a href="#2758" id="2758">2758</a>
+<a href="#2759" id="2759">2759</a>
+<a href="#2760" id="2760">2760</a>
+<a href="#2761" id="2761">2761</a>
+<a href="#2762" id="2762">2762</a>
+<a href="#2763" id="2763">2763</a>
+<a href="#2764" id="2764">2764</a>
+<a href="#2765" id="2765">2765</a>
+<a href="#2766" id="2766">2766</a>
+<a href="#2767" id="2767">2767</a>
+<a href="#2768" id="2768">2768</a>
+<a href="#2769" id="2769">2769</a>
+<a href="#2770" id="2770">2770</a>
+<a href="#2771" id="2771">2771</a>
+<a href="#2772" id="2772">2772</a>
+<a href="#2773" id="2773">2773</a>
+<a href="#2774" id="2774">2774</a>
+<a href="#2775" id="2775">2775</a>
+<a href="#2776" id="2776">2776</a>
+<a href="#2777" id="2777">2777</a>
+<a href="#2778" id="2778">2778</a>
+<a href="#2779" id="2779">2779</a>
+<a href="#2780" id="2780">2780</a>
+<a href="#2781" id="2781">2781</a>
+<a href="#2782" id="2782">2782</a>
+<a href="#2783" id="2783">2783</a>
+<a href="#2784" id="2784">2784</a>
+<a href="#2785" id="2785">2785</a>
+<a href="#2786" id="2786">2786</a>
+<a href="#2787" id="2787">2787</a>
+<a href="#2788" id="2788">2788</a>
+<a href="#2789" id="2789">2789</a>
+<a href="#2790" id="2790">2790</a>
+<a href="#2791" id="2791">2791</a>
+<a href="#2792" id="2792">2792</a>
+<a href="#2793" id="2793">2793</a>
+<a href="#2794" id="2794">2794</a>
+<a href="#2795" id="2795">2795</a>
+<a href="#2796" id="2796">2796</a>
+<a href="#2797" id="2797">2797</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -2981,7 +3048,7 @@
                 <span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>typ, kind, mode, wildcard_allowed)
             }
             Resolved(id) =&gt; <span class="self">self</span>.interner.get_quoted_type(id).clone(),
-            AsTraitPath(path) =&gt; <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, wildcard_allowed),
+            AsTraitPath(path) =&gt; <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, mode, wildcard_allowed),
             Interned(id) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_unresolved_type_data(id).clone();
                 <span class="kw">return </span><span class="self">self</span>.resolve_type_with_kind_inner(
@@ -3544,7 +3611,8 @@
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) =&gt; {
-                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, wildcard_allowed);
+                <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
+                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, mode, wildcard_allowed);
                 <span class="self">self</span>.check_type_kind(typ, expected_kind, location)
             }
         }
@@ -3586,9 +3654,11 @@
         </span>}
     }
 
-    <span class="kw">fn </span>resolve_as_trait_path(
+    <span class="doccomment">/// Resolve `&lt;{object} as {trait}&gt;::{ident}` to a [Type] of the `{ident}`.
+    </span><span class="kw">fn </span>resolve_as_trait_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: AsTraitPath,
+        mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -&gt; Type {
         <span class="kw">let </span>location = path.trait_path.location;
@@ -3597,6 +3667,12 @@
             <span class="comment">// Error should already be pushed in the None case
             </span><span class="kw">return </span>Type::Error;
         };
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) =
+            <span class="self">self</span>.try_resolve_self_as_trait_path(<span class="kw-2">&amp;</span>path, mode, wildcard_allowed, trait_id)
+        {
+            <span class="kw">return </span>typ;
+        }
 
         <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.use_type_args(path.trait_generics.clone(), trait_id, location);
         <span class="kw">let </span>object_type = <span class="self">self</span>.use_type(path.typ.clone(), wildcard_allowed);
@@ -3611,6 +3687,64 @@
                 Type::Error
             }
         }
+    }
+
+    <span class="doccomment">/// Try to resolve an [AsTraitPath] as `&lt;Self as {trait}&gt;::{ident}` to the [Type] of the `{ident}`.
+    ///
+    /// If it's a different pattern then returns `None`.
+    </span><span class="kw">fn </span>try_resolve_self_as_trait_path(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: <span class="kw-2">&amp;</span>AsTraitPath,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        trait_id: TraitId,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+        <span class="comment">// Only applies if the path refers to the current trait.
+        </span><span class="kw">let </span>current_trait = <span class="self">self</span>.current_trait<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>trait_id != current_trait {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="comment">// See if we are dealing with `&lt;Self as {trait}&gt;::{ident}`.
+        // If so, redirect to how we deal with `Self::{ident}`.
+        </span><span class="kw">let </span>UnresolvedTypeData::Named(object_path, object_generics, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>path.typ.typ <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        };
+
+        <span class="comment">// Only applies if the object refers to `Self` and nothing else.
+        </span><span class="kw">if </span>object_path.segments.len() != <span class="number">1
+            </span>|| !object_path.segments[<span class="number">0</span>].ident.is_self_type_name()
+            || !object_generics.is_empty()
+        {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="comment">// Only works if all the trait generics in the path are the same as the trait itself.
+        </span><span class="kw">let </span>location = path.trait_path.location;
+        <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.use_type_args(path.trait_generics.clone(), trait_id, location);
+
+        <span class="kw">if </span>!ordered.iter().all(|typ| <span class="macro">matches!</span>(typ, Type::NamedGeneric(<span class="kw">_</span>)))
+            || !named.iter().all(|typ| <span class="macro">matches!</span>(typ.typ, Type::TypeVariable(<span class="kw">_</span>)))
+        {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="comment">// Remove the trait from the path.
+        </span><span class="kw">let </span>self_and_impl = object_path.clone().join(path.impl_item.clone());
+        <span class="kw">let </span>self_and_impl = <span class="self">self</span>.validate_path(self_and_impl);
+
+        <span class="comment">// Resolved as a named type, which is what `Self::{ident}` would be.
+        </span><span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(
+            self_and_impl,
+            <span class="comment">// The call to `lookup_generic_or_global_type` which calls `lookup_associated_type_on_self`
+            // will only be made if the args are empty, and that's what we tried to ascertain before
+            // by checking that none of them are bound to a concrete type.
+            </span>GenericTypeArgs::default(),
+            mode,
+            wildcard_allowed,
+        );
+        <span class="prelude-val">Some</span>(typ)
     }
 
     <span class="kw">fn </span>get_associated_type_from_trait_impl(

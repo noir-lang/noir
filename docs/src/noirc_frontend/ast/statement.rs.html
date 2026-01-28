@@ -1015,7 +1015,11 @@
 <a href="#1014" id="1014">1014</a>
 <a href="#1015" id="1015">1015</a>
 <a href="#1016" id="1016">1016</a>
-<a href="#1017" id="1017">1017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1416,16 +1420,20 @@
 <span class="doccomment">/// A special kind of path in the form `&lt;MyType as Trait&gt;::ident`.
 /// Note that this path must consist of exactly two segments.
 ///
-/// An AsTraitPath may be used in either a type context where `ident`
-/// refers to an associated type of a particular impl, or in a value
-/// context where `ident` may refer to an associated constant or a
-/// function within the impl.
+/// An `AsTraitPath` may be used in in the following contexts:
+/// * in a type context where the `ident` refers to an associated type of a particular impl
+/// * in a value context where `ident` may refer to an associated constant or a function within the impl
+/// * in the trait definition itself, referring to an associated type of the same trait
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub struct </span>AsTraitPath {
-    <span class="kw">pub </span>typ: UnresolvedType,
-    <span class="kw">pub </span>trait_path: Path,
-    <span class="kw">pub </span>trait_generics: GenericTypeArgs,
-    <span class="kw">pub </span>impl_item: Ident,
+    <span class="doccomment">/// The `MyType` in the path.
+    </span><span class="kw">pub </span>typ: UnresolvedType,
+    <span class="doccomment">/// The `Trait` in the path.
+    </span><span class="kw">pub </span>trait_path: Path,
+    <span class="doccomment">/// Any generics on the trait itself.
+    </span><span class="kw">pub </span>trait_generics: GenericTypeArgs,
+    <span class="doccomment">/// The `ident` in the path.
+    </span><span class="kw">pub </span>impl_item: Ident,
 }
 
 <span class="doccomment">/// A special kind of path in the form `Type::ident::&lt;turbofish&gt;`
@@ -1456,7 +1464,7 @@
         <span class="self">self</span>.segments.pop().unwrap()
     }
 
-    <span class="kw">fn </span>join(<span class="kw-2">mut </span><span class="self">self</span>, ident: Ident) -&gt; Path {
+    <span class="kw">pub fn </span>join(<span class="kw-2">mut </span><span class="self">self</span>, ident: Ident) -&gt; Path {
         <span class="self">self</span>.segments.push(PathSegment::from(ident));
         <span class="self">self
     </span>}
