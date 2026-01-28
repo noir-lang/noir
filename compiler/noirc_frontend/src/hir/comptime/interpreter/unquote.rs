@@ -24,7 +24,7 @@ impl Interpreter<'_, '_> {
                     new_tokens.extend(tokens);
                 }
                 Token::Quote(tokens) => {
-                    // Make sure to susbtitute in nested `quote { ... }` as well.
+                    // Make sure to substitute in nested `quote { ... }` as well.
                     let tokens = self.substitute_unquoted_values_into_tokens(tokens)?;
                     new_tokens.push(LocatedToken::new(Token::Quote(Tokens(tokens)), location));
                 }
