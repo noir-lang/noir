@@ -568,6 +568,184 @@ fn associated_mismatch_with_identical_names() {
 }
 
 #[test]
+fn associated_constant_direct_access() {
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _: u32 = Foo::N;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11362): Improve error message for missing associated constants
+#[test]
+fn associated_constant_direct_access_no_impl() {
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl MyTrait for Bar {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: u32 = Foo::N;
+                          ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_generic_impl() {
+    // Verify that Foo::N works when the impl is generic.
+    // The impl is for Wrapper<T>, and we access Wrapper<Field>::N.
+    // This requires unification to match Wrapper<Field> against Wrapper<T>.
+    let src = "
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Wrapper<T> { inner: T }
+    impl<T> MyTrait for Wrapper<T> {
+        let N: u32 = 10;
+    }
+    fn main() {
+        let _: u32 = Wrapper::<Field>::N;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_generic_impl_wrong_struct() {
+    // Verify that unification correctly rejects non-matching struct types.
+    // We have impl MyTrait for Wrapper<T>, but try to access Other<Field>::N.
+    // Unification should NOT match Wrapper<T> with Other<Field>.
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Wrapper<T> { inner: T }
+    struct Other<T> { inner: T }
+    impl<T> MyTrait for Wrapper<T> {
+        let N: u32 = 10;
+    }
+    fn main() {
+        let _ = Wrapper::<Field> { inner: 1 };
+        let _ = Other::<Field> { inner: 1 };
+        let _: u32 = Other::<Field>::N;
+                                     ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_generic_impl_wrong_type_arg() {
+    // Verify that unification correctly distinguishes between
+    // different concrete instantiations of the same generic type.
+    // We have impl MyTrait for Wrapper<Field>, but try to access Wrapper<u32>::N.
+    // Unification should NOT match Wrapper<Field> with Wrapper<u32>.
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Wrapper<T> { inner: T }
+    impl MyTrait for Wrapper<Field> {
+        let N: u32 = 10;
+    }
+    fn main() {
+        let _ = Wrapper::<Field> { inner: 1 };
+        let _ = Wrapper::<u32> { inner: 1 };
+        let _: u32 = Wrapper::<u32>::N;
+                                     ^ Could not resolve 'N' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_ambiguous() {
+    let src = r#"
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _ = Bar::N;
+                     ^ Multiple applicable items in scope
+                     ~ Multiple traits which provide `N` are implemented and in scope: `Trait1`, `Trait2`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_ambiguous_resolved_with_fully_qualified_path() {
+    let src = "
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _: u32 = <Bar as Trait1>::N;
+        let _: u32 = <Bar as Trait2>::N;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
+#[test]
+fn associated_type_direct_access() {
+    let src = r#"
+    pub struct CustomType {}
+
+    trait MyTrait {
+        type MyType;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        type MyType = CustomType;
+    }
+    fn main() {
+        // Succeeds
+        // let _: <Foo as MyTrait>::MyType = CustomType { };
+        // Fails
+        let _: Foo::MyType = CustomType { };
+                    ^^^^^^ Could not resolve 'MyType' in path
+    }"#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_in_trait_method_missing_in_impl() {
     // When an impl is missing an associated constant that is accessed in a default trait method,
     // we should only get ONE error (the "missing associated type" error)
