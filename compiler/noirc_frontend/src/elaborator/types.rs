@@ -1758,7 +1758,7 @@ impl Elaborator<'_> {
         object_type: &Type,
         return_type: &Type,
         location: Location,
-        is_non_equality_comparator: bool,
+        is_ord: bool,
     ) {
         let method_type = self.interner.definition_type(trait_method_id.item_id);
         let (method_type, mut bindings) = method_type.instantiate(self.interner);
@@ -1776,7 +1776,10 @@ impl Elaborator<'_> {
                     expr_location: location,
                 });
 
-                if is_non_equality_comparator {
+                // Uses of `Ord` that return `bool`, e.g. `<`, `<=`, etc., are expected to have
+                // a `return_type` of `bool`, but have a `ret` of type `std::cmp::Ordering`
+                // from being based on `Ord::cmp(self, other: Self) -> Ordering`
+                if is_ord {
                     let mut ordering_type_path_segments = vec![];
                     let ordering_type_path_kind = if self.crate_id.is_stdlib() {
                         PathKind::Crate
