@@ -202,9 +202,14 @@ impl Type {
     /// function that is not `main` or a contract function.
     /// This encapsulates functions for which we may not want to inline during compilation.
     ///
-    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
-    /// certain types which through compilation we know what their size should be.
-    /// This includes types such as numeric generics.
+   /// This check is intentionally more permissive than [Self::program_validity]:
+   /// - It does not enforce entry-point sizing rules (e.g. concrete array/string lengths).
+   /// - It allows symbolic size expressions such as [Type::InfixExpr].
+   /// - It does not special-case entry point only rules like allowing [Type:Unit] outputs.
+   ///
+   /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
+   /// certain types which through compilation we know what their size should be.
+   /// This includes types such as numeric generics.
     pub(crate) fn non_inlined_program_input_validity(&self) -> Option<InvalidType> {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
