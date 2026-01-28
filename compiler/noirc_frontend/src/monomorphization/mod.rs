@@ -538,19 +538,18 @@ impl<'interner> Monomorphizer<'interner> {
             other => other,
         };
 
-        // If `convert_type` fails here it is most likely because of generics at the
-        // call site after instantiating this function's type. So show the error there
-        // instead of at the function definition.
-        let return_type = Self::convert_type(return_type, location)?;
-        let return_visibility = meta.return_visibility;
-        let unconstrained = self.in_unconstrained_function;
-
         let attributes = self.interner.function_attributes(&f);
         let mut inline_type = InlineType::from(attributes);
+        let unconstrained = self.in_unconstrained_function;
         if unconstrained {
             inline_type = inline_type.into_unconstrained();
         }
         let is_fold = matches!(inline_type, InlineType::Fold);
+
+        // Foldable functions are entry points. We already checked the types
+        // are valid during elaboration. However, types behind generics (type
+        // variables) can't be known until monomorphization, so here we have
+        // to check again.
         if is_fold {
             let allow_empty_arrays = false;
             for (pattern, typ, _visibility) in &meta.parameters.0 {
@@ -562,7 +561,22 @@ impl<'interner> Monomorphizer<'interner> {
                     });
                 }
             }
+
+            let allow_empty_arrays = true;
+            if let Some(invalid_type) = return_type.program_input_validity(allow_empty_arrays) {
+                let location = meta.return_type.location();
+                return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                    invalid_type,
+                    location,
+                });
+            }
         }
+
+        // If `convert_type` fails here it is most likely because of generics at the
+        // call site after instantiating this function's type. So show the error there
+        // instead of at the function definition.
+        let return_type = Self::convert_type(return_type, location)?;
+        let return_visibility = meta.return_visibility;
 
         let parameters = self.parameters(&meta.parameters)?;
 

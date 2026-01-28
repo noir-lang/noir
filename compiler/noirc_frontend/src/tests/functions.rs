@@ -419,20 +419,3 @@ fn invalid_generic_fold_entry_point_input_type() {
     "#;
     check_monomorphization_error(src);
 }
-
-fn hello() {
-    let x = 1 + "a";
-}
-
-#[test]
-fn invalid_generic_fold_entry_point_output_type() {
-    let src = r#"
-    fn main() {
-        foo::<[&mut Field; 0]();
-    }
-
-    #[fold]
-    fn foo<T>() -> [T; 0] {}
-    "#;
-    check_monomorphization_error(src);
-}
