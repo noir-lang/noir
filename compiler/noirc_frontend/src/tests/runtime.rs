@@ -460,14 +460,29 @@ fn user_defined_verify_proof_with_type_is_allowed_in_brillig() {
     assert_no_errors(src);
 }
 
-/// Globals are evaluated in a `comptime` context so they can call unconstrained functions without `unsafe` blocks
 #[test]
-fn call_unconstrained_function_in_lambda_in_global() {
+fn cannot_call_unconstrained_function_in_lambda_in_global() {
     let src = r#"
     pub global foo: fn() = || bar();
+                              ^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+
     unconstrained fn bar() {}
 
     fn main() {}
     "#;
+    check_errors(src);
+}
+
+#[test]
+fn call_unconstrained_function_in_lambda_in_global() {
+    let src = r#"
+    pub global foo: fn() = || {
+        // Safety: showing an unconstrained function call for testing
+        unsafe { bar() }
+    };
+       unconstrained fn bar() {}
+
+    fn main() {}
+"#;
     assert_no_errors(src);
 }
