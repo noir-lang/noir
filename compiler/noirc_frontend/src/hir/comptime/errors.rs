@@ -296,6 +296,9 @@ pub enum InterpreterError {
         location: Location,
         call_stack: im::Vector<Location>,
     },
+    AttributeRecursionLimitExceeded {
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -393,7 +396,8 @@ impl InterpreterError {
             | InterpreterError::GlobalCouldNotBeResolved { location }
             | InterpreterError::StackOverflow { location, .. }
             | InterpreterError::EvaluationDepthOverflow { location, .. }
-            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
+            | InterpreterError::CheckedTransmuteFailed { location, .. }
+            | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -834,6 +838,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     *location,
                 );
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+            }
+            InterpreterError::AttributeRecursionLimitExceeded { location } => {
+                CustomDiagnostic::simple_error(
+                    "Attribute recursion limit exceeded".to_string(),
+                    "This attribute generates code with the same attribute, causing infinite recursion".to_string(),
+                    *location,
+                )
             }
         }
     }

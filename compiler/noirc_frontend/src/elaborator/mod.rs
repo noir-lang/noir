@@ -111,6 +111,7 @@ mod unquote;
 mod variable;
 mod visibility;
 
+use self::traits::check_trait_impl_method_matches_declaration;
 use function_context::FunctionContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
@@ -119,8 +120,6 @@ pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
-
-use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 
@@ -136,6 +135,16 @@ pub use primitive_types::PrimitiveType;
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Maximum depth of macro expansion (attribute execution).
+///
+/// This prevents infinite recursion when an attribute generates code that
+/// triggers further attribute expansion, which would otherwise cause a
+/// Rust stack overflow.
+///
+/// This limit is lower than the [interpreter call stack limit][MAX_INTERPRETER_CALL_STACK_SIZE] because macro
+/// expansion involves more stack frames per level (elaboration, comptime evaluation, etc.).
+pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -276,6 +285,11 @@ pub struct Elaborator<'context> {
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     pub(crate) comptime_evaluation_halted: bool,
+
+    /// Tracks the current macro expansion depth to prevent infinite recursion
+    /// when an attribute generates code that triggers further attribute expansion.
+    /// This is a global counter that catches both single-function and mutual recursion.
+    pub(crate) macro_expansion_depth: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -345,6 +359,7 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
+            macro_expansion_depth: 0,
         }
     }
 
