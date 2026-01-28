@@ -16,7 +16,8 @@ use rustc_hash::FxHashMap as HashMap;
 pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
-    values: HashMap<ValueId, ValueId>,
+    /// This field is meant to be private and should only be referenced directly to avoid borrow errors
+    pub(crate) values: HashMap<ValueId, ValueId>,
 }
 
 impl<'f> FunctionInserter<'f> {
@@ -28,9 +29,24 @@ impl<'f> FunctionInserter<'f> {
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
     pub(crate) fn resolve(&self, value: ValueId) -> ValueId {
-        match self.values.get(&value) {
-            Some(new_value) => self.resolve(*new_value),
-            None => value,
+        Self::resolve_detached(value, &self.values)
+    }
+
+    /// Resolves a ValueId to its new, updated value.
+    /// If there is no updated value for this id, this returns the same
+    /// ValueId that was passed in.
+    ///
+    /// Unlike [Self::resolve], this function does not borrow self, allowing it to be used when
+    /// [Self::function] is also mutably borrowed.
+    pub(crate) fn resolve_detached(
+        mut value: ValueId,
+        values: &HashMap<ValueId, ValueId>,
+    ) -> ValueId {
+        loop {
+            match values.get(&value) {
+                Some(new_value) => value = *new_value,
+                None => break value,
+            }
         }
     }
 

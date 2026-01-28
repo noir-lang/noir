@@ -342,6 +342,14 @@ impl Type {
             }
         }
     }
+
+    /// If this is a reference type, return the type it references.
+    pub(crate) fn reference_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Reference(element_type) => Some(element_type.as_ref()),
+            _ => None,
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.

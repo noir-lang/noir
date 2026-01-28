@@ -75,6 +75,7 @@
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
 mod alias_set;
 mod block;
+mod cfg;
 
 use std::collections::{BTreeMap, BTreeSet};
 

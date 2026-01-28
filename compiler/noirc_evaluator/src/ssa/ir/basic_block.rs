@@ -42,6 +42,10 @@ impl BasicBlock {
         &self.parameters
     }
 
+    pub(crate) fn parameters_mut(&mut self) -> &mut Vec<ValueId> {
+        &mut self.parameters
+    }
+
     /// Removes all the parameters of this block
     pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
         std::mem::take(&mut self.parameters)
@@ -152,6 +156,18 @@ impl BasicBlock {
             Some(TerminatorInstruction::Return { .. })
             | Some(TerminatorInstruction::Unreachable { .. })
             | None => vec![].into_iter(),
+        }
+    }
+
+    /// Returns the [CallStackId] associated with this block's terminator
+    /// Panics if this block does not have a terminator.
+    pub(crate) fn terminator_call_stack(&self) -> CallStackId {
+        use TerminatorInstruction::*;
+        match self.unwrap_terminator() {
+            Jmp { call_stack, .. }
+            | JmpIf { call_stack, .. }
+            | Return { call_stack, .. }
+            | Unreachable { call_stack, .. } => *call_stack,
         }
     }
 }
