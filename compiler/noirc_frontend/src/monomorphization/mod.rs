@@ -562,13 +562,15 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
-            let allow_empty_arrays = true;
-            if let Some(invalid_type) = return_type.program_input_validity(allow_empty_arrays) {
-                let location = meta.return_type.location();
-                return Err(MonomorphizationError::InvalidTypeForEntryPoint {
-                    invalid_type,
-                    location,
-                });
+            if !matches!(return_type, Type::Unit) {
+                let allow_empty_arrays = true;
+                if let Some(invalid_type) = return_type.program_input_validity(allow_empty_arrays) {
+                    let location = meta.return_type.location();
+                    return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                        invalid_type,
+                        location,
+                    });
+                }
             }
         }
 
