@@ -901,6 +901,25 @@ fn associated_type_in_trait_impl_method_where_clause() {
     assert_no_errors(src);
 }
 
+#[test]
+fn associated_type_accessed_through_self_in_trait_impl_method() {
+    let src = "  
+    trait HasQux { type Qux; }                                                                                                                            
+    trait Foo { type Bar: HasQux; }                                                                                                                  
+    trait Result { 
+        type Output;
+        fn use_bar(_x: Self::Output) {}   
+    }                                                                                                                                       
+                                                                                                                                             
+    impl<T> Result for T where T: Foo {                                                                                   
+        type Output = T::Bar;  
+        fn use_bar(_x: Self::Output) {}                                                                          
+    }                                                                                                                                        
+    fn main() { }                                                                                                                             
+    ";
+    check_errors(src);
+}
+
 /// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
 #[test]
 fn fully_qualified_nested_associated_type() {
