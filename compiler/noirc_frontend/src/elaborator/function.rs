@@ -183,7 +183,7 @@ impl Elaborator<'_> {
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
-            if let Err(err) = self.check_if_type_is_valid_for_program_output(
+            if let Err(err) = Self::check_if_type_is_valid_for_program_output(
                 &return_type,
                 is_entry_point || func.is_test_or_fuzz(),
                 func.has_inline_attribute(),
@@ -353,7 +353,7 @@ impl Elaborator<'_> {
                 _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
-            if let Err(err) = self.check_if_type_is_valid_for_program_input(
+            if let Err(err) = Self::check_if_type_is_valid_for_program_input(
                 &typ,
                 is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
@@ -386,7 +386,6 @@ impl Elaborator<'_> {
     /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program(
-        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
@@ -409,13 +408,12 @@ impl Elaborator<'_> {
     }
 
     fn check_if_type_is_valid_for_program_input(
-        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
         location: Location,
     ) -> Result<(), TypeCheckError> {
-        self.check_if_type_is_valid_for_program(
+        Self::check_if_type_is_valid_for_program(
             typ,
             is_entry_point,
             has_inline_attribute,
@@ -425,7 +423,6 @@ impl Elaborator<'_> {
     }
 
     fn check_if_type_is_valid_for_program_output(
-        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
@@ -433,7 +430,7 @@ impl Elaborator<'_> {
     ) -> Result<(), TypeCheckError> {
         match typ.follow_bindings() {
             Type::Unit => Ok(()),
-            _ => self.check_if_type_is_valid_for_program(
+            _ => Self::check_if_type_is_valid_for_program(
                 typ,
                 is_entry_point,
                 has_inline_attribute,
