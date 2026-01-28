@@ -538,20 +538,47 @@ impl<'interner> Monomorphizer<'interner> {
             other => other,
         };
 
+        let attributes = self.interner.function_attributes(&f);
+        let mut inline_type = InlineType::from(attributes);
+        let unconstrained = self.in_unconstrained_function;
+        if unconstrained {
+            inline_type = inline_type.into_unconstrained();
+        }
+        let is_fold = matches!(inline_type, InlineType::Fold);
+        let is_no_predicate = matches!(inline_type, InlineType::NoPredicates);
+
+        // We already checked the types are valid during elaboration. However, types behind
+        // generics (type variables) can't be known until monomorphization, so here we have
+        // to check again.
+        if is_fold || is_no_predicate {
+            for (pattern, typ, _visibility) in &meta.parameters.0 {
+                if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
+                    let location = pattern.location();
+                    return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                        invalid_type,
+                        location,
+                    });
+                }
+            }
+
+            let output = true;
+            if let Some(invalid_type) = return_type.program_validity(output) {
+                let location = meta.return_type.location();
+                return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                    invalid_type,
+                    location,
+                });
+            }
+        }
+
         // If `convert_type` fails here it is most likely because of generics at the
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         let return_type = Self::convert_type(return_type, location)?;
         let return_visibility = meta.return_visibility;
-        let unconstrained = self.in_unconstrained_function;
-
-        let attributes = self.interner.function_attributes(&f);
-        let mut inline_type = InlineType::from(attributes);
-        if unconstrained {
-            inline_type = inline_type.into_unconstrained();
-        }
 
         let parameters = self.parameters(&meta.parameters)?;
+
         let body = self.expr(body_expr_id)?;
         let function = Function {
             id,
