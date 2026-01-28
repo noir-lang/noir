@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769614662321,
+  "lastUpdate": 1769614663578,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -35212,105 +35212,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "19a4f17035d9585b62d1277415ec4a17c049fa02",
-          "message": "fix: improve reference coercion logic (#11286)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2026-01-22T17:13:43Z",
-          "tree_id": "497b2e915178a92799db0195954e2cccefddaf9d",
-          "url": "https://github.com/noir-lang/noir/commit/19a4f17035d9585b62d1277415ec4a17c049fa02"
-        },
-        "date": 1769103927937,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.244,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.216,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.166,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.354,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.394,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.418,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.546,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.698,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.386,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.238,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.197,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -40155,6 +40056,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.194,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d2adb3642f864516845097b1cd0886824c655d9",
+          "message": "fix(frontend): Do not error in trait method when impl is missing associated constant declaration (#11363)",
+          "timestamp": "2026-01-28T15:03:41Z",
+          "tree_id": "01efe5fae338fb018f894873f8836190177aa130",
+          "url": "https://github.com/noir-lang/noir/commit/6d2adb3642f864516845097b1cd0886824c655d9"
+        },
+        "date": 1769614621185,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.206,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.302,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.436,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.532,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.596,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.682,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.48,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.247,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.202,
             "unit": "s"
           }
         ]
