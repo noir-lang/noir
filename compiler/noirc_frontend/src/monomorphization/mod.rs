@@ -545,15 +545,14 @@ impl<'interner> Monomorphizer<'interner> {
             inline_type = inline_type.into_unconstrained();
         }
         let is_fold = matches!(inline_type, InlineType::Fold);
+        let is_no_predicate = matches!(inline_type, InlineType::NoPredicates);
 
-        // Foldable functions are entry points. We already checked the types
-        // are valid during elaboration. However, types behind generics (type
-        // variables) can't be known until monomorphization, so here we have
+        // We already checked the types are valid during elaboration. However, types behind
+        // generics (type variables) can't be known until monomorphization, so here we have
         // to check again.
-        if is_fold {
-            let allow_empty_arrays = false;
+        if is_fold || is_no_predicate {
             for (pattern, typ, _visibility) in &meta.parameters.0 {
-                if let Some(invalid_type) = typ.program_input_validity(allow_empty_arrays) {
+                if let Some(invalid_type) = typ.non_inlined_program_input_validity() {
                     let location = pattern.location();
                     return Err(MonomorphizationError::InvalidTypeForEntryPoint {
                         invalid_type,
@@ -562,15 +561,13 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
-            if !matches!(return_type, Type::Unit) {
-                let allow_empty_arrays = true;
-                if let Some(invalid_type) = return_type.program_input_validity(allow_empty_arrays) {
-                    let location = meta.return_type.location();
-                    return Err(MonomorphizationError::InvalidTypeForEntryPoint {
-                        invalid_type,
-                        location,
-                    });
-                }
+            let output = true;
+            if let Some(invalid_type) = return_type.program_validity(output) {
+                let location = meta.return_type.location();
+                return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                    invalid_type,
+                    location,
+                });
             }
         }
 
