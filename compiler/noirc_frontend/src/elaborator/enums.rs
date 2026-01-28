@@ -486,7 +486,7 @@ impl Elaborator<'_> {
                 };
                 unify_with_expected_type(self, &actual);
 
-                let expr = HirExpression::Literal(HirLiteral::Integer(value));
+                let expr = HirExpression::Literal(HirLiteral::Integer(value.clone()));
                 let location = expr_location;
                 let expr_id = self.interner.push_expr_full(expr, location, actual.clone());
                 self.push_integer_literal_expr_id(expr_id);
@@ -1117,8 +1117,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 let (key, cons) = match col.pattern {
-                    Pattern::Int(val) => ((val, val), Constructor::Int(val)),
-                    Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
+                    Pattern::Int(val) => ((val.clone(), val.clone()), Constructor::Int(val)),
+                    Pattern::Range(start, stop) => {
+                        ((start.clone(), stop.clone()), Constructor::Range(start, stop))
+                    }
                     // Any other pattern shouldn't have an integer type and we expect a type
                     // check error to already have been issued.
                     _ => continue,
@@ -1454,18 +1456,19 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
         let mut missing_cases = rangemap::RangeInclusiveSet::new();
 
-        let int_max = SignedField::positive(typ.integral_maximum_size().unwrap());
+        let int_max =
+            SignedField::positive(typ.integral_maximum_size().unwrap().get_maximum_size());
         let int_min = typ.integral_minimum_size().unwrap();
         missing_cases.insert(int_min..=int_max);
 
         for case in cases {
             match &case.constructor {
                 Constructor::Int(signed_field) => {
-                    missing_cases.remove(*signed_field..=*signed_field);
+                    missing_cases.remove(signed_field.clone()..=signed_field.clone());
                 }
                 Constructor::Range(start, end) => {
                     // Our ranges are exclusive, so adjust for that
-                    missing_cases.remove(*start..=end.sub_one());
+                    missing_cases.remove(start.clone()..=end.sub_one());
                 }
                 _ => unreachable!(
                     "missing_integer_cases should only be called with Int or Range constructors"

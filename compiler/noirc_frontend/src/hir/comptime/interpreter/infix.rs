@@ -1,10 +1,39 @@
-use acvm::AcirField as _;
+use num_traits::Zero;
 
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
 use crate::hir_def::expr::HirBinaryOp;
+use crate::signed_field::SignedField;
 
 use super::{IResult, InterpreterError, Value};
+
+/// Perform field addition with proper modular arithmetic
+fn field_add(lhs: SignedField, rhs: SignedField) -> SignedField {
+    let lhs_fe = lhs.to_field_element();
+    let rhs_fe = rhs.to_field_element();
+    SignedField::from_field_element(lhs_fe + rhs_fe)
+}
+
+/// Perform field subtraction with proper modular arithmetic
+fn field_sub(lhs: SignedField, rhs: SignedField) -> SignedField {
+    let lhs_fe = lhs.to_field_element();
+    let rhs_fe = rhs.to_field_element();
+    SignedField::from_field_element(lhs_fe - rhs_fe)
+}
+
+/// Perform field multiplication with proper modular arithmetic
+fn field_mul(lhs: SignedField, rhs: SignedField) -> SignedField {
+    let lhs_fe = lhs.to_field_element();
+    let rhs_fe = rhs.to_field_element();
+    SignedField::from_field_element(lhs_fe * rhs_fe)
+}
+
+/// Perform field division with proper modular arithmetic
+fn field_div(lhs: SignedField, rhs: SignedField) -> SignedField {
+    let lhs_fe = lhs.to_field_element();
+    let rhs_fe = rhs.to_field_element();
+    SignedField::from_field_element(lhs_fe / rhs_fe)
+}
 
 pub(super) fn evaluate_infix(
     lhs_value: Value,
@@ -143,21 +172,21 @@ pub(super) fn evaluate_infix(
     match operator.kind {
         BinaryOpKind::Add => match_arithmetic! {
             (lhs_value as lhs "+" rhs_value as rhs) {
-                field: lhs + rhs,
+                field: field_add(lhs, rhs),
                 int: lhs.checked_add(rhs),
                 u1: if lhs && rhs { None } else { Some(lhs | rhs) },
             }
         },
         BinaryOpKind::Subtract => match_arithmetic! {
             (lhs_value as lhs "-" rhs_value as rhs) {
-                field: lhs - rhs,
+                field: field_sub(lhs, rhs),
                 int: lhs.checked_sub(rhs),
                 u1: if !lhs && rhs { None } else { Some(lhs & !rhs) },
             }
         },
         BinaryOpKind::Multiply => match_arithmetic! {
             (lhs_value as lhs "*" rhs_value as rhs) {
-                field: lhs * rhs,
+                field: field_mul(lhs, rhs),
                 int: lhs.checked_mul(rhs),
                 u1: Some(lhs & rhs),
             }
@@ -167,7 +196,7 @@ pub(super) fn evaluate_infix(
                 field: if rhs.absolute_value().is_zero() {
                    return Err( InterpreterError::InvalidValuesForBinary { lhs: lhs_type, rhs: rhs_type, location, operator: "/" });
                 } else {
-                    lhs / rhs
+                    field_div(lhs, rhs)
                 },
                 int: lhs.checked_div(rhs),
                 u1: {

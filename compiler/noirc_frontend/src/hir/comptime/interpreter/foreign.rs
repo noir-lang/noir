@@ -234,13 +234,14 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
     let input = check_one_argument(arguments, location)?;
 
     let (input, typ) = get_array_map(input, get_field)?;
-    let input = vecmap(input, SignedField::to_field_element);
+    let input = vecmap(input, |sf| sf.to_field_element());
 
     let fields = Bn254BlackBoxSolver
         .poseidon2_permutation(&input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+    let array =
+        fields.into_iter().map(|f| Value::Field(SignedField::from_field_element(f))).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -303,8 +304,8 @@ fn to_embedded_curve_point(
 ) -> Value {
     to_struct(
         [
-            ("x", Value::Field(SignedField::positive(x))),
-            ("y", Value::Field(SignedField::positive(y))),
+            ("x", Value::Field(SignedField::from_field_element(x))),
+            ("y", Value::Field(SignedField::from_field_element(y))),
             ("is_infinite", Value::Bool(is_infinite)),
         ],
         typ,

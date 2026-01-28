@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 
 use noirc_errors::Location;
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
 
-use crate::{BinaryTypeOperator, Type, TypeBinding, signed_field::SignedField};
+use crate::{BinaryTypeOperator, Type, TypeBinding};
 
 impl Type {
     /// Try to canonicalize the representation of this type.
@@ -69,19 +71,18 @@ impl Type {
                 let dummy_location = Location::dummy();
 
                 let evaluate = |typ: &Type| {
-                    typ.evaluate_to_signed_field_helper(&kind, dummy_location, run_simplifications)
+                    typ.evaluate_to_biguint_helper(&kind, dummy_location, run_simplifications)
                 };
                 let lhs_evaluated = evaluate(lhs);
                 let rhs_evaluated = evaluate(rhs);
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) = lhs_evaluated {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
-                        {
-                            return Type::Constant(result, kind);
-                        }
+                if let (Ok(lhs_value), Ok(rhs_value)) = (&lhs_evaluated, &rhs_evaluated) {
+                    if let Ok(result) =
+                        op.function(lhs_value.clone(), rhs_value.clone(), &kind, dummy_location)
+                    {
+                        return Type::Constant(result, kind);
                     }
                 }
 
@@ -90,7 +91,7 @@ impl Type {
 
                 // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
-                    if let Ok(rhs_value) = rhs_evaluated {
+                    if let Ok(ref rhs_value) = rhs_evaluated {
                         if rhs_value.is_one() {
                             return lhs;
                         }
@@ -99,7 +100,7 @@ impl Type {
 
                 // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
-                    if let Ok(rhs_value) = rhs_evaluated {
+                    if let Ok(ref rhs_value) = rhs_evaluated {
                         if rhs_value.is_zero() {
                             return lhs;
                         }
@@ -158,12 +159,9 @@ impl Type {
         // Maps each term to the number of times that term was used.
         let mut sorted = BTreeMap::new();
 
-        let zero_value = if op == BinaryTypeOperator::Addition {
-            SignedField::zero()
-        } else {
-            SignedField::one()
-        };
-        let mut constant = zero_value;
+        let zero_value =
+            if op == BinaryTypeOperator::Addition { BigUint::zero() } else { BigUint::one() };
+        let mut constant = zero_value.clone();
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
@@ -174,13 +172,16 @@ impl Type {
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
                     let dummy_location = Location::dummy();
-                    if let Ok(result) =
-                        op.function(constant, new_constant, &new_constant_kind, dummy_location)
-                    {
+                    if let Ok(result) = op.function(
+                        constant.clone(),
+                        new_constant.clone(),
+                        &new_constant_kind,
+                        dummy_location,
+                    ) {
                         constant = result;
                     } else {
-                        let constant = Type::Constant(new_constant, new_constant_kind);
-                        *sorted.entry(constant).or_default() += 1;
+                        let constant_type = Type::Constant(new_constant, new_constant_kind);
+                        *sorted.entry(constant_type).or_default() += 1;
                     }
                 }
                 other => {
@@ -204,8 +205,8 @@ impl Type {
             }
 
             if constant != zero_value {
-                let constant = Type::Constant(constant, lhs.infix_kind(rhs));
-                typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
+                let constant_type = Type::Constant(constant, lhs.infix_kind(rhs));
+                typ = Type::infix_expr(Box::new(typ), op, Box::new(constant_type));
             }
 
             typ
@@ -300,16 +301,16 @@ impl Type {
     fn parse_partial_constant_expr(
         lhs: &Type,
         rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, SignedField, SignedField)> {
+    ) -> Option<(Box<Type>, BinaryTypeOperator, BigUint, BigUint)> {
         let kind = lhs.infix_kind(rhs);
         let dummy_location = Location::dummy();
-        let rhs = rhs.evaluate_to_signed_field(&kind, dummy_location).ok()?;
+        let rhs = rhs.evaluate_to_biguint(&kind, dummy_location).ok()?;
 
         let Type::InfixExpr(l_type, l_op, l_rhs, _) = lhs.follow_bindings() else {
             return None;
         };
 
-        let l_rhs = l_rhs.evaluate_to_signed_field(&kind, dummy_location).ok()?;
+        let l_rhs = l_rhs.evaluate_to_biguint(&kind, dummy_location).ok()?;
         Some((l_type, l_op, l_rhs, rhs))
     }
 
@@ -342,10 +343,9 @@ impl Type {
             }
             (Multiplication, Division) => {
                 // We ensure the result divides evenly to preserve integer division semantics
-                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
-                // also in case of Field elements
-                let l_128: Option<i128> = l_const.try_to_signed();
-                let r_128: Option<i128> = r_const.try_to_signed();
+                use num_traits::ToPrimitive;
+                let l_128: Option<i128> = l_const.to_i128();
+                let r_128: Option<i128> = r_const.to_i128();
                 let divides_evenly = if let (Some(l_128), Some(r_128)) = (l_128, r_128) {
                     l_128.checked_rem(r_128) == Some(0)
                 } else {
@@ -370,10 +370,11 @@ impl Type {
 
 #[cfg(test)]
 mod tests {
+    use num_bigint::BigUint;
+
     use crate::{
         NamedGeneric,
         hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
-        signed_field::SignedField,
     };
 
     impl std::ops::Add for Type {
@@ -443,15 +444,15 @@ mod tests {
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
 
-        let lhs = x_type.clone() + SignedField::one().into();
-        let rhs = Type::from(SignedField::one()) + x_type.clone();
+        let lhs = x_type.clone() + Type::from(1u32);
+        let rhs = Type::from(1u32) + x_type.clone();
 
         // canonicalize
         let lhs = lhs.canonicalize();
         let rhs = rhs.canonicalize();
 
         // bind vars
-        let two = Type::Constant(SignedField::from(2u128), field_element_kind.clone());
+        let two = Type::Constant(BigUint::from(2u128), field_element_kind.clone());
         x_var.bind(two);
 
         // canonicalize (expect constant)
@@ -515,6 +516,7 @@ mod proptests {
 
     use acvm::{AcirField, FieldElement};
     use fm::FileManager;
+    use num_bigint::BigUint;
     use proptest::{arbitrary::any, collection, prelude::*, result::maybe_ok};
 
     use crate::{
@@ -536,19 +538,31 @@ mod proptests {
         // maximum_size must be non-zero
         fn arbitrary_u128_field_element(maximum_size: u128)
             (u128_value in any::<u128>())
-            -> SignedField
+            -> BigUint
         {
             assert!(maximum_size != 0);
-            SignedField::from(u128_value % maximum_size)
+            BigUint::from(u128_value % maximum_size)
         }
     }
 
     prop_compose! {
         fn arbitrary_i128_field_element(minimum_size:i128, maximum_size: i128)
             (i128_value in any::<i128>())
-            -> SignedField
+            -> BigUint
         {
-            SignedField::from(i128_value.clamp(minimum_size, maximum_size))
+            let clamped = i128_value.clamp(minimum_size, maximum_size);
+            // For signed integers, use two's complement representation
+            if clamped >= 0 {
+                BigUint::from(clamped as u128)
+            } else {
+                // Two's complement: -x = 2^N - |x| where N is bit width
+                let bit_width = if maximum_size == i8::MAX as i128 { 8 }
+                    else if maximum_size == i16::MAX as i128 { 16 }
+                    else if maximum_size == i32::MAX as i128 { 32 }
+                    else { 64 };
+                let twos_complement = (1u128 << bit_width) - (clamped.unsigned_abs() as u128);
+                BigUint::from(twos_complement)
+            }
         }
     }
 
@@ -557,18 +571,17 @@ mod proptests {
         // Use both `u128` and hex proptest strategies
         fn arbitrary_field_element()
             (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"))
-            -> SignedField
+            -> BigUint
         {
             match u128_or_hex {
-                Ok(number) => SignedField::from(number),
-                Err(hex) => FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string").into(),
+                Ok(number) => BigUint::from(number),
+                Err(hex) => BigUint::from_bytes_be(&FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string").to_be_bytes()),
             }
         }
     }
 
     // Generate (arbitrary_numeric_type, generator for that type)
-    fn arbitrary_numeric_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<SignedField>)>
-    {
+    fn arbitrary_numeric_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<BigUint>)> {
         prop_oneof![
             Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
@@ -585,8 +598,9 @@ mod proptests {
                     bit_size => bit_size,
                 };
                 let typ = Type::Integer(Signedness::Signed, bit_size);
-                let minimum_size = typ.integral_maximum_size().unwrap().to_i128();
-                let maximum_size = typ.integral_maximum_size().unwrap().to_i128();
+                let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
+                let minimum_size = -(maximum_size as i128);
+                let maximum_size = maximum_size as i128;
                 (typ, arbitrary_i128_field_element(minimum_size, maximum_size).boxed())
             }),
         ]
@@ -629,7 +643,7 @@ mod proptests {
 
     fn arbitrary_infix_expr_without_variables_helper(
         typ: Type,
-        arbitrary_value: BoxedStrategy<SignedField>,
+        arbitrary_value: BoxedStrategy<BigUint>,
     ) -> impl Strategy<Value = Type> {
         let leaf = prop_oneof![
             arbitrary_value
@@ -656,7 +670,7 @@ mod proptests {
 
     fn arbitrary_infix_expr_with_variables(
         typ: Type,
-        arbitrary_value: BoxedStrategy<SignedField>,
+        arbitrary_value: BoxedStrategy<BigUint>,
         num_variables: usize,
     ) -> impl Strategy<Value = Type> {
         let leaf = prop_oneof![
@@ -678,7 +692,7 @@ mod proptests {
         fn arbitrary_infix_expr_type_gen(num_variables: usize)
             (type_and_gen in arbitrary_numeric_type_with_generator())
             (infix_expr in arbitrary_infix_expr_with_variables(type_and_gen.clone().0, type_and_gen.clone().1, num_variables), type_and_gen in Just(type_and_gen))
-        -> (Type, Type, BoxedStrategy<SignedField>) {
+        -> (Type, Type, BoxedStrategy<BigUint>) {
             let (typ, value_generator) = type_and_gen;
             (infix_expr, typ, value_generator)
         }
@@ -693,7 +707,7 @@ mod proptests {
             let (infix_expr, typ, _value_generator) = infix_type_gen;
             let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(*value, Kind::numeric(typ.clone()))
+                    Type::Constant(value.clone(), Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)
@@ -730,7 +744,30 @@ mod proptests {
                         "convert_infix_type_expr_to_expr: unexpected non-numeric kind: {kind}"
                     ),
                 };
-                let literal = Literal::Integer(*value, Some(integer_type_suffix));
+                // For signed types, interpret two's complement values as negative
+                let signed_value = if let Kind::Numeric(typ) = kind {
+                    if let Some(max_size) = typ.integral_maximum_size() {
+                        let max = max_size.get_maximum_size();
+                        // Check if this is a signed type with a negative range
+                        if typ.integral_minimum_size().is_some_and(|m| m.is_negative()) {
+                            // Signed type: values > max are two's complement negatives
+                            if value > &max {
+                                // Convert from two's complement: -(2^N - value)
+                                let two_pow_n = (&max + BigUint::from(1u8)) * BigUint::from(2u8);
+                                SignedField::negative(&two_pow_n - value)
+                            } else {
+                                SignedField::positive(value.clone())
+                            }
+                        } else {
+                            SignedField::positive(value.clone())
+                        }
+                    } else {
+                        SignedField::positive(value.clone())
+                    }
+                } else {
+                    SignedField::positive(value.clone())
+                };
+                let literal = Literal::Integer(signed_value, Some(integer_type_suffix));
                 ExpressionKind::Literal(literal)
             }
             Type::TypeVariable(type_var) => unimplemented!(
@@ -742,13 +779,33 @@ mod proptests {
         Expression { kind, location }
     }
 
-    // Convert a numeric Value to a `Type::Constant` or panic if `Value::to_signed_field` fails
-    // (expected to happen when it's not numeric)
     fn numeric_value_to_type(value: Value) -> Type {
         let kind_type = value.get_type();
         let kind = Kind::numeric(kind_type.into_owned());
-        let value = value.to_signed_field().expect("ICE: numeric_value_to_type: expected a ");
-        Type::Constant(value, kind)
+        let signed_value =
+            value.to_signed_field().expect("ICE: numeric_value_to_type: expected numeric");
+        // For signed types with negative values, convert to two's complement
+        let biguint_value = if signed_value.is_negative() {
+            if let Kind::Numeric(typ) = &kind {
+                if let Some(max_size) = typ.integral_maximum_size() {
+                    let max = max_size.get_maximum_size();
+                    if typ.integral_minimum_size().is_some_and(|m| m.is_negative()) {
+                        // Signed type: two's complement = 2^N - |value| where 2^N = 2*(max+1)
+                        let two_pow_n = (&max + BigUint::from(1u8)) * BigUint::from(2u8);
+                        &two_pow_n - signed_value.absolute_value()
+                    } else {
+                        signed_value.to_biguint()
+                    }
+                } else {
+                    signed_value.to_biguint()
+                }
+            } else {
+                signed_value.to_biguint()
+            }
+        } else {
+            signed_value.to_biguint()
+        };
+        Type::Constant(biguint_value, kind)
     }
 
     proptest! {
@@ -910,7 +967,7 @@ mod proptests {
         let n = Type::TypeVariable(var_n);
 
         // large_field ≈ 2^200
-        let large_field = SignedField::positive(FieldElement::from_be_bytes_reduce(&[
+        let large_field = SignedField::from_field_element(FieldElement::from_be_bytes_reduce(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,

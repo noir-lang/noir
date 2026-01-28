@@ -1,7 +1,7 @@
-use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use modifiers::Modifiers;
 use noirc_errors::{Location, Span};
+use num_bigint::BigUint;
 
 use crate::{
     ast::{Ident, ItemVisibility},
@@ -242,7 +242,7 @@ impl<'a> Parser<'a> {
                 )) => {
                     let location = error.location();
                     self.errors.push(error.into());
-                    let token = LocatedToken::new(Token::Int(FieldElement::zero(), None), location);
+                    let token = LocatedToken::new(Token::Int(BigUint::ZERO, None), location);
                     return (token, last_comments);
                 }
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
@@ -304,7 +304,7 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn eat_int(&mut self) -> Option<(FieldElement, Option<IntegerTypeSuffix>)> {
+    fn eat_int(&mut self) -> Option<(BigUint, Option<IntegerTypeSuffix>)> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump();
             match token.into_token() {

@@ -749,11 +749,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .expect("Expected to find associated type");
 
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
+                match associated_type.typ.evaluate_to_biguint(&associated_type.typ.kind(), location)
                 {
-                    Ok(value) => self.evaluate_integer(value, id),
+                    Ok(value) => {
+                        let value = SignedField::positive(value);
+                        self.evaluate_integer(value, id)
+                    }
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
                         location,
@@ -768,13 +769,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_biguint(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
                 InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
+        let value = SignedField::positive(value);
         self.evaluate_integer(value, id)
     }
 
@@ -1015,7 +1017,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let first_field = fields.iter().next();
                     match first_field {
                         Some((_, value)) => match &*value.borrow() {
-                            Value::Field(ordering) => Some(*ordering),
+                            Value::Field(ordering) => Some(ordering.clone()),
                             _ => None,
                         },
                         None => None,
@@ -1729,19 +1731,27 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 
     macro_rules! evaluate_unsigned {
         ($typ:ident) => {{
-            let value = value
-                .try_to_unsigned()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
+            let result = value.clone().try_to_unsigned().ok_or_else(|| {
+                InterpreterError::IntegerOutOfRangeForType {
+                    value: value.clone(),
+                    typ: typ.clone(),
+                    location,
+                }
+            })?;
+            Ok(Value::$typ(result))
         }};
     }
 
     macro_rules! evaluate_signed {
         ($typ:ident) => {{
-            let value = value
-                .try_to_signed()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
+            let result = value.clone().try_to_signed().ok_or_else(|| {
+                InterpreterError::IntegerOutOfRangeForType {
+                    value: value.clone(),
+                    typ: typ.clone(),
+                    location,
+                }
+            })?;
+            Ok(Value::$typ(result))
         }};
     }
 

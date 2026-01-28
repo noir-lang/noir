@@ -33,7 +33,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
     );
     assert(
         partial_mul.x
-            == -7349266043899242844836273743257843180744506495159104166319746739537754653274_Field,
+            == 14538976827940032377410132001999431907803857905256930177378457447038053842343_Field,
     );
     let zero_point: std::embedded_curve_ops::EmbeddedCurvePoint =
         std::embedded_curve_ops::EmbeddedCurvePoint { x: 0_Field, y: 0_Field, is_infinite: true };

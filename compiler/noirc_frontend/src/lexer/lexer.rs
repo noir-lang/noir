@@ -6,10 +6,9 @@ use super::{
         FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, SpannedToken, Token, Tokens,
     },
 };
-use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use noirc_errors::{Location, Position, Span};
-use num_bigint::BigInt;
+use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, One};
 use std::str::{CharIndices, FromStr};
 
@@ -54,7 +53,8 @@ impl<'a> Lexer<'a> {
             done: false,
             skip_comments: true,
             skip_whitespaces: true,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
+            // Use 2^256 - 1 as max integer to be field-agnostic
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, BigUint::from(2u8).pow(256))
                 - BigInt::one(),
         }
     }
@@ -442,8 +442,7 @@ impl<'a> Lexer<'a> {
                         limit: self.max_integer.to_string(),
                     });
                 }
-                let big_uint = bigint.magnitude();
-                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+                bigint.magnitude().clone()
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
@@ -1023,10 +1022,11 @@ mod tests {
 
     #[test]
     fn test_int_too_large() {
-        let modulus = FieldElement::modulus();
-        let input = modulus.to_string();
+        // Test with a number larger than 2^256
+        let input =
+            "115792089237316195423570985008687907853269984665640564039457584007913129639936"; // 2^256
 
-        let mut lexer = Lexer::new_with_dummy_file(&input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         let token = lexer.next_token();
         assert!(
             matches!(token, Err(LexerErrorKind::IntegerLiteralTooLarge { .. })),
@@ -1078,7 +1078,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(5_u128.into(), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1100,7 +1100,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(5_u128.into(), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1148,7 +1148,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(5_u128.into(), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1337,8 +1337,8 @@ mod tests {
     #[test]
     fn test_eat_integer_literals() {
         let test_cases: Vec<(&str, Token)> = vec![
-            ("0x05", Token::Int(5_i128.into(), None)),
-            ("5", Token::Int(5_i128.into(), None)),
+            ("0x05", Token::Int(BigUint::from(5_u32), None)),
+            ("5", Token::Int(BigUint::from(5_u32), None)),
             ("0x1234_5678", Token::Int(0x1234_5678_u128.into(), None)),
             ("0x_01", Token::Int(0x1_u128.into(), None)),
             ("1_000_000", Token::Int(1_000_000_u128.into(), None)),
@@ -1383,7 +1383,7 @@ mod tests {
 
         // Int position
         let int_position = whitespace_position + 1;
-        let int_token = Token::Int(5_i128.into(), None).into_single_span(int_position);
+        let int_token = Token::Int(BigUint::from(5_u32), None).into_single_span(int_position);
 
         let expected = vec![let_token, ident_token, assign_token, int_token];
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1411,14 +1411,14 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("five".to_string()),
             Token::Assign,
-            Token::Int(5_i128.into(), None),
+            Token::Int(BigUint::from(5_u32), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident("ten".to_string()),
             Token::Colon,
             Token::Ident("Field".to_string()),
             Token::Assign,
-            Token::Int(10_i128.into(), None),
+            Token::Int(BigUint::from(10_u32), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident("mul".to_string()),
@@ -1444,7 +1444,7 @@ mod tests {
             Token::Ident("ten".to_string()),
             Token::RightParen,
             Token::Equal,
-            Token::Int(50_i128.into(), None),
+            Token::Int(BigUint::from(50_u32), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Assert),
             Token::LeftParen,
@@ -1452,7 +1452,7 @@ mod tests {
             Token::Plus,
             Token::Ident("five".to_string()),
             Token::Equal,
-            Token::Int(15_i128.into(), None),
+            Token::Int(BigUint::from(15_u32), None),
             Token::RightParen,
             Token::Semicolon,
             Token::EOF,
