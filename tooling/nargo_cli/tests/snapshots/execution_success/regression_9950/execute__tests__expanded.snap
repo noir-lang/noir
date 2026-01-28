@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    let x: Field = foo(1_Field);
+    assert(x == 0_Field);
+}
+
+unconstrained fn foo(mut a: Field) -> Field {
+    let mut b: &mut Field = &mut 3735928559_Field;
+    for _ in 0_u32..2_u32 {
+        a = 0_Field;
+        a = *b;
+        b = &mut a;
+    }
+    a
+}
