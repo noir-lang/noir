@@ -904,28 +904,24 @@ impl Elaborator<'_> {
     ) -> Option<Type> {
         // Only applies if the path refers to the current trait.
         let Some(current_trait) = self.current_trait else {
-            println!("no current");
             return None;
         };
 
         if trait_id != current_trait {
-            println!("not the current");
-
             return None;
         }
 
         // See if we are dealing with `<Self as {trait}>::{ident}`.
         // If so, redirect to how we deal with `Self::{ident}`.
         let UnresolvedTypeData::Named(object_path, object_generics, _) = &path.typ.typ else {
-            println!("not named");
-
             return None;
         };
 
         // Only applies if the object refers to `Self` and nothing else.
-        if object_path.segments.len() != 1 || !object_path.segments[0].ident.is_self_type_name() {
-            println!("not self");
-
+        if object_path.segments.len() != 1
+            || !object_path.segments[0].ident.is_self_type_name()
+            || !object_generics.is_empty()
+        {
             return None;
         }
 
@@ -940,11 +936,19 @@ impl Elaborator<'_> {
         }
 
         // Remove the trait from the path.
-        let path = object_path.clone().join(path.impl_item.clone());
-        let path = self.validate_path(path);
+        let self_and_impl = object_path.clone().join(path.impl_item.clone());
+        let self_and_impl = self.validate_path(self_and_impl);
 
         // Resolved as a named type, which is what `Self::{ident}` would be.
-        let typ = self.resolve_named_type(path, object_generics.clone(), mode, wildcard_allowed);
+        let typ = self.resolve_named_type(
+            self_and_impl,
+            // The call to `lookup_generic_or_global_type` which calls `lookup_associated_type_on_self`
+            // will only be made if the args are empty, and that's what we tried to ascertain before
+            // by checking that none of them are bound to a concrete type.
+            GenericTypeArgs::default(),
+            mode,
+            wildcard_allowed,
+        );
         Some(typ)
     }
 
