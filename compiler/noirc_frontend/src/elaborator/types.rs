@@ -251,7 +251,7 @@ impl Elaborator<'_> {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
-            AsTraitPath(path) => self.resolve_as_trait_path(*path, wildcard_allowed),
+            AsTraitPath(path) => self.resolve_as_trait_path(*path, mode, wildcard_allowed),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
                 return self.resolve_type_with_kind_inner(
@@ -814,7 +814,8 @@ impl Elaborator<'_> {
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
-                let typ = self.resolve_as_trait_path(*path, wildcard_allowed);
+                let mode = PathResolutionMode::MarkAsReferenced;
+                let typ = self.resolve_as_trait_path(*path, mode, wildcard_allowed);
                 self.check_type_kind(typ, expected_kind, location)
             }
         }
@@ -856,9 +857,11 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolve `<{object} as {trait}>::{ident}` to a [Type] of the `{ident}`.
     fn resolve_as_trait_path(
         &mut self,
         path: AsTraitPath,
+        mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
         let location = path.trait_path.location;
@@ -867,6 +870,12 @@ impl Elaborator<'_> {
             // Error should already be pushed in the None case
             return Type::Error;
         };
+
+        if let Some(typ) =
+            self.try_resolve_self_as_trait_path(&path, mode, wildcard_allowed, trait_id)
+        {
+            return typ;
+        }
 
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
@@ -881,6 +890,62 @@ impl Elaborator<'_> {
                 Type::Error
             }
         }
+    }
+
+    /// Try to resolve an [AsTraitPath] as `<Self as {trait}>::{ident}` to the [Type] of the `{ident}`.
+    ///
+    /// If it's a different pattern then returns `None`.
+    fn try_resolve_self_as_trait_path(
+        &mut self,
+        path: &AsTraitPath,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        trait_id: TraitId,
+    ) -> Option<Type> {
+        // Only applies if the path refers to the current trait.
+        let Some(current_trait) = self.current_trait else {
+            println!("no current");
+            return None;
+        };
+
+        if trait_id != current_trait {
+            println!("not the current");
+
+            return None;
+        }
+
+        // See if we are dealing with `<Self as {trait}>::{ident}`.
+        // If so, redirect to how we deal with `Self::{ident}`.
+        let UnresolvedTypeData::Named(object_path, object_generics, _) = &path.typ.typ else {
+            println!("not named");
+
+            return None;
+        };
+
+        // Only applies if the object refers to `Self` and nothing else.
+        if object_path.segments.len() != 1 || !object_path.segments[0].ident.is_self_type_name() {
+            println!("not self");
+
+            return None;
+        }
+
+        // Only works if all the trait generics in the path are the same as the trait itself.
+        let location = path.trait_path.location;
+        let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
+
+        if !ordered.iter().all(|typ| matches!(typ, Type::NamedGeneric(_)))
+            || !named.iter().all(|typ| matches!(typ.typ, Type::TypeVariable(_)))
+        {
+            return None;
+        }
+
+        // Remove the trait from the path.
+        let path = object_path.clone().join(path.impl_item.clone());
+        let path = self.validate_path(path);
+
+        // Resolved as a named type, which is what `Self::{ident}` would be.
+        let typ = self.resolve_named_type(path, object_generics.clone(), mode, wildcard_allowed);
+        Some(typ)
     }
 
     fn get_associated_type_from_trait_impl(

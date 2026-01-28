@@ -568,13 +568,25 @@ fn associated_type_mismatch_across_modules() {
 }
 
 #[test]
-fn associated_type_referred_to_by_self_as_trait() {
-    // Both of the following forms should work.
+fn associated_type_behind_self_as_trait() {
     let src = r#"
     pub trait Foo {
         type Bar;
         fn bar_one() -> Self::Bar;
         fn bar_two() -> <Self as Foo>::Bar;
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_behind_self_as_trait_with_generics() {
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar_one() -> Self::Bar;
+        fn bar_two() -> <Self as Foo<Baz>>::Bar;
     }
     fn main() {}
     "#;
