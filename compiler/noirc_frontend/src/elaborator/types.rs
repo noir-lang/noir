@@ -903,9 +903,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
     ) -> Option<Type> {
         // Only applies if the path refers to the current trait.
-        let Some(current_trait) = self.current_trait else {
-            return None;
-        };
+        let current_trait = self.current_trait?;
 
         if trait_id != current_trait {
             return None;
