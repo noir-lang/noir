@@ -1393,3 +1393,27 @@ fn unquote_in_nested_quote() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn substitute_unquoted_in_nested_quote() {
+    let src = r#"
+    fn main() {
+        do_func!(
+            |i: u32| {
+                quote {
+                    $do_func!(|_| {
+                        quote {
+                            let _ = $i;
+                        }
+                    });
+            }
+            },
+        );
+    }
+
+    pub comptime fn do_func(body: fn(u32) -> Quoted) -> Quoted {
+        body(123)
+    }
+    "#;
+    assert_no_errors(src);
+}
