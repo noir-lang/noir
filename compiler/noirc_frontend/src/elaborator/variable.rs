@@ -155,7 +155,8 @@ impl Elaborator<'_> {
         (id, typ, is_comptime_local, location)
     }
 
-    /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
+    /// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
+    /// `Self::AssociatedType::method_name` when we are inside a trait impl and `Self`
     /// resolves to a primitive type.
     ///
     /// In the first case we elaborate this as if it were a [TypePath]
@@ -164,11 +165,15 @@ impl Elaborator<'_> {
     ///
     /// In the second case we solve the associated constant by looking up its value, later
     /// turning it into a literal.
+    ///
+    /// In the third case, we resolve the associated type first, then elaborate the method
+    /// call on that resolved type.
     fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
-        if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
+        // We need at least 2 segments and the first must be `Self`
+        if variable.segments.len() < 2 || !variable.segments[0].ident.is_self_type_name() {
             return None;
         }
 
@@ -177,7 +182,32 @@ impl Elaborator<'_> {
         let self_type = self.self_type.as_ref()?;
         let trait_impl_id = &self.current_trait_impl?;
 
-        // Check the `Self::AssociatedConstant` case when inside a trait impl
+        // Check for `Self::AssociatedType::method_name` (exactly 3 segments).
+        // Longer paths like `Self::AssocType::foo::bar` are not valid since associated types
+        // resolve to concrete types and you cannot chain further path segments after a method name.
+        if variable.segments.len() == 3 {
+            // Try to resolve the second segment as an associated type
+            if let Some(assoc_type) =
+                self.interner.find_associated_type_for_impl(*trait_impl_id, name).cloned()
+            {
+                let method_ident = variable.segments[2].ident.clone();
+                let typ_location = variable.segments[1].location;
+                // Extract already-resolved turbofish generics from the path segment
+                let resolved_generics = variable.segments[2].generics.as_ref().map(|generics| {
+                    generics.iter().map(|located| located.contents.clone()).collect()
+                });
+                return Some(self.elaborate_type_path_impl_with_resolved_generics(
+                    assoc_type,
+                    method_ident,
+                    resolved_generics,
+                    typ_location,
+                ));
+            }
+            // If it's not an associated type, fall through to let regular path resolution handle it
+            return None;
+        }
+
+        // Check the `Self::AssociatedConstant` case when inside a trait impl (2 segments)
         if let Some((definition_id, numeric_type)) =
             self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
         {
@@ -187,7 +217,7 @@ impl Elaborator<'_> {
             return Some((id, numeric_type));
         }
 
-        // Check the `Self::method_name` case when `Self` is a primitive type
+        // Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
         if matches!(self.self_type, Some(Type::DataType(..))) {
             return None;
         }
@@ -338,6 +368,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
+    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
@@ -367,6 +398,49 @@ impl Elaborator<'_> {
 
         let generics =
             turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, ident_location).0);
+
+        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, generics)
+    }
+
+    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
+    /// Used when the turbofish generics have already been resolved.
+    fn elaborate_type_path_impl_with_resolved_generics(
+        &mut self,
+        typ: Type,
+        ident: Ident,
+        resolved_generics: Option<Vec<Type>>,
+        typ_location: Location,
+    ) -> (ExprId, Type) {
+        let ident_location = ident.location();
+        let check_self_param = false;
+
+        self.interner.push_type_ref_location(&typ, typ_location);
+
+        let Some(method) = self.lookup_method(
+            &typ,
+            ident.as_str(),
+            ident_location,
+            typ_location,
+            check_self_param,
+        ) else {
+            let error = Expression::new(ExpressionKind::Error, ident_location);
+            return self.elaborate_expression(error);
+        };
+
+        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, resolved_generics)
+    }
+
+    /// Common implementation for type path impl variants.
+    fn elaborate_type_path_impl_inner(
+        &mut self,
+        _typ_location: Location,
+        ident_location: Location,
+        method: HirMethodReference,
+        generics: Option<Vec<Type>>,
+    ) -> (ExprId, Type) {
+        let func_id = method
+            .func_id(self.interner)
+            .expect("Expected trait function to be a DefinitionKind::Function");
 
         let id = self.interner.function_definition_id(func_id);
 
