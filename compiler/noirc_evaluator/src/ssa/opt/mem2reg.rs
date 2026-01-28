@@ -732,9 +732,10 @@ impl<'f> PerFunctionContext<'f> {
 
                     let expr = Expression::ArrayElement(array);
                     references.expressions.insert(array, expr);
-                    let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    self.add_array_aliases(elements, aliases);
+                    let new_aliases = self.collect_array_aliases(elements, references);
+                    let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
+                    aliases.unify(&new_aliases);
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
@@ -785,16 +786,23 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    /// In order to handle nested arrays we need to recursively search whether there are any references
+    /// In order to handle nested arrays we need to recursively search whether there are aliases 
     /// contained within an array's elements.
-    fn add_array_aliases(&self, elements: &im::Vector<ValueId>, aliases: &mut AliasSet) {
+    fn collect_array_aliases(
+        &self,
+        elements: &im::Vector<ValueId>,
+        references: &Block,
+    ) -> AliasSet {
+        let mut aliases = AliasSet::known_empty();
         for &element in elements {
             if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
-                self.add_array_aliases(&elements, aliases);
-            } else if self.inserter.function.dfg.value_is_reference(element) {
-                aliases.insert(element);
+                aliases.unify(&self.collect_array_aliases(&elements, references));
+            } else if self.inserter.function.dfg.type_of_value(element).contains_reference() {
+                // Handles both direct references and non-constant arrays (e.g., array_set results)
+                aliases.unify(&references.get_aliases_for_value(element));
             }
         }
+        aliases
     }
 
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
@@ -2885,5 +2893,68 @@ mod tests {
           return v9
       }
       ");
+    }
+
+    #[test]
+    fn missing_make_array_alias_ref() {
+        let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u8, v2: u8):
+        v3 = allocate -> &mut u8
+        store v1 at v3
+        v4 = allocate -> &mut [&mut u8; 1]
+        v5 = make_array [v3] : [&mut u8; 1]
+        store v5 at v4
+        constrain v0 == u32 0
+        v6 = load v4 -> [&mut u8; 1]
+        v7 = array_set v6, index v0, value v3
+        v8 = allocate -> &mut u8
+        store u8 0 at v8
+        v9 = make_array [v8] : [&mut u8; 1]
+        v10 = make_array [v7, v9] : [[&mut u8; 1]; 2]
+        v11 = array_get v10, index v0 -> [&mut u8; 1]
+        v12 = array_get v11, index u32 0 -> &mut u8
+        store v2 at v3
+        v13 = load v12 -> u8
+        constrain v13 == v2
+        return
+    }
+    ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(0)]);
+        assert_eq!(result, Ok(vec![]));
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(1)]);
+        assert_eq!(result, Ok(vec![]));
+
+        let ssa = ssa.mem2reg();
+        // Alias tracking should prevent `store v2 at v3` from being removed
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(0)]);
+        assert_eq!(result, Ok(vec![]));
+        let result = ssa.interpret(vec![Value::u32(0), Value::u8(0), Value::u8(1)]);
+        assert_eq!(result, Ok(vec![]));
+
+        // Only `store v5 at v4` is safe to remove
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u8, v2: u8):
+            v3 = allocate -> &mut u8
+            store v1 at v3
+            v4 = allocate -> &mut [&mut u8; 1]
+            v5 = make_array [v3] : [&mut u8; 1]
+            constrain v0 == u32 0
+            v7 = array_set v5, index v0, value v3
+            v8 = allocate -> &mut u8
+            store u8 0 at v8
+            v10 = make_array [v8] : [&mut u8; 1]
+            v11 = make_array [v7, v10] : [[&mut u8; 1]; 2]
+            v12 = array_get v11, index v0 -> [&mut u8; 1]
+            v13 = array_get v12, index u32 0 -> &mut u8
+            store v2 at v3
+            v14 = load v13 -> u8
+            constrain v14 == v2
+            return
+        }
+        ");
     }
 }
