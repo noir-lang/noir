@@ -403,7 +403,7 @@ impl Elaborator<'_> {
         }
 
         if has_inline_attribute && !output {
-            if let Some(invalid_type) = typ.non_inlined_program_input_validity() {
+            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
                 return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
         }

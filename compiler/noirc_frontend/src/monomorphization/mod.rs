@@ -552,7 +552,7 @@ impl<'interner> Monomorphizer<'interner> {
         // to check again.
         if is_fold || is_no_predicate {
             for (pattern, typ, _visibility) in &meta.parameters.0 {
-                if let Some(invalid_type) = typ.non_inlined_program_input_validity() {
+                if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
                     let location = pattern.location();
                     return Err(MonomorphizationError::InvalidTypeForEntryPoint {
                         invalid_type,
