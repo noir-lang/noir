@@ -405,7 +405,7 @@ pub struct UnsafeExpression {
 /// * in the trait definition itself, referring to an associated type of the same trait
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct AsTraitPath {
-    /// The `MyObject` in the path.
+    /// The `MyType` in the path.
     pub typ: UnresolvedType,
     /// The `Trait` in the path.
     pub trait_path: Path,
