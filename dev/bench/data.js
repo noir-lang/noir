@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769615473887,
+  "lastUpdate": 1769619738650,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "70db6eb701abacccd3ba906cb392de0c9d191955",
-          "message": "fix(brillig): Defensive assertion against call arguments heap corruption (#11288)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-01-22T17:34:02Z",
-          "tree_id": "08f5ad08ebf387cf4c4630804da225aad6506984",
-          "url": "https://github.com/noir-lang/noir/commit/70db6eb701abacccd3ba906cb392de0c9d191955"
-        },
-        "date": 1769104592980,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264929,
-            "range": "± 1407",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228872,
-            "range": "± 2295",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793276,
-            "range": "± 4173",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2801560,
             "range": "± 5782",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1081812971b297e8897b3e3cd9c15a87df77dd68",
+          "message": "chore: re-use original type (#11368)",
+          "timestamp": "2026-01-28T16:39:30Z",
+          "tree_id": "20de89194711a3dc29b57a46afb2c92bb588723b",
+          "url": "https://github.com/noir-lang/noir/commit/1081812971b297e8897b3e3cd9c15a87df77dd68"
+        },
+        "date": 1769619700188,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258602,
+            "range": "± 3789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229887,
+            "range": "± 272",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2805786,
+            "range": "± 5735",
             "unit": "ns/iter"
           }
         ]
