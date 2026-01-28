@@ -786,7 +786,7 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    /// In order to handle nested arrays we need to recursively search for whether there 
+    /// In order to handle nested arrays we need to recursively search for whether there
     /// are any aliases contained within an array's elements.
     fn collect_array_aliases(
         &self,
