@@ -134,7 +134,14 @@ impl CustomDiagnostic {
     }
 
     pub fn add_secondary(&mut self, message: String, location: Location) {
-        self.secondaries.push(CustomLabel::new(message, location));
+        // Avoid adding duplicate labels (can happen during recursive attribute execution)
+        let is_duplicate = self
+            .secondaries
+            .iter()
+            .any(|label| label.message == message && label.location == location);
+        if !is_duplicate {
+            self.secondaries.push(CustomLabel::new(message, location));
+        }
     }
 
     pub fn is_error(&self) -> bool {
