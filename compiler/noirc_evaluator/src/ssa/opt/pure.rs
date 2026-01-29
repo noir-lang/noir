@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::call_graph::CallGraph;
+use crate::ssa::opt::brillig_entry_points::get_brillig_entry_points;
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
@@ -27,17 +29,26 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
+        let brillig_entry_points =
+            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
 
         let (sccs, recursive_functions) = call_graph.sccs();
 
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> =
-            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+        let purities: HashMap<_, _> = self
+            .functions
+            .values()
+            .map(|function| {
+                let is_brillig_entry_point = brillig_entry_points.contains(&function.id());
+                (function.id(), function.is_pure(is_brillig_entry_point))
+            })
+            .collect();
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
+        let purities =
+            analyze_call_graph(call_graph, purities, &sccs, &recursive_functions, &self.functions);
         let purities = Arc::new(purities);
 
         // We're done, now store purities somewhere every dfg can find it.
@@ -113,7 +124,7 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self) -> Purity {
+    fn is_pure(&self, is_brillig_entrypoint: bool) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -123,7 +134,7 @@ impl Function {
             return Purity::Impure;
         }
 
-        let mut result = if self.runtime().is_acir() {
+        let mut result = if self.runtime().is_acir() || !is_brillig_entrypoint {
             Purity::Pure
         } else {
             // Because we return bogus values when a brillig function is called from acir
@@ -229,6 +240,7 @@ fn analyze_call_graph(
     starting_purities: FunctionPurities,
     sccs: &[Vec<FunctionId>],
     recursive_functions: &HashSet<FunctionId>,
+    functions: &BTreeMap<FunctionId, Function>,
 ) -> FunctionPurities {
     let mut finished = HashMap::default();
 
@@ -269,11 +281,16 @@ fn analyze_call_graph(
                     }
                 }
 
-                // Recursive functions cannot be fully pure (may recurse indefinitely),
-                // but we still treat them as PureWithPredicate for deduplication purposes.
-                // If we were to mark recursive functions pure we may entirely eliminate an infinite loop.
+                // Recursive functions cannot be fully pure (may recurse indefinitely).
+                // For Brillig functions, recursion is a side-effect (infinite loop),
+                // so we mark them as Impure to prevent incorrect elimination.
+                // For ACIR functions, we treat them as PureWithPredicate for deduplication purposes.
                 if recursive_functions.contains(&func) {
-                    combined_purity = combined_purity.unify(Purity::PureWithPredicate);
+                    if functions[&func].runtime().is_brillig() {
+                        combined_purity = combined_purity.unify(Purity::Impure);
+                    } else {
+                        combined_purity = combined_purity.unify(Purity::PureWithPredicate);
+                    }
                 }
             }
 
@@ -485,7 +502,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Pure);
     }
 
     #[test]
@@ -506,7 +523,7 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
@@ -589,7 +606,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_brillig_recursion_marks_functions_pure_with_predicate() {
+    fn direct_brillig_recursion_marks_functions_impure() {
         let src = r#"
         brillig(inline) fn main f0 {
           b0():
@@ -607,14 +624,13 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
     }
 
     #[test]
-    fn mutual_recursion_marks_functions_pure() {
-        // We want to test that two pure mutually recursive functions do in fact mark each other as PureWithPredicate.
-        // If we have indefinite recursion and we may accidentally eliminate an infinite loop before inlining can catch it.
+    fn mutual_recursion_marks_acir_functions_pure_with_predicate() {
+        // We want to test that two pure mutually recursive ACIR functions are marked as PureWithPredicate.
         let src = r#"
         acir(inline) fn main f0 {
           b0():
@@ -658,9 +674,9 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
     #[test]
-    fn brillig_mutual_recursion_marks_functions_pure_with_predicate() {
+    fn brillig_mutual_recursion_marks_functions_impure() {
+        // Brillig mutually recursive functions should be marked as impure
         let src = r#"
         brillig(inline) fn main f0 {
           b0():
@@ -699,9 +715,9 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
     }
 
     #[test]
@@ -753,7 +769,7 @@ mod tests {
 
     /// This test matches [mutual_recursion_marks_functions_impure] except all functions have a Brillig runtime
     #[test]
-    fn brillig_mutual_recursion_marks_functions_impure() {
+    fn brillig_mutual_recursion_marks_functions_impure_with_reference() {
         let src = r#"
         brillig(inline) fn main f0 {
           b0():
@@ -817,7 +833,7 @@ mod tests {
     }
 
     #[test]
-    fn brillig_functions_are_pure_with_predicate_if_they_are_not_an_entry_point() {
+    fn brillig_functions_are_pure_if_they_are_not_an_entry_point() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -840,10 +856,7 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-
-        // Note: even though it would be fine to mark f1 as pure, something in Aztec-Packages
-        // gets broken so until we figure out what that is we can't mark these as pure.
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     #[test]
