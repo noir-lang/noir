@@ -111,7 +111,20 @@
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">//! A simple SSA pass to find any calls to `Intrinsic::AsVector` and replacing any references to the length of the
+//! resulting vector with the length of the array from which it was generated.
+//!
+//! This allows the length of a vector generated from an array to be used in locations where a constant value is
+//! necessary when the value of the array is unknown.
+//!
+//! Note that this pass must be placed before loop unrolling to be useful.
+
+</span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, Intrinsic},
@@ -121,13 +134,8 @@
 };
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// A simple SSA pass to find any calls to `Intrinsic::AsVector` and replacing any references to the length of the
+    <span class="doccomment">/// Finds any calls to `Intrinsic::AsVector` and replaces any references to the length of the
     /// resulting vector with the length of the array from which it was generated.
-    ///
-    /// This allows the length of a vector generated from an array to be used in locations where a constant value is
-    /// necessary when the value of the array is unknown.
-    ///
-    /// Note that this pass must be placed before loop unrolling to be useful.
     </span><span class="attr">#[expect(clippy::wrong_self_convention)]
     #[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_vector_optimization(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
@@ -139,7 +147,9 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_vector_optimization(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Finds any calls to `Intrinsic::AsVector` and replaces any references to the length of the
+    /// resulting vector with the length of the array from which it was generated.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_vector_optimization(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// If `as_vector` isn't called in this function there's nothing to do
         </span><span class="kw">let </span><span class="prelude-val">Some</span>(as_vector) = <span class="self">self</span>.dfg.get_intrinsic(Intrinsic::AsVector).copied() <span class="kw">else </span>{
             <span class="kw">return</span>;

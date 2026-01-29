@@ -526,12 +526,12 @@
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
-/// signed integers into equivalent sequences of operations that rely on unsigned integers.
-///
-/// The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
-/// "div" and "mod" operations (for simplicity), while also allowing further optimizations to
-/// be done during subsequent SSA passes on the expanded instructions.
+<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="doccomment">//! An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
+//! signed integers into equivalent sequences of operations that rely on unsigned integers.
+//!
+//! The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
+//! "div" and "mod" operations (for simplicity), while also allowing further optimizations to
+//! be done during subsequent SSA passes on the expanded instructions.
 </span><span class="kw">use </span>acvm::FieldElement;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{

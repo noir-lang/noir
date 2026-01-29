@@ -631,12 +631,12 @@
 <a href="#630" id="630">630</a>
 <a href="#631" id="631">631</a>
 <a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a></pre></div><pre class="rust"><code><span class="doccomment">/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
-/// into unchecked operations followed by explicit overflow checks.
-///
-/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
-/// operations, while also allowing further optimizations to be done during subsequent
-/// SSA passes on the expanded instructions.
+<a href="#633" id="633">633</a></pre></div><pre class="rust"><code><span class="doccomment">//! An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+//! into unchecked operations followed by explicit overflow checks.
+//!
+//! The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+//! operations, while also allowing further optimizations to be done during subsequent
+//! SSA passes on the expanded instructions.
 </span><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{

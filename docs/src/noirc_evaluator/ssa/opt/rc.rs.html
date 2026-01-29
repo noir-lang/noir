@@ -427,7 +427,20 @@
 <a href="#426" id="426">426</a>
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a></pre></div><pre class="rust"><code><span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="doccomment">//! This pass removes `inc_rc` and `dec_rc` instructions
+//! as long as there are no `array_set` instructions to an array
+//! of the same type in between.
+//!
+//! Note that this pass is very conservative since the array_set
+//! instruction does not need to be to the same array. This is because
+//! the given array may alias another array (e.g. function parameters or
+//! a `load`ed array from a reference).
+
+</span><span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -440,14 +453,9 @@
 };
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// This pass removes `inc_rc` and `dec_rc` instructions
+    <span class="doccomment">/// Removes `inc_rc` and `dec_rc` instructions
     /// as long as there are no `array_set` instructions to an array
     /// of the same type in between.
-    ///
-    /// Note that this pass is very conservative since the array_set
-    /// instruction does not need to be to the same array. This is because
-    /// the given array may alias another array (e.g. function parameters or
-    /// a `load`ed array from a reference).
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_paired_rc(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
@@ -481,7 +489,7 @@
     ///
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_paired_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    </span><span class="kw">fn </span>remove_paired_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if </span>!<span class="self">self</span>.runtime().is_brillig() {
             <span class="comment">// dec_rc and inc_rc only have an effect in Brillig
             </span><span class="kw">return</span>;

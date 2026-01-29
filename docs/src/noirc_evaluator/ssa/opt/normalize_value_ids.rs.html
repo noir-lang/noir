@@ -221,7 +221,18 @@
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="doccomment">//! This is a debugging pass which re-inserts each instruction
+//! and block in a fresh DFG context for each function so that ValueIds,
+//! BasicBlockIds, and FunctionIds are always identical for the same SSA code.
+//!
+//! During normal compilation this is often not the case since prior passes
+//! may increase the ID counter so that later passes start at different offsets,
+//! even if they contain the same SSA code.
+
+</span><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -237,13 +248,8 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// This is a debugging pass which re-inserts each instruction
-    /// and block in a fresh DFG context for each function so that ValueIds,
-    /// BasicBlockIds, and FunctionIds are always identical for the same SSA code.
-    ///
-    /// During normal compilation this is often not the case since prior passes
-    /// may increase the ID counter so that later passes start at different offsets,
-    /// even if they contain the same SSA code.
+    <span class="doccomment">/// Re-inserts each instruction and block in a fresh DFG context for each function so that
+    /// ValueIds, BasicBlockIds, and FunctionIds are always identical for the same SSA code.
     </span><span class="kw">pub fn </span>normalize_ids(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context::default();
         context.populate_functions(<span class="kw-2">&amp;</span><span class="self">self</span>.functions);
