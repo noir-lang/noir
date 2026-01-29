@@ -1,108 +1,129 @@
 # Noir Monorepo Development Guide
 
-## What is Noir?
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Noir is a Domain Specific Language for SNARK proving systems, designed to work with any ACIR compatible proving system. See [README.md](./README.md) for links to documentation, getting started guides, and community resources.
+## Project Overview
 
-## Repository Map
+Noir is a domain-specific language for SNARK proving systems (zero-knowledge proofs). The compiler is written in Rust and produces ACIR (Abstract Circuit Intermediate Representation), which can be consumed by any ACIR-compatible proving backend. The project also includes a CLI (`nargo`), LSP server, debugger, formatter, and JavaScript/WASM bindings.
 
-| Directory | Description |
-|-----------|-------------|
-| `acvm-repo/` | ACIR Virtual Machine - IR definitions, Brillig VM, black box solvers |
-| `compiler/` | Noir compiler - frontend, evaluator, driver, error handling |
-| `docs/` | Documentation site content |
-| `examples/` | Example Noir projects |
-| `noir_stdlib/` | Noir standard library |
-| `scripts/` | Build and CI scripts |
-| `test_programs/` | Compiler test cases |
-| `tooling/` | Developer tools - nargo CLI, LSP, debugger, formatters, profiler |
+## Architecture
 
-## Tools
+### Compilation Pipeline
 
-### Just (Command Runner)
-
-This project uses [just](https://github.com/casey/just) as a command runner (similar to `make`). See [`justfile`](./justfile) for all available recipes.
-
-Common recipes:
-- `just install-tools` - Install all development dependencies
-- `just test` - Run Rust tests with nextest
-- `just format` / `just clippy` - Rust formatting and linting
-- `just format-noir` - Format Noir code
-- `just lint` - Lint TypeScript/JavaScript code
-
-Run `just --list` to see all available commands.
-
-## 🚀 Essential Workflow
-
-### Before Running Javascript Tests - ALWAYS COMPILE
-
-```bash
-yarn build  # Full compilation
-# OR for specific package:
-cd <package-name> && yarn build
+```
+Source Code → [Lexing] → Tokens → [Parsing] → AST → [Name Resolution + Type Checking (Elaboration)] → HIR → [Monomorphization] → Monomorphized AST → [SSA Generation] → SSA → [SSA Optimizations] → ACIR/Brillig
 ```
 
-### Before Committing - Quality Checklist
+### Workspace Structure
 
-1. **Build**: Ensure project compiles (`yarn tsc -b`)
-2. **Format/Lint**: Run on modified packages (see Format & Lint section)
-3. **Test**: Run unit tests for modified files and ensure they pass
+**Compiler** (`compiler/`):
+- `noirc_frontend` — Lexer, parser, elaborator (name resolution + type checking), monomorphization. Entry point for the frontend pipeline.
+- `noirc_evaluator` — SSA generation, SSA optimization passes, ACIR generation, Brillig generation. The middle/back-end.
+- `noirc_driver` — Orchestrates the full compilation pipeline from source to artifacts.
+- `fm` — File manager abstraction for source file handling.
+- `noirc_errors` — Error reporting with source spans.
 
-## 📦 Compilation
+**ACVM** (`acvm-repo/`):
+- `acir` — Circuit intermediate representation (analogous to LLVM IR for circuits).
+- `brillig` — Bytecode format for unconstrained (non-deterministic) execution.
+- `acvm` — Virtual machine that executes ACIR circuits.
+- `brillig_vm` — Virtual machine that executes Brillig bytecode.
+- `blackbox_solver`, `bn254_blackbox_solver` — Cryptographic primitives (hash functions, elliptic curve ops).
 
-### Full Project
+**Tooling** (`tooling/`):
+- `nargo_cli` — Main CLI tool. Also hosts integration test harness (`tests/execute.rs`, `tests/stdlib-tests.rs`).
+- `nargo` — Package manager core (dependency resolution, workspace handling).
+- `lsp` — Language Server Protocol implementation.
+- `nargo_fmt` — Code formatter.
+- `noirc_abi` — ABI handling (conversion between JSON/TOML inputs and Noir types).
+
+**Standard Library** (`noir_stdlib/`): Pure Noir implementations of stdlib functions (arrays, hashing, crypto, etc.).
+
+### Test Programs
+
+`test_programs/` contains integration test suites organized by expected outcome:
+- `execution_success/` — Programs that should execute successfully (have `Prover.toml` inputs).
+- `execution_failure/` — Programs that should fail at runtime.
+- `compile_failure/` — Programs that should fail to compile.
+- `compile_success_empty/` — Programs that compile to empty circuits.
+- `compile_success_contract/` — Smart contract compilation tests.
+
+Test cases are auto-generated from these directories by `tooling/nargo_cli/build.rs`.
+
+### Key Patterns
+
+- **Unsafe code is forbidden** (`#![forbid(unsafe_code)]` workspace-wide).
+- **SSA passes** live in `compiler/noirc_evaluator/src/ssa/opt/` — each module has its own unit tests.
+- **Elaboration** (`compiler/noirc_frontend/src/elaborator/`) combines name resolution and type checking in a single pass.
+- PRs are **squash-merged** into `master`.
+
+## Build & Development Commands
+
+The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.85.0. Run `just --list` to see all available commands.
+
+### Building
 
 ```bash
-yarn build
+cargo build                          # Build default members (nargo_cli, acvm_cli, etc.)
+cargo build -p noirc_frontend        # Build a specific crate
+cargo build --release                # Release build
 ```
 
-### Specific Package
+### Testing (Rust / Noir)
 
 ```bash
-cd <package-name>
-yarn build
+just test                                              # Full test suite (uses cargo nextest)
+cargo nextest run --workspace                          # Equivalent to above
+cargo nextest run -p noirc_frontend                    # Tests for a specific crate
+cargo nextest run -p nargo_cli --test execute           # Integration tests (execution)
+cargo nextest run -p nargo_cli --test execute sha256    # Single integration test by name
+cargo test -p nargo_cli --test stdlib-tests             # Noir stdlib tests
+cargo test -p nargo_cli --test stdlib-tests -- run_stdlib_tests array  # Stdlib tests for one module
+cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 ```
 
-## 🧪 Testing
+Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs, review and accept snapshots with `cargo insta review`.
 
-**⚠️ NEVER run `yarn test` from the project root - ALWAYS cd into a specific package first!**
+### Testing (JavaScript/TypeScript)
 
-### Standard Tests
+**Never run `yarn test` from the project root — always cd into a specific package first.**
 
 ```bash
-# WRONG: yarn test from repository root ❌
-# RIGHT: Always cd into package first ✅
-
 cd <package-name>
 yarn test FILENAME                    # Run test file
 yarn test FILENAME -t 'test-name'     # Run specific test
 ```
 
-## 🎨 Format & Lint
-
-### Apply Changes
+Before running JS tests, compile first:
 
 ```bash
-# Rust code
-just format
-just clippy
-
-# Noir code
-just format-noir
-
-# Typescript code
-just lint
+yarn build                            # Full JS compilation
+cd <package-name> && yarn build       # Or a specific package
 ```
 
-### Check Mode (No Changes)
-
-Rust code can be checked for formatting changes without applying them
+### Formatting & Linting
 
 ```bash
-just format-check
+# Rust
+just format          # cargo fmt --all
+just format-check    # Check without applying
+just clippy          # cargo clippy (release mode, all targets)
+
+# Noir
+just format-noir     # Format Noir source files (stdlib + test programs)
+
+# TypeScript/JavaScript
+just lint            # ESLint
 ```
 
-## 📦 Dependency Management
+### Installing Dev Tools
+
+```bash
+just install-tools        # All tools (Rust + JS + Foundry)
+just install-rust-tools   # nextest, insta, cargo-mutants
+```
+
+### Dependency Management
 
 After modifying any `package.json`:
 
@@ -177,20 +198,6 @@ Special labels to control CI behavior:
 - **`show-bench`**: Print the comparisons of CI benchmarks between the PR commit and the base branch.
 
   - Use when you think that the PR will result in improvements/degradation of compilation time or memory usage.
-
-## 📚 Quick Reference
-
-### Common Package Commands
-
-```bash
-# Compile
-yarn build
-
-# Test (MUST cd into package first!)
-cd package-name
-yarn test filename.test.ts
-yarn test filename.test.ts -t 'specific test'
-```
 
 ### Workflow Reminders
 
