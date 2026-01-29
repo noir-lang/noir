@@ -150,6 +150,7 @@ impl Context<'_> {
             Intrinsic::IsUnconstrained
             | Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::StrLen
             | Intrinsic::StrAsBytes
             | Intrinsic::StaticAssert
             | Intrinsic::AssertConstant

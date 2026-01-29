@@ -297,6 +297,17 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::StrLen => {
+            // A string is internally a u8 array
+            match dfg.type_of_value(arguments[0]) {
+                Type::Array(_, length) => {
+                    let length =
+                        dfg.make_constant(FieldElement::from(length.0), NumericType::length_type());
+                    SimplifyResult::SimplifiedTo(length)
+                }
+                _ => panic!("First argument to StrLength must be an array"),
+            }
+        }
         Intrinsic::StrAsBytes => {
             // Strings are already represented as bytes internally
             SimplifyResult::SimplifiedTo(arguments[0])

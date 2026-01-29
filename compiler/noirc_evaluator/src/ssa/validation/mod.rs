@@ -544,6 +544,14 @@ impl<'f> Validator<'f> {
                 assert_field(&value_type, "ApplyRangeConstraint value");
                 assert_u32(&bit_size_type, "ApplyRangeConstraint bit size");
             }
+            Intrinsic::StrLen => {
+                // fn len(self: str<N>) -> u32 {}
+                let argument_type = self.assert_one_argument(arguments, "StrLength");
+                assert_array(&argument_type, "StrLen argument");
+
+                let result_type = self.assert_one_result(instruction, "StrLen");
+                assert_u32(&result_type, "StrLen return");
+            }
             Intrinsic::StrAsBytes => {
                 // fn as_bytes(self: str<N>) -> [u8; N] {}
                 let argument_type = self.assert_one_argument(arguments, "StrAsBytes");

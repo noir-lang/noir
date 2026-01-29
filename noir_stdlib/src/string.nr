@@ -1,6 +1,12 @@
 use crate::convert::From;
 
 impl<let N: u32> str<N> {
+    /// Returns the length of this string.
+    ///
+    /// The length is in bytes.
+    #[builtin(str_len)]
+    pub fn len(self) -> u32 {}
+
     /// Converts the given string into a byte array
     #[builtin(str_as_bytes)]
     pub fn as_bytes(self) -> [u8; N] {}

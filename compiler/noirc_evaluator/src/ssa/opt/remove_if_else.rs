@@ -459,6 +459,7 @@ impl Context {
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::StrLen
             | Intrinsic::StrAsBytes
             | Intrinsic::BlackBox(_)
             | Intrinsic::AsWitness

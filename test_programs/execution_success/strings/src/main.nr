@@ -14,6 +14,8 @@ fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Fie
 
     assert(message == "hello world");
     assert(message == HELLO_WORLD);
+    assert_eq(message.len(), 11);
+
     let x = 10;
     let z = x * 5;
     std::println(10);

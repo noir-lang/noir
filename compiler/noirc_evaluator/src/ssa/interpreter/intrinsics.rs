@@ -77,6 +77,11 @@ impl<W: Write> Interpreter<'_, W> {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
                 }))
             }
+            Intrinsic::StrLen => {
+                check_argument_count(args, 1, intrinsic)?;
+                let string = self.lookup_string(args[0], "call to str_length")?;
+                Ok(vec![Value::u32(string.len() as u32)])
+            }
             Intrinsic::StrAsBytes => {
                 // This one is a no-op
                 check_argument_count(args, 1, intrinsic)?;

@@ -190,6 +190,7 @@ impl Interpreter<'_, '_> {
             "vector_refcount" => Ok(Value::U32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
             "static_assert" => static_assert(interner, arguments, location, call_stack),
+            "str_len" => str_len(arguments, location),
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
@@ -394,6 +395,12 @@ fn static_assert(
     } else {
         failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
     }
+}
+
+fn str_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let string = check_one_argument(arguments, location)?;
+    let string = get_str(string)?;
+    Ok(Value::U32(string.len() as u32))
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

@@ -88,6 +88,10 @@ pub enum Intrinsic {
     /// arguments: value id, bit size (constant)
     /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
     ApplyRangeConstraint,
+    /// StrLength - Returns the length of the input string. Then length is in bytes.
+    /// arguments: value id
+    /// result: length of the string
+    StrLen,
     /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
     /// arguments: value id
     /// result: the argument. Internally a `str` is a byte array.
@@ -151,6 +155,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::VectorPopFront => write!(f, "vector_pop_front"),
             Intrinsic::VectorInsert => write!(f, "vector_insert"),
             Intrinsic::VectorRemove => write!(f, "vector_remove"),
+            Intrinsic::StrLen => write!(f, "str_len"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
@@ -198,6 +203,7 @@ impl Intrinsic {
             | Intrinsic::AsVector
             | Intrinsic::VectorPushBack
             | Intrinsic::VectorPushFront
+            | Intrinsic::StrLen
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -256,6 +262,7 @@ impl Intrinsic {
             "vector_pop_front" => Some(Intrinsic::VectorPopFront),
             "vector_insert" => Some(Intrinsic::VectorInsert),
             "vector_remove" => Some(Intrinsic::VectorRemove),
+            "str_len" => Some(Intrinsic::StrLen),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),

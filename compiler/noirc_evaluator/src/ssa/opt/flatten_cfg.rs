@@ -976,6 +976,7 @@ impl<'f> Context<'f> {
             | Intrinsic::VectorInsert
             | Intrinsic::VectorRemove
             | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::StrLen
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)
             | Intrinsic::AsWitness
