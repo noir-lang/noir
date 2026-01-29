@@ -1,4 +1,4 @@
-use noirc_frontend::{parser::block_comment_is_all_stars, token::Token};
+use noirc_frontend::{parser::block_comment_has_all_leading_stars, token::Token};
 
 use super::Formatter;
 
@@ -226,7 +226,7 @@ impl Formatter<'_> {
             return;
         }
 
-        let all_stars = block_comment_is_all_stars(comment);
+        let all_stars = block_comment_has_all_leading_stars(comment);
 
         if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
             self.start_new_line();

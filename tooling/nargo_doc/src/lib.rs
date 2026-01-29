@@ -12,7 +12,7 @@ use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
 use noirc_frontend::node_interner::{FuncId, ReferenceId};
-use noirc_frontend::parser::block_comment_is_all_stars;
+use noirc_frontend::parser::block_comment_has_all_leading_stars;
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
@@ -972,7 +972,7 @@ fn link_offset(text: &str, line: usize) -> usize {
             offset += line_text_length - line_text.len();
 
             // Does every line in the comment start with "*" (except for the new first line)
-            let all_stars = block_comment_is_all_stars(&text);
+            let all_stars = block_comment_has_all_leading_stars(&text);
 
             // If every line starts with "*" we need to skip past it, and any spaces after it.
             if all_stars {
