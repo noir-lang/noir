@@ -624,15 +624,17 @@ mod arb {
             let witness_arr_25 = any::<Box<[Witness; 25]>>();
             let witness_arr_32 = any::<Box<[Witness; 32]>>();
 
-            let case_aes128_encrypt = (
-                input_vec.clone(),
-                input_arr_16.clone(),
-                input_arr_16.clone(),
-                witness_vec.clone(),
-            )
-                .prop_map(|(inputs, iv, key, outputs)| {
-                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
-                });
+            // Input must be a multiple of 16 bytes, and output length must equal input length
+            // Use fixed 16-byte input/output for simplicity
+            let witness_arr_16 = any::<Box<[Witness; 16]>>();
+            let case_aes128_encrypt =
+                (input_arr_16.clone(), input_arr_16.clone(), input_arr_16.clone(), witness_arr_16)
+                    .prop_map(|(inputs, iv, key, outputs)| BlackBoxFuncCall::AES128Encrypt {
+                        inputs: inputs.to_vec(),
+                        iv,
+                        key,
+                        outputs: outputs.to_vec(),
+                    });
 
             let case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
                 |(lhs, rhs, output)| BlackBoxFuncCall::AND {

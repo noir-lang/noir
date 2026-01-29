@@ -26,7 +26,7 @@ use super::{
 
 impl Interpreter<'_, '_> {
     pub(super) fn call_foreign(
-        &mut self,
+        &self,
         name: &str,
         arguments: Vec<(Value, Location)>,
         return_type: Type,

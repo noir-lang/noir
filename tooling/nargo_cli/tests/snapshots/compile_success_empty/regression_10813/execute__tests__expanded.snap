@@ -7,7 +7,7 @@ pub trait Foo {
 
     let Baz: u32;
 
-    fn foo(x: [Bar; Baz]) -> u32 {
+    fn foo(x: [Self::Bar; Self::Baz]) -> u32 {
         x.len()
     }
 }

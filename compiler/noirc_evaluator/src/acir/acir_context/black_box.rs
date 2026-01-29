@@ -39,11 +39,8 @@ impl<F: AcirField> AcirContext<F> {
                     }
                 }?;
 
-                assert_eq!(
-                    output_count,
-                    input_size + 16 - input_size % 16,
-                    "output count mismatch"
-                );
+                assert!(input_size % 16 == 0, "input length must be a multiple of 16");
+                assert_eq!(output_count, input_size, "output count mismatch");
 
                 Vec::new()
             }

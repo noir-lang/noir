@@ -153,6 +153,7 @@ pub(crate) fn get_program_with_options(
         let location = Location::new(Default::default(), root_file_id);
         let root_module = ModuleData::new(
             None,
+            None,
             location,
             Vec::new(),
             inner_attributes.clone(),
@@ -225,5 +226,10 @@ pub mod stdlib_src {
 
         #[builtin(modulus_le_bytes)]
         pub fn modulus_le_bytes() -> [u8] {}
+    ";
+
+    pub const PRINT: &str = "
+        #[oracle(print)]
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
     ";
 }

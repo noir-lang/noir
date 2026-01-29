@@ -652,7 +652,6 @@ fn comptime_trait_default_method_using_missing_associated_constant() {
 
         fn foo() {
             let _ = Self::N;
-                          ^ Could not resolve 'N' in path
         }
     }
     struct Foo {}

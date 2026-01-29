@@ -39,7 +39,7 @@ impl Elaborator<'_> {
         self.interner.get_type(type_id)
     }
 
-    pub(super) fn get_trait(&mut self, trait_id: TraitId) -> &Trait {
+    pub(super) fn get_trait(&self, trait_id: TraitId) -> &Trait {
         self.interner.get_trait(trait_id)
     }
 
@@ -127,6 +127,7 @@ impl Elaborator<'_> {
                     found: item.description(self.interner),
                 })
             }
+            PathResolutionItem::TraitConstant(_, _, def_id) => Ok((def_id, item)),
             item => Err(ResolverError::Expected {
                 location,
                 expected,

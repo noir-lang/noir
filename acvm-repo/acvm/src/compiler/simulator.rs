@@ -175,7 +175,7 @@ impl CircuitSimulator {
         true
     }
 
-    fn can_solve_brillig_input<F>(&mut self, input: &BrilligInputs<F>) -> bool {
+    fn can_solve_brillig_input<F>(&self, input: &BrilligInputs<F>) -> bool {
         match input {
             BrilligInputs::Single(expr) => self.can_solve_expression(expr),
             BrilligInputs::Array(exprs) => {

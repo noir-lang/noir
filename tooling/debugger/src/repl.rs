@@ -101,7 +101,7 @@ impl<'a> AsyncReplDebugger<'a> {
         }
     }
 
-    fn send_status(&mut self, status: DebuggerStatus) {
+    fn send_status(&self, status: DebuggerStatus) {
         self.status_sender.send(status).expect("Downstream channel closed");
     }
 
@@ -170,25 +170,25 @@ impl<'a> AsyncReplDebugger<'a> {
                         Self::add_breakpoint_at_line(&mut context, line_number);
                     }
                     DebugCommandAPI::ShowVariables => {
-                        Self::show_variables(&mut context);
+                        Self::show_variables(&context);
                     }
                     DebugCommandAPI::ShowWitnessMap => {
-                        Self::show_witness_map(&mut context);
+                        Self::show_witness_map(&context);
                     }
                     DebugCommandAPI::ShowWitness(index) => {
-                        Self::show_witness(&mut context, index);
+                        Self::show_witness(&context, index);
                     }
                     DebugCommandAPI::ShowBrilligMemory => {
-                        Self::show_brillig_memory(&mut context);
+                        Self::show_brillig_memory(&context);
                     }
                     DebugCommandAPI::ShowCurrentCallStack => {
-                        self.show_current_call_stack(&mut context);
+                        self.show_current_call_stack(&context);
                     }
                     DebugCommandAPI::ShowOpcodes => {
-                        self.show_opcodes(&mut context);
+                        self.show_opcodes(&context);
                     }
                     DebugCommandAPI::ShowCurrentVmStatus => {
-                        self.show_current_vm_status(&mut context);
+                        self.show_current_vm_status(&context);
                     }
                     DebugCommandAPI::Terminate => {
                         self.terminate(context);
@@ -203,7 +203,7 @@ impl<'a> AsyncReplDebugger<'a> {
         }
     }
 
-    fn show_current_vm_status(&self, context: &mut Context<'_>) {
+    fn show_current_vm_status(&self, context: &Context<'_>) {
         let location = context.get_current_debug_location();
 
         match location {
@@ -242,7 +242,7 @@ impl<'a> AsyncReplDebugger<'a> {
 
     fn show_stack_frame(
         &self,
-        context: &mut Context<'_>,
+        context: &Context<'_>,
         index: usize,
         debug_location: &DebugLocation,
     ) {
@@ -271,7 +271,7 @@ impl<'a> AsyncReplDebugger<'a> {
         print_source_code_location(self.debug_artifact, &locations, self.raw_source_printing);
     }
 
-    fn show_current_call_stack(&mut self, context: &mut Context<'_>) {
+    fn show_current_call_stack(&self, context: &Context<'_>) {
         let call_stack = context.get_call_stack();
 
         if call_stack.is_empty() {
@@ -284,13 +284,13 @@ impl<'a> AsyncReplDebugger<'a> {
         }
     }
 
-    fn show_opcodes(&mut self, context: &mut Context<'_>) {
+    fn show_opcodes(&self, context: &Context<'_>) {
         for i in 0..self.circuits.len() {
             self.show_opcodes_of_circuit(context, i as u32);
         }
     }
 
-    fn show_opcodes_of_circuit(&mut self, context: &mut Context<'_>, circuit_id: u32) {
+    fn show_opcodes_of_circuit(&self, context: &Context<'_>, circuit_id: u32) {
         let current_opcode_location =
             context.get_current_debug_location().and_then(|debug_location| {
                 if debug_location.circuit_id == circuit_id {
@@ -441,7 +441,7 @@ impl<'a> AsyncReplDebugger<'a> {
         self.show_current_vm_status(context);
     }
 
-    fn show_witness_map(context: &mut Context<'_>) {
+    fn show_witness_map(context: &Context<'_>) {
         let witness_map = context.get_witness_map();
         // NOTE: we need to clone() here to get the iterator
         for (witness, value) in witness_map.clone().into_iter() {
@@ -449,7 +449,7 @@ impl<'a> AsyncReplDebugger<'a> {
         }
     }
 
-    fn show_witness(context: &mut Context<'_>, index: u32) {
+    fn show_witness(context: &Context<'_>, index: u32) {
         if let Some(value) = context.get_witness_map().get_index(index) {
             println!("_{index} = {value}");
         }
@@ -466,7 +466,7 @@ impl<'a> AsyncReplDebugger<'a> {
         println!("_{index} = {value}");
     }
 
-    fn show_brillig_memory(context: &mut Context<'_>) {
+    fn show_brillig_memory(context: &Context<'_>) {
         if !context.is_executing_brillig() {
             println!("Not executing a Brillig block");
             return;
@@ -508,7 +508,7 @@ impl<'a> AsyncReplDebugger<'a> {
         context.write_brillig_memory(index, field_value, bit_size);
     }
 
-    fn show_variables(context: &mut Context<'_>) {
+    fn show_variables(context: &Context<'_>) {
         let variables: Vec<DebugStackFrame<FieldElement>> =
             context.get_variables().iter().map(DebugStackFrame::from).collect();
         for frame in variables {

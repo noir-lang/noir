@@ -6,6 +6,7 @@ use super::{Ssa, generate_ssa};
 
 use noirc_frontend::test_utils::{
     GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+    get_monomorphized_with_stdlib, stdlib_src,
 };
 
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
@@ -237,9 +238,6 @@ fn pure_builtin_call_args_do_not_get_cloned() {
 #[test]
 fn foreign_call_args_do_not_get_cloned() {
     let src = "
-    #[oracle(print)]
-    unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
-
     unconstrained fn main() {
         let a = [1, 2];
         print_oracle(true, a);
@@ -247,7 +245,7 @@ fn foreign_call_args_do_not_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized(src).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::PRINT).unwrap();
 
     let ssa = generate_ssa(program).unwrap();
 
@@ -463,8 +461,8 @@ fn for_loop_inclusive_unknown_range_with_break() {
     unconstrained fn main(start: u8, end: u8) -> pub u8 {
         let mut sum = 0;
         for i in start..=end {
-          if i == 10 { 
-              break; 
+          if i == 10 {
+              break;
           }
           sum += i;
         }

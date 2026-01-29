@@ -16,7 +16,7 @@ warning: unused variable x
   │                        - unused variable
   │
 
-error: Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+error: Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
   ┌─ src/main.nr:5:13
   │
 5 │     new_x = clear(x, y);

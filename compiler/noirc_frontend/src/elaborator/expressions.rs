@@ -779,6 +779,7 @@ impl Elaborator<'_> {
 
         let function_type = self.interner.function_meta(&func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
+
         let generics = method_call.generics;
         let generics = generics.map(|generics| {
             vecmap(generics, |generic| {
@@ -1611,7 +1612,7 @@ impl Elaborator<'_> {
     }
 
     fn try_get_comptime_function(
-        &mut self,
+        &self,
         func: ExprId,
         location: Location,
     ) -> Result<Option<FuncId>, ResolverError> {

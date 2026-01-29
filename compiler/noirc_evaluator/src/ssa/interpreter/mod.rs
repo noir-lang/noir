@@ -196,11 +196,25 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_type = value.get_type();
 
             if expected_type != actual_type {
-                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
-                    value_id: id,
-                    expected_type: expected_type.to_string(),
-                    actual_type: actual_type.to_string(),
-                }));
+                // Special case for ZST (Zero-Sized Type) arrays: Allow length mismatches.
+                // In early SSA passes, ZST arrays like [(); 3] are represented with empty element lists.
+                // Later optimization passes will fix the representation.
+                let types_compatible = match (&expected_type, &actual_type) {
+                    (Type::Array(expected_elem, _), Type::Array(actual_elem, actual_len)) => {
+                        expected_elem == actual_elem
+                            && expected_elem.is_empty()
+                            && actual_len.to_usize() == 0
+                    }
+                    _ => false,
+                };
+
+                if !types_compatible {
+                    return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                        value_id: id,
+                        expected_type: expected_type.to_string(),
+                        actual_type: actual_type.to_string(),
+                    }));
+                }
             }
         }
 
@@ -839,7 +853,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_range_check(
-        &mut self,
+        &self,
         value_id: ValueId,
         max_bit_size: u32,
         error_message: Option<&String>,
@@ -1039,7 +1053,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn interpret_store(&mut self, address: ValueId, value: ValueId) -> IResult<()> {
+    fn interpret_store(&self, address: ValueId, value: ValueId) -> IResult<()> {
         let reference_address = self.lookup_reference(address, "store")?;
 
         let value = self.lookup(value)?;

@@ -136,29 +136,23 @@ fn simple_closure_with_no_captured_variables() {
     insta::assert_snapshot!(program, @r"
     fn main$f0(y$l0: call_data(0) Field) -> pub Field {
         let x$l1 = 1;
-        let closure$l6 = ({
+        let closure$l4 = {
             let closure_variable$l3 = {
                 let env$l2 = (x$l1);
-                (env$l2, lambda$f1)
+                ((env$l2, lambda$f1), (env$l2, lambda$f2))
             };
             closure_variable$l3
-        }, {
-            let closure_variable$l5 = {
-                let env$l4 = (x$l1);
-                (env$l4, lambda$f2)
-            };
-            closure_variable$l5
-        });
+        };
         {
-            let tmp$l7 = closure$l6.0;
-            tmp$l7.1(tmp$l7.0)
+            let tmp$l5 = closure$l4.0;
+            tmp$l5.1(tmp$l5.0)
         }
     }
     fn lambda$f1(mut env$l2: (Field,)) -> Field {
         env$l2.0
     }
-    unconstrained fn lambda$f2(mut env$l4: (Field,)) -> Field {
-        env$l4.0
+    unconstrained fn lambda$f2(mut env$l2: (Field,)) -> Field {
+        env$l2.0
     }
     ");
 }
@@ -1336,4 +1330,26 @@ fn out_of_order_globals() {
         (x$l2 + FOO$g1)
     }
     ");
+}
+
+#[test]
+fn closure_capture_chain_oom() {
+    let src = "
+    fn main() {
+        let x: Field = 1;
+        let f0 = || x;
+        let f1 = || f0();
+        let f2 = || f1();
+        let f3 = || f2();
+        let f4 = || f3();
+        let f5 = || f4();
+        let f6 = || f5();
+        let f7 = || f6();
+        let f8 = || f7();
+        let f9 = || f8();
+        let f10 = || f9();
+        let _ = f10();
+    }
+    ";
+    let _ = get_monomorphized(src);
 }

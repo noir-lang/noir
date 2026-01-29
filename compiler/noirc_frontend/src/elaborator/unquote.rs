@@ -17,8 +17,19 @@ impl Elaborator<'_> {
         let mut tokens = tokens.0.into_iter();
 
         while let Some(token) = tokens.next() {
-            let is_unquote = matches!(token.token(), Token::DollarSign);
-            new_tokens.push(token);
+            let location = token.location();
+            let token = token.into_token();
+
+            // If we find `quote { ... }` it means this is nested inside another `quote { ... }`.
+            // We need to replace `$...` inside the `quote` tokens as well.
+            if let Token::Quote(tokens) = token {
+                let tokens = self.find_unquoted_exprs_tokens(tokens);
+                new_tokens.push(LocatedToken::new(Token::Quote(tokens), location));
+                continue;
+            }
+
+            let is_unquote = matches!(token, Token::DollarSign);
+            new_tokens.push(LocatedToken::new(token, location));
 
             if is_unquote {
                 if let Some(next) = tokens.next() {
@@ -39,6 +50,11 @@ impl Elaborator<'_> {
                             new_tokens.pop();
                             let token = Token::InternedCrate(self.crate_id);
                             new_tokens.push(LocatedToken::new(token, location));
+                        }
+                        Token::Quote(tokens) => {
+                            new_tokens.pop();
+                            let tokens = self.find_unquoted_exprs_tokens(tokens);
+                            new_tokens.push(LocatedToken::new(Token::Quote(tokens), location));
                         }
                         other_next => new_tokens.push(LocatedToken::new(other_next, location)),
                     }

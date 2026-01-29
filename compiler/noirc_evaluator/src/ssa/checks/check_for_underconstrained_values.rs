@@ -20,6 +20,7 @@ impl Ssa {
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
     /// Go through each top-level non-Brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
         self.functions
             .values()
@@ -40,6 +41,7 @@ impl Ssa {
 
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_missing_brillig_constraints(
         &mut self,
         enable_lookback: bool,
@@ -569,7 +571,7 @@ impl DependencyContext {
 
     /// Every Brillig call not properly constrained should remain in the tainted set
     /// at this point. For each, emit a corresponding warning.
-    fn collect_warnings(&mut self, function: &Function) -> Vec<SsaReport> {
+    fn collect_warnings(&self, function: &Function) -> Vec<SsaReport> {
         let warnings: Vec<SsaReport> = self
             .tainted
             .keys()
@@ -690,7 +692,7 @@ impl Context {
     ///
     /// Goes through each set of connected ValueIds and see if function arguments or return values are in the set
     fn find_sets_connected_to_function_inputs_or_outputs(
-        &mut self,
+        &self,
         function: &Function,
     ) -> BTreeSet<usize> {
         let returns = function.returns().unwrap_or_default();

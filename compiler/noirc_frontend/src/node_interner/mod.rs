@@ -17,8 +17,9 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;
-use crate::hir::def_collector::dc_crate::{UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
@@ -999,23 +1000,35 @@ impl NodeInterner {
         method_name: String,
         method_id: FuncId,
         trait_id: Option<TraitId>,
-    ) -> Option<FuncId> {
+    ) -> Result<(), CompilationError> {
         match self_type {
-            Type::Error => None,
+            Type::Error => Ok(()),
             Type::Reference(element, _mutable) => {
                 self.add_method(element, method_name, method_id, trait_id)
             }
             _ => {
-                let key = get_type_method_key(self_type).unwrap_or_else(|| {
-                    unreachable!("Cannot add a method to the unsupported type '{}'", self_type)
-                });
+                let Some(key) = get_type_method_key(self_type) else {
+                    let location = self.function_ident(&method_id).location();
+                    let error = ResolverError::TypeUnsupportedForMethod {
+                        typ: self_type.clone(),
+                        location,
+                    };
+                    return Err(error.into());
+                };
 
                 if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
                     let check_self_param = false;
                     if let Some(existing) =
                         self.lookup_direct_method(self_type, &method_name, check_self_param)
                     {
-                        return Some(existing);
+                        let first_location = self.function_ident(&existing).location();
+                        let second_location = self.function_ident(&method_id).location();
+                        let error = ResolverError::DuplicateDefinition {
+                            name: method_name,
+                            first_location,
+                            second_location,
+                        };
+                        return Err(error.into());
                     }
                 }
 
@@ -1028,7 +1041,7 @@ impl NodeInterner {
                     .entry(method_name)
                     .or_default()
                     .add_method(method_id, typ, trait_id);
-                None
+                Ok(())
             }
         }
     }
@@ -1397,6 +1410,9 @@ impl NodeInterner {
         &self.trait_impl_associated_types[&impl_id]
     }
 
+    /// Find an associated type in a trait implementation by the last segment in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn find_associated_type_for_impl(
         &self,
         impl_id: TraitImplId,
@@ -1413,6 +1429,38 @@ impl NodeInterner {
         name: &str,
     ) -> Option<&(DefinitionId, Type)> {
         self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
+    }
+
+    /// Looks up associated constants for a type by name.
+    /// Returns all matching constants with their trait info.
+    pub fn lookup_trait_impl_constants_for_type(
+        &self,
+        typ: &Type,
+        constant_name: &str,
+    ) -> Vec<(DefinitionId, TraitId, TraitImplId)> {
+        let mut results = Vec::new();
+
+        for (impl_id, constants) in &self.trait_impl_associated_constants {
+            let Some((def_id, _constant_type)) = constants.get(constant_name) else {
+                continue;
+            };
+            let Some(trait_impl) = self.try_get_trait_implementation(*impl_id) else {
+                continue;
+            };
+
+            let trait_id = trait_impl.borrow().trait_id;
+
+            // Check if typ implements the trait
+            // This handles instantiation and unification correctly for generic impls
+            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
+                self.try_lookup_trait_implementation(typ, trait_id, &[], &[])
+            {
+                if found_impl_id == *impl_id {
+                    results.push((*def_id, trait_id, *impl_id));
+                }
+            }
+        }
+        results
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
@@ -1497,11 +1545,44 @@ impl NodeInterner {
             }
         }
     }
+
+    /// Clears data that is stored in this NodeInterner that is declared at the given file.
+    /// This isn't used by the compiler. It's only used by the LSP server when a file
+    /// changes, to clear the definitions of the previous version of the file.
+    pub fn clear_in_file(&mut self, file: FileId) {
+        // Clear in methods
+        for (_key, methods) in self.methods.iter_mut() {
+            for (_name, methods) in methods.iter_mut() {
+                methods.direct.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+
+                methods.trait_impl_methods.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+            }
+        }
+
+        // Clear in auto import names
+        for (_name, entries) in self.auto_import_names.iter_mut() {
+            entries.retain(|entry| entry.file != file);
+        }
+
+        // Clear in reexports
+        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+            reexports.retain(|reexport| reexport.name.location().file != file);
+        }
+
+        // Clear in LocationIndices
+        self.clear_file_locations(file);
+    }
 }
 
 /// These are the primitive type variants that we support adding methods to
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-enum TypeMethodKey {
+pub(crate) enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
@@ -1518,7 +1599,7 @@ enum TypeMethodKey {
     Struct(TypeId),
 }
 
-fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
+pub(crate) fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
