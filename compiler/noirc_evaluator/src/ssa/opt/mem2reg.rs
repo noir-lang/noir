@@ -266,20 +266,22 @@ impl<'f> PerFunctionContext<'f> {
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
             for (store_address, store_instruction) in block.last_stores.iter() {
+                dbg!(store_address);
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
                     &all_terminator_values,
                     &per_func_block_params,
                 );
-
+                dbg!(store_alias_used);
                 let is_dereference = block
                     .expressions
                     .get(store_address)
                     .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
-
+                dbg!(is_dereference);
                 if !self.last_loads.contains(store_address) && !store_alias_used && !is_dereference
                 {
+                    dbg!("got here");
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -547,7 +549,11 @@ impl<'f> PerFunctionContext<'f> {
 
                 let [result] = self.inserter.function.dfg.instruction_result(instruction);
                 references.remember_dereference(self.inserter.function, address, result);
-
+                if result.to_u32() == 4 {
+                    dbg!(address);
+                    dbg!(references.get_known_value(address));
+                    dbg!(references.last_loads.get(&address));
+                }
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
                     let [result] = self.inserter.function.dfg.instruction_result(instruction);
@@ -716,11 +722,21 @@ impl<'f> PerFunctionContext<'f> {
                     self.inserter.function.dfg.type_of_value(*result).contains_reference()
                 });
 
+                let args_contain_nested_references = arguments.iter().any(|arg| {
+                    let typ = self.inserter.function.dfg.type_of_value(*arg);
+                    match &typ {
+                        Type::Reference(element) => element.contains_reference(),
+                        _ => typ.contains_reference(),
+                    }
+                });
+                dbg!(args_contain_nested_references);
+
                 // Instead of aliasing results to arguments, because values might be nested references
                 // we'll just consider all arguments and references as now having unknown aliases.
                 if results_contains_references {
                     for value in arguments.iter().chain(results) {
                         self.clear_aliases(references, *value);
+                        // references.in
                     }
                 }
             }
@@ -831,8 +847,17 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             let typ = self.inserter.function.dfg.type_of_value(*value);
-            if typ.contains_reference() {
+            if let Type::Reference(element) = &typ {
                 let value = *value;
+                // If we have a nested reference, recurse to invalidate what it points to.
+                // The callee could load this reference and mutate through the inner ref.
+                if element.contains_reference() {
+                    if let Some(inner_ref) = references.get_known_value(value) {
+                        dbg!(inner_ref);
+                        self.mark_all_unknown(&[inner_ref], references);
+                    }
+                }
+
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
 
@@ -2989,5 +3014,62 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn repeat_load_not_removed_across_call_indirect_mutation_single_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            // Call mutates v0 indirectly via v1
+            call f1(v1)
+            // This load should be preserved.
+            v3 = load v0 -> Field
+            constrain v3 == Field 1
+            return
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            store Field 1 at v1
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn repeat_load_not_removed_across_call_indirect_mutation_deeply_nested() {
+        let src = r#"                                                                                  
+      brillig(inline) fn main f0 {                                                                       
+        b0():                                                                                            
+          v0 = allocate -> &mut Field                                                                    
+          store Field 0 at v0                                                                              
+          v1 = allocate -> &mut &mut Field                                                               
+          store v0 at v1                                                                                      
+          v2 = allocate -> &mut &mut &mut Field                                                          
+          store v1 at v2                                                                                                                                                                           
+          // Call mutates v0 indirectly via v2 -> v1 -> v0                                               
+          call f1(v2)                                                                                   
+          // This load should be preserved                                                               
+          v4 = load v0 -> Field                                                                          
+          constrain v4 == Field 1                                                                        
+          return                                                                                         
+      }                                                                                                                                                                                                 
+      brillig(inline) fn helper f1 {                                                                     
+        b0(v0: &mut &mut &mut Field):                                                                    
+          v1 = load v0 -> &mut &mut Field                                                                
+          v2 = load v1 -> &mut Field                                                                     
+          store Field 1 at v2                                                                            
+          return                                                                                         
+      }                                                                                                  
+      "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
