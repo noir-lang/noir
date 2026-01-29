@@ -2990,8 +2990,7 @@
 <a href="#2989" id="2989">2989</a>
 <a href="#2990" id="2990">2990</a>
 <a href="#2991" id="2991">2991</a>
-<a href="#2992" id="2992">2992</a>
-<a href="#2993" id="2993">2993</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2992" id="2992">2992</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3135,11 +3134,10 @@
 
                 <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
                     <span class="kw">if let </span>Instruction::Store { address, value } = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction_id] {
-                        <span class="comment">// Check if both the address and value are references
+                        <span class="comment">// Check if the value is a reference.
                         // This indicates we're storing a reference into another reference
-                        </span><span class="kw">if </span>function.dfg.value_is_reference(<span class="kw-2">*</span>address)
-                            &amp;&amp; function.dfg.value_is_reference(<span class="kw-2">*</span>value)
-                        {
+                        // An address is always a reference, as this is an invariant of the Store instruction.
+                        </span><span class="kw">if </span>function.dfg.value_is_reference(<span class="kw-2">*</span>value) {
                             <span class="comment">// Mark both the address and value as potentially aliased
                             </span>aliases.insert(<span class="kw-2">*</span>address);
                             aliases.insert(<span class="kw-2">*</span>value);
