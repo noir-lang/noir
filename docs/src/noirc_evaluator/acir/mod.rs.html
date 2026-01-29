@@ -932,7 +932,13 @@
 <a href="#931" id="931">931</a>
 <a href="#932" id="932">932</a>
 <a href="#933" id="933">933</a>
-<a href="#934" id="934">934</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -1017,6 +1023,11 @@
     /// Each acir memory block corresponds to a different SSA array.
     </span>memory_blocks: HashMap&lt;Id&lt;Value&gt;, BlockId&gt;,
 
+    <span class="doccomment">/// The BlockId dedicated to return_data
+    /// It is not managed by memory_blocks to ensure getting always a fresh block for return_data, even if
+    /// the SSA array has already been initialized to a block.
+    </span>return_data_block_id: <span class="prelude-ty">Option</span>&lt;BlockId&gt;,
+
     <span class="doccomment">/// Maps SSA values to BlockId's used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
@@ -1061,6 +1072,7 @@
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
+            return_data_block_id: <span class="prelude-val">None</span>,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: HashMap::default(),
             max_block_id: <span class="number">0</span>,

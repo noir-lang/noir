@@ -2795,7 +2795,72 @@
 <a href="#2794" id="2794">2794</a>
 <a href="#2795" id="2795">2795</a>
 <a href="#2796" id="2796">2796</a>
-<a href="#2797" id="2797">2797</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2797" id="2797">2797</a>
+<a href="#2798" id="2798">2798</a>
+<a href="#2799" id="2799">2799</a>
+<a href="#2800" id="2800">2800</a>
+<a href="#2801" id="2801">2801</a>
+<a href="#2802" id="2802">2802</a>
+<a href="#2803" id="2803">2803</a>
+<a href="#2804" id="2804">2804</a>
+<a href="#2805" id="2805">2805</a>
+<a href="#2806" id="2806">2806</a>
+<a href="#2807" id="2807">2807</a>
+<a href="#2808" id="2808">2808</a>
+<a href="#2809" id="2809">2809</a>
+<a href="#2810" id="2810">2810</a>
+<a href="#2811" id="2811">2811</a>
+<a href="#2812" id="2812">2812</a>
+<a href="#2813" id="2813">2813</a>
+<a href="#2814" id="2814">2814</a>
+<a href="#2815" id="2815">2815</a>
+<a href="#2816" id="2816">2816</a>
+<a href="#2817" id="2817">2817</a>
+<a href="#2818" id="2818">2818</a>
+<a href="#2819" id="2819">2819</a>
+<a href="#2820" id="2820">2820</a>
+<a href="#2821" id="2821">2821</a>
+<a href="#2822" id="2822">2822</a>
+<a href="#2823" id="2823">2823</a>
+<a href="#2824" id="2824">2824</a>
+<a href="#2825" id="2825">2825</a>
+<a href="#2826" id="2826">2826</a>
+<a href="#2827" id="2827">2827</a>
+<a href="#2828" id="2828">2828</a>
+<a href="#2829" id="2829">2829</a>
+<a href="#2830" id="2830">2830</a>
+<a href="#2831" id="2831">2831</a>
+<a href="#2832" id="2832">2832</a>
+<a href="#2833" id="2833">2833</a>
+<a href="#2834" id="2834">2834</a>
+<a href="#2835" id="2835">2835</a>
+<a href="#2836" id="2836">2836</a>
+<a href="#2837" id="2837">2837</a>
+<a href="#2838" id="2838">2838</a>
+<a href="#2839" id="2839">2839</a>
+<a href="#2840" id="2840">2840</a>
+<a href="#2841" id="2841">2841</a>
+<a href="#2842" id="2842">2842</a>
+<a href="#2843" id="2843">2843</a>
+<a href="#2844" id="2844">2844</a>
+<a href="#2845" id="2845">2845</a>
+<a href="#2846" id="2846">2846</a>
+<a href="#2847" id="2847">2847</a>
+<a href="#2848" id="2848">2848</a>
+<a href="#2849" id="2849">2849</a>
+<a href="#2850" id="2850">2850</a>
+<a href="#2851" id="2851">2851</a>
+<a href="#2852" id="2852">2852</a>
+<a href="#2853" id="2853">2853</a>
+<a href="#2854" id="2854">2854</a>
+<a href="#2855" id="2855">2855</a>
+<a href="#2856" id="2856">2856</a>
+<a href="#2857" id="2857">2857</a>
+<a href="#2858" id="2858">2858</a>
+<a href="#2859" id="2859">2859</a>
+<a href="#2860" id="2860">2860</a>
+<a href="#2861" id="2861">2861</a>
+<a href="#2862" id="2862">2862</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3104,6 +3169,62 @@
         }
         <span class="prelude-val">None
     </span>}
+
+    <span class="doccomment">/// Resolve `T::Foo` to an associated type on a generic type parameter with trait bounds.
+    ///
+    /// For example, in `impl&lt;T: Baz&gt; Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
+    /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
+    </span><span class="kw">fn </span>lookup_associated_type_on_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+        <span class="kw">if </span>path.segments.len() != <span class="number">2 </span>{
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">let </span>type_name = path.segments[<span class="number">0</span>].ident.as_str();
+        <span class="kw">let </span>assoc_name = path.last_name();
+
+        <span class="comment">// Check if first segment is a generic parameter
+        </span><span class="self">self</span>.find_generic(type_name)<span class="question-mark">?</span>;
+
+        <span class="comment">// Search trait bounds for this generic to find the associated type
+        </span><span class="kw">let </span><span class="kw-2">mut </span>found_types = Vec::new();
+
+        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.trait_bounds {
+            <span class="kw">if let </span>Type::NamedGeneric(generic) = <span class="kw-2">&amp;</span>constraint.typ {
+                <span class="kw">if </span>generic.name.as_ref() == type_name {
+                    <span class="kw">let </span>trait_id = constraint.trait_bound.trait_id;
+                    <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
+
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(assoc_type) = the_trait.get_associated_type(assoc_name) {
+                        found_types.push((trait_id, assoc_type.clone()));
+                    }
+                }
+            }
+        }
+
+        <span class="kw">match </span>found_types.len() {
+            <span class="number">0 </span>=&gt; <span class="prelude-val">None</span>, <span class="comment">// Fall through to normal resolution
+            </span><span class="number">1 </span>=&gt; {
+                <span class="kw">let </span>(trait_id, assoc_type) = found_types.remove(<span class="number">0</span>);
+                <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
+                <span class="comment">// Return the associated type with proper naming for display
+                </span><span class="prelude-val">Some</span>(assoc_type.into_named_generic(<span class="prelude-val">Some</span>((type_name, the_trait.name.as_str()))))
+            }
+            <span class="kw">_ </span>=&gt; {
+                <span class="comment">// Multiple traits have this associated type - ambiguous
+                </span><span class="kw">let </span>location = path.location;
+                <span class="kw">let </span>trait_names: Vec&lt;<span class="kw">_</span>&gt; = found_types
+                    .iter()
+                    .map(|(id, <span class="kw">_</span>)| <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>id).name.to_string())
+                    .collect();
+                <span class="kw">let </span>ident = Ident::new(assoc_name.to_string(), location);
+                <span class="self">self</span>.push_err(PathResolutionError::MultipleTraitsInScope {
+                    ident,
+                    traits: trait_names,
+                });
+                <span class="prelude-val">Some</span>(Type::Error)
+            }
+        }
+    }
 
     <span class="kw">fn </span>resolve_named_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -3451,6 +3572,15 @@
                 <span class="kw">return </span><span class="prelude-val">Some</span>(generic.into_named_generic(<span class="prelude-val">None</span>));
             }
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_associated_type_on_self(path) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(last_segment) = path.segments.last() {
+                <span class="kw">if </span>last_segment.generics.is_some() {
+                    <span class="self">self</span>.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
+            <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_associated_type_on_generic(path) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(last_segment) = path.segments.last() {
                 <span class="kw">if </span>last_segment.generics.is_some() {
                     <span class="self">self</span>.push_err(ResolverError::GenericsOnAssociatedType {

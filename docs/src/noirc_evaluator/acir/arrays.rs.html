@@ -1354,7 +1354,9 @@
 <a href="#1353" id="1353">1353</a>
 <a href="#1354" id="1354">1354</a>
 <a href="#1355" id="1355">1355</a>
-<a href="#1356" id="1356">1356</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a></pre></div><pre class="rust"><code><span class="doccomment">//! Array handling in ACIR.
 //!
 //! This modules how Noir's SSA array semantics are lowered into ACIR's flat memory model.
 //! Arrays in SSA can appear as constants or dynamically allocated blocks.
@@ -1508,6 +1510,15 @@
         })
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>return_data_block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; BlockId {
+        <span class="self">self</span>.return_data_block_id.unwrap_or_else(|| {
+            <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
+            <span class="self">self</span>.max_block_id += <span class="number">1</span>;
+            <span class="self">self</span>.return_data_block_id = <span class="prelude-val">Some</span>(block_id);
+            block_id
+        })
+    }
+
     <span class="doccomment">/// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
     /// only be accessed dynamically, such as the type structure
@@ -1526,10 +1537,9 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="comment">// Initialize return_data using provided witnesses
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data {
+        </span><span class="kw">if </span><span class="self">self</span>.data_bus.return_data.is_some() {
             <span class="macro">assert!</span>(!witnesses.is_empty(), <span class="string">"return data cannot be empty"</span>);
-
-            <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(return_data);
+            <span class="kw">let </span>block_id = <span class="self">self</span>.return_data_block_id();
             <span class="kw">let </span>already_initialized = <span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>block_id);
             <span class="kw">if </span>!already_initialized {
                 <span class="comment">// We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
@@ -2585,14 +2595,8 @@
         value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>databus = BlockType::Memory;
-        <span class="kw">if </span><span class="self">self</span>.data_bus.return_data.is_some()
-            &amp;&amp; <span class="self">self</span>.block_id(<span class="self">self</span>.data_bus.return_data.unwrap()) == array
-        {
-            databus = BlockType::ReturnData;
-        }
         <span class="kw">for </span>(call_data_id, array_id) <span class="kw">in </span><span class="self">self</span>.data_bus.call_data_array() {
             <span class="kw">if </span><span class="self">self</span>.block_id(array_id) == array {
-                <span class="macro">assert!</span>(databus == BlockType::Memory);
                 databus = BlockType::CallData(call_data_id);
                 <span class="kw">break</span>;
             }
