@@ -16,7 +16,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Finds any calls to `Intrinsic::AsVector` and replacing any references to the length of the
+    /// Finds any calls to `Intrinsic::AsVector` and replaces any references to the length of the
     /// resulting vector with the length of the array from which it was generated.
     #[expect(clippy::wrong_self_convention)]
     #[tracing::instrument(level = "trace", skip(self))]
@@ -29,7 +29,7 @@ impl Ssa {
 }
 
 impl Function {
-    /// Finds any calls to `Intrinsic::AsVector` and replacing any references to the length of the
+    /// Finds any calls to `Intrinsic::AsVector` and replaces any references to the length of the
     /// resulting vector with the length of the array from which it was generated.
     pub(crate) fn as_vector_optimization(&mut self) {
         // If `as_vector` isn't called in this function there's nothing to do
