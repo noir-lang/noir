@@ -213,3 +213,20 @@ fn trait_impl_with_child_constraint() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn trait_inheritance_with_ambiguous_associated_type() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo(x: Self::Bar) -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Bar;
+        fn qux(x: Self::Bar) -> Self::Bar;
+    }
+    "#;
+    // TODO: Add errors for ambiguous type. But it should work as `<Self as Qux>::Bar`
+    check_errors(src);
+}
