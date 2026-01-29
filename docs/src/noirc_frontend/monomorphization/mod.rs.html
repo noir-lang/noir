@@ -3178,7 +3178,34 @@
 <a href="#3177" id="3177">3177</a>
 <a href="#3178" id="3178">3178</a>
 <a href="#3179" id="3179">3179</a>
-<a href="#3180" id="3180">3180</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3180" id="3180">3180</a>
+<a href="#3181" id="3181">3181</a>
+<a href="#3182" id="3182">3182</a>
+<a href="#3183" id="3183">3183</a>
+<a href="#3184" id="3184">3184</a>
+<a href="#3185" id="3185">3185</a>
+<a href="#3186" id="3186">3186</a>
+<a href="#3187" id="3187">3187</a>
+<a href="#3188" id="3188">3188</a>
+<a href="#3189" id="3189">3189</a>
+<a href="#3190" id="3190">3190</a>
+<a href="#3191" id="3191">3191</a>
+<a href="#3192" id="3192">3192</a>
+<a href="#3193" id="3193">3193</a>
+<a href="#3194" id="3194">3194</a>
+<a href="#3195" id="3195">3195</a>
+<a href="#3196" id="3196">3196</a>
+<a href="#3197" id="3197">3197</a>
+<a href="#3198" id="3198">3198</a>
+<a href="#3199" id="3199">3199</a>
+<a href="#3200" id="3200">3200</a>
+<a href="#3201" id="3201">3201</a>
+<a href="#3202" id="3202">3202</a>
+<a href="#3203" id="3203">3203</a>
+<a href="#3204" id="3204">3204</a>
+<a href="#3205" id="3205">3205</a>
+<a href="#3206" id="3206">3206</a>
+<a href="#3207" id="3207">3207</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3718,20 +3745,47 @@
             other =&gt; other,
         };
 
+        <span class="kw">let </span>attributes = <span class="self">self</span>.interner.function_attributes(<span class="kw-2">&amp;</span>f);
+        <span class="kw">let </span><span class="kw-2">mut </span>inline_type = InlineType::from(attributes);
+        <span class="kw">let </span>unconstrained = <span class="self">self</span>.in_unconstrained_function;
+        <span class="kw">if </span>unconstrained {
+            inline_type = inline_type.into_unconstrained();
+        }
+        <span class="kw">let </span>is_fold = <span class="macro">matches!</span>(inline_type, InlineType::Fold);
+        <span class="kw">let </span>is_no_predicate = <span class="macro">matches!</span>(inline_type, InlineType::NoPredicates);
+
+        <span class="comment">// We already checked the types are valid during elaboration. However, types behind
+        // generics (type variables) can't be known until monomorphization, so here we have
+        // to check again.
+        </span><span class="kw">if </span>is_fold || is_no_predicate {
+            <span class="kw">for </span>(pattern, typ, _visibility) <span class="kw">in </span><span class="kw-2">&amp;</span>meta.parameters.<span class="number">0 </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = typ.non_inlined_function_input_validity() {
+                    <span class="kw">let </span>location = pattern.location();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::InvalidTypeForEntryPoint {
+                        invalid_type,
+                        location,
+                    });
+                }
+            }
+
+            <span class="kw">let </span>output = <span class="bool-val">true</span>;
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = return_type.program_validity(output) {
+                <span class="kw">let </span>location = meta.return_type.location();
+                <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::InvalidTypeForEntryPoint {
+                    invalid_type,
+                    location,
+                });
+            }
+        }
+
         <span class="comment">// If `convert_type` fails here it is most likely because of generics at the
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         </span><span class="kw">let </span>return_type = <span class="self">Self</span>::convert_type(return_type, location)<span class="question-mark">?</span>;
         <span class="kw">let </span>return_visibility = meta.return_visibility;
-        <span class="kw">let </span>unconstrained = <span class="self">self</span>.in_unconstrained_function;
-
-        <span class="kw">let </span>attributes = <span class="self">self</span>.interner.function_attributes(<span class="kw-2">&amp;</span>f);
-        <span class="kw">let </span><span class="kw-2">mut </span>inline_type = InlineType::from(attributes);
-        <span class="kw">if </span>unconstrained {
-            inline_type = inline_type.into_unconstrained();
-        }
 
         <span class="kw">let </span>parameters = <span class="self">self</span>.parameters(<span class="kw-2">&amp;</span>meta.parameters)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>body = <span class="self">self</span>.expr(body_expr_id)<span class="question-mark">?</span>;
         <span class="kw">let </span>function = Function {
             id,
