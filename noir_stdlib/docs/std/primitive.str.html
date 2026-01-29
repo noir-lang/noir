@@ -22,6 +22,7 @@
 <ul class="sidebar-list">
 <li><a href="#as_bytes">as_bytes</a></li>
 <li><a href="#as_bytes_vec">as_bytes_vec</a></li>
+<li><a href="#len">len</a></li>
 </ul>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
@@ -96,7 +97,13 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code></h3>
 
-<div class="padded-methods"><code id="as_bytes" class="code-header">pub fn <a href="#as_bytes"><span class="fn">as_bytes</span></a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code>
+<div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the length of this string.</p>
+<p>The length is in bytes.</p>
+</div>
+</div><code id="as_bytes" class="code-header">pub fn <a href="#as_bytes"><span class="fn">as_bytes</span></a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Converts the given string into a byte array</p>

@@ -23,6 +23,7 @@
 <li><a href="#append_fmtstr">append_fmtstr</a></li>
 <li><a href="#append_str">append_str</a></li>
 <li><a href="#as_quoted_str">as_quoted_str</a></li>
+<li><a href="#len">len</a></li>
 <li><a href="#new">new</a></li>
 </ul>
 <h3>Trait implementations</h3>
@@ -111,7 +112,13 @@ afterward.</p></div>
 
 <div class="padded-methods"><code id="new" class="code-header">pub comptime fn <a href="#new"><span class="fn">new</span></a>() -> Self</code>
 
-<code id="append_str" class="code-header">pub comptime fn <a href="#append_str"><span class="fn">append_str</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
+<code id="len" class="code-header">pub comptime fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the length of this CtString.</p>
+<p>The length is in bytes.</p>
+</div>
+</div><code id="append_str" class="code-header">pub comptime fn <a href="#append_str"><span class="fn">append_str</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
 
 <code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr"><span class="fn">append_fmtstr</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
 
