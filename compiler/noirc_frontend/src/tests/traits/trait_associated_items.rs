@@ -578,11 +578,9 @@ fn associated_type_mismatch_with_inheritance() {
     pub trait Qux: Foo {
         type Baz;
         fn qux(x: Self::Baz) -> Self::Baz {
-                                ^^^^^^^^^ expected type Self::Baz, found type Self::Bar
-                                ~~~~~~~~~ expected Self::Baz because of return type
             <Self as Foo>::foo(x)
-                               ^ Expected type Self::Bar, found type Self::Baz
-            ~~~~~~~~~~~~~~~~~~~~~ Self::Bar returned here
+             ^^^^^^^^^^^ No matching impl found for `Self: Foo<Bar = Self::Baz>`
+             ~~~~~~~~~~~ No impl for `Self: Foo<Bar = Self::Baz>`
         }
     }
 

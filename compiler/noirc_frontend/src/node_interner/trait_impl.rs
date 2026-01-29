@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
@@ -316,7 +316,7 @@ impl NodeInterner {
             // Match associated types by name, not position
             let associated_types_unify = trait_associated_types.iter().all(|trait_generic| {
                 // Find the matching impl generic by name
-                let Some(impl_generic) = impl_trait_generics
+                let Some(named_impl_generic) = impl_trait_generics
                     .named
                     .iter()
                     .find(|impl_g| impl_g.name.as_str() == trait_generic.name.as_str())
@@ -324,9 +324,24 @@ impl NodeInterner {
                     // If the impl doesn't have this associated type, it doesn't match
                     return false;
                 };
-                let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
-                trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
+
+                let mut impl_generic =
+                    named_impl_generic.typ.force_substitute(&instantiation_bindings);
+
+                // If the implementation is just a free type variable, it will bind to anything.
+                // By turning it we can make sure it won't bind to other associated types.
+                if let Type::TypeVariable(v) = &impl_generic {
+                    if v.borrow().is_unbound() {
+                        impl_generic = v.clone().into_named_generic(
+                            &Rc::new(named_impl_generic.name.to_string()),
+                            None,
+                        );
+                    }
+                }
+
+                trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
             });
+
             if !associated_types_unify {
                 continue;
             }
