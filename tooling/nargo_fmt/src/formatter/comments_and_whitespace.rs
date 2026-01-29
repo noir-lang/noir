@@ -1216,4 +1216,25 @@ global x: Field = 1;
         let expected = "global x: Field = 1;\n";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn block_comment_trailing_spaces_bug() {
+        // Note: there are three trailing spaces after "one"
+        let src = "fn foo() {
+    /*
+    * one   
+    * two
+    */
+}
+";
+        // Here the trailing spaces are gone
+        let expected = "fn foo() {
+    /*
+    * one
+    * two
+    */
+}
+";
+        assert_format(src, expected);
+    }
 }
