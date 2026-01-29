@@ -1,4 +1,4 @@
-use noirc_frontend::token::Token;
+use noirc_frontend::{parser::block_comment_is_all_stars, token::Token};
 
 use super::Formatter;
 
@@ -226,6 +226,8 @@ impl Formatter<'_> {
             return;
         }
 
+        let all_stars = block_comment_is_all_stars(comment);
+
         if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
             self.start_new_line();
         }
@@ -240,6 +242,9 @@ impl Formatter<'_> {
                     >= self.config.comment_width
                 {
                     self.start_new_line();
+                    if all_stars {
+                        self.write(" * ");
+                    }
                 }
 
                 self.write(word);
@@ -1050,8 +1055,8 @@ global x: Field = 1;
 global x: Field = 1;
         ";
         let expected = "/* This is a long comment
-that's going to be wrapped.
-*/
+ * that's going to be
+ * wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1064,7 +1069,7 @@ global x: Field = 1;
 global x: Field = 1;
         ";
         let expected = "/* This is a long comment
-that's wrapped. */
+ * that's wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1077,7 +1082,7 @@ global x: Field = 1;
 global x: Field = 1;
         ";
         let expected = "/* This is a long comment
-that will be wrapped. */
+ * that will be wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1115,6 +1120,26 @@ that's wrapped.
 This is a long comment
 that's wrapped.
 */
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_multiple_lines_with_all_stars() {
+        let src = "
+/*  
+ * This is a long comment that's wrapped.
+ * This is a long comment that's wrapped.
+ */
+global x: Field = 1;
+        ";
+        let expected = "/*
+ * This is a long comment
+ * that's wrapped.
+ * This is a long comment
+ * that's wrapped.
+ */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
