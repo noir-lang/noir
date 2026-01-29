@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 407
+expression: expanded_code
+---
+fn main() {
+    let a: [Field; 2] = id([1_Field, 2_Field]);
+    let b: [Field; 3] = id([1_Field, 2_Field, 3_Field]);
+    let itWorks1: MyStruct<2> = MyStruct::<2> { data: a };
+    assert(itWorks1.data[1_u32] == 2_Field);
+    let itWorks2: MyStruct<3> = MyStruct::<3> { data: b };
+    assert(itWorks2.data[1_u32] == 2_Field);
+    let c: [Field; 2] = [1_Field, 2_Field];
+    let itAlsoWorks: MyStruct<2> = MyStruct::<2> { data: c };
+    assert(itAlsoWorks.data[1_u32] == 2_Field);
+    assert(foo(itWorks2).data[0_u32] == (itWorks2.data[0_u32] + 1_Field));
+}
+
+fn id<let I: u32>(x: [Field; I]) -> [Field; I] {
+    x
+}
+
+struct MyStruct<let S: u32> {
+    data: [Field; S],
+}
+
+impl<let S: u32> MyStruct<S> {
+    fn insert(mut self, index: Field, elem: Field) -> Self {
+        assert((index as u64) < (S as u64));
+        {
+            let i_4477: u32 = index as u32;
+            self.data[i_4477] = elem;
+        };
+        self
+    }
+}
+
+fn foo(mut s: MyStruct<3>) -> MyStruct<3> {
+    s.data[0_u32] = s.data[0_u32] + 1_Field;
+    s
+}

@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 407
+expression: expanded_code
+---
+global TX_EFFECTS_HASH_INPUT_FIELDS: u32 = 256;
+
+pub fn field_from_bytes_32_trunc(bytes32: [u8; 32]) -> Field {
+    let mut v: Field = 1_Field;
+    let mut high: Field = 0_Field as Field;
+    let mut low: Field = 0_Field as Field;
+    for i in 0_u32..15_u32 {
+        low = low + ((bytes32[(15_u32 + 15_u32) - i] as Field) * v);
+        v = v * 256_Field;
+        high = high + ((bytes32[14_u32 - i] as Field) * v);
+    }
+    low = low + ((bytes32[15_u32] as Field) * v);
+    low + (high * v)
+}
+
+pub fn blake2s_to_field<let N: u32>(bytes_to_hash: [u8; N]) -> Field {
+    let blake2s_hashed: [u8; 32] = std::hash::blake2s(bytes_to_hash);
+    let hash_in_a_field: Field = field_from_bytes_32_trunc(blake2s_hashed);
+    hash_in_a_field
+}
+
+fn main(tx_effects_hash_input: [Field; 256]) -> pub Field {
+    let mut hash_input_flattened: [u8; 8192] = [0_u8; 8192];
+    for offset in 0_u32..TX_EFFECTS_HASH_INPUT_FIELDS {
+        let input_as_bytes: [u8; 32] = tx_effects_hash_input[offset].to_be_bytes();
+        for byte_index in 0_u32..32_u32 {
+            {
+                let i_4478: u32 = (offset * 32_u32) + byte_index;
+                hash_input_flattened[i_4478] = input_as_bytes[byte_index];
+            }
+        }
+    }
+    let blake2s_digest: Field = blake2s_to_field(hash_input_flattened);
+    blake2s_digest
+}

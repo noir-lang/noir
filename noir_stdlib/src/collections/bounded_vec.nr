@@ -213,6 +213,26 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len
     }
 
+    /// Allows user to update the length of the vector once
+    /// after doing multiple pushes.
+    /// Example:
+    ///
+    /// ```noir
+    /// let mut v: BoundedVec<Field, 10> = BoundedVec::from([1, 2, 3, 4, 5]);
+    ///
+    /// assert(v.len() == 5);
+    /// v.set_unchecked(5, 6);
+    /// v.set_unchecked(6, 7);
+    /// v.set_unchecked(7, 8);
+    /// v.set_len(8);
+    /// assert(v.len() == 8);
+    /// ```
+    pub fn set_len(&mut self, len: u32) {
+        assert(len <= MaxLen, "set_len out of bounds");
+        assert(len >= self.len(), "can not set_len to a length shorter than the current length");
+        self.len = len;
+    }
+
     /// Returns the maximum length of this vector. This is always
     /// equal to the `MaxLen` parameter this vector was initialized with.
     ///
@@ -710,6 +730,35 @@ mod bounded_vec_tests {
             assert_eq(vec.get(2), 30);
             assert_eq(vec.get(3), 4);
             assert_eq(vec.get(4), 5);
+        }
+    }
+
+    mod set_len {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn set_len_works_after_multiple_unchecked_sets() {
+            let mut vec: BoundedVec<u8, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.set_unchecked(3, 44);
+            vec.set_unchecked(4, 55);
+            vec.set_unchecked(5, 66);
+            vec.set_unchecked(6, 77);
+            vec.set_len(8);
+            assert_eq(vec.len(), 8);
+            vec.extend_from_array([88, 99]);
+            assert_eq(vec.len(), 10);
+        }
+
+        #[test(should_fail_with = "can not set_len to a length shorter than the current length")]
+        fn panics_when_set_len_to_shorter_length() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            vec.set_len(2);
+        }
+
+        #[test(should_fail_with = "set_len out of bounds")]
+        fn panics_when_set_len_beyond_max_len() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            vec.set_len(6);
         }
     }
 

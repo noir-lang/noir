@@ -1,0 +1,66 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+global PRIVATE_LOG_SIZE_IN_FIELDS: u32 = 4;
+
+global ENCRYPTED_PAYLOAD_SIZE_IN_BYTES: u32 = 15;
+
+global EPH_PK_SIZE: u32 = 3;
+
+global HEADER_SIZE: u32 = 2;
+
+global OVERHEAD_PADDING: u32 = 1;
+
+global BODY_SIZE: u32 = 9;
+
+fn main(
+    eph_pk_bytes: [u8; 3],
+    incoming_header_ciphertext: [u8; 2],
+    incoming_body_ciphertext: [u8; 9],
+    flag: bool,
+) -> pub [u8; 15] {
+    compute_encrypted_log(
+        eph_pk_bytes,
+        incoming_header_ciphertext,
+        incoming_body_ciphertext,
+        flag,
+    )
+}
+
+fn compute_encrypted_log<let M: u32>(
+    eph_pk_bytes: [u8; 3],
+    incoming_header_ciphertext: [u8; 2],
+    incoming_body_ciphertext: [u8; 9],
+    flag: bool,
+) -> [u8; M] {
+    let mut encrypted_bytes: [u8; M] = [0_u8; M];
+    let mut offset: u32 = 0_u32;
+    if flag {
+        for i in 0_u32..EPH_PK_SIZE {
+            {
+                let i_4480: u32 = offset + i;
+                encrypted_bytes[i_4480] = eph_pk_bytes[i];
+            }
+        }
+        offset = offset + EPH_PK_SIZE;
+        for i in 0_u32..HEADER_SIZE {
+            {
+                let i_4482: u32 = offset + i;
+                encrypted_bytes[i_4482] = incoming_header_ciphertext[i];
+            }
+        }
+        offset = offset + HEADER_SIZE;
+        offset = offset + OVERHEAD_PADDING;
+        let size: u32 = M - offset;
+        assert(size == incoming_body_ciphertext.len(), "ciphertext length mismatch");
+        for i in 0_u32..size {
+            {
+                let i_4485: u32 = offset + i;
+                encrypted_bytes[i_4485] = incoming_body_ciphertext[i];
+            }
+        }
+    };
+    encrypted_bytes
+}

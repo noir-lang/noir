@@ -1,0 +1,104 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 407
+expression: expanded_code
+---
+global N: u32 = 1000;
+
+fn main() {
+    let a: [Field; 2] = id([1_Field, 2_Field]);
+    let b: [Field; 3] = id([1_Field, 2_Field, 3_Field]);
+    let itWorks1: MyStruct<2> = MyStruct::<2> { data: a };
+    assert(itWorks1.data[1_u32] == 2_Field);
+    let itWorks2: MyStruct<3> = MyStruct::<3> { data: b };
+    assert(itWorks2.data[1_u32] == 2_Field);
+    let c: [Field; 2] = [1_Field, 2_Field];
+    let itAlsoWorks: MyStruct<2> = MyStruct::<2> { data: c };
+    assert(itAlsoWorks.data[1_u32] == 2_Field);
+    assert(foo(itWorks2).data[0_u32] == (itWorks2.data[0_u32] + 1_Field));
+    double_numeric_generics_test();
+    let my_type: MyType = PublicStorage::read::<MyType, 3>();
+    assert(my_type.a == 1_Field);
+    assert(my_type.b == 2_Field);
+    assert(my_type.c == 3_Field);
+    let foo: MyStruct<10> = baz::<10>();
+    assert(foo.data == [1_Field; 10]);
+}
+
+fn id<let I: u32>(x: [Field; I]) -> [Field; I] {
+    x
+}
+
+struct MyStruct<let S: u32> {
+    data: [Field; S],
+}
+
+impl<let S: u32> MyStruct<S> {
+    fn insert(mut self, index: Field, elem: Field) -> Self {
+        assert((index as u32) < S);
+        {
+            let i_4492: u32 = index as u32;
+            self.data[i_4492] = elem;
+        };
+        self
+    }
+}
+
+fn foo(mut s: MyStruct<3>) -> MyStruct<3> {
+    s.data[0_u32] = s.data[0_u32] + 1_Field;
+    s
+}
+
+fn baz<let N: u32>() -> MyStruct<N> {
+    MyStruct::<N> { data: [1_Field; N] }
+}
+
+fn double<let N: u32>() -> u32 {
+    N * 2_u32
+}
+
+fn double_numeric_generics_test() {
+    assert(double::<9>() == 18_u32);
+    assert(double::<123>() == 246_u32);
+    assert(double::<15>() == 30_u32);
+}
+
+struct MyType {
+    a: Field,
+    b: Field,
+    c: Field,
+}
+
+impl<let N: u32> Deserialize<N> for MyType {
+    fn deserialize(fields: [Field; N]) -> Self {
+        Self { a: fields[0_u32], b: fields[1_u32], c: fields[2_u32] }
+    }
+}
+
+trait Deserialize<let N: u32> {
+    fn deserialize(fields: [Field; N]) -> Self;
+}
+
+pub struct PublicStorage {}
+
+impl PublicStorage {
+    fn read<T, let N: u32>() -> T
+    where
+        T: Deserialize<N>,
+    {
+        let mut fields: [Field; N] = [0_Field; N];
+        for i in 0_u32..N {
+            fields[i] = (i as Field) + 1_Field;
+        }
+        T::deserialize(fields)
+    }
+}
+
+pub struct NestedNumeric<let N: u32> {
+    a: Field,
+    b: InnerNumeric<N>,
+}
+
+pub struct InnerNumeric<let N: u32> {
+    inner: [u32; N],
+}

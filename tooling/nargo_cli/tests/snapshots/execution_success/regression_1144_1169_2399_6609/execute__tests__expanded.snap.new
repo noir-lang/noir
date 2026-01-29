@@ -1,0 +1,148 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+global NIBBLE_LENGTH: u32 = 16;
+
+struct U4 {
+    inner: u8,
+}
+
+impl U4 {
+    fn zero() -> Self {
+        Self { inner: 0_u8 }
+    }
+
+    fn from_u8(x: u8) -> Self {
+        Self { inner: x % 16_u8 }
+    }
+}
+
+impl Eq for U4 {
+    fn eq(self, other: Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field) {
+    assert((2_u32 * input.len()) <= NIBBLE_LENGTH);
+    assert((length as u32) <= input.len());
+    let mut nibble: [U4; 16] = [U4::zero(); 16];
+    let first_nibble: U4 = U4::from_u8(input[0_u32] >> 4_u8);
+    let parity: u1 = first_nibble.inner as u1;
+    if parity == 1_u1 {
+        nibble[0_u32] = U4::from_u8(input[0_u32] & 15_u8);
+        for i in 1_u32..input.len() {
+            if (i as u32) < (length as u32) {
+                let x: u8 = input[i];
+                {
+                    let i_4489: u32 = (2_u32 * i) - 1_u32;
+                    nibble[i_4489] = U4::from_u8(x >> 4_u8);
+                };
+                {
+                    let i_4490: u32 = 2_u32 * i;
+                    nibble[i_4490] = U4::from_u8(x & 15_u8);
+                }
+            }
+        }
+    } else {
+        for i in 0_u32..2_u32 {
+            if (i as u32) < ((length as u32) - 1_u32) {
+                let x: u8 = input[i + 1_u32];
+                {
+                    let i_4493: u32 = 2_u32 * i;
+                    nibble[i_4493] = U4::from_u8(x >> 4_u8);
+                };
+                {
+                    let i_4494: u32 = (2_u32 * i) + 1_u32;
+                    nibble[i_4494] = U4::from_u8(x & 15_u8);
+                }
+            }
+        }
+    };
+    let out: ([U4; 16], Field) = (nibble, ((2_Field * length) + (parity as Field)) - 2_Field);
+    out
+}
+
+fn enc<let N: u32>(value: [u8; N], value_length: Field) -> ([u8; 32], Field) {
+    assert((value.len() as u8) >= (value_length as u8));
+    let mut out_value: [u8; 32] = [0_u8; 32];
+    if value_length == 0_Field {
+        let out: ([u8; 32], Field) = (out_value, value_length);
+        out
+    } else if (value_length as u8) < 31_u8 {
+        out_value[0_u32] = 128_u8 + (value_length as u8);
+        for i in 1_u32..value.len() {
+            out_value[i] = value[i - 1_u32];
+        }
+        let out: ([u8; 32], Field) = (out_value, value_length + 1_Field);
+        out
+    } else {
+        let out: ([u8; 32], Field) = (out_value, 32_Field);
+        out
+    }
+}
+
+fn bitshift_literal_0() -> u64 {
+    let mut bits: u64 = 0_u64;
+    bits = bits | (1_u64 << 0_u64);
+    bits
+}
+
+fn bitshift_literal_4() -> u64 {
+    let mut bits: u64 = 0_u64;
+    bits = bits | (1_u64 << 4_u64);
+    bits
+}
+
+fn bitshift_variable(idx: u64) -> u64 {
+    let mut bits: u64 = 0_u64;
+    bits = bits | (1_u64 << idx);
+    bits
+}
+
+fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
+    let (nib, len): ([U4; 16], Field) = compact_decode(x, z);
+    assert(len == 5_Field);
+    assert(
+        [nib[0_u32], nib[1_u32], nib[2_u32], nib[3_u32], nib[4_u32]]
+            == [
+                U4::from_u8(15_u8),
+                U4::from_u8(1_u8),
+                U4::from_u8(12_u8),
+                U4::from_u8(11_u8),
+                U4::from_u8(8_u8),
+            ],
+    );
+    let val1: [u8; 32] = [
+        184_u8, 143_u8, 97_u8, 230_u8, 251_u8, 218_u8, 131_u8, 251_u8, 255_u8, 250_u8, 190_u8,
+        54_u8, 65_u8, 18_u8, 19_u8, 116_u8, 128_u8, 57_u8, 128_u8, 24_u8, 0_u8, 0_u8, 0_u8, 0_u8,
+        0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8,
+    ];
+    let val1_length: Field = 20_Field;
+    let enc_val1: ([u8; 32], Field) = enc(val1, val1_length);
+    assert(
+        enc_val1.0
+            == [
+                148_u8, 184_u8, 143_u8, 97_u8, 230_u8, 251_u8, 218_u8, 131_u8, 251_u8, 255_u8,
+                250_u8, 190_u8, 54_u8, 65_u8, 18_u8, 19_u8, 116_u8, 128_u8, 57_u8, 128_u8, 24_u8,
+                0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8, 0_u8,
+            ],
+    );
+    assert(enc_val1.1 == 21_Field);
+    let result_0: u64 = bitshift_literal_0();
+    assert(result_0 == 1_u64);
+    let result_4: u64 = bitshift_literal_4();
+    assert(result_4 == 16_u64);
+    let result_0: u64 = bitshift_variable(0_u64);
+    assert(result_0 == 1_u64);
+    let result_4: u64 = bitshift_variable(4_u64);
+    assert(result_4 == 16_u64);
+    assert((u % -13_i16) == 0_i16);
+    assert((u % v) == 0_i16);
+    assert((u % -11_i16) == 4_i16);
+    assert((-u % -11_i16) == -4_i16);
+    assert((u % -11_i16) == (u % (v + 2_i16)));
+    assert((-u % -11_i16) == (-u % (v + 2_i16)));
+}

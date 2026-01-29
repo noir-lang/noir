@@ -1,0 +1,90 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+use std::mem::zeroed;
+
+pub struct BoundedVec4 {
+    storage: [Field; 4],
+    len: u32,
+}
+
+impl BoundedVec4 {
+    pub fn new() -> Self {
+        Self { storage: [0_Field; 4], len: 0_u32 }
+    }
+
+    pub fn push(&mut self, elem: Field) {
+        {
+            let i_4483: u32 = self.len;
+            self.storage[i_4483] = elem;
+        };
+        self.len = self.len + 1_u32;
+    }
+}
+
+pub struct PrivateKernelCircuitPublicInputs {
+    pub l2_to_l1_msgs: [Field; 4],
+    pub public_call_requests: [Field; 4],
+}
+
+pub struct FixtureBuilder {
+    pub public_call_requests: BoundedVec4,
+    pub counter: Field,
+}
+
+impl FixtureBuilder {
+    pub fn new() -> Self {
+        Self { public_call_requests: zeroed(), counter: 0_Field }
+    }
+
+    pub fn append_public_call_requests_inner(&mut self) {
+        self.public_call_requests.push(self.next_counter());
+    }
+
+    pub fn append_public_call_requests(&mut self) {
+        for _ in 0_u32..4_u32 {
+            self.append_public_call_requests_inner();
+        }
+    }
+
+    fn next_counter(&mut self) -> Field {
+        let counter: Field = self.counter;
+        self.counter = self.counter + 1_Field;
+        counter
+    }
+}
+
+pub struct PrivateKernelCircuitPublicInputsComposer {
+    pub l2_to_l1_msgs: [Field; 4],
+    pub public_call_requests: [Field; 4],
+}
+
+pub unconstrained fn sort_by(array: [Field; 4]) -> [Field; 4] {
+    let result: [Field; 4] = array;
+    get_sorting_index(array);
+    result
+}
+
+unconstrained fn get_sorting_index(array: [Field; 4]) {
+    let _: [Field; 4] = [0_Field; 4];
+    let mut a: [Field; 4] = array;
+    for i in 1_u32..4_u32 {
+        for j in 0_u32..i {
+            a[i] = a[j];
+        }
+    }
+}
+
+unconstrained fn main() {
+    let mut previous_kernel: FixtureBuilder = FixtureBuilder::new();
+    previous_kernel.append_public_call_requests();
+    let mut output_composer: PrivateKernelCircuitPublicInputsComposer = PrivateKernelCircuitPublicInputsComposer {
+        l2_to_l1_msgs: [0_Field; 4],
+        public_call_requests: previous_kernel.public_call_requests.storage,
+    };
+    output_composer.l2_to_l1_msgs = sort_by(output_composer.l2_to_l1_msgs);
+    output_composer.public_call_requests = sort_by(output_composer.public_call_requests);
+    assert(previous_kernel.public_call_requests.storage[1_u32] == 1_Field, "equality");
+}
