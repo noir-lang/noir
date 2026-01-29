@@ -83,6 +83,11 @@ struct Context<'a> {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
+    /// The BlockId dedicated to return_data
+    /// It is not managed by memory_blocks to ensure getting always a fresh block for return_data, even if
+    /// the SSA array has already been initialized to a block.
+    return_data_block_id: Option<BlockId>,
+
     /// Maps SSA values to BlockId's used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
@@ -127,6 +132,7 @@ impl<'a> Context<'a> {
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
+            return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: HashMap::default(),
             max_block_id: 0,
