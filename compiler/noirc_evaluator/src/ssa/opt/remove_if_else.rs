@@ -180,10 +180,10 @@ impl Context {
         let block = function.entry_block();
 
         // Early return if there is no IfElse instruction.
-        if function.dfg[block]
+        if !function.dfg[block]
             .instructions()
             .iter()
-            .all(|inst| !matches!(function.dfg[*inst], Instruction::IfElse { .. }))
+            .any(|inst| matches!(function.dfg[*inst], Instruction::IfElse { .. }))
         {
             return Ok(());
         }
