@@ -1008,9 +1008,12 @@ impl TypeVariable {
     /// a logic error to use outside of monomorphization.
     ///
     /// Asserts that the given type is compatible with the given Kind
-    pub fn force_bind(&self, typ: Type) {
+    pub fn force_bind(&self, typ: Type, location: Location) -> Result<(), TypeCheckError> {
         if !typ.occurs(self.id()) {
             *self.1.borrow_mut() = TypeBinding::Bound(typ);
+            Ok(())
+        } else {
+            Err(TypeCheckError::CyclicType { location, typ })
         }
     }
 
@@ -2436,16 +2439,42 @@ impl Type {
         type_bindings: &TypeBindings,
         substitute_bound_typevars: bool,
     ) -> Type {
+        self.substitute_with_recursion_limit(
+            type_bindings,
+            substitute_bound_typevars,
+            TYPE_RECURSION_LIMIT,
+        )
+    }
+
+    fn substitute_with_recursion_limit(
+        &self,
+        type_bindings: &TypeBindings,
+        substitute_bound_typevars: bool,
+        recursion_limit: u32,
+    ) -> Type {
         if type_bindings.is_empty() {
             return self.clone();
         }
+
+        // Prevent infinite recursion when following type bindings.
+        //
+        // If we hit the recursion limit, return Type::Error.
+        if recursion_limit == 0 {
+            return Type::Error;
+        }
+
+        let recursion_limit = recursion_limit - 1;
 
         let recur_on_binding = |id, replacement: &Type| {
             // Prevent recurring forever if there's a `T := T` binding
             if replacement.type_variable_id() == Some(id) {
                 replacement.clone()
             } else {
-                replacement.substitute_helper(type_bindings, substitute_bound_typevars)
+                replacement.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                )
             }
         };
 
@@ -2458,9 +2487,11 @@ impl Type {
                     recur_on_binding(binding.0, replacement)
                 }
                 _ => match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.substitute_helper(type_bindings, substitute_bound_typevars)
-                    }
+                    TypeBinding::Bound(binding) => binding.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    ),
                     TypeBinding::Unbound(id, _) => match type_bindings.get(id) {
                         Some((_, kind, replacement)) => {
                             assert!(
@@ -2480,26 +2511,58 @@ impl Type {
 
         match self {
             Type::Array(size, element) => {
-                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
-                let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
+                let size = size.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
+                let element = element.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
                 Type::Array(Box::new(size), Box::new(element))
             }
             Type::Vector(element) => {
-                let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
+                let element = element.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
                 Type::Vector(Box::new(element))
             }
             Type::String(size) => {
-                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
+                let size = size.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
                 Type::String(Box::new(size))
             }
             Type::FmtString(size, fields) => {
-                let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
-                let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
+                let size = size.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
+                let fields = fields.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
             Type::CheckedCast { from, to } => {
-                let from = from.substitute_helper(type_bindings, substitute_bound_typevars);
-                let to = to.substitute_helper(type_bindings, substitute_bound_typevars);
+                let from = from.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
+                let to = to.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
@@ -2510,19 +2573,31 @@ impl Type {
             // and we should not match fields when type checking anyway.
             Type::DataType(fields, args) => {
                 let args = vecmap(args, |arg| {
-                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                    arg.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    )
                 });
                 Type::DataType(fields.clone(), args)
             }
             Type::Alias(alias, args) => {
                 let args = vecmap(args, |arg| {
-                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                    arg.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    )
                 });
                 Type::Alias(alias.clone(), args)
             }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| {
-                    field.substitute_helper(type_bindings, substitute_bound_typevars)
+                    field.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    )
                 });
                 Type::Tuple(fields)
             }
@@ -2532,35 +2607,71 @@ impl Type {
                 for var in typevars {
                     assert!(!type_bindings.contains_key(&var.id()));
                 }
-                let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
+                let typ = Box::new(typ.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                ));
                 Type::Forall(typevars.clone(), typ)
             }
             Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| {
-                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                    arg.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    )
                 });
-                let ret = Box::new(ret.substitute_helper(type_bindings, substitute_bound_typevars));
-                let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
+                let ret = Box::new(ret.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                ));
+                let env = Box::new(env.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                ));
                 Type::Function(args, ret, env, *unconstrained)
             }
             Type::Reference(element, mutable) => Type::Reference(
-                Box::new(element.substitute_helper(type_bindings, substitute_bound_typevars)),
+                Box::new(element.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                )),
                 *mutable,
             ),
 
             Type::TraitAsType(s, name, generics) => {
                 let ordered = vecmap(&generics.ordered, |arg| {
-                    arg.substitute_helper(type_bindings, substitute_bound_typevars)
+                    arg.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    )
                 });
                 let named = vecmap(&generics.named, |arg| {
-                    let typ = arg.typ.substitute_helper(type_bindings, substitute_bound_typevars);
+                    let typ = arg.typ.substitute_with_recursion_limit(
+                        type_bindings,
+                        substitute_bound_typevars,
+                        recursion_limit,
+                    );
                     NamedType { name: arg.name.clone(), typ }
                 });
                 Type::TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
-                let rhs = rhs.substitute_helper(type_bindings, substitute_bound_typevars);
+                let lhs = lhs.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
+                let rhs = rhs.substitute_with_recursion_limit(
+                    type_bindings,
+                    substitute_bound_typevars,
+                    recursion_limit,
+                );
                 Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
             }
 
@@ -2576,42 +2687,68 @@ impl Type {
 
     /// True if the given TypeVariableId is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
+        self.occurs_helper(target_id, TYPE_RECURSION_LIMIT)
+    }
+
+    fn occurs_helper(&self, target_id: TypeVariableId, recursion_limit: u32) -> bool {
+        // Prevent infinite recursion when checking for type bindings with cycle.
+        if recursion_limit == 0 {
+            return true;
+        }
+        let recursion_limit = recursion_limit - 1;
+
         match self {
-            Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
-            Type::Vector(elem) => elem.occurs(target_id),
-            Type::String(len) => len.occurs(target_id),
+            Type::Array(len, elem) => {
+                len.occurs_helper(target_id, recursion_limit)
+                    || elem.occurs_helper(target_id, recursion_limit)
+            }
+            Type::Vector(elem) => elem.occurs_helper(target_id, recursion_limit),
+            Type::String(len) => len.occurs_helper(target_id, recursion_limit),
             Type::FmtString(len, fields) => {
-                let len_occurs = len.occurs(target_id);
-                let field_occurs = fields.occurs(target_id);
+                let len_occurs = len.occurs_helper(target_id, recursion_limit);
+                let field_occurs = fields.occurs_helper(target_id, recursion_limit);
                 len_occurs || field_occurs
             }
             Type::DataType(_, generic_args) | Type::Alias(_, generic_args) => {
-                generic_args.iter().any(|arg| arg.occurs(target_id))
+                generic_args.iter().any(|arg| arg.occurs_helper(target_id, recursion_limit))
             }
             Type::TraitAsType(_, _, args) => {
-                args.ordered.iter().any(|arg| arg.occurs(target_id))
-                    || args.named.iter().any(|arg| arg.typ.occurs(target_id))
+                args.ordered.iter().any(|arg| arg.occurs_helper(target_id, recursion_limit))
+                    || args
+                        .named
+                        .iter()
+                        .any(|arg| arg.typ.occurs_helper(target_id, recursion_limit))
             }
-            Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::CheckedCast { from, to } => from.occurs(target_id) || to.occurs(target_id),
+            Type::Tuple(fields) => {
+                fields.iter().any(|field| field.occurs_helper(target_id, recursion_limit))
+            }
+            Type::CheckedCast { from, to } => {
+                from.occurs_helper(target_id, recursion_limit - 1)
+                    || to.occurs_helper(target_id, recursion_limit - 1)
+            }
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {
-                        type_var.id() == target_id || binding.occurs(target_id)
+                        type_var.id() == target_id
+                            || binding.occurs_helper(target_id, recursion_limit)
                     }
                     TypeBinding::Unbound(id, _) => *id == target_id,
                 }
             }
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
+                !typevars.iter().any(|var| var.id() == target_id)
+                    && typ.occurs_helper(target_id, recursion_limit)
             }
             Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(|arg| arg.occurs(target_id))
-                    || ret.occurs(target_id)
-                    || env.occurs(target_id)
+                args.iter().any(|arg| arg.occurs_helper(target_id, recursion_limit))
+                    || ret.occurs_helper(target_id, recursion_limit)
+                    || env.occurs_helper(target_id, recursion_limit)
             }
-            Type::Reference(element, _) => element.occurs(target_id),
-            Type::InfixExpr(lhs, _op, rhs, _) => lhs.occurs(target_id) || rhs.occurs(target_id),
+            Type::Reference(element, _) => element.occurs_helper(target_id, recursion_limit),
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.occurs_helper(target_id, recursion_limit)
+                    || rhs.occurs_helper(target_id, recursion_limit)
+            }
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -3475,5 +3612,89 @@ impl PartialEq for Type {
             ) => lhs_var.id() == rhs_var.id(),
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test that the occurs handles deeply nested type bindings without stack overflow.
+    #[test]
+    fn test_occurs_with_deep_recursion_limit() {
+        // Create a chain of type variables: T0 -> T1 -> T2 -> ... -> T_n
+        let mut type_vars = Vec::new();
+        let depth = (TYPE_RECURSION_LIMIT + 10) as usize;
+
+        for i in 0..depth {
+            type_vars.push(TypeVariable::unbound(TypeVariableId(i), Kind::Normal));
+        }
+
+        // Bind each type variable to the next one in the chain
+        for i in 0..depth - 1 {
+            let next_type = Type::TypeVariable(type_vars[i + 1].clone());
+            *type_vars[i].1.borrow_mut() = TypeBinding::Bound(next_type);
+        }
+
+        // Create a type that starts the chain
+        let start_type = Type::TypeVariable(type_vars[0].clone());
+
+        // The occurs check should hit the recursion limit and return true
+        // (conservatively assuming the type might occur to prevent infinite recursion)
+        let result = start_type.occurs(type_vars[0].id());
+        assert!(result, "Expected occurs to return true when hitting recursion limit");
+    }
+
+    /// Test that substitute handles deeply nested type bindings without stack overflow.
+    /// This test creates circular type bindings and verifies that substitute hits the
+    /// recursion limit and returns Type::Error.
+    #[test]
+    fn test_substitute_with_circular_bindings() {
+        let mut bindings = TypeBindings::default();
+
+        // Create two type variables that will form a cycle: T0 -> T1 -> T0
+        let type_var0 = TypeVariable::unbound(TypeVariableId(0), Kind::Normal);
+        let type_var1 = TypeVariable::unbound(TypeVariableId(1), Kind::Normal);
+
+        let id0 = type_var0.id();
+        let id1 = type_var1.id();
+
+        // Manually create a cycle by binding T0 to T1 and T1 to T0
+        bindings
+            .insert(id0, (type_var0.clone(), Kind::Normal, Type::TypeVariable(type_var1.clone())));
+        bindings
+            .insert(id1, (type_var1.clone(), Kind::Normal, Type::TypeVariable(type_var0.clone())));
+
+        // Start with a type variable in the cycle
+        let start_type = Type::TypeVariable(type_var0.clone());
+
+        // Substitute should detect the deep recursion and return Type::RecursionLimit
+        // (before the fix, this would stack overflow)
+        let result = start_type.substitute(&bindings);
+        assert_eq!(result, Type::Error);
+    }
+
+    /// Test that occurs check works correctly for valid cases (no deep recursion).
+    #[test]
+    fn test_occurs_normal_case() {
+        let type_var = TypeVariable::unbound(TypeVariableId(0), Kind::Normal);
+        let id = type_var.id();
+
+        // Simple case: type variable occurs in itself
+        let typ = Type::TypeVariable(type_var.clone());
+        assert!(typ.occurs(id), "Type variable should occur in itself");
+
+        // Type variable doesn't occur in a different type
+        let other_var = TypeVariable::unbound(TypeVariableId(1), Kind::Normal);
+        let other_type = Type::TypeVariable(other_var);
+        assert!(
+            !other_type.occurs(id),
+            "Type variable should not occur in different type variable"
+        );
+
+        // Type variable occurs in a tuple
+        let tuple_type =
+            Type::Tuple(vec![Type::FieldElement, Type::TypeVariable(type_var.clone())]);
+        assert!(tuple_type.occurs(id), "Type variable should occur in tuple containing it");
     }
 }

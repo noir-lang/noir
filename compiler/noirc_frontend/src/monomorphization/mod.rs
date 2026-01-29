@@ -259,8 +259,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         self.locals.clear();
         self.in_unconstrained_function = is_unconstrained;
-
-        perform_instantiation_bindings(&bindings);
+        perform_instantiation_bindings(&bindings, location);
         let interner = &self.interner;
         let impl_bindings = perform_impl_bindings(interner, trait_method, next_fn_id, location)
             .map_err(MonomorphizationError::InterpreterError)?;
@@ -519,7 +518,14 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
-            the_trait.self_type_typevar.force_bind(self_type);
+            the_trait.self_type_typevar.force_bind(self_type, location).map_err(|type_err| {
+                match type_err {
+                    crate::hir::type_check::TypeCheckError::CyclicType { typ, location } => {
+                        MonomorphizationError::RecursiveType { typ, location }
+                    }
+                    _ => unreachable!("Unexpected error"),
+                }
+            })?;
         }
 
         let meta = self.interner.function_meta(&f).clone();
@@ -2875,9 +2881,9 @@ fn unwrap_enum_type(
     }
 }
 
-pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
+pub fn perform_instantiation_bindings(bindings: &TypeBindings, location: Location) {
     for (var, _kind, binding) in bindings.values() {
-        var.force_bind(binding.clone());
+        var.force_bind(binding.clone(), location).expect("Could not bind all");
     }
 }
 
@@ -2924,7 +2930,7 @@ pub fn perform_impl_bindings(
             *binding = binding.follow_bindings();
         }
 
-        perform_instantiation_bindings(&bindings);
+        perform_instantiation_bindings(&bindings, location);
     }
 
     Ok(bindings)
