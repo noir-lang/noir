@@ -80,6 +80,7 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
+            "ctstring_len" => ctstring_len(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -3202,6 +3203,12 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
+}
+
+fn ctstring_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let ctstring = check_one_argument(arguments, location)?;
+    let ctstring = get_ctstring(ctstring)?;
+    Ok(Value::U32(ctstring.len() as u32))
 }
 
 fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
