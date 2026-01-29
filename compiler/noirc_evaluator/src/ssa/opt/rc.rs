@@ -186,11 +186,7 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            interpreter::value::Value,
-            ir::{
-                basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction,
-                types::NumericType,
-            },
+            ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
             opt::assert_ssa_does_not_change,
             ssa_gen::Ssa,
         },
