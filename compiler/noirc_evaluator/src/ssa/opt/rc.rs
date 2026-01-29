@@ -105,16 +105,15 @@ impl Context {
                         self.mark_as_mutated(&typ);
                     }
                     Instruction::Call { arguments, .. } => {
-                        // A call with a reference argument could mutate arrays through that reference
+                        // A call with an array argument could mutate that array
                         for arg in arguments {
                             let typ = function.dfg.type_of_value(*arg);
-                            if let Type::Reference(element) = typ {
-                                if element.contains_an_array() {
-                                    self.mark_as_mutated(&element);
-                                }
+                            if typ.contains_an_array() {
+                                self.mark_as_mutated(&typ);
                             }
                         }
                     }
+
                     _ => {}
                 }
             }
@@ -180,7 +179,11 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
+            interpreter::value::Value,
+            ir::{
+                basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction,
+                types::NumericType,
+            },
             opt::assert_ssa_does_not_change,
             ssa_gen::Ssa,
         },
@@ -447,6 +450,10 @@ mod tests {
 
     #[test]
     fn mutation_through_call_with_mutable_reference() {
+        // We expect `inc_rc v0` to remain.
+        // If you accessed v0 directly after the call (not through the reference):
+        // - With inc_rc: v0 is protected, COW happens, v0 retains old value
+        // - Without inc_rc: v0 is mutated in place
         let src = "                                                                                    
         brillig(inline) fn main f0 {                                                                   
             b0(v0: [Field; 2]):                                                                          
@@ -459,8 +466,7 @@ mod tests {
             constrain v5 == Field 5                                                                    
             dec_rc v0                                                                                  
             return                                                                                     
-        }                                                                                              
-                                                                                                        
+        }                                                                                           
         brillig(inline) fn mutator f1 {                                                                
             b0(v0: &mut [Field; 2]):                                                                     
             v1 = load v0 -> [Field; 2]                                                                 
@@ -468,6 +474,30 @@ mod tests {
             store v2 at v0                                                                             
             return                                                                                     
         }                                                                                              
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    fn mutation_through_call_with_array_passed_by_value() {
+        // We expect `inc_rc v0` to remain
+        // After the call to f1 we expect v0 to be unchanged.
+        // If the inc_rc were removed, f1 would mutate v0 in place.
+        let src = "                                                                                    
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            call f1(v0)
+            v3 = array_get v0, index u32 0 -> Field
+            constrain v3 == Field 5
+            dec_rc v0
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            v3 = array_set v0, index u32 0, value Field 5
+            return
+        }                                                                                            
         ";
         assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
