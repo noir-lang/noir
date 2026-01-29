@@ -834,7 +834,7 @@ impl<'f> PerFunctionContext<'f> {
             if let Type::Reference(element) = &typ {
                 let value = *value;
                 // If we have a nested reference, recurse to invalidate what it points to.
-                // The callee could load this reference and mutate through the inner ref.
+                // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
                 if element.contains_reference() {
                     if let Some(inner_ref) = references.get_known_value(value) {
                         self.mark_all_unknown(&[inner_ref], references);
