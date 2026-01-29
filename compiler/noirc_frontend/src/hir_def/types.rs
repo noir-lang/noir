@@ -1008,12 +1008,9 @@ impl TypeVariable {
     /// a logic error to use outside of monomorphization.
     ///
     /// Asserts that the given type is compatible with the given Kind
-    pub fn force_bind(&self, typ: Type, location: Location) -> Result<(), TypeCheckError> {
+    pub fn force_bind(&self, typ: Type) {
         if !typ.occurs(self.id()) {
             *self.1.borrow_mut() = TypeBinding::Bound(typ);
-            Ok(())
-        } else {
-            Err(TypeCheckError::CyclicType { location, typ })
         }
     }
 
@@ -2693,7 +2690,7 @@ impl Type {
     fn occurs_helper(&self, target_id: TypeVariableId, recursion_limit: u32) -> bool {
         // Prevent infinite recursion when checking for type bindings with cycle.
         if recursion_limit == 0 {
-            return true;
+            panic!("recursion limit when checking if type occurs");
         }
         let recursion_limit = recursion_limit - 1;
 

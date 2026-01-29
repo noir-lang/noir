@@ -163,7 +163,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         self.unbind_generics_from_previous_function();
-        perform_instantiation_bindings(&instantiation_bindings, location);
+        perform_instantiation_bindings(&instantiation_bindings);
 
         let impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
@@ -346,7 +346,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         // Rebind the type bindings that existed when the closure was created
-        force_bind_all(&closure.bindings, call_location);
+        force_bind_all(&closure.bindings);
 
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
@@ -363,7 +363,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // Redo the current type bindings
         if let Some(bindings) = self.bound_generics.last() {
-            force_bind_all(bindings, call_location);
+            force_bind_all(bindings);
         }
 
         self.current_function = old_function;
@@ -478,10 +478,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            // The location is used to report an error in an hypothetical case of type recursion.
-            // Unless there are practical cases where we get this missing location, it is not
-            // worth to retrieve it for now.
-            force_bind_all(bindings, Location::dummy());
+            force_bind_all(bindings);
         }
     }
 
@@ -1719,9 +1716,9 @@ fn unbind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     }
 }
 
-fn force_bind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>, location: Location) {
+fn force_bind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (binding, _kind)) in bindings {
-        var.force_bind(binding.clone(), location).expect("Could not bind all");
+        var.force_bind(binding.clone());
     }
 }
 
