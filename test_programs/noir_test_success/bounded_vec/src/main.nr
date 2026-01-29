@@ -140,6 +140,20 @@ fn max_len_docs_example() {
 }
 
 #[test]
+fn set_len_docs_example() {
+    // docs:start:bounded-vec-set-len-example
+    let mut v: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+    v.set_unchecked(5, 6);
+    v.set_unchecked(6, 7);
+    v.set_unchecked(7, 8);
+    assert(v.len() == 5);
+    v.set_len(9);
+    assert(v.len() == 9);
+    // docs:end:bounded-vec-set-len-example
+}
+
+#[test]
 fn storage_docs_example() {
     // docs:start:bounded-vec-storage-example
     let mut v: BoundedVec<Field, 5> = BoundedVec::new();

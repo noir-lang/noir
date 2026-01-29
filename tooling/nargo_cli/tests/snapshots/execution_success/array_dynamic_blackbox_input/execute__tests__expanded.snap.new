@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+fn main(leaf: [u8; 32], path: [u8; 64], index: u32, root: [u8; 32]) {
+    compute_root(leaf, path, index, root);
+}
+
+fn compute_root(leaf: [u8; 32], path: [u8; 64], _index: u32, root: [u8; 32]) {
+    let mut current: [u8; 32] = leaf;
+    let mut index: u32 = _index;
+    for i in 0_u32..2_u32 {
+        let mut hash_input: [u8; 64] = [0_u8; 64];
+        let offset: u32 = i * 32_u32;
+        let is_right: bool = (index & 1_u32) != 0_u32;
+        let a: u32 = if is_right { 32_u32 } else { 0_u32 };
+        let b: u32 = if is_right { 0_u32 } else { 32_u32 };
+        for j in 0_u32..32_u32 {
+            {
+                let i_4479: u32 = j + a;
+                hash_input[i_4479] = current[j];
+            };
+            {
+                let i_4480: u32 = j + b;
+                hash_input[i_4480] = path[offset + j];
+            }
+        }
+        current = std::hash::blake3(hash_input);
+        index = index >> 1_u32;
+    }
+    assert(root == current);
+}

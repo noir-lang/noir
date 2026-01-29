@@ -1,0 +1,277 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+fn main(x: u32) {
+    regression_dynamic_vector_index(x - 1_u32, x - 4_u32);
+}
+
+fn regression_dynamic_vector_index(x: u32, y: u32) {
+    let mut vector: [Field] = [].as_vector();
+    for i in 0_u32..5_u32 {
+        vector = vector.push_back(i as Field);
+    }
+    assert(vector.len() == 5_u32);
+    dynamic_vector_index_set_if(vector, x, y);
+    dynamic_vector_index_set_else(vector, x, y);
+    dynamic_vector_index_set_nested_if_else_else(vector, x, y);
+    dynamic_vector_index_set_nested_if_else_if(vector, x, y + 1_u32);
+    dynamic_vector_index_if(vector, x);
+    dynamic_array_index_if([0_Field, 1_Field, 2_Field, 3_Field, 4_Field], x);
+    dynamic_vector_index_else(vector, x);
+    dynamic_vector_merge_if(vector, x);
+    dynamic_vector_merge_else(vector, x);
+    dynamic_vector_merge_two_ifs(vector, x);
+    dynamic_vector_merge_mutate_between_ifs(vector, x, y);
+    dynamic_vector_merge_push_then_pop(vector, x, y);
+}
+
+fn dynamic_vector_index_set_if(mut vector: [Field], x: u32, y: u32) {
+    assert(vector[x] == 4_Field);
+    assert(vector[y] == 1_Field);
+    vector[y] = 0_Field;
+    assert(vector[x] == 4_Field);
+    assert(vector[1_u32] == 0_Field);
+    if (x as u32) < 10_u32 {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+        {
+            let i_4509: u32 = x - 1_u32;
+            vector[i_4509] = vector[x];
+        }
+    } else {
+        vector[x] = 0_Field;
+    };
+    assert(vector[3_u32] == 2_Field);
+    assert(vector[4_u32] == 2_Field);
+}
+
+fn dynamic_vector_index_set_else(mut vector: [Field], x: u32, y: u32) {
+    assert(vector[x] == 4_Field);
+    assert(vector[y] == 1_Field);
+    vector[y] = 0_Field;
+    assert(vector[x] == 4_Field);
+    assert(vector[1_u32] == 0_Field);
+    if (x as u32) > 10_u32 {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+        {
+            let i_4510: u32 = x - 1_u32;
+            vector[i_4510] = vector[x];
+        }
+    } else {
+        vector[x] = 0_Field;
+    };
+    assert(vector[4_u32] == 0_Field);
+}
+
+fn dynamic_vector_index_if(mut vector: [Field], x: u32) {
+    if (x as u32) < 10_u32 {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+    } else {
+        assert(vector[x] == 0_Field);
+    };
+    assert(vector[4_u32] == 2_Field);
+}
+
+fn dynamic_array_index_if(mut array: [Field; 5], x: u32) {
+    if (x as u32) < 10_u32 {
+        assert(array[x] == 4_Field);
+        array[x] = array[x] - 2_Field;
+    } else {
+        assert(array[x] == 0_Field);
+    };
+    assert(array[4_u32] == 2_Field);
+}
+
+fn dynamic_vector_index_else(mut vector: [Field], x: u32) {
+    if (x as u32) > 10_u32 {
+        assert(vector[x] == 0_Field);
+    } else {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+    };
+    assert(vector[4_u32] == 2_Field);
+}
+
+fn dynamic_vector_merge_if(mut vector: [Field], x: u32) {
+    if (x as u32) < 10_u32 {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+        vector = vector.push_back(10_Field);
+        vector[x] = 10_Field;
+        assert(vector[vector.len() - 1_u32] == 10_Field);
+        assert(vector.len() == 6_u32);
+        vector[x] = 20_Field;
+        vector[x] = vector[x] + 10_Field;
+        vector = vector.push_front(11_Field);
+        assert(vector[0_u32] == 11_Field);
+        assert(vector.len() == 7_u32);
+        assert(vector[5_u32] == 30_Field);
+        vector = vector.push_front(12_Field);
+        assert(vector[0_u32] == 12_Field);
+        assert(vector.len() == 8_u32);
+        assert(vector[6_u32] == 30_Field);
+        let (popped_vector, last_elem): ([Field], Field) = vector.pop_back();
+        assert(last_elem == 10_Field);
+        assert(popped_vector.len() == 7_u32);
+        let (first_elem, rest_of_vector): (Field, [Field]) = popped_vector.pop_front();
+        assert(first_elem == 12_Field);
+        assert(rest_of_vector.len() == 6_u32);
+        vector = rest_of_vector.insert((x as u32) - 2_u32, 20_Field);
+        assert(vector[2_u32] == 20_Field);
+        assert(vector[6_u32] == 30_Field);
+        assert(vector.len() == 7_u32);
+        let (removed_vector, removed_elem): ([Field], Field) = vector.remove((x as u32) - 1_u32);
+        vector = removed_vector;
+        assert(removed_elem == 1_Field);
+        assert(vector.len() == 6_u32);
+    } else {
+        assert(vector[x] == 0_Field);
+        vector = vector.push_back(20_Field);
+    };
+    assert(vector.len() == 6_u32);
+    assert(vector[vector.len() - 1_u32] == 30_Field);
+}
+
+fn dynamic_vector_merge_else(mut vector: [Field], x: u32) {
+    if (x as u32) > 10_u32 {
+        assert(vector[x] == 0_Field);
+        vector[x] = 2_Field;
+    } else {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+        vector = vector.push_back(10_Field);
+    };
+    assert(vector.len() == 6_u32);
+    assert(vector[vector.len() - 1_u32] == 10_Field);
+    vector = vector.push_back(20_Field);
+    assert(vector.len() == 7_u32);
+    assert(vector[vector.len() - 1_u32] == 20_Field);
+}
+
+fn dynamic_vector_index_set_nested_if_else_else(mut vector: [Field], x: u32, y: u32) {
+    assert(vector[x] == 4_Field);
+    assert(vector[y] == 1_Field);
+    vector[y] = 0_Field;
+    assert(vector[x] == 4_Field);
+    assert(vector[1_u32] == 0_Field);
+    if (x as u32) < 10_u32 {
+        vector[x] = vector[x] - 2_Field;
+        if y != 1_u32 {
+            vector[x] = vector[x] + 20_Field;
+        } else {
+            if x == 5_u32 {
+                assert(vector[x] == 22_Field);
+            } else {
+                vector[x] = 10_Field;
+                vector = vector.push_back(15_Field);
+                assert(vector.len() == 6_u32);
+            };
+            assert(vector[4_u32] == 10_Field);
+        }
+    } else {
+        vector[x] = 0_Field;
+    };
+    assert(vector[4_u32] == 10_Field);
+    assert(vector.len() == 6_u32);
+    assert(vector[vector.len() - 1_u32] == 15_Field);
+    vector = vector.push_back(20_Field);
+    assert(vector.len() == 7_u32);
+    assert(vector[vector.len() - 1_u32] == 20_Field);
+}
+
+fn dynamic_vector_index_set_nested_if_else_if(mut vector: [Field], x: u32, y: u32) {
+    assert(vector[x] == 4_Field);
+    assert(vector[y] == 2_Field);
+    vector[y] = 0_Field;
+    assert(vector[x] == 4_Field);
+    assert(vector[2_u32] == 0_Field);
+    if (x as u32) < 10_u32 {
+        vector[x] = vector[x] - 2_Field;
+        if y == 1_u32 {
+            vector[x] = vector[x] + 20_Field;
+        } else {
+            if x == 4_u32 { vector[x] = 5_Field; };
+            assert(vector[4_u32] == 5_Field);
+        }
+    } else {
+        vector[x] = 0_Field;
+    };
+    assert(vector[4_u32] == 5_Field);
+}
+
+fn dynamic_vector_merge_two_ifs(mut vector: [Field], x: u32) {
+    if (x as u32) > 10_u32 {
+        assert(vector[x] == 0_Field);
+        vector[x] = 2_Field;
+    } else {
+        assert(vector[x] == 4_Field);
+        vector[x] = vector[x] - 2_Field;
+        vector = vector.push_back(10_Field);
+    };
+    assert(vector.len() == 6_u32);
+    assert(vector[vector.len() - 1_u32] == 10_Field);
+    if x == 20_u32 {
+        vector = vector.push_back(20_Field);
+    };
+    vector = vector.push_back(15_Field);
+    assert(vector.len() == 7_u32);
+    assert(vector[vector.len() - 1_u32] == 15_Field);
+    vector = vector.push_back(20_Field);
+    assert(vector.len() == 8_u32);
+    assert(vector[vector.len() - 1_u32] == 20_Field);
+}
+
+fn dynamic_vector_merge_mutate_between_ifs(mut vector: [Field], x: u32, y: u32) {
+    if x != y {
+        vector[x] = 50_Field;
+        vector = vector.push_back(y as Field);
+        vector = vector.push_back(x as Field);
+    } else {
+        vector[x] = vector[x] - 2_Field;
+        vector = vector.push_back(x as Field);
+    };
+    vector = vector.push_back(30_Field);
+    assert(vector.len() == 8_u32);
+    if x == 20_u32 {
+        vector = vector.push_back(20_Field);
+    };
+    vector = vector.push_back(15_Field);
+    if x != 20_u32 {
+        vector = vector.push_back(50_Field);
+    };
+    vector = vector.push_back(60_Field);
+    assert(vector.len() == 11_u32);
+    assert(vector[x] == 50_Field);
+    assert(vector[vector.len() - 4_u32] == 30_Field);
+    assert(vector[vector.len() - 3_u32] == 15_Field);
+    assert(vector[vector.len() - 2_u32] == 50_Field);
+    assert(vector[vector.len() - 1_u32] == 60_Field);
+}
+
+fn dynamic_vector_merge_push_then_pop(mut vector: [Field], x: u32, y: u32) {
+    if x != y {
+        vector[x] = 5_Field;
+        vector = vector.push_back(y as Field);
+        vector = vector.push_back(x as Field);
+        assert(vector.len() == 7_u32);
+        let (popped_vector, elem): ([Field], Field) = vector.pop_back();
+        assert(vector.len() == 7_u32);
+        assert(elem == (x as Field));
+        vector = popped_vector;
+    } else {
+        vector = vector.push_back(x as Field);
+    };
+    vector = vector.push_back(30_Field);
+    assert(vector.len() == 7_u32);
+    if x == 20_u32 {
+        vector = vector.push_back(20_Field);
+    };
+    let (vector, elem): ([Field], Field) = vector.pop_back();
+    assert(elem == 30_Field);
+    let (_, elem): ([Field], Field) = vector.pop_back();
+    assert(elem == (y as Field));
+}

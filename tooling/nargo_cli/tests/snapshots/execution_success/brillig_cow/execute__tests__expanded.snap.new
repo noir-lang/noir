@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+global ARRAY_SIZE: u32 = 5;
+
+struct ExecutionResult {
+    original: [Field; 5],
+    modified_once: [Field; 5],
+    modified_twice: [Field; 5],
+}
+
+impl ExecutionResult {
+    fn is_equal(self, other: Self) -> bool {
+        ((self.original == other.original) & (self.modified_once == other.modified_once))
+            & (self.modified_twice == other.modified_twice)
+    }
+}
+
+fn modify_in_inlined_constrained(original: [Field; 5], index: u32) -> ExecutionResult {
+    let mut modified: [Field; 5] = original;
+    modified[index] = 27_Field;
+    let modified_once: [Field; 5] = modified;
+    {
+        let i_4476: u32 = index + 1_u32;
+        modified[i_4476] = 27_Field;
+    };
+    ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
+}
+
+unconstrained fn modify_in_unconstrained(original: [Field; 5], index: u32) -> ExecutionResult {
+    let mut modified: [Field; 5] = original;
+    modified[index] = 27_Field;
+    let modified_once: [Field; 5] = modified;
+    {
+        let i_4479: u32 = index + 1_u32;
+        modified[i_4479] = 27_Field;
+    };
+    ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
+}
+
+unconstrained fn main(original: [Field; 5], index: u32, expected_result: ExecutionResult) {
+    assert(expected_result.is_equal(modify_in_unconstrained(original, index)));
+    assert(expected_result.is_equal(modify_in_inlined_constrained(original, index)));
+}

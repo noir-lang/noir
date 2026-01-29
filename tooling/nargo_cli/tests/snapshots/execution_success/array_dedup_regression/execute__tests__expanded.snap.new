@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 350
+expression: expanded_code
+---
+unconstrained fn main(x: u32) {
+    let a1: [Field; 5] = [1_Field, 2_Field, 3_Field, 4_Field, 5_Field];
+    for i in 0_u32..5_u32 {
+        let mut a2: [Field; 5] = [1_Field, 2_Field, 3_Field, 4_Field, 5_Field];
+        {
+            let i_4465: u32 = x + i;
+            a2[i_4465] = 128_Field;
+        };
+        println(a2);
+        if i != 0_u32 {
+            assert(a2[(x + i) - 1_u32] != 128_Field);
+        }
+    }
+    assert(a1[0_u32] == 1_Field);
+    assert(a1[1_u32] == 2_Field);
+    assert(a1[2_u32] == 3_Field);
+    assert(a1[3_u32] == 4_Field);
+    assert(a1[4_u32] == 5_Field);
+}

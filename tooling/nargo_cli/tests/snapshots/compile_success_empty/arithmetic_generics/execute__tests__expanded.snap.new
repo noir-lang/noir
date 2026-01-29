@@ -1,0 +1,121 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 407
+expression: expanded_code
+---
+fn main() {
+    let (first, rest): (Field, [Field; 4 - 1]) = split_first([1_Field, 2_Field, 3_Field, 4_Field]);
+    assert(first == 1_Field);
+    assert(rest == [2_Field, 3_Field, 4_Field]);
+    let _: (Field, [Field; 3 - 1]) = split_first([1_Field, 2_Field, 3_Field]);
+    let _: [Field; 3 + 2] = push_multiple([1_Field, 2_Field, 3_Field]);
+    test_constant_folding::<10>();
+    test_non_constant_folding::<10, 20>();
+}
+
+fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
+    std::static_assert(N != 0_u32, "split_first called on empty array");
+    let mut new_array: [T; N - 1] = std::mem::zeroed();
+    for i in 0_u32..N - 1_u32 {
+        new_array[i] = array[i + 1_u32];
+    }
+    (array[0_u32], new_array)
+}
+
+fn push<let N: u32>(array: [Field; N], element: Field) -> [Field; N + 1] {
+    let mut result: [Field; N + 1] = std::mem::zeroed();
+    {
+        let i_4494: u32 = array.len();
+        result[i_4494] = element;
+    };
+    for i in 0_u32..array.len() {
+        result[i] = array[i];
+    }
+    result
+}
+
+fn push_multiple<let N: u32>(array: [Field; N]) -> [Field; N + 2] {
+    let array2: [Field; N + 1] = push(array, 4_Field);
+    let array3: [Field; (N + 1) + 1] = push(array2, 5_Field);
+    array3
+}
+
+pub struct W<let N: u32> {}
+
+pub struct Equiv<T, TU, U, UT> {
+    to_: fn[TU](T) -> U,
+    fro_: fn[UT](U) -> T,
+}
+
+impl<T, TU, U, UT> Equiv<T, TU, U, UT> {
+    fn to(self, x: T) -> U {
+        (self.to_)(x)
+    }
+
+    fn fro(self, x: U) -> T {
+        (self.fro_)(x)
+    }
+}
+
+fn equiv_trans<T, TU, U, UT, UV, V, VU>(
+    x: Equiv<T, TU, U, UT>,
+    y: Equiv<U, UV, V, VU>,
+    ) -> Equiv<T, (Equiv<U, UV, V, VU>, Equiv<T, TU, U, UT>), V, (Equiv<T, TU, U, UT>, Equiv<U, UV, V, VU>)> {
+    Equiv::<T, (Equiv<U, UV, V, VU>, Equiv<T, TU, U, UT>), V, (Equiv<T, TU, U, UT>, Equiv<U, UV, V, VU>)> {
+        to_: |z: T| -> V y.to(x.to(z)),
+        fro_: |z: V| -> T x.fro(y.fro(z)),
+    }
+}
+
+fn mul_one_r<let N: u32>() -> Equiv<W<N>, (), W<N>, ()> {
+    Equiv::<W<N>, (), W<N>, ()> {
+        to_: |_x: W<N>| -> W<N> W::<N> {},
+        fro_: |_x: W<N>| -> W<N> W::<N> {},
+    }
+}
+
+fn add_equiv_r<let C: u32, let N: u32, let M: u32, EN, EM>(
+    _: Equiv<W<N>, EN, W<M>, EM>,
+) -> Equiv<W<C + N>, (), W<C + M>, ()> {
+    Equiv::<W<C + N>, (), W<C + M>, ()> {
+        to_: |_x: W<C + N>| -> W<C + M> W::<C + M> {},
+        fro_: |_x: W<C + M>| -> W<C + N> W::<C + N> {},
+    }
+}
+
+fn mul_comm<let N: u32, let M: u32>() -> Equiv<W<N * M>, (), W<N * M>, ()> {
+    Equiv::<W<N * M>, (), W<N * M>, ()> {
+        to_: |_x: W<N * M>| -> W<N * M> W::<N * M> {},
+        fro_: |_x: W<N * M>| -> W<N * M> W::<N * M> {},
+    }
+}
+
+fn mul_add<let N: u32, let M: u32, let P: u32>() -> Equiv<W<N * (M + P)>, (), W<(N * M) + (N * P)>, ()> {
+    Equiv::<W<N * (M + P)>, (), W<(N * M) + (N * P)>, ()> {
+        to_: |_x: W<N * (M + P)>| -> W<(N * M) + (N * P)> W::<(N * M) + (N * P)> {},
+        fro_: |_x: W<(N * M) + (N * P)>| -> W<N * (M + P)> W::<N * (M + P)> {},
+    }
+}
+
+pub fn demo_proof<let N: u32>() -> Equiv<W<N * (N + 1)>, (Equiv<W<N>, (), W<N>, ()>, Equiv<W<N * (N + 1)>, (Equiv<W<N * (N + 1)>, (), W<N>, ()>, Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()>), W<N>, (Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()>, Equiv<W<N * (N + 1)>, (), W<N>, ()>)>), W<N>, (Equiv<W<N * (N + 1)>, (Equiv<W<N * (N + 1)>, (), W<N>, ()>, Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()>), W<N>, (Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()>, Equiv<W<N * (N + 1)>, (), W<N>, ()>)>, Equiv<W<N>, (), W<N>, ()>)> {
+    let p1: Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()> = mul_comm();
+    let p2: Equiv<W<N * (N + 1)>, (), W<N + (N * N)>, ()> = mul_add::<N, N, 1>();
+    let p3_sub: Equiv<W<N>, (), W<N>, ()> = mul_one_r();
+    let _p3: Equiv<W<N + (N * N)>, (), W<N + (N * N)>, ()> =
+        add_equiv_r::<N * N, N, N, (), ()>(p3_sub);
+    let _p1_to_2: Equiv<W<N * (N + 1)>, (Equiv<W<N * (N + 1)>, (), W<N + (N * N)>, ()>, Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()>), W<N + (N * N)>, (Equiv<W<N * (N + 1)>, (), W<N * (N + 1)>, ()>, Equiv<W<N * (N + 1)>, (), W<N + (N * N)>, ()>)> =
+        equiv_trans(p1, p2);
+    std::mem::zeroed()
+}
+
+fn test_constant_folding<let N: u32>() {
+    let _: W<N + 3> = W::<N + 3> {};
+    let _: W<N - 1> = W::<N - 1> {};
+    let _: W<N * 5> = W::<N * 5> {};
+}
+
+fn test_non_constant_folding<let N: u32, let M: u32>() {
+    let _: W<N> = W::<N> {};
+    let _: W<N> = W::<N> {};
+    let _: W<N> = W::<N> {};
+}
