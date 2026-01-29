@@ -13,8 +13,6 @@ pub mod typed_expr;
 pub mod quoted;
 pub mod unresolved_type;
 
-use crate::default::Default;
-
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
 /// itself does not need to do anything besides return its argument.
@@ -31,18 +29,15 @@ pub comptime fn type_of<T>(x: T) -> Type {}
 // docs:end:type_of
 
 // docs:start:derive_example
-// These are needed for the unconstrained hashmap we're using to store derive functions
-use crate::collections::umap::UHashMap;
-use crate::hash::BuildHasherDefault;
-use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a type definition can
 // create us a quoted trait impl from it.
 pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
-comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
-    UHashMap::default();
+// We use a slice instead of UHashMap because UHashMap at comptime is slow compared to
+// doing a linear search over a slice, even for big maps.
+comptime mut global HANDLERS: [(TraitDefinition, DeriveFunction)] = @[];
 
 // Given a type definition and a vector of traits to derive, create trait impls for each.
 // This function is as simple as iterating over the vector, checking if we have a trait
@@ -54,11 +49,17 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
     let mut result = quote {};
 
     for trait_to_derive in traits {
-        let handler = HANDLERS.get(trait_to_derive);
-        assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
-
-        let trait_impl = handler.unwrap()(s);
-        result = quote { $result $trait_impl };
+        let mut found_handler = false;
+        for entry in HANDLERS {
+            if entry.0 == trait_to_derive {
+                let handler = entry.1;
+                let trait_impl = handler(s);
+                result = quote { $result $trait_impl };
+                found_handler = true;
+                break;
+            }
+        }
+        assert(found_handler, f"No derive function registered for `{trait_to_derive}`");
     }
 
     result
@@ -70,7 +71,18 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 // docs:start:derive_via_signature
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     // docs:end:derive_via_signature
-    HANDLERS.insert(t, f);
+    let mut found_existing = false;
+    for index in 0..HANDLERS.len() {
+        let entry = HANDLERS[index];
+        if entry.0 == t {
+            HANDLERS[index] = (t, f);
+            found_existing = true;
+            break;
+        }
+    }
+    if !found_existing {
+        HANDLERS = HANDLERS.push_back((t, f));
+    }
 }
 // docs:end:derive_via
 
