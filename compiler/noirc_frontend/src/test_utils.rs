@@ -189,7 +189,6 @@ pub mod stdlib_src {
         }
     ";
 
-    // TODO: WIP
     pub const ORD: &str = "
         // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
         // that has 3 public functions for constructing the struct.

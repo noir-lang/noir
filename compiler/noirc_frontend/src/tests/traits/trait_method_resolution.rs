@@ -1,10 +1,8 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::tests::{assert_no_errors, check_errors};
-// TODO: WIP
-use crate::tests::check_errors_with_stdlib;
 use crate::test_utils::stdlib_src;
+use crate::tests::{assert_no_errors, check_errors, check_errors_with_stdlib};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
@@ -699,12 +697,16 @@ fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
     check_errors(src);
 }
 
-// TODO: WIP
 #[test]
 fn regression_10537() {
-    let mut stdlib = stdlib_src::EQ.to_string();
-    stdlib.push_str(stdlib_src::ORD);
+    let mut stdlib = format!(r#"
+    mod cmp {{
+        {}
+        {}
+    }}"#, stdlib_src::EQ, stdlib_src::ORD);
     stdlib.push_str(r#"
+    use cmp::Ord;
+
     pub fn min<T>(v1: T, v2: T) -> T
     where
         T: Ord,
@@ -716,7 +718,6 @@ fn regression_10537() {
         }
     }
     "#);
-    let src = r#"
-    "#;
+    let src = "";
     check_errors_with_stdlib(src, &stdlib);
 }
