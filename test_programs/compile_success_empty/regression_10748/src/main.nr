@@ -33,9 +33,7 @@ struct Storage<Context> {
 
 impl<Context> Storage<Context> {
     pub fn init(context: Context) -> Self {
-        Storage {
-            symbol: PublicImmutable::new(context)
-        }
+        Storage { symbol: PublicImmutable::new(context) }
     }
 }
 
