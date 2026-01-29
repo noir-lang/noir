@@ -80,7 +80,6 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
-            "ctstring_len" => ctstring_len(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -191,7 +190,6 @@ impl Interpreter<'_, '_> {
             "vector_refcount" => Ok(Value::U32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
             "static_assert" => static_assert(interner, arguments, location, call_stack),
-            "str_len" => str_len(arguments, location),
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
@@ -396,12 +394,6 @@ fn static_assert(
     } else {
         failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
     }
-}
-
-fn str_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let string = check_one_argument(arguments, location)?;
-    let string = get_str(string)?;
-    Ok(Value::U32(string.len() as u32))
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -3203,12 +3195,6 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
-}
-
-fn ctstring_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let ctstring = check_one_argument(arguments, location)?;
-    let ctstring = get_ctstring(ctstring)?;
-    Ok(Value::U32(ctstring.len() as u32))
 }
 
 fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

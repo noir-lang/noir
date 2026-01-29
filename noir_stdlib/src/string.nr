@@ -4,8 +4,9 @@ impl<let N: u32> str<N> {
     /// Returns the length of this string.
     ///
     /// The length is in bytes.
-    #[builtin(str_len)]
-    pub fn len(self) -> u32 {}
+    pub fn len(self) -> u32 {
+        self.as_bytes().len()
+    }
 
     /// Converts the given string into a byte array
     #[builtin(str_as_bytes)]

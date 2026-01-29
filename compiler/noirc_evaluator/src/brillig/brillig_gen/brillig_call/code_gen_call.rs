@@ -380,7 +380,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     Intrinsic::IsUnconstrained
                     | Intrinsic::ArrayLen
                     | Intrinsic::ArrayAsStrUnchecked
-                    | Intrinsic::StrLen
                     | Intrinsic::StrAsBytes
                     | Intrinsic::StaticAssert
                     | Intrinsic::AssertConstant => {

@@ -499,7 +499,6 @@ impl DependencyContext {
                                 | Intrinsic::VectorInsert
                                 | Intrinsic::VectorRemove
                                 | Intrinsic::StaticAssert
-                                | Intrinsic::StrLen
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
                                 | Intrinsic::ToRadix(..)
@@ -814,7 +813,6 @@ impl Context {
                             | Intrinsic::VectorRefCount
                             | Intrinsic::VectorRemove
                             | Intrinsic::StaticAssert
-                            | Intrinsic::StrLen
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
                             | Intrinsic::ToRadix(..)
