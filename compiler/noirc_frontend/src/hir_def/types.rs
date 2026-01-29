@@ -2334,12 +2334,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 for var in typevars {
                     bindings.entry(var.id()).or_insert_with(|| {
-                        let entry = (
-                            var.clone(),
-                            var.kind(),
-                            interner.next_type_variable_with_kind(var.kind()),
-                        );
-                        entry
+                        (var.clone(), var.kind(), interner.next_type_variable_with_kind(var.kind()))
                     });
                 }
 

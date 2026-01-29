@@ -2828,7 +2828,7 @@ fn bind_named_generics(
             }
             _ => {
                 // Other types or associated constants
-                bind_generic(&param, &arg.typ, bindings)
+                bind_generic(&param, &arg.typ, bindings);
             }
         }
     }
