@@ -2958,7 +2958,40 @@
 <a href="#2957" id="2957">2957</a>
 <a href="#2958" id="2958">2958</a>
 <a href="#2959" id="2959">2959</a>
-<a href="#2960" id="2960">2960</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2960" id="2960">2960</a>
+<a href="#2961" id="2961">2961</a>
+<a href="#2962" id="2962">2962</a>
+<a href="#2963" id="2963">2963</a>
+<a href="#2964" id="2964">2964</a>
+<a href="#2965" id="2965">2965</a>
+<a href="#2966" id="2966">2966</a>
+<a href="#2967" id="2967">2967</a>
+<a href="#2968" id="2968">2968</a>
+<a href="#2969" id="2969">2969</a>
+<a href="#2970" id="2970">2970</a>
+<a href="#2971" id="2971">2971</a>
+<a href="#2972" id="2972">2972</a>
+<a href="#2973" id="2973">2973</a>
+<a href="#2974" id="2974">2974</a>
+<a href="#2975" id="2975">2975</a>
+<a href="#2976" id="2976">2976</a>
+<a href="#2977" id="2977">2977</a>
+<a href="#2978" id="2978">2978</a>
+<a href="#2979" id="2979">2979</a>
+<a href="#2980" id="2980">2980</a>
+<a href="#2981" id="2981">2981</a>
+<a href="#2982" id="2982">2982</a>
+<a href="#2983" id="2983">2983</a>
+<a href="#2984" id="2984">2984</a>
+<a href="#2985" id="2985">2985</a>
+<a href="#2986" id="2986">2986</a>
+<a href="#2987" id="2987">2987</a>
+<a href="#2988" id="2988">2988</a>
+<a href="#2989" id="2989">2989</a>
+<a href="#2990" id="2990">2990</a>
+<a href="#2991" id="2991">2991</a>
+<a href="#2992" id="2992">2992</a>
+<a href="#2993" id="2993">2993</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -3845,6 +3878,15 @@
                         Type::Reference(<span class="kw">_</span>) =&gt; {
                             <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(argument) {
                                 <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(expression) {
+                                    <span class="comment">// If the argument has unknown aliases, we must be conservative
+                                    // and mark all destination parameters as unknown. Otherwise,
+                                    // inserting into an unknown alias set is a no-op and destination parameters
+                                    // would incorrectly end up in separate alias sets.
+                                    </span><span class="kw">if </span>aliases.is_unknown() {
+                                        <span class="self">self</span>.mark_all_unknown(destination_parameters, references);
+                                        <span class="kw">return</span>;
+                                    }
+
                                     <span class="kw">let </span>argument = <span class="kw-2">*</span>argument;
 
                                     <span class="comment">// The argument reference is possibly aliased by this block parameter
@@ -4997,7 +5039,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>aliases_block_parameter_to_its_argument() {
         <span class="comment">// Here:
-        // - v0 and v1 are potentially aliases of each other
+        // - v0 and v1 are aliases of each other
         // - v2 must be an alias of v0 (there was a bug around this)
         // - v3 must be an alias of v1 (same as previous point)
         // - `v4 = load v2` cannot be replaced with `Field 2` because
@@ -5014,6 +5056,30 @@
         }
         "#</span>;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>aliases_unknown_block_arguments() {
+        <span class="comment">// Here:
+        // - v0 and v1 both have unknown alias sets
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0
+        // - v3 must be an alias of v1
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
+        </span><span class="kw">let </span>ssa = <span class="string">r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &amp;mut Field, v1_arr: [&amp;mut Field; 1]):
+            v1 = array_get v1_arr, index u32 0 -&gt; &amp;mut Field
+            jmp b1(v0, v1)
+          b1(v2: &amp;mut Field, v3: &amp;mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v4 = load v2 -&gt; Field
+            return v4
+        }
+        "#</span>;
+        assert_ssa_does_not_change(ssa, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
