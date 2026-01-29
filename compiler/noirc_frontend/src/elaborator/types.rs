@@ -2838,7 +2838,8 @@ fn bind_named_generics(
     }
 }
 
-/// Binds a the [TypeVariable] in a [ResolvedGeneric], e.g. a generic parameter of a trait, to a [Type].
+/// Binds the type variable in a [ResolvedGeneric], e.g. a generic parameter of a trait,
+/// to a [Type], which itself can be an unbound type variable.
 ///
 /// If the type varia itself appears in the type, then it does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
