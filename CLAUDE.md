@@ -1,7 +1,5 @@
 # Noir Monorepo Development Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 Noir is a domain-specific language for SNARK proving systems (zero-knowledge proofs). The compiler is written in Rust and produces ACIR (Abstract Circuit Intermediate Representation), which can be consumed by any ACIR-compatible proving backend. The project also includes a CLI (`nargo`), LSP server, debugger, formatter, and JavaScript/WASM bindings.
