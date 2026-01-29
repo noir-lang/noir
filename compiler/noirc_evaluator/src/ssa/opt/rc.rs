@@ -108,9 +108,7 @@ impl Context {
                         // A call with an array argument could mutate that array
                         for arg in arguments {
                             let typ = function.dfg.type_of_value(*arg);
-                            if typ.contains_an_array() {
-                                self.mark_as_mutated(&typ);
-                            }
+                            self.mark_array_as_mutated(&typ);
                         }
                     }
 
@@ -125,6 +123,15 @@ impl Context {
             for inc_rc in inc_rcs {
                 inc_rc.possibly_mutated = true;
             }
+        }
+    }
+
+    /// Recursively unwrap references and mark any contained arrays as mutated.
+    fn mark_array_as_mutated(&mut self, typ: &Type) {
+        match typ {
+            Type::Reference(element) => self.mark_array_as_mutated(element),
+            _ if typ.contains_an_array() => self.mark_as_mutated(typ),
+            _ => {}
         }
     }
 
@@ -474,6 +481,36 @@ mod tests {
             store v2 at v0                                                                             
             return                                                                                     
         }                                                                                              
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    /// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&mut &mut [Field; 2]`)
+    #[test]
+    fn mutation_through_call_with_deeply_nested_reference() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v1 = allocate -> &mut [Field; 2]
+            store v0 at v1
+            v2 = allocate -> &mut &mut [Field; 2]
+            store v1 at v2
+            call f1(v2)
+            v4 = load v1 -> [Field; 2]
+            v6 = array_get v4, index u32 0 -> Field
+            constrain v6 == Field 5
+            dec_rc v0
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: &mut &mut [Field; 2]):
+            v1 = load v0 -> &mut [Field; 2]
+            v2 = load v1 -> [Field; 2]
+            v3 = array_set v2, index u32 0, value Field 5
+            store v3 at v1
+            return
+        }
         ";
         assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
