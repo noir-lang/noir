@@ -855,7 +855,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::UnexpectedEscapedTokenInQuote { token, location } => {
                 let primary = match token {
                     Some(token) => format!("`{token}` cannot be escaped in quoted expressions"),
-                    None => format!("Unexpected end of input after escape character in quoted expression"),
+                    None => "Unexpected end of input after escape character in quoted expression".to_string(),
                 };
                 let secondary = "Only `$` may be escaped in `quote` expressions".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
