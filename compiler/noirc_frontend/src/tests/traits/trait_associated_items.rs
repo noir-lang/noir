@@ -592,6 +592,30 @@ fn associated_type_mismatch_with_inheritance() {
 }
 
 #[test]
+fn associated_type_and_constant_composite() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        let Baz: u32;
+        fn foo(x: [Self::Bar; Self::Baz]) -> u32;
+    }
+
+    impl Foo for () {
+        type Bar = ();
+        let Baz: u32 = 0;
+        fn foo(_x: [Self::Bar; Self::Baz]) -> u32 {
+            0
+        }
+    }
+
+    fn main() {
+        let _ = <() as Foo>::foo([(); 0]);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn associated_type_behind_self_as_trait() {
     let src = r#"
     pub trait Foo {
