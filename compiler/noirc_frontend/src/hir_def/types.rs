@@ -1185,9 +1185,9 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match &*type_var.borrow() {
-                TypeBinding::Bound(type_var) => type_var.fmt(f),
-                TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
-                TypeBinding::Unbound(_, _) => write!(f, "{name}"),
+                TypeBinding::Bound(type_var) if !type_var.is_unbound_type_var() => type_var.fmt(f),
+                _ if name.is_empty() => write!(f, "_"),
+                _ => write!(f, "{name}"),
             },
             Type::CheckedCast { to, .. } => write!(f, "{to}"),
             Type::Constant(x, _kind) => write!(f, "{x}"),
@@ -1893,6 +1893,14 @@ impl Type {
             | Type::InfixExpr(..)
             | Type::Error => false,
         }
+    }
+
+    /// Check if this is a [Type::TypeVariable] with a [TypeBinding::Unbound] binding.
+    fn is_unbound_type_var(&self) -> bool {
+        let Type::TypeVariable(type_var) = self else {
+            return false;
+        };
+        type_var.borrow().is_unbound()
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
