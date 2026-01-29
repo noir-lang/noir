@@ -890,7 +890,21 @@
 <a href="#889" id="889">889</a>
 <a href="#890" id="890">890</a>
 <a href="#891" id="891">891</a>
-<a href="#892" id="892">892</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -902,6 +916,7 @@
     },
     parser::ParserError,
     signed_field::SignedField,
+    token::Token,
 };
 <span class="kw">use </span>acvm::BlackBoxResolutionError;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
@@ -1191,6 +1206,10 @@
     AttributeRecursionLimitExceeded {
         location: Location,
     },
+    UnexpectedEscapedTokenInQuote {
+        token: <span class="prelude-ty">Option</span>&lt;Token&gt;,
+        location: Location,
+    },
 
     <span class="comment">// These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -1289,6 +1308,7 @@
             | InterpreterError::StackOverflow { location, .. }
             | InterpreterError::EvaluationDepthOverflow { location, .. }
             | InterpreterError::CheckedTransmuteFailed { location, .. }
+            | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
             | InterpreterError::AttributeRecursionLimitExceeded { location } =&gt; <span class="kw-2">*</span>location,
             InterpreterError::FailedToParseMacro { error, .. } =&gt; error.location(),
             InterpreterError::NoMatchingImplFound { error } =&gt; error.location,
@@ -1737,6 +1757,14 @@
                     <span class="string">"This attribute generates code with the same attribute, causing infinite recursion"</span>.to_string(),
                     <span class="kw-2">*</span>location,
                 )
+            }
+            InterpreterError::UnexpectedEscapedTokenInQuote { token, location } =&gt; {
+                <span class="kw">let </span>primary = <span class="kw">match </span>token {
+                    <span class="prelude-val">Some</span>(token) =&gt; <span class="macro">format!</span>(<span class="string">"`{token}` cannot be escaped in quoted expressions"</span>),
+                    <span class="prelude-val">None </span>=&gt; <span class="string">"Unexpected end of input after escape character in quoted expression"</span>.to_string(),
+                };
+                <span class="kw">let </span>secondary = <span class="string">"Only `$` may be escaped in `quote` expressions"</span>.to_string();
+                CustomDiagnostic::simple_error(primary, secondary, <span class="kw-2">*</span>location)
             }
         }
     }

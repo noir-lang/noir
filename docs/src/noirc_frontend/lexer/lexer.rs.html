@@ -1655,7 +1655,8 @@
 <a href="#1654" id="1654">1654</a>
 <a href="#1655" id="1655">1655</a>
 <a href="#1656" id="1656">1656</a>
-<a href="#1657" id="1657">1657</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
 
 <span class="kw">use super</span>::{
     errors::LexerErrorKind,
@@ -1833,6 +1834,7 @@
             <span class="prelude-val">Some</span>(<span class="string">']'</span>) =&gt; <span class="self">self</span>.single_char_token(Token::RightBracket),
             <span class="prelude-val">Some</span>(<span class="string">'$'</span>) =&gt; <span class="self">self</span>.single_char_token(Token::DollarSign),
             <span class="prelude-val">Some</span>(<span class="string">'@'</span>) =&gt; <span class="self">self</span>.single_char_token(Token::At),
+            <span class="prelude-val">Some</span>(<span class="string">'\\'</span>) =&gt; <span class="self">self</span>.single_char_token(Token::Backslash),
             <span class="prelude-val">Some</span>(<span class="string">'"'</span>) =&gt; <span class="self">self</span>.eat_string_literal(),
             <span class="prelude-val">Some</span>(<span class="string">'f'</span>) =&gt; <span class="self">self</span>.eat_format_string_or_alpha_numeric(),
             <span class="prelude-val">Some</span>(<span class="string">'r'</span>) =&gt; <span class="self">self</span>.eat_raw_string_or_alpha_numeric(),

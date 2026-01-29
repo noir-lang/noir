@@ -1015,7 +1015,8 @@
 <a href="#1014" id="1014">1014</a>
 <a href="#1015" id="1015">1015</a>
 <a href="#1016" id="1016">1016</a>
-<a href="#1017" id="1017">1017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1322,6 +1323,7 @@
             | Token::Pipe
             | Token::Bang
             | Token::At
+            | Token::Backslash
             | Token::DollarSign =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"{token}"</span>)
             }
