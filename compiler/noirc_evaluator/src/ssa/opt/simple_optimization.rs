@@ -1,3 +1,5 @@
+//! Contains helper functions for performing SSA optimizations.
+
 use std::hash::BuildHasher;
 
 use iter_extended::vecmap;
