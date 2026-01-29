@@ -972,7 +972,7 @@ fn link_offset(text: &str, line: usize) -> usize {
             offset += line_text_length - line_text.len();
 
             // Does every line in the comment start with "*" (except for the new first line)
-            let all_stars = block_comment_has_all_leading_stars(&text);
+            let all_stars = block_comment_has_all_leading_stars(text);
 
             // If every line starts with "*" we need to skip past it, and any spaces after it.
             if all_stars {
