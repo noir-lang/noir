@@ -2688,7 +2688,10 @@ impl Elaborator<'_> {
 
         bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
 
-        let associated_types = the_trait.associated_types.clone();
+        let associated_types = vecmap(&the_trait.associated_types, |typ| {
+            let is_const = the_trait.associated_constant_ids.contains_key(typ.name.as_str());
+            (typ.clone(), is_const)
+        });
         bind_named_generics(
             object,
             &the_trait.name,
@@ -2794,7 +2797,7 @@ pub(super) fn bind_ordered_generics(
 fn bind_named_generics(
     object: &Type,
     trait_ident: &Ident,
-    mut params: Vec<ResolvedGeneric>,
+    mut params: Vec<(ResolvedGeneric, bool)>,
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
@@ -2809,20 +2812,28 @@ fn bind_named_generics(
     for arg in args {
         let i = params
             .iter()
-            .position(|typ| *typ.name == arg.name.as_str())
+            .position(|(typ, _)| *typ.name == arg.name.as_str())
             .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
 
-        let param = params.swap_remove(i);
-        if let Type::TypeVariable(v) = &arg.typ {
-            let name = Rc::new(arg.name.to_string());
-            let typ = v.clone().into_named_generic(&name, Some((&object_name, trait_name)));
-            bind_generic(&param, &typ, bindings);
-        } else {
-            bind_generic(&param, &arg.typ, bindings);
+        let (param, is_const) = params.swap_remove(i);
+
+        match &arg.typ {
+            Type::TypeVariable(v) if !is_const && v.borrow().is_unbound() => {
+                // If we allow associated types to bind to a Type::TypeVariable rather than a Type::NamedGeneric,
+                // then they be unified with anything else,
+                // whereas as a NamedGeneric they only unify with the same type variable.
+                let name = Rc::new(arg.name.to_string());
+                let typ = v.clone().into_named_generic(&name, Some((&object_name, trait_name)));
+                bind_generic(&param, &typ, bindings);
+            }
+            _ => {
+                // Other types or associated constants
+                bind_generic(&param, &arg.typ, bindings)
+            }
         }
     }
 
-    for unbound_param in params {
+    for (unbound_param, _) in params {
         bind_generic(&unbound_param, &Type::Error, bindings);
     }
 }
