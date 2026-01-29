@@ -831,12 +831,13 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             let typ = self.inserter.function.dfg.type_of_value(*value);
+            // We must recursively check composite types for a reference (e.g., array of references),
+            // as we still need to mark those internal references as unknown.
             if typ.contains_reference() {
                 let value = *value;
 
-                // If we have a nested reference (e.g. &mut &mut Field), recurse to invalidate
-                // what it points to. This is necessary because a callee could load this
-                // reference and mutate through the inner reference.
+                // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
+                // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
                 if let Type::Reference(element) = &typ {
                     if element.contains_reference() {
                         if let Some(inner_ref) = references.get_known_value(value) {
