@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769722062846,
+  "lastUpdate": 1769722834173,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "74e60d602960b685036d86f83b3189bed1a9e7b9",
-          "message": "chore(deps): bump foundry-rs/foundry-toolchain from 1.6.0 to 1.7.0 (#11307)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-01-26T10:49:39Z",
-          "tree_id": "3a17a9461011c3e15647dfecd7e6813c9a122b0b",
-          "url": "https://github.com/noir-lang/noir/commit/74e60d602960b685036d86f83b3189bed1a9e7b9"
-        },
-        "date": 1769425933263,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265826,
-            "range": "± 464",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234377,
-            "range": "± 1945",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797306,
-            "range": "± 7666",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2799858,
             "range": "± 12678",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "56b3e06bba54ba9cf45a93f7850c334eb51d7959",
+          "message": "fix: Don't dedup array sets in brillig fns (#11395)",
+          "timestamp": "2026-01-29T21:14:57Z",
+          "tree_id": "e8dfb4ef59ad4761e7062410d1512aa64423cf72",
+          "url": "https://github.com/noir-lang/noir/commit/56b3e06bba54ba9cf45a93f7850c334eb51d7959"
+        },
+        "date": 1769722795465,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257243,
+            "range": "± 1956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228454,
+            "range": "± 12295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800551,
+            "range": "± 2246",
             "unit": "ns/iter"
           }
         ]
