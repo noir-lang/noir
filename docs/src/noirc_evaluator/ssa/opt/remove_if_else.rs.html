@@ -1225,7 +1225,16 @@
 <a href="#1224" id="1224">1224</a>
 <a href="#1225" id="1225">1225</a>
 <a href="#1226" id="1226">1226</a>
-<a href="#1227" id="1227">1227</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
 //! remaining `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
@@ -1405,6 +1414,15 @@
     /// through intrinsic calls and array set instructions.
     </span><span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function) -&gt; RtResult&lt;()&gt; {
         <span class="kw">let </span>block = function.entry_block();
+
+        <span class="comment">// Early return if there is no IfElse instruction.
+        </span><span class="kw">if </span>!function.dfg[block]
+            .instructions()
+            .iter()
+            .any(|inst| <span class="macro">matches!</span>(function.dfg[<span class="kw-2">*</span>inst], Instruction::IfElse { .. }))
+        {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        }
 
         function.simple_optimization_result(|context| {
             <span class="kw">let </span>instruction_id = context.instruction_id;
