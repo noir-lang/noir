@@ -1900,7 +1900,11 @@ impl Type {
         let Type::TypeVariable(type_var) = self else {
             return false;
         };
-        type_var.borrow().is_unbound()
+        let binding = type_var.borrow();
+        match &*binding {
+            TypeBinding::Unbound(_, _) => true,
+            TypeBinding::Bound(typ) => typ.is_unbound_type_var(),
+        }
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
