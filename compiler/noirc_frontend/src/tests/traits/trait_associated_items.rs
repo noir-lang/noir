@@ -568,6 +568,30 @@ fn associated_type_mismatch_across_modules() {
 }
 
 #[test]
+fn associated_type_mismatch_with_inheritance() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo(x: Self::Bar) -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Baz;
+        fn qux(x: Self::Baz) -> Self::Baz {
+                                ^^^^^^^^^ expected type Self::Baz, found type _
+                                ~~~~~~~~~ expected Self::Baz because of return type
+            <Self as Foo>::foo(x)
+                               ^ Expected type Self::Bar, found type Self::Baz
+            ~~~~~~~~~~~~~~~~~~~~~ _ returned here
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_type_behind_self_as_trait() {
     let src = r#"
     pub trait Foo {

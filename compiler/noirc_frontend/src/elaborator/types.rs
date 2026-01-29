@@ -2295,6 +2295,7 @@ impl Elaborator<'_> {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
                 let mut matches = self.lookup_methods_in_trait(
+                    object_type,
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
@@ -2331,6 +2332,7 @@ impl Elaborator<'_> {
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
                 {
                     let trait_matches = self.lookup_methods_in_trait(
+                        object_type,
                         the_trait,
                         method_name,
                         &constraint.trait_bound,
@@ -2392,6 +2394,7 @@ impl Elaborator<'_> {
     /// a child and its parent.
     fn lookup_methods_in_trait(
         &self,
+        object: &Type,
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
@@ -2420,8 +2423,9 @@ impl Elaborator<'_> {
                 }
 
                 let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
+                    self.instantiate_parent_trait_bound(object, trait_bound, parent_trait_bound);
                 let parent_matches = self.lookup_methods_in_trait(
+                    object,
                     the_trait,
                     method_name,
                     &parent_trait_bound,
@@ -2650,13 +2654,17 @@ impl Elaborator<'_> {
         (expr_location, empty_function)
     }
 
+    /// Insert the ordered generics and associated types from the trait bound.
+    /// If the constraint is `assumed`, it also inserts the binding to the `Self`
+    /// type to whatever type the constraint is defined on.
     pub fn bind_generics_from_trait_constraint(
         &self,
+        object: &Type,
         constraint: &TraitConstraint,
         assumed: bool,
         bindings: &mut TypeBindings,
     ) {
-        self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
+        self.bind_generics_from_trait_bound(object, &constraint.trait_bound, bindings);
 
         // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
         // Otherwise `self` will be replaced with a fresh type variable, which will require the user
@@ -2669,8 +2677,10 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Insert the ordered generics and associated types from the trait bound.
     pub fn bind_generics_from_trait_bound(
         &self,
+        object: &Type,
         trait_bound: &ResolvedTraitBound,
         bindings: &mut TypeBindings,
     ) {
@@ -2679,16 +2689,23 @@ impl Elaborator<'_> {
         bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
 
         let associated_types = the_trait.associated_types.clone();
-        bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
+        bind_named_generics(
+            object,
+            &the_trait.name,
+            associated_types,
+            &trait_bound.trait_generics.named,
+            bindings,
+        );
     }
 
     pub fn instantiate_parent_trait_bound(
         &self,
+        object: &Type,
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,
     ) -> ResolvedTraitBound {
         let mut bindings = TypeBindings::default();
-        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+        self.bind_generics_from_trait_bound(object, trait_bound, &mut bindings);
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
@@ -2755,24 +2772,39 @@ impl Elaborator<'_> {
     }
 }
 
+/// Binds the ordered [ResolvedGeneric]s of a trait to the ordered generics in a [ResolvedTraitBound].
+///
+/// Panics if the number of types do not match the ordered generics in the trait.
 pub(super) fn bind_ordered_generics(
     params: &[ResolvedGeneric],
     args: &[Type],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(params.len(), args.len());
+    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
 
     for (param, arg) in params.iter().zip(args) {
         bind_generic(param, arg, bindings);
     }
 }
 
+/// Binds the associated [ResolvedGeneric]s of a trait to the named generics in a [ResolvedTraitBound].
+///
+/// Panics if the number of types exceeds the named generics in the trait.
+/// Any named parameter that does not appear in the arguments is bound to [Type::Error].
 fn bind_named_generics(
+    object: &Type,
+    trait_ident: &Ident,
     mut params: Vec<ResolvedGeneric>,
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert!(args.len() <= params.len());
+    assert!(args.len() <= params.len(), "more named generics than associated types");
+
+    if params.is_empty() {
+        return;
+    }
+    let object_name = object.to_string();
+    let trait_name = trait_ident.as_str();
 
     for arg in args {
         let i = params
@@ -2781,7 +2813,13 @@ fn bind_named_generics(
             .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
 
         let param = params.swap_remove(i);
-        bind_generic(&param, &arg.typ, bindings);
+        if let Type::TypeVariable(v) = &arg.typ {
+            let name = Rc::new(arg.name.to_string());
+            let typ = v.clone().into_named_generic(&name, Some((&object_name, trait_name)));
+            bind_generic(&param, &typ, bindings);
+        } else {
+            bind_generic(&param, &arg.typ, bindings);
+        }
     }
 
     for unbound_param in params {
@@ -2789,6 +2827,9 @@ fn bind_named_generics(
     }
 }
 
+/// Binds a the [TypeVariable] in a [ResolvedGeneric], e.g. a generic parameter of a trait, to a [Type].
+///
+/// If the type varia itself appears in the type, then it does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
     // Avoid binding t = t
     if !arg.occurs(param.type_var.id()) {

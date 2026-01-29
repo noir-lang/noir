@@ -576,6 +576,7 @@ impl Elaborator<'_> {
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitItem(method) = &ident.impl_kind {
             self.bind_generics_from_trait_constraint(
+                &method.constraint.typ,
                 &method.constraint,
                 method.assumed,
                 &mut bindings,
@@ -602,7 +603,7 @@ impl Elaborator<'_> {
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, location);
+            self.instantiate(t.clone(), bindings, generics, function_generic_count, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
@@ -650,6 +651,7 @@ impl Elaborator<'_> {
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
+
                 for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>()
                 {
                     constraint.apply_bindings(&bindings);

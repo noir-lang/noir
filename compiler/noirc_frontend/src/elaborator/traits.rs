@@ -616,7 +616,7 @@ impl Elaborator<'_> {
                 }
 
                 let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
+                    self.instantiate_parent_trait_bound(object, trait_bound, &parent_trait_bound);
                 self.add_trait_bound_to_scope(
                     location,
                     object,
