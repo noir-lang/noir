@@ -387,6 +387,7 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::Pound
             | Token::Colon
             | Token::DoubleColon
+            | Token::Backslash
             | Token::Bang
             | Token::DollarSign
             | Token::At
