@@ -215,6 +215,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
         // Removing unreachable instructions before mem2reg, which may result in some default Store
         // instructions being added, which it can pair up with Loads. If we ran it after it,
         // then DIE would just remove the Stores, leaving the Loads dangling.
