@@ -1377,3 +1377,43 @@ fn many_non_recursive_attributes_do_not_trigger_macro_expansion_limit() {
     );
     assert_no_errors(&src);
 }
+
+#[test]
+fn unquote_in_nested_quote() {
+    let src = r#"
+    #[foo]
+    pub comptime fn foo(_: FunctionDefinition) -> Quoted {
+        let x = 0;
+        quote {
+            pub comptime fn bar() -> Quoted {
+                quote { $x }
+            }
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn substitute_unquoted_in_nested_quote() {
+    let src = r#"
+    fn main() {
+        do_func!(
+            |i: u32| {
+                quote {
+                    $do_func!(|_| {
+                        quote {
+                            let _ = $i;
+                        }
+                    });
+            }
+            },
+        );
+    }
+
+    pub comptime fn do_func(body: fn(u32) -> Quoted) -> Quoted {
+        body(123)
+    }
+    "#;
+    assert_no_errors(src);
+}

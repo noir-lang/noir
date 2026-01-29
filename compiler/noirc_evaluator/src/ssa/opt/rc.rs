@@ -357,25 +357,8 @@ mod tests {
         }
         ";
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
         // We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn mutator f0 {
-          b0(v0: [Field; 5], v1: [Field; 5]):
-            inc_rc v0
-            inc_rc v1
-            v2 = allocate -> &mut [Field; 5]
-            store v0 at v2
-            v3 = load v2 -> [Field; 5]
-            v6 = array_set v3, index u32 0, value Field 5
-            store v6 at v2
-            v8 = array_get v1, index u32 1 -> Field
-            dec_rc v0
-            dec_rc v1
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]

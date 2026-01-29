@@ -2,24 +2,27 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(
-    hashed_message: [u8; 32],
+struct Signature {
+    message_hash: [u8; 32],
     pub_key_x: [u8; 32],
     pub_key_y: [u8; 32],
     signature: [u8; 64],
-    hashed_message_2: [u8; 32],
-    pub_key_x_2: [u8; 32],
-    pub_key_y_2: [u8; 32],
-    signature_2: [u8; 64],
-) {
-    let valid_signature: bool =
-        std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-    assert(!valid_signature);
-    let valid_signature: bool = std::ecdsa_secp256k1::verify_signature(
-        pub_key_x_2,
-        pub_key_y_2,
-        signature_2,
-        hashed_message_2,
-    );
-    assert(!valid_signature);
+}
+
+fn main(invalid_signatures: [Signature; 3]) {
+    {
+        let ___i0: [Signature; 3] = invalid_signatures;
+        for ___i1 in 0_u32..___i0.len() {
+            let signature: Signature = ___i0[___i1];
+            {
+                let is_valid: bool = std::ecdsa_secp256k1::verify_signature(
+                    signature.pub_key_x,
+                    signature.pub_key_y,
+                    signature.signature,
+                    signature.message_hash,
+                );
+                assert(!is_valid);
+            }
+        }
+    }
 }

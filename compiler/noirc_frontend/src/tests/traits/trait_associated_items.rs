@@ -519,7 +519,7 @@ fn associated_and_generic_type_share_name() {
 }
 
 #[test]
-fn associated_and_type_mismatch_across_traits() {
+fn associated_type_mismatch_across_traits() {
     let src = r#"
     pub trait Spam {
         type Item;
@@ -540,7 +540,7 @@ fn associated_and_type_mismatch_across_traits() {
 }
 
 #[test]
-fn associated_mismatch_with_identical_names() {
+fn associated_type_mismatch_across_modules() {
     // Error message is confusing here but it is an improvement over no error
     let src = r#"
         pub mod one {
@@ -563,6 +563,46 @@ fn associated_mismatch_with_identical_names() {
         }
 
         fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_behind_self_as_trait() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn bar_one() -> Self::Bar;
+        fn bar_two() -> <Self as Foo>::Bar;
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_behind_self_as_trait_with_generics() {
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar_one() -> Self::Bar;
+        fn bar_two() -> <Self as Foo<Baz>>::Bar;
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_behind_self_as_trait_with_different_generics() {
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar() -> <Self as Foo<u32>>::Bar;
+                             ^^^ No matching impl found for `Self: Foo<u32, Bar = _>`
+                             ~~~ No impl for `Self: Foo<u32, Bar = _>`
+    }
+    fn main() {}
     "#;
     check_errors(src);
 }
@@ -742,5 +782,27 @@ fn associated_type_direct_access() {
         let _: Foo::MyType = CustomType { };
                     ^^^^^^ Could not resolve 'MyType' in path
     }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_in_trait_method_missing_in_impl() {
+    // When an impl is missing an associated constant that is accessed in a default trait method,
+    // we should only get ONE error (the "missing associated type" error)
+    let src = "
+    trait MyTrait {
+        let N: u32;
+
+        fn foo() {
+            let _ = Self::N;
+        }
+    }
+
+    impl MyTrait for i32 {
+         ^^^^^^^ `MyTrait` is missing the associated type `N`
+    }
+
+    fn main() {}
+    ";
     check_errors(src);
 }
