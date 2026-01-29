@@ -31,17 +31,6 @@ mod tests {
     // These tests fail with stack too deep errors when debug assertions are active
     const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
 
-    const IGNORED_PEDANTIC_SOLVING_TESTS: [&str; 3] = [
-        // TODO(https://github.com/noir-lang/noir/issues/8098): all of these are failing with:
-        // ```
-        // Failed to solve program:
-        // \'Failed to solve blackbox function: embedded_curve_add, reason: Infinite input: embedded_curve_add(infinity, infinity)\'
-        // ```
-        "execution_success/multi_scalar_mul",
-        "execution_success/regression_5045",
-        "execution_success/regression_7744",
-    ];
-
     fn setup_nargo(
         test_program_dir: &Path,
         test_command: &str,
@@ -59,14 +48,6 @@ mod tests {
         if !skip_brillig_debug_assertions {
             // Allow more bytecode in exchange to catch illegal states.
             nargo.arg("--enable-brillig-debug-assertions");
-        }
-
-        // Enable pedantic solving
-        let skip_pedantic_solving = IGNORED_PEDANTIC_SOLVING_TESTS
-            .into_iter()
-            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
-        if !skip_pedantic_solving {
-            nargo.arg("--pedantic-solving");
         }
 
         // Enable enums and trait_as_type as unstable features
@@ -341,9 +322,6 @@ mod tests {
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
-
         nargo.assert().success();
 
         let original_output = nargo.output().unwrap();
@@ -356,9 +334,6 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -397,9 +372,6 @@ mod tests {
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
-
         nargo.assert().success();
 
         let expanded_output = nargo.output().unwrap();
@@ -419,9 +391,6 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -460,9 +429,6 @@ mod tests {
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
-
         nargo.assert().success();
     }
 
@@ -474,9 +440,6 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -493,8 +456,6 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         execution_failure(nargo);
     }

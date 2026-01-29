@@ -572,7 +572,7 @@ mod tests {
                     .get(&func_id)
                     .copied()
                     .expect("Should have globals memory size");
-                assert_eq!(globals_max_memory, 7);
+                assert_eq!(globals_max_memory, 7 - 2, "maximum minus temporary");
             } else {
                 panic!("Unexpected function id: {func_id}");
             }

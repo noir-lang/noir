@@ -80,10 +80,10 @@ impl Expr {
     // docs:end:as_for
 
     /// If this expression is a for statement over a range, return the identifier,
-    /// the range start, the range end and the for loop body.
+    /// the range start, the range end, whether the range is inclusive, and the for loop body.
     #[builtin(expr_as_for_range)]
     // docs:start:as_for_range
-    pub comptime fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)> {}
+    pub comptime fn as_for_range(self) -> Option<(Quoted, Expr, Expr, bool, Expr)> {}
     // docs:end:as_for_range
 
     /// If this expression is a function call `foo(arg1, ..., argN)`, return
@@ -404,11 +404,11 @@ comptime fn modify_for<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Opt
 }
 
 comptime fn modify_for_range<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_for_range().map(|(identifier, from, to, body)| {
+    expr.as_for_range().map(|(identifier, from, to, inclusive, body)| {
         let from = from.modify(f);
         let to = to.modify(f);
         let body = body.modify(f);
-        new_for_range(identifier, from, to, body)
+        new_for_range(identifier, from, to, inclusive, body)
     })
 }
 
@@ -564,8 +564,19 @@ comptime fn new_for(identifier: Quoted, array: Expr, body: Expr) -> Expr {
     quote { for $identifier in $array { $body } }.as_expr().unwrap()
 }
 
-comptime fn new_for_range(identifier: Quoted, from: Expr, to: Expr, body: Expr) -> Expr {
-    quote { for $identifier in $from .. $to { $body } }.as_expr().unwrap()
+comptime fn new_for_range(
+    identifier: Quoted,
+    from: Expr,
+    to: Expr,
+    inclusive: bool,
+    body: Expr,
+) -> Expr {
+    let dots = if inclusive {
+        quote { ..= }
+    } else {
+        quote { .. }
+    };
+    quote { for $identifier in $from $dots $to { $body } }.as_expr().unwrap()
 }
 
 comptime fn new_index(object: Expr, index: Expr) -> Expr {

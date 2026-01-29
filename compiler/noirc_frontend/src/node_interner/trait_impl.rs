@@ -6,7 +6,10 @@ use std::collections::HashSet;
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
     graph::CrateId,
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
     node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
@@ -85,7 +88,7 @@ impl NodeInterner {
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
         location: Location,
-    ) -> Result<Result<(), Location>, TypeCheckError> {
+    ) -> Result<Result<(), Location>, CompilationError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
@@ -95,7 +98,8 @@ impl NodeInterner {
             return Err(TypeCheckError::ExpectingOtherError {
                 message: "collect_trait_impl: missing trait type".to_string(),
                 location,
-            });
+            }
+            .into());
         }
 
         // Replace each generic with a fresh type variable
@@ -145,7 +149,7 @@ impl NodeInterner {
 
         for method in &trait_impl.borrow().methods {
             let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, Some(trait_id));
+            self.add_method(&object_type, method_name, *method, Some(trait_id))?;
         }
 
         // The object type is generalized so that a generic impl will apply

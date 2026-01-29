@@ -1,7 +1,4 @@
-use acvm::{
-    FieldElement,
-    acir::circuit::{ExpressionWidth, Program},
-};
+use acvm::{FieldElement, acir::circuit::Program};
 use noirc_abi::{Abi, AbiType, AbiValue};
 use serde::{Deserialize, Serialize};
 
@@ -93,8 +90,6 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-    /// Maximum width of the expressions which will be constrained
-    pub expression_width: ExpressionWidth,
 }
 
 impl ContractFunctionArtifact {
@@ -111,7 +106,6 @@ impl ContractFunctionArtifact {
             debug: self.debug_symbols.debug_infos,
             file_map,
             warnings: Vec::new(),
-            expression_width: self.expression_width,
         }
     }
 }
@@ -126,7 +120,6 @@ impl From<ContractFunction> for ContractFunctionArtifact {
             abi: func.abi,
             bytecode: func.bytecode,
             debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
-            expression_width: func.expression_width,
         }
     }
 }
@@ -178,6 +171,4 @@ pub struct ContractFunction {
     pub bytecode: Program<FieldElement>,
 
     pub debug: Vec<DebugInfo>,
-    /// Maximum width of the expressions which will be constrained
-    pub expression_width: ExpressionWidth,
 }

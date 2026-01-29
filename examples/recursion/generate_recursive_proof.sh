@@ -6,7 +6,7 @@ BIN_TO_FLDS=../../scripts/binary_to_fields.py
 
 # Execute and prove inner circuit (sum)
 mkdir -p ./target/sum
-nargo execute sum_witness --package sum --pedantic-solving
+nargo execute sum_witness --package sum
 # Generate vk for inner circuit
 $BACKEND write_vk -b ./target/sum.json -o ./target/sum
 $BACKEND prove -b ./target/sum.json -w ./target/sum_witness.gz -o ./target/sum -k ./target/sum/vk
@@ -21,7 +21,7 @@ echo "public_inputs = $(python3 $BIN_TO_FLDS ./target/sum/public_inputs)" >> $RE
 echo "key_hash = $(python3 $BIN_TO_FLDS ./target/sum/vk_hash | jq -c ".[0]")" >> $RECURSE_LEAF_PROVER_TOML
 
 # Execute and prove `recurse_leaf`
-nargo execute recurse_leaf_witness --package recurse_leaf --pedantic-solving
+nargo execute recurse_leaf_witness --package recurse_leaf
 
 mkdir -p ./target/leaf
 $BACKEND write_vk -b ./target/recurse_leaf.json -o ./target/leaf
@@ -40,7 +40,7 @@ echo "public_inputs = $(python3 $BIN_TO_FLDS ./target/leaf/public_inputs)" >> $R
 
 
 # Execute and prove `recurse_node`
-nargo execute recurse_node_witness --package recurse_node --pedantic-solving
+nargo execute recurse_node_witness --package recurse_node
 
 mkdir -p ./target/node
 $BACKEND write_vk -b ./target/recurse_node.json -o ./target/node

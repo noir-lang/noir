@@ -1032,7 +1032,7 @@ mod tests {
           b1():
             v2 = add Field 1, Field 2
             jmp b2(v2)
-          b2():
+          b2(v3: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
@@ -1050,16 +1050,16 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            v2 = add Field 1, Field 2
-            jmp b2(v2)
-          b2():
+            v3 = add Field 1, Field 2
+            jmp b2(v3)
+          b2(v0: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v4 = add Field 1, Field 2
-            return v4
+            v5 = add Field 1, Field 2
+            return v5
         }
         "#);
     }

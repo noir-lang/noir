@@ -1,3 +1,5 @@
+mod after_change;
+
 #[cfg(test)]
 mod completion_tests {
     use crate::{
@@ -11,6 +13,7 @@ mod completion_tests {
                     trait_impl_method_completion_item,
                 },
                 sort_text::{auto_import_sort_text, self_mismatch_sort_text},
+                variable_completion_item,
             },
             on_completion_request,
         },
@@ -381,11 +384,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "local",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("local", Some("Field".to_string()))],
         )
         .await;
     }
@@ -401,11 +400,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "local",
-                CompletionItemKind::VARIABLE,
-                Some("bool".to_string()),
-            )],
+            vec![variable_completion_item("local", Some("bool".to_string()))],
         )
         .await;
     }
@@ -419,11 +414,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "local",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("local", Some("Field".to_string()))],
         )
         .await;
     }
@@ -593,11 +584,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "index",
-                CompletionItemKind::VARIABLE,
-                Some("u32".to_string()),
-            )],
+            vec![variable_completion_item("index", Some("u32".to_string()))],
         )
         .await;
     }
@@ -613,11 +600,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "lambda_var",
-                CompletionItemKind::VARIABLE,
-                Some("i32".to_string()),
-            )],
+            vec![variable_completion_item("lambda_var", Some("i32".to_string()))],
         )
         .await;
     }
@@ -842,16 +825,8 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                simple_completion_item(
-                    "good",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
-                simple_completion_item(
-                    "great",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
+                variable_completion_item("good", Some("Field".to_string())),
+                variable_completion_item("great", Some("Field".to_string())),
             ],
         )
         .await;
@@ -870,16 +845,8 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                simple_completion_item(
-                    "good",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
-                simple_completion_item(
-                    "greater",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
+                variable_completion_item("good", Some("Field".to_string())),
+                variable_completion_item("greater", Some("Field".to_string())),
             ],
         )
         .await;
@@ -897,11 +864,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "good",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("good", Some("Field".to_string()))],
         )
         .await;
     }
@@ -920,16 +883,8 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                simple_completion_item(
-                    "good",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
-                simple_completion_item(
-                    "great",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
+                variable_completion_item("good", Some("Field".to_string())),
+                variable_completion_item("great", Some("Field".to_string())),
             ],
         )
         .await;
@@ -945,11 +900,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "good",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("good", Some("Field".to_string()))],
         )
         .await;
     }
@@ -2839,11 +2790,7 @@ fn main() {
 
         assert_completion(
             src,
-            vec![simple_completion_item(
-                "some_var",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("some_var", Some("Field".to_string()))],
         )
         .await;
     }
@@ -2863,11 +2810,7 @@ fn main() {
 
         assert_completion(
             src,
-            vec![simple_completion_item(
-                "some_var",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("some_var", Some("Field".to_string()))],
         )
         .await;
     }

@@ -104,7 +104,7 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
                 let artifacts = artifacts.as_ref().expect("setup compiled them");
 
                 for (program, initial_witness) in artifacts {
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver::default();
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let _witness_stack = black_box(nargo::ops::execute_program(
                         black_box(&program.program),
                         black_box(initial_witness.clone()),

@@ -99,13 +99,6 @@ impl Type {
     ) -> Result<(), UnificationError> {
         use Type::*;
 
-        // If the two types are exactly the same then they trivially unify.
-        // This check avoids potentially unifying very complex types (usually infix
-        // expressions) when they are the same.
-        if self == other {
-            return Ok(());
-        }
-
         let lhs = self.follow_bindings_shallow();
         let rhs = other.follow_bindings_shallow();
 
@@ -213,14 +206,14 @@ impl Type {
             }
 
             (
-                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, .. }),
             ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
-                if name_a == name_b {
+                if binding_a.0 == binding_b.0 {
                     binding_a.kind().unify(&binding_b.kind())
                 } else {
                     Err(UnificationError)
@@ -546,8 +539,8 @@ impl Type {
         }
     }
 
-    // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
-    // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+    /// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    /// Returns `None` if no coercion can be applied, otherwise returns `self` coerced to `expected`.
     fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
         // If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
@@ -628,23 +621,26 @@ impl Type {
         false
     }
 
-    /// Attempt to coerce `&mut T` to `&T`, returning true if this is possible.
+    /// Attempt to coerce reference types, returning true if possible.
     pub(crate) fn try_reference_coercion(&self, target: &Type) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Reference(this_elem, true), Type::Reference(target_elem, false)) =
-            (&this, &target)
-        {
-            // Still have to ensure the element types match.
-            // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::default();
-            if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
-                Self::apply_type_bindings(bindings);
-                return true;
+        match (&this, &target) {
+            // Coerce `&mut T` to `&T`, and `&T` to `&T`
+            (Type::Reference(this_elem, true), Type::Reference(target_elem, false))
+            | (Type::Reference(this_elem, false), Type::Reference(target_elem, false)) => {
+                // Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+                let mut bindings = TypeBindings::default();
+                if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
+                    Self::apply_type_bindings(bindings);
+                    return true;
+                }
+                false
             }
+            _ => false,
         }
-        false
     }
 }
 

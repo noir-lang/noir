@@ -481,7 +481,7 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = type_var.clone().into_named_generic(name.clone());
+    let typ = type_var.clone().into_named_generic(&name, None);
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -499,7 +499,7 @@ fn type_def_as_type(
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().into_named_generic(None));
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -566,7 +566,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let generic_as_named = generic.clone().as_named_generic();
+            let generic_as_named = generic.clone().into_named_generic(None);
             let numeric_type = match generic_as_named.kind() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
@@ -605,7 +605,7 @@ fn type_def_has_named_attribute(
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
@@ -658,7 +658,7 @@ fn type_def_fields(
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1363,7 +1363,7 @@ fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 
 // fn methods(self) -> [FunctionDefinition]
 fn trait_impl_methods(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1381,7 +1381,7 @@ fn trait_impl_methods(
 
 // fn trait_generic_args(self) -> [Type]
 fn trait_impl_trait_generic_args(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1947,7 +1947,7 @@ fn expr_as_for(
     })
 }
 
-// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, bool, Expr)>
 fn expr_as_for_range(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1957,14 +1957,14 @@ fn expr_as_for_range(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
-                let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
-                let from = Shared::new(Value::expression(from.kind));
-                let to = Shared::new(Value::expression(to.kind));
+                let from = Shared::new(Value::expression(bounds.start.kind));
+                let to = Shared::new(Value::expression(bounds.end.kind));
+                let inclusive = Shared::new(Value::Bool(bounds.inclusive));
                 let body = Shared::new(Value::expression(for_statement.block.kind));
-                Some(Value::Tuple(vec![identifier, from, to, body]))
+                Some(Value::Tuple(vec![identifier, from, to, inclusive, body]))
             } else {
                 None
             }
@@ -3157,7 +3157,7 @@ fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 }
 
 fn trait_def_as_trait_constraint(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {

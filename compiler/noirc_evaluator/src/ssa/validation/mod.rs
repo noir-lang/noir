@@ -653,15 +653,19 @@ impl<'f> Validator<'f> {
                 );
             }
             BlackBoxFunc::AES128Encrypt => {
-                // fn aes128_encrypt<let N: u32>(
-                //     input: [u8; N],
+                // fn aes128_encrypt_padded_input<let N: u32>(
+                //     input: [u8; N],  // N must be a multiple of 16
                 //     iv: [u8; 16],
                 //     key: [u8; 16],
-                // ) -> [u8; N + 16 - N % 16] {}
+                // ) -> [u8; N] {}
                 let (input_type, iv_type, key_type) =
                     self.assert_three_arguments(arguments, "aes128_encrypt");
 
                 let input_length = assert_u8_array(&input_type, "aes128_encrypt input");
+                assert!(
+                    input_length % 16 == 0,
+                    "aes128_encrypt input length must be a multiple of 16"
+                );
 
                 let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
                 assert_array_length(iv_length, 16, "aes128_encrypt iv");
@@ -672,9 +676,8 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "aes128_encrypt");
                 let result_length = assert_u8_array(&result_type, "aes128_encrypt output");
                 assert_eq!(
-                    result_length,
-                    input_length + 16 - input_length % 16,
-                    "aes128_encrypt output length mismatch"
+                    result_length, input_length,
+                    "aes128_encrypt input length must match output length"
                 );
             }
             BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {
@@ -1029,8 +1032,22 @@ impl<'f> Validator<'f> {
                     "JmpIf conditions should have boolean type"
                 );
             }
-            TerminatorInstruction::Jmp { destination, .. } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
+                let block_parameters = self.function.dfg.block_parameters(*destination);
+                assert_eq!(
+                    arguments.len(),
+                    block_parameters.len(),
+                    "Number of arguments in jmp must match number of block parameters"
+                );
+                for (argument, paramete) in arguments.iter().zip(block_parameters) {
+                    let argument_type = self.function.dfg.type_of_value(*argument);
+                    let parameter_type = self.function.dfg.type_of_value(*paramete);
+                    assert_eq!(
+                        argument_type, parameter_type,
+                        "Argument type in jmp must match block parameter type"
+                    );
+                }
             }
             TerminatorInstruction::Return { return_values, .. } => {
                 if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
@@ -2003,6 +2020,34 @@ mod tests {
         acir(inline) pure fn main f0 {
           b0(v0: u32):
             enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
+    fn jmp_incorrect_block_arguments_length() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            jmp b1()
+          b1(v0: u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
+    fn jmp_incorrect_block_arguments_type() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u32):
             return
         }
         ";

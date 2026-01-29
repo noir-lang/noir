@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(from: u32, to: u32) {
+    let mut sum: u32 = 0_u32;
+    for i in from..=to {
+        sum = sum + (i as u32);
+    }
+    assert(sum == 0_u32);
+}

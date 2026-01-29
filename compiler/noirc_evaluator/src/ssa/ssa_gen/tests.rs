@@ -1,11 +1,12 @@
 #![cfg(test)]
 
-use crate::{errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
+use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
 
 use super::{Ssa, generate_ssa};
 
 use noirc_frontend::test_utils::{
     GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+    get_monomorphized_with_stdlib, stdlib_src,
 };
 
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
@@ -237,9 +238,6 @@ fn pure_builtin_call_args_do_not_get_cloned() {
 #[test]
 fn foreign_call_args_do_not_get_cloned() {
     let src = "
-    #[oracle(print)]
-    unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
-
     unconstrained fn main() {
         let a = [1, 2];
         print_oracle(true, a);
@@ -247,7 +245,7 @@ fn foreign_call_args_do_not_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized(src).unwrap();
+    let program = get_monomorphized_with_stdlib(src, stdlib_src::PRINT).unwrap();
 
     let ssa = generate_ssa(program).unwrap();
 
@@ -263,4 +261,345 @@ fn foreign_call_args_do_not_get_cloned() {
     }
     "#;
     assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn for_loop_exclusive() {
+    let assert_src = "
+    fn main() -> pub u32 {
+        let mut sum = 0;
+        for i in 0..5 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // This is a regular for loop, nothing special here
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u32
+        store u32 0 at v1
+        jmp b1(u32 0)
+      b1(v0: u32):
+        v4 = lt v0, u32 5
+        jmpif v4 then: b2, else: b3
+      b2():
+        v6 = load v1 -> u32
+        v7 = add v6, v0
+        store v7 at v1
+        v9 = unchecked_add v0, u32 1
+        jmp b1(v9)
+      b3():
+        v5 = load v1 -> u32
+        return v5
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_max_value_without_break() {
+    let assert_src = "
+    fn main() -> pub u8 {
+        let mut sum = 0;
+        for i in 0..=255_u8 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // - b1 is the loop header
+    // - b2 is the loop body
+    // - b3 is the loop exit, but it performs a check to determine whether the final iteration
+    //   should be executed. In this case we check if no break was hit. It's multiplied by
+    //   one because that "one" is (start < end) which is true in this case.
+    // - b4 is the final iteration where `index == end`
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u8
+        store u8 0 at v1
+        v3 = allocate -> &mut u1
+        store u1 1 at v3
+        jmp b1(u8 0)
+      b1(v0: u8):
+        v6 = lt v0, u8 255
+        jmpif v6 then: b2, else: b3
+      b2():
+        v12 = load v1 -> u8
+        v13 = add v12, v0
+        store v13 at v1
+        v15 = unchecked_add v0, u8 1
+        jmp b1(v15)
+      b3():
+        v7 = load v3 -> u1
+        v8 = unchecked_mul v7, u1 1
+        jmpif v8 then: b4, else: b5
+      b4():
+        v9 = load v1 -> u8
+        v10 = add v9, u8 255
+        store v10 at v1
+        jmp b5()
+      b5():
+        v11 = load v1 -> u8
+        return v11
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
+    let assert_src = "
+    fn main() -> pub u8 {
+        let mut sum = 0;
+        for i in 0..=254_u8 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // We end up generating an exclusive for loop up to 255
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u8
+        store u8 0 at v1
+        jmp b1(u8 0)
+      b1(v0: u8):
+        v4 = lt v0, u8 255
+        jmpif v4 then: b2, else: b3
+      b2():
+        v6 = load v1 -> u8
+        v7 = add v6, v0
+        store v7 at v1
+        v9 = unchecked_add v0, u8 1
+        jmp b1(v9)
+      b3():
+        v5 = load v1 -> u8
+        return v5
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_max_value_with_break() {
+    let assert_src = "
+    unconstrained fn main(cond: bool) -> pub u8 {
+        let mut sum = 0;
+        for i in 0..=255_u8 {
+          if cond {
+              break;
+          }
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // - b1 is the loop header
+    // - b2, b4  and b5 are the loop body
+    // - b4 has the logic that happens when a break is hit. In this case we store 0 at v3
+    //   to signal this.
+    // - b3 is the loop exit, but it performs a check to determine whether the final iteration
+    //   should be executed. In this case we check if no break was hit. It's multiplied by
+    //   one because that "one" is (start < end) which is true in this case.
+    // - b6 is the final loop iteration where `index == end`. Note that the code for
+    //   `if cond { break; }` now has the break take us to b8, which jumps to b7, which
+    //   exits main (that is, the break skips the final iteration).
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0(v0: u1):
+        v2 = allocate -> &mut u8
+        store u8 0 at v2
+        v4 = allocate -> &mut u1
+        store u1 1 at v4
+        jmp b1(u8 0)
+      b1(v1: u8):
+        v7 = lt v1, u8 255
+        jmpif v7 then: b2, else: b3
+      b2():
+        jmpif v0 then: b4, else: b5
+      b3():
+        v13 = load v4 -> u1
+        v14 = unchecked_mul v13, u1 1
+        jmpif v14 then: b6, else: b7
+      b4():
+        store u1 0 at v4
+        jmp b3()
+      b5():
+        v8 = load v2 -> u8
+        v9 = add v8, v1
+        store v9 at v2
+        v11 = unchecked_add v1, u8 1
+        jmp b1(v11)
+      b6():
+        jmpif v0 then: b8, else: b9
+      b7():
+        v17 = load v2 -> u8
+        return v17
+      b8():
+        jmp b7()
+      b9():
+        v15 = load v2 -> u8
+        v16 = add v15, u8 255
+        store v16 at v2
+        jmp b7()
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_unknown_range_with_break() {
+    let assert_src = "
+    unconstrained fn main(start: u8, end: u8) -> pub u8 {
+        let mut sum = 0;
+        for i in start..=end {
+          if i == 10 {
+              break;
+          }
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // Here we can see in b3 that we do `lt v0, v1`, which is the condition that checks
+    // `start < end` to determine whether the final iteration should be executed
+    // (in addition to checking if a break was hit or not).
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0(v0: u8, v1: u8):
+        v3 = allocate -> &mut u8
+        store u8 0 at v3
+        v5 = allocate -> &mut u1
+        store u1 1 at v5
+        jmp b1(v0)
+      b1(v2: u8):
+        v7 = lt v2, v1
+        jmpif v7 then: b2, else: b3
+      b2():
+        v9 = eq v2, u8 10
+        jmpif v9 then: b4, else: b5
+      b3():
+        v15 = load v5 -> u1
+        v16 = lt v1, v0
+        v17 = not v16
+        v18 = unchecked_mul v15, v17
+        jmpif v18 then: b6, else: b7
+      b4():
+        store u1 0 at v5
+        jmp b3()
+      b5():
+        v10 = load v3 -> u8
+        v11 = add v10, v2
+        store v11 at v3
+        v13 = unchecked_add v2, u8 1
+        jmp b1(v13)
+      b6():
+        v19 = eq v1, u8 10
+        jmpif v19 then: b8, else: b9
+      b7():
+        v22 = load v3 -> u8
+        return v22
+      b8():
+        jmp b7()
+      b9():
+        v20 = load v3 -> u8
+        v21 = add v20, v1
+        store v21 at v3
+        jmp b7()
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_with_continue() {
+    let assert_src = "
+    unconstrained fn main() {
+        for _ in 0..=255_u8 {
+            continue;
+        }
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // Here we can see that the `continue` in the final iteration jumps
+    // to the end of the loop (from b4 to b5).
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u1
+        store u1 1 at v1
+        jmp b1(u8 0)
+      b1(v0: u8):
+        v5 = lt v0, u8 255
+        jmpif v5 then: b2, else: b3
+      b2():
+        v9 = unchecked_add v0, u8 1
+        jmp b1(v9)
+      b3():
+        v6 = load v1 -> u1
+        v7 = unchecked_mul v6, u1 1
+        jmpif v7 then: b4, else: b5
+      b4():
+        jmp b5()
+      b5():
+        return
+    }
+    ");
+}
+
+#[test]
+fn for_loop_inclusive_max_value_to_max_value() {
+    let assert_src = "
+    fn main() -> pub u8 {
+        let mut sum = 0;
+        for i in 255_u8..=255_u8 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // Check that the final iteration is included
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut u8
+        store u8 0 at v1
+        v3 = allocate -> &mut u1
+        store u1 1 at v3
+        jmp b1(u8 255)
+      b1(v0: u8):
+        v6 = lt v0, u8 255
+        jmpif v6 then: b2, else: b3
+      b2():
+        v12 = load v1 -> u8
+        v13 = add v12, v0
+        store v13 at v1
+        v15 = unchecked_add v0, u8 1
+        jmp b1(v15)
+      b3():
+        v7 = load v3 -> u1
+        v8 = unchecked_mul v7, u1 1
+        jmpif v8 then: b4, else: b5
+      b4():
+        v9 = load v1 -> u8
+        v10 = add v9, u8 255
+        store v10 at v1
+        jmp b5()
+      b5():
+        v11 = load v1 -> u8
+        return v11
+    }
+    ");
 }

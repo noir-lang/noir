@@ -3,6 +3,7 @@ use noirc_errors::{CustomDiagnostic, Location};
 use crate::{
     Type,
     hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    validity::InvalidType,
 };
 
 #[derive(Debug)]
@@ -25,6 +26,9 @@ pub enum MonomorphizationError {
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    ReferenceReturnedFromOracle { typ: String, location: Location },
+    VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
+    InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
 }
 
 impl MonomorphizationError {
@@ -48,9 +52,10 @@ impl MonomorphizationError {
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. } => {
-                *location
-            }
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
+            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -147,6 +152,35 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 format!(
                     "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
+            }
+            MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
+                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
+                format!(
+                    "Vector with nested array `{typ}` cannot be returned from an oracle function"
+                )
+            }
+            MonomorphizationError::InvalidTypeForEntryPoint { invalid_type, location } => {
+                let primary_message =
+                    "Invalid type found in the entry point to a program".to_string();
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary_message, String::new(), *location);
+                diagnostic.secondaries.clear();
+
+                if matches!(
+                    invalid_type,
+                    InvalidType::StructField { .. } | InvalidType::Alias { .. }
+                ) {
+                    diagnostic.add_secondary(
+                        "This type has an invalid entry point type inside it".to_string(),
+                        *location,
+                    );
+                }
+
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                invalid_type.add_to_diagnostic(*location, &mut diagnostic);
+                return diagnostic;
             }
         };
 

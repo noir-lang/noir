@@ -571,7 +571,7 @@ impl ChunkFormatter<'_, '_> {
             group.trailing_comma();
         }
 
-        group.text(chunk);
+        group.trailing_comment_at_block_end(chunk);
 
         if force_trailing_comma {
             group.text(TextChunk::new(",".to_string()));
@@ -1298,7 +1298,7 @@ impl ChunkFormatter<'_, '_> {
         }
 
         // Finally format the comment, if any
-        group.text(self.chunk(|formatter| {
+        group.trailing_comment_at_block_end(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 

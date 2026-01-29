@@ -2,9 +2,8 @@ fn main(val: str<3>, flag: bool, val2: str<1>) {
     std::hint::black_box(());
     example2(val, flag);
     example3(val2);
-
-    // TODO(https://github.com/noir-lang/noir/issues/11134): Still broken
-    // example4(val, flag);
+    example4(val, flag);
+    black_box_over_vector(flag);
 }
 
 fn example2(val: str<3>, flag: bool) {
@@ -22,17 +21,17 @@ fn example3(val: str<1>) {
     let _ = std::hint::black_box((1, s));
 }
 
-// fn example4(val: str<3>, flag: bool) {
-//     let b = val.as_bytes();
-//     let s = b.as_vector();
-//     let (_, s1) = s.pop_front();
-//     let a = std::hint::black_box(|| {
-//         s1
-//     });
-//     let a = if flag {
-//         a()
-//     } else {
-//         &[123]
-//     };
-//     println(a);
-// }
+fn example4(val: str<3>, flag: bool) {
+    let b = val.as_bytes();
+    let s = b.as_vector();
+    let (_, s1) = s.pop_front();
+    let a = std::hint::black_box(|| s1);
+    let a = if flag { a() } else { @[123] };
+    println(a);
+}
+
+fn black_box_over_vector(flag: bool) {
+    let a = std::hint::black_box(@[1, 2, 3]);
+    let v = if flag { a } else { @[4, 5] };
+    assert_eq(v[0], 1);
+}

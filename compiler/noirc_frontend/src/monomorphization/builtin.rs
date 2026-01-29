@@ -106,7 +106,7 @@ impl Monomorphizer<'_> {
 
     /// Check the given type conversion that the types are equal, or issue an error if not.
     fn check_transmute(
-        &mut self,
+        &self,
         actual: &Type,
         expected: &Type,
         location: Location,

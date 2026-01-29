@@ -10,6 +10,7 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
+    elaborator::types::SELF_TYPE_NAME,
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -155,9 +156,36 @@ pub enum Type {
 #[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Debug)]
 pub struct NamedGeneric {
     pub type_var: TypeVariable,
+    /// The name of the generic type.
+    ///
+    /// If this is an associated type, then it has the format `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
     pub name: Rc<String>,
     /// Was this named generic implicitly added?
     pub implicit: bool,
+}
+
+impl NamedGeneric {
+    /// Create a [NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
+    pub fn new(
+        type_var: TypeVariable,
+        implicit: bool,
+        name: &Rc<String>,
+        as_trait: Option<(&str, &str)>,
+    ) -> Self {
+        let name = match as_trait {
+            // TODO(#10858): The compiler rejects `trait Foo { fn foo_bar() -> <Self as Foo>::Bar; }` (unlike Rust),
+            // so in order to be able to parse back expanded code, we have to format it as `Self::Bar`.
+            Some((object, _)) if object == SELF_TYPE_NAME => Rc::new(format!("{object}::{name}")),
+            Some((object, trait_name)) => Rc::new(format!("<{object} as {trait_name}>::{name}")),
+            None => name.clone(),
+        };
+        Self { type_var, name, implicit }
+    }
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -434,12 +462,9 @@ pub struct ResolvedGeneric {
 }
 
 impl ResolvedGeneric {
-    pub fn as_named_generic(self) -> Type {
-        Type::NamedGeneric(NamedGeneric {
-            type_var: self.type_var,
-            name: self.name,
-            implicit: false,
-        })
+    /// Create a [Type::NamedGeneric] from this [ResolvedGeneric].
+    pub fn into_named_generic(self, as_trait: Option<(&str, &str)>) -> Type {
+        Type::NamedGeneric(NamedGeneric::new(self.type_var, false, &self.name, as_trait))
     }
 
     pub fn kind(&self) -> Kind {
@@ -544,7 +569,7 @@ impl DataType {
 
     /// Return the generics on this type as a vector of types
     pub fn generic_types(&self) -> Vec<Type> {
-        vecmap(&self.generics, |generic| generic.clone().as_named_generic())
+        vecmap(&self.generics, |generic| generic.clone().into_named_generic(None))
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
@@ -1042,12 +1067,30 @@ impl TypeVariable {
         }
     }
 
-    pub(crate) fn into_named_generic(self, name: Rc<String>) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: false })
+    /// Create a [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
+    pub(crate) fn into_named_generic(
+        self,
+        name: &Rc<String>,
+        as_trait: Option<(&str, &str)>,
+    ) -> Type {
+        Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait))
     }
 
-    pub(crate) fn into_implicit_named_generic(self, name: Rc<String>) -> Type {
-        Type::NamedGeneric(NamedGeneric { type_var: self, name, implicit: true })
+    /// Create a implicit [Type::NamedGeneric].
+    ///
+    /// If an object and trait name pair is given in `as_trait`, this is assumed
+    /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
+    /// to disambiguate from other generics in scope.
+    pub(crate) fn into_implicit_named_generic(
+        self,
+        name: &Rc<String>,
+        as_trait: Option<(&str, &str)>,
+    ) -> Type {
+        Type::NamedGeneric(NamedGeneric::new(self, true, name, as_trait))
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
@@ -1736,7 +1779,108 @@ impl Type {
             Type::CheckedCast { from, to } => from.contains_vector() || to.contains_vector(),
             Type::Reference(element, _) => element.contains_vector(),
             Type::Forall(_, typ) => typ.contains_vector(),
+            Type::Function(_arg, _ret, env, _unconstrained) => {
+                // The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                env.contains_vector()
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
 
+    /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
+    pub(crate) fn contains_array(&self) -> bool {
+        match self {
+            Type::Array(..) => true,
+            Type::Vector(elem) => elem.as_ref().contains_array(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_array(),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_array()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_array()) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_array()),
+            Type::FmtString(_size, elem) => elem.contains_array(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_array(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => from.contains_array() || to.contains_array(),
+            Type::Reference(element, _) => element.contains_array(),
+            Type::Forall(_, typ) => typ.contains_array(),
+            Type::Function(_arg, _ret, env, _unconstrained) => env.contains_array(),
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+        }
+    }
+
+    /// Check whether this type is a vector that contains a nested array in its element type.
+    pub(crate) fn is_vector_with_nested_array(&self) -> bool {
+        match self {
+            Type::Vector(elem) => elem.as_ref().contains_array(),
+            Type::Array(_, elem) => elem.as_ref().is_vector_with_nested_array(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).is_vector_with_nested_array()
+            }
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.is_vector_with_nested_array()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants
+                        .iter()
+                        .flat_map(|(_, args)| args)
+                        .any(|typ| typ.is_vector_with_nested_array())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => types.iter().any(|typ| typ.is_vector_with_nested_array()),
+            Type::FmtString(_size, elem) => elem.is_vector_with_nested_array(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_vector_with_nested_array(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from, to } => {
+                from.is_vector_with_nested_array() || to.is_vector_with_nested_array()
+            }
+            Type::Reference(element, _) => element.is_vector_with_nested_array(),
+            Type::Forall(_, typ) => typ.is_vector_with_nested_array(),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
@@ -1760,7 +1904,6 @@ impl Type {
             | Type::FieldElement
             | Type::Quoted(..)
             | Type::Constant(..)
-            | Type::Function(..)
             | Type::TraitAsType(..)
             | Type::Forall(..)
             | Type::Error => false,
@@ -1796,6 +1939,11 @@ impl Type {
             Type::CheckedCast { from: _, to } => to.contains_reference(),
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // The only part of a function type that actually holds types is the `env` portion as that's
+                // carried with the function. Arguments are passed in and the return type is returned.
+                env.contains_reference()
             }
             Type::Reference(..) => true,
         }
@@ -3298,10 +3446,22 @@ impl PartialEq for Type {
             }
             // Two implicitly added unbound named generics are equal
             (
-                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: true, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: true, .. }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: lhs_var,
+                    implicit: true,
+                    name: lhs_name,
+                    ..
+                }),
+                NamedGeneric(types::NamedGeneric {
+                    type_var: rhs_var,
+                    implicit: true,
+                    name: rhs_name,
+                    ..
+                }),
             ) => {
-                lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound()
+                lhs_var.borrow().is_unbound()
+                    && rhs_var.borrow().is_unbound()
+                    && lhs_name == rhs_name
                     || lhs_var.id() == rhs_var.id()
             }
             // Special case: we consider unbound named generics and type variables to be equal to each

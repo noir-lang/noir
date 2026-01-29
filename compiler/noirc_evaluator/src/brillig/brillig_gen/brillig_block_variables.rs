@@ -86,7 +86,7 @@ impl BlockVariables {
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -111,7 +111,7 @@ impl BlockVariables {
     pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -123,8 +123,8 @@ impl BlockVariables {
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        function_context: &FunctionContext,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
 
@@ -151,7 +151,7 @@ impl BlockVariables {
     /// * the variable is not in [Self::available_variables], which means it is no longer live
     /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     pub(crate) fn get_allocation(
-        &mut self,
+        &self,
         function_context: &FunctionContext,
         value_id: ValueId,
     ) -> BrilligVariable {
@@ -180,7 +180,7 @@ pub(crate) fn compute_array_length(
 /// For a given [ValueId], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> Allocated<BrilligVariable, Registers> {
     let typ = dfg.type_of_value(value_id);
@@ -190,7 +190,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 
 /// For a given [Type], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     typ: Type,
 ) -> Allocated<BrilligVariable, Registers> {
     match typ {

@@ -179,7 +179,7 @@ impl IdMaps {
     }
 
     fn map_value(
-        &mut self,
+        &self,
         new_function: &mut Function,
         old_function: &Function,
         old_value: ValueId,

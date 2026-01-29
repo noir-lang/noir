@@ -113,6 +113,20 @@ fn check_errors(src: &str) {
     );
 }
 
+/// Check for errors, prefixing user code with some snippet from the stdlib.
+fn check_errors_with_stdlib(src: &str, stdlib_src: &str) {
+    let monomorphize = false;
+    check_errors_with_options(
+        &format!("{stdlib_src}\n\n{src}"),
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            root_and_stdlib: true,
+            ..Default::default()
+        },
+    );
+}
+
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let monomorphize = false;
     check_errors_with_options(

@@ -39,13 +39,25 @@ impl ExpressionSolver {
         opcode: &Expression<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
-        // Evaluate multiplication term
-        let mul_result = ExpressionSolver::solve_mul_term(&opcode.mul_terms, initial_witness)
-            .map_err(|_| {
-                OpcodeResolutionError::OpcodeNotSolvable(
-                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                )
-            })?;
+
+        // Evaluate multiplication terms
+        let mul_result = ExpressionSolver::solve_mul_term(&opcode.mul_terms, initial_witness);
+
+        // If we can't solve the multiplication terms, try again by combining multiplication terms
+        // with the same witnesses to see if they all cancel out.
+        let mul_result = if mul_result.is_err() {
+            let mul_terms = ExpressionSolver::combine_mul_terms(&opcode.mul_terms);
+            ExpressionSolver::solve_mul_term(&mul_terms, initial_witness)
+        } else {
+            mul_result
+        };
+
+        let mul_result = mul_result.map_err(|_| {
+            OpcodeResolutionError::OpcodeNotSolvable(
+                OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+            )
+        })?;
+
         // Evaluate the fan-in terms
         let opcode_status =
             ExpressionSolver::solve_fan_in_term(&opcode.linear_combinations, initial_witness);
@@ -302,6 +314,31 @@ impl ExpressionSolver {
             )
             .collect()
     }
+
+    /// Combines multiplication terms with the same witnesses by summing their coefficients.
+    /// For example `w1*w2 + 2*w2*w1` becomes `3*w1*w2`. If a coefficient ends up being zero,
+    /// the term is removed.
+    fn combine_mul_terms<F: AcirField>(
+        mul_terms: &[(F, Witness, Witness)],
+    ) -> Vec<(F, Witness, Witness)> {
+        // This is similar to GeneralOptimizer::simplify_mul_terms but it's duplicated because
+        // we don't have access to the acvm crate here.
+        let mut hash_map = std::collections::HashMap::new();
+
+        // Canonicalize the ordering of the multiplication, lets just order by variable name
+        for (scale, w_l, w_r) in mul_terms.iter().cloned() {
+            let mut pair = [w_l, w_r];
+            pair.sort();
+
+            *hash_map.entry((pair[0], pair[1])).or_insert_with(F::zero) += scale;
+        }
+
+        hash_map
+            .into_iter()
+            .filter(|(_, scale)| !scale.is_zero())
+            .map(|((w_l, w_r), scale)| (scale, w_l, w_r))
+            .collect()
+    }
 }
 
 /// A wrapper around field division which skips the inversion if the denominator
@@ -409,5 +446,16 @@ mod tests {
         assert!(res.is_ok());
 
         assert_eq!(values.get(&Witness(1)).unwrap(), &FieldElement::from(2_i128));
+    }
+
+    #[test]
+    fn solves_by_combining_mul_terms() {
+        let expr = Expression::from_str("w1*w2 - w2*w1 + w3 - 2").unwrap();
+        let mut values = WitnessMap::new();
+
+        let res = ExpressionSolver::solve(&mut values, &expr);
+        assert!(res.is_ok());
+
+        assert_eq!(values.get(&Witness(3)).unwrap(), &FieldElement::from(2_i128));
     }
 }

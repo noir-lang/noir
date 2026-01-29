@@ -40,9 +40,6 @@ pub struct GenericOptions<'a, T> {
     /// The scope of --debug-comptime, or None if unset
     pub debug_comptime_in_file: Option<T>,
 
-    /// Use pedantic ACVM solving
-    pub pedantic_solving: bool,
-
     /// Unstable compiler features that were explicitly enabled. Any unstable features
     /// that are not in this list result in an error when used.
     pub enabled_unstable_features: &'a [UnstableFeature],
@@ -63,7 +60,6 @@ impl<T> GenericOptions<'_, T> {
     pub fn test_default() -> GenericOptions<'static, T> {
         GenericOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: true,
             enabled_unstable_features: &[UnstableFeature::Enums],
             disable_required_unstable_features: true,
         }

@@ -6,9 +6,7 @@
 //! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
 //! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
 //! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
-//!
-//! # Transformers
-//! - CSAT: create intermediate variables so that AssertZero opcodes have the correct Circuit's `ExpressionWidth`.
+//! - CommonSubexpressionOptimizer: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
 //!
 //! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an `Artifacts` type.

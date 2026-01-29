@@ -1,5 +1,7 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
+use std::rc::Rc;
+
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
@@ -22,7 +24,7 @@ use crate::{
     Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, get_type_method_key},
 };
 
 use iter_extended::vecmap;
@@ -75,10 +77,27 @@ impl Elaborator<'_> {
         let previous_self_type = self.self_type.replace(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::Reference(..)) {
+        if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+            let is_alias = matches!(self_type, Type::Alias(..));
             self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
+                is_alias,
                 location: self_type_location,
             });
+        } else if get_type_method_key(&self_type).is_none() {
+            let error: CompilationError = if self_type == Type::Error {
+                TypeCheckError::ExpectingOtherError {
+                    message: "collect_trait_impl: missing trait type".to_string(),
+                    location: self_type_location,
+                }
+                .into()
+            } else {
+                ResolverError::TypeUnsupportedForTraitImpl {
+                    typ: self_type.clone(),
+                    location: self_type_location,
+                }
+                .into()
+            };
+            self.push_err(error);
         }
 
         self.check_generics_appear_in_types(
@@ -174,7 +193,7 @@ impl Elaborator<'_> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let location = trait_impl.object_type.location;
-            self.declare_methods_on_data_type(Some(trait_id), &mut trait_impl.methods, location);
+            self.declare_methods_on_data_type(Some(trait_id), &trait_impl.methods, location);
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
@@ -407,7 +426,7 @@ impl Elaborator<'_> {
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = impl_fn_resolved_generic.clone().as_named_generic();
+            let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
 
             if self.check_kind(
                 trait_fn_kind.clone(),
@@ -437,8 +456,11 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.trait_bound.trait_id
-                        == override_trait_constraint.trait_bound.trait_id
+                    impl_constraint.typ == override_trait_constraint.typ
+                        && impl_constraint.trait_bound.trait_id
+                            == override_trait_constraint.trait_bound.trait_id
+                        && impl_constraint.trait_bound.trait_generics
+                            == override_trait_constraint.trait_bound.trait_generics
                 });
             if override_constraint_is_from_impl {
                 continue;
@@ -669,7 +691,7 @@ impl Elaborator<'_> {
 
     // Replace implicitly added unbound named generics with fresh type variables
     fn bind_to_fresh_variable(
-        &mut self,
+        &self,
         named_generics: &mut [NamedType],
         bindings: &mut TypeBindings,
     ) {
@@ -944,10 +966,15 @@ impl Elaborator<'_> {
         // This way associated types can be referred to even if their actual value (for associated constants)
         // is not known yet. This is to allow associated constants to refer to associated constants
         // in other trait impls.
+        let object = trait_impl.object_type.to_string();
+        let trait_name = trait_id.map(|id| self.interner.get_trait(id).name.to_string());
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = type_var.clone().into_named_generic(std::rc::Rc::new(name.to_string()));
+            let typ = type_var.clone().into_named_generic(
+                &Rc::new(name.to_string()),
+                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
+            );
             let typ = self.interner.push_quoted_type(typ);
             let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)

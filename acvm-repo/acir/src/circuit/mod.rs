@@ -24,24 +24,6 @@ use std::collections::BTreeSet;
 
 use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
-/// Specifies the maximum width of the expressions which will be constrained.
-///
-/// Unbounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports R1CS.
-///
-/// Bounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports PLONK, where arithmetic expressions have a
-/// finite fan-in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-pub enum ExpressionWidth {
-    #[default]
-    Unbounded,
-    Bounded {
-        width: usize,
-    },
-}
-
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]

@@ -373,7 +373,7 @@ impl Context<'_> {
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
     /// For simplicity we compute the offset only for simple arrays
     fn compute_offset(
-        &mut self,
+        &self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,

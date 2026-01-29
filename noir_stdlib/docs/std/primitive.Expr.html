@@ -195,11 +195,11 @@ return the type and the fields.</p>
 <p>If this expression is a for statement over a single expression, return the identifier,
 the expression and the for loop body.</p>
 </div>
-</div><code id="as_for_range" class="code-header">pub comptime fn <a href="#as_for_range"><span class="fn">as_for_range</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self, Self, Self)&gt;</code>
+</div><code id="as_for_range" class="code-header">pub comptime fn <a href="#as_for_range"><span class="fn">as_for_range</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, Self, Self, <a href="../std/primitive.bool.html" class="primitive">bool</a>, Self)&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a for statement over a range, return the identifier,
-the range start, the range end and the for loop body.</p>
+the range start, the range end, whether the range is inclusive, and the for loop body.</p>
 </div>
 </div><code id="as_function_call" class="code-header">pub comptime fn <a href="#as_function_call"><span class="fn">as_function_call</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, [Self])&gt;</code>
 

@@ -28,7 +28,7 @@ sed -i '/^compiler_version/d' {Nargo.toml,./**/Nargo.toml}
 set -e
 
 BEFORE=$SECONDS
-$NARGO test --silence-warnings --skip-brillig-constraints-check --pedantic-solving --format json $NARGO_ARGS | tee $OUTPUT_FILE
+$NARGO test --silence-warnings --skip-brillig-constraints-check --format json $NARGO_ARGS | tee $OUTPUT_FILE
 TIME=$(($SECONDS-$BEFORE))
 
 if [ ! -s $OUTPUT_FILE ]; then

@@ -36,7 +36,7 @@ fn add_single_step_smoke() {
     }];
 
     // Start VM
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -87,7 +87,7 @@ fn jmpif_opcode() {
         Opcode::JumpIf { condition: destination, location: 6 },
     ];
 
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -169,7 +169,7 @@ fn jump_forward_and_backward() {
         Opcode::JumpIf { condition, location: 5 },
     ];
 
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let vm = brillig_execute_and_get_vm(calldata, &opcodes, &solver);
 
     let memory = vm.take_memory();
@@ -216,7 +216,7 @@ fn stop() {
         },
     ];
 
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let vm = brillig_execute_and_get_vm(calldata.clone(), &opcodes, &solver);
 
     let VMStatus::Finished { return_data_offset, return_data_size } = vm.get_status() else {
@@ -266,7 +266,7 @@ fn cast_opcode() {
             },
         },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -327,7 +327,7 @@ fn not_opcode() {
             },
         },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -372,7 +372,7 @@ fn mov_opcode() {
         },
         Opcode::Mov { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(0) },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -438,7 +438,7 @@ fn cmov_opcode() {
             condition: MemoryAddress::direct(1),
         },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -536,7 +536,7 @@ fn cmp_binary_ops() {
         .chain(cast_opcodes)
         .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
         .collect();
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     // Calldata copy
@@ -637,7 +637,7 @@ fn store_opcode() {
         ];
 
         let opcodes = [&start[..], &loop_body[..]].concat();
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let vm = brillig_execute_and_get_vm(vec![], &opcodes, &solver);
         vm.get_memory()[4..].to_vec()
     }
@@ -665,7 +665,7 @@ fn iconst_opcode() {
             value: FieldElement::from(27_usize),
         },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(vec![], opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -780,7 +780,7 @@ fn load_opcode() {
         ];
 
         let opcodes = [&start[..], &loop_body[..]].concat();
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let vm = brillig_execute_and_get_vm(memory, &opcodes, &solver);
         vm.take_memory().read(r_sum).to_field()
     }
@@ -872,7 +872,7 @@ fn call_and_return_opcodes() {
         ];
 
         let opcodes = [&start[..], &recursive_fn[..]].concat();
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let vm = brillig_execute_and_get_vm(vec![], &opcodes, &solver);
         vm.get_memory()[4..].to_vec()
     }
@@ -917,7 +917,7 @@ fn relative_addressing() {
         },
     ];
 
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
     vm.process_opcode();
@@ -954,7 +954,7 @@ fn field_zero_division_regression() {
             rhs: MemoryAddress::direct(1),
         },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcode();
@@ -1016,7 +1016,7 @@ fn free_memory_pointer_out_of_memory() {
             },
         },
     ];
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcodes();

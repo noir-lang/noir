@@ -256,7 +256,7 @@ pub struct CompareCompiled<P> {
 impl<P> CompareCompiled<P> {
     /// Execute the two SSAs and compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {

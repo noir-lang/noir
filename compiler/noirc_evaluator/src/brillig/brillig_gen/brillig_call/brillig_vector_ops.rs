@@ -149,6 +149,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Read a number of (flattened) items at a specific index of a vector into the variables
     /// representing the removed items, then create a new vector with the same number of
     /// items removed and subsequent items shifted to the left.
+    ///
+    /// # Safety
+    ///
+    /// The pointer addition (`read_pointer + index`) cannot overflow because:
+    /// 1. `index` is bounds-checked at SSA level ensuring `index < length`
+    /// 2. The vector allocation is protected by FMP's checked addition
+    /// 3. Therefore `items_pointer + index < items_pointer + length <= vector_end < 2^32`
     pub(crate) fn vector_remove_operation(
         &mut self,
         target_vector: BrilligVector,

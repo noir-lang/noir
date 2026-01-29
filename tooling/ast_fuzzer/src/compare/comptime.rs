@@ -45,7 +45,6 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
     let parsed_files = parse_all(&file_manager);
 
     let mut context = Context::new(file_manager, parsed_files);
-    context.enable_pedantic_solving();
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)
@@ -242,7 +241,7 @@ impl CompareComptime {
         program: &acir::circuit::Program<FieldElement>,
         initial_witness: WitnessMap<FieldElement>,
     ) -> ExecResult {
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let mut output = Vec::new();
 
         let mut foreign_call_executor =

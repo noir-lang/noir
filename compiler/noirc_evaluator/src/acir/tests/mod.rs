@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use crate::{
     acir::{acir_context::BrilligStdLib, ssa::codegen_acir},
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
+    errors::RuntimeError,
     ssa::{
         ArtifactsAndWarnings, combine_artifacts, interpreter::value::Value, ir::types::NumericType,
         ssa_gen::Ssa,
@@ -36,6 +37,11 @@ fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
 }
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {
+    try_ssa_to_acir(src).expect("Should compile manually written SSA into ACIR")
+}
+
+/// Attempts to convert SSA to ACIR, returning the error if compilation fails.
+fn try_ssa_to_acir(src: &str) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
@@ -57,10 +63,8 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, _) = ssa
-        .generate_entry_point_index()
-        .into_acir(&brillig, &BrilligOptions::default())
-        .expect("Should compile manually written SSA into ACIR");
+    let (acir_functions, brillig_functions, _) =
+        ssa.generate_entry_point_index().into_acir(&brillig, &BrilligOptions::default())?;
 
     let artifacts =
         ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
@@ -73,7 +77,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
     );
     let program = program_artifact.program;
     let debug = program_artifact.debug;
-    (program, debug)
+    Ok((program, debug))
 }
 
 #[test]
@@ -117,13 +121,13 @@ fn no_zero_bits_range_check() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 256], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 246
     BLACKBOX::RANGE input: w3, bits: 8
     ASSERT w3 = w0 - 256*w2
     ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
     BLACKBOX::RANGE input: w4, bits: 246
-    BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
     ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
     ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
     ASSERT 0 = w3*w6
@@ -241,8 +245,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
@@ -340,8 +343,7 @@ fn properly_constrains_quotient_when_truncating_fields_to_u128() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
@@ -427,8 +429,7 @@ fn execute_ssa(
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
     let status = acvm.solve();

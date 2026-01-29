@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::{collections::HashMap, future::Future};
 
 use crate::notifications::fake_stdlib_workspace;
-use crate::notifications::process_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
@@ -498,10 +497,7 @@ fn position_to_location(
     file_path: &PathString,
     position: &Position,
 ) -> Result<noirc_errors::Location, ResponseError> {
-    let file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
-        ErrorCode::REQUEST_FAILED,
-        format!("Could not find file in file manager. File path: {file_path:?}"),
-    ))?;
+    let file_id = file_path_to_file_id(files, file_path)?;
     let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
@@ -515,6 +511,16 @@ fn position_to_location(
     };
 
     Ok(location)
+}
+
+pub(crate) fn file_path_to_file_id(
+    files: &FileMap,
+    file_path: &PathString,
+) -> Result<FileId, ResponseError> {
+    files.get_file_id(file_path).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        format!("Could not find file in file manager. File path: {file_path:?}"),
+    ))
 }
 
 fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
@@ -593,51 +599,13 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
-    let type_check = true;
-    process_request_impl(state, text_document_position_params, type_check, callback)
-}
-
-pub(crate) fn process_request_no_type_check<F, T>(
-    state: &mut LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    callback: F,
-) -> Result<T, ResponseError>
-where
-    F: FnOnce(ProcessRequestCallbackArgs) -> T,
-{
-    let type_check = false;
-    process_request_impl(state, text_document_position_params, type_check, callback)
-}
-
-fn process_request_impl<F, T>(
-    state: &mut LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    type_check: bool,
-    callback: F,
-) -> Result<T, ResponseError>
-where
-    F: FnOnce(ProcessRequestCallbackArgs) -> T,
-{
     let uri = text_document_position_params.text_document.uri.clone();
-
-    let (file_path, workspace) = if uri.scheme() == "noir-std" {
-        let workspace = fake_stdlib_workspace();
-        let file_path =
-            PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap();
-        (file_path, workspace)
+    let file_path = uri_to_file_path(&uri)?;
+    let workspace = if uri.scheme() == "noir-std" {
+        fake_stdlib_workspace()
     } else {
-        let file_path = uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-        let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-        (file_path, workspace)
+        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
     };
-
-    // First type-check the workspace if needed
-    if type_check && state.workspaces_to_process.remove(&workspace.root_dir) {
-        let _ = process_workspace(state, &workspace, false);
-    }
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
@@ -751,6 +719,16 @@ where
         def_maps,
         usage_tracker,
     }))
+}
+
+pub(crate) fn uri_to_file_path(uri: &Url) -> Result<PathBuf, ResponseError> {
+    if uri.scheme() == "noir-std" {
+        Ok(PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap())
+    } else {
+        uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })
+    }
 }
 
 pub(crate) fn find_all_references_in_workspace(
@@ -883,7 +861,7 @@ mod initialization {
     #[test]
     async fn test_on_initialize() {
         let client = ClientSocket::new_closed();
-        let mut state = LspState::new(&client, StubbedBlackBoxSolver::default());
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
         let params = InitializeParams::default();
         let response = on_initialize(&mut state, params).await.unwrap();
         assert!(matches!(

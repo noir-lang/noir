@@ -213,28 +213,33 @@ impl<F: AcirField> GeneratedAcir<F> {
             }
             BlackBoxFunc::AND => {
                 let [lhs, rhs] = expect_into(function_inputs);
+                let [lhs] = expect_into(lhs);
+                let [rhs] = expect_into(rhs);
                 let num_bits = num_bits.expect("missing num_bits");
-                BlackBoxFuncCall::AND { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
+                BlackBoxFuncCall::AND { lhs, rhs, num_bits, output: outputs[0] }
             }
             BlackBoxFunc::XOR => {
                 let [lhs, rhs] = expect_into(function_inputs);
+                let [lhs] = expect_into(lhs);
+                let [rhs] = expect_into(rhs);
                 let num_bits = num_bits.expect("missing num_bits");
-                BlackBoxFuncCall::XOR { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
+                BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output: outputs[0] }
             }
             BlackBoxFunc::RANGE => {
                 let [input] = expect_into(function_inputs);
+                let [input] = expect_into(input);
                 let num_bits = num_bits.expect("missing num_bits");
-                BlackBoxFuncCall::RANGE { input: input[0], num_bits }
+                BlackBoxFuncCall::RANGE { input, num_bits }
             }
             BlackBoxFunc::Blake2s => {
                 let [inputs] = expect_into(function_inputs);
                 let outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 => {
                 let [inputs] = expect_into(function_inputs);
                 let outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 => {
                 let [public_key_x, public_key_y, signature, hashed_message, predicate] =
@@ -427,7 +432,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let outputs = vec![BrilligOutputs::Array(limb_witnesses.clone())];
 
         self.brillig_call(
-            None,
+            Expression::one(),
             &le_bytes_code,
             inputs,
             outputs,
@@ -454,7 +459,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig_call(
-            None,
+            Expression::one(),
             &inverse_code,
             inputs,
             outputs,
@@ -595,7 +600,7 @@ impl<F: AcirField> GeneratedAcir<F> {
 
     pub(crate) fn brillig_call(
         &mut self,
-        predicate: Option<Expression<F>>,
+        predicate: Expression<F>,
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<BrilligInputs<F>>,
         outputs: Vec<BrilligOutputs>,

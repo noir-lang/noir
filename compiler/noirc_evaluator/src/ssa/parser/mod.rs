@@ -1177,71 +1177,71 @@ impl<'a> Parser<'a> {
         self.lexer.next_token().map_err(ParserError::LexerError)
     }
 
-    fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
+    fn expected_instruction_or_terminator<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedInstructionOrTerminator {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_string<T>(&mut self) -> ParseResult<T> {
+    fn expected_string<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedString {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_string_or_data<T>(&mut self) -> ParseResult<T> {
+    fn expected_string_or_data<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedStringOrData {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_byte_string<T>(&mut self) -> ParseResult<T> {
+    fn expected_byte_string<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedByteString {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_identifier<T>(&mut self) -> ParseResult<T> {
+    fn expected_identifier<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_int<T>(&mut self) -> ParseResult<T> {
+    fn expected_int<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedInt { found: self.token.token().clone(), span: self.token.span() })
     }
 
-    fn unexpected_offset<T>(&mut self, found: Token, span: Span) -> ParseResult<T> {
+    fn unexpected_offset<T>(&self, found: Token, span: Span) -> ParseResult<T> {
         Err(ParserError::UnexpectedOffset { found, span })
     }
 
-    fn expected_type<T>(&mut self) -> ParseResult<T> {
+    fn expected_type<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedType {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_value<T>(&mut self) -> ParseResult<T> {
+    fn expected_value<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedValue {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_global_value<T>(&mut self) -> ParseResult<T> {
+    fn expected_global_value<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedGlobalValue {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
+    fn expected_token<T>(&self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
             found: self.token.token().clone(),
@@ -1249,7 +1249,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expected_one_of_tokens<T>(&mut self, tokens: &[Token]) -> ParseResult<T> {
+    fn expected_one_of_tokens<T>(&self, tokens: &[Token]) -> ParseResult<T> {
         Err(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: self.token.token().clone(),

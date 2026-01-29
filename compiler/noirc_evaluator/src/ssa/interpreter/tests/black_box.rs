@@ -56,15 +56,18 @@ fn test_pedersen() {
 }
 #[test]
 fn test_aes() {
+    // The input is has the structure of the PKCS7 spec
     let src = "
   acir(inline) fn main f0  {
-    b0(v0: [u8; 12], v1: [u8; 16], v2: [u8; 16]):
+    b0(v0: [u8; 16], v1: [u8; 16], v2: [u8; 16]):
       v4 = call aes128_encrypt(v0, v1, v2) -> [u8; 16]
       return v4
   }
       ";
+    // "kevlovesrust" = [107, 101, 118, 108, 111, 118, 101, 115, 114, 117, 115, 116]
+    // PKCS7 padding for 12 bytes in 16-byte block: 4 bytes of value 4
     let a = from_u32_vector(
-        &[107, 101, 118, 108, 111, 118, 101, 115, 114, 117, 115, 116],
+        &[107, 101, 118, 108, 111, 118, 101, 115, 114, 117, 115, 116, 4, 4, 4, 4],
         NumericType::unsigned(8),
     );
     let iv = from_u32_vector(
@@ -80,6 +83,7 @@ fn test_aes() {
     let result = values[0].as_array_or_vector().unwrap();
     let result = result.elements.borrow();
     let result = result.iter().map(|v| v.as_u8().unwrap());
+    // Expected ciphertext
     assert_eq!(
         result.collect::<Vec<u8>>(),
         vec![244, 14, 126, 172, 171, 40, 208, 186, 173, 184, 226, 105, 238, 122, 205, 191]
