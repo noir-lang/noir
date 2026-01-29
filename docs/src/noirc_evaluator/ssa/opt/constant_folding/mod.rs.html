@@ -2502,7 +2502,93 @@
 <a href="#2501" id="2501">2501</a>
 <a href="#2502" id="2502">2502</a>
 <a href="#2503" id="2503">2503</a>
-<a href="#2504" id="2504">2504</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2504" id="2504">2504</a>
+<a href="#2505" id="2505">2505</a>
+<a href="#2506" id="2506">2506</a>
+<a href="#2507" id="2507">2507</a>
+<a href="#2508" id="2508">2508</a>
+<a href="#2509" id="2509">2509</a>
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a>
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a>
+<a href="#2519" id="2519">2519</a>
+<a href="#2520" id="2520">2520</a>
+<a href="#2521" id="2521">2521</a>
+<a href="#2522" id="2522">2522</a>
+<a href="#2523" id="2523">2523</a>
+<a href="#2524" id="2524">2524</a>
+<a href="#2525" id="2525">2525</a>
+<a href="#2526" id="2526">2526</a>
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a>
+<a href="#2529" id="2529">2529</a>
+<a href="#2530" id="2530">2530</a>
+<a href="#2531" id="2531">2531</a>
+<a href="#2532" id="2532">2532</a>
+<a href="#2533" id="2533">2533</a>
+<a href="#2534" id="2534">2534</a>
+<a href="#2535" id="2535">2535</a>
+<a href="#2536" id="2536">2536</a>
+<a href="#2537" id="2537">2537</a>
+<a href="#2538" id="2538">2538</a>
+<a href="#2539" id="2539">2539</a>
+<a href="#2540" id="2540">2540</a>
+<a href="#2541" id="2541">2541</a>
+<a href="#2542" id="2542">2542</a>
+<a href="#2543" id="2543">2543</a>
+<a href="#2544" id="2544">2544</a>
+<a href="#2545" id="2545">2545</a>
+<a href="#2546" id="2546">2546</a>
+<a href="#2547" id="2547">2547</a>
+<a href="#2548" id="2548">2548</a>
+<a href="#2549" id="2549">2549</a>
+<a href="#2550" id="2550">2550</a>
+<a href="#2551" id="2551">2551</a>
+<a href="#2552" id="2552">2552</a>
+<a href="#2553" id="2553">2553</a>
+<a href="#2554" id="2554">2554</a>
+<a href="#2555" id="2555">2555</a>
+<a href="#2556" id="2556">2556</a>
+<a href="#2557" id="2557">2557</a>
+<a href="#2558" id="2558">2558</a>
+<a href="#2559" id="2559">2559</a>
+<a href="#2560" id="2560">2560</a>
+<a href="#2561" id="2561">2561</a>
+<a href="#2562" id="2562">2562</a>
+<a href="#2563" id="2563">2563</a>
+<a href="#2564" id="2564">2564</a>
+<a href="#2565" id="2565">2565</a>
+<a href="#2566" id="2566">2566</a>
+<a href="#2567" id="2567">2567</a>
+<a href="#2568" id="2568">2568</a>
+<a href="#2569" id="2569">2569</a>
+<a href="#2570" id="2570">2570</a>
+<a href="#2571" id="2571">2571</a>
+<a href="#2572" id="2572">2572</a>
+<a href="#2573" id="2573">2573</a>
+<a href="#2574" id="2574">2574</a>
+<a href="#2575" id="2575">2575</a>
+<a href="#2576" id="2576">2576</a>
+<a href="#2577" id="2577">2577</a>
+<a href="#2578" id="2578">2578</a>
+<a href="#2579" id="2579">2579</a>
+<a href="#2580" id="2580">2580</a>
+<a href="#2581" id="2581">2581</a>
+<a href="#2582" id="2582">2582</a>
+<a href="#2583" id="2583">2583</a>
+<a href="#2584" id="2584">2584</a>
+<a href="#2585" id="2585">2585</a>
+<a href="#2586" id="2586">2586</a>
+<a href="#2587" id="2587">2587</a>
+<a href="#2588" id="2588">2588</a>
+<a href="#2589" id="2589">2589</a>
+<a href="#2590" id="2590">2590</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2992,7 +3078,9 @@
                 // We know that `v4` can be simplified to `v2`.
                 // Thus, even if the index is dynamic (meaning the array get would have side effects),
                 // we can simplify the operation when we take into account the predicate.
-                </span>Instruction::ArraySet { index, value, .. } =&gt; {
+                //
+                // Note that this does not work in brillig where array sets may actually mutate the arrays.
+                </span>Instruction::ArraySet { index, value, .. } <span class="kw">if </span>dfg.runtime().is_acir() =&gt; {
                     <span class="kw">let </span>array_get =
                         Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index };
 
@@ -3172,11 +3260,22 @@
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        </span>Binary(<span class="kw">_</span>) | ArrayGet { .. } | ArraySet { .. } =&gt; {
+        </span>Binary(<span class="kw">_</span>) | ArrayGet { .. } =&gt; {
             <span class="kw">if </span>instruction.requires_acir_gen_predicate(dfg) {
                 CanBeDeduplicated::UnderSamePredicate
             } <span class="kw">else </span>{
                 CanBeDeduplicated::Always
+            }
+        }
+
+        <span class="comment">// ArraySet has different behaviors based on both the EnableSideEffectsIf instruction
+        // (ACIR) and the underlying dynamic RC value of the array (Brillig). In the later case,
+        // we can never deduplicate
+        </span>ArraySet { .. } =&gt; {
+            <span class="kw">if </span>dfg.runtime().is_acir() {
+                CanBeDeduplicated::UnderSamePredicate
+            } <span class="kw">else </span>{
+                CanBeDeduplicated::Never
             }
         }
     }
@@ -5004,6 +5103,79 @@
         "</span>;
 
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_brillig_array_set() {
+        <span class="comment">// We should avoid deduplicating array sets in brillig - they may mutate the underlying array
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = make_array [Field -2, Field -1] : [Field; 2]
+            v4 = call f1(v2) -&gt; Field
+            call f2(u1 1, v4)
+            constrain Field 1 == v4
+            return
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v1 = allocate -&gt; &amp;mut [Field; 2]
+            v3 = array_get v0, index u32 1 -&gt; Field
+            v5 = add Field 3, v3
+            v6 = array_set v0, index u32 1, value v5
+            store v6 at v1
+            v7 = allocate -&gt; &amp;mut u1
+            store u1 1 at v7
+            jmp b1()
+          b1():
+            v9 = load v7 -&gt; u1
+            jmpif v9 then: b2, else: b3
+          b2():
+            v22 = load v1 -&gt; [Field; 2]
+            v23 = array_get v22, index u32 0 -&gt; Field
+            v24 = add Field 3, v23
+            v25 = array_set v22, index u32 0, value v24
+            store v25 at v1
+            store u1 0 at v7
+            jmp b1()
+          b3():
+            v10 = allocate -&gt; &amp;mut [Field; 2]
+            v11 = array_set v0, index u32 1, value v5
+            store v11 at v10
+            v12 = allocate -&gt; &amp;mut u1
+            store u1 1 at v12
+            jmp b4()
+          b4():
+            v13 = load v12 -&gt; u1
+            jmpif v13 then: b5, else: b6
+          b5():
+            v17 = load v10 -&gt; [Field; 2]
+            v18 = array_get v17, index u32 0 -&gt; Field
+            v19 = add Field 3, v18
+            v20 = array_set v17, index u32 0, value v19
+            store v20 at v10
+            store u1 0 at v12
+            jmp b4()
+          b6():
+            v14 = load v10 -&gt; [Field; 2]
+            v16 = array_get v14, index u32 0 -&gt; Field
+            return v16
+        }
+        brillig(inline) impure fn print_unconstrained f2 {
+          b0(v0: u1, v1: Field):
+            v13 = make_array b"{\"kind\":\"field\"}"
+            call print(v0, v1, v13, u1 0)
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="comment">// Ensure the assert passes
+        </span>ssa.interpret(Vec::new()).unwrap();
+
+        <span class="kw">let </span>folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+        folded.interpret(Vec::new()).unwrap();
     }
 }
 </code></pre></div></section></main></body></html>
