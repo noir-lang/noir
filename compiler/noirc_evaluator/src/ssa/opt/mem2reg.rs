@@ -145,8 +145,7 @@ impl Function {
                         // Check if the value is a reference.
                         // This indicates we're storing a reference into another reference
                         // An address is always a reference, as this is an invariant of the Store instruction.
-                        if function.dfg.value_is_reference(*value)
-                        {
+                        if function.dfg.value_is_reference(*value) {
                             // Mark both the address and value as potentially aliased
                             aliases.insert(*address);
                             aliases.insert(*value);
