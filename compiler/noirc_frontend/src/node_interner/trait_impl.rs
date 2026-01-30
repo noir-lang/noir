@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
-use std::{collections::HashSet, rc::Rc};
+use std::collections::HashSet;
 
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
@@ -325,22 +325,22 @@ impl NodeInterner {
                     return false;
                 };
 
-                let mut impl_generic =
-                    named_impl_generic.typ.force_substitute(&instantiation_bindings);
+                let impl_generic = named_impl_generic.typ.force_substitute(&instantiation_bindings);
 
-                // If the implementation is just a free type variable, it will bind to anything.
-                // Since we know they are both essentially NamedGenerics, their underlying type
-                // variable should be the same, otherwise they come from different traits.
-                if let Type::TypeVariable(v) = &impl_generic {
-                    if v.borrow().is_unbound() {
-                        impl_generic = v.clone().into_named_generic(
-                            &Rc::new(named_impl_generic.name.to_string()),
-                            None,
-                        );
+                // We know that these are both essentially NamedGeneric types. If they are both unbound,
+                // we want them to be the exact same type variable, otherwise it would indicate they come
+                // from different traits, which _could_ unify in a concrete impl, but Rust would reject
+                // them without further evidence (ie. just looking at the traits).
+                // If the right side was an unbound type variable, it would just bind to the left during unification,
+                // which we need to avoid if we want to reject the uncertainty.
+                match (trait_generic.typ.follow_bindings(), impl_generic.follow_bindings()) {
+                    (Type::NamedGeneric(t), Type::TypeVariable(v))
+                        if t.type_var.borrow().is_unbound() && v.borrow().is_unbound() =>
+                    {
+                        t.type_var.id() == v.id()
                     }
+                    _ => trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok(),
                 }
-
-                trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
             });
 
             if !associated_types_unify {

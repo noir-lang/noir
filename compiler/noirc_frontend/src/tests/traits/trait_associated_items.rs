@@ -569,6 +569,7 @@ fn associated_type_mismatch_across_modules() {
 
 #[test]
 fn associated_type_mismatch_with_inheritance() {
+    // This code would be rejected by Rust, without further evidence to support their equivalence.
     let src = r#"
     pub trait Foo {
         type Bar;
