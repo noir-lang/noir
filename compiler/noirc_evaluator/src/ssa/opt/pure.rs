@@ -533,7 +533,7 @@ mod tests {
         }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
