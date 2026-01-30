@@ -223,7 +223,7 @@ fn compile_programs(
             cached_program.as_ref().map(|prog| rustc_hash::FxBuildHasher.hash_one(prog));
 
         // Compile the program, or use the cached artifacts if it matches.
-        let warnings = match compile_program(
+        match compile_program(
             file_manager,
             parsed_files,
             workspace,
@@ -249,14 +249,13 @@ fn compile_programs(
                             &package.name,
                             &workspace.target_directory_path(),
                         )?;
-                        warnings
+                        Ok(Ok(((), warnings)))
                     }
-                    Err(warnings) => warnings,
+                    Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
                 }
             }
-            Err(warnings) => warnings,
-        };
-        Ok(Ok(((), warnings)))
+            Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
+        }
     };
 
     // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
@@ -286,21 +285,19 @@ fn compile_contracts(
     let contract_results = contract_packages
         .par_iter()
         .map(|package| -> Result<CompilationResult<()>, CliError> {
-            let warnings =
-                match compile_contract(file_manager, parsed_files, package, compile_options) {
-                    Ok((contract, warnings)) => {
-                        let contract = nargo::ops::optimize_contract(contract);
-                        save_contract(
-                            contract,
-                            package,
-                            target_dir,
-                            compile_options.show_artifact_paths,
-                        )?;
-                        warnings
-                    }
-                    Err(warnings) => warnings,
-                };
-            Ok(Ok(((), warnings)))
+            match compile_contract(file_manager, parsed_files, package, compile_options) {
+                Ok((contract, warnings)) => {
+                    let contract = nargo::ops::optimize_contract(contract);
+                    save_contract(
+                        contract,
+                        package,
+                        target_dir,
+                        compile_options.show_artifact_paths,
+                    )?;
+                    Ok(Ok(((), warnings)))
+                }
+                Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
+            }
         })
         .collect::<Result<Vec<_>, CliError>>()?;
 
