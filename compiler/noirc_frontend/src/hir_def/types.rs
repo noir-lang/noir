@@ -3618,6 +3618,7 @@ mod tests {
 
     /// Test that the occurs handles deeply nested type bindings without stack overflow.
     #[test]
+    #[should_panic = "recursion limit when checking if type occurs"]
     fn test_occurs_with_deep_recursion_limit() {
         // Create a chain of type variables: T0 -> T1 -> T2 -> ... -> T_n
         let mut type_vars = Vec::new();
@@ -3636,10 +3637,7 @@ mod tests {
         // Create a type that starts the chain
         let start_type = Type::TypeVariable(type_vars[0].clone());
 
-        // The occurs check should hit the recursion limit and return true
-        // (conservatively assuming the type might occur to prevent infinite recursion)
-        let result = start_type.occurs(type_vars[0].id());
-        assert!(result, "Expected occurs to return true when hitting recursion limit");
+        let _ = start_type.occurs(type_vars[depth - 1].id());
     }
 
     /// Test that substitute handles deeply nested type bindings without stack overflow.
@@ -3665,7 +3663,7 @@ mod tests {
         // Start with a type variable in the cycle
         let start_type = Type::TypeVariable(type_var0.clone());
 
-        // Substitute should detect the deep recursion and return Type::RecursionLimit
+        // Substitute should detect the deep recursion and return Type::Error
         // (before the fix, this would stack overflow)
         let result = start_type.substitute(&bindings);
         assert_eq!(result, Type::Error);
