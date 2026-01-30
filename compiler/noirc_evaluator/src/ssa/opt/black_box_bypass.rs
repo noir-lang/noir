@@ -116,7 +116,7 @@ impl Function {
 
 /// Whether the a parameter with a certain type should be ignored by the `black_box` function.
 fn black_box_should_ignore(typ: &Type) -> bool {
-    typ.contains_function()
+    typ.contains_function() | typ.contains_reference()
 }
 
 #[cfg(test)]
@@ -248,6 +248,33 @@ mod tests {
           b0(v0: Field):
             v2 = add v0, Field 10
             return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn ignore_references() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+                v2 = make_array [u8 1, u8 10] : [u8; 2]
+                v3 = allocate -> &mut [u8; 2]
+                store v2 at v3
+                v5 = call black_box(v3) -> &mut [u8; 2]
+                v6 = load v3 -> [u8; 2]
+                return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.black_box_bypass();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [u8 1, u8 10] : [u8; 2]
+            v3 = allocate -> &mut [u8; 2]
+            store v2 at v3
+            v4 = load v3 -> [u8; 2]
+            return v4
         }
         ");
     }
