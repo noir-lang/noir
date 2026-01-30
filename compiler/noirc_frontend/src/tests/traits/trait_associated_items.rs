@@ -615,6 +615,29 @@ fn associated_type_and_constant_composite() {
 }
 
 #[test]
+fn associated_constant_refer_to_generic() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    impl<let M: u32> Deserialize for [Field; M] {
+        let N: u32 = M;
+
+        fn deserialize(fields: Self) -> Self {
+            fields
+        }
+    }
+
+    pub fn go<let M: u32>(fields: [Field; M]) {
+        let _data = <[Field; M] as Deserialize<N = M>>::deserialize(fields);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn associated_type_behind_self_as_trait() {
     let src = r#"
     pub trait Foo {

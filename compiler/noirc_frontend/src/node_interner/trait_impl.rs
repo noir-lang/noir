@@ -332,10 +332,12 @@ impl NodeInterner {
                 // from different traits, which _could_ unify in a concrete impl, but Rust would reject
                 // them without further evidence (ie. just looking at the traits).
                 // If the right side was an unbound type variable, it would just bind to the left during unification,
-                // which we need to avoid if we want to reject the uncertainty.
+                // which we need to avoid if we want to reject the uncertainty. Doesn't apply to associated consts.
                 match (trait_generic.typ.follow_bindings(), impl_generic.follow_bindings()) {
                     (Type::NamedGeneric(t), Type::TypeVariable(v))
-                        if t.type_var.borrow().is_unbound() && v.borrow().is_unbound() =>
+                        if t.type_var.borrow().is_unbound()
+                            && v.borrow().is_unbound()
+                            && v.kind().is_normal_or_any() =>
                     {
                         t.type_var.id() == v.id()
                     }
