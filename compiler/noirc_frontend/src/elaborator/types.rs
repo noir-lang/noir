@@ -251,7 +251,7 @@ impl Elaborator<'_> {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
-            AsTraitPath(path) => self.resolve_as_trait_path(*path, wildcard_allowed),
+            AsTraitPath(path) => self.resolve_as_trait_path(*path, mode, wildcard_allowed),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
                 return self.resolve_type_with_kind_inner(
@@ -285,13 +285,16 @@ impl Elaborator<'_> {
         self.check_type_kind(resolved_type, kind, location)
     }
 
-    /// Resolve Self::Foo to an associated type on the current trait or trait impl
+    /// Resolve `Self::Foo` to an associated type on the current trait or trait impl.
     fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
-                    return Some(typ.clone().as_named_generic());
+                    return Some(
+                        typ.clone()
+                            .into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
+                    );
                 }
             }
 
@@ -303,6 +306,62 @@ impl Elaborator<'_> {
             }
         }
         None
+    }
+
+    /// Resolve `T::Foo` to an associated type on a generic type parameter with trait bounds.
+    ///
+    /// For example, in `impl<T: Baz> Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
+    /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
+    fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+
+        let type_name = path.segments[0].ident.as_str();
+        let assoc_name = path.last_name();
+
+        // Check if first segment is a generic parameter
+        self.find_generic(type_name)?;
+
+        // Search trait bounds for this generic to find the associated type
+        let mut found_types = Vec::new();
+
+        for constraint in &self.trait_bounds {
+            if let Type::NamedGeneric(generic) = &constraint.typ {
+                if generic.name.as_ref() == type_name {
+                    let trait_id = constraint.trait_bound.trait_id;
+                    let the_trait = self.interner.get_trait(trait_id);
+
+                    if let Some(assoc_type) = the_trait.get_associated_type(assoc_name) {
+                        found_types.push((trait_id, assoc_type.clone()));
+                    }
+                }
+            }
+        }
+
+        match found_types.len() {
+            0 => None, // Fall through to normal resolution
+            1 => {
+                let (trait_id, assoc_type) = found_types.remove(0);
+                let the_trait = self.interner.get_trait(trait_id);
+                // Return the associated type with proper naming for display
+                Some(assoc_type.into_named_generic(Some((type_name, the_trait.name.as_str()))))
+            }
+            _ => {
+                // Multiple traits have this associated type - ambiguous
+                let location = path.location;
+                let trait_names: Vec<_> = found_types
+                    .iter()
+                    .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                    .collect();
+                let ident = Ident::new(assoc_name.to_string(), location);
+                self.push_err(PathResolutionError::MultipleTraitsInScope {
+                    ident,
+                    traits: trait_names,
+                });
+                Some(Type::Error)
+            }
+        }
     }
 
     fn resolve_named_type(
@@ -648,9 +707,18 @@ impl Elaborator<'_> {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
-                return Some(generic.as_named_generic());
+                return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
+            if let Some(last_segment) = path.segments.last() {
+                if last_segment.generics.is_some() {
+                    self.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
+            return Some(typ);
+        } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
             if let Some(last_segment) = path.segments.last() {
                 if last_segment.generics.is_some() {
                     self.push_err(ResolverError::GenericsOnAssociatedType {
@@ -811,7 +879,8 @@ impl Elaborator<'_> {
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
-                let typ = self.resolve_as_trait_path(*path, wildcard_allowed);
+                let mode = PathResolutionMode::MarkAsReferenced;
+                let typ = self.resolve_as_trait_path(*path, mode, wildcard_allowed);
                 self.check_type_kind(typ, expected_kind, location)
             }
         }
@@ -853,9 +922,11 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolve `<{object} as {trait}>::{ident}` to a [Type] of the `{ident}`.
     fn resolve_as_trait_path(
         &mut self,
         path: AsTraitPath,
+        mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
         let location = path.trait_path.location;
@@ -864,6 +935,12 @@ impl Elaborator<'_> {
             // Error should already be pushed in the None case
             return Type::Error;
         };
+
+        if let Some(typ) =
+            self.try_resolve_self_as_trait_path(&path, mode, wildcard_allowed, trait_id)
+        {
+            return typ;
+        }
 
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
@@ -878,6 +955,64 @@ impl Elaborator<'_> {
                 Type::Error
             }
         }
+    }
+
+    /// Try to resolve an [AsTraitPath] as `<Self as {trait}>::{ident}` to the [Type] of the `{ident}`.
+    ///
+    /// If it's a different pattern then returns `None`.
+    fn try_resolve_self_as_trait_path(
+        &mut self,
+        path: &AsTraitPath,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        trait_id: TraitId,
+    ) -> Option<Type> {
+        // Only applies if the path refers to the current trait.
+        let current_trait = self.current_trait?;
+
+        if trait_id != current_trait {
+            return None;
+        }
+
+        // See if we are dealing with `<Self as {trait}>::{ident}`.
+        // If so, redirect to how we deal with `Self::{ident}`.
+        let UnresolvedTypeData::Named(object_path, object_generics, _) = &path.typ.typ else {
+            return None;
+        };
+
+        // Only applies if the object refers to `Self` and nothing else.
+        if object_path.segments.len() != 1
+            || !object_path.segments[0].ident.is_self_type_name()
+            || !object_generics.is_empty()
+        {
+            return None;
+        }
+
+        // Only works if all the trait generics in the path are the same as the trait itself.
+        let location = path.trait_path.location;
+        let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
+
+        if !ordered.iter().all(|typ| matches!(typ, Type::NamedGeneric(_)))
+            || !named.iter().all(|typ| matches!(typ.typ, Type::TypeVariable(_)))
+        {
+            return None;
+        }
+
+        // Remove the trait from the path.
+        let self_and_impl = object_path.clone().join(path.impl_item.clone());
+        let self_and_impl = self.validate_path(self_and_impl);
+
+        // Resolved as a named type, which is what `Self::{ident}` would be.
+        let typ = self.resolve_named_type(
+            self_and_impl,
+            // The call to `lookup_generic_or_global_type` which calls `lookup_associated_type_on_self`
+            // will only be made if the args are empty, and that's what we tried to ascertain before
+            // by checking that none of them are bound to a concrete type.
+            GenericTypeArgs::default(),
+            mode,
+            wildcard_allowed,
+        );
+        Some(typ)
     }
 
     fn get_associated_type_from_trait_impl(
@@ -1096,7 +1231,8 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
             | PathResolutionItem::TypeTraitFunction(..)
-            | PathResolutionItem::PrimitiveFunction(..) => {
+            | PathResolutionItem::PrimitiveFunction(..)
+            | PathResolutionItem::TraitConstant(..) => {
                 return None;
             }
         };
@@ -2496,10 +2632,10 @@ impl Elaborator<'_> {
     pub fn type_check_function_body(&mut self, body_type: Type, meta: &FuncMeta, body_id: ExprId) {
         let (expr_location, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
+        let last_expr_location = self.last_expr_location(body_id);
 
-        let func_location = self.interner.expr_location(&body_id); // TODO(https://github.com/noir-lang/noir/issues/10519): We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
-            self.use_unstable_feature(UnstableFeature::TraitAsType, func_location);
+            self.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
             if self
                 .interner
                 .lookup_trait_implementation(
@@ -2513,7 +2649,7 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: body_type,
-                    location: func_location,
+                    location: last_expr_location,
                     source: Source::Return(meta.return_type.clone(), expr_location),
                 });
             }
@@ -2522,12 +2658,12 @@ impl Elaborator<'_> {
                 &body_type,
                 declared_return_type,
                 body_id,
-                func_location,
+                last_expr_location,
                 || {
                     let mut error = TypeCheckError::TypeMismatchWithSource {
                         expected: declared_return_type.clone(),
                         actual: body_type.clone(),
-                        location: func_location,
+                        location: last_expr_location,
                         source: Source::Return(meta.return_type.clone(), expr_location),
                     };
 
@@ -2539,6 +2675,24 @@ impl Elaborator<'_> {
                     CompilationError::TypeError(error)
                 },
             );
+        }
+    }
+
+    /// Grab a best-effort approximation of the last expression or statement in the function.
+    /// Due to the typing rules of blocks, it is expected that the type of this expression/statement
+    /// matches the return type of the function.
+    fn last_expr_location(&self, expr: ExprId) -> Location {
+        match self.interner.expression(&expr) {
+            HirExpression::Block(block) if !block.statements.is_empty() => {
+                let last = block.statements.last().unwrap();
+                match self.interner.statement(last) {
+                    HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
+                        self.last_expr_location(expr)
+                    }
+                    _ => self.interner.statement_location(*last),
+                }
+            }
+            _ => self.interner.expr_location(&expr),
         }
     }
 

@@ -44,6 +44,7 @@ pub(super) struct FunctionContext {
 }
 
 /// A type variable that is required to be bound after type-checking a function.
+#[derive(Debug)]
 struct RequiredTypeVariable {
     type_variable_id: TypeVariableId,
     typ: Type,
@@ -52,6 +53,7 @@ struct RequiredTypeVariable {
 }
 
 /// A constraint local to the current [FunctionContext] to solve at the end of the context.
+#[derive(Debug)]
 struct LocalTraitConstraint {
     constraint: TraitConstraint,
 

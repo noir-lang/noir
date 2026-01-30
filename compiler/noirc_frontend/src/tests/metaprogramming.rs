@@ -1245,3 +1245,226 @@ fn zeroed_comptime_type() {
     "#;
     check_errors_with_stdlib(src, &stdlib);
 }
+
+#[test]
+fn recursive_attribute_causes_expansion_limit_error() {
+    use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
+    use crate::hir::comptime::InterpreterError;
+
+    let src = r#"
+    #[foo]
+    comptime fn foo(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[foo]
+            fn bar() {}
+        }
+    }
+
+    fn main() {}
+    "#;
+    // Fetch the errors directly as we will get many repeated errors up until the recursion limit is hit
+    let errors = get_program_errors(src);
+    // Ignore any unused function warnings
+    let errors = errors.into_iter().filter(|err| err.is_error()).collect::<Vec<_>>();
+    assert!(errors.len() <= MAX_MACRO_EXPANSION_DEPTH);
+
+    // Helper to check for the recursion limit error, which may be wrapped in ComptimeError::ErrorRunningAttribute
+    fn is_recursion_limit_error(error: &CompilationError) -> bool {
+        match error {
+            CompilationError::InterpreterError(
+                InterpreterError::AttributeRecursionLimitExceeded { .. },
+            ) => true,
+            CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute {
+                error, ..
+            }) => is_recursion_limit_error(error),
+            _ => false,
+        }
+    }
+
+    // The test should produce the recursion limit error
+    let has_recursion_limit_error = errors.iter().any(is_recursion_limit_error);
+    assert!(has_recursion_limit_error, "Expected AttributeRecursionLimitExceeded error");
+}
+
+/// Verifies that mutually recursive attributes are caught by the global macro expansion depth limit.
+/// Three mutually recursive attributes: foo -> bar -> baz -> foo -> ...
+/// With a global counter, this correctly errors at [crate::elaborator::MAX_MACRO_EXPANSION_DEPTH] total expansions.
+#[test]
+fn mutually_recursive_attributes_cause_expansion_limit_error() {
+    use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
+    use crate::hir::comptime::InterpreterError;
+
+    let src = r#"
+    #[foo]
+    comptime fn foo(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[bar]
+            fn generated_by_foo() {}
+        }
+    }
+
+    #[bar]
+    comptime fn bar(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[baz]
+            fn generated_by_bar() {}
+        }
+    }
+
+    #[baz]
+    comptime fn baz(_: FunctionDefinition) -> Quoted {
+        quote {
+            #[foo]
+            fn generated_by_baz() {}
+        }
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    // Ignore any unused function warnings
+    let errors = errors.into_iter().filter(|err| err.is_error()).collect::<Vec<_>>();
+    // With a global depth counter, mutual recursion is detected at the same depth as single-function
+    // recursion. If tracking were per-function, 3 mutually recursive functions could generate up to
+    // 3 × MAX_MACRO_EXPANSION_DEPTH errors before any single counter hit the limit.
+    assert!(errors.len() <= MAX_MACRO_EXPANSION_DEPTH);
+
+    fn is_recursion_limit_error(error: &CompilationError) -> bool {
+        match error {
+            CompilationError::InterpreterError(
+                InterpreterError::AttributeRecursionLimitExceeded { .. },
+            ) => true,
+            CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute {
+                error, ..
+            }) => is_recursion_limit_error(error),
+            _ => false,
+        }
+    }
+
+    let has_recursion_limit_error = errors.iter().any(is_recursion_limit_error);
+    assert!(
+        has_recursion_limit_error,
+        "Expected AttributeRecursionLimitExceeded error for mutually recursive attributes"
+    );
+}
+
+#[test]
+fn many_non_recursive_attributes_do_not_trigger_macro_expansion_limit() {
+    use std::fmt::Write;
+
+    // Verifies that the recursion limit tracks depth, not total calls.
+    // A program with many sequential (non-nested) uses of the same attribute should work
+    // because each attribute completes before the next starts, keeping depth at 1.
+    let count = 50;
+    let functions: String = (1..=count).fold(String::new(), |mut output, i| {
+        let _ = writeln!(output, "    #[attr] fn f{i}() {{}}");
+        output
+    });
+    let calls: String = (1..=count).fold(String::new(), |mut output, i| {
+        let _ = write!(output, "f{i}(); ");
+        output
+    });
+    let src = format!(
+        r#"
+    comptime fn attr(_: FunctionDefinition) {{}}
+
+{functions}
+    fn main() {{
+        {calls}
+    }}
+    "#
+    );
+    assert_no_errors(&src);
+}
+
+#[test]
+fn unquote_in_nested_quote() {
+    let src = r#"
+    #[foo]
+    pub comptime fn foo(_: FunctionDefinition) -> Quoted {
+        let x = 0;
+        quote {
+            pub comptime fn bar() -> Quoted {
+                quote { $x }
+            }
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn substitute_unquoted_in_nested_quote() {
+    let src = r#"
+    fn main() {
+        do_func!(
+            |i: u32| {
+                quote {
+                    $do_func!(|_| {
+                        quote {
+                            let _ = $i;
+                        }
+                    });
+            }
+            },
+        );
+    }
+
+    pub comptime fn do_func(body: fn(u32) -> Quoted) -> Quoted {
+        body(123)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn invalid_quote_escape() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let _ = quote { \1 };
+                                 ^ `1` cannot be escaped in quoted expressions
+                                 ~ Only `$` may be escaped in `quote` expressions
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn escape_nested_unquote() {
+    let src = r#"
+        // unroll_loop has been modified to remove stdlib fns so it no longer conceptually unrolls loops
+        pub comptime fn unroll_loop(start: u32, end: u32, body: fn(u32) -> Quoted) -> Quoted {
+            let mut iterations = quote[];
+            for i in start..end {
+                iterations = body(i);
+            }
+            iterations
+        }
+
+        pub fn u64s_to_bytes(row: [u64; 4]) -> [u8; 32] {
+            let mut result: [u8; 32] = [0; 32];
+            unroll_loop!(
+                0_u32,
+                4_u32,
+                |i| {
+                    quote {
+                    $unroll_loop!(0_u32, 8_u32, |j| {
+                        let i = $i;
+                        let byte_idx = i * 8 + j;
+                        let shift = (j * 8) as u64;
+                        quote {
+                            result[\$byte_idx] = (((row[$i] >> \$shift) << 56) >> 56) as u8;
+                        }
+                    });
+                }
+                },
+            );
+
+            result
+        }
+    "#;
+    assert_no_errors(src);
+}

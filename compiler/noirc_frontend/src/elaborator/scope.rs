@@ -127,6 +127,7 @@ impl Elaborator<'_> {
                     found: item.description(self.interner),
                 })
             }
+            PathResolutionItem::TraitConstant(_, _, def_id) => Ok((def_id, item)),
             item => Err(ResolverError::Expected {
                 location,
                 expected,

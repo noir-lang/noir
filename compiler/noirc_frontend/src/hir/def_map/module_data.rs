@@ -28,7 +28,7 @@ pub struct ModuleData {
     /// Contains only the definitions directly defined in the current module
     definitions: ItemScope,
 
-    /// All traits in scope, either from `use` imports or `trait` declarations.
+    /// Multiple traits in scope, either from `use` imports or `trait` declarations.
     /// The Ident value is the trait name or the `use` alias, if any.
     /// This is stored separately from `scope` to quickly check if a trait is in scope.
     traits_in_scope: HashMap<TraitId, Ident>,

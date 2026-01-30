@@ -481,7 +481,7 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = type_var.clone().into_named_generic(name.clone());
+    let typ = type_var.clone().into_named_generic(&name, None);
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -499,7 +499,7 @@ fn type_def_as_type(
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().into_named_generic(None));
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -566,7 +566,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let generic_as_named = generic.clone().as_named_generic();
+            let generic_as_named = generic.clone().into_named_generic(None);
             let numeric_type = match generic_as_named.kind() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
