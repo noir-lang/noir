@@ -166,7 +166,7 @@ impl<'a> FunctionContext<'a> {
                 func.unroll_type,
             );
         } else {
-            self.builder.new_function(func.name.clone(), id, func.inline_type, func.unroll_type);
+            self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
 
         self.add_parameters_to_scope(&func.parameters);

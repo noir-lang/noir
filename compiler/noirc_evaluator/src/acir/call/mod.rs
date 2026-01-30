@@ -47,7 +47,7 @@ impl Context<'_> {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
                         match func.runtime() {
-                            RuntimeType::Acir(inline_type, _) => {
+                            RuntimeType::Acir(inline_type) => {
                                 assert!(
                                     inline_type.is_entry_point(),
                                     "ICE: Got a call to an ACIR function {} named {} that should have already been inlined",

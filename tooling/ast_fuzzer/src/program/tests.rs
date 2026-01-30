@@ -83,7 +83,7 @@ fn test_modulo_of_negative_literals_in_range() {
 
     // The lower bound is -4 (-9 % 5), represented as a field by subtracting it from u64::MAX.
     assert_ssa_snapshot!(ssa, @r"
-    acir(inline, unroll_default) fn main f0 {
+    acir(inline) fn main f0 {
       b0():
         jmp b1(i64 -4)
       b1(v0: i64):

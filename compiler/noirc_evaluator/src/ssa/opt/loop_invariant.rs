@@ -2433,10 +2433,7 @@ mod tests {
         RuntimeType::Brillig(InlineType::default(), UnrollType::default()),
         CanBeHoistedResult::Yes
     )]
-    #[test_case(
-        RuntimeType::Acir(InlineType::default(), UnrollType::default()),
-        CanBeHoistedResult::Yes
-    )]
+    #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
         let src = format!(
@@ -3604,7 +3601,7 @@ mod control_dependence {
     }
 
     #[test_case(RuntimeType::Brillig(InlineType::default(), UnrollType::default()))]
-    #[test_case(RuntimeType::Acir(InlineType::default(), UnrollType::default()))]
+    #[test_case(RuntimeType::Acir(InlineType::default()))]
     fn do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
         // We use an unknown index v0 to index an array, but only if v1 is true,
         // so we should not hoist the constraint or the array_get into the header.

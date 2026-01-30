@@ -30,7 +30,7 @@ impl Ssa {
 
         let should_inline_call = |callee: &Function| {
             let runtime = callee.runtime();
-            if let RuntimeType::Acir(_, _) = callee.runtime() {
+            if let RuntimeType::Acir(_) = callee.runtime() {
                 // Functions marked to not have predicates should be preserved.
                 if callee.is_no_predicates() {
                     return false;

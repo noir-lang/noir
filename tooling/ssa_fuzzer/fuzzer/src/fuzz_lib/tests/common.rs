@@ -23,6 +23,6 @@ pub(crate) fn default_input_types() -> Vec<Type> {
 pub(crate) fn default_runtimes() -> Vec<RuntimeType> {
     vec![
         RuntimeType::Brillig(FrontendInlineType::default(), FrontendUnrollType::default()),
-        RuntimeType::Acir(FrontendInlineType::default(), FrontendUnrollType::default()),
+        RuntimeType::Acir(FrontendInlineType::default()),
     ]
 }

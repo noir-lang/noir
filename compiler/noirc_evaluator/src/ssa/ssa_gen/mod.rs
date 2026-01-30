@@ -70,7 +70,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let main_runtime = if main.unconstrained {
         RuntimeType::Brillig(main.inline_type, main.unroll_type)
     } else {
-        RuntimeType::Acir(main.inline_type, main.unroll_type)
+        RuntimeType::Acir(main.inline_type)
     };
     let mut function_context =
         FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);

@@ -242,13 +242,16 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::LeftParen)?;
         let inline_type = self.parse_inline_type()?;
-        self.eat_or_error(Token::Comma)?;
-        let unroll_type = self.parse_unroll_type()?;
-        self.eat_or_error(Token::RightParen)?;
 
         if acir {
-            Ok(RuntimeType::Acir(inline_type, unroll_type))
+            // ACIR only has inline_type
+            self.eat_or_error(Token::RightParen)?;
+            Ok(RuntimeType::Acir(inline_type))
         } else {
+            // Brillig has both inline_type and unroll_type
+            self.eat_or_error(Token::Comma)?;
+            let unroll_type = self.parse_unroll_type()?;
+            self.eat_or_error(Token::RightParen)?;
             Ok(RuntimeType::Brillig(inline_type, unroll_type))
         }
     }

@@ -23,7 +23,7 @@ use utils::{push_fuzzer_output_to_redis_queue, redis};
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
 const UNROLL_TYPE: FrontendUnrollType = FrontendUnrollType::Default;
-const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE, UNROLL_TYPE);
+const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE);
 const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE, UNROLL_TYPE);
 const TARGET_RUNTIMES: [RuntimeType; 2] = [ACIR_RUNTIME, BRILLIG_RUNTIME];
 

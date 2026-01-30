@@ -139,14 +139,8 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new ACIR function.
-    pub fn new_function(
-        &mut self,
-        name: String,
-        function_id: FunctionId,
-        inline_type: InlineType,
-        unroll_type: UnrollType,
-    ) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type, unroll_type));
+    pub fn new_function(&mut self, name: String, function_id: FunctionId, inline_type: InlineType) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
     /// Finish the current function and create a new unconstrained function.
