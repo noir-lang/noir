@@ -1047,6 +1047,10 @@ impl<'f> LoopIteration<'f> {
             "expected to encounter loop header when visiting blocks"
         );
 
+        // Since `self`, and its `inserter`, are moved into this method,
+        // it's the last chance we have to update the data bus values.
+        self.inserter.map_data_bus_in_place();
+
         (end_block, induction_value)
     }
 
