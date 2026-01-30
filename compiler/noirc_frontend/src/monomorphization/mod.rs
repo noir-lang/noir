@@ -1543,6 +1543,30 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(expr)
     }
 
+    /// Estimates the complexity of a type.
+    /// This is roughly the number of "nodes" in the type tree.
+    fn type_complexity(typ: &HirType) -> usize {
+        let typ = typ.follow_bindings_shallow();
+        match typ.as_ref() {
+            HirType::Tuple(fields) => 1 + fields.iter().map(Self::type_complexity).sum::<usize>(),
+            HirType::Array(_len, elem_typ) => 1 + Self::type_complexity(elem_typ),
+            HirType::DataType(_def, generics) => {
+                1 + generics.iter().map(Self::type_complexity).sum::<usize>()
+            }
+            HirType::Function(args, ret, env, _) => {
+                1 + args.iter().map(Self::type_complexity).sum::<usize>()
+                    + Self::type_complexity(ret)
+                    + Self::type_complexity(env)
+            }
+            HirType::Reference(inner, _) => 1 + Self::type_complexity(inner),
+            HirType::Alias(_, generics) => {
+                1 + generics.iter().map(Self::type_complexity).sum::<usize>()
+            }
+            // Simple types
+            _ => 1,
+        }
+    }
+
     /// Convert a non-tuple/struct type to a monomorphized type
     pub fn convert_type(
         typ: &HirType,
@@ -1565,6 +1589,17 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
+        const MAX_TYPE_COMPLEXITY: usize = 100_000;
+
+        let complexity = Self::type_complexity(typ);
+        if complexity > MAX_TYPE_COMPLEXITY {
+            return Err(MonomorphizationError::ComplexType {
+                complexity,
+                max_complexity: MAX_TYPE_COMPLEXITY,
+                location,
+            });
+        }
+
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,
