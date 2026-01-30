@@ -20,7 +20,7 @@ pub(crate) struct InfoCommand {
     json: bool,
 
     /// Name of the function to print, if the artifact is a contract.
-    #[clap(long, conflicts_with_all = ["profile-execution", "input-file"])]
+    #[clap(long, conflicts_with_all = ["profile_execution", "input_file"])]
     contract_fn: Option<String>,
 
     /// Profile execution to count actual opcodes executed at runtime.
