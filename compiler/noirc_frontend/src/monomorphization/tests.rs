@@ -1353,3 +1353,88 @@ fn closure_capture_chain_oom() {
     ";
     let _ = get_monomorphized(src);
 }
+
+#[test]
+fn deeply_nested_closures() {
+    const DEPTH: usize = 20;
+
+    // Build: let f0 = || { let f1 = || { ... let fN = || { 0 }; fN() }; ... f1() }; f0()
+    // The closures do not have exponential growth and should be allowed.
+    let mut opening = String::new();
+    let mut closing = String::new();
+
+    for i in 0..DEPTH {
+        opening.push_str(&format!("let f{i} = || {{ "));
+    }
+    // Close in reverse order
+    for i in (0..DEPTH).rev() {
+        closing.push_str(&format!("}}; f{i}() "));
+    }
+
+    let src = format!(
+        r#"
+    fn main() {{
+        {opening}0{closing};
+    }}
+    "#
+    );
+    assert!(get_monomorphized(&src).is_ok());
+}
+
+#[test]
+fn unbounded_monomorphization_queue() {
+    // Generate many unique monomorphic functions via different array sizes.
+    // Each [Field; N] is a distinct type, creating foo<[Field; N]>.
+    const NUM_MONOMORPHIC_FUNCTIONS: usize = 9000;
+
+    let mut calls = String::new();
+    for i in 1..=NUM_MONOMORPHIC_FUNCTIONS {
+        calls.push_str(&format!("        let v{i} = foo([0; {i}]);\n"));
+    }
+
+    let src = format!(
+        r#"
+    fn foo<T>(x: T) -> T {{ x }}
+    fn main() {{
+{calls}    }}
+    "#
+    );
+
+    assert!(get_monomorphized(&src).is_ok());
+}
+
+#[test]
+fn exponential_type_complexity_should_fail() {
+    // This test verifies that exponentially growing types are caught by the complexity limit.
+    // Each wrap(x) doubles the type size: Field -> (Field, Field) -> ((Field, Field), (Field, Field))
+    const DEPTH: usize = 20;
+
+    let mut body = String::from("let v0 = 1;\n");
+    for i in 1..=DEPTH {
+        body.push_str(&format!("    let v{} = wrap(v{});\n", i, i - 1));
+    }
+
+    let src = format!(
+        r#"
+fn wrap<T>(x: T) -> (T, T) {{
+    (x, x)
+}}
+fn main() {{
+    {body}
+}}
+"#
+    );
+
+    let result = get_monomorphized(&src);
+    match result {
+        Ok(_) => panic!("Expected ComplexType error, but got Ok"),
+        Err(MonomorphizationError::ComplexType { complexity, max_complexity, .. }) => {
+            // Verify the error is correct
+            assert!(
+                complexity > max_complexity,
+                "Complexity {complexity} should exceed max {max_complexity}",
+            );
+        }
+        Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
+    }
+}

@@ -830,8 +830,21 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             let typ = self.inserter.function.dfg.type_of_value(*value);
+            // We must recursively check composite types for a reference (e.g., array of references),
+            // as we still need to mark those internal references as unknown.
             if typ.contains_reference() {
                 let value = *value;
+
+                // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
+                // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
+                if let Type::Reference(element) = &typ {
+                    if element.contains_reference() {
+                        if let Some(inner_ref) = references.get_known_value(value) {
+                            self.mark_all_unknown(&[inner_ref], references);
+                        }
+                    }
+                }
+
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
 
@@ -2988,5 +3001,62 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn repeat_load_not_removed_across_call_indirect_mutation_single_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            // Call mutates v0 indirectly via v1
+            call f1(v1)
+            // This load should be preserved.
+            v3 = load v0 -> Field
+            constrain v3 == Field 1
+            return
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            store Field 1 at v1
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn repeat_load_not_removed_across_call_indirect_mutation_deeply_nested() {
+        let src = r#"                                                                                  
+      brillig(inline) fn main f0 {                                                                       
+        b0():                                                                                            
+          v0 = allocate -> &mut Field                                                                    
+          store Field 0 at v0                                                                              
+          v1 = allocate -> &mut &mut Field                                                               
+          store v0 at v1                                                                                      
+          v2 = allocate -> &mut &mut &mut Field                                                          
+          store v1 at v2                                                                                                                                                                           
+          // Call mutates v0 indirectly via v2 -> v1 -> v0                                               
+          call f1(v2)                                                                                   
+          // This load should be preserved                                                               
+          v4 = load v0 -> Field                                                                          
+          constrain v4 == Field 1                                                                        
+          return                                                                                         
+      }                                                                                                                                                                                                 
+      brillig(inline) fn helper f1 {                                                                     
+        b0(v0: &mut &mut &mut Field):                                                                    
+          v1 = load v0 -> &mut &mut Field                                                                
+          v2 = load v1 -> &mut Field                                                                     
+          store Field 1 at v2                                                                            
+          return                                                                                         
+      }                                                                                                  
+      "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
