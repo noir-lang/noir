@@ -216,17 +216,26 @@ fn trait_impl_with_child_constraint() {
 
 #[test]
 fn trait_inheritance_with_ambiguous_associated_type() {
+    // FIXME: This test is currently showing how it works in Noir.
     let src = r#"
     pub trait Foo {
         type Bar;
-        fn foo(x: Self::Bar) -> Self::Bar;
+        fn foo() -> Self::Bar;
     }
 
     pub trait Qux: Foo {
         type Bar;
-        fn qux(x: Self::Bar) -> Self::Bar;
+        // This is rejected by Rust as ambiguous, but is accepted by Noir.
+        fn qux() -> Self::Bar;
+
+        // This "works" in Noir: it is treated as `Self::Bar`, which in turn shouldn't work.
+        fn quy() -> <Self as Qux>::Bar;
+
+        // This is not working in Noir, but it should; it works in Rust.
+        fn quz() -> <Self as Foo>::Bar;
+                             ^^^ No matching impl found for `Self: Foo<Bar = _>`
+                             ~~~ No impl for `Self: Foo<Bar = _>`
     }
     "#;
-    // TODO: Add errors for ambiguous type. But it should work as `<Self as Qux>::Bar`
     check_errors(src);
 }
