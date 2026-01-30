@@ -1417,3 +1417,54 @@ fn substitute_unquoted_in_nested_quote() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn invalid_quote_escape() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let _ = quote { \1 };
+                                 ^ `1` cannot be escaped in quoted expressions
+                                 ~ Only `$` may be escaped in `quote` expressions
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn escape_nested_unquote() {
+    let src = r#"
+        // unroll_loop has been modified to remove stdlib fns so it no longer conceptually unrolls loops
+        pub comptime fn unroll_loop(start: u32, end: u32, body: fn(u32) -> Quoted) -> Quoted {
+            let mut iterations = quote[];
+            for i in start..end {
+                iterations = body(i);
+            }
+            iterations
+        }
+
+        pub fn u64s_to_bytes(row: [u64; 4]) -> [u8; 32] {
+            let mut result: [u8; 32] = [0; 32];
+            unroll_loop!(
+                0_u32,
+                4_u32,
+                |i| {
+                    quote {
+                    $unroll_loop!(0_u32, 8_u32, |j| {
+                        let i = $i;
+                        let byte_idx = i * 8 + j;
+                        let shift = (j * 8) as u64;
+                        quote {
+                            result[\$byte_idx] = (((row[$i] >> \$shift) << 56) >> 56) as u8;
+                        }
+                    });
+                }
+                },
+            );
+
+            result
+        }
+    "#;
+    assert_no_errors(src);
+}

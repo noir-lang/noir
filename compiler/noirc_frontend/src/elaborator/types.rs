@@ -308,6 +308,62 @@ impl Elaborator<'_> {
         None
     }
 
+    /// Resolve `T::Foo` to an associated type on a generic type parameter with trait bounds.
+    ///
+    /// For example, in `impl<T: Baz> Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
+    /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
+    fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+
+        let type_name = path.segments[0].ident.as_str();
+        let assoc_name = path.last_name();
+
+        // Check if first segment is a generic parameter
+        self.find_generic(type_name)?;
+
+        // Search trait bounds for this generic to find the associated type
+        let mut found_types = Vec::new();
+
+        for constraint in &self.trait_bounds {
+            if let Type::NamedGeneric(generic) = &constraint.typ {
+                if generic.name.as_ref() == type_name {
+                    let trait_id = constraint.trait_bound.trait_id;
+                    let the_trait = self.interner.get_trait(trait_id);
+
+                    if let Some(assoc_type) = the_trait.get_associated_type(assoc_name) {
+                        found_types.push((trait_id, assoc_type.clone()));
+                    }
+                }
+            }
+        }
+
+        match found_types.len() {
+            0 => None, // Fall through to normal resolution
+            1 => {
+                let (trait_id, assoc_type) = found_types.remove(0);
+                let the_trait = self.interner.get_trait(trait_id);
+                // Return the associated type with proper naming for display
+                Some(assoc_type.into_named_generic(Some((type_name, the_trait.name.as_str()))))
+            }
+            _ => {
+                // Multiple traits have this associated type - ambiguous
+                let location = path.location;
+                let trait_names: Vec<_> = found_types
+                    .iter()
+                    .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                    .collect();
+                let ident = Ident::new(assoc_name.to_string(), location);
+                self.push_err(PathResolutionError::MultipleTraitsInScope {
+                    ident,
+                    traits: trait_names,
+                });
+                Some(Type::Error)
+            }
+        }
+    }
+
     fn resolve_named_type(
         &mut self,
         path: TypedPath,
@@ -654,6 +710,15 @@ impl Elaborator<'_> {
                 return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
+            if let Some(last_segment) = path.segments.last() {
+                if last_segment.generics.is_some() {
+                    self.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
+            return Some(typ);
+        } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
             if let Some(last_segment) = path.segments.last() {
                 if last_segment.generics.is_some() {
                     self.push_err(ResolverError::GenericsOnAssociatedType {

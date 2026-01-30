@@ -1,3 +1,12 @@
+//! This pass removes `inc_rc` and `dec_rc` instructions
+//! as long as there are no `array_set` instructions to an array
+//! of the same type in between.
+//!
+//! Note that this pass is very conservative since the array_set
+//! instruction does not need to be to the same array. This is because
+//! the given array may alias another array (e.g. function parameters or
+//! a `load`ed array from a reference).
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -11,14 +20,9 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This pass removes `inc_rc` and `dec_rc` instructions
+    /// Removes `inc_rc` and `dec_rc` instructions
     /// as long as there are no `array_set` instructions to an array
     /// of the same type in between.
-    ///
-    /// Note that this pass is very conservative since the array_set
-    /// instruction does not need to be to the same array. This is because
-    /// the given array may alias another array (e.g. function parameters or
-    /// a `load`ed array from a reference).
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_paired_rc(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -52,7 +56,7 @@ impl Function {
     ///
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
-    pub(crate) fn remove_paired_rc(&mut self) {
+    fn remove_paired_rc(&mut self) {
         if !self.runtime().is_brillig() {
             // dec_rc and inc_rc only have an effect in Brillig
             return;
