@@ -431,7 +431,18 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="doccomment">//! This pass removes `inc_rc` and `dec_rc` instructions
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a></pre></div><pre class="rust"><code><span class="doccomment">//! This pass removes `inc_rc` and `dec_rc` instructions
 //! as long as there are no `array_set` instructions to an array
 //! of the same type in between.
 //!
@@ -457,6 +468,7 @@
     /// as long as there are no `array_set` instructions to an array
     /// of the same type in between.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    #[allow(dead_code)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_paired_rc(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
             function.remove_paired_rc();
@@ -626,6 +638,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>single_block_fn_return_array() {
         <span class="comment">// This is the output for the program with a function:
         // unconstrained fn foo(x: [Field; 2]) -&gt; [[Field; 2]; 1] {
@@ -651,6 +664,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>single_block_mutation() {
         <span class="comment">// fn mutator(mut array: [Field; 2]) {
         //     array[0] = 5;
@@ -682,6 +696,7 @@
     <span class="comment">// Similar to single_block_mutation but for a function which
     // uses a mutable reference parameter.
     </span><span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>single_block_mutation_through_reference() {
         <span class="comment">// fn mutator2(array: &amp;mut [Field; 2]) {
         //     array[0] = 5;
@@ -713,6 +728,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>lone_inc_rc() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn foo f0 {
@@ -725,6 +741,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>lone_dec_rc() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn foo f0 {
@@ -737,6 +754,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>multiple_rc_pairs_mutation_on_different_types() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn mutator f0 {
@@ -776,6 +794,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>multiple_rc_pairs_mutation_on_matching_types() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn mutator f0 {
@@ -799,6 +818,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>rc_pair_with_same_type_but_different_values() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn foo f0 {
@@ -813,6 +833,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>do_not_remove_pairs_across_blocks() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn foo f0 {
@@ -833,6 +854,7 @@
     }
 
     <span class="attr">#[test]
+    #[ignore]
     </span><span class="kw">fn </span>remove_pair_across_blocks() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn foo f0 {

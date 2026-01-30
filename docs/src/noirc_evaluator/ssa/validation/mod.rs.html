@@ -2054,7 +2054,12 @@
 <a href="#2053" id="2053">2053</a>
 <a href="#2054" id="2054">2054</a>
 <a href="#2055" id="2055">2055</a>
-<a href="#2056" id="2056">2056</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -2335,6 +2340,11 @@
             Instruction::EnableSideEffectsIf { condition } =&gt; {
                 <span class="kw">let </span>condition_type = dfg.type_of_value(<span class="kw-2">*</span>condition);
                 assert_u1(<span class="kw-2">&amp;</span>condition_type, <span class="string">"enable_side_effects condition"</span>);
+            }
+            Instruction::DecrementRc { .. } =&gt; {
+                <span class="macro">panic!</span>(
+                    <span class="string">"DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
+                </span>);
             }
             <span class="kw">_ </span>=&gt; (),
         }

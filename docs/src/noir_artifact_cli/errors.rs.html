@@ -85,7 +85,19 @@
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::{NargoError, foreign_calls::transcript::TranscriptError};
 <span class="kw">use </span>noirc_abi::{
     AbiReturnType,
@@ -115,8 +127,14 @@
     <span class="attr">#[error(<span class="string">"Failed to create output witness file '{0}': {1}"</span>)]
     </span>OutputWitnessCreationFailed(PathBuf, String),
 
-    <span class="attr">#[error(transparent)]
-    </span>IoError(<span class="attr">#[from] </span>std::io::Error),
+    <span class="attr">#[error(<span class="string">"Failed to read file '{0}':\n{1}"</span>)]
+    </span>FailedToReadFile(PathBuf, std::io::Error),
+
+    <span class="attr">#[error(<span class="string">"Failed to write file '{0}':\n{1}"</span>)]
+    </span>FailedToWriteFile(PathBuf, std::io::Error),
+
+    <span class="attr">#[error(<span class="string">"Failed to create directory '{0}':\n{1}"</span>)]
+    </span>FailedToCreateDirectory(PathBuf, std::io::Error),
 }
 
 <span class="attr">#[derive(Debug, Error)]
@@ -171,5 +189,11 @@
 
     <span class="attr">#[error(<span class="string">"Unknown contract function '{name}'; options: {names:?}"</span>)]
     </span>UnknownContractFn { name: String, names: Vec&lt;String&gt; },
+
+    <span class="attr">#[error(<span class="string">"Failed to save program '{0}':\n{1}"</span>)]
+    </span>FailedToSaveProgram(String, Box&lt;CliError&gt;),
+
+    <span class="attr">#[error(<span class="string">"Failed to save contract '{0}':\n{1}"</span>)]
+    </span>FailedToSaveContract(String, Box&lt;CliError&gt;),
 }
 </code></pre></div></section></main></body></html>

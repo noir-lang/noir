@@ -304,7 +304,26 @@
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
 <span class="kw">use </span>std::io::{Read, Write};
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::time::Duration;
@@ -451,7 +470,7 @@
     <span class="kw">let </span>(workspace_file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
 
     <span class="kw">let </span>compiled_workspace =
-        compile_workspace(<span class="kw-2">&amp;</span>workspace_file_manager, <span class="kw-2">&amp;</span>parsed_files, workspace, compile_options);
+        compile_workspace(<span class="kw-2">&amp;</span>workspace_file_manager, <span class="kw-2">&amp;</span>parsed_files, workspace, compile_options)<span class="question-mark">?</span>;
 
     report_errors(
         compiled_workspace,
@@ -470,7 +489,7 @@
     parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
     workspace: <span class="kw-2">&amp;</span>Workspace,
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
-) -&gt; CompilationResult&lt;()&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;CompilationResult&lt;()&gt;, CliError&gt; {
     <span class="kw">let </span>(binary_packages, contract_packages): (Vec&lt;<span class="kw">_</span>&gt;, Vec&lt;<span class="kw">_</span>&gt;) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -479,7 +498,7 @@
 
     <span class="comment">// Compile all of the packages in parallel.
     </span><span class="kw">let </span>program_warnings_or_errors: CompilationResult&lt;()&gt; =
-        compile_programs(file_manager, parsed_files, workspace, <span class="kw-2">&amp;</span>binary_packages, compile_options);
+        compile_programs(file_manager, parsed_files, workspace, <span class="kw-2">&amp;</span>binary_packages, compile_options)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>contract_warnings_or_errors: CompilationResult&lt;()&gt; = compile_contracts(
         file_manager,
@@ -487,9 +506,9 @@
         <span class="kw-2">&amp;</span>contract_packages,
         compile_options,
         <span class="kw-2">&amp;</span>workspace.target_directory_path(),
-    );
+    )<span class="question-mark">?</span>;
 
-    <span class="kw">match </span>(program_warnings_or_errors, contract_warnings_or_errors) {
+    <span class="kw">let </span>result = <span class="kw">match </span>(program_warnings_or_errors, contract_warnings_or_errors) {
         (<span class="prelude-val">Ok</span>((<span class="kw">_</span>, program_warnings)), <span class="prelude-val">Ok</span>((<span class="kw">_</span>, contract_warnings))) =&gt; {
             <span class="kw">let </span>warnings = [program_warnings, contract_warnings].concat();
             <span class="prelude-val">Ok</span>(((), warnings))
@@ -498,7 +517,8 @@
             <span class="prelude-val">Err</span>([program_errors, contract_errors].concat())
         }
         (<span class="prelude-val">Err</span>(errors), <span class="kw">_</span>) | (<span class="kw">_</span>, <span class="prelude-val">Err</span>(errors)) =&gt; <span class="prelude-val">Err</span>(errors),
-    }
+    };
+    <span class="prelude-val">Ok</span>(result)
 }
 
 <span class="doccomment">/// Compile the given binary packages in the workspace.
@@ -508,7 +528,7 @@
     workspace: <span class="kw-2">&amp;</span>Workspace,
     binary_packages: <span class="kw-2">&amp;</span>[Package],
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
-) -&gt; CompilationResult&lt;()&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;CompilationResult&lt;()&gt;, CliError&gt; {
     <span class="comment">// Load any existing artifact for a given package, _iff_ it was compiled with the same nargo version.
     // The loaded circuit includes backend specific transformations, which might be different from the current target.
     </span><span class="kw">let </span>load_cached_program = |package| {
@@ -519,7 +539,7 @@
             .map(|p| p.into())
     };
 
-    <span class="kw">let </span>compile_package = |package| {
+    <span class="kw">let </span>compile_package = |package| -&gt; <span class="prelude-ty">Result</span>&lt;CompilationResult&lt;()&gt;, CliError&gt; {
         <span class="kw">let </span>cached_program = load_cached_program(package);
 
         <span class="comment">// Hash over the entire compiled program, including any post-compile transformations.
@@ -528,30 +548,39 @@
             cached_program.as_ref().map(|prog| rustc_hash::FxBuildHasher.hash_one(prog));
 
         <span class="comment">// Compile the program, or use the cached artifacts if it matches.
-        </span><span class="kw">let </span>(program, warnings) = compile_program(
+        </span><span class="kw">match </span>compile_program(
             file_manager,
             parsed_files,
             workspace,
             package,
             compile_options,
             cached_program,
-        )<span class="question-mark">?</span>;
-
-        <span class="comment">// If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
-        // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
-        // based on which we might have generated a verifier already.
-        </span><span class="kw">if </span>cached_hash == <span class="prelude-val">Some</span>(rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program)) {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(((), warnings));
+        ) {
+            <span class="prelude-val">Ok</span>((program, warnings)) =&gt; {
+                <span class="comment">// If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
+                // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
+                // based on which we might have generated a verifier already.
+                </span><span class="kw">if </span>cached_hash == <span class="prelude-val">Some</span>(rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program)) {
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(((), warnings)));
+                }
+                <span class="comment">// Run ACVM optimizations.
+                </span><span class="kw">let </span>program = nargo::ops::optimize_program(program);
+                <span class="comment">// Check solvability.
+                </span><span class="kw">match </span>nargo::ops::check_program(<span class="kw-2">&amp;</span>program) {
+                    <span class="prelude-val">Ok</span>(()) =&gt; {
+                        <span class="comment">// Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
+                        </span><span class="kw">let _ </span>= save_program_to_file(
+                            <span class="kw-2">&amp;</span>program.into(),
+                            <span class="kw-2">&amp;</span>package.name,
+                            <span class="kw-2">&amp;</span>workspace.target_directory_path(),
+                        )<span class="question-mark">?</span>;
+                        <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(((), warnings)))
+                    }
+                    <span class="prelude-val">Err</span>(errors_and_warnings) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(errors_and_warnings)),
+                }
+            }
+            <span class="prelude-val">Err</span>(errors_and_warnings) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(errors_and_warnings)),
         }
-        <span class="comment">// Run ACVM optimizations.
-        </span><span class="kw">let </span>program = nargo::ops::optimize_program(program);
-        <span class="comment">// Check solvability.
-        </span>nargo::ops::check_program(<span class="kw-2">&amp;</span>program)<span class="question-mark">?</span>;
-        <span class="comment">// Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        </span>save_program_to_file(<span class="kw-2">&amp;</span>program.into(), <span class="kw-2">&amp;</span>package.name, <span class="kw-2">&amp;</span>workspace.target_directory_path())
-            .expect(<span class="string">"failed to save program"</span>);
-
-        <span class="prelude-val">Ok</span>(((), warnings))
     };
 
     <span class="comment">// Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
@@ -562,11 +591,12 @@
         .stack_size(<span class="number">4 </span>* <span class="number">1024 </span>* <span class="number">1024</span>)
         .build()
         .unwrap();
-    <span class="kw">let </span>program_results: Vec&lt;CompilationResult&lt;()&gt;&gt; =
-        pool.install(|| binary_packages.par_iter().map(compile_package).collect());
+    <span class="kw">let </span>program_results = pool.install(|| {
+        binary_packages.par_iter().map(compile_package).collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()
+    })<span class="question-mark">?</span>;
 
     <span class="comment">// Collate any warnings/errors which were encountered during compilation.
-    </span>collect_errors(program_results).map(|(<span class="kw">_</span>, warnings)| ((), warnings))
+    </span><span class="prelude-val">Ok</span>(collect_errors(program_results).map(|(<span class="kw">_</span>, warnings)| ((), warnings)))
 }
 
 <span class="doccomment">/// Compile the given contracts in the workspace.
@@ -576,21 +606,29 @@
     contract_packages: <span class="kw-2">&amp;</span>[Package],
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
     target_dir: <span class="kw-2">&amp;</span>Path,
-) -&gt; CompilationResult&lt;()&gt; {
-    <span class="kw">let </span>contract_results: Vec&lt;CompilationResult&lt;()&gt;&gt; = contract_packages
+) -&gt; <span class="prelude-ty">Result</span>&lt;CompilationResult&lt;()&gt;, CliError&gt; {
+    <span class="kw">let </span>contract_results = contract_packages
         .par_iter()
-        .map(|package| {
-            <span class="kw">let </span>(contract, warnings) =
-                compile_contract(file_manager, parsed_files, package, compile_options)<span class="question-mark">?</span>;
-
-            <span class="kw">let </span>contract = nargo::ops::optimize_contract(contract);
-            save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
-            <span class="prelude-val">Ok</span>(((), warnings))
+        .map(|package| -&gt; <span class="prelude-ty">Result</span>&lt;CompilationResult&lt;()&gt;, CliError&gt; {
+            <span class="kw">match </span>compile_contract(file_manager, parsed_files, package, compile_options) {
+                <span class="prelude-val">Ok</span>((contract, warnings)) =&gt; {
+                    <span class="kw">let </span>contract = nargo::ops::optimize_contract(contract);
+                    save_contract(
+                        contract,
+                        package,
+                        target_dir,
+                        compile_options.show_artifact_paths,
+                    )<span class="question-mark">?</span>;
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(((), warnings)))
+                }
+                <span class="prelude-val">Err</span>(errors_and_warnings) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(errors_and_warnings)),
+            }
         })
-        .collect();
+        .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, CliError&gt;&gt;()<span class="question-mark">?</span>;
 
     <span class="comment">// Collate any warnings/errors which were encountered during compilation.
-    </span>collect_errors(contract_results).map(|(<span class="kw">_</span>, warnings)| ((), warnings))
+    </span><span class="kw">let </span>errors = collect_errors(contract_results).map(|(<span class="kw">_</span>, warnings)| ((), warnings));
+    <span class="prelude-val">Ok</span>(errors)
 }
 
 <span class="kw">fn </span>save_contract(
@@ -598,16 +636,16 @@
     package: <span class="kw-2">&amp;</span>Package,
     target_dir: <span class="kw-2">&amp;</span>Path,
     show_artifact_paths: bool,
-) {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
     <span class="kw">let </span>contract_name = contract.name.clone();
     <span class="kw">let </span>artifact_path = save_contract_to_file(
         <span class="kw-2">&amp;</span>contract.into(),
         <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}-{}"</span>, package.name, contract_name),
         target_dir,
-    )
-    .expect(<span class="string">"failed to save contract"</span>);
+    )<span class="question-mark">?</span>;
     <span class="kw">if </span>show_artifact_paths {
         <span class="macro">println!</span>(<span class="string">"Saved contract artifact to: {}"</span>, artifact_path.display());
     }
+    <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div></section></main></body></html>

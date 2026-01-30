@@ -2587,8 +2587,7 @@
 <a href="#2586" id="2586">2586</a>
 <a href="#2587" id="2587">2587</a>
 <a href="#2588" id="2588">2588</a>
-<a href="#2589" id="2589">2589</a>
-<a href="#2590" id="2590">2590</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2589" id="2589">2589</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -4468,7 +4467,6 @@
                 v2 = array_get v0, index u32 0 -&gt; Field
                 v4 = array_get v0, index u32 1 -&gt; Field
                 v5 = add v2, v4
-                dec_rc v0
                 return v5
             }
             "</span>;
