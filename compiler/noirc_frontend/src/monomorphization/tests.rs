@@ -1427,7 +1427,7 @@ fn main() {{
 
     let result = get_monomorphized(&src);
     match result {
-        Ok(_) => panic!("Expected TypeTooComplex error, but got Ok"),
+        Ok(_) => panic!("Expected ComplexType error, but got Ok"),
         Err(MonomorphizationError::ComplexType { complexity, max_complexity, .. }) => {
             // Verify the error is correct
             assert!(
@@ -1435,6 +1435,6 @@ fn main() {{
                 "Complexity {complexity} should exceed max {max_complexity}",
             );
         }
-        Err(e) => panic!("Expected TypeTooComplex error, but got {:?}", e),
+        Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
     }
 }
