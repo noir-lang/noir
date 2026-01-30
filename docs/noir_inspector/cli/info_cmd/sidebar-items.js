@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run"],"struct":["InfoCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["profile_program_execution","resolve_input_file","run","validate_brillig_artifact"],"struct":["InfoCommand"]};
