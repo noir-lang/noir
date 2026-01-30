@@ -113,7 +113,7 @@ impl Context {
                         // A call with an array argument could mutate that array
                         for arg in arguments {
                             let typ = function.dfg.type_of_value(*arg);
-                            self.mark_array_as_mutated(&typ);
+                            self.mark_each_contained_array_as_mutated(&typ);
                         }
                     }
 
@@ -132,11 +132,18 @@ impl Context {
     }
 
     /// Recursively unwrap references and mark any contained arrays as mutated.
-    fn mark_array_as_mutated(&mut self, typ: &Type) {
+    fn mark_each_contained_array_as_mutated(&mut self, typ: &Type) {
         match typ {
-            Type::Reference(element) => self.mark_array_as_mutated(element),
-            _ if typ.contains_an_array() => self.mark_as_mutated(typ),
-            _ => {}
+            Type::Reference(element) => self.mark_each_contained_array_as_mutated(element),
+            Type::Array(element_types, _) | Type::Vector(element_types) => {
+                // Mark the array type we have found as being possibly mutated
+                self.mark_as_mutated(typ);
+                // We now need to also mark nested arrays which are possibly mutated
+                for element in element_types.iter() {
+                    self.mark_each_contained_array_as_mutated(element);
+                }
+            }
+            Type::Numeric(_) | Type::Function => {}
         }
     }
 
