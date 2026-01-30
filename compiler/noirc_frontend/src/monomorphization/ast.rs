@@ -527,7 +527,7 @@ impl From<&Attributes> for UnrollType {
 impl Display for UnrollType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnrollType::Default => write!(f, "default"),
+            UnrollType::Default => write!(f, "unroll_default"),
             UnrollType::UnrollAlways => write!(f, "unroll_always"),
         }
     }

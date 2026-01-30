@@ -214,6 +214,8 @@ impl Keyword {
             "inline" => Keyword::Inline,
             "inline_always" => Keyword::InlineAlways,
             "inline_never" => Keyword::InlineNever,
+            "unroll_default" => Keyword::UnrollDefault,
+            "unroll_always" => Keyword::UnrollAlways,
             "Field" => Keyword::Field,
             "fold" => Keyword::Fold,
             "fn" => Keyword::Fn,
