@@ -129,6 +129,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo-no-default-features
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: nargo
+          path: ./dist/*
+          retention-days: 3
+
   build-noir-inspector:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -323,8 +335,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+      - name: Download nargo-no-default-features binary
+        uses: ./.github/actions/download-nargo-no-default-features
 
       - name: Generate Memory report
         working-directory: ./test_programs
