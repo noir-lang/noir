@@ -41,7 +41,6 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 use crate::hir::Context;
@@ -75,6 +74,7 @@ use crate::{
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
 };
+use crate::{TypeVariable, UnificationError};
 
 use super::errors::{IResult, InterpreterError};
 use super::value::{Closure, Value, unwrap_rc};
@@ -122,6 +122,12 @@ pub struct Interpreter<'local, 'interner> {
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
 
+    /// Associates type bindings that resulted from unifying the type of a macro call expression
+    /// with the expected type at the callsite.
+    /// Since a single macro call expression might end up having different types across loop
+    /// iterations, before unifying its type we undo bindings from the last time we unified it.
+    macro_call_expression_bindings: HashMap<ExprId, TypeBindings>,
+
     /// Current evaluation depth.
     evaluation_depth: usize,
 }
@@ -135,6 +141,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             elaborator,
             current_function,
             bound_generics: Vec::new(),
+            macro_call_expression_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
         }
@@ -1163,7 +1170,31 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     // the macro result changes across loop iterations.
                     let expected_type = self.elaborator.interner.id_type(id);
                     let actual_type = result.get_type();
-                    self.unify_without_binding(&actual_type, &expected_type, location);
+
+                    // Undo any bindings (if any) from the last time we unified this expression's
+                    // type against the actual type
+                    if let Some(bindings) = self.macro_call_expression_bindings.remove(&id) {
+                        for (var, kind, _typ) in bindings.values() {
+                            var.unbind(var.id(), kind.clone());
+                        }
+                    }
+
+                    let mut bindings = TypeBindings::default();
+                    match actual_type.try_unify(&expected_type, &mut bindings) {
+                        Ok(()) => {
+                            // Store the bindings so we can undo them next time
+                            self.macro_call_expression_bindings.insert(id, bindings.clone());
+                            Type::apply_type_bindings(bindings);
+                        }
+                        Err(UnificationError) => {
+                            let error = TypeCheckError::TypeMismatch {
+                                expected_typ: expected_type.to_string(),
+                                expr_typ: actual_type.to_string(),
+                                expr_location: location,
+                            };
+                            self.elaborator.push_err(error);
+                        }
+                    }
                 }
                 Ok(result)
             }
@@ -1172,20 +1203,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
             }
-        }
-    }
-
-    /// This function is used by the interpreter for some comptime code
-    /// which can change types e.g. on each iteration of a for loop.
-    fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
-        let mut bindings = TypeBindings::default();
-        if actual.try_unify(expected, &mut bindings).is_err() {
-            let error = TypeCheckError::TypeMismatch {
-                expected_typ: expected.to_string(),
-                expr_typ: actual.to_string(),
-                expr_location: location,
-            };
-            self.elaborator.push_err(error);
         }
     }
 
