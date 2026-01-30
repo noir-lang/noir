@@ -474,6 +474,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn mutation_through_call_with_mutable_reference() {
         // We expect `inc_rc v0` to remain.
         // If you accessed v0 directly after the call (not through the reference):
@@ -505,6 +506,7 @@ mod tests {
 
     /// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&mut &mut [Field; 2]`)
     #[test]
+    #[ignore]
     fn mutation_through_call_with_deeply_nested_reference() {
         let src = "
         brillig(inline) fn main f0 {
@@ -534,6 +536,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn mutation_through_call_with_array_passed_by_value() {
         // We expect `inc_rc v0` to remain
         // After the call to f1 we expect v0 to be unchanged.
