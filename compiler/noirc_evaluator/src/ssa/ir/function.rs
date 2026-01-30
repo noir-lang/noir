@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphization::ast::InlineType;
+use noirc_frontend::monomorphization::ast::{InlineType, UnrollType};
 use serde::{Deserialize, Serialize};
 
 use crate::ssa::ir::instruction::Instruction;
@@ -19,9 +19,9 @@ use super::value::{Value, ValueId};
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
-    Acir(InlineType),
+    Acir(InlineType, UnrollType),
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
-    Brillig(InlineType),
+    Brillig(InlineType, UnrollType),
 }
 
 impl RuntimeType {
@@ -36,7 +36,7 @@ impl RuntimeType {
     /// Brillig execution from an ACIR runtime. This requires analyzing the call sites of the ACIR runtime.
     pub(crate) fn is_entry_point(&self) -> bool {
         match self {
-            RuntimeType::Acir(inline_type) | RuntimeType::Brillig(inline_type) => {
+            RuntimeType::Acir(inline_type, _) | RuntimeType::Brillig(inline_type, _) => {
                 inline_type.is_entry_point()
             }
         }
@@ -45,8 +45,8 @@ impl RuntimeType {
     pub(crate) fn is_inline_always(&self) -> bool {
         matches!(
             self,
-            RuntimeType::Acir(InlineType::InlineAlways)
-                | RuntimeType::Brillig(InlineType::InlineAlways)
+            RuntimeType::Acir(InlineType::InlineAlways, _)
+                | RuntimeType::Brillig(InlineType::InlineAlways, _)
         )
     }
 
@@ -54,30 +54,38 @@ impl RuntimeType {
         matches!(
             self,
             // This attribute is only allowed on Brillig functions
-            RuntimeType::Brillig(InlineType::InlineNever)
+            RuntimeType::Brillig(InlineType::InlineNever, _)
         )
     }
 
     pub(crate) fn is_no_predicates(&self) -> bool {
         matches!(
             self,
-            RuntimeType::Acir(InlineType::NoPredicates)
-                | RuntimeType::Brillig(InlineType::NoPredicates)
+            RuntimeType::Acir(InlineType::NoPredicates, _)
+                | RuntimeType::Brillig(InlineType::NoPredicates, _)
+        )
+    }
+
+    pub(crate) fn is_unroll_always(&self) -> bool {
+        matches!(
+            self,
+            RuntimeType::Acir(_, UnrollType::UnrollAlways)
+                | RuntimeType::Brillig(_, UnrollType::UnrollAlways)
         )
     }
 
     pub(crate) fn is_brillig(&self) -> bool {
-        matches!(self, RuntimeType::Brillig(_))
+        matches!(self, RuntimeType::Brillig(_, _))
     }
 
     pub(crate) fn is_acir(&self) -> bool {
-        matches!(self, RuntimeType::Acir(_))
+        matches!(self, RuntimeType::Acir(_, _))
     }
 }
 
 impl Default for RuntimeType {
     fn default() -> Self {
-        RuntimeType::Acir(InlineType::default())
+        RuntimeType::Acir(InlineType::default(), UnrollType::default())
     }
 }
 
@@ -255,8 +263,12 @@ impl Clone for Function {
 impl std::fmt::Display for RuntimeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeType::Acir(inline_type) => write!(f, "acir({inline_type})"),
-            RuntimeType::Brillig(inline_type) => write!(f, "brillig({inline_type})"),
+            RuntimeType::Acir(inline_type, unroll_type) => {
+                write!(f, "acir({inline_type}, {unroll_type})")
+            }
+            RuntimeType::Brillig(inline_type, unroll_type) => {
+                write!(f, "brillig({inline_type}, {unroll_type})")
+            }
         }
     }
 }

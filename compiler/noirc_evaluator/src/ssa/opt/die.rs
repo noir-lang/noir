@@ -565,6 +565,7 @@ mod tests {
     use acvm::acir::brillig::lengths::SemanticLength;
     use im::vector;
     use noirc_frontend::monomorphization::ast::InlineType;
+    use noirc_frontend::monomorphization::ast::UnrollType;
 
     use crate::{
         assert_ssa_snapshot,
@@ -701,7 +702,7 @@ mod tests {
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::Inline, UnrollType::default()));
         let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
         let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(2));
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());

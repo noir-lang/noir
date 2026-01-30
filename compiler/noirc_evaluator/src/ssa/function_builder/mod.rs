@@ -7,8 +7,8 @@ use noirc_errors::{
     Location,
     call_stack::{CallStack, CallStackId},
 };
-use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
+use noirc_frontend::{hir_def::types::Type as HirType, monomorphization::ast::UnrollType};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -139,8 +139,14 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new ACIR function.
-    pub fn new_function(&mut self, name: String, function_id: FunctionId, inline_type: InlineType) {
-        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
+    pub fn new_function(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        inline_type: InlineType,
+        unroll_type: UnrollType,
+    ) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type, unroll_type));
     }
 
     /// Finish the current function and create a new unconstrained function.
@@ -149,8 +155,13 @@ impl FunctionBuilder {
         name: String,
         function_id: FunctionId,
         inline_type: InlineType,
+        unroll_type: UnrollType,
     ) {
-        self.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type));
+        self.new_function_with_type(
+            name,
+            function_id,
+            RuntimeType::Brillig(inline_type, unroll_type),
+        );
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.

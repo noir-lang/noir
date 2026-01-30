@@ -15,7 +15,7 @@ use noirc_frontend::{
         ast::{
             ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
             Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Match, MatchCase,
-            Parameters, Program, Type, While,
+            Parameters, Program, Type, UnrollType, While,
         },
     },
     shared::{Signedness, Visibility},
@@ -46,6 +46,7 @@ pub(super) struct FunctionDeclaration {
     pub return_type: Type,
     pub return_visibility: Visibility,
     pub inline_type: InlineType,
+    pub unroll_type: UnrollType,
     pub unconstrained: bool,
 }
 

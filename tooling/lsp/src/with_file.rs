@@ -600,7 +600,8 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
         | SecondaryAttributeKind::MustUse(_)
-        | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
+        | SecondaryAttributeKind::Allow(_)
+        | SecondaryAttributeKind::UnrollAlways => secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }

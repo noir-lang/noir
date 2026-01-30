@@ -154,7 +154,7 @@ fn check_for_constant_jmpif(
 
 /// Optimize a jmp to a block which immediately jmps elsewhere to just jmp to the second block.
 fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut ControlFlowGraph) {
-    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+    if matches!(function.runtime(), RuntimeType::Acir(_, _)) {
         // We can't remove double jumps in ACIR functions as this interferes with the `flatten_cfg` pass.
         return;
     }
@@ -232,7 +232,7 @@ fn check_for_negated_jmpif_condition(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+    if matches!(function.runtime(), RuntimeType::Acir(_, _)) {
         // Swapping the `then` and `else` branches of a `JmpIf` within an ACIR function
         // can result in the situation where the branches merge together again in the `then` block, e.g.
         //
@@ -287,7 +287,7 @@ fn check_for_converging_jmpif(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+    if matches!(function.runtime(), RuntimeType::Acir(_, _)) {
         // The `flatten_cfg` pass expects two blocks to join to the same block.
         // If we have a nested if the inner if statement could potentially be a converging jmpif.
         // This may change the final block we converge into.

@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
 
-use crate::token::FmtStrFragment;
+use crate::token::{FmtStrFragment, SecondaryAttributeKind};
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
@@ -505,6 +505,34 @@ impl Display for InlineType {
     }
 }
 
+#[derive(
+    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
+pub enum UnrollType {
+    #[default]
+    Default,
+    UnrollAlways,
+}
+
+impl From<&Attributes> for UnrollType {
+    fn from(attributes: &Attributes) -> Self {
+        attributes
+            .secondary
+            .iter()
+            .find(|attr| attr.kind == SecondaryAttributeKind::UnrollAlways)
+            .map_or(UnrollType::default(), |_| UnrollType::UnrollAlways)
+    }
+}
+
+impl Display for UnrollType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnrollType::Default => write!(f, "default"),
+            UnrollType::UnrollAlways => write!(f, "unroll_always"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash)]
 pub struct Function {
     pub id: FuncId,
@@ -517,6 +545,7 @@ pub struct Function {
     pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
+    pub unroll_type: UnrollType,
     pub is_entry_point: bool,
 }
 

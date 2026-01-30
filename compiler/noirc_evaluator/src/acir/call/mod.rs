@@ -47,7 +47,7 @@ impl Context<'_> {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
                         match func.runtime() {
-                            RuntimeType::Acir(inline_type) => {
+                            RuntimeType::Acir(inline_type, _) => {
                                 assert!(
                                     inline_type.is_entry_point(),
                                     "ICE: Got a call to an ACIR function {} named {} that should have already been inlined",
@@ -59,7 +59,7 @@ impl Context<'_> {
                                     id, arguments, result_ids, ssa, dfg,
                                 )?;
                             }
-                            RuntimeType::Brillig(_) => {
+                            RuntimeType::Brillig(_, _) => {
                                 self.handle_brillig_function_call(
                                     func, arguments, result_ids, dfg,
                                 )?;

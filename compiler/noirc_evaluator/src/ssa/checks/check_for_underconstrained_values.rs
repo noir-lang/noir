@@ -33,7 +33,7 @@ impl Ssa {
                         function_to_process,
                         &self.functions,
                     ),
-                    RuntimeType::Brillig(_) => Vec::new(),
+                    RuntimeType::Brillig(_, _) => Vec::new(),
                 }
             })
             .collect()
@@ -64,7 +64,7 @@ impl Ssa {
                         context.build(function_to_process, &self.functions);
                         context.collect_warnings(function_to_process)
                     }
-                    RuntimeType::Brillig(_) => Vec::new(),
+                    RuntimeType::Brillig(_, _) => Vec::new(),
                 }
             })
             .collect()
@@ -821,7 +821,7 @@ impl Context {
                             }
                         },
                         Value::Function(callee) => match all_functions[callee].runtime() {
-                            RuntimeType::Brillig(_) => {
+                            RuntimeType::Brillig(_, _) => {
                                 // For calls to Brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
                                 for result in

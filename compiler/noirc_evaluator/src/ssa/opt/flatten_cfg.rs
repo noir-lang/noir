@@ -180,7 +180,7 @@ impl Ssa {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
             // there are still any loops present in the program.
-            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+            if matches!(function.runtime(), RuntimeType::Brillig(_, _)) {
                 continue;
             }
 

@@ -1229,6 +1229,7 @@ fn assert_embedded_curve_point(
 #[cfg(test)]
 mod tests {
     use noirc_frontend::monomorphization::ast::InlineType;
+    use noirc_frontend::monomorphization::ast::UnrollType;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
@@ -1981,7 +1982,7 @@ mod tests {
 
         let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default(), UnrollType::default()));
 
         let b0 = builder.current_block();
         let b1 = builder.insert_block();

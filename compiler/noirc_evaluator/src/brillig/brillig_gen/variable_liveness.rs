@@ -400,7 +400,7 @@ impl VariableLiveness {
 
 #[cfg(test)]
 mod tests {
-    use noirc_frontend::monomorphization::ast::InlineType;
+    use noirc_frontend::monomorphization::ast::{InlineType, UnrollType};
     use rustc_hash::FxHashSet;
 
     use crate::assert_artifact_snapshot;
@@ -439,7 +439,7 @@ mod tests {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default(), UnrollType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -549,7 +549,7 @@ mod tests {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default(), UnrollType::default()));
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -688,7 +688,7 @@ mod tests {
 
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default(), UnrollType::default()));
 
         let v0 = builder.add_parameter(Type::bool());
 

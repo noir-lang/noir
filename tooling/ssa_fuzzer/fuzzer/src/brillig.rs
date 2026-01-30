@@ -19,7 +19,9 @@ use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
-use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
+use noirc_frontend::monomorphization::ast::{
+    InlineType as FrontendInlineType, UnrollType as FrontendUnrollType,
+};
 use rand::{SeedableRng, rngs::StdRng};
 use rmp_serde::{decode::from_slice as decode_from_slice, encode::to_vec as encode_to_rmp_vec};
 use sancov::Counters;
@@ -353,7 +355,8 @@ fn simulate_abstract_vm(
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 10;
 const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
-const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
+const UNROLL_TYPE: FrontendUnrollType = FrontendUnrollType::Default;
+const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE, UNROLL_TYPE);
 const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 
 libfuzzer_sys::fuzz_target!(

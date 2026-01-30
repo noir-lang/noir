@@ -187,7 +187,7 @@ mod tests {
 
     use acvm::FieldElement;
     use acvm::acir::brillig::lengths::SemanticLength;
-    use noirc_frontend::monomorphization::ast::InlineType;
+    use noirc_frontend::monomorphization::ast::{InlineType, UnrollType};
     use rustc_hash::FxHashMap as HashMap;
 
     use crate::brillig::ValueId;
@@ -209,7 +209,7 @@ mod tests {
 
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default(), UnrollType::default()));
         builder.terminate_with_return(vec![]);
         let ssa = builder.finish();
         let mut brillig_context = create_context(ssa.main_id);

@@ -155,11 +155,16 @@ impl Translator {
         let external_name = function.external_name.clone();
 
         match function.runtime_type {
-            RuntimeType::Acir(inline_type) => {
-                self.builder.new_function(external_name, function_id, inline_type);
+            RuntimeType::Acir(inline_type, unroll_type) => {
+                self.builder.new_function(external_name, function_id, inline_type, unroll_type);
             }
-            RuntimeType::Brillig(inline_type) => {
-                self.builder.new_brillig_function(external_name, function_id, inline_type);
+            RuntimeType::Brillig(inline_type, unroll_type) => {
+                self.builder.new_brillig_function(
+                    external_name,
+                    function_id,
+                    inline_type,
+                    unroll_type,
+                );
                 self.builder.set_globals(self.globals_graph.clone());
 
                 // In our ACIR generation tests we want to make sure that `brillig_locations` in the `GeneratedAcir` was accurately set.

@@ -8,7 +8,9 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::{
-        ast::{Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type},
+        ast::{
+            Expression, FuncId, Function, GlobalId, InlineType, LocalId, Program, Type, UnrollType,
+        },
         printer::{AstPrinter, FunctionPrintOptions},
     },
     shared::{Signedness, Visibility},
@@ -69,6 +71,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
         return_type: decl_inner.return_type.clone(),
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
+        unroll_type: UnrollType::default(),
         unconstrained: false,
     };
 
@@ -100,6 +103,7 @@ pub fn program_wrap_expression(expr: Expression) -> Program {
         return_type: expr.return_type().unwrap().into_owned(),
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
+        unroll_type: UnrollType::default(),
         unconstrained: true,
     };
 
@@ -329,6 +333,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
+            unroll_type: *u.choose(&[UnrollType::Default, UnrollType::UnrollAlways])?,
             unconstrained,
         };
 
@@ -375,6 +380,7 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
+            unroll_type: decl.unroll_type,
             is_entry_point: id == FuncId(0), // we only need main as an entry point
         };
         self.functions.insert(id, func);

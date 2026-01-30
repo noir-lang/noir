@@ -22,7 +22,9 @@ use ast::{
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::{
-    monomorphization::ast::InlineType, signed_field::SignedField, token::IntType,
+    monomorphization::ast::{InlineType, UnrollType},
+    signed_field::SignedField,
+    token::IntType,
 };
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
@@ -240,12 +242,14 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::LeftParen)?;
         let inline_type = self.parse_inline_type()?;
+        self.eat_or_error(Token::Comma)?;
+        let unroll_type = self.parse_unroll_type()?;
         self.eat_or_error(Token::RightParen)?;
 
         if acir {
-            Ok(RuntimeType::Acir(inline_type))
+            Ok(RuntimeType::Acir(inline_type, unroll_type))
         } else {
-            Ok(RuntimeType::Brillig(inline_type))
+            Ok(RuntimeType::Brillig(inline_type, unroll_type))
         }
     }
 
@@ -279,6 +283,19 @@ impl<'a> Parser<'a> {
                 Token::Keyword(Keyword::InlineNever),
                 Token::Keyword(Keyword::Fold),
                 Token::Keyword(Keyword::NoPredicates),
+            ])
+        }
+    }
+
+    fn parse_unroll_type(&mut self) -> ParseResult<UnrollType> {
+        if self.eat_keyword(Keyword::UnrollDefault)? {
+            Ok(UnrollType::Default)
+        } else if self.eat_keyword(Keyword::UnrollAlways)? {
+            Ok(UnrollType::UnrollAlways)
+        } else {
+            self.expected_one_of_tokens(&[
+                Token::Keyword(Keyword::UnrollDefault),
+                Token::Keyword(Keyword::UnrollAlways),
             ])
         }
     }

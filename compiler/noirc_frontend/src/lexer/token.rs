@@ -1144,6 +1144,7 @@ pub enum SecondaryAttributeKind {
     /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
     /// an optional message for the error.
     MustUse(Option<String>),
+    UnrollAlways,
 }
 
 impl SecondaryAttributeKind {
@@ -1175,6 +1176,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
             SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
             SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::UnrollAlways => "unroll_always".to_string(),
         }
     }
 

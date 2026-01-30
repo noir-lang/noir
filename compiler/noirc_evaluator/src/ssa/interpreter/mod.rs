@@ -585,11 +585,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
 
         match current_function.runtime() {
-            RuntimeType::Acir(_) => {
+            RuntimeType::Acir(_, _) => {
                 self.call_context().side_effects_enabled
                     || !instruction.requires_acir_gen_predicate(&current_function.dfg)
             }
-            RuntimeType::Brillig(_) => true,
+            RuntimeType::Brillig(_, _) => true,
         }
     }
 

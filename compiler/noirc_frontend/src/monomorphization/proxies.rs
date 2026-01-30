@@ -25,7 +25,7 @@ use crate::{
     monomorphization::{
         ast::{
             Call, Definition, Expression, FuncId, Function, Ident, IdentId, InlineType, LocalId,
-            Program, Type,
+            Program, Type, UnrollType,
         },
         visitor::visit_expr_mut,
     },
@@ -276,6 +276,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,
+        unroll_type: UnrollType::Default,
         is_entry_point: false, // This only matters for creating artifacts
     }
 }

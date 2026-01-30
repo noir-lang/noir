@@ -7,7 +7,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::BinaryOpKind;
 use noirc_frontend::monomorphization::ast::{
-    self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
+    self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program, UnrollType,
 };
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::signed_field::SignedField;
@@ -159,9 +159,14 @@ impl<'a> FunctionContext<'a> {
         self.definitions.clear();
 
         if func.unconstrained {
-            self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
+            self.builder.new_brillig_function(
+                func.name.clone(),
+                id,
+                func.inline_type,
+                func.unroll_type,
+            );
         } else {
-            self.builder.new_function(func.name.clone(), id, func.inline_type);
+            self.builder.new_function(func.name.clone(), id, func.inline_type, func.unroll_type);
         }
 
         self.add_parameters_to_scope(&func.parameters);
@@ -982,7 +987,7 @@ impl SharedContext {
         let mut context = FunctionContext::new(
             "globals".to_owned(),
             &vec![],
-            RuntimeType::Brillig(InlineType::default()),
+            RuntimeType::Brillig(InlineType::default(), UnrollType::default()),
             &globals_shared_context,
             GlobalsGraph::default(),
         );

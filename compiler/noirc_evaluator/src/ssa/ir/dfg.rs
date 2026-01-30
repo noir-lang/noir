@@ -234,11 +234,11 @@ impl DataFlowGraph {
     /// Check if the function runtime would simply ignore this instruction.
     pub(crate) fn is_handled_by_runtime(&self, instruction: &Instruction) -> bool {
         match self.runtime() {
-            RuntimeType::Acir(_) => !matches!(
+            RuntimeType::Acir(_, _) => !matches!(
                 instruction,
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
             ),
-            RuntimeType::Brillig(_) => {
+            RuntimeType::Brillig(_, _) => {
                 !matches!(instruction, Instruction::EnableSideEffectsIf { .. })
             }
         }

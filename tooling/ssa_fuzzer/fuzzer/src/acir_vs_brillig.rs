@@ -14,6 +14,7 @@ use mutations::mutate;
 use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
+use noirc_frontend::monomorphization::ast::UnrollType as FrontendUnrollType;
 use rand::{SeedableRng, rngs::StdRng};
 use rmp_serde::{decode::from_slice as decode_from_slice, encode::to_vec as encode_to_rmp_vec};
 use sha1::{Digest, Sha1};
@@ -21,8 +22,9 @@ use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
-const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE);
-const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
+const UNROLL_TYPE: FrontendUnrollType = FrontendUnrollType::Default;
+const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE, UNROLL_TYPE);
+const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE, UNROLL_TYPE);
 const TARGET_RUNTIMES: [RuntimeType; 2] = [ACIR_RUNTIME, BRILLIG_RUNTIME];
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {

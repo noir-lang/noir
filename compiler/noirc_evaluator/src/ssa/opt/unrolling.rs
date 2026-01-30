@@ -78,9 +78,14 @@ impl Ssa {
     pub(crate) fn unroll_loops_iteratively(
         mut self,
         max_bytecode_increase_percent: Option<i32>,
+        only_unroll_always: bool,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
+            let is_unroll_always = function.runtime().is_unroll_always();
+            if only_unroll_always && !is_unroll_always {
+                continue;
+            }
 
             // Take a snapshot in case we have to restore it.
             let orig_function =
@@ -93,7 +98,7 @@ impl Ssa {
             // This is here now instead of in `Function::unroll_loops_iteratively` because we'd need
             // more finessing to convince the borrow checker that it's okay to share a read-only reference
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
-            if has_unrolled && is_brillig {
+            if has_unrolled && is_brillig && !is_unroll_always {
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
@@ -173,7 +178,10 @@ impl Function {
                 }
 
                 // Only unroll small loops in Brillig.
-                if self.runtime().is_brillig() && !next_loop.is_small_loop(self, &loops.cfg) {
+                if !self.runtime().is_unroll_always()
+                    && self.runtime().is_brillig()
+                    && !next_loop.is_small_loop(self, &loops.cfg)
+                {
                     continue;
                 }
 
@@ -1557,7 +1565,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_respects_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(Some(-90), false).unwrap();
         // Check that it's still the original
         let expected = brillig_unroll_test_case();
         assert_normalized_ssa_equals(ssa, &expected.print_without_locations().to_string());
@@ -1566,7 +1574,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_with_large_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(50)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(Some(50), false).unwrap();
         // Check that it did the unroll
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
     }

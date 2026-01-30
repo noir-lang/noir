@@ -90,7 +90,8 @@ impl Formatter<'_> {
             SecondaryAttributeKind::ContractLibraryMethod
             | SecondaryAttributeKind::Export
             | SecondaryAttributeKind::Varargs
-            | SecondaryAttributeKind::UseCallersScope => {
+            | SecondaryAttributeKind::UseCallersScope
+            | SecondaryAttributeKind::UnrollAlways => {
                 self.format_no_args_attribute();
             }
             SecondaryAttributeKind::Field(_)

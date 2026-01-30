@@ -51,6 +51,7 @@
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
+use crate::monomorphization::ast::UnrollType;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{ForeignCall, Visibility};
 use crate::signed_field::SignedField;
@@ -539,6 +540,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let attributes = self.interner.function_attributes(&f);
+        let unroll_type = UnrollType::from(attributes);
         let mut inline_type = InlineType::from(attributes);
         let unconstrained = self.in_unconstrained_function;
         if unconstrained {
@@ -589,6 +591,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility,
             unconstrained,
             inline_type,
+            unroll_type,
             is_entry_point: false,
         };
 
@@ -2419,6 +2422,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
+            unroll_type: UnrollType::default(),
             is_entry_point: false,
         };
         self.push_function(id, function);
@@ -2541,6 +2545,7 @@ impl<'interner> Monomorphizer<'interner> {
             return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
+            unroll_type: UnrollType::default(),
             is_entry_point: false,
         };
         self.push_function(constrained_id, lambda_fn.clone());

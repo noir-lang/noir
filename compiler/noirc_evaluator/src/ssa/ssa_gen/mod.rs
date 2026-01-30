@@ -68,9 +68,9 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
     let main_runtime = if main.unconstrained {
-        RuntimeType::Brillig(main.inline_type)
+        RuntimeType::Brillig(main.inline_type, main.unroll_type)
     } else {
-        RuntimeType::Acir(main.inline_type)
+        RuntimeType::Acir(main.inline_type, main.unroll_type)
     };
     let mut function_context =
         FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);

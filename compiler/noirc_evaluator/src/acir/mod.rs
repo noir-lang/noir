@@ -144,7 +144,7 @@ impl<'a> Context<'a> {
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
         self.acir_context.set_call_stack_helper(self.brillig.call_stacks().clone());
         match function.runtime() {
-            RuntimeType::Acir(inline_type) => {
+            RuntimeType::Acir(inline_type, _) => {
                 match inline_type {
                     InlineType::Inline | InlineType::InlineAlways => {
                         if function.id() != ssa.main_id {
@@ -168,7 +168,7 @@ impl<'a> Context<'a> {
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa)?))
             }
-            RuntimeType::Brillig(_) => {
+            RuntimeType::Brillig(_, _) => {
                 if function.id() == ssa.main_id {
                     Ok(Some(self.convert_brillig_main(function)?))
                 } else {

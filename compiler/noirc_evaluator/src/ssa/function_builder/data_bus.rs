@@ -213,7 +213,7 @@ impl FunctionBuilder {
         }
         let len = databus.values.len() as u32;
 
-        let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
+        let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_, _)))
             .then(|| {
                 let array_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(len));
                 self.insert_make_array(databus.values, array_type)

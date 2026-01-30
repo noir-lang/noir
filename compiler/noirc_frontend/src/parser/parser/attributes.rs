@@ -287,6 +287,12 @@ impl Parser<'_> {
                 let attr = Attribute::Secondary(attr);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
+            "unroll_always" => {
+                let kind = SecondaryAttributeKind::UnrollAlways;
+                let attr = SecondaryAttribute { kind, location };
+                let attr = Attribute::Secondary(attr);
+                self.parse_no_args_attribute(ident, arguments, attr)
+            }
             _ => {
                 let kind = SecondaryAttributeKind::Meta(MetaAttribute {
                     name: MetaAttributeName::Path(Path::from_ident(ident.clone())),

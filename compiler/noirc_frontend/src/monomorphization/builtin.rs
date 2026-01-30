@@ -7,7 +7,7 @@ use crate::{
     ast::IntegerBitSize,
     monomorphization::{
         Monomorphizer,
-        ast::{self, Definition, FuncId, Function, InlineType},
+        ast::{self, Definition, FuncId, Function, InlineType, UnrollType},
         errors::MonomorphizationError,
     },
     node_interner::{self, ExprId},
@@ -97,6 +97,7 @@ impl Monomorphizer<'_> {
                 return_visibility: Visibility::Private,
                 unconstrained: is_unconstrained,
                 inline_type: InlineType::InlineAlways,
+                unroll_type: UnrollType::default(),
                 is_entry_point: false,
             },
         );
@@ -240,6 +241,7 @@ impl Monomorphizer<'_> {
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
+            unroll_type: UnrollType::default(),
             is_entry_point: false,
         };
         self.push_function(id, function);

@@ -5,7 +5,7 @@ use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::ast::{
         Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LocalId,
-        Program, Type,
+        Program, Type, UnrollType,
     },
     shared::Visibility,
 };
@@ -36,6 +36,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         return_visibility: Visibility::Private,
         unconstrained: false,
         inline_type: InlineType::Inline,
+        unroll_type: UnrollType::default(),
         is_entry_point: false,
     };
 
@@ -82,7 +83,7 @@ fn test_modulo_of_negative_literals_in_range() {
 
     // The lower bound is -4 (-9 % 5), represented as a field by subtracting it from u64::MAX.
     assert_ssa_snapshot!(ssa, @r"
-    acir(inline) fn main f0 {
+    acir(inline, default) fn main f0 {
       b0():
         jmp b1(i64 -4)
       b1(v0: i64):
@@ -146,6 +147,7 @@ fn test_recursion_limit_rewrite() {
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::InlineAlways,
+            unroll_type: UnrollType::default(),
             is_entry_point: false,
         };
 
@@ -157,6 +159,7 @@ fn test_recursion_limit_rewrite() {
                 return_type: Type::Unit,
                 return_visibility: Visibility::Private,
                 inline_type: func.inline_type,
+                unroll_type: func.unroll_type,
                 unconstrained: func.unconstrained,
             },
         );

@@ -132,6 +132,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
+        SsaPass::new_try(move |ssa| ssa.unroll_loops_iteratively(None, true), "Unrolling Always"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.preprocess_functions(
@@ -167,7 +168,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
         SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent, false),
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
@@ -207,7 +208,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding using constraints",
         ),
         SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent, false),
             "Unrolling",
         ),
         SsaPass::new(Ssa::make_constrain_not_equal, "Adding constrain not equal"),

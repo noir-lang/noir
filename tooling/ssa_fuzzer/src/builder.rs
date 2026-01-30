@@ -12,6 +12,7 @@ use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type as SsaType;
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
+use noirc_frontend::monomorphization::ast::UnrollType as FrontendUnrollType;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use thiserror::Error;
@@ -42,18 +43,36 @@ impl FuzzerBuilder {
     pub fn new_acir(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
+        builder.set_runtime(RuntimeType::Acir(
+            FrontendInlineType::default(),
+            FrontendUnrollType::default(),
+        ));
         builder.simplify = simplifying_enabled;
-        Self { builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
+        Self {
+            builder,
+            runtime: RuntimeType::Acir(
+                FrontendInlineType::default(),
+                FrontendUnrollType::default(),
+            ),
+        }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
     pub fn new_brillig(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
+        builder.set_runtime(RuntimeType::Brillig(
+            FrontendInlineType::default(),
+            FrontendUnrollType::default(),
+        ));
         builder.simplify = simplifying_enabled;
-        Self { builder, runtime: RuntimeType::Brillig(FrontendInlineType::default()) }
+        Self {
+            builder,
+            runtime: RuntimeType::Brillig(
+                FrontendInlineType::default(),
+                FrontendUnrollType::default(),
+            ),
+        }
     }
 
     pub fn new_by_runtime(runtime: RuntimeType, simplifying_enabled: bool) -> Self {
@@ -346,11 +365,11 @@ impl FuzzerBuilder {
     pub fn new_function(&mut self, name: String, function_id: Id<Function>) {
         // maybe use different inline type
         match self.runtime {
-            RuntimeType::Acir(inline_type) => {
-                self.builder.new_function(name, function_id, inline_type);
+            RuntimeType::Acir(inline_type, unroll_type) => {
+                self.builder.new_function(name, function_id, inline_type, unroll_type);
             }
-            RuntimeType::Brillig(inline_type) => {
-                self.builder.new_brillig_function(name, function_id, inline_type);
+            RuntimeType::Brillig(inline_type, unroll_type) => {
+                self.builder.new_brillig_function(name, function_id, inline_type, unroll_type);
             }
         }
     }

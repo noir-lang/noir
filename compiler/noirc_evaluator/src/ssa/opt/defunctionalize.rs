@@ -592,8 +592,12 @@ fn create_apply_function(
         // We want to push for apply functions to be inlined more aggressively;
         // they are expected to be optimized away by constants visible at the call site.
         let runtime = match caller_runtime {
-            RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
-            RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
+            RuntimeType::Acir(_, unroll_type) => {
+                RuntimeType::Acir(InlineType::InlineAlways, unroll_type)
+            }
+            RuntimeType::Brillig(_, unroll_type) => {
+                RuntimeType::Brillig(InlineType::InlineAlways, unroll_type)
+            }
         };
         function_builder.set_runtime(runtime);
         // Set up the parameters of the apply function
@@ -728,8 +732,12 @@ fn create_dummy_function(
         // Set the runtime of the dummy function. The dummy function is expect to always be simplified out
         // but we let the caller set the runtime here as to match Noir's runtime semantics.
         let runtime = match caller_runtime {
-            RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
-            RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
+            RuntimeType::Acir(_, unroll_type) => {
+                RuntimeType::Acir(InlineType::InlineAlways, unroll_type)
+            }
+            RuntimeType::Brillig(_, unroll_type) => {
+                RuntimeType::Brillig(InlineType::InlineAlways, unroll_type)
+            }
         };
         function_builder.set_runtime(runtime);
 
