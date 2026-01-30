@@ -177,12 +177,18 @@ impl Function {
                     continue;
                 }
 
-                // Only unroll small loops in Brillig.
-                if !self.runtime().is_unroll_always()
-                    && self.runtime().is_brillig()
-                    && !next_loop.is_small_loop(self, &loops.cfg)
-                {
-                    continue;
+                // For Brillig, only unroll loops that meet the criteria:
+                // - unroll_always: has const bounds, no breaks
+                // - otherwise: must be a small loop
+                if self.runtime().is_brillig() {
+                    let should_unroll = if self.runtime().is_unroll_always() {
+                        next_loop.is_unrollable(self, &loops.cfg)
+                    } else {
+                        next_loop.is_small_loop(self, &loops.cfg)
+                    };
+                    if !should_unroll {
+                        continue;
+                    }
                 }
 
                 // Check if we will be able to unroll this loop, before starting to modify the blocks.
@@ -816,6 +822,12 @@ impl Loop {
                 )
             })
             .count()
+    }
+
+    /// Check if this loop can be unrolled (i.e., we can determine its bounds at compile time
+    /// and it doesn't have complex control flow like breaks to outer loops).
+    fn is_unrollable(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
+        self.boilerplate_stats(function, cfg).is_some() && self.is_fully_executed(cfg)
     }
 
     /// Decide if this loop is small enough that it can be inlined in a way that the number
