@@ -1156,6 +1156,9 @@ impl<'a> Formatter<'a> {
                     self.start_new_line();
                 }
                 inside_block_comment = true;
+            } else if index < lines.len() - 1 {
+                // Trim the end of all lines except the last one, to avoid trailing spaces
+                self.write(line.trim_end());
             } else {
                 self.write(line);
             }

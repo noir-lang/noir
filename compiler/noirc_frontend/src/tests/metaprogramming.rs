@@ -1226,13 +1226,10 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_i
 
 #[test]
 fn zeroed_comptime_type() {
-    let mut stdlib = stdlib_src::ZEROED.to_string();
-    stdlib.push_str(
-        "
+    let module_hash_str = "
         #[builtin(module_hash)]
         comptime fn module_hash(_module: Module) -> Field {}
-    ",
-    );
+    ";
     let src = r#"
     fn main() {
         comptime {
@@ -1243,7 +1240,7 @@ fn zeroed_comptime_type() {
         }
     }
     "#;
-    check_errors_with_stdlib(src, &stdlib);
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED, module_hash_str]);
 }
 
 #[test]
