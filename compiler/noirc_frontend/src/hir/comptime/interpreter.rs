@@ -122,12 +122,6 @@ pub struct Interpreter<'local, 'interner> {
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
 
-    /// Associates type bindings that resulted from unifying the type of a macro call expression
-    /// with the expected type at the callsite.
-    /// Since a single macro call expression might end up having different types across loop
-    /// iterations, before unifying its type we undo bindings from the last time we unified it.
-    macro_call_expression_bindings: HashMap<ExprId, TypeBindings>,
-
     /// Current evaluation depth.
     evaluation_depth: usize,
 }
@@ -141,7 +135,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             elaborator,
             current_function,
             bound_generics: Vec::new(),
-            macro_call_expression_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
         }
@@ -1173,7 +1166,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                     // Undo any bindings (if any) from the last time we unified this expression's
                     // type against the actual type
-                    if let Some(bindings) = self.macro_call_expression_bindings.remove(&id) {
+                    if let Some(bindings) =
+                        self.elaborator.interner.macro_call_expression_bindings.remove(&id)
+                    {
                         for (var, kind, _typ) in bindings.values() {
                             var.unbind(var.id(), kind.clone());
                         }
@@ -1183,7 +1178,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     match actual_type.try_unify(&expected_type, &mut bindings) {
                         Ok(()) => {
                             // Store the bindings so we can undo them next time
-                            self.macro_call_expression_bindings.insert(id, bindings.clone());
+                            self.elaborator
+                                .interner
+                                .macro_call_expression_bindings
+                                .insert(id, bindings.clone());
                             Type::apply_type_bindings(bindings);
                         }
                         Err(UnificationError) => {
