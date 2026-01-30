@@ -50,9 +50,6 @@ pub(super) struct FunctionContext<'a> {
     /// outer loops are at the beginning. When a loop is finished, it is popped.
     loops: Vec<Loop>,
 
-    /// We need to maintain the original nested array structure
-    /// Thus, we can just use the frontend Type which still has tuples
-    pub(super) composite_array_types: HashMap<ValueId, ast::Type>,
 }
 
 /// Shared context for all functions during ssa codegen. This is the only
@@ -149,7 +146,6 @@ impl<'a> FunctionContext<'a> {
             builder,
             shared_context,
             loops: Vec::new(),
-            composite_array_types: HashMap::default(),
             redefinitions_allowed: false,
         };
         this.add_parameters_to_scope(parameters);
@@ -194,15 +190,12 @@ impl<'a> FunctionContext<'a> {
         mutable: bool,
     ) {
         // Add a separate parameter for each field type in 'parameter_type'
-        let parameter_value = Self::map_type_with_ast_type(parameter_type, |old_typ, typ| {
+        let parameter_value = Self::map_type_with_ast_type(parameter_type, |_old_typ, typ| {
             let value = self.builder.add_parameter(typ);
-
-            // TODO: test accessing a on mutable composite array
-            self.insert_composite_array_typ(value, old_typ);
 
             if mutable {
                 // This will wrap any `mut var: T` in a reference
-                self.new_mutable_variable(value, Some(old_typ))
+                self.new_mutable_variable(value)
             } else {
                 value.into()
             }
@@ -213,51 +206,14 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(
-        &mut self,
-        value_to_store: ValueId,
-        ast_typ: Option<&ast::Type>,
-    ) -> Value {
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
 
         let alloc = self.builder.insert_allocate(element_type);
-        if let Some(ast_typ) = ast_typ {
-            self.insert_composite_array_typ(alloc, ast_typ);
-        } else if let Some(array_typ) = self.composite_array_types.get(&value_to_store) {
-            // If we do not have a supplied frontend type, the frontend type is associated with an already generated expression
-            self.composite_array_types.insert(alloc, array_typ.clone());
-        }
-
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
     }
-
-    /// Stores the internal nested type structure for nested arrays
-    /// This is used for determining the appropriate offsets when indexing
-    /// into an array containing composite types
-    pub(super) fn insert_composite_array_typ(&mut self, value: ValueId, typ: &ast::Type) {
-        match typ {
-            ast::Type::Array(_, element) | ast::Type::Vector(element) => {
-                self.composite_array_types.insert(value, *element.clone());
-            }
-            ast::Type::Tuple(elements) => {
-                elements.iter().for_each(|element| self.insert_composite_array_typ(value, element));
-            }
-            ast::Type::Reference(element, _) => self.insert_composite_array_typ(value, element),
-            _ => {
-                // Otherwise, do nothing
-            }
-        }
-    }
-
-    // / Maps the given type to a Tree of the result type.
-    // /
-    // / This can be used to (for example) flatten a tuple type, creating
-    // / and returning a new parameter for each field type.
-    // pub(super) fn map_type<T>(typ: &ast::Type, mut f: impl FnMut(Type) -> T) -> Tree<T> {
-    //     Self::map_type_helper(typ, &mut f)
-    // }
 
     // This helper is needed because we need to take f by mutable reference,
     // otherwise we cannot move it multiple times each loop of vecmap.
@@ -464,9 +420,8 @@ impl<'a> FunctionContext<'a> {
             .to_vec();
 
         let mut i = 0;
-        let reshaped_return_values = Self::map_type_with_ast_type(result_type, |ast_typ, _| {
+        let reshaped_return_values = Self::map_type_with_ast_type(result_type, |_ast_typ, _| {
             let result = results[i];
-            self.insert_composite_array_typ(result, ast_typ);
             i += 1;
             result.into()
         });
@@ -800,9 +755,6 @@ impl<'a> FunctionContext<'a> {
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
             let result = self.builder.insert_load(reference, element_type);
-            if let Some(array_typ) = self.composite_array_types.get(&reference) {
-                self.composite_array_types.insert(result, array_typ.clone());
-            }
             result.into()
         })
     }
@@ -907,7 +859,13 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    pub(super) fn extract_recursive_acir(
+    /// Extract a flat lvalue for ACIR assignment.
+    ///
+    /// Walks the lvalue tree and computes a flat offset into the underlying
+    /// array, tracking whether the base has been materialized (e.g. after a
+    /// dereference or member-access on a reference) or is still an inline
+    /// aggregate where offset arithmetic is needed.
+    pub(super) fn extract_flat_lvalue(
         &mut self,
         lvalue: &ast::LValue,
     ) -> Result<FlatLValue, RuntimeError> {
@@ -930,7 +888,7 @@ impl<'a> FunctionContext<'a> {
                 })
             }
             ast::LValue::Index { array, index, element_type, .. } => {
-                let mut flat_lvalue = self.extract_recursive_acir(array)?;
+                let mut flat_lvalue = self.extract_flat_lvalue(array)?;
                 let index = self.codegen_non_tuple_expression(index)?;
 
                 let stride = element_type.flattened_size();
@@ -948,7 +906,7 @@ impl<'a> FunctionContext<'a> {
                     let array_values = flat_lvalue.base.clone().into_value_list(self);
                     let array: ir::map::Id<ir::value::Value> =
                         if array_values.len() > 1 { array_values[1] } else { array_values[0] };
-                    let elem_ref = self.codegen_array_index_acir(array, new_offset, element_type);
+                    let elem_ref = self.codegen_flat_array_get(array, new_offset, element_type);
                     flat_lvalue.base = elem_ref;
                     flat_lvalue.offset =
                         self.builder.numeric_constant(0_u32, NumericType::length_type());
@@ -964,20 +922,11 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 let field_index = *field_index;
-                let mut flat_lvalue = self.extract_recursive_acir(object)?;
+                let mut flat_lvalue = self.extract_flat_lvalue(object)?;
                 let element_types = flat_lvalue.elem_type.clone().element_types();
 
-                // let is_dereference = flat_lvalue.base.clone().into_value_list(self).iter().all(|value| {
-                //     self.builder.current_function.dfg.value_is_dereference(*value)
-                // });
-                // dbg!(is_dereference);
-
-                // If base is a reference, materialize the field
-                // let is_dereference = self.builder.current_function.dfg.get_numeric_constant(flat_lvalue.offset).map_or(false, |value| value.is_zero());
-                // dbg!(is_dereference);
                 if flat_lvalue.base_is_materialized {
                     let field_val = Self::get_field(flat_lvalue.base.clone(), field_index);
-                    // dbg!(field_val.clone());
                     flat_lvalue.original_alloc =
                         Self::get_field(flat_lvalue.original_alloc.clone(), field_index);
                     flat_lvalue.base = field_val;
@@ -1000,7 +949,7 @@ impl<'a> FunctionContext<'a> {
                 Ok(flat_lvalue)
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let flat_lvalue = self.extract_recursive_acir(reference)?;
+                let flat_lvalue = self.extract_flat_lvalue(reference)?;
                 let deref_value = self.dereference_lvalue(&flat_lvalue.base, element_type);
                 let zero = self.builder.numeric_constant(0_u32, NumericType::length_type());
 
@@ -1021,13 +970,6 @@ impl<'a> FunctionContext<'a> {
     /// `flat_lvalue` contains the base SSA value and flattened index.
     /// `new_value` is the SSA value(s) to store.
     pub(super) fn assign_flat_lvalue(&mut self, flat: FlatLValue, new_value: Values) {
-        // If offset is zero assign directly
-        // if let Some(const_val) = self.builder.current_function.dfg.get_numeric_constant(flat.offset) {
-        //     if const_val.is_zero() {
-        //         self.assign(flat.original_alloc, new_value);
-        //         return;
-        //     }
-        // }
         if flat.base_is_materialized {
             self.assign(flat.original_alloc, new_value);
             return;
@@ -1060,7 +1002,6 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
-                        dbg!(*len);
                         // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                         // We then only need to inject it for brillig functions.
                         if self.builder.current_function.runtime().is_brillig() {
@@ -1076,84 +1017,6 @@ impl<'a> FunctionContext<'a> {
                 array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
-            // LValue::NestedArrayIndex { old_array, array_lvalue, location, mut indices } => {
-            //     if indices.is_empty() {
-            //         self.assign_new_value(*array_lvalue, new_value, original_value);
-            //         return;
-            //     }
-            //     let has_dereferences = indices
-            //         .iter()
-            //         .take_while(|idx| !matches!(idx, NestedArrayIndex::Dereference(_)))
-            //         .all(|idx| matches!(idx, NestedArrayIndex::Constant(_)));
-            //     if has_dereferences {
-            //         let dereference_types: Vec<ast::Type> = indices
-            //             .iter()
-            //             .filter_map(|index| {
-            //                 if let NestedArrayIndex::Dereference(typ) = index {
-            //                     Some(typ.clone())
-            //                 } else {
-            //                     None
-            //                 }
-            //             })
-            //             .collect();
-            //         // Skip extraction being true is needed for `struct_alias_in_array`
-            //         let (flattened_index, new_array) =
-            //             self.build_nested_lvalue_index(old_array.into(), false, &mut indices);
-            //         let array = new_array.into_value_list(self);
-            //         // We expect the slice array to already be extracted
-            //         let array = array[0];
-            //         let element_type = self.composite_array_types.get(&array).cloned().unwrap();
-            //         let mut reference =
-            //             self.codegen_array_index_acir(array, flattened_index, &element_type);
-            //         let mut current_reference = Self::unit_value();
-            //         for deref_typ in dereference_types {
-            //             current_reference = reference.clone();
-            //             let dereferenced = self.dereference_lvalue(&reference, &deref_typ);
-            //             reference = dereferenced;
-            //         }
-            //         self.assign(current_reference, new_value);
-            //         return;
-            //     };
-            //     // Should already have extracted the appropriate array value from any tuples
-            //     let (flattened_index, _) =
-            //         self.build_nested_lvalue_index(old_array.into(), true, &mut indices);
-            //     let array = self
-            //         .assign_lvalue_index_no_offset(
-            //             original_value.clone(),
-            //             old_array,
-            //             flattened_index,
-            //             location,
-            //         )
-            //         .into();
-            //     self.assign_new_value(*array_lvalue, array, original_value);
-            // }
-
-            // LValue::SliceIndexNestedArray {
-            //     old_slice: slice,
-            //     slice_lvalue,
-            //     location,
-            //     mut indices,
-            // } => {
-            //     if indices.is_empty() {
-            //         // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-            //         self.assign_new_value(*slice_lvalue, new_value, original_value);
-            //         return;
-            //     }
-            //     let slice_values = slice.into_value_list(self);
-            //     let (flattened_index, _) =
-            //         self.build_nested_lvalue_index(slice_values[1].into(), true, &mut indices);
-            //     let new_slice_values = self
-            //         .assign_lvalue_index_no_offset(
-            //             original_value.clone(),
-            //             slice_values[1],
-            //             flattened_index,
-            //             location,
-            //         )
-            //         .into();
-            //     // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-            //     let new_slice = Tree::Branch(vec![slice_values[0].into(), new_slice_values]);
-            //     self.assign_new_value(*slice_lvalue, new_slice, original_value);
-            // }
             LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } => {
                 let mut vector_values = vector.into_value_list(self);
 
@@ -1162,7 +1025,6 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Vector(_) => {
-                        dbg!("got here");
                         self.codegen_access_check(index, vector_values[0]);
                     }
                     _ => unreachable!("must have array or vector but got {array_type}"),
@@ -1216,11 +1078,7 @@ impl<'a> FunctionContext<'a> {
         new_value.for_each(|value| {
             let value = value.eval(self);
 
-            let old_array = array;
             array = self.builder.insert_array_set(array, index, value, false);
-            if let Some(array_typ) = self.composite_array_types.get(&old_array) {
-                self.composite_array_types.insert(array, array_typ.clone());
-            }
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
@@ -1285,9 +1143,6 @@ impl<'a> FunctionContext<'a> {
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
                 let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
-                // if let Some(array_typ) = self.composite_array_types.get(&rhs) {
-                //     self.composite_array_types.insert(lhs, array_typ.clone());
-                // }
                 self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {
@@ -1313,10 +1168,10 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::Expression::Index(index) => {
-                // TODO: we have to account for location data
                 let index_value = self.codegen_non_tuple_expression(&index.index)?;
 
-                indices.push(NestedArrayIndex::Value(index_value));
+                indices
+                    .push(NestedArrayIndex::Value(index_value, index.element_type.clone()));
                 self.extract_ident_from_expr(&index.collection, indices)?
             }
             ast::Expression::ExtractTupleField(tuple, field_index) => {
@@ -1383,7 +1238,10 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 
 #[derive(Debug, Clone)]
 pub(super) enum NestedArrayIndex {
-    Value(ValueId),
+    /// A runtime array index together with the `ast::Type` of the element
+    /// being indexed into. The `ast::Type` is needed because SSA types lose
+    /// tuple boundaries.
+    Value(ValueId, ast::Type),
     Constant(usize),
 }
 
@@ -1487,9 +1345,6 @@ pub(super) enum LValue {
     Dereference {
         reference: Values,
     },
-    // DereferenceNested {
-    //     deref_lvalue: Box<LValue>,
-    // },
 }
 
 /// Tracks the base SSA value and current flat offset while flattening.

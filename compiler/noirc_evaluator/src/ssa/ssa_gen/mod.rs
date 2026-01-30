@@ -199,7 +199,7 @@ impl FunctionContext<'_> {
             Expression::Binary(binary) => self.codegen_binary(binary),
             Expression::Index(index) => {
                 if self.builder.current_function.runtime().is_acir() {
-                    self.codegen_index_acir(index)
+                    self.codegen_flat_index(index)
                 } else {
                     self.codegen_index(index)
                 }
@@ -221,7 +221,7 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => {
                 if self.builder.current_function.runtime().is_acir() {
-                    self.codegen_assign_acir(assign)
+                    self.codegen_flat_assign(assign)
                 } else {
                     self.codegen_assign(assign)
                 }
@@ -276,7 +276,6 @@ impl FunctionContext<'_> {
                 Ok(match &array.typ {
                     ast::Type::Array(_, _) => {
                         let result = self.codegen_array_checked(elements, typ[0].clone())?;
-                        self.insert_composite_array_typ(result, &array.typ);
                         result.into()
                     }
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
@@ -292,7 +291,6 @@ impl FunctionContext<'_> {
                             self.builder.length_constant(array.contents.len() as u128);
                         let vector_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
-                        self.insert_composite_array_typ(vector_contents, &array.typ);
                         Tree::Branch(vec![vector_length.into(), vector_contents.into()])
                     }
                     _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
@@ -398,9 +396,6 @@ impl FunctionContext<'_> {
             });
         }
 
-        // let flat_typ = typ.flatten();
-        // let len = flat_typ.len();
-        // let flat_typ = Type::Array(Arc::new(flat_typ), 1);
         self.builder.insert_make_array(array, typ)
     }
 
@@ -481,7 +476,6 @@ impl FunctionContext<'_> {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
                             let alloc = self.builder.insert_allocate(rhs_type);
-                            self.insert_composite_array_typ(alloc, &unary.result_type);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
@@ -503,9 +497,6 @@ impl FunctionContext<'_> {
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval(self);
             let result = self.builder.insert_load(reference, element_type);
-            if let Some(array_typ) = self.composite_array_types.get(&reference) {
-                self.composite_array_types.insert(result, array_typ.clone());
-            }
             result.into()
         })
     }
@@ -527,17 +518,25 @@ impl FunctionContext<'_> {
         Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
     }
 
-    fn codegen_index_acir(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
+    /// Codegen an array index expression for ACIR functions by computing a single
+    /// flat offset into the underlying flat array.
+    ///
+    /// ACIR has no nested array concept, so arrays of structs/tuples are stored as
+    /// flat sequences of fields. This function uses `ast::Type` information (which
+    /// preserves tuple boundaries that SSA types lose) together with
+    /// `NestedArrayIndex` (Constant for tuple field access, Value for runtime
+    /// indices) to compute the correct flat offset via `compute_flat_offset`.
+    fn codegen_flat_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
         let mut indices = Vec::new();
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
-        indices.push(NestedArrayIndex::Value(index_value));
+        indices.push(NestedArrayIndex::Value(index_value, index.element_type.clone()));
 
         let mut extracted_values = self.extract_ident_from_expr(&index.collection, &mut indices)?;
 
         // Peel off trailing Constant (struct/tuple field) indices first, so that
         // `extracted_values` points to the actual array or vector level rather
         // than an outer struct wrapper.  This mirrors the first loop in
-        // `build_nested_lvalue_index` and must happen before vector detection.
+        // `compute_flat_offset` and must happen before vector detection.
         while let Some(NestedArrayIndex::Constant(field_index)) = indices.last() {
             let field_index = *field_index;
             extracted_values = Self::get_field(extracted_values, field_index);
@@ -555,7 +554,7 @@ impl FunctionContext<'_> {
             let typ = self.builder.current_function.dfg.type_of_value(*value);
             if matches!(typ, Type::Vector(_)) {
                 let length = array_or_slice[i - 1];
-                if let Some(NestedArrayIndex::Value(vec_index)) = indices.last() {
+                if let Some(NestedArrayIndex::Value(vec_index, _)) = indices.last() {
                     self.codegen_access_check(*vec_index, length);
                 }
                 // Extract the data part of the vector tuple directly instead of
@@ -567,7 +566,7 @@ impl FunctionContext<'_> {
         }
 
         let (flattened_index, new_array) =
-            self.build_nested_lvalue_index(extracted_values, false, &mut indices);
+            self.compute_flat_offset(extracted_values, false, &mut indices);
 
         let array = new_array.into_value_list(self);
         let array = array[0];
@@ -575,10 +574,16 @@ impl FunctionContext<'_> {
         // Set location to the index expression's span so that OOB errors
         // point at the indexing operation rather than the collection.
         self.builder.set_location(index.location);
-        Ok(self.codegen_array_index_acir(array, flattened_index, &index.element_type))
+        Ok(self.codegen_flat_array_get(array, flattened_index, &index.element_type))
     }
 
-    fn codegen_array_index_acir(
+    /// Emit `array_get` instructions using a pre-computed flat offset for ACIR.
+    ///
+    /// Given a flat array and a flat index, reads one or more elements
+    /// corresponding to `element_type`. For composite element types (tuples,
+    /// nested arrays), each scalar field is read individually and reassembled
+    /// into the expected SSA value.
+    fn codegen_flat_array_get(
         &mut self,
         array: ValueId,
         flattened_index: ValueId,
@@ -587,7 +592,7 @@ impl FunctionContext<'_> {
         let flattened_index = self.make_array_index(flattened_index);
 
         let mut field_index = 0u128;
-        Self::map_type_with_ast_type(element_type, |ast_typ, typ| {
+        Self::map_type_with_ast_type(element_type, |_ast_typ, typ| {
             let index = self.make_offset(flattened_index, field_index, true);
             field_index += u128::from(typ.flattened_size().0);
             let result = if typ.contains_an_array() {
@@ -601,14 +606,9 @@ impl FunctionContext<'_> {
                     flat_elements.push_back(res);
                 }
                 self.builder.insert_make_array(flat_elements, typ)
-                // let flat_typ = typ.flatten();
-                // let len = flat_typ.len();
-                // let flat_typ = Type::Array(Arc::new(flat_typ), len as u32);
-                // self.builder.insert_make_array(flat_elements, flat_typ)
             } else {
                 self.builder.insert_array_get(array, index, typ)
             };
-            self.insert_composite_array_typ(result, ast_typ);
             result.into()
         })
     }
@@ -649,7 +649,6 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
-        // dbg!("in array index");
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -662,7 +661,6 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // dbg!(type_size_usize);
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
                 // except when the inner elements have no size, because the array access can be optimized out in that case.
                 // We then only need to inject it for brillig functions or for 'unit' elements.
@@ -700,7 +698,7 @@ impl FunctionContext<'_> {
         );
 
         let mut field_index = 0u128;
-        Ok(Self::map_type_with_ast_type(element_type, |ast_typ, typ| {
+        Ok(Self::map_type_with_ast_type(element_type, |_ast_typ, typ| {
             let index = self.make_offset(base_index, field_index, unchecked);
             field_index += 1;
 
@@ -708,7 +706,6 @@ impl FunctionContext<'_> {
             // counts when nested arrays/vectors are constructed or indexed. This
             // has no effect in ACIR code.
             let result = self.builder.insert_array_get(array, index, typ);
-            self.insert_composite_array_typ(result, ast_typ);
             result.into()
         }))
     }
@@ -717,7 +714,6 @@ impl FunctionContext<'_> {
     /// Check that the index being used to access an array/vector element
     /// is less than the (potentially dynamic) array/vector length.
     fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
-        // dbg!("got here");
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self.make_array_index(length);
@@ -729,7 +725,6 @@ impl FunctionContext<'_> {
             .dfg
             .get_numeric_constant(array_len)
             .and_then(|value| value.try_to_u32());
-        // dbg!(array_len_constant);
         // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
         let runtime = self.builder.current_function.runtime();
         if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
@@ -814,7 +809,6 @@ impl FunctionContext<'_> {
         // this is the 'i' in `for i in start .. end { block }`
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type.clone());
-        self.insert_composite_array_typ(loop_index, &for_expr.index_type);
 
         let mut inclusive = for_expr.inclusive;
 
@@ -1131,9 +1125,8 @@ impl FunctionContext<'_> {
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
-            result = Self::map_type_with_ast_type(&if_expr.typ, |ast_typ, typ| {
+            result = Self::map_type_with_ast_type(&if_expr.typ, |_ast_typ, typ| {
                 let result = self.builder.add_block_parameter(end_block, typ);
-                self.insert_composite_array_typ(result, ast_typ);
                 result.into()
             });
 
@@ -1182,9 +1175,8 @@ impl FunctionContext<'_> {
 
         let make_end_block = |this: &mut Self| -> (BasicBlockId, Values) {
             let block = this.builder.insert_block();
-            let results = Self::map_type_with_ast_type(&match_expr.typ, |ast_typ, typ| {
+            let results = Self::map_type_with_ast_type(&match_expr.typ, |_ast_typ, typ| {
                 let result = this.builder.add_block_parameter(block, typ);
-                this.insert_composite_array_typ(result, ast_typ);
                 result.into()
             });
             (block, results)
@@ -1479,7 +1471,7 @@ impl FunctionContext<'_> {
         values = values.map(|value| {
             let value = value.eval(self);
             Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value, None)
+                self.new_mutable_variable(value)
             } else {
                 value::Value::Normal(value)
             })
@@ -1547,14 +1539,16 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    fn codegen_assign_acir(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+    /// Codegen an assignment for ACIR functions using flat array indexing.
+    ///
+    /// Uses `extract_flat_lvalue` to compute the flat offset for the lvalue,
+    /// then writes the new value at that offset.
+    fn codegen_flat_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
         // Evaluate the rhs first - when we load the expression in the lvalue we want that
         // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
 
-        // dbg!(&assign.lvalue);
-        let flat_lvalue = self.extract_recursive_acir(&assign.lvalue)?;
-        // println!("Just extracted:\n{}", self.builder.current_function);
+        let flat_lvalue = self.extract_flat_lvalue(&assign.lvalue)?;
 
         rhs.clone().for_each(|value| {
             let value = value.eval(self);
@@ -1565,7 +1559,24 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    fn build_nested_lvalue_index(
+    /// Compute a single flat byte offset from a stack of nested indices.
+    ///
+    /// `indices` is consumed in LIFO order (outermost index last). Each entry
+    /// is either:
+    /// - `NestedArrayIndex::Constant(n)` — a compile-time tuple/struct field
+    ///   offset (adds the flattened sizes of fields `0..n`).
+    /// - `NestedArrayIndex::Value(v)` — a runtime array index (multiplied by
+    ///   the element's flattened size and added to the running offset).
+    ///
+    /// The `ast::Type` carried in each `NestedArrayIndex::Value` is required
+    /// because SSA `Type` loses tuple boundaries — e.g. `(Field, u8)` becomes
+    /// `[Field, u8]` in SSA, making it impossible to tell where one tuple
+    /// field ends and the next begins.
+    ///
+    /// Returns `(flat_index, extracted_ident)` where `flat_index` is the
+    /// computed SSA `ValueId` for the offset and `extracted_ident` is the
+    /// base `Values` after peeling off any leading struct/tuple accesses.
+    fn compute_flat_offset(
         &mut self,
         mut extracted_ident: Values,
         skip_extraction: bool,
@@ -1581,7 +1592,7 @@ impl FunctionContext<'_> {
                     }
                     continue;
                 }
-                NestedArrayIndex::Value(_) => {
+                NestedArrayIndex::Value(..) => {
                     first_index = Some(index);
                     break;
                 }
@@ -1592,26 +1603,18 @@ impl FunctionContext<'_> {
             panic!("ICE: Missing first index");
         };
 
-        let array = extracted_ident.clone().flatten();
-        if array.is_empty() {
-            panic!("ICE: Attempting to extract an empty tree");
-        }
-
-        let array = array[0].clone().eval(self);
-        let typ = self.composite_array_types.get(&array).cloned().unwrap();
-
         let (mut result_index, mut current_types) = match first_index {
             NestedArrayIndex::Constant(_) => {
                 panic!("Should not have a constant for the first index");
             }
-            NestedArrayIndex::Value(value) => {
-                let offset = typ.flattened_size();
+            NestedArrayIndex::Value(value, element_type) => {
+                let offset = element_type.flattened_size();
                 let offset = self.builder.numeric_constant(offset, NumericType::length_type());
                 let value = self.make_array_index(value);
                 let new_index =
                     self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
 
-                (new_index, typ)
+                (new_index, element_type)
             }
         };
 
@@ -1633,11 +1636,10 @@ impl FunctionContext<'_> {
                     );
                     result_index = new_index;
                 }
-                NestedArrayIndex::Value(value) => {
-                    let elements = current_types.clone().element_types();
-                    current_types = elements[0].clone();
+                NestedArrayIndex::Value(value, element_type) => {
+                    current_types = element_type;
 
-                    let offset = elements.iter().fold(0, |acc, typ| acc + typ.flattened_size());
+                    let offset = current_types.flattened_size();
                     let offset = self.builder.numeric_constant(offset, NumericType::length_type());
 
                     let value = self.make_array_index(value);
