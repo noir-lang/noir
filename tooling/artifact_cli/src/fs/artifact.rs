@@ -71,7 +71,7 @@ pub fn save_contract_to_file(
     output_dir: &Path,
 ) -> Result<PathBuf, CliError> {
     save_build_artifact_to_file(compiled_contract, circuit_name, output_dir)
-        .map_err(|err| CliError::FailedToSaveContrac(circuit_name.to_string(), Box::new(err)))
+        .map_err(|err| CliError::FailedToSaveContract(circuit_name.to_string(), Box::new(err)))
 }
 
 fn save_build_artifact_to_file<T: ?Sized + serde::Serialize>(

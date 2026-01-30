@@ -95,5 +95,5 @@ pub enum CliError {
     FailedToSaveProgram(String, Box<CliError>),
 
     #[error("Failed to save contract '{0}':\n{1}")]
-    FailedToSaveContrac(String, Box<CliError>),
+    FailedToSaveContract(String, Box<CliError>),
 }
