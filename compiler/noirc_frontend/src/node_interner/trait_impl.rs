@@ -329,7 +329,8 @@ impl NodeInterner {
                     named_impl_generic.typ.force_substitute(&instantiation_bindings);
 
                 // If the implementation is just a free type variable, it will bind to anything.
-                // By turning it we can make sure it won't bind to other associated types.
+                // Since we know they are both essentially NamedGenerics, their underlying type
+                // variable should be the same, otherwise they come from different traits.
                 if let Type::TypeVariable(v) = &impl_generic {
                     if v.borrow().is_unbound() {
                         impl_generic = v.clone().into_named_generic(
