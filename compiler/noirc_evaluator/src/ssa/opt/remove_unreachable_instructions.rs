@@ -313,11 +313,11 @@ impl Function {
                     };
 
                     let elements = array_type.element_types();
-                    let flat_types_size: u32 = elements.iter().map(|element| element.flattened_size()).sum();
+                    let flat_types_size: u32 =
+                        elements.iter().map(|element| element.flattened_size()).sum();
                     let array_op_always_fails = len == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap())
-                                >= (flat_types_size * len)
+                            (index.try_to_u32().unwrap()) >= (flat_types_size * len)
                         });
                     if !array_op_always_fails {
                         return;

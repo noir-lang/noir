@@ -282,7 +282,7 @@ impl Context<'_> {
         // For unknown length under a side effect variable, we want to multiply with the side effect variable
         // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0.
         let is_unknown_length = dfg.get_numeric_constant(vector_length_var).is_none();
-        dbg!(is_unknown_length);
+        // dbg!(is_unknown_length);
         let one = self.acir_context.add_constant(FieldElement::one());
         let mut new_vector_length = self.acir_context.sub_var(vector_length, one)?;
 
@@ -311,7 +311,12 @@ impl Context<'_> {
         }
 
         let mut new_vector = self.read_array_with_type(vector, &vector_type)?;
-        for _ in 0..popped_elements.len() {
+        // Pop the flat element count, not the nested result count.
+        // E.g. for `foo { a: u32, b: u32, c: [Field; 3] }`, popped_elements has 3 entries
+        // (a, b, Array(c)) but the flat size is 5 (a, b, c[0], c[1], c[2]).
+        let flat_elements_popped: usize =
+            popped_elements.iter().map(super::super::arrays::flattened_value_size).sum();
+        for _ in 0..flat_elements_popped {
             new_vector.pop_back();
         }
 
@@ -440,7 +445,8 @@ impl Context<'_> {
             popped_elements.push(element);
         }
 
-        let popped_elements_size: usize = popped_elements.iter().map(|elem| flattened_value_size(elem)).sum();
+        let popped_elements_size: usize =
+            popped_elements.iter().map(|elem| flattened_value_size(elem)).sum();
         // dbg!(popped_elements_size);
         // dbg!(new_vector.clone());
         new_vector = new_vector.slice(popped_elements_size..);
@@ -533,7 +539,7 @@ impl Context<'_> {
         // let item_size = self.acir_context.add_constant(elements_to_insert.len());
         // let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
         // let flat_user_index =
-            // self.get_flattened_index(&vector_typ, vector_contents, insert_index, dfg)?;
+        // self.get_flattened_index(&vector_typ, vector_contents, insert_index, dfg)?;
 
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.

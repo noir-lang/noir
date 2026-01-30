@@ -320,11 +320,23 @@ impl Type {
     // }
 
     /// True if this type is an array (or slice) or internally contains an array (or slice)
-    /// True if this type is an array (or vector) or internally contains an array (or vector)
     pub(crate) fn contains_an_array(&self) -> bool {
         match self {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Vector(_) => true,
+            Type::Reference(element) => element.contains_an_array(),
+        }
+    }
+
+    /// True if this type is a zero-sized array or internally contains a zer-sized array
+    pub(crate) fn contains_an_empty_array(&self) -> bool {
+        match self {
+            Type::Numeric(_) | Type::Function => false,
+            Type::Vector(_) => false,
+            Type::Array(_, 0) => true,
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|typ| typ.contains_an_empty_array())
+            }
             Type::Reference(element) => element.contains_an_array(),
         }
     }

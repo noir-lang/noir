@@ -253,17 +253,31 @@ impl Context {
                                 self.set_capacity(context.dfg, old, new, |c| c);
                             }
                             SizeChange::Inc { old, new } => {
-                                let element_stride: u32 = context.dfg.type_of_value(old).element_types().iter().map(|elem| elem.flattened_size()).sum();
+                                let element_stride: u32 = context
+                                    .dfg
+                                    .type_of_value(old)
+                                    .element_types()
+                                    .iter()
+                                    .map(|elem| elem.flattened_size())
+                                    .sum();
                                 self.set_capacity(context.dfg, old, new, |c| {
                                     // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
                                     c.checked_add(element_stride).expect("Vector capacity overflow")
                                 });
                             }
                             SizeChange::Dec { old, new } => {
-                                let element_stride: u32 = context.dfg.type_of_value(old).element_types().iter().map(|elem| elem.flattened_size()).sum();
+                                let element_stride: u32 = context
+                                    .dfg
+                                    .type_of_value(old)
+                                    .element_types()
+                                    .iter()
+                                    .map(|elem| elem.flattened_size())
+                                    .sum();
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                                 // would otherwise underflow.
-                                self.set_capacity(context.dfg, old, new, |c| c.saturating_sub(element_stride));
+                                self.set_capacity(context.dfg, old, new, |c| {
+                                    c.saturating_sub(element_stride)
+                                });
                             }
                         }
                     }

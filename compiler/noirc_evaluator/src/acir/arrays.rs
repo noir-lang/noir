@@ -259,7 +259,7 @@ impl Context<'_> {
         if self.has_zero_length(array, dfg) {
             dbg!(array);
         }
-        
+
         if !self.has_zero_length(array, dfg) {
             return Ok(false);
         }
@@ -1044,8 +1044,11 @@ impl Context<'_> {
                     //         self.array_get_value(element_typ, block_id, &mut var_index)?;
                     //     result.push_back(element);
                     // }
-                    let element =
-                            self.array_get_value(&&Type::Numeric(value_types[i % value_types.len()]), block_id, &mut var_index)?;
+                    let element = self.array_get_value(
+                        &&Type::Numeric(value_types[i % value_types.len()]),
+                        block_id,
+                        &mut var_index,
+                    )?;
                     result.push_back(element);
                 }
 

@@ -945,7 +945,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Ident { location: Some(location), definition, mutable: false, name, typ, id };
             ast::Expression::Ident(ident)
         });
-        dbg!(contents.len());
+        // dbg!(contents.len());
         let array = if is_vector {
             ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ }))
         } else {

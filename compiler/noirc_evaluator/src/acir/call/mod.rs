@@ -199,10 +199,13 @@ impl Context<'_> {
                             if sum == 0 { 0 } else { *len / sum as usize }
                         }
                         AcirValue::Array(array) => {
-                            // len holds the non-flattened length of all elements in the vector,
-                            // so here we need to divide by the non-flattened length of a single
-                            // vector entry
-                            if item_types.is_empty() { 0 } else { array.len() / item_types.len() }
+                            // The Array may contain a mix of flat Vars and nested Arrays
+                            // (e.g. flat scalars + nested [Field; 3]). Use the total flat size
+                            // divided by the flat element size to get the logical element count.
+                            let flat_size: usize =
+                                array.iter().map(arrays::flattened_value_size).sum();
+                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            if sum == 0 { 0 } else { flat_size / sum as usize }
                         }
                         _ => unreachable!("ICE: Vector value is not an array"),
                     };

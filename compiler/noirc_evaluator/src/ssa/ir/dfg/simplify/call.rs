@@ -8,7 +8,12 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::ir::{
-    basic_block::BasicBlockId, dfg::{simplify::value_merger::ValueMerger, DataFlowGraph}, instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic}, integer::IntegerConstant, types::{NumericType, Type}, value::{Value, ValueId}
+    basic_block::BasicBlockId,
+    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
+    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+    integer::IntegerConstant,
+    types::{NumericType, Type},
+    value::{Value, ValueId},
 };
 
 use super::SimplifyResult;
@@ -107,14 +112,13 @@ pub(super) fn simplify_call(
                 // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
                 let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
-                dbg!(vector_length_value);
+                // dbg!(vector_length_value);
                 let length = array_type.array_size();
-                dbg!(length);
+                // dbg!(length);
                 // let flat_elem_size: u32 = element_types.iter().map(|elem| elem.flattened_size()).sum();
                 // dbg!(flat_elem_size);
                 // let length = length * flat_elem_size;
-                let vector_length =
-                    dfg.make_constant(length.into(), NumericType::length_type());
+                let vector_length = dfg.make_constant(length.into(), NumericType::length_type());
                 let new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
@@ -144,8 +148,10 @@ pub(super) fn simplify_call(
                                         // let mut flat_elements = im::Vector::new();
                                         let flat_typ = typ.clone().flatten();
                                         for (my_index, typ) in flat_typ.into_iter().enumerate() {
-                                            let index = dfg
-                                                .make_constant(my_index.into(), NumericType::length_type());
+                                            let index = dfg.make_constant(
+                                                my_index.into(),
+                                                NumericType::length_type(),
+                                            );
                                             assert!(matches!(typ, Type::Numeric(_)));
                                             let get = Instruction::ArrayGet { array: *elem, index };
                                             let typevars = Some(vec![typ]);
@@ -163,8 +169,13 @@ pub(super) fn simplify_call(
                                 };
                             }
 
-                            let new_vector_length =
-                                increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
+                            let new_vector_length = increment_vector_length(
+                                arguments[0],
+                                &element_type,
+                                dfg,
+                                block,
+                                call_stack,
+                            );
 
                             let new_vector =
                                 make_array(dfg, vector, element_type, block, call_stack);
@@ -249,8 +260,37 @@ pub(super) fn simplify_call(
             let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
-                let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let is_acir = dfg.runtime().is_acir();
+
+                // Flatten the elements to insert for ACIR, since ACIR vectors
+                // store data in a flat representation.
+                let mut flat_elements = Vec::new();
+                for elem in &arguments[3..] {
+                    let elem_typ = dfg.type_of_value(*elem);
+                    match (&elem_typ, is_acir) {
+                        (Type::Array(_, _) | Type::Vector(_), true) => {
+                            let flat_typ = elem_typ.clone().flatten();
+                            for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                                let idx =
+                                    dfg.make_constant(my_index.into(), NumericType::length_type());
+                                assert!(matches!(typ, Type::Numeric(_)));
+                                let get = Instruction::ArrayGet { array: *elem, index: idx };
+                                let typevars = Some(vec![typ]);
+                                let res = dfg
+                                    .insert_instruction_and_results(
+                                        get, block, typevars, call_stack,
+                                    )
+                                    .first();
+                                flat_elements.push(res);
+                            }
+                        }
+                        _ => {
+                            flat_elements.push(*elem);
+                        }
+                    }
+                }
+
+                let mut index = index.to_u128() as usize * flat_elements.len();
 
                 // Do not simplify the index is greater than the vector capacity
                 // or else we will panic inside of the im::Vector insert method
@@ -260,8 +300,8 @@ pub(super) fn simplify_call(
                     return SimplifyResult::None;
                 }
 
-                for elem in &arguments[3..] {
-                    vector.insert(index, *elem);
+                for elem in flat_elements {
+                    vector.insert(index, elem);
                     index += 1;
                 }
 
@@ -515,7 +555,14 @@ fn increment_vector_length(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    update_vector_length(vector_len, element_type, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
+    update_vector_length(
+        vector_len,
+        element_type,
+        dfg,
+        BinaryOp::Add { unchecked: false },
+        block,
+        call_stack,
+    )
 }
 
 fn decrement_vector_length(
@@ -526,7 +573,14 @@ fn decrement_vector_length(
     call_stack: CallStackId,
 ) -> ValueId {
     // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
-    update_vector_length(vector_len, element_type, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
+    update_vector_length(
+        vector_len,
+        element_type,
+        dfg,
+        BinaryOp::Sub { unchecked: true },
+        block,
+        call_stack,
+    )
 }
 
 fn simplify_vector_push_back(
@@ -541,12 +595,14 @@ fn simplify_vector_push_back(
 
     let is_acir = dfg.runtime().is_acir();
     let length = if is_acir {
-        let flat_element_size = u128::from(element_type
-            .clone()
-            .element_types()
-            .iter()
-            .map(|typ| typ.flattened_size())
-            .sum::<u32>());
+        let flat_element_size = u128::from(
+            element_type
+                .clone()
+                .element_types()
+                .iter()
+                .map(|typ| typ.flattened_size())
+                .sum::<u32>(),
+        );
 
         // The capacity must be an integer so that we can compare it against the slice length
         let flat_element_size =
@@ -573,7 +629,8 @@ fn simplify_vector_push_back(
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
         .first();
 
-    let new_vector_length = increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
+    let new_vector_length =
+        increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
 
     for elem in &arguments[2..] {
         let typ = dfg.type_of_value(*elem);
@@ -644,7 +701,8 @@ fn simplify_vector_pop_back(
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_vector_length = decrement_vector_length(arguments[0], &vector_type, dfg, block, call_stack);
+    let new_vector_length =
+        decrement_vector_length(arguments[0], &vector_type, dfg, block, call_stack);
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
@@ -658,7 +716,8 @@ fn simplify_vector_pop_back(
     // We must pop multiple elements in the case of a vector of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        flattened_len = decrement_vector_length(flattened_len, &vector_type, dfg, block, call_stack);
+        flattened_len =
+            decrement_vector_length(flattened_len, &vector_type, dfg, block, call_stack);
         let get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[1], index: flattened_len };
 

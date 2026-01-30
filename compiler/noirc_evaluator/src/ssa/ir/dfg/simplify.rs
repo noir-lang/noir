@@ -116,10 +116,14 @@ pub(crate) fn simplify(
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
-            if matches!(array_or_vector_type, Type::Array(_, 1))
-                && array_or_vector_type.flattened_size() == 1
-            {
-                dbg!("got here");
+            let Type::Array(element_types, 1) = &array_or_vector_type else {
+                return None;
+            };
+
+            let has_empty_arrays = element_types.iter().any(|typ| typ.contains_an_empty_array());
+            if array_or_vector_type.flattened_size() == 1 && !has_empty_arrays {
+                // if array_or_vector_type.element_size() == 1 {
+                // dbg!("got here");
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
                 optimize_length_one_array_read(dfg, block, call_stack, *array, *index)

@@ -662,7 +662,6 @@ impl DataFlowGraph {
             return Some(length);
         }
 
-
         // Check if the value was made by a MakeArray instruction, which can create vectors as well.
         let (array, typ) = self.get_array_constant(value)?;
         let elements_size = typ.element_size();

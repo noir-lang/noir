@@ -267,3 +267,19 @@ fn foreign_call_args_do_not_get_cloned() {
     "#;
     assert_normalized_ssa_equals(ssa, expected);
 }
+
+#[test]
+fn nested_zero_sized_array_access() {
+    let src = "
+    unconstrained fn main(a: u32) -> pub Field {
+        foo()[a].1 as Field
+    }
+
+    fn foo() -> [([u64; 0], u16); 1] {
+        [([], 10)]
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    println!("{}", ssa.print_with(None));
+}

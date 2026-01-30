@@ -532,29 +532,37 @@ impl FunctionContext<'_> {
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
         indices.push(NestedArrayIndex::Value(index_value));
 
-        // TODO: maybe I can make a shared indices array that is cleared before codegen_expression
-        // in locations such as here
-        let extracted_values = self.extract_ident_from_expr(&index.collection, &mut indices)?;
+        let mut extracted_values = self.extract_ident_from_expr(&index.collection, &mut indices)?;
+
+        // Peel off trailing Constant (struct/tuple field) indices first, so that
+        // `extracted_values` points to the actual array or vector level rather
+        // than an outer struct wrapper.  This mirrors the first loop in
+        // `build_nested_lvalue_index` and must happen before vector detection.
+        while let Some(NestedArrayIndex::Constant(field_index)) = indices.last() {
+            let field_index = *field_index;
+            extracted_values = Self::get_field(extracted_values, field_index);
+            indices.pop();
+        }
+
         let array_or_slice = extracted_values.clone().into_value_list(self);
-        // println!("{}", self.builder.current_function);
-        // TODO: add a test that has a tuple with (field, array) to make sure we do not conflict
-        // with the slice object
+
+        // If the collection is a vector (represented as a (length, data) tuple),
+        // extract the data array and perform a bounds check before indexing.
+        // The vector index is the last Value in `indices` (closest to the vector
+        // in the expression tree), e.g. for vector[i][j] indices = [Value(j), Value(i)]
+        // and i is the vector index.
         for (i, value) in array_or_slice.iter().enumerate() {
             let typ = self.builder.current_function.dfg.type_of_value(*value);
             if matches!(typ, Type::Vector(_)) {
-                let array_type = &self.builder.type_of_value(*value);
-                match array_type {
-                    Type::Vector(_) => {
-                        // dbg!("in here");
-                        // We expect the extract ident expression to
-                        self.codegen_access_check(index_value, array_or_slice[i - 1]);
-                    }
-                    Type::Array(..) => {
-                        // Nothing needs to done to prepare an array access on an array
-                    }
-                    _ => {}
+                let length = array_or_slice[i - 1];
+                if let Some(NestedArrayIndex::Value(vec_index)) = indices.last() {
+                    self.codegen_access_check(*vec_index, length);
                 }
-                indices.insert(1, NestedArrayIndex::Constant(1));
+                // Extract the data part of the vector tuple directly instead of
+                // injecting a Constant(1) into indices, which would be processed
+                // at the wrong time for nested accesses like vector[i][j].
+                extracted_values = Self::get_field(extracted_values, 1);
+                break;
             }
         }
 
@@ -562,7 +570,7 @@ impl FunctionContext<'_> {
             self.build_nested_lvalue_index(extracted_values, false, &mut indices);
 
         let array = new_array.into_value_list(self);
-        let array = if array.len() == 1 { array[0] } else { array[1] };
+        let array = array[0];
 
         Ok(self.codegen_array_index_acir(array, flattened_index, &index.element_type))
     }
@@ -638,7 +646,7 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
-        dbg!("should not be here");
+        // dbg!("in array index");
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -651,7 +659,7 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                dbg!(type_size_usize);
+                // dbg!(type_size_usize);
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
                 // except when the inner elements have no size, because the array access can be optimized out in that case.
                 // We then only need to inject it for brillig functions or for 'unit' elements.
