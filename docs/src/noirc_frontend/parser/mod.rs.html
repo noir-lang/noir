@@ -301,7 +301,8 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="doccomment">//! The parser is the second pass of the noir compiler.
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a></pre></div><pre class="rust"><code><span class="doccomment">//! The parser is the second pass of the noir compiler.
 //! The parser's job is to take the output of the lexer (a stream of tokens)
 //! and parse it into a valid Abstract Syntax Tree (Ast). During this, the parser
 //! validates the grammar of the program and returns parsing errors for any syntactically
@@ -325,7 +326,8 @@
 <span class="kw">pub use </span>errors::ParserErrorReason;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">pub use </span>parser::{
-    Parser, StatementOrExpressionOrLValue, parse_program, parse_program_with_dummy_file,
+    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars, parse_program,
+    parse_program_with_dummy_file,
 };
 
 <span class="attr">#[derive(Clone, Default)]

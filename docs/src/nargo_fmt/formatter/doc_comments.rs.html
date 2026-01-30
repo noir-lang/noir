@@ -381,8 +381,8 @@ global x: Field = 1;
         global x: Field = 1;
         "</span>;
         <span class="kw">let </span>expected = <span class="string">"/** This is a long comment
-that's going to be wrapped.
-*/
+ * that's going to be
+ * wrapped. */
 global x: Field = 1;
 "</span>;
         assert_format_wrapping_comments(src, expected, <span class="number">29</span>);
@@ -395,8 +395,8 @@ global x: Field = 1;
         global x: Field = 1;
         "</span>;
         <span class="kw">let </span>expected = <span class="string">"/*! This is a long comment
-that's going to be wrapped.
-*/
+ * that's going to be
+ * wrapped. */
 global x: Field = 1;
 "</span>;
         assert_format_wrapping_comments(src, expected, <span class="number">29</span>);

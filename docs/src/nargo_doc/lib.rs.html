@@ -1088,13 +1088,7 @@
 <a href="#1087" id="1087">1087</a>
 <a href="#1088" id="1088">1088</a>
 <a href="#1089" id="1089">1089</a>
-<a href="#1090" id="1090">1090</a>
-<a href="#1091" id="1091">1091</a>
-<a href="#1092" id="1092">1092</a>
-<a href="#1093" id="1093">1093</a>
-<a href="#1094" id="1094">1094</a>
-<a href="#1095" id="1095">1095</a>
-<a href="#1096" id="1096">1096</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#1090" id="1090">1090</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1108,6 +1102,7 @@
 <span class="kw">use </span>noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 <span class="kw">use </span>noirc_frontend::hir_def::traits::ResolvedTraitBound;
 <span class="kw">use </span>noirc_frontend::node_interner::{FuncId, ReferenceId};
+<span class="kw">use </span>noirc_frontend::parser::block_comment_has_all_leading_stars;
 <span class="kw">use </span>noirc_frontend::shared::Signedness;
 <span class="kw">use </span>noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
 <span class="kw">use </span>noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
@@ -2067,14 +2062,7 @@
             </span>offset += line_text_length - line_text.len();
 
             <span class="comment">// Does every line in the comment start with "*" (except for the new first line)
-            </span><span class="kw">let </span>all_stars = lines.iter().enumerate().all(|(index, line)| {
-                <span class="kw">if </span>index == <span class="number">0 </span>|| line.trim().is_empty() {
-                    <span class="comment">// The first line never has a star. Then we ignore empty lines.
-                    </span><span class="bool-val">true
-                </span>} <span class="kw">else </span>{
-                    line.trim_start().starts_with(<span class="string">'*'</span>)
-                }
-            });
+            </span><span class="kw">let </span>all_stars = block_comment_has_all_leading_stars(text);
 
             <span class="comment">// If every line starts with "*" we need to skip past it, and any spaces after it.
             </span><span class="kw">if </span>all_stars {

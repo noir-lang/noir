@@ -1181,7 +1181,10 @@
 <a href="#1180" id="1180">1180</a>
 <a href="#1181" id="1181">1181</a>
 <a href="#1182" id="1182">1182</a>
-<a href="#1183" id="1183">1183</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
 //! that we (almost always) never exceed the configurable maximum line width.
 //!
 //! It's heavily inspired by this excellent blog post:
@@ -2339,6 +2342,9 @@
                     <span class="self">self</span>.start_new_line();
                 }
                 inside_block_comment = <span class="bool-val">true</span>;
+            } <span class="kw">else if </span>index &lt; lines.len() - <span class="number">1 </span>{
+                <span class="comment">// Trim the end of all lines except the last one, to avoid trailing spaces
+                </span><span class="self">self</span>.write(line.trim_end());
             } <span class="kw">else </span>{
                 <span class="self">self</span>.write(line);
             }

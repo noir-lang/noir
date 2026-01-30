@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["fix_block_comment","fix_line_comment"]};
+window.SIDEBAR_ITEMS = {"fn":["block_comment_has_all_leading_stars","fix_block_comment","fix_line_comment"]};

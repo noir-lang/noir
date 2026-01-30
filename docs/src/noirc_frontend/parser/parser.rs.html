@@ -728,7 +728,8 @@
 <a href="#727" id="727">727</a>
 <a href="#728" id="728">728</a>
 <a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>modifiers::Modifiers;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -771,6 +772,7 @@
 <span class="kw">mod </span>use_tree;
 <span class="kw">mod </span>where_clause;
 
+<span class="kw">pub use </span>doc_comments::block_comment_has_all_leading_stars;
 <span class="kw">pub use </span>statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 <span class="doccomment">/// Entry function for the parser - also handles lexing internally.
