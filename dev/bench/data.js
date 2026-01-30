@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769767716850,
+  "lastUpdate": 1769780536587,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "790fa6d3cacc5cd25966329099356b766018f28b",
-          "message": "chore: clippy::needless_pass_by_ref_mut (#11300)",
-          "timestamp": "2026-01-26T11:16:48Z",
-          "tree_id": "cdafd30f88581030473f970c9b560bac11d4f0e2",
-          "url": "https://github.com/noir-lang/noir/commit/790fa6d3cacc5cd25966329099356b766018f28b"
-        },
-        "date": 1769427486479,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258245,
-            "range": "± 415",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226189,
-            "range": "± 2038",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2266120,
-            "range": "± 2349",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3708302,
             "range": "± 4718",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a20af3cded2081cf32fc0fa7653c30b30b1b40cc",
+          "message": "chore: add CLAUDE.md development guide (#11040)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
+          "timestamp": "2026-01-30T13:37:26Z",
+          "tree_id": "b1fe0f4dc3406a5765678498b817dd6179ff9ec9",
+          "url": "https://github.com/noir-lang/noir/commit/a20af3cded2081cf32fc0fa7653c30b30b1b40cc"
+        },
+        "date": 1769780406095,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256880,
+            "range": "± 1301",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228523,
+            "range": "± 7500",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800847,
+            "range": "± 23598",
             "unit": "ns/iter"
           }
         ]
