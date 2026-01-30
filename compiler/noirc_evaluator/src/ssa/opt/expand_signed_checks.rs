@@ -1,9 +1,9 @@
-/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
-/// into unchecked operations followed by explicit overflow checks.
-///
-/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
-/// operations, while also allowing further optimizations to be done during subsequent
-/// SSA passes on the expanded instructions.
+//! An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+//! into unchecked operations followed by explicit overflow checks.
+//!
+//! The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+//! operations, while also allowing further optimizations to be done during subsequent
+//! SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{

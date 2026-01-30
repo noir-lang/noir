@@ -1,3 +1,15 @@
+//! Analyzes the purity of each function and tag each function call with that function's purity.
+//! This is purely an analysis pass on its own but can help future optimizations.
+//!
+//! There is no constraint on when this pass needs to be run, but it is generally more
+//! beneficial to perform this pass before inlining or loop unrolling so that it can:
+//! 1. Run faster by processing fewer instructions.
+//! 2. Be run earlier in the pass list so that more passes afterward can use the results of
+//!    this pass.
+//!
+//! Performing this pass after defunctionalization may also help more function calls be
+//! identified as calling known pure functions.
+
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -13,17 +25,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Analyze the purity of each function and tag each function call with that function's purity.
+    /// Analyzes the purity of each function and tag each function call with that function's purity.
     /// This is purely an analysis pass on its own but can help future optimizations.
-    ///
-    /// There is no constraint on when this pass needs to be run, but it is generally more
-    /// beneficial to perform this pass before inlining or loop unrolling so that it can:
-    /// 1. Run faster by processing fewer instructions.
-    /// 2. Be run earlier in the pass list so that more passes afterward can use the results of
-    ///    this pass.
-    ///
-    /// Performing this pass after defunctionalization may also help more function calls be
-    /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
