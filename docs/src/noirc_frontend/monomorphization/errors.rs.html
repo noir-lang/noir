@@ -188,7 +188,16 @@
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -219,6 +228,7 @@
     ReferenceReturnedFromOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    ComplexType { complexity: usize, max_complexity: usize, location: Location },
 }
 
 <span class="kw">impl </span>MonomorphizationError {
@@ -245,7 +255,8 @@
             | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
-            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::ComplexType { location, .. } =&gt; <span class="kw-2">*</span>location,
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
         }
     }
@@ -371,6 +382,13 @@
                 diagnostic.add_note(<span class="string">"Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions."</span>.to_string());
                 invalid_type.add_to_diagnostic(<span class="kw-2">*</span>location, <span class="kw-2">&amp;mut </span>diagnostic);
                 <span class="kw">return </span>diagnostic;
+            }
+            MonomorphizationError::ComplexType { complexity, max_complexity, location } =&gt; {
+                <span class="kw">let </span>message = <span class="macro">format!</span>(
+                    <span class="string">"Type is too complex (complexity: {complexity}, max: {max_complexity})"</span>,
+                );
+                <span class="kw">let </span>secondary = <span class="string">"This usually happens with exponentially growing types. Consider simplifying the type structure."</span>.to_string();
+                <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
             }
         };
 

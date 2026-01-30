@@ -3205,7 +3205,74 @@
 <a href="#3204" id="3204">3204</a>
 <a href="#3205" id="3205">3205</a>
 <a href="#3206" id="3206">3206</a>
-<a href="#3207" id="3207">3207</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<a href="#3207" id="3207">3207</a>
+<a href="#3208" id="3208">3208</a>
+<a href="#3209" id="3209">3209</a>
+<a href="#3210" id="3210">3210</a>
+<a href="#3211" id="3211">3211</a>
+<a href="#3212" id="3212">3212</a>
+<a href="#3213" id="3213">3213</a>
+<a href="#3214" id="3214">3214</a>
+<a href="#3215" id="3215">3215</a>
+<a href="#3216" id="3216">3216</a>
+<a href="#3217" id="3217">3217</a>
+<a href="#3218" id="3218">3218</a>
+<a href="#3219" id="3219">3219</a>
+<a href="#3220" id="3220">3220</a>
+<a href="#3221" id="3221">3221</a>
+<a href="#3222" id="3222">3222</a>
+<a href="#3223" id="3223">3223</a>
+<a href="#3224" id="3224">3224</a>
+<a href="#3225" id="3225">3225</a>
+<a href="#3226" id="3226">3226</a>
+<a href="#3227" id="3227">3227</a>
+<a href="#3228" id="3228">3228</a>
+<a href="#3229" id="3229">3229</a>
+<a href="#3230" id="3230">3230</a>
+<a href="#3231" id="3231">3231</a>
+<a href="#3232" id="3232">3232</a>
+<a href="#3233" id="3233">3233</a>
+<a href="#3234" id="3234">3234</a>
+<a href="#3235" id="3235">3235</a>
+<a href="#3236" id="3236">3236</a>
+<a href="#3237" id="3237">3237</a>
+<a href="#3238" id="3238">3238</a>
+<a href="#3239" id="3239">3239</a>
+<a href="#3240" id="3240">3240</a>
+<a href="#3241" id="3241">3241</a>
+<a href="#3242" id="3242">3242</a>
+<a href="#3243" id="3243">3243</a>
+<a href="#3244" id="3244">3244</a>
+<a href="#3245" id="3245">3245</a>
+<a href="#3246" id="3246">3246</a>
+<a href="#3247" id="3247">3247</a>
+<a href="#3248" id="3248">3248</a>
+<a href="#3249" id="3249">3249</a>
+<a href="#3250" id="3250">3250</a>
+<a href="#3251" id="3251">3251</a>
+<a href="#3252" id="3252">3252</a>
+<a href="#3253" id="3253">3253</a>
+<a href="#3254" id="3254">3254</a>
+<a href="#3255" id="3255">3255</a>
+<a href="#3256" id="3256">3256</a>
+<a href="#3257" id="3257">3257</a>
+<a href="#3258" id="3258">3258</a>
+<a href="#3259" id="3259">3259</a>
+<a href="#3260" id="3260">3260</a>
+<a href="#3261" id="3261">3261</a>
+<a href="#3262" id="3262">3262</a>
+<a href="#3263" id="3263">3263</a>
+<a href="#3264" id="3264">3264</a>
+<a href="#3265" id="3265">3265</a>
+<a href="#3266" id="3266">3266</a>
+<a href="#3267" id="3267">3267</a>
+<a href="#3268" id="3268">3268</a>
+<a href="#3269" id="3269">3269</a>
+<a href="#3270" id="3270">3270</a>
+<a href="#3271" id="3271">3271</a>
+<a href="#3272" id="3272">3272</a>
+<a href="#3273" id="3273">3273</a>
+<a href="#3274" id="3274">3274</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3383,6 +3450,8 @@
 &gt;;
 
 <span class="kw">type </span>HirType = Type;
+
+<span class="kw">const </span>MAX_TYPE_COMPLEXITY: usize = <span class="number">100_000</span>;
 
 <span class="doccomment">/// Starting from the given `main` function, monomorphize the entire program,
 /// replacing all references to type variables and NamedGenerics with concrete
@@ -4750,6 +4819,62 @@
         <span class="prelude-val">Ok</span>(expr)
     }
 
+    <span class="doccomment">/// Estimates the complexity of a type.
+    /// This is roughly the number of "nodes" in the type tree.
+    ///
+    /// To prevent stack overflow on deeply nested types, we stop recursion when
+    /// accumulated complexity exceeds MAX_TYPE_COMPLEXITY.
+    </span><span class="kw">fn </span>type_complexity(typ: <span class="kw-2">&amp;</span>HirType) -&gt; usize {
+        <span class="self">Self</span>::type_complexity_inner(typ, <span class="number">0</span>)
+    }
+
+    <span class="kw">fn </span>type_complexity_inner(typ: <span class="kw-2">&amp;</span>HirType, accumulated: usize) -&gt; usize {
+        <span class="comment">// Early return if accumulated complexity exceeds the limit,
+        // this avoids stack overflow due to the recursive nature of this computation
+        </span><span class="kw">if </span>accumulated &gt; MAX_TYPE_COMPLEXITY {
+            <span class="kw">return </span>accumulated + <span class="number">1</span>;
+        }
+
+        <span class="kw">let </span>typ = typ.follow_bindings_shallow();
+        <span class="kw">match </span>typ.as_ref() {
+            HirType::Tuple(fields) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>complexity = accumulated + <span class="number">1</span>;
+                <span class="kw">for </span>field <span class="kw">in </span>fields {
+                    complexity = <span class="self">Self</span>::type_complexity_inner(field, complexity);
+                }
+                complexity
+            }
+            HirType::Array(_len, elem_typ) =&gt; {
+                <span class="self">Self</span>::type_complexity_inner(elem_typ, accumulated + <span class="number">1</span>)
+            }
+            HirType::DataType(_def, generics) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>complexity = accumulated + <span class="number">1</span>;
+                <span class="kw">for </span>generic <span class="kw">in </span>generics {
+                    complexity = <span class="self">Self</span>::type_complexity_inner(generic, complexity);
+                }
+                complexity
+            }
+            HirType::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>complexity = accumulated + <span class="number">1</span>;
+                <span class="kw">for </span>arg <span class="kw">in </span>args {
+                    complexity = <span class="self">Self</span>::type_complexity_inner(arg, complexity);
+                }
+                complexity = <span class="self">Self</span>::type_complexity_inner(ret, complexity);
+                <span class="self">Self</span>::type_complexity_inner(env, complexity)
+            }
+            HirType::Reference(inner, <span class="kw">_</span>) =&gt; <span class="self">Self</span>::type_complexity_inner(inner, accumulated + <span class="number">1</span>),
+            HirType::Alias(<span class="kw">_</span>, generics) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>complexity = accumulated + <span class="number">1</span>;
+                <span class="kw">for </span>generic <span class="kw">in </span>generics {
+                    complexity = <span class="self">Self</span>::type_complexity_inner(generic, complexity);
+                }
+                complexity
+            }
+            <span class="comment">// Simple types
+            </span><span class="kw">_ </span>=&gt; accumulated + <span class="number">1</span>,
+        }
+    }
+
     <span class="doccomment">/// Convert a non-tuple/struct type to a monomorphized type
     </span><span class="kw">pub fn </span>convert_type(
         typ: <span class="kw-2">&amp;</span>HirType,
@@ -4772,6 +4897,15 @@
         location: Location,
         seen_types: <span class="kw-2">&amp;mut </span>HashSet&lt;Type&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Type, MonomorphizationError&gt; {
+        <span class="kw">let </span>complexity = <span class="self">Self</span>::type_complexity(typ);
+        <span class="kw">if </span>complexity &gt; MAX_TYPE_COMPLEXITY {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ComplexType {
+                complexity,
+                max_complexity: MAX_TYPE_COMPLEXITY,
+                location,
+            });
+        }
+
         <span class="kw">let </span>typ = typ.follow_bindings_shallow();
         <span class="prelude-val">Ok</span>(<span class="kw">match </span>typ.as_ref() {
             HirType::FieldElement =&gt; ast::Type::Field,
