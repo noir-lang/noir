@@ -92,21 +92,28 @@ fn validate_brillig_artifact(
         ));
     }
 
-    // all acir functions must only have 1 opcode each
-    for (idx, circuit) in program.bytecode.functions.iter().enumerate() {
-        if circuit.opcodes.len() != 1 {
-            let function_name = if circuit.function_name.is_empty() {
-                format!("function_{idx}")
-            } else {
-                circuit.function_name.clone()
-            };
+    let mut functions = program.bytecode.functions.iter();
 
+    match functions.len() {
+        1 => { /* ok */ }
+        0 => return Err(eyre::eyre!("Program contains no functions.")),
+        _ => {
             return Err(eyre::eyre!(
-                "Cannot profile execution: function '{}' contains ACIR constraints.\n\
-                 Compile with `nargo export --force-brillig` to generate pure Brillig programs.",
-                function_name
+                "Cannot profile execution: program contains multiple functions.\n\
+                 Compile with `nargo export --force-brillig` to generate pure Brillig programs."
             ));
         }
+    }
+
+    let circuit = functions.next().unwrap();
+
+    // Pure brillig functions are represented as ACIR functions with exactly 1 opcode (the brillig call).
+    if circuit.opcodes.len() != 1 {
+        let function_name = &circuit.function_name;
+        return Err(eyre::eyre!(
+            "Cannot profile execution: function '{function_name}' contains ACIR constraints.\n\
+                 Compile with `nargo export --force-brillig` to generate pure Brillig programs.",
+        ));
     }
 
     Ok(())
@@ -164,7 +171,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                 vec![profile_program_execution(program, package_name, &input_file)?]
             }
             Artifact::Contract(_) => {
-                return Err(eyre::eyre!("profile-execution does not support contracts"));
+                unreachable!("profile-execution conflicts with contract-fn argument");
             }
         }
     } else {
