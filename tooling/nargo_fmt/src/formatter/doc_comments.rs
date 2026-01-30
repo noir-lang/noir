@@ -168,8 +168,8 @@ global x: Field = 1;
         global x: Field = 1;
         ";
         let expected = "/** This is a long comment
-that's going to be wrapped.
-*/
+ * that's going to be
+ * wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -182,8 +182,8 @@ global x: Field = 1;
         global x: Field = 1;
         ";
         let expected = "/*! This is a long comment
-that's going to be wrapped.
-*/
+ * that's going to be
+ * wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
