@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769781935931,
+  "lastUpdate": 1769786422511,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a796408a0d6eca324c036e59ac4d5ea1505a50c8",
-          "message": "chore(brillig): Document assumption about Brillig VM input validation (#11299)",
-          "timestamp": "2026-01-26T11:22:58Z",
-          "tree_id": "1d70929adf3e89ec5cb2983ecd8f9f9b9a472641",
-          "url": "https://github.com/noir-lang/noir/commit/a796408a0d6eca324c036e59ac4d5ea1505a50c8"
-        },
-        "date": 1769427899875,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263142,
-            "range": "± 936",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230312,
-            "range": "± 3938",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792994,
-            "range": "± 894",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800847,
             "range": "± 23598",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fdbc5e1666264b8c21889b4e0c24d6b49ebf433d",
+          "message": "fix: error on types that are too big (#11398)",
+          "timestamp": "2026-01-30T14:58:05Z",
+          "tree_id": "3dad4048e74c0fe726c5ac31d8abe3a57e421b4d",
+          "url": "https://github.com/noir-lang/noir/commit/fdbc5e1666264b8c21889b4e0c24d6b49ebf433d"
+        },
+        "date": 1769786383528,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260673,
+            "range": "± 661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230452,
+            "range": "± 584",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2802625,
+            "range": "± 3316",
             "unit": "ns/iter"
           }
         ]
