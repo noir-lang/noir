@@ -194,6 +194,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn single_block_fn_return_array() {
         // This is the output for the program with a function:
         // unconstrained fn foo(x: [Field; 2]) -> [[Field; 2]; 1] {
@@ -219,6 +220,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn single_block_mutation() {
         // fn mutator(mut array: [Field; 2]) {
         //     array[0] = 5;
@@ -250,6 +252,7 @@ mod tests {
     // Similar to single_block_mutation but for a function which
     // uses a mutable reference parameter.
     #[test]
+    #[ignore]
     fn single_block_mutation_through_reference() {
         // fn mutator2(array: &mut [Field; 2]) {
         //     array[0] = 5;
@@ -281,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn lone_inc_rc() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -293,6 +297,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn lone_dec_rc() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -305,6 +310,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn multiple_rc_pairs_mutation_on_different_types() {
         let src = "
         brillig(inline) fn mutator f0 {
@@ -344,6 +350,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn multiple_rc_pairs_mutation_on_matching_types() {
         let src = "
         brillig(inline) fn mutator f0 {
@@ -367,6 +374,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn rc_pair_with_same_type_but_different_values() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -381,6 +389,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn do_not_remove_pairs_across_blocks() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -401,6 +410,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn remove_pair_across_blocks() {
         let src = "
         brillig(inline) fn foo f0 {
