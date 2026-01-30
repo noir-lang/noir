@@ -1236,7 +1236,7 @@ impl NodeInterner {
             method_ids,
             associated_types: vec![],
             associated_type_bounds: Default::default(),
-            name: Ident::new("Dummy".to_string(), Location::dummy()),
+            name: Ident::new("PopulateDummyOperatorTraitsTrait".to_string(), Location::dummy()),
             generics: vec![],
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
