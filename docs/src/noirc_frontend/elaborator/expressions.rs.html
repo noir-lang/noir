@@ -1751,7 +1751,14 @@
 <a href="#1750" id="1750">1750</a>
 <a href="#1751" id="1751">1751</a>
 <a href="#1752" id="1752">1752</a>
-<a href="#1753" id="1753">1753</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a></pre></div><pre class="rust"><code><span class="doccomment">//! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -2276,12 +2283,14 @@
             rhs_type
         } <span class="kw">else </span>{
             <span class="kw">let </span>result = <span class="self">self</span>.prefix_operand_type_rules(<span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
+            <span class="kw">let </span>not_ord = <span class="bool-val">false</span>;
             <span class="self">self</span>.handle_operand_type_rules_result(
                 result,
                 <span class="kw-2">&amp;</span>rhs_type,
                 trait_method_id,
                 <span class="kw-2">*</span>expr_id,
                 location,
+                not_ord,
             )
         };
 
@@ -2983,6 +2992,8 @@
         <span class="kw">let </span>opt_trait_id = <span class="self">self</span>.interner.try_get_operator_trait_method(infix.operator.contents);
 
         <span class="kw">let </span>file = infix.operator.location().file;
+        <span class="kw">let </span>is_ord =
+            infix.operator.contents.is_comparator() &amp;&amp; !infix.operator.contents.is_equality();
         <span class="kw">let </span>operator = HirBinaryOp::new(infix.operator, file);
         <span class="kw">let </span>expr = HirExpression::Infix(HirInfixExpression {
             lhs,
@@ -3000,6 +3011,7 @@
             opt_trait_id,
             <span class="kw-2">*</span>expr_id,
             location,
+            is_ord,
         );
 
         <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
@@ -3017,6 +3029,7 @@
         trait_method_id: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
         expr_id: ExprId,
         location: Location,
+        is_ord: bool,
     ) -&gt; Type {
         <span class="kw">match </span>result {
             <span class="prelude-val">Ok</span>((typ, use_impl)) =&gt; {
@@ -3040,6 +3053,7 @@
                         operand_type,
                         <span class="kw-2">&amp;</span>typ,
                         location,
+                        is_ord,
                     );
                 }
                 typ

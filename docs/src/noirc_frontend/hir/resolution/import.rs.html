@@ -654,7 +654,7 @@
 
 <span class="kw">fn </span>path_segment_to_typed_path_segment(segment: PathSegment) -&gt; TypedPathSegment {
     <span class="macro">assert!</span>(segment.generics.is_none(), <span class="string">"generics should not be present in a use path segment"</span>);
-    TypedPathSegment { ident: segment.ident, generics: <span class="prelude-val">None</span>, location: segment.location }
+    TypedPathSegment::without_generics(segment.ident, segment.location)
 }
 
 <span class="doccomment">/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`

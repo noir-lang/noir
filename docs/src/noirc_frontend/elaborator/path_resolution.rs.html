@@ -1052,7 +1052,11 @@
 <a href="#1051" id="1051">1051</a>
 <a href="#1052" id="1052">1052</a>
 <a href="#1053" id="1053">1053</a>
-<a href="#1054" id="1054">1054</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a></pre></div><pre class="rust"><code><span class="doccomment">//! Path resolution for types, values, and trait methods across modules.
 
 </span><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
@@ -1311,7 +1315,7 @@
     <span class="doccomment">/// Construct a [PathKind::Plain] from a single identifier segment.
     </span><span class="kw">pub fn </span>from_ident(name: Ident) -&gt; TypedPath {
         <span class="kw">let </span>location = name.location();
-        <span class="kw">let </span>segment = TypedPathSegment { ident: name, generics: <span class="prelude-val">None</span>, location };
+        <span class="kw">let </span>segment = TypedPathSegment::without_generics(name, location);
         TypedPath::plain(<span class="macro">vec!</span>[segment], location)
     }
 
@@ -1379,6 +1383,10 @@
 }
 
 <span class="kw">impl </span>TypedPathSegment {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>without_generics(ident: Ident, location: Location) -&gt; TypedPathSegment {
+        TypedPathSegment { ident, generics: <span class="prelude-val">None</span>, location }
+    }
+
     <span class="doccomment">/// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir
