@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769793389605,
+  "lastUpdate": 1769793858906,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "af5a27f5e8be52eb9d71eb3568ecf46ef6867eda",
-          "message": "chore(comptime): Return `UnexpectedZeroedValue` if method called on zeroed `QuotedType` (#11329)",
-          "timestamp": "2026-01-26T16:03:44Z",
-          "tree_id": "90002bef628f86503de2f1622b46a1311ed6e1ad",
-          "url": "https://github.com/noir-lang/noir/commit/af5a27f5e8be52eb9d71eb3568ecf46ef6867eda"
-        },
-        "date": 1769444746893,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263508,
-            "range": "± 403",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230872,
-            "range": "± 5474",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2794855,
-            "range": "± 6713",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800983,
             "range": "± 28226",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8cf160c9893bab2ca377135d415e6942ab7dc051",
+          "message": "fix: add missing unification to `type_check_operator_method` (#11353)",
+          "timestamp": "2026-01-30T17:02:25Z",
+          "tree_id": "bf8b3d256db5d61a575c1072f3e51d0e2f8cb394",
+          "url": "https://github.com/noir-lang/noir/commit/8cf160c9893bab2ca377135d415e6942ab7dc051"
+        },
+        "date": 1769793820025,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259832,
+            "range": "± 1092",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230458,
+            "range": "± 7011",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2802890,
+            "range": "± 7736",
             "unit": "ns/iter"
           }
         ]
