@@ -213,11 +213,9 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     // bug
     "associated_type_bounds",
-    // bug
-    "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -402,6 +400,7 @@ fn test_{test_name}() {{
     let corpus_dir = assert_fs::TempDir::new().unwrap();
     let fuzzing_failure_dir = assert_fs::TempDir::new().unwrap();
     let test_program_dir = PathBuf::from("{test_dir}");
+    #[allow(deprecated)]
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("fuzz").arg("--timeout").arg("{timeout_str}");

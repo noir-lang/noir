@@ -3,6 +3,7 @@
 
 use std::sync::{Arc, OnceLock};
 
+use acir::brillig::lengths::SemanticLength;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
@@ -351,7 +352,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
     match typ {
         AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), *length));
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), SemanticLength(*length)));
         }
         AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
         AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
@@ -369,7 +370,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
             }
         }
         AbiType::String { length } => {
-            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), *length));
+            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), SemanticLength(*length)));
         }
     }
 }

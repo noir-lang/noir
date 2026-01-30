@@ -1,10 +1,18 @@
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{
+            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+        },
+    },
+};
 use iter_extended::vecmap;
 use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::ssa::ssa_gen::SSA_WORD_SIZE;
+use crate::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 
 /// A numeric type in the Intermediate representation
 /// Note: we class NativeField as a numeric type
@@ -144,7 +152,7 @@ pub enum Type {
     Reference(Arc<Type>),
 
     /// An immutable array value with the given element type and length
-    Array(Arc<CompositeType>, u32),
+    Array(Arc<CompositeType>, SemanticLength),
 
     /// An immutable vector value with a given element type
     Vector(Arc<CompositeType>),
@@ -186,7 +194,7 @@ impl Type {
 
     /// Creates the `str<N>` type, of the given length N
     pub fn str(length: u32) -> Type {
-        Type::Array(Arc::new(vec![Type::char()]), length)
+        Type::Array(Arc::new(vec![Type::char()]), SemanticLength(length))
     }
 
     /// Creates the native field type.
@@ -232,17 +240,18 @@ impl Type {
     /// Equivalent to `self.element_types().len()`.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
-    pub(crate) fn element_size(&self) -> usize {
+    pub(crate) fn element_size(&self) -> ElementTypesLength {
         match self {
-            Type::Array(elements, _) | Type::Vector(elements) => elements.len(),
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                ElementTypesLength(assert_u32(elements.len()))
+            }
             other => panic!("element_size: Expected array or vector, found {other}"),
         }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn array_size(&self) -> usize {
+    pub(crate) fn array_size(&self) -> u32 {
         match self {
-            Type::Array(_, size) => *size as usize,
+            Type::Array(_, size) => size.0,
             other => panic!("array_size: Expected array, found {other}"),
         }
     }
@@ -274,22 +283,24 @@ impl Type {
     /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
-    pub(crate) fn flattened_size(&self) -> u32 {
+    pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
-                elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
+                let elements_flattened_length: FlattenedLength =
+                    elements.iter().map(|elem| elem.flattened_size()).sum();
+                ElementsFlattenedLength::from(elements_flattened_length) * *len
             }
             Type::Vector(_) => {
                 unimplemented!("ICE: cannot fetch flattened vector size");
             }
-            _ => 1,
+            _ => FlattenedLength(1),
         }
     }
 
     pub(crate) fn flatten(self) -> Vec<Type> {
         match self {
             Type::Array(elements, len) => {
-                (0..len).flat_map(|_| elements.iter().cloned().flat_map(Type::flatten)).collect()
+                (0..len.0).flat_map(|_| elements.iter().cloned().flat_map(Type::flatten)).collect()
             }
             Type::Vector(_) => {
                 unimplemented!("ICE: cannot flatten slice");
@@ -333,7 +344,7 @@ impl Type {
         match self {
             Type::Numeric(_) | Type::Function => false,
             Type::Vector(_) => false,
-            Type::Array(_, 0) => true,
+            Type::Array(_, SemanticLength(0)) => true,
             Type::Array(element_types, _) => {
                 element_types.iter().any(|typ| typ.contains_an_empty_array())
             }
@@ -442,7 +453,7 @@ mod tests {
     fn flatten_type() {
         let array_typ = Type::Array(
             Arc::new(vec![Type::unsigned(1), Type::field(), Type::field(), Type::unsigned(1)]),
-            2,
+            SemanticLength(2),
         );
         let flat_typ = array_typ.flatten();
 

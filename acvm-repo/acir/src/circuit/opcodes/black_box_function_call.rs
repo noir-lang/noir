@@ -583,11 +583,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
-        use crate::serialization::{bincode_deserialize, bincode_serialize};
+        use crate::serialization::{msgpack_deserialize, msgpack_serialize};
 
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode_serialize(&opcode).unwrap();
-        let recovered_opcode = bincode_deserialize(&buf).unwrap();
+        let buf = msgpack_serialize(&opcode, true).unwrap();
+        let recovered_opcode = msgpack_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }
@@ -624,15 +624,17 @@ mod arb {
             let witness_arr_25 = any::<Box<[Witness; 25]>>();
             let witness_arr_32 = any::<Box<[Witness; 32]>>();
 
-            let case_aes128_encrypt = (
-                input_vec.clone(),
-                input_arr_16.clone(),
-                input_arr_16.clone(),
-                witness_vec.clone(),
-            )
-                .prop_map(|(inputs, iv, key, outputs)| {
-                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
-                });
+            // Input must be a multiple of 16 bytes, and output length must equal input length
+            // Use fixed 16-byte input/output for simplicity
+            let witness_arr_16 = any::<Box<[Witness; 16]>>();
+            let case_aes128_encrypt =
+                (input_arr_16.clone(), input_arr_16.clone(), input_arr_16.clone(), witness_arr_16)
+                    .prop_map(|(inputs, iv, key, outputs)| BlackBoxFuncCall::AES128Encrypt {
+                        inputs: inputs.to_vec(),
+                        iv,
+                        key,
+                        outputs: outputs.to_vec(),
+                    });
 
             let case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
                 |(lhs, rhs, output)| BlackBoxFuncCall::AND {

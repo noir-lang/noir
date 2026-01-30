@@ -5,6 +5,7 @@
 //! trait inheritance, method resolution, impl validation, associated items, and qualified path syntax.
 
 mod trait_aliases;
+mod trait_as_type;
 mod trait_associated_items;
 mod trait_bounds;
 mod trait_default_methods;

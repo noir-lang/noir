@@ -3,6 +3,7 @@ mod tests {
     use std::collections::VecDeque;
 
     // Some of these imports are consumed by the injected tests
+    #[allow(deprecated)]
     use assert_cmd::cargo::cargo_bin;
 
     use rexpect::{session::PtyReplSession, spawn_bash}; // cSpell:disable-line
@@ -11,6 +12,7 @@ mod tests {
     include!(concat!(env!("OUT_DIR"), "/debug.rs"));
 
     fn debugger_execution_success(test_program_dir: &str) {
+        #[allow(deprecated)]
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
@@ -31,6 +33,7 @@ mod tests {
     }
 
     fn debugger_test_success(test_program_dir: &str, test_name: &str) {
+        #[allow(deprecated)]
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
@@ -89,6 +92,7 @@ mod tests {
 
     #[test]
     fn debugger_expected_call_stack() {
+        #[allow(deprecated)]
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 

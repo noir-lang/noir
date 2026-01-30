@@ -30,7 +30,7 @@ error: Global failed to evaluate
   │              ----
   │
 
-error: expected type got global
+error: expected type, found global `BAR`
   ┌─ src/main.nr:2:19
   │
 2 │ global X: [Field; BAR] = [];

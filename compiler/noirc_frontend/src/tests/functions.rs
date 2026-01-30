@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn resolve_empty_function() {
@@ -382,7 +382,7 @@ fn error_on_taking_string_with_non_eval_length() {
     fn main(_s: str<-1>) {
                 ^^^^^^^ Invalid type found in the entry point to a program
                 ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
-                    ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `numeric u32` which has a minimum size of `0`
+                    ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
     }
     "#;
     check_errors(src);
@@ -394,13 +394,28 @@ fn error_on_returning_string_with_non_eval_length() {
     unconstrained fn main() -> pub str<-1> {
                                    ^^^^^^^ Invalid type found in the entry point to a program
                                    ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
-                                       ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `numeric u32` which has a minimum size of `0`
+                                       ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
         negative_str()
     }
 
     #[oracle(negative_str)]
     unconstrained fn negative_str() -> str<-1> {}
-                                           ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `numeric u32` which has a minimum size of `0`
+                                           ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
     "#;
     check_errors(src);
+}
+
+#[test]
+fn invalid_generic_fold_entry_point_input_type() {
+    let src = r#"
+    fn main() {
+        foo(@[1]);
+    }
+
+    #[fold]
+    fn foo<T>(_: T) {}
+              ^ Invalid type found in the entry point to a program
+              ~ Vector is not a valid entry point type. Found: [Field]
+    "#;
+    check_monomorphization_error(src);
 }

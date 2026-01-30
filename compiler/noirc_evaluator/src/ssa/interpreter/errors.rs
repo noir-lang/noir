@@ -1,5 +1,6 @@
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
+    function::FunctionId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
     value::ValueId,
@@ -72,6 +73,8 @@ pub enum InterpreterError {
     IndexOutOfBounds { index: FieldElement, length: u32 },
     #[error("Ran out of budget after executing {steps} steps")]
     OutOfBudget { steps: usize },
+    #[error("Stack overflow in 'fn {} {}'", .call_stack.last().unwrap().1, .call_stack.last().unwrap().0)]
+    StackOverflow { call_stack: Vec<(FunctionId, String)> },
 }
 
 /// These errors can only result from interpreting malformed SSA

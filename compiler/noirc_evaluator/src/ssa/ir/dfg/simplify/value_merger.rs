@@ -1,7 +1,9 @@
-use noirc_errors::call_stack::CallStackId;
+use acvm::acir::brillig::lengths::SemanticLength;
+use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    brillig::assert_u32,
     errors::{RtResult, RuntimeError},
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -18,7 +20,7 @@ pub(crate) struct ValueMerger<'a> {
 
     /// Maps SSA array values with a vector type to their size.
     /// This must be computed before merging values.
-    vector_sizes: &'a HashMap<ValueId, u32>,
+    vector_sizes: &'a HashMap<ValueId, SemanticLength>,
 
     call_stack: CallStackId,
 }
@@ -27,10 +29,20 @@ impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        vector_sizes: &'a HashMap<ValueId, u32>,
+        vector_sizes: &'a HashMap<ValueId, SemanticLength>,
         call_stack: CallStackId,
     ) -> Self {
         ValueMerger { dfg, block, vector_sizes, call_stack }
+    }
+
+    /// Choose a call stack to return with the [RuntimeError].
+    ///
+    /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
+    fn get_call_stack(&self, value: ValueId) -> Vec<Location> {
+        // The value points at one of the problematic references, while the instruction would
+        // point at where we got the if-then-else; it's not clear which one is more useful.
+        let call_stack = self.dfg.get_value_call_stack(value);
+        if call_stack.is_empty() { self.dfg.get_call_stack(self.call_stack) } else { call_stack }
     }
 
     /// Merge two values a and b to a single value.
@@ -39,7 +51,7 @@ impl<'a> ValueMerger<'a> {
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
-    /// It is currently an error to call this function on reference or function values
+    /// Returns an error if called with a function value or a reference or function values
     /// as it is less clear how to merge these.
     pub(crate) fn merge_values(
         &mut self,
@@ -76,13 +88,11 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             ),
             Type::Reference(_) => {
-                // FIXME: none of then_value, else_value, then_condition, or else_condition have
-                // non-empty call stacks
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }
             Type::Function => {
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedFunctionFromDynamicIf { call_stack })
             }
         }
@@ -217,45 +227,33 @@ impl<'a> ValueMerger<'a> {
         };
 
         let flat_element_types_size =
-            element_types.iter().fold(0, |acc, typ| acc + typ.flattened_size());
+            element_types.iter().fold(0u32, |acc, typ| acc + typ.flattened_size().0);
 
         let then_len = self.vector_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
             let (vector, _) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered vector {then_value_id} without a preset size");
             });
-            vector.len() as u32
+            SemanticLength(vector.len() as u32)
         });
 
         let else_len = self.vector_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
             let (vector, _) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered vector {else_value_id} without a preset size");
             });
-            vector.len() as u32
+            SemanticLength(vector.len() as u32)
         });
         let len = then_len.max(else_len);
-        // dbg!(len);
-        // dbg!(flat_element_types_size);
-        let composite_len = len / flat_element_types_size;
-
-        // let flat_types_first: Vec<Type> = element_types.iter().cloned().flat_map(Type::flatten).collect();
-        // // dbg!(flat_types_first.len());
-
-        // let composite_len = if composite_len == 0 { len } else { composite_len };
+        let composite_len = len.0 / flat_element_types_size;
 
         let flat_types: Vec<Type> = (0..composite_len)
             .flat_map(|_| element_types.iter().cloned().flat_map(Type::flatten))
             .collect();
 
-        // dbg!(flat_types.len());
-
         for (my_index, typ) in flat_types.into_iter().enumerate() {
             let index_u32 = my_index as u32;
             let index = self.dfg.make_constant(my_index.into(), NumericType::length_type());
-            if !matches!(typ, Type::Numeric(_) | Type::Reference(_)) {
-                dbg!(typ.clone());
-            }
             assert!(matches!(typ, Type::Numeric(_)) || matches!(typ, Type::Reference(_)));
-            let typevars = Some(vec![typ.clone()]);
+            let typevars = Some(vec![typ]);
 
             let mut get_element = |array, typevars: Option<Vec<Type>>, len| {
                 assert!(index_u32 < len, "get_element invoked with an out of bounds index");
@@ -272,7 +270,7 @@ impl<'a> ValueMerger<'a> {
 
                 let res_typ = self.dfg.type_of_value(res);
                 assert!(
-                    matches!(res_typ, Type::Numeric(_)) | matches!(typ, Type::Reference(_)),
+                    matches!(res_typ, Type::Numeric(_) | Type::Reference(_)),
                     "ICE: Array get is returning a non-numeric type. All arrays in ACIR work upon flat memory. Got {res_typ}"
                 );
                 res
@@ -281,21 +279,21 @@ impl<'a> ValueMerger<'a> {
             // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
             // We can use that value directly as accessing it is always checked against the actual
             // vector length.
-            if index_u32 >= then_len {
-                let else_element = get_element(else_value_id, typevars, else_len);
+            if index_u32 >= then_len.0 {
+                let else_element = get_element(else_value_id, typevars, else_len.0);
                 merged.push_back(else_element);
                 continue;
             }
 
             // Same for if it's out of bounds for the "else" vector.
-            if index_u32 >= else_len {
-                let then_element = get_element(then_value_id, typevars, then_len);
+            if index_u32 >= else_len.0 {
+                let then_element = get_element(then_value_id, typevars, then_len.0);
                 merged.push_back(then_element);
                 continue;
             }
 
-            let then_element = get_element(then_value_id, typevars.clone(), then_len);
-            let else_element = get_element(else_value_id, typevars, else_len);
+            let then_element = get_element(then_value_id, typevars.clone(), then_len.0);
+            let else_element = get_element(else_value_id, typevars, else_len.0);
 
             merged.push_back(self.merge_values(
                 then_condition,

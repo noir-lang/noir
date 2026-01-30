@@ -26,7 +26,7 @@ impl Parser<'_> {
     ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             let noir_trait =
                 empty_trait(attributes, visibility, self.location_since(start_location));
@@ -176,7 +176,7 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
@@ -197,7 +197,7 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();

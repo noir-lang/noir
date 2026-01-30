@@ -1,9 +1,14 @@
 use acvm::AcirField;
+use acvm::acir::brillig::lengths::{
+    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+    SemiFlattenedLength,
+};
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
@@ -99,10 +104,8 @@ impl Context<'_> {
         }
 
         let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-        let output_count: usize = result_ids
-            .iter()
-            .map(|result_id| dfg.type_of_value(*result_id).flattened_size() as usize)
-            .sum();
+        let output_count: FlattenedLength =
+            result_ids.iter().map(|result_id| dfg.type_of_value(*result_id).flattened_size()).sum();
 
         let Some(acir_function_id) = ssa.get_entry_point_index(func_id) else {
             unreachable!(
@@ -195,17 +198,22 @@ impl Context<'_> {
                             // len holds the flattened length of all elements in the vector,
                             // so to get the no-flattened length we need to divide by the flattened
                             // length of a single vector entry
-                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            if sum == 0 { 0 } else { *len / sum as usize }
+                            let sum: FlattenedLength =
+                                item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            if sum.0 == 0 {
+                                SemanticLength(0)
+                            } else {
+                                *len / ElementsFlattenedLength::from(sum)
+                            }
                         }
                         AcirValue::Array(array) => {
                             // The Array may contain a mix of flat Vars and nested Arrays
                             // (e.g. flat scalars + nested [Field; 3]). Use the total flat size
                             // divided by the flat element size to get the logical element count.
                             let flat_size: usize =
-                                array.iter().map(arrays::flattened_value_size).sum();
-                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            if sum == 0 { 0 } else { flat_size / sum as usize }
+                                array.iter().map(|v| arrays::flattened_value_size(v).to_usize()).sum();
+                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size().0).sum();
+                            SemanticLength(if sum == 0 { 0 } else { (flat_size / sum as usize) as u32 })
                         }
                         _ => unreachable!("ICE: Vector value is not an array"),
                     };
@@ -233,7 +241,7 @@ impl Context<'_> {
                 let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
                 let len = if matches!(array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size() as usize
+                    array_typ.flattened_size()
                 } else {
                     arrays::flattened_value_size(&output)
                 };
@@ -292,7 +300,7 @@ impl Context<'_> {
         match result_type {
             Type::Array(elements, size) => {
                 let mut element_values = im::Vector::new();
-                for _ in 0..*size {
+                for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);
                         element_values.push_back(element);

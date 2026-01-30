@@ -216,7 +216,7 @@ impl Parser<'_> {
     }
 
     fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {
-        let Some(ident) = self.eat_ident() else {
+        let Some(ident) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return None;
         };

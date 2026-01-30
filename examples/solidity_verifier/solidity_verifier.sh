@@ -10,7 +10,7 @@ $BACKEND write_vk -b ./target/hello_world.json -o ./target --oracle_hash keccak
 $BACKEND write_solidity_verifier -k ./target/vk -o ./src/contract.sol
 
 # We now generate a proof and check whether the verifier contract will verify it.
-nargo execute --pedantic-solving witness
+nargo execute witness
 
 # Generate proof
 $BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz --oracle_hash keccak -o ./target

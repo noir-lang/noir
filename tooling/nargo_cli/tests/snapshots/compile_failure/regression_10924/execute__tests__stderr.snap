@@ -24,4 +24,14 @@ error: Function expects 2 parameters but 1 was given
    │                 ----
    │
 
-Aborting due to 2 previous errors
+error: Expected type u32, found type ()
+   ┌─ src/main.nr:11:5
+   │  
+11 │ ╭     comptime {
+12 │ │         let f = |a: u32, b: u32| a + b;
+13 │ │         let _ = f(1);
+14 │ │     }
+   │ ╰─────'
+   │  
+
+Aborting due to 3 previous errors

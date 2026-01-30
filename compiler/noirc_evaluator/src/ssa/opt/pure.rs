@@ -1,3 +1,15 @@
+//! Analyzes the purity of each function and tag each function call with that function's purity.
+//! This is purely an analysis pass on its own but can help future optimizations.
+//!
+//! There is no constraint on when this pass needs to be run, but it is generally more
+//! beneficial to perform this pass before inlining or loop unrolling so that it can:
+//! 1. Run faster by processing fewer instructions.
+//! 2. Be run earlier in the pass list so that more passes afterward can use the results of
+//!    this pass.
+//!
+//! Performing this pass after defunctionalization may also help more function calls be
+//! identified as calling known pure functions.
+
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -13,17 +25,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Analyze the purity of each function and tag each function call with that function's purity.
+    /// Analyzes the purity of each function and tag each function call with that function's purity.
     /// This is purely an analysis pass on its own but can help future optimizations.
-    ///
-    /// There is no constraint on when this pass needs to be run, but it is generally more
-    /// beneficial to perform this pass before inlining or loop unrolling so that it can:
-    /// 1. Run faster by processing fewer instructions.
-    /// 2. Be run earlier in the pass list so that more passes afterward can use the results of
-    ///    this pass.
-    ///
-    /// Performing this pass after defunctionalization may also help more function calls be
-    /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
@@ -240,7 +243,7 @@ fn analyze_call_graph(
             // Therefore inserting into func_to_scc here is safe, and there will
             // be no overwrites.
             let inserted = func_to_scc.insert(func, i);
-            debug_assert!(inserted.is_none(), "Function appears in multiple SCCs");
+            assert!(inserted.is_none(), "Function appears in multiple SCCs");
         }
     }
 
@@ -363,7 +366,7 @@ mod tests {
                 v1 = lt v0, u32 1
                 jmpif v1 then: b1, else: b2
               b1():
-                jmp b3(Field 0)
+                jmp b3(u32 0)
               b2():
                 v3 = call f7(v0) -> u32
                 call f6()
@@ -437,7 +440,7 @@ mod tests {
             v3 = lt v0, u32 1
             jmpif v3 then: b1, else: b2
           b1():
-            jmp b3(Field 0)
+            jmp b3(u32 0)
           b2():
             v5 = call f7(v0) -> u32
             call f6()

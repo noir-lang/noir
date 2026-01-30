@@ -106,10 +106,12 @@ fn smoke_test_blake3_hash() {
 ///     let input: [u8; 16] = b.to_le_radix(256);
 ///     let iv: [u8; 16] = b.to_le_radix(256);
 ///     let key: [u8; 16] = b.to_le_radix(256);
-///     Field::from_le_bytes(std::aes128::aes128_encrypt(input, iv, key))
+///     // Note: This calls the blackbox directly with pre-padded input,
+///     // so output size equals input size (16 bytes).
+///     Field::from_le_bytes(aes128_encrypt(input, iv, key))
 /// }
 ///
-/// [nargo_tests] Circuit output: Field(7228449286344697221705732525592563926191809635549234005020486075743434697058)
+/// [nargo_tests] Circuit output: Field(61368827288258104251737371505591052646)
 #[test]
 fn smoke_test_aes128_encrypt() {
     let _ = env_logger::try_init();
@@ -142,10 +144,7 @@ fn smoke_test_aes128_encrypt() {
         false => {
             assert_eq!(
                 result.get_return_witnesses()[0],
-                FieldElement::try_from_str(
-                    "7228449286344697221705732525592563926191809635549234005020486075743434697058"
-                )
-                .unwrap()
+                FieldElement::try_from_str("61368827288258104251737371505591052646").unwrap()
             );
         }
     }

@@ -73,12 +73,12 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     );
 
     // The target size is the source size plus the number of items we are pushing.
+    // Uses checked addition to trap on overflow.
     let target_size = brillig_context.allocate_single_addr_usize();
-    brillig_context.memory_op_instruction(
+    brillig_context.codegen_checked_add(
         source_size.address,
         item_push_count_arg,
         target_size.address,
-        BrilligBinaryOp::Add,
     );
 
     // The strategy is to reallocate first and then depending if it's push back or not, copy the items or not.
@@ -199,11 +199,12 @@ pub(crate) fn reallocate_vector_for_insertion<
                     }
                 });
             } else {
+                // Capacity doubling with overflow protection.
+                // Uses checked multiplication to trap if target_size * 2 > u32::MAX.
                 let double_size = brillig_context.allocate_single_addr_usize();
-                brillig_context.codegen_usize_op(
+                brillig_context.codegen_checked_mul_with_constant(
                     target_size.address,
                     double_size.address,
-                    BrilligBinaryOp::Mul,
                     2_usize,
                 );
 

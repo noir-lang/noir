@@ -17,7 +17,7 @@ pub(super) fn simplify_cast(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
-    debug_assert!(
+    assert!(
         dfg.type_of_value(value).is_numeric(),
         "Can only cast numeric types, got {:?}",
         dfg.type_of_value(value)

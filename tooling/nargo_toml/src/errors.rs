@@ -25,7 +25,7 @@ pub enum ManifestError {
     InvalidPackageType(PathBuf, String),
 
     /// Package manifest is unreadable.
-    #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
+    #[error("Nargo.toml is badly formed, could not parse.\n\n{}", .0.message())]
     MalformedFile(#[from] toml::de::Error),
 
     #[error(
@@ -63,9 +63,6 @@ pub enum ManifestError {
     #[error("Package `{0}` has type `bin` but you cannot depend on binary packages")]
     BinaryDependency(CrateName),
 
-    #[error("Missing `name` field in {toml}")]
-    MissingNameField { toml: PathBuf },
-
     #[error("No common ancestor between {root} and {current}")]
     NoCommonAncestor { root: PathBuf, current: PathBuf },
 
@@ -74,9 +71,6 @@ pub enum ManifestError {
 
     #[error("Cyclic package dependency found when processing {cycle}")]
     CyclicDependency { cycle: String },
-
-    #[error("Failed to parse expression width with the following error: {0}")]
-    ParseExpressionWidth(String),
 }
 
 #[allow(clippy::enum_variant_names)]

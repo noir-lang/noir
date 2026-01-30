@@ -18,13 +18,9 @@ type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
 
 #[derive(Default)]
 // pedantic_solving: bool
-pub struct Bn254BlackBoxSolver(pub bool);
+pub struct Bn254BlackBoxSolver;
 
 impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
-    fn pedantic_solving(&self) -> bool {
-        self.0
-    }
-
     fn multi_scalar_mul(
         &self,
         points: &[FieldElement],

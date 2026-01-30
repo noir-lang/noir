@@ -208,7 +208,7 @@ mod test_as_typed_expr_4 {
             let bar_q = quote {
             bar
         };
-            foo(bar_q.as_expr().unwrap().resolve(Option::none()))
+            foo!(bar_q.as_expr().unwrap().resolve(Option::none()))
         };
         x
     }

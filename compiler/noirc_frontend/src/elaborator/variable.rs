@@ -11,6 +11,7 @@ use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
@@ -67,10 +68,24 @@ impl Elaborator<'_> {
             // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
+                // Extract the declared numeric type from the type alias's kind.
+                let declared_type = match type_alias.borrow().typ.kind() {
+                    Kind::Numeric(declared_type) => declared_type,
+                    _ => Box::new(Type::Error),
+                };
+                let declared_type = *declared_type;
+                let expr_location = type_alias.borrow().location;
                 let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                let expr = Expression::new(expr, type_alias.borrow().location);
+                let expr = Expression::new(expr, expr_location);
                 let (id, typ) = self.elaborate_expression(expr);
-                return (id, typ, false, location);
+                // Unify the expression's type with the declared type from the type alias
+                // to ensure proper type checking.
+                self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: declared_type.to_string(),
+                    expr_typ: typ.to_string(),
+                    expr_location,
+                });
+                return (id, declared_type, false, location);
             }
         }
 
@@ -114,6 +129,13 @@ impl Elaborator<'_> {
             // and if the turbofish operator was used.
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
+            if let Some(unused_resolved_turbofish) = resolved_turbofish {
+                let message = format!(
+                    "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
+                );
+                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+            }
+
             None
         };
 
@@ -133,7 +155,8 @@ impl Elaborator<'_> {
         (id, typ, is_comptime_local, location)
     }
 
-    /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
+    /// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
+    /// `Self::AssociatedType::method_name` when we are inside a trait impl and `Self`
     /// resolves to a primitive type.
     ///
     /// In the first case we elaborate this as if it were a [TypePath]
@@ -142,11 +165,15 @@ impl Elaborator<'_> {
     ///
     /// In the second case we solve the associated constant by looking up its value, later
     /// turning it into a literal.
+    ///
+    /// In the third case, we resolve the associated type first, then elaborate the method
+    /// call on that resolved type.
     fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
-        if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
+        // We need at least 2 segments and the first must be `Self`
+        if variable.segments.len() < 2 || !variable.segments[0].ident.is_self_type_name() {
             return None;
         }
 
@@ -155,7 +182,32 @@ impl Elaborator<'_> {
         let self_type = self.self_type.as_ref()?;
         let trait_impl_id = &self.current_trait_impl?;
 
-        // Check the `Self::AssociatedConstant` case when inside a trait impl
+        // Check for `Self::AssociatedType::method_name` (exactly 3 segments).
+        // Longer paths like `Self::AssocType::foo::bar` are not valid since associated types
+        // resolve to concrete types and you cannot chain further path segments after a method name.
+        if variable.segments.len() == 3 {
+            // Try to resolve the second segment as an associated type
+            if let Some(assoc_type) =
+                self.interner.find_associated_type_for_impl(*trait_impl_id, name).cloned()
+            {
+                let method_ident = variable.segments[2].ident.clone();
+                let typ_location = variable.segments[1].location;
+                // Extract already-resolved turbofish generics from the path segment
+                let resolved_generics = variable.segments[2].generics.as_ref().map(|generics| {
+                    generics.iter().map(|located| located.contents.clone()).collect()
+                });
+                return Some(self.elaborate_type_path_impl_with_resolved_generics(
+                    assoc_type,
+                    method_ident,
+                    resolved_generics,
+                    typ_location,
+                ));
+            }
+            // If it's not an associated type, fall through to let regular path resolution handle it
+            return None;
+        }
+
+        // Check the `Self::AssociatedConstant` case when inside a trait impl (2 segments)
         if let Some((definition_id, numeric_type)) =
             self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
         {
@@ -165,7 +217,21 @@ impl Elaborator<'_> {
             return Some((id, numeric_type));
         }
 
-        // Check the `Self::method_name` case when `Self` is a primitive type
+        // Check if the constant exists in the trait definition (even if impl is missing it).
+        // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
+        // since the "missing associated constant" error is reported elsewhere.
+        let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+        let trait_id = trait_impl.borrow().trait_id;
+        let trait_ = self.interner.get_trait(trait_id);
+        if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
+            let numeric_type = self.interner.definition_type(definition_id);
+            let hir_ident = HirIdent::non_trait_method(definition_id, location);
+            let hir_expr = HirExpression::Ident(hir_ident, None);
+            let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+            return Some((id, numeric_type));
+        }
+
+        // Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
         if matches!(self.self_type, Some(Type::DataType(..))) {
             return None;
         }
@@ -302,7 +368,8 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
         }
     }
 
@@ -315,6 +382,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
+    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
@@ -344,6 +412,49 @@ impl Elaborator<'_> {
 
         let generics =
             turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, ident_location).0);
+
+        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, generics)
+    }
+
+    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
+    /// Used when the turbofish generics have already been resolved.
+    fn elaborate_type_path_impl_with_resolved_generics(
+        &mut self,
+        typ: Type,
+        ident: Ident,
+        resolved_generics: Option<Vec<Type>>,
+        typ_location: Location,
+    ) -> (ExprId, Type) {
+        let ident_location = ident.location();
+        let check_self_param = false;
+
+        self.interner.push_type_ref_location(&typ, typ_location);
+
+        let Some(method) = self.lookup_method(
+            &typ,
+            ident.as_str(),
+            ident_location,
+            typ_location,
+            check_self_param,
+        ) else {
+            let error = Expression::new(ExpressionKind::Error, ident_location);
+            return self.elaborate_expression(error);
+        };
+
+        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, resolved_generics)
+    }
+
+    /// Common implementation for type path impl variants.
+    fn elaborate_type_path_impl_inner(
+        &mut self,
+        _typ_location: Location,
+        ident_location: Location,
+        method: HirMethodReference,
+        generics: Option<Vec<Type>>,
+    ) -> (ExprId, Type) {
+        let func_id = method
+            .func_id(self.interner)
+            .expect("Expected trait function to be a DefinitionKind::Function");
 
         let id = self.interner.function_definition_id(func_id);
 
@@ -475,7 +586,7 @@ impl Elaborator<'_> {
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
-        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+        let t = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.try_definition(ident.id);
         let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
@@ -501,11 +612,8 @@ impl Elaborator<'_> {
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(**expr_id, trait_impl);
             } else {
-                self.push_trait_constraint(
-                    method.constraint,
-                    **expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
+                // this constraint should lead to choosing a trait impl method
+                self.push_trait_constraint(method.constraint, **expr_id, true);
             }
         }
 
@@ -546,10 +654,8 @@ impl Elaborator<'_> {
                 {
                     constraint.apply_bindings(&bindings);
 
-                    self.push_trait_constraint(
-                        constraint, **expr_id,
-                        false, // This constraint shouldn't lead to choosing a trait impl method
-                    );
+                    // This constraint shouldn't lead to choosing a trait impl method
+                    self.push_trait_constraint(constraint, **expr_id, false);
                 }
             }
         }
@@ -567,6 +673,37 @@ impl Elaborator<'_> {
 
         self.interner.store_instantiation_bindings(**expr_id, bindings);
         typ
+    }
+
+    /// If the type of the [HirIdent] is a function that returns an `impl Trait`,
+    /// then it might need elaboration before it can be substituted to a [Type].
+    /// Try to elaborate it now.
+    ///
+    /// Returns a type error if the callee cannot be resolved on a second try,
+    /// which indicates a dependency cycle.
+    fn type_substitute_trait_as_type(&mut self, ident: &HirIdent) -> Type {
+        let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id) {
+            Ok(typ) => return typ,
+            Err(func_id) => func_id,
+        };
+
+        // Try to elaborate, so we get an expression for the body.
+        self.elaborate_function(func_id);
+
+        // Now try again. If it's still not working, give up.
+        match self.interner.id_type_substitute_trait_as_type(ident.id) {
+            Ok(typ) => typ,
+            Err(_) => {
+                let def = self.interner.definition(ident.id);
+                self.push_err(ResolverError::DependencyCycle {
+                    location: ident.location,
+                    item: def.name.clone(),
+                    cycle: "'impl Trait' could not be resolved to the type of the function body"
+                        .to_string(),
+                });
+                Type::Error
+            }
+        }
     }
 
     /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially

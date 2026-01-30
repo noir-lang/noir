@@ -156,10 +156,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 return None;
             };
             // Retain the lower 'width' bits
-            debug_assert!(
-                *width <= 128,
-                "We don't currently support unsigned integers larger than u128"
-            );
+            assert!(*width <= 128, "We don't currently support unsigned integers larger than u128");
             let mut uint_cast = f.to_u128();
             if *width != 128 {
                 uint_cast &= (1 << width) - 1;

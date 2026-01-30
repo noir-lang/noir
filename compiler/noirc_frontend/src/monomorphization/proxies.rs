@@ -13,7 +13,7 @@
 //! dispatch functions for them in the `defunctionalize` pass.
 //!
 //! The pass also automatically wraps direct calls to oracle functions from constrained functions,
-//! which, after creating wrapper for function values, would only present an inconvenience for users
+//! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
 use std::collections::HashMap;
@@ -22,7 +22,6 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir_def::function::FunctionSignature,
     monomorphization::{
         ast::{
             Call, Definition, Expression, FuncId, Function, Ident, IdentId, InlineType, LocalId,
@@ -86,7 +85,7 @@ impl ProxyContext {
             // Note that if we see a function in `Call::func` then it will be an `Ident`, not a `Tuple`,
             // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
-            // If this is a direct from ACIR to an Oracle, we want to create a proxy.
+            // If this is a direct call from ACIR to an Oracle, we want to create a proxy.
             if !self.in_unconstrained {
                 if let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
@@ -120,7 +119,7 @@ impl ProxyContext {
     /// Get or create a replacement proxy for the function definition in the [Ident],
     /// and replace the definition with the ID of the new global proxy function.
     fn redirect_to_proxy(&mut self, ident: &mut Ident, mut unconstrained: bool) {
-        // If we are calling an oracle, there is no reason to create an unconstrained proxy,
+        // If we are calling an oracle, there is no reason to create a constrained proxy,
         // since such a call would be rejected by the SSA validation.
         unconstrained |= matches!(ident.definition, Definition::Oracle(_));
 
@@ -237,9 +236,6 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         (id, mutable, name, typ, vis)
     });
 
-    // The function signature only matters for entry points.
-    let func_sig = FunctionSignature::default();
-
     let call = {
         let func = Ident {
             id: next_ident_id(),
@@ -280,16 +276,13 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,
-        func_sig,
+        is_entry_point: false, // This only matters for creating artifacts
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
-        test_utils::{get_monomorphized, get_monomorphized_with_error_filter},
-    };
+    use crate::test_utils::{GetProgramOptions, get_monomorphized, get_monomorphized_with_options};
 
     #[test]
     fn creates_proxies_for_acir_to_oracle_calls() {
@@ -367,15 +360,10 @@ mod tests {
         }
         ";
 
-        let program = get_monomorphized_with_error_filter(src, |err| {
-            matches!(
-                err,
-                // Ignore the error about creating a builtin function.
-                CompilationError::ResolverError(
-                    ResolverError::LowLevelFunctionOutsideOfStdlib { .. }
-                )
-            )
-        })
+        let program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+        )
         .unwrap();
 
         insta::assert_snapshot!(program, @r"

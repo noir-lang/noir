@@ -36,6 +36,7 @@ const-str = "^0.6.2"
 # so that we can enable the js feature in getrandom.
 getrandom = { workspace = true, features = ["wasm_js"] }
 getrandom_v2 = { package = "getrandom", version = "^0.2.0", features = ["js"] }
+getrandom_v4 = { package = "getrandom", version = "0.4.0-rc.0", features = ["wasm_js"] }
 
 [build-dependencies]
 build-data.workspace = true

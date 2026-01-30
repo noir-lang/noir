@@ -100,6 +100,7 @@
 
 use std::collections::hash_map::Entry;
 
+use acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
 use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
 
@@ -107,6 +108,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -167,7 +169,7 @@ struct Context {
     /// Note: as this pass operates on a single block, which is an entry block,
     /// and because vectors are disallowed in entry blocks, all vector lengths
     /// should be known at this point.
-    vector_sizes: HashMap<ValueId, u32>,
+    vector_sizes: HashMap<ValueId, SemanticLength>,
 }
 
 impl Context {
@@ -176,6 +178,15 @@ impl Context {
     /// through intrinsic calls and array set instructions.
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
+
+        // Early return if there is no IfElse instruction.
+        if !function.dfg[block]
+            .instructions()
+            .iter()
+            .any(|inst| matches!(function.dfg[*inst], Instruction::IfElse { .. }))
+        {
+            return Ok(());
+        }
 
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
@@ -241,45 +252,10 @@ impl Context {
 
                         // self.vector_constant_size_override(context.dfg, intrinsic, arguments);
 
-                        // dbg!(element_stride);
-                        match self.vector_capacity_change(
-                            context.dfg,
-                            intrinsic,
-                            arguments,
-                            results,
-                        ) {
-                            SizeChange::None => (),
-                            SizeChange::SetTo { old, new } => {
-                                self.set_capacity(context.dfg, old, new, |c| c);
-                            }
-                            SizeChange::Inc { old, new } => {
-                                let element_stride: u32 = context
-                                    .dfg
-                                    .type_of_value(old)
-                                    .element_types()
-                                    .iter()
-                                    .map(|elem| elem.flattened_size())
-                                    .sum();
-                                self.set_capacity(context.dfg, old, new, |c| {
-                                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                                    c.checked_add(element_stride).expect("Vector capacity overflow")
-                                });
-                            }
-                            SizeChange::Dec { old, new } => {
-                                let element_stride: u32 = context
-                                    .dfg
-                                    .type_of_value(old)
-                                    .element_types()
-                                    .iter()
-                                    .map(|elem| elem.flattened_size())
-                                    .sum();
-                                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
-                                // would otherwise underflow.
-                                self.set_capacity(context.dfg, old, new, |c| {
-                                    c.saturating_sub(element_stride)
-                                });
-                            }
-                        }
+                        let size_change =
+                            self.vector_capacity_change(context.dfg, intrinsic, arguments, results);
+
+                        self.change_size(size_change, context);
                     }
                 }
                 // Track vector sizes through array set instructions
@@ -293,13 +269,58 @@ impl Context {
         })
     }
 
+    fn change_size(&mut self, size_change: SizeChange, context: &mut SimpleOptimizationContext) {
+        match size_change {
+            SizeChange::None => (),
+            SizeChange::SetTo { old, new } => {
+                self.set_capacity(context.dfg, old, new, |c| c);
+            }
+            SizeChange::Inc { old, new } => {
+                let element_stride: u32 = context
+                    .dfg
+                    .type_of_value(old)
+                    .element_types()
+                    .iter()
+                    .map(|elem| elem.flattened_size())
+                    .sum::<FlattenedLength>()
+                    .0;
+                self.set_capacity(context.dfg, old, new, |c| {
+                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
+                    SemanticLength(
+                        c.0.checked_add(element_stride).expect("Vector capacity overflow"),
+                    )
+                });
+            }
+            SizeChange::Dec { old, new } => {
+                let element_stride: u32 = context
+                    .dfg
+                    .type_of_value(old)
+                    .element_types()
+                    .iter()
+                    .map(|elem| elem.flattened_size())
+                    .sum::<FlattenedLength>()
+                    .0;
+                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
+                // would otherwise underflow.
+                self.set_capacity(context.dfg, old, new, |c| {
+                    SemanticLength(c.0.saturating_sub(element_stride))
+                });
+            }
+            SizeChange::Many(changes) => {
+                for change in changes {
+                    self.change_size(change, context);
+                }
+            }
+        }
+    }
+
     /// Set the capacity of the new vector based on the capacity of the old array/vector.
     fn set_capacity(
         &mut self,
         dfg: &DataFlowGraph,
         old: ValueId,
         new: ValueId,
-        f: impl Fn(u32) -> u32,
+        f: impl Fn(SemanticLength) -> SemanticLength,
     ) {
         // No need to store the capacity of arrays, only vectors.
         if !matches!(dfg.type_of_value(new), Type::Vector(_)) {
@@ -318,7 +339,7 @@ impl Context {
     }
 
     /// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> SemanticLength {
         match self.vector_sizes.entry(value) {
             Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
@@ -350,8 +371,28 @@ impl Context {
             | Intrinsic::VectorRemove
             | Intrinsic::VectorPopFront => {
                 if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
-                    self.vector_sizes
-                        .insert(arguments[1], const_len.try_to_u32().expect("Type should be u32"));
+                    self.vector_sizes.insert(
+                        arguments[1],
+                        SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                    );
+                }
+            }
+            Intrinsic::Hint(Hint::BlackBox) => {
+                // Try to set the length of any vector argument to be that of the preceding constant.
+                let arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+
+                for (i, argument) in arguments.iter().enumerate().skip(1) {
+                    if !matches!(arguments_types[i], Type::Vector(_)) {
+                        continue;
+                    }
+                    assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                    if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
+                        self.vector_sizes.insert(
+                            *argument,
+                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                        );
+                    }
                 }
             }
             _ => {}
@@ -418,20 +459,19 @@ impl Context {
                     arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
                 let results_types =
                     results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+
                 assert_eq!(arguments_types, results_types);
-                let old =
-                    *arguments.last().expect("expected at least one argument to Hint::BlackBox");
-                if self.vector_sizes.contains_key(&old) {
-                    if arguments.len() != 1 {
-                        assert!(arguments.len() == 2);
-                        assert!(matches!(arguments_types[0], Type::Numeric(_)));
+
+                let mut changes = Vec::new();
+                for (i, argument) in arguments.iter().enumerate() {
+                    if matches!(arguments_types[i], Type::Vector(_)) {
+                        assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                        let new = results[i];
+                        changes.push(SizeChange::SetTo { old: *argument, new });
                     }
-                    assert!(matches!(arguments_types.last().unwrap(), Type::Vector(_)));
-                    let new = *results.last().unwrap();
-                    SizeChange::SetTo { old, new }
-                } else {
-                    SizeChange::None
                 }
+
+                SizeChange::Many(changes)
             }
 
             // These cases don't affect vector capacities
@@ -471,6 +511,7 @@ enum SizeChange {
         old: ValueId,
         new: ValueId,
     },
+    Many(Vec<SizeChange>),
 }
 
 #[cfg(debug_assertions)]
@@ -484,15 +525,12 @@ fn remove_if_else_pre_check(func: &Function) {
 
         for instruction_id in instruction_ids {
             if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
-                assert!(
-                    func.dfg.instruction_results(*instruction_id).iter().all(|value| {
-                        matches!(
-                            func.dfg.type_of_value(*value),
-                            Type::Array(_, _) | Type::Vector(_)
-                        )
-                    }),
-                    "IfElse instruction returns unexpected type"
-                );
+                // We generally expect that all the results at this point will be either arrays or vectors,
+                // however the flattening makes no guarantee of this: if it needs to merge references or functions
+                // it will do so using IfElse. The ValueMerger already returns appropriate RuntimeErrors to point
+                // at the problem, so we don't assert this expectation.
+
+                // We do expect that numeric values are not used though.
                 let typ = func.dfg.type_of_value(*then_value);
                 assert!(
                     !matches!(typ, Type::Numeric(_)),

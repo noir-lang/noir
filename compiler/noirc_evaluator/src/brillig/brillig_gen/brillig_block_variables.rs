@@ -10,14 +10,20 @@
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-use acvm::FieldElement;
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    brillig::brillig_ir::{
-        BrilligContext,
-        brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
-        registers::{Allocated, RegisterAllocator},
+    brillig::{
+        assert_u32,
+        brillig_ir::{
+            BrilligContext,
+            brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
+            registers::{Allocated, RegisterAllocator},
+        },
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -80,7 +86,7 @@ impl BlockVariables {
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -105,7 +111,7 @@ impl BlockVariables {
     pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -117,8 +123,8 @@ impl BlockVariables {
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        function_context: &FunctionContext,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
 
@@ -145,7 +151,7 @@ impl BlockVariables {
     /// * the variable is not in [Self::available_variables], which means it is no longer live
     /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     pub(crate) fn get_allocation(
-        &mut self,
+        &self,
         function_context: &FunctionContext,
         value_id: ValueId,
     ) -> BrilligVariable {
@@ -164,14 +170,17 @@ impl BlockVariables {
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
-    item_typ.len() * elem_count
+pub(crate) fn compute_array_length(
+    item_typ: &CompositeType,
+    elem_count: SemanticLength,
+) -> SemiFlattenedLength {
+    ElementTypesLength(assert_u32(item_typ.len())) * elem_count
 }
 
 /// For a given [ValueId], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> Allocated<BrilligVariable, Registers> {
     let typ = dfg.type_of_value(value_id);
@@ -181,7 +190,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 
 /// For a given [Type], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     typ: Type,
 ) -> Allocated<BrilligVariable, Registers> {
     match typ {
@@ -189,7 +198,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context
-            .allocate_brillig_array(compute_array_length(&item_typ, elem_count as usize))
+            .allocate_brillig_array(compute_array_length(&item_typ, elem_count))
             .map(BrilligVariable::BrilligArray),
         Type::Vector(_) => {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)

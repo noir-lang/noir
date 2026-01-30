@@ -1,3 +1,4 @@
+use acvm::acir::brillig::lengths::SemanticLength;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType as SsaNumericType, Type as SsaType};
@@ -236,7 +237,7 @@ impl From<SsaType> for Type {
             }
             SsaType::Array(element_types, length) => Type::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
-                length,
+                length.0,
             ),
             SsaType::Reference(element_type) => {
                 Type::Reference(Arc::new((*element_type).clone().into()))
@@ -255,7 +256,7 @@ impl From<Type> for SsaType {
             Type::Numeric(numeric_type) => SsaType::Numeric(numeric_type.into()),
             Type::Array(element_types, length) => SsaType::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
-                length,
+                SemanticLength(length),
             ),
             Type::Reference(element_type) => {
                 SsaType::Reference(Arc::new((*element_type).clone().into()))

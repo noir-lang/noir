@@ -10,6 +10,7 @@ use crate::{
     },
     parser::ParserError,
     signed_field::SignedField,
+    token::Token,
 };
 use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -25,6 +26,10 @@ pub enum InterpreterError {
     TypeMismatch {
         expected: String,
         actual: Type,
+        location: Location,
+    },
+    UnexpectedZeroedValue {
+        expected: String,
         location: Location,
     },
     NonComptimeVarReferenced {
@@ -92,14 +97,16 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
-    NonIntegerArrayLength {
-        typ: Type,
-        err: Option<Box<TypeCheckError>>,
+    InvalidArrayLength {
+        err: Box<TypeCheckError>,
         location: Location,
     },
-    NonIntegerAssociatedConstant {
-        typ: Type,
-        err: Option<Box<TypeCheckError>>,
+    InvalidAssociatedConstant {
+        err: Box<TypeCheckError>,
+        location: Location,
+    },
+    InvalidNumericGeneric {
+        err: Box<TypeCheckError>,
         location: Location,
     },
     NonNumericCasted {
@@ -290,6 +297,13 @@ pub enum InterpreterError {
         location: Location,
         call_stack: im::Vector<Location>,
     },
+    AttributeRecursionLimitExceeded {
+        location: Location,
+    },
+    UnexpectedEscapedTokenInQuote {
+        token: Option<Token>,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -316,7 +330,7 @@ impl InterpreterError {
             self,
             InterpreterError::Break
                 | InterpreterError::Continue
-                | InterpreterError::SkippedDueToEarlierErrors { .. }
+                | InterpreterError::SkippedDueToEarlierErrors
         )
     }
 
@@ -324,6 +338,7 @@ impl InterpreterError {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
+            | InterpreterError::UnexpectedZeroedValue { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
             | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
@@ -340,8 +355,9 @@ impl InterpreterError {
             | InterpreterError::NonArrayIndexed { location, .. }
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
-            | InterpreterError::NonIntegerArrayLength { location, .. }
-            | InterpreterError::NonIntegerAssociatedConstant { location, .. }
+            | InterpreterError::InvalidArrayLength { location, .. }
+            | InterpreterError::InvalidAssociatedConstant { location, .. }
+            | InterpreterError::InvalidNumericGeneric { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -385,7 +401,9 @@ impl InterpreterError {
             | InterpreterError::GlobalCouldNotBeResolved { location }
             | InterpreterError::StackOverflow { location, .. }
             | InterpreterError::EvaluationDepthOverflow { location, .. }
-            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
+            | InterpreterError::CheckedTransmuteFailed { location, .. }
+            | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
+            | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -430,6 +448,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::TypeMismatch { expected, actual, location } => {
                 let msg = format!("Expected `{expected}` but a value of type `{actual}` was given");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::UnexpectedZeroedValue { expected, location } => {
+                let msg = format!("Expected a concrete `{expected}` but a zeroed value was given");
+                let secondary = format!(
+                    "A zeroed value of `{expected}` may be created to satisfy the type system, but it's not expected to be used"
+                );
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
@@ -517,26 +542,19 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerArrayLength { typ, err, location } => {
-                let msg = format!("Non-integer array length: `{typ}`");
-                let secondary = if let Some(err) = err {
-                    format!(
-                        "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
-                    )
-                } else {
-                    "Array lengths must be integers".to_string()
-                };
+            InterpreterError::InvalidArrayLength { err, location } => {
+                let msg = "Invalid array length".to_string();
+                let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerAssociatedConstant { typ, err, location } => {
-                let msg = format!("Non-integer associated constant: `{typ}`");
-                let secondary = if let Some(err) = err {
-                    format!(
-                        "Associated constants must be integers, but evaluating `{typ}` resulted in `{err}`"
-                    )
-                } else {
-                    "Associated constants must be integers".to_string()
-                };
+            InterpreterError::InvalidAssociatedConstant { err, location } => {
+                let msg = "Invalid associated constant".to_string();
+                let secondary = err.to_string();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
+            InterpreterError::InvalidNumericGeneric { err, location } => {
+                let msg = "Invalid numeric generic".to_string();
+                let secondary = err.to_string();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonNumericCasted { typ, location } => {
@@ -826,6 +844,21 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     *location,
                 );
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+            }
+            InterpreterError::AttributeRecursionLimitExceeded { location } => {
+                CustomDiagnostic::simple_error(
+                    "Attribute recursion limit exceeded".to_string(),
+                    "This attribute generates code with the same attribute, causing infinite recursion".to_string(),
+                    *location,
+                )
+            }
+            InterpreterError::UnexpectedEscapedTokenInQuote { token, location } => {
+                let primary = match token {
+                    Some(token) => format!("`{token}` cannot be escaped in quoted expressions"),
+                    None => "Unexpected end of input after escape character in quoted expression".to_string(),
+                };
+                let secondary = "Only `$` may be escaped in `quote` expressions".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
             }
         }
     }

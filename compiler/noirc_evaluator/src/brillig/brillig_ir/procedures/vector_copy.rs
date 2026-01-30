@@ -1,11 +1,14 @@
 use acvm::{AcirField, brillig_vm::offsets};
 
 use super::ProcedureId;
-use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext,
-    brillig_variable::BrilligVector,
-    debug_show::DebugToString,
-    registers::{RegisterAllocator, ScratchSpace},
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{
+        BrilligBinaryOp, BrilligContext,
+        brillig_variable::BrilligVector,
+        debug_show::DebugToString,
+        registers::{RegisterAllocator, ScratchSpace},
+    },
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -53,7 +56,7 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             ctx.codegen_usize_op_in_place(
                 allocation_size.address,
                 BrilligBinaryOp::Add,
-                offsets::VECTOR_META_COUNT,
+                assert_usize(offsets::VECTOR_META_COUNT),
             );
             ctx.codegen_allocate_mem(target_vector.pointer, allocation_size.address);
 

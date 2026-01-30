@@ -83,11 +83,7 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
             args.compile_options.force_brillig,
             "Internal CLI Error: --force-brillig must be active when --profile-execution is active"
         );
-        profile_brillig_execution(
-            binary_packages,
-            &args.prover_name,
-            args.compile_options.pedantic_solving,
-        )?
+        profile_brillig_execution(binary_packages, &args.prover_name)?
     } else {
         binary_packages
             .into_iter()
@@ -108,7 +104,6 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
 fn profile_brillig_execution(
     binary_packages: Vec<(Package, ProgramArtifact)>,
     prover_name: &str,
-    pedantic_solving: bool,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
@@ -122,7 +117,7 @@ fn profile_brillig_execution(
         let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
             &program_artifact.bytecode,
             initial_witness,
-            &Bn254BlackBoxSolver(pedantic_solving),
+            &Bn254BlackBoxSolver,
             &mut DefaultForeignCallBuilder::default().build(),
         )
         .map_err(|e| {

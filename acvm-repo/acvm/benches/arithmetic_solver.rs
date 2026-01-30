@@ -72,7 +72,7 @@ fn bench_bytecode<F: AcirField>(c: &mut Criterion, benchmark_name: &str, bytecod
         b.iter_batched(
             || {
                 let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), F::one())]));
-                ACVM::new(&StubbedBlackBoxSolver(true), bytecode, initial_witness, &[], &[])
+                ACVM::new(&StubbedBlackBoxSolver, bytecode, initial_witness, &[], &[])
             },
             |mut vm| {
                 let status = vm.solve();

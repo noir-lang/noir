@@ -96,3 +96,43 @@ fn errors_if_using_alias_in_import() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn private_use_reexports_that_comes_later() {
+    let src = r#"
+    mod history {
+        use crate::note::Note;
+
+        pub fn foo() {
+            let _ = Note {};
+        }
+    }
+    mod note {
+        mod retrieved_history {
+            pub struct Note {}
+        }
+        pub use retrieved_history::Note;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn pub_use_reexports_that_comes_later() {
+    let src = r#"
+    mod history {
+        pub use crate::note::Note;
+    }
+    mod note {
+        mod retrieved_history {
+            pub struct Note {}
+        }
+        pub use retrieved_history::Note;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

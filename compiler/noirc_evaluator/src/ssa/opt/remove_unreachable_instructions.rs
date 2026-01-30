@@ -126,24 +126,27 @@
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        function::{Function, FunctionId},
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::{Function, FunctionId},
+            instruction::{
+                Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
+                binary::{BinaryEvaluationResult, eval_constant_binary_op},
+            },
+            types::{NumericType, Type},
+            value::{Value, ValueId},
         },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+        opt::simple_optimization::SimpleOptimizationContext,
+        ssa_gen::Ssa,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -305,19 +308,24 @@ impl Function {
                             else {
                                 return;
                             };
-                            // The index check expects `len` to be the logical length, like for arrays,
-                            // not the flattened size, so we need to divide by the number of items.
-                            (elements.len() / typ.element_size()) as u32
+                            // With flattened arrays, elements.len() is the fully flattened count.
+                            // Divide by the flattened element stride to get the semantic length.
+                            let flat_element_stride: u32 = typ
+                                .element_types()
+                                .iter()
+                                .map(|e| e.flattened_size().0)
+                                .sum();
+                            SemanticLength(assert_u32(elements.len()) / flat_element_stride)
                         }
                         _ => return,
                     };
 
                     let elements = array_type.element_types();
                     let flat_types_size: u32 =
-                        elements.iter().map(|element| element.flattened_size()).sum();
-                    let array_op_always_fails = len == 0
+                        elements.iter().map(|element| element.flattened_size().0).sum();
+                    let array_op_always_fails = len.0 == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap()) >= (flat_types_size * len)
+                            (index.try_to_u32().unwrap()) >= (flat_types_size * len.0)
                         });
                     if !array_op_always_fails {
                         return;
@@ -462,7 +470,7 @@ fn zeroed_value(
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(zeroed_value(dfg, func_id, block_id, typ));
                 }
@@ -1032,7 +1040,7 @@ mod tests {
           b1():
             v2 = add Field 1, Field 2
             jmp b2(v2)
-          b2():
+          b2(v3: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
@@ -1050,16 +1058,16 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            v2 = add Field 1, Field 2
-            jmp b2(v2)
-          b2():
+            v3 = add Field 1, Field 2
+            jmp b2(v3)
+          b2(v0: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v4 = add Field 1, Field 2
-            return v4
+            v5 = add Field 1, Field 2
+            return v5
         }
         "#);
     }

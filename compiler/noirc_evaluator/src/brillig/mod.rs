@@ -37,6 +37,16 @@ use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
 
+/// Converts a u32 value to usize, panicking if the conversion fails.
+pub(crate) fn assert_usize(value: u32) -> usize {
+    value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+/// Converts a usize value to u32, panicking if the conversion fails.
+pub(crate) fn assert_u32(value: usize) -> u32 {
+    value.try_into().expect("Failed conversion from usize to u32")
+}
+
 /// Options that affect Brillig code generation.
 #[derive(Clone, Debug, Default)]
 pub struct BrilligOptions {
@@ -342,5 +352,24 @@ mod memory_layout {
         let options2 = BrilligOptions { layout, ..Default::default() };
 
         compiles_to_equivalent_bytecode(&ssa, options1, options2);
+    }
+
+    #[test]
+    #[should_panic = "ICE: `BlackBoxFunc::RecursiveAggregation` calls are disallowed in Brillig"]
+    fn disallows_compiling_recursive_aggregation_instructions() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: u32):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 0] : [Field; 1]
+                v3 = make_array [Field 0] : [Field; 1]
+                call recursive_aggregation(v1, v2, v3, Field 0, u32 0)
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let _ = ssa.to_brillig(&BrilligOptions::default());
     }
 }

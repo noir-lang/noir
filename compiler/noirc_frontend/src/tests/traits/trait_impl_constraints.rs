@@ -1,7 +1,7 @@
 //! Tests for "impl stricter than trait" validation.
 //! Ensures that trait implementations don't add constraints that aren't present in the trait definition.
 
-use crate::tests::check_errors;
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn impl_stricter_than_trait_no_trait_method_constraints() {
@@ -72,6 +72,29 @@ fn impl_stricter_than_trait_different_generics() {
         fn foo_bad<B>() where B: Default2 {}
                                  ^^^^^^^^ impl has stricter requirements than trait
                                  ~~~~~~~~ impl has extra requirement `B: Default2`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_same_trait_different_type_in_impl_where_clause() {
+    // The impl has `A: MyTrait` and the method adds `B: MyTrait`,
+    // but the trait method has no constraints on U.
+    let src = r#"
+    trait MyTrait { }
+
+    trait Foo<T> {
+        fn foo<U>();
+           ~~~ definition of `foo` from trait
+    }
+
+    impl<A> Foo<A> for () where A: MyTrait {
+        // B: MyTrait is stricter than the trait (which has no constraint on U).
+        // This should error even though the impl has A: MyTrait with the same trait.
+        fn foo<B>() where B: MyTrait {}
+                             ^^^^^^^ impl has stricter requirements than trait
+                             ~~~~~~~ impl has extra requirement `B: MyTrait`
     }
     "#;
     check_errors(src);
@@ -220,6 +243,72 @@ fn impl_stricter_than_trait_different_object_generics() {
     fn main() {
         let _ = OtherOption { inner: Option2 { inner: 1 } }; // silence unused warnings
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn alpha_equivalent_constraints_with_different_names() {
+    // Tests whether constraints with different generic names but equivalent positions
+    // are properly recognized as the same constraint.
+    // Example: `U: Bar<U>` in the trait should match `B: Bar<B>` in the impl
+    let src = r#"
+    trait Helper<T> {}
+
+    trait Foo<T> {
+        fn self_referential<U>() where U: Helper<U>;
+    }
+
+    impl<A> Foo<A> for () {
+        // Impl method has constraint: B: Helper<B>
+        // This should be accepted as equivalent to U: Helper<U>
+        fn self_referential<B>() where B: Helper<B> {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn alpha_equivalent_constraints_cross_referencing() {
+    // Tests more complex positions
+    let src = r#"
+    trait Helper<T, U> {}
+
+    trait Foo<T> {
+        fn cross_ref<U>() where U: Helper<T, U>;
+    }
+
+    impl<A> Foo<A> for () {
+        // Method generic B references impl generic A: B: Helper<A, B>
+        // This should be accepted as equivalent to U: Helper<T, U>
+        fn cross_ref<B>() where B: Helper<A, B> {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn non_equivalent_generic_positions() {
+    // Tests that swapped generic positions are correctly detected as different
+    let src = r#"
+    trait Helper<T, U> {}
+
+    trait Foo<T> {
+        fn cross_ref<U>() where U: Helper<T, U>;
+           ~~~~~~~~~ definition of `cross_ref` from trait
+    }
+
+    impl<A> Foo<A> for () {
+        // Impl has: B: Helper<B, A> (swapped order!)
+        // This should error because the positions differ
+        fn cross_ref<B>() where B: Helper<B, A> {}
+                                   ^^^^^^ impl has stricter requirements than trait
+                                   ~~~~~~ impl has extra requirement `B: Helper<B, A>`
+    }
+
+    fn main() {}
     "#;
     check_errors(src);
 }

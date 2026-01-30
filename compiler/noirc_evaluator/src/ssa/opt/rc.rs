@@ -1,3 +1,12 @@
+//! This pass removes `inc_rc` and `dec_rc` instructions
+//! as long as there are no `array_set` instructions to an array
+//! of the same type in between.
+//!
+//! Note that this pass is very conservative since the array_set
+//! instruction does not need to be to the same array. This is because
+//! the given array may alias another array (e.g. function parameters or
+//! a `load`ed array from a reference).
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -11,14 +20,9 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This pass removes `inc_rc` and `dec_rc` instructions
+    /// Removes `inc_rc` and `dec_rc` instructions
     /// as long as there are no `array_set` instructions to an array
     /// of the same type in between.
-    ///
-    /// Note that this pass is very conservative since the array_set
-    /// instruction does not need to be to the same array. This is because
-    /// the given array may alias another array (e.g. function parameters or
-    /// a `load`ed array from a reference).
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_paired_rc(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -38,10 +42,10 @@ struct Context {
     inc_rcs: HashMap<Type, Vec<RcInstruction>>,
 }
 
-pub(crate) struct RcInstruction {
-    pub(crate) id: InstructionId,
-    pub(crate) array: ValueId,
-    pub(crate) possibly_mutated: bool,
+struct RcInstruction {
+    id: InstructionId,
+    array: ValueId,
+    possibly_mutated: bool,
 }
 
 impl Function {
@@ -52,7 +56,7 @@ impl Function {
     ///
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
-    pub(crate) fn remove_paired_rc(&mut self) {
+    fn remove_paired_rc(&mut self) {
         if !self.runtime().is_brillig() {
             // dec_rc and inc_rc only have an effect in Brillig
             return;
@@ -73,7 +77,7 @@ impl Function {
     }
 }
 
-fn contains_array_parameter(function: &mut Function) -> bool {
+fn contains_array_parameter(function: &Function) -> bool {
     let mut parameters = function.parameters().iter();
     parameters.any(|parameter| function.dfg.type_of_value(*parameter).contains_an_array())
 }
@@ -133,7 +137,7 @@ impl Context {
 }
 
 /// Finds and pops the IncRc for the given array value if possible.
-pub(crate) fn pop_rc_for(
+fn pop_rc_for(
     value: ValueId,
     function: &Function,
     inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
@@ -357,25 +361,8 @@ mod tests {
         }
         ";
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
         // We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn mutator f0 {
-          b0(v0: [Field; 5], v1: [Field; 5]):
-            inc_rc v0
-            inc_rc v1
-            v2 = allocate -> &mut [Field; 5]
-            store v0 at v2
-            v3 = load v2 -> [Field; 5]
-            v6 = array_set v3, index u32 0, value Field 5
-            store v6 at v2
-            v8 = array_get v1, index u32 1 -> Field
-            dec_rc v0
-            dec_rc v1
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]

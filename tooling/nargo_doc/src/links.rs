@@ -1,3 +1,4 @@
+use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
     ast::Ident,
@@ -16,7 +17,8 @@ use crate::{convert_primitive_type, items::PrimitiveTypeKind};
 /// - `[name](path)`
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
-    pub target: LinkTarget,
+    /// The link target. If None it means this is a broken link.
+    pub target: Option<LinkTarget>,
     pub name: String,
     pub path: String,
     /// The line number in the comments where this link occurs (0-based).
@@ -106,7 +108,7 @@ impl LinkFinder {
 
     #[allow(clippy::too_many_arguments)]
     fn find_links_in_line(
-        &mut self,
+        &self,
         line: &str,
         line_number: usize,
         current_module_id: ModuleId,
@@ -115,13 +117,8 @@ impl LinkFinder {
         def_maps: &DefMaps,
         crate_graph: &CrateGraph,
     ) -> impl Iterator<Item = Link> {
-        find_links_in_markdown_line(line, &self.reference_regex).filter_map(move |link| {
-            // Remove surrounding backticks if present.
-            // The link name will still mention the word with backticks.
+        find_links_in_markdown_line(line, &self.reference_regex).map(move |link| {
             let path = &link.link;
-            let path = path.strip_prefix('`').unwrap_or(path);
-            let path = path.strip_suffix('`').unwrap_or(path);
-
             let target = path_to_link_target(
                 path,
                 current_module_id,
@@ -129,15 +126,15 @@ impl LinkFinder {
                 interner,
                 def_maps,
                 crate_graph,
-            )?;
-            Some(Link {
+            );
+            Link {
                 target,
                 line: line_number,
                 name: link.name,
                 path: link.link,
                 start: link.start,
                 end: link.end,
-            })
+            }
         })
     }
 
@@ -153,6 +150,7 @@ impl LinkFinder {
 /// - `[name](link)`
 ///
 /// It's unresolved because the link might not resolve to an actual item.
+#[derive(Debug)]
 struct PlainLink {
     pub name: String,
     pub link: String,
@@ -162,19 +160,60 @@ struct PlainLink {
     pub end: usize,
 }
 
+/// Finds links in a markdown line. Only links that look like Noir paths are returned.
+/// For example, `[1 + 2]` will not be returned as a link, while `[foo::Bar]` will.
 fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item = PlainLink> {
     regex.captures_iter(line).filter_map(|captures| {
         let first_capture = captures.get(0).unwrap();
         let start = first_capture.start();
         let end = first_capture.end();
-        let word = captures.get(1)?.as_str().to_string();
+        // Capture 1 is for [`name`], capture 2 is for [name]
+        // One of these captures must happen for a valid link.
+        let word = captures.get(1).or_else(|| captures.get(2))?.as_str().to_string();
+        // Capture 3 is for [link], capture 4 is for (link). These two captures are optional.
+        // (in that case the link is just [link] from captures 1 or 2 above).
         let link = captures
-            .get(2)
-            .or(captures.get(3))
+            .get(3)
+            .or(captures.get(4))
             .map(|capture| capture.as_str().to_string())
             .unwrap_or_else(|| word.clone());
-        Some(PlainLink { name: word, link, start, end })
+
+        // If the left bracket it escaped (`\[`) then it's not a link.
+        // There's no need to check the right bracket as `\` is not a valid path character.
+        if start > 0 && line.chars().nth(start - 1).is_some_and(|char| char == '\\') {
+            return None;
+        }
+
+        // Remove surrounding backticks if present.
+        // The link name will still mention the word with backticks.
+        let link = &link;
+        let link = link.strip_prefix('`').unwrap_or(link);
+        let link = link.strip_suffix('`').unwrap_or(link);
+
+        if link_looks_like_a_path(link) {
+            Some(PlainLink { name: word, link: link.to_string(), start, end })
+        } else {
+            None
+        }
     })
+}
+
+/// Returns true if this link looks likes a valid Noir path.
+fn link_looks_like_a_path(link: &str) -> bool {
+    let link = link.trim();
+    if link.is_empty() {
+        return false;
+    }
+    for (index, char) in link.chars().enumerate() {
+        if index == 0 {
+            if !char.is_ascii_alphabetic() {
+                return false;
+            }
+        } else if !(char.is_ascii_alphanumeric() || char == '_' || char == ':') {
+            return false;
+        }
+    }
+    true
 }
 
 /// A regex that captures markdown links as either `[reference]`, `[reference][link]` or
@@ -185,8 +224,8 @@ fn reference_regex() -> Regex {
         # Ignore links inside backticks
         (?:`[^`]*`)|
 
-        # Match [reference], [reference][link] or [reference](url)
-        \[([^\[\]]+)\](?:\[([^\[\]]*)\]|\(([^\(\)]*)\))?
+        # Match [`name`] or [name], then [link] or (link)
+        (?:\[(`.+?`)\]|\[([^\[\]]+)\])(?:\[([^\[\]]*)\]|\(([^\(\)]*)\))?
     "#,
     )
     .unwrap()
@@ -204,10 +243,6 @@ pub(crate) fn path_to_link_target(
     def_maps: &DefMaps,
     crate_graph: &CrateGraph,
 ) -> Option<LinkTarget> {
-    if path.is_empty() || path.contains(' ') {
-        return None;
-    }
-
     let segments: Vec<&str> = path.split("::").collect();
 
     if let Some(current_type) = current_type {
@@ -309,6 +344,8 @@ fn path_to_link_target_searching_modules(
         return Some(LinkTarget::TopLevelItem(ModuleDefId::ModuleId(module_id)));
     }
 
+    let crate_id = module_id.krate;
+
     let mut segments: Vec<&str> = path.split("::").collect();
     if let Some(first_segment) = segments.first() {
         if check_dependencies && *first_segment == "crate" {
@@ -342,11 +379,19 @@ fn path_to_link_target_searching_modules(
                 );
             }
         }
+        if check_dependencies && *first_segment == "dep" {
+            segments.remove(0);
+            return path_to_link_target_searching_dependency(
+                crate_id,
+                segments,
+                interner,
+                def_maps,
+                crate_graph,
+            );
+        }
     }
 
-    let crate_id = module_id.krate;
-    let crate_def_map = &def_maps[&crate_id];
-    let mut current_module = &crate_def_map[module_id.local_id];
+    let mut current_module = &def_maps[&module_id.krate][module_id.local_id];
 
     for (index, segment) in segments.iter().enumerate() {
         let name = Ident::new(segment.to_string(), Location::dummy());
@@ -355,30 +400,14 @@ fn path_to_link_target_searching_modules(
         if per_ns.is_none() {
             // If we can't find the first segment we can try to search in dependencies
             if index == 0 && check_dependencies {
-                let crate_data = &crate_graph[crate_id];
-                let dependency_crate_id =
-                    crate_data.dependencies.iter().find_map(|dependency| {
-                        if &dependency.as_name() == segment {
-                            Some(dependency.crate_id)
-                        } else {
-                            None
-                        }
-                    })?;
-                let dependency_local_module_id = def_maps[&dependency_crate_id].root();
-                let dependency_module_id =
-                    ModuleId { krate: dependency_crate_id, local_id: dependency_local_module_id };
-                segments.remove(0);
-                let path = segments.join("::");
-                return path_to_link_target_searching_modules(
-                    &path,
-                    dependency_module_id,
-                    false,
+                return path_to_link_target_searching_dependency(
+                    crate_id,
+                    segments,
                     interner,
                     def_maps,
                     crate_graph,
                 );
             }
-
             return None;
         }
 
@@ -392,7 +421,7 @@ fn path_to_link_target_searching_modules(
         let (module_def_id, _, _) = per_ns.types?;
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                current_module = &crate_def_map[module_id.local_id];
+                current_module = &def_maps[&module_id.krate][module_id.local_id];
             }
             ModuleDefId::TypeId(type_id) => {
                 // This must refer to a type method, so only one segment should remain
@@ -420,6 +449,35 @@ fn path_to_link_target_searching_modules(
         }
     }
     None
+}
+
+/// Starts the search in a dependency, assuming the first segment is the dependency name.
+/// Returns `None` if there's no first segment, or if the dependency is not found.
+fn path_to_link_target_searching_dependency(
+    crate_id: CrateId,
+    mut segments: Vec<&str>,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+    crate_graph: &CrateGraph,
+) -> Option<LinkTarget> {
+    let dependency_name = segments.first()?;
+    let crate_data = &crate_graph[crate_id];
+    let dependency_crate_id = crate_data.dependencies.iter().find_map(|dependency| {
+        if &dependency.as_name() == dependency_name { Some(dependency.crate_id) } else { None }
+    })?;
+    let dependency_local_module_id = def_maps[&dependency_crate_id].root();
+    let dependency_module_id =
+        ModuleId { krate: dependency_crate_id, local_id: dependency_local_module_id };
+    segments.remove(0);
+    let path = segments.join("::");
+    path_to_link_target_searching_modules(
+        &path,
+        dependency_module_id,
+        false,
+        interner,
+        def_maps,
+        crate_graph,
+    )
 }
 
 fn type_method_or_field_link_target(
@@ -527,6 +585,18 @@ mod tests {
     }
 
     #[test]
+    fn finds_reference_with_backquotes() {
+        let line = "Hello [`world`]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.name, "`world`");
+        assert_eq!(&link.link, "world");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 15);
+    }
+
+    #[test]
     fn does_not_find_reference_in_backquote() {
         let line = "Hello `[world]`! Code: `let x = [foo];`. Hello [world]!";
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
@@ -536,5 +606,60 @@ mod tests {
         assert_eq!(&link.link, "world");
         assert_eq!(link.start, 47);
         assert_eq!(link.end, 54);
+    }
+
+    #[test]
+    fn does_not_find_if_empty() {
+        let line = "Hello []!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_all_spaces() {
+        let line = "Hello [  ]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_not_a_valid_path() {
+        let line = "Hello [ 1 + 2 ]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_left_bracket_is_escaped() {
+        let line = "Hello \\[foo]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_if_right_bracket_is_escaped() {
+        let line = "Hello [foo\\]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn finds_link_with_nested_brackets() {
+        let line = "Hello [`#[attribute]`][attr]!";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        let link = &links[0];
+        assert_eq!(&link.name, "`#[attribute]`");
+        assert_eq!(&link.link, "attr");
+        assert_eq!(link.start, 6);
+        assert_eq!(link.end, 28);
+    }
+
+    #[test]
+    fn finds_two_links_with_nested_brackets() {
+        // This test just makes sure that the regex for [`...`] has the "..." part be non-greedy.
+        let line = "Hello [`one`][One] [`two`][Two]";
+        let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
+        assert_eq!(links.len(), 2);
     }
 }

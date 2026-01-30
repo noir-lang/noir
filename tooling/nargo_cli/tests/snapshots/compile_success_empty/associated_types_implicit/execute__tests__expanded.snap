@@ -5,7 +5,7 @@ expression: expanded_code
 trait Foo {
     type Bar;
 
-    fn foo(self) -> Bar;
+    fn foo(self) -> Self::Bar;
 }
 
 impl Foo for u64 {

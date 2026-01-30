@@ -1,10 +1,11 @@
 //! Tests for qualified path syntax (`<T as Trait>`) and `Self` type usage.
 //! Validates disambiguation of trait methods, associated item access, and trait renaming during imports.
 
+use crate::test_utils::GetProgramOptions;
+use crate::test_utils::get_program_with_options;
 use crate::tests::{
     assert_no_errors, assert_no_errors_without_report, check_errors, check_monomorphization_error,
 };
-use crate::{elaborator::FrontendOptions, test_utils::get_program_with_options};
 
 #[test]
 fn as_trait_path_in_expression() {
@@ -148,9 +149,8 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
         }
     "#;
 
-    let allow_parser_errors = true;
-    let options = FrontendOptions::test_default();
-    let (_, _, errors) = get_program_with_options(src, allow_parser_errors, options);
+    let options = GetProgramOptions { allow_parser_errors: true, ..Default::default() };
+    let (_, _, errors) = get_program_with_options(src, options);
     assert!(!errors.is_empty());
 }
 
@@ -280,11 +280,11 @@ fn as_trait_path_with_method_turbofish() {
     trait Foo {
         fn bar<U>(x: U) -> U;
     }
-    
+
     impl Foo for u32 {
         fn bar<U>(x: U) -> U { x }
     }
-    
+
     fn main() {
         let _x: i32 = <u32 as Foo>::bar(42);
         // Explicitly specify U instead of relying on inference
@@ -296,20 +296,10 @@ fn as_trait_path_with_method_turbofish() {
     assert_no_errors_without_report(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10436): Reactivate once the issue is resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/10436
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn self_with_associated_type_method_call_on_non_primitives() {
-    // In Rust, this would be valid:
-    // trait MyTrait {
-    //     type AssocType;
-    // }
-    // impl MyTrait for u32 {
-    //     type AssocType = Vec<i32>;
-    //     fn method() {
-    //         Self::AssocType::new()  // Valid in Rust
-    //     }
-    // }
+    // Self::AssocType::method() should work for non-primitives
     let src = r#"
     trait Default {
         fn default() -> Self;
@@ -330,7 +320,6 @@ fn self_with_associated_type_method_call_on_non_primitives() {
         type AssocType = Field;
 
         fn method() -> Field {
-            // This would work in Rust but not in Noir
             Self::AssocType::default()
         }
     }
@@ -339,19 +328,13 @@ fn self_with_associated_type_method_call_on_non_primitives() {
         let _ = MyStruct { };
     }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10436): use `assert_no_errors` once the issue is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10434): Reactivate once the issue is resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/10434
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn self_with_associated_type_method_call_on_primitive() {
-    // In Noir, the special Self:: handling for primitives only works with
-    // exactly 2 segments (Self::method or Self::AssociatedConstant).
-    // Paths with 3+ segments fall through to regular path resolution which
-    // cannot resolve Self as a path component for primitive types.
+    // Self::AssocType::method() should work for primitives
     let src = r#"
     trait Default {
         fn default() -> Self;
@@ -370,16 +353,92 @@ fn self_with_associated_type_method_call_on_primitive() {
         type AssocType = Field;
 
         fn method() -> Field {
-            // This would work in Rust but not in Noir
             Self::AssocType::default()
         }
     }
 
     fn main() {}
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10434): use `assert_no_errors` once the issue is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
+}
+
+/// Test that Self::AssocType::method() with generic methods works when generics are inferable.
+#[test]
+fn self_with_associated_type_method_call_with_inferable_generics() {
+    // This tests a case where the method has generics but they can be inferred from return type.
+    let src = r#"
+    trait Identity {
+        fn identity<T>(x: T) -> T;
+    }
+
+    impl Identity for Field {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> u32;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = Field;
+
+        fn method() -> u32 {
+            // T is inferred as u32 from the return type
+            Self::AssocType::identity(42)
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Turbofish on Self::AssocType::method::<T>() is correctly handled.
+/// When turbofish is explicitly provided, it takes precedence over inference.
+#[test]
+fn self_with_associated_type_method_call_turbofish_type_mismatch() {
+    let src = r#"
+    trait Identity {
+        fn identity<T>(x: T) -> T;
+    }
+
+    impl Identity for u64 {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> u32;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = u64;
+
+        fn method() -> u32 {
+                       ^^^ expected type u32, found type u64
+                       ~~~ expected u32 because of return type
+            // The turbofish ::<u64> is respected, causing a type mismatch
+            Self::AssocType::identity::<u64>(42)
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ u64 returned here
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct {};
+    }
+    "#;
+    check_errors(src);
 }
 
 /// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message
@@ -389,17 +448,17 @@ fn self_with_non_associated_item_access() {
     struct Outer {
         inner: Inner
     }
-    
+
     struct Inner {}
-    
+
     impl Inner {
         fn method() -> u32 { 42 }
     }
-    
+
     trait MyTrait {
         fn test() -> u32;
     }
-    
+
     impl MyTrait for Outer {
         fn test() -> u32 {
             Self::inner::method()

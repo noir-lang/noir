@@ -103,19 +103,6 @@ fn main() {
 comptime fn get_type() -> Type { ... }
 ```
 
-Values of certain types may also change type when they are lowered. For example, a comptime format string will already be
-formatted, and thus lowers into a runtime string instead:
-
-```rust
-fn main() {
-    let foo = comptime {
-        let i = 2;
-        f"i = {i}"
-    };
-    assert_eq(foo, "i = 2");
-}
-```
-
 ---
 
 ## (Quasi) Quote

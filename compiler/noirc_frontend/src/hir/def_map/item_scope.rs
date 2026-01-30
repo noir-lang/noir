@@ -162,4 +162,14 @@ impl ItemScope {
             None
         }
     }
+
+    /// Clears all definitions in this scope.
+    /// This isn't used in the compiler. It's only used in the LSP server
+    /// when a file is changed, to clear out all definitions that are meant to be
+    /// replaced with new ones from the changed file.
+    pub(super) fn clear(&mut self) {
+        self.types.clear();
+        self.values.clear();
+        self.defs.clear();
+    }
 }

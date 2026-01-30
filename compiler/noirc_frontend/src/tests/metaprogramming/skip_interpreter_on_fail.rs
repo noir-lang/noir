@@ -496,7 +496,7 @@ fn regression_10686_0() {
     fn main() {
         comptime {
             let _ = i32 {};
-                    ^^^ expected type got primitive type
+                    ^^^ expected type, found primitive type `i32`
         }
     }
     ";
@@ -652,7 +652,6 @@ fn comptime_trait_default_method_using_missing_associated_constant() {
 
         fn foo() {
             let _ = Self::N;
-                          ^ Could not resolve 'N' in path
         }
     }
     struct Foo {}

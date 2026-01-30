@@ -9,7 +9,6 @@ use abstract_vm_integration::{
     AbstractVMComparisonResult, ExecuteAbstractVMBytecode,
     TranspileBrilligBytecodeToAbstractVMBytecode, compare_with_abstract_vm,
 };
-use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use flate2::read::GzDecoder;
 use fuzz_lib::{
     fuzz_target_lib::fuzz_target,
@@ -22,6 +21,7 @@ use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
+use rmp_serde::{decode::from_slice as decode_from_slice, encode::to_vec as encode_to_rmp_vec};
 use sancov::Counters;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -415,7 +415,7 @@ libfuzzer_sys::fuzz_target!(
         fuzzer_command_options,
         ..FuzzerOptions::default()
     };
-    let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
+    let fuzzer_data = decode_from_slice(data)
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
     let start = Instant::now();
@@ -459,11 +459,10 @@ libfuzzer_sys::fuzz_target!(
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], _size: usize, max_size: usize, seed: u32| {
     let mut rng = StdRng::seed_from_u64(u64::from(seed));
-    let mut new_fuzzer_data: FuzzerData = borrow_decode_from_slice(data, bincode::config::legacy())
-        .unwrap_or((FuzzerData::default(), 1337))
-        .0;
+    let mut new_fuzzer_data: FuzzerData =
+        decode_from_slice(data).unwrap_or((FuzzerData::default(), 1337)).0;
     mutate(&mut new_fuzzer_data, &mut rng);
-    let new_bytes = encode_to_vec(&new_fuzzer_data, bincode::config::legacy()).unwrap();
+    let new_bytes = encode_to_rmp_vec(&new_fuzzer_data).unwrap();
     if new_bytes.len() > max_size {
         return 0;
     }

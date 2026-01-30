@@ -1,9 +1,11 @@
-use crate::acir::arrays::flattened_value_size;
+use crate::acir::arrays::{flattened_value_size, ElementTypeSizesArrayShift};
 use crate::acir::types::{flat_element_types, flat_numeric_types};
 use crate::acir::{AcirDynamicArray, AcirValue};
+use crate::brillig::assert_u32;
 use crate::errors::RuntimeError;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
+use acvm::acir::brillig::lengths::FlattenedLength;
 use acvm::{AcirField, FieldElement};
 
 use super::Context;
@@ -86,7 +88,7 @@ impl Context<'_> {
             // push_back corresponding dummy zero values to the AcirValues vector.
             for (elem, ssa_typ) in elements_to_push.iter().zip(vector_types.to_vec()) {
                 let element = self.convert_value(*elem, dfg);
-                element_size += flattened_value_size(&element);
+                element_size += flattened_value_size(&element).to_usize();
                 match element {
                     AcirValue::Var(acir_var, acir_type) => {
                         new_vector.push_back(AcirValue::Var(zero, acir_type));
@@ -116,14 +118,6 @@ impl Context<'_> {
             // Generates the element_type_sizes array
             let element_type_sizes =
                 if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                    // Some(self.init_element_type_sizes_array(
-                    //     &vector_typ,
-                    //     vector_contents,
-                    //     Some(new_vector_array.clone()),
-                    //     dfg,
-                    //     // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                    //     0,
-                    // )?)
                     None
                 } else {
                     None
@@ -300,8 +294,9 @@ impl Context<'_> {
         let vector_type = dfg.type_of_value(vector_contents);
         let item_size = vector_type.element_types();
         // Must read from the flattened last index of the vector in case the vector contains nested arrays.
-        let flat_item_size: u32 = item_size.iter().map(|typ| typ.flattened_size()).sum();
-        let item_size = self.acir_context.add_constant(flat_item_size);
+        let flat_item_size: FlattenedLength =
+            item_size.iter().map(|typ| typ.flattened_size()).sum();
+        let item_size = self.acir_context.add_constant(flat_item_size.0);
         var_index = self.acir_context.mul_var(var_index, item_size)?;
 
         let mut popped_elements = Vec::new();
@@ -315,7 +310,7 @@ impl Context<'_> {
         // E.g. for `foo { a: u32, b: u32, c: [Field; 3] }`, popped_elements has 3 entries
         // (a, b, Array(c)) but the flat size is 5 (a, b, c[0], c[1], c[2]).
         let flat_elements_popped: usize =
-            popped_elements.iter().map(super::super::arrays::flattened_value_size).sum();
+            popped_elements.iter().map(|elem| flattened_value_size(elem).to_usize()).sum();
         for _ in 0..flat_elements_popped {
             new_vector.pop_back();
         }
@@ -390,7 +385,7 @@ impl Context<'_> {
 
             let element_size = vector_typ.element_size();
             // For pop_front, results order is: [popped_elements..., new_len, new_vector]
-            for result_id in &result_ids[..element_size] {
+            for result_id in &result_ids[..element_size.to_usize()] {
                 let result_type = dfg.type_of_value(*result_id);
                 let result_zero = self.array_zero_value(&result_type)?;
                 results.push(result_zero);
@@ -431,7 +426,7 @@ impl Context<'_> {
         // Fetch the values we are popping off of the vector.
         // In the case of non-nested vector the logic is simple as we do not
         // need to account for the internal vector sizes or flattening the index.
-        for res in &result_ids[..element_size] {
+        for res in &result_ids[..element_size.to_usize()] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
             // let flat_element = element.flatten().into_iter().map(|(var, typ)| AcirValue::Var(var, typ));
@@ -446,7 +441,7 @@ impl Context<'_> {
         }
 
         let popped_elements_size: usize =
-            popped_elements.iter().map(|elem| flattened_value_size(elem)).sum();
+            popped_elements.iter().map(|elem| flattened_value_size(elem).to_usize()).sum();
         // dbg!(popped_elements_size);
         // dbg!(new_vector.clone());
         new_vector = new_vector.slice(popped_elements_size..);
@@ -536,30 +531,27 @@ impl Context<'_> {
         let elements_to_insert = &arguments[3..];
 
         // Fetch the flattened index from the user provided index argument.
-        // let item_size = self.acir_context.add_constant(elements_to_insert.len());
-        // let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
-        // let flat_user_index =
-        // self.get_flattened_index(&vector_typ, vector_contents, insert_index, dfg)?;
+        // With flattened arrays, we compute the flat user index directly
+        // by multiplying the insert index by the inner element size (computed below).
 
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
-        let mut inner_elem_size_usize = 0;
+        let mut inner_elem_size: FlattenedLength = FlattenedLength(0);
         let mut flattened_elements = Vec::new();
         for elem in elements_to_insert {
             let element = self.convert_value(*elem, dfg);
             // Flatten into (AcirVar, NumericType) pairs
             let flat_element = self.flatten(&element)?;
-            let elem_size = flat_element.len();
-            inner_elem_size_usize += elem_size;
+            let elem_size = FlattenedLength(assert_u32(flat_element.len()));
+            inner_elem_size += elem_size;
             vector_size += elem_size;
-            for var in flat_element {
-                flattened_elements.push(var);
-            }
+            flattened_elements.extend(flat_element);
         }
-        let inner_elem_size = self.acir_context.add_constant(inner_elem_size_usize);
-        let flat_user_index = self.acir_context.mul_var(insert_index, inner_elem_size)?;
+        let inner_elem_size_var = self.acir_context.add_constant(inner_elem_size.0);
+        let flat_user_index = self.acir_context.mul_var(insert_index, inner_elem_size_var)?;
         // Set the maximum flattened index at which a new element should be inserted.
-        let max_flat_user_index = self.acir_context.add_var(flat_user_index, inner_elem_size)?;
+        let max_flat_user_index =
+            self.acir_context.add_var(flat_user_index, inner_elem_size_var)?;
 
         // Go through the entire vector argument and determine what value should be written to the new vector.
         // 1. If we are below the starting insertion index we should insert the value that was already
@@ -572,11 +564,14 @@ impl Context<'_> {
         self.initialize_array(result_block_id, vector_size, None)?;
         let mut current_insert_index = 0;
 
+        let vector_size_usize = vector_size.to_usize();
+        let inner_elem_size_usize = inner_elem_size.to_usize();
+
         // This caches each `is_after_insert` var for each index for an optimization that is
         // explained below, above `is_after_insert`.
-        let mut cached_is_after_inserts = Vec::with_capacity(vector_size);
+        let mut cached_is_after_inserts = Vec::with_capacity(vector_size_usize);
 
-        for i in 0..vector_size {
+        for i in 0..vector_size_usize {
             let current_index = self.acir_context.add_constant(i);
 
             // Check that we are above the lower bound of the insertion index
@@ -649,13 +644,6 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // Some(self.init_element_type_sizes_array(
-                //     &vector_typ,
-                //     result_ids[1],
-                //     Some(vector),
-                //     dfg,
-                //     1,
-                // )?)
                 None
             } else {
                 None
@@ -768,28 +756,28 @@ impl Context<'_> {
         let flat_vector = self.flatten(&vector)?;
         // Compiler sanity check
         assert_eq!(
-            flat_vector.len(),
+            FlattenedLength(assert_u32(flat_vector.len())),
             vector_size,
             "ICE: The read flattened vector should match the computed size"
         );
 
-        let item_size = vector_typ.element_size();
+        let item_size = vector_typ.element_size().to_usize();
         let item_size = self.acir_context.add_constant(item_size);
         let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index: crate::acir::AcirVar =
-            self.get_flattened_index(&vector_typ, vector_contents, remove_index, dfg)?;
+            self.get_flattened_index(&vector_typ, vector_contents, remove_index, dfg, ElementTypeSizesArrayShift::None)?;
 
         // Fetch the values we are remove from the vector.
         // As we fetch the values we can determine the size of the removed values
         // which we will later use for writing the correct resulting vector.
         let mut popped_elements = Vec::new();
-        let mut popped_elements_size = 0;
+        let mut popped_elements_size: FlattenedLength = FlattenedLength(0);
         // Set a temp index just for fetching from the original vector as `array_get_value` mutates
         // the index internally.
         let mut temp_index = flat_user_index;
-        let element_size = vector_typ.element_size();
+        let element_size = vector_typ.element_size().to_usize();
         for res in &result_ids[2..(2 + element_size)] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
@@ -797,6 +785,8 @@ impl Context<'_> {
             popped_elements_size += elem_size;
             popped_elements.push(element);
         }
+
+        let popped_elements_size = popped_elements_size;
 
         // Go through the entire vector argument and determine what value should be written to the new vector.
         // 1. If the current index is greater than the removal index we must write the next value
@@ -807,12 +797,12 @@ impl Context<'_> {
         let result_block_id = self.block_id(result_ids[1]);
         // We expect a preceding check to have been laid down that the remove index is within bounds.
         // In practice `popped_elements_size` should never exceed the `vector_size` but we do a saturating sub to be safe.
-        let result_size = vector_size.saturating_sub(popped_elements_size);
+        let result_size = FlattenedLength(vector_size.0.saturating_sub(popped_elements_size.0));
         self.initialize_array(result_block_id, result_size, None)?;
-        for (i, current_value) in flat_vector.iter().enumerate().take(result_size) {
+        for (i, current_value) in flat_vector.iter().enumerate().take(result_size.to_usize()) {
             let current_index = self.acir_context.add_constant(i);
 
-            let shifted_index = self.acir_context.add_constant(i + popped_elements_size);
+            let shifted_index = self.acir_context.add_constant(i + popped_elements_size.to_usize());
 
             // Fetch the value from the initial vector
             let value_shifted_index =
@@ -833,12 +823,14 @@ impl Context<'_> {
 
         let element_type_sizes =
             if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                // The resulting vector has one less element than before
+                let shift = ElementTypeSizesArrayShift::Decrease;
                 Some(self.init_element_type_sizes_array(
                     &vector_typ,
-                    vector_contents,
+                    result_ids[1],
                     Some(vector),
                     dfg,
-                    0,
+                    shift,
                 )?)
             } else {
                 None

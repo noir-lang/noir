@@ -152,7 +152,7 @@ fn abi_type_from_ssa(typ: &Type) -> AbiType {
             }
         },
         Type::Array(items, length) => {
-            AbiType::Array { length: *length, typ: Box::new(abi_type_from_multi_ssa(items)) }
+            AbiType::Array { length: length.0, typ: Box::new(abi_type_from_multi_ssa(items)) }
         }
         Type::Reference(_) => unreachable!("refs do not appear in SSA ABI"),
         Type::Function => unreachable!("functions do not appear in SSA ABI"),

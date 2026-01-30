@@ -83,6 +83,11 @@ struct Context<'a> {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
+    /// The BlockId dedicated to return_data
+    /// It is not managed by memory_blocks to ensure getting always a fresh block for return_data, even if
+    /// the SSA array has already been initialized to a block.
+    return_data_block_id: Option<BlockId>,
+
     /// Maps SSA values to BlockId's used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
@@ -94,7 +99,7 @@ struct Context<'a> {
 
     /// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
     /// non-homogenous arrays end up having the same type sizes layout.
-    type_sizes_to_blocks: HashMap<Vec<usize>, BlockId>,
+    type_sizes_to_blocks: HashMap<Vec<u32>, BlockId>,
 
     /// Number of the next BlockId, it is used to construct
     /// a new BlockId
@@ -127,6 +132,7 @@ impl<'a> Context<'a> {
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
+            return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: HashMap::default(),
             max_block_id: 0,
@@ -345,7 +351,7 @@ impl<'a> Context<'a> {
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
-                        typ.flattened_size() as usize
+                        typ.flattened_size()
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
@@ -388,7 +394,7 @@ impl<'a> Context<'a> {
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
 
-                for _ in 0..*length {
+                for _ in 0..length.0 {
                     for element in element_types.iter() {
                         elements.push_back(self.create_value_from_type(element, make_var)?);
                     }
@@ -605,7 +611,7 @@ impl<'a> Context<'a> {
 
         return_values
             .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size() as usize)
+            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations

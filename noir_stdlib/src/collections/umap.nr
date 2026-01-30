@@ -27,35 +27,36 @@ pub struct UHashMap<K, V, B> {
 // 2. (empty)
 // 3. (deleted)
 struct Slot<K, V> {
-    _key_value: Option<(K, V)>,
+    _key: K,
+    _value: V,
+    _is_present: bool,
     _is_deleted: bool,
 }
 
 impl<K, V> Default for Slot<K, V> {
     fn default() -> Self {
-        Slot { _key_value: Option::none(), _is_deleted: false }
+        Slot {
+            _key: crate::mem::zeroed(),
+            _value: crate::mem::zeroed(),
+            _is_present: false,
+            _is_deleted: false,
+        }
     }
 }
 
 impl<K, V> Slot<K, V> {
     fn is_valid(self) -> bool {
-        !self._is_deleted & self._key_value.is_some()
+        !self._is_deleted & self._is_present
     }
 
     fn is_available(self) -> bool {
-        self._is_deleted | self._key_value.is_none()
-    }
-
-    fn key_value(self) -> Option<(K, V)> {
-        self._key_value
-    }
-
-    fn key_value_unchecked(self) -> (K, V) {
-        self._key_value.unwrap_unchecked()
+        self._is_deleted | !self._is_present
     }
 
     fn set(&mut self, key: K, value: V) {
-        self._key_value = Option::some((key, value));
+        self._key = key;
+        self._value = value;
+        self._is_present = true;
         self._is_deleted = false;
     }
 
@@ -133,8 +134,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         for slot in self._table {
             if slot.is_valid() {
                 // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
-                let key_value = slot.key_value().unwrap_unchecked();
-                entries = entries.push_back(key_value);
+                entries = entries.push_back((slot._key, slot._value));
             }
         }
 
@@ -156,8 +156,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (key, _) = slot.key_value_unchecked();
-                keys = keys.push_back(key);
+                keys = keys.push_back(slot._key);
             }
         }
 
@@ -179,8 +178,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (_, value) = slot.key_value_unchecked();
-                values = values.push_back(value);
+                values = values.push_back(slot._value);
             }
         }
 
@@ -240,8 +238,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         for i in 0..self._table.len() {
             let mut slot = self._table[i];
             if slot.is_valid() {
-                let (key, value) = slot.key_value_unchecked();
-                slot.set(key, f(value));
+                slot.set(slot._key, f(slot._value));
                 self._table[i] = slot;
             }
         }
@@ -254,8 +251,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         for index in 0..self._table.len() {
             let mut slot = self._table[index];
             if slot.is_valid() {
-                let (key, value) = slot.key_value_unchecked();
-                if !f(key, value) {
+                if !f(slot._key, slot._value) {
                     slot.mark_deleted();
                     self._len -= 1;
                     self._table[index] = slot;
@@ -291,14 +287,13 @@ impl<K, V, B> UHashMap<K, V, B> {
         let hash = self.hash(key);
 
         for attempt in 0..self._table.len() {
-            let index = self.quadratic_probe(hash, attempt as u32);
+            let index = self.linear_probe(hash, attempt as u32);
             let slot = self._table[index];
 
             // Not marked as deleted and has key-value.
             if slot.is_valid() {
-                let (current_key, value) = slot.key_value_unchecked();
-                if current_key == key {
-                    result = Option::some(value);
+                if slot._key == key {
+                    result = Option::some(slot._value);
                     break;
                 }
             }
@@ -320,7 +315,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         let hash = self.hash(key);
 
         for attempt in 0..self._table.len() {
-            let index = self.quadratic_probe(hash, attempt as u32);
+            let index = self.linear_probe(hash, attempt as u32);
             let mut slot = self._table[index];
             let mut insert = false;
 
@@ -329,8 +324,7 @@ impl<K, V, B> UHashMap<K, V, B> {
                 insert = true;
                 self._len += 1;
             } else {
-                let (current_key, _) = slot.key_value_unchecked();
-                if current_key == key {
+                if slot._key == key {
                     insert = true;
                 }
             }
@@ -370,13 +364,12 @@ impl<K, V, B> UHashMap<K, V, B> {
         let hash = self.hash(key);
 
         for attempt in 0..self._table.len() {
-            let index = self.quadratic_probe(hash, attempt as u32);
+            let index = self.linear_probe(hash, attempt as u32);
             let mut slot = self._table[index];
 
             // Not marked as deleted and has key-value.
             if slot.is_valid() {
-                let (current_key, _) = slot.key_value_unchecked();
-                if current_key == key {
+                if slot._key == key {
                     slot.mark_deleted();
                     self._table[index] = slot;
                     self._len -= 1;
@@ -401,8 +394,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     // We use 0.5 constant near variadic attempt and attempt^2 monomials.
     // This ensures good uniformity of distribution for table sizes
     // equal to prime numbers or powers of two.
-    fn quadratic_probe(self: Self, hash: u32, attempt: u32) -> u32 {
-        (hash + (attempt + attempt * attempt) / 2) % self._table.len()
+    fn linear_probe(self: Self, hash: u32, attempt: u32) -> u32 {
+        (hash + attempt) % self._table.len()
     }
 }
 
@@ -425,15 +418,14 @@ where
             for slot in self._table {
                 // Not marked as deleted and has key-value.
                 if equal & slot.is_valid() {
-                    let (key, value) = slot.key_value_unchecked();
                     // Safety: unconstrained context
-                    let other_value = unsafe { other.get(key) };
+                    let other_value = unsafe { other.get(slot._key) };
 
                     if other_value.is_none() {
                         equal = false;
                     } else {
                         let other_value = other_value.unwrap_unchecked();
-                        if value != other_value {
+                        if slot._value != other_value {
                             equal = false;
                         }
                     }

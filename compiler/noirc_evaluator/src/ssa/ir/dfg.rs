@@ -1,9 +1,12 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{
-    function_builder::data_bus::DataBus,
-    ir::instruction::ArrayOffset,
-    opt::pure::{FunctionPurities, Purity},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        function_builder::data_bus::DataBus,
+        ir::instruction::ArrayOffset,
+        opt::pure::{FunctionPurities, Purity},
+    },
 };
 
 use super::{
@@ -18,7 +21,13 @@ use super::{
     value::{Value, ValueId, ValueMapping},
 };
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
@@ -648,39 +657,31 @@ impl DataFlowGraph {
 
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<u32> {
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<SemanticLength> {
         match self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
             _ => None,
         }
     }
-    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<u32> {
+    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
         // For arrays we know the size statically
         let array_typ = self.type_of_value(value);
-        if matches!(&array_typ, Type::Array(..)) {
-            let length = array_typ.flattened_size();
-            return Some(length);
+        if let Type::Array(_, length) = &array_typ {
+            return Some(*length);
         }
 
         // Check if the value was made by a MakeArray instruction, which can create vectors as well.
         let (array, typ) = self.get_array_constant(value)?;
         let elements_size = typ.element_size();
 
-        let length = if elements_size == 0 {
-            array.len()
+        let length = if elements_size.0 == 0 {
+            SemanticLength(assert_u32(array.len()))
         } else {
-            // Compute the vector length by dividing the flattened
-            // array length by the size of each array element
-            // assert_eq!(
-            //     array.len() % elements_size,
-            //     0,
-            //     "expected array length to be multiple of its elements size"
-            // );
-            // array.len() / elements_size
-            array.len()
+            // With flattened arrays, array.len() is already the correct flat count
+            SemanticLength(assert_u32(array.len()))
         };
 
-        Some(length as u32)
+        Some(length)
     }
 
     /// If this value points to an array of constant bytes, returns a string
@@ -707,11 +708,13 @@ impl DataFlowGraph {
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(elements, len), Some(index)) => {
                 if self.runtime().is_brillig() {
-                    index.to_u128() < (u128::from(len) * elements.len() as u128)
+                    let elements_length = ElementTypesLength(assert_u32(elements.len()));
+                    let semi_flattened_length = len * elements_length;
+                    index.to_u128() < u128::from(semi_flattened_length.0)
                 } else {
                     let flat_types_size: u128 =
-                        elements.iter().map(|element| u128::from(element.flattened_size())).sum();
-                    index.to_u128() < (u128::from(len) * flat_types_size)
+                        elements.iter().map(|element| u128::from(element.flattened_size().0)).sum();
+                    index.to_u128() < (u128::from(len.0) * flat_types_size)
                 }
             }
             _ => false,

@@ -119,6 +119,12 @@ pub enum ParserErrorReason {
     MaximumRecursionDepthExceeded,
     #[error("missing condition for `if` expression")]
     MissingIfCondition,
+    #[error("expected an identifier, found reserved identifier `_`")]
+    ExpectedIdentifierGotUnderscore,
+    #[error(
+        "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
+    )]
+    UnexpectedTypeExpressionInTypeAlias,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

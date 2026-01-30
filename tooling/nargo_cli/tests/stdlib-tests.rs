@@ -85,14 +85,13 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
-            let pedantic_solving = true;
             let mut context = match context.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
             };
             let status = std::panic::catch_unwind(move || {
                 run_test(
-                    &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
+                    &bn254_blackbox_solver::Bn254BlackBoxSolver,
                     &mut context,
                     &test_function,
                     std::io::stdout(),

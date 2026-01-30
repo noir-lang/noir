@@ -136,7 +136,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
 
-        // If we want to print the array copy count in the end, we reserve teh 0 slot.
+        // If we want to print the array copy count in the end, we reserve the 0 slot.
         if self.brillig_context.count_array_copies() {
             // Detach from the register so it's never deallocated.
             let new_variable =

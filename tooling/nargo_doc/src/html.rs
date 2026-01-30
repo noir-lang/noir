@@ -1427,7 +1427,7 @@ impl HTMLCreator {
 
         let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
         for link in links.iter().rev() {
-            let target = &link.target;
+            let Some(target) = &link.target else { continue };
             let name = &link.name;
             let id = target.id();
             let anchor = target

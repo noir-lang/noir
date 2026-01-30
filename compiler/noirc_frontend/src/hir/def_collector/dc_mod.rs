@@ -52,6 +52,11 @@ struct ModCollector<'a> {
 /// Walk a module and collect its definitions.
 ///
 /// This performs the entirety of the definition collection phase of the name resolution pass.
+///
+/// The `reuse_existing_module_declarations` flag is only used by the LSP server to avoid parsing
+/// and processing the file behind `mod foo;` declarations, as when a file is changed those
+/// modules should already exist and they don't need to be reprocessed (they are added as child modules
+/// to `module_id`, though).
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,
@@ -59,15 +64,21 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    reuse_existing_module_declarations: bool,
 ) -> Vec<CompilationError> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<CompilationError> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        errors.extend(
-            collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
-        );
+        errors.extend(collector.parse_module_declaration(
+            context,
+            decl,
+            crate_id,
+            file_id,
+            module_id,
+            reuse_existing_module_declarations,
+        ));
     }
 
     errors.extend(collector.collect_submodules(
@@ -785,6 +796,7 @@ impl ModCollector<'_> {
                             .set_doc_comments(ReferenceId::Module(child), doc_comments);
                     }
 
+                    let reuse_existing_module_declarations = false;
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -792,6 +804,7 @@ impl ModCollector<'_> {
                         child.local_id,
                         crate_id,
                         context,
+                        reuse_existing_module_declarations,
                     ));
                 }
                 Err(error) => {
@@ -805,6 +818,12 @@ impl ModCollector<'_> {
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
+    ///
+    /// If `reuse_existing_module_declarations` is true, this will first check if a module is
+    /// already registered in the CrateDefMap at the file where `mod mod_name;` happens, and reuse
+    /// that module declaration's contents.
+    /// This is only used by LSP when a file is modified, to avoid parsing and type-checking nested modules
+    /// that happen in separate files as these were already parsed and type-checked before.
     #[allow(clippy::too_many_arguments)]
     fn parse_module_declaration(
         &mut self,
@@ -813,6 +832,7 @@ impl ModCollector<'_> {
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
+        reuse_existing_module_declarations: bool,
     ) -> Vec<CompilationError> {
         let mut doc_comments = mod_decl.doc_comments;
         let mod_decl = mod_decl.item;
@@ -828,6 +848,30 @@ impl ModCollector<'_> {
         };
 
         let location = Location { file: self.file_id, span: mod_decl.ident.span() };
+
+        if reuse_existing_module_declarations {
+            let name = &mod_decl.ident;
+            let existing_child_module_id =
+                self.def_collector.def_map.modules().iter().find_map(|(index, module_data)| {
+                    let file_matches = module_data.location.file == child_file_id;
+                    let module_name = module_data.name.as_ref();
+                    let name_matches =
+                        module_name.is_some_and(|module_name| module_name == name.as_str());
+                    (file_matches && name_matches).then_some(LocalModuleId::new(index))
+                });
+            if let Some(existing_child_module_id) = existing_child_module_id {
+                let parent_module_data = &mut self.def_collector.def_map[parent_module_id];
+                parent_module_data.children.insert(name.clone(), existing_child_module_id);
+                let child_id = ModuleId { krate: crate_id, local_id: existing_child_module_id };
+                let _ = parent_module_data.declare_child_module(
+                    name.clone(),
+                    mod_decl.visibility,
+                    child_id,
+                );
+                context.def_interner.add_module_reference(child_id, location);
+                return errors;
+            }
+        }
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
@@ -885,6 +929,7 @@ impl ModCollector<'_> {
                         .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
                 }
 
+                let reuse_existing_module_declarations = false;
                 errors.extend(collect_defs(
                     self.def_collector,
                     ast,
@@ -892,6 +937,7 @@ impl ModCollector<'_> {
                     child_mod_id.local_id,
                     crate_id,
                     context,
+                    reuse_existing_module_declarations,
                 ));
             }
             Err(error) => {
@@ -1003,6 +1049,7 @@ fn push_child_module(
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(
+        Some(mod_name.to_string()),
         Some(parent),
         location,
         outer_attributes,

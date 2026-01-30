@@ -38,7 +38,7 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, ResolverMeta};
+use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -125,6 +125,7 @@ impl<'context> Elaborator<'context> {
             self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
+            self.unresolved_globals,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -466,6 +467,13 @@ impl<'context> Elaborator<'context> {
         let is_varargs = modifiers.attributes.has_varargs();
         let varargs_type = if is_varargs { parameters.pop() } else { None };
 
+        // If the varargs type is not a vector, make it a vector to avoid producing more errors
+        // (an error for this was already produced during name resolution). Here we assume the user
+        // used the vector element type instead of a vector.
+        let varargs_type = varargs_type.map(|typ| {
+            if matches!(typ, Type::Vector(..)) { typ } else { Type::Vector(Box::new(typ)) }
+        });
+
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.vector_element_type());
 
         let mut new_arguments = Vec::with_capacity(arguments.len());
@@ -729,6 +737,25 @@ impl<'context> Elaborator<'context> {
 
         // Execute each collected attribute
         for attr in attributes_to_run {
+            // Check macro expansion depth to prevent infinite recursion when an attribute
+            // generates code that triggers further attribute expansion (including mutual recursion).
+            //
+            // Note: This check is intentionally here in `run_attributes` rather than in
+            // `run_attribute` because the recursion path is:
+            //   run_attributes -> run_attribute -> elaborate_items -> run_attributes
+            // If we put the increment/decrement in `run_attribute`, the decrement would
+            // happen before `elaborate_items` is called, so the depth counter would reset
+            // before the recursive call and fail to detect the recursion.
+            if self.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
+                self.push_err(InterpreterError::AttributeRecursionLimitExceeded {
+                    location: attr.location,
+                });
+                // Halt further elaboration to prevent cascading errors
+                self.comptime_evaluation_halted = true;
+                return;
+            }
+            self.macro_expansion_depth += 1;
+
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
@@ -749,6 +776,8 @@ impl<'context> Elaborator<'context> {
                     elaborator.elaborate_items(generated_items);
                 });
             }
+
+            self.macro_expansion_depth -= 1;
         }
     }
 

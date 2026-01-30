@@ -25,8 +25,6 @@ pub mod hint;
 
 mod primitive_docs;
 
-use convert::AsPrimitive;
-
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
@@ -109,32 +107,6 @@ pub fn assert_constant<T>(x: T) {}
 // The message can be a string, a format string, or any value, as long as it is known at compile-time
 #[builtin(static_assert)]
 pub fn static_assert<T>(predicate: bool, message: T) {}
-
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_add(y)")]
-pub fn wrapping_add<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() + y.as_())
-}
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)")]
-pub fn wrapping_sub<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
-}
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)")]
-pub fn wrapping_mul<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() * y.as_())
-}
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
