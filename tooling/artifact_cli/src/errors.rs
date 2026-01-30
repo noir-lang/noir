@@ -34,7 +34,7 @@ pub enum FilesystemError {
     #[error("Failed to write file '{0}':\n{1}")]
     FailedToWriteFile(PathBuf, std::io::Error),
 
-    #[error("Failed to creator directory '{0}':\n{1}")]
+    #[error("Failed to create directory '{0}':\n{1}")]
     FailedToCreateDirectory(PathBuf, std::io::Error),
 }
 
