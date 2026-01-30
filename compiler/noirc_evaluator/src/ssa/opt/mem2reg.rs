@@ -1357,7 +1357,7 @@ mod tests {
         // This checks that when an array containing references is used in a call
         // that we do not remove the original stores to those internal references
         let src = r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
@@ -1366,7 +1366,7 @@ mod tests {
             v6 = load v0 -> Field   // make sure this isn't optimized to Field 1
             return v3
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: [(u32, &mut Field); 1]):
             v2 = array_get v0, index u32 1 -> &mut Field
             v3 = load v2 -> Field
@@ -1413,12 +1413,12 @@ mod tests {
     #[test]
     fn keep_last_store_in_make_array_returned_from_function() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = call f1() -> [&mut u1; 2]
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0
@@ -1434,7 +1434,7 @@ mod tests {
     #[test]
     fn keep_last_store_in_make_array_used_in_array_get_that_returns_result() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v1 = allocate -> &mut u1
             store u1 0 at v1
@@ -1457,7 +1457,7 @@ mod tests {
     #[test]
     fn keep_last_store_in_diff_block_from_make_array_used_in_array_get_that_returns_result() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v1 = allocate -> &mut u1
             store u1 0 at v1
@@ -1480,7 +1480,7 @@ mod tests {
     #[test]
     fn remove_last_store_in_make_array_that_is_never_used() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0
@@ -1495,7 +1495,7 @@ mod tests {
         let ssa = ssa.mem2reg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = allocate -> &mut u1
             jmp b1()
@@ -1509,7 +1509,7 @@ mod tests {
     #[test]
     fn keep_last_store_in_make_array_returned_from_function_separate_blocks() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v1 = call f1(v0) -> [&mut u32; 1]
             v3 = array_get v1, index u32 0 -> &mut u32
@@ -1517,7 +1517,7 @@ mod tests {
             v5 = load v3 -> u1
             return v5
         }
-        brillig(inline_always) fn foo f1 {
+        brillig(inline_always, unroll_default) fn foo f1 {
           b0(v0: u32):
             v1 = allocate -> &mut u32
             store v0 at v1
@@ -1546,14 +1546,14 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
             store u32 1 at v4
             return u32 1
         }
-        brillig(inline_always) fn foo f1 {
+        brillig(inline_always, unroll_default) fn foo f1 {
           b0(v0: u32):
             v1 = allocate -> &mut u32
             store v0 at v1
@@ -1582,14 +1582,14 @@ mod tests {
     #[test]
     fn keep_last_store_in_make_array_where_aliases_are_none() {
         let src = "
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: &mut u1):
             v1 = call f2() -> &mut u1
             store u1 1 at v1
             v3 = make_array [v1] : [&mut u1; 1]
             return v3
         }
-        brillig(inline) fn get_ref f2 {
+        brillig(inline, unroll_default) fn get_ref f2 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0
@@ -1673,7 +1673,7 @@ mod tests {
         // because `v6` is passed to another function and we don't know what that reference
         // points to, and it could potentially change the value of `v0`.
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: &mut Field):
             v2 = allocate -> &mut &mut Field
             store v0 at v2
@@ -1729,7 +1729,7 @@ mod tests {
         // The store here shouldn't be removed as its address is eventually put inside
         // an array that's used in a terminator value, `b1(v7)`.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v6 = allocate -> &mut u1
             store u1 1 at v6
@@ -1745,7 +1745,7 @@ mod tests {
     #[test]
     fn removes_last_store_in_single_block() {
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut [Field; 2]
             v1 = load v0 -> [Field; 2]
@@ -1753,7 +1753,7 @@ mod tests {
             return
         }
 
-        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+        brillig(inline, unroll_default) impure fn append_note_hashes_with_logs f1 {
           b0(v0: &mut [Field; 2]):
             return
         }
@@ -1763,13 +1763,13 @@ mod tests {
 
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut [Field; 2]
             v1 = load v0 -> [Field; 2]
             return
         }
-        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+        brillig(inline, unroll_default) impure fn append_note_hashes_with_logs f1 {
           b0(v0: &mut [Field; 2]):
             return
         }
@@ -1782,7 +1782,7 @@ mod tests {
         // isn't removed because it's considered an "input reference" and we can't currently
         // tell if that value is going to be returned from the function.
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut [Field; 2]
             call f1(v0)
@@ -1791,7 +1791,7 @@ mod tests {
             return
         }
 
-        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+        brillig(inline, unroll_default) impure fn append_note_hashes_with_logs f1 {
           b0(v0: &mut [Field; 2]):
             return
         }
@@ -1801,7 +1801,7 @@ mod tests {
 
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut [Field; 2]
             call f1(v0)
@@ -1809,7 +1809,7 @@ mod tests {
             store v2 at v0
             return
         }
-        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+        brillig(inline, unroll_default) impure fn append_note_hashes_with_logs f1 {
           b0(v0: &mut [Field; 2]):
             return
         }
@@ -1819,7 +1819,7 @@ mod tests {
     #[test]
     fn if_aliases_each_branch() {
         let src = "
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline, unroll_default) predicate_pure fn main f0 {
               b0(v0: u1):
                 v1 = allocate -> &mut Field
                 store Field 0 at v1
@@ -1841,7 +1841,7 @@ mod tests {
     #[test]
     fn reuses_last_load_from_single_predecessor_block() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut Field):
             v2 = load v0 -> Field
             jmp b1()
@@ -1855,7 +1855,7 @@ mod tests {
 
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut Field):
             v1 = load v0 -> Field
             jmp b1()
@@ -1868,7 +1868,7 @@ mod tests {
     #[test]
     fn reuses_last_load_from_multiple_indirect_predecessor_block() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut Field, v1: u1):
             v2 = load v0 -> Field
             jmpif v1 then: b1, else: b2
@@ -1886,7 +1886,7 @@ mod tests {
 
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut Field, v1: u1):
             v2 = load v0 -> Field
             jmpif v1 then: b1, else: b2
@@ -1903,7 +1903,7 @@ mod tests {
     #[test]
     fn store_load_from_array_get() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v1 = allocate -> &mut u1
             store u1 0 at v1
@@ -1926,7 +1926,7 @@ mod tests {
         let ssa = ssa.mem2reg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v2 = allocate -> &mut u1
             store u1 0 at v2
@@ -2011,7 +2011,7 @@ mod tests {
     fn store_to_reference_from_array_get_is_not_lost() {
         // `store Field 9 at v7` was incorrectly removed because of a bug
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u1):
             v2 = allocate -> &mut Field
             store Field 0 at v2
@@ -2059,7 +2059,7 @@ mod tests {
     #[test]
     fn does_not_remove_store_used_in_if_then() {
         let src = "
-        brillig(inline) fn func f0 {
+        brillig(inline, unroll_default) fn func f0 {
           b0(v0: &mut u1, v1: u1):
             v2 = allocate -> &mut u1
             store v1 at v2
@@ -2078,7 +2078,7 @@ mod tests {
     fn block_argument_is_alias_of_block_parameter_1() {
         // Here the last load can't be replaced with `Field 0` as v0 and v1 are aliases of one another.
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
@@ -2096,7 +2096,7 @@ mod tests {
     fn block_argument_is_alias_of_block_parameter_2() {
         // Here the last load can't be replaced with `Field 1` as v0 and v1 are aliases of one another.
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
@@ -2183,7 +2183,7 @@ mod tests {
     #[test]
     fn does_not_reuse_load_from_aliased_array_element() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut Field, v1: &mut Field, v2: u32):
             v3 = make_array [v0] : [&mut Field; 1]
             v4 = array_set v3, index v2, value v1
@@ -2198,7 +2198,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut Field, v1: &mut Field, v2: u32):
             v3 = make_array [v0] : [&mut Field; 1]
             v4 = array_set v3, index v2, value v1
@@ -2215,7 +2215,7 @@ mod tests {
     #[test]
     fn does_not_remove_store_from_aliased_array_element() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -2232,7 +2232,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -2253,7 +2253,7 @@ mod tests {
         // Here the last load can't be replaced with `Field 1` as v0 and v1 are potentially
         // aliases of one another (in our logic the alias set of v0 and v1 will be unknown)
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0, v1 = call f1() -> (&mut Field, &mut Field)
             store Field 0 at v0
@@ -2262,7 +2262,7 @@ mod tests {
             return v2
         }
 
-        brillig(inline) impure fn f1 f1 {
+        brillig(inline, unroll_default) impure fn f1 f1 {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
@@ -2277,7 +2277,7 @@ mod tests {
         // Here the last load can't be replaced with `Field 1` as v0 and v1 are potentially
         // aliases of one another (in our logic the alias set of v0 and v1 will be unknown)
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             v1 = call f1(v0) -> &mut Field
@@ -2287,7 +2287,7 @@ mod tests {
             return v2
         }
 
-        brillig(inline) impure fn f1 f1 {
+        brillig(inline, unroll_default) impure fn f1 f1 {
           b0(v0: &mut Field):
             return v0
         }
@@ -2307,7 +2307,7 @@ mod tests {
         // preferable for the compiler to keep the loads in `b2` (e.g. we want to keep the load of `v4` as it's used in
         // `b2` itself), but here it's preferable for us to load most of these values only once we enter `b4`.
         let src = r#"
-        brillig(inline) fn perform_duplex f5 {
+        brillig(inline, unroll_default) fn perform_duplex f5 {
           b0(v2: &mut [Field; 3], v3: &mut [Field; 4], v4: &mut u32, v5: &mut u1):
             jmp b1(u32 0)
           b1(v6: u32):
@@ -2374,7 +2374,7 @@ mod tests {
         let ssa = ssa.mem2reg();
 
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn perform_duplex f0 {
+        brillig(inline, unroll_default) fn perform_duplex f0 {
           b0(v0: &mut [Field; 3], v1: &mut [Field; 4], v2: &mut u32, v3: &mut u1):
             jmp b1(u32 0)
           b1(v4: u32):
@@ -2428,7 +2428,7 @@ mod tests {
         // This is a test to make sure that if an instruction is simplified to multiple instructions,
         // like in the case of `vector_push_back`, those are handled correctly.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v4 = allocate -> &mut u1
             store u1 0 at v4
@@ -2454,7 +2454,7 @@ mod tests {
         let ssa = ssa.mem2reg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v1 = allocate -> &mut u1
             store u1 0 at v1
@@ -2616,7 +2616,7 @@ mod tests {
         // - Pass v5 a function as an argument, so that v5 is used
         // - This should keep the store to v5, and recursively to v1 and v3
         let src = "
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0():
         v1 = allocate -> &mut Field
         store Field 99 at v1
@@ -2628,7 +2628,7 @@ mod tests {
         v6 = call f1(v5) -> Field
         return v6
     }
-    brillig(inline) fn helper f1 {
+    brillig(inline, unroll_default) fn helper f1 {
       b0(v0: &mut [&mut Field; 2]):
         return Field 0
     }
@@ -2642,7 +2642,7 @@ mod tests {
         // When storing to v3 we may modify value referenced by v2 depending on the taken branch
         // This must invalidate v8's value previously set.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [&mut Field; 1], v1: u1):
             v3 = allocate -> &mut Field
             v4 = allocate -> &mut Field
@@ -2708,7 +2708,7 @@ mod tests {
         // - On the next loop iteration, loading from v4 and doing array_get can return v5
         // - Then loading from v5 would read uninitialized memory if the store was removed
         let src = r"
-        brillig(inline) predicate_pure fn foo f1 {
+        brillig(inline, unroll_default) predicate_pure fn foo f1 {
           b0():
             v1 = allocate -> &mut u1
             store u1 0 at v1
@@ -2748,14 +2748,14 @@ mod tests {
           v1 = call f1() -> Field
           return v1
       }
-      brillig(inline) impure fn foo f1 {
+      brillig(inline, unroll_default) impure fn foo f1 {
         b0():
           v0 = allocate -> &mut Field
           store Field 3405691582 at v0
           v4 = call f2(v0, Field 3735928559) -> Field
           return v4
       }
-      brillig(inline) impure fn bar f2 {
+      brillig(inline, unroll_default) impure fn bar f2 {
         b0(v0: &mut Field, v1: Field):
           v2 = allocate -> &mut &mut Field
           store v0 at v2
@@ -2807,14 +2807,14 @@ mod tests {
           v1 = call f1() -> Field
           return v1
       }
-      brillig(inline) impure fn foo f1 {
+      brillig(inline, unroll_default) impure fn foo f1 {
         b0():
           v0 = allocate -> &mut Field
           store Field 3405691582 at v0
           v4 = call f2(v0, Field 3735928559) -> Field
           return v4
       }
-      brillig(inline) impure fn bar f2 {
+      brillig(inline, unroll_default) impure fn bar f2 {
         b0(v0: &mut Field, v1: Field):
           v2 = allocate -> &mut &mut Field
           store v0 at v2
@@ -2848,7 +2848,7 @@ mod tests {
     #[test]
     fn set_reference_in_array_from_separate_block() {
         let src = "
-      brillig(inline) impure fn bar f2 {
+      brillig(inline, unroll_default) impure fn bar f2 {
         b0(v0: [&mut u1; 1]):
           v1 = allocate -> &mut [&mut u1; 1]
           store v0 at v1
@@ -2874,7 +2874,7 @@ mod tests {
         let ssa = ssa.mem2reg();
         // We expect `store u1 1 at v2` to remain in place as it is used later as a value in an array set in b1
         assert_ssa_snapshot!(ssa, @r"
-      brillig(inline) impure fn bar f0 {
+      brillig(inline, unroll_default) impure fn bar f0 {
         b0(v0: [&mut u1; 1]):
           v1 = allocate -> &mut [&mut u1; 1]
           store v0 at v1

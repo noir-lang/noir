@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn unsigned_u8_to_i8_safe() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v2 = cast u8 135 as i8
             v3 = truncate v2 to 8 bits, max_bit_size: 9
@@ -109,7 +109,7 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             return i8 -121
         }
@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn unsigned_u8_to_i8_out_of_bounds() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v2 = cast u8 300 as i8
             v3 = truncate v2 to 8 bits, max_bit_size: 9
@@ -133,7 +133,7 @@ mod tests {
 
         // The overflow check would fail here.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             constrain u1 1 == u1 0
             return i8 44

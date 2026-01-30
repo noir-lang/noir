@@ -152,7 +152,7 @@ impl Loop {
     ///
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
-    /// brillig(inline) fn main f0 {
+    /// brillig(inline, unroll_default) fn main f0 {
     ///   b0(v0: u32):
     ///     ...
     ///     jmp b1(u32 0)
@@ -958,7 +958,7 @@ mod tests {
     #[test]
     fn simple_loop_invariant_code_motion() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
               jmp b1(i32 0)
           b1(v2: i32):
@@ -992,7 +992,7 @@ mod tests {
         // ```
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
             constrain v3 == i32 6
@@ -1012,7 +1012,7 @@ mod tests {
     #[test]
     fn simple_licm_one_value_invariant_one_value_local() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             jmp b1(i32 0)
           b1(v2: i32):
@@ -1041,7 +1041,7 @@ mod tests {
         // v3 = unchecked_mul v0, v1
         // ```
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
             jmp b1(i32 0)
@@ -1063,7 +1063,7 @@ mod tests {
         // Check that a loop invariant in the inner loop of a nested loop
         // is hoisted to the parent loop's pre-header block.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             jmp b1(i32 0)
           b1(v2: i32):
@@ -1096,7 +1096,7 @@ mod tests {
         // `v10 = mul v0, v1` in b6 should now be `v4 = mul v0, v1` in b0
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             v4 = unchecked_mul v0, v1
             constrain v4 == i32 6
@@ -1126,7 +1126,7 @@ mod tests {
         // Check that a loop invariant in the inner loop, using only outer-loop locals,
         // is hoisted to the inner loop's pre-header, not the outer loop's pre-header.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32):
             jmp b1(i32 0)
           b1(v1: i32):
@@ -1153,7 +1153,7 @@ mod tests {
 
         // After LICM, v9 should be hoisted to the inner loop pre-header (b5)
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32):
             jmp b1(i32 0)
           b1(v1: i32):
@@ -1191,7 +1191,7 @@ mod tests {
         // As we will be hoisting `v6 = mul v0, v1` to the loop preheader we know that we can also
         // hoist `v7 = mul v6, v0`.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             jmp b1(i32 0)
           b1(v2: i32):
@@ -1217,7 +1217,7 @@ mod tests {
 
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
             v4 = unchecked_mul v3, v0
@@ -1242,7 +1242,7 @@ mod tests {
         // However, as the instruction has side effects, we want to make sure
         // we do not hoist the instruction to the loop preheader.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             v4 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
             inc_rc v4
@@ -1298,7 +1298,7 @@ mod tests {
         // We want to make sure `arr[i]` is hoisted to the outermost loop body and that
         // `arr[j]` is hoisted to the second outermost loop body.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
             inc_rc v6
@@ -1339,7 +1339,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
             inc_rc v6
@@ -1398,7 +1398,7 @@ mod tests {
         // To do so, we increment the reference counter on the array we are moving.
         // In the SSA below, we want to move `v42` out of the loop.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             v9 = allocate -> &mut [Field; 5]
@@ -1422,7 +1422,7 @@ mod tests {
             v24 = unchecked_add v2, u32 1
             jmp b1(v24)
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: [Field; 5]):
             return
         }
@@ -1434,7 +1434,7 @@ mod tests {
         // of the newly hoisted `make_array` at the end of `b0`.
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             v9 = allocate -> &mut [Field; 5]
@@ -1459,7 +1459,7 @@ mod tests {
             v23 = unchecked_add v2, u32 1
             jmp b1(v23)
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: [Field; 5]):
             return
         }
@@ -1525,7 +1525,7 @@ mod tests {
         // This test is identical to `simple_loop_invariant_code_motion`, except this test
         // uses a checked add in `b3`.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
               jmp b1(u32 0)
           b1(v2: u32):
@@ -1546,7 +1546,7 @@ mod tests {
         // `v8 = add v2, u32 1` in b3 should now be `v9 = unchecked_add v2, u32 1` in b3
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
             constrain v3 == u32 6
@@ -1572,7 +1572,7 @@ mod tests {
         // to test that we are checking against the loop's lower bound
         // rather than the upper bound (add/mul only check against the upper bound).
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             jmp b1(u32 0)
           b1(v2: u32):
@@ -1593,7 +1593,7 @@ mod tests {
         // This test is identical to `do_not_transform_unsafe_sub_to_unchecked`, except the loop
         // in this test starts with a lower bound of `1`.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
               jmp b1(u32 1)
           b1(v2: u32):
@@ -1612,7 +1612,7 @@ mod tests {
         // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32):
             jmp b1(u32 1)
           b1(v2: u32):
@@ -1642,7 +1642,7 @@ mod tests {
         // Check whether the lower bound of the outer loop is zero and that we do not
         // hoist an operation that can potentially error with a division by zero.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 5
             jmp b1(u32 0)
@@ -1678,7 +1678,7 @@ mod tests {
         // This test is identical to `do_not_hoist_unsafe_div`, except the loop
         // in this test starts with a lower bound of `1`.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 5
             jmp b1(u32 1)
@@ -1711,7 +1711,7 @@ mod tests {
 
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 5
             jmp b1(u32 1)
@@ -2179,7 +2179,7 @@ mod tests {
 
         let src = format!(
             r#"
-        brillig(inline) fn main f0 {{
+        brillig(inline, unroll_default) fn main f0 {{
           b0(v0: [u64; 25]):
             jmp b1(u32 0)
           b1(v1: u32):
@@ -2193,7 +2193,7 @@ mod tests {
             return
         }}
 
-        brillig(inline) {dummy_purity} fn dummy f1 {{
+        brillig(inline, unroll_default) {dummy_purity} fn dummy f1 {{
           b0(v0: [u64; 25]):
             return v0
         }}
@@ -2297,7 +2297,7 @@ mod tests {
         let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
         let src = format!(
             r#"
-            brillig(inline) impure fn main f0 {{
+            brillig(inline, unroll_default) impure fn main f0 {{
               b0():
                 jmp b1(u32 {lower})
               b1(v0: u32):
@@ -2373,7 +2373,7 @@ mod tests {
     #[test]
     fn do_not_hoist_div_by_zero_from_non_executed_nested_loop() {
         let src = r#"
-          brillig(inline) predicate_pure fn main f0 {
+          brillig(inline, unroll_default) predicate_pure fn main f0 {
             b0():
               jmp b1(u32 0)
             b1(v0: u32):
@@ -2402,7 +2402,7 @@ mod tests {
     #[test]
     fn do_not_hoist_signed_div_by_minus_one_from_non_executed_nested_loop() {
         let src = r#"
-          brillig(inline) predicate_pure fn main f0 {
+          brillig(inline, unroll_default) predicate_pure fn main f0 {
             b0():
               jmp b1(i32 0)
             b1(v0: i32):
@@ -2477,7 +2477,7 @@ mod control_dependence {
     #[test]
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             v4 = eq v0, u32 5
             jmp loop(u32 0)
@@ -2503,7 +2503,7 @@ mod control_dependence {
     #[test]
     fn hoist_safe_mul_that_is_non_control_dependent() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             jmp loop(u32 0)
           loop(v2: u32):
@@ -2523,7 +2523,7 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
 
         let expected = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
@@ -2550,7 +2550,7 @@ mod control_dependence {
         // There is then a separate second loop which is non control dependent for which
         // we expect instructions to be hoisted.
         let src = "
-      brillig(inline) fn main f0 {
+      brillig(inline, unroll_default) fn main f0 {
         entry(v0: u32, v1: u32):
           v5 = eq v0, u32 5
           jmp loop_1(u32 0)
@@ -2598,7 +2598,7 @@ mod control_dependence {
         // constrain v10 == u32 12
         // ```
         let expected = "
-      brillig(inline) fn main f0 {
+      brillig(inline, unroll_default) fn main f0 {
         entry(v0: u32, v1: u32):
           v5 = eq v0, u32 5
           jmp loop_1(u32 0)
@@ -2638,7 +2638,7 @@ mod control_dependence {
         // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
         // that the upper loop bound is zero
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             jmp loop(u32 0)
           loop(v2: u32):
@@ -2664,7 +2664,7 @@ mod control_dependence {
         // If the constrain were to be hoisted out it could potentially
         // cause the program to fail when it is not meant to fail.
         let expected = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
             v4 = unchecked_mul v3, v0
@@ -2688,7 +2688,7 @@ mod control_dependence {
         // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
         // that the lower and upper loop bounds are the same and greater than zero
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             jmp loop(u32 1)
           loop(v2: u32):
@@ -2713,7 +2713,7 @@ mod control_dependence {
         // If the constrain were to be hoisted out it could potentially
         // cause the program to fail when it is not meant to fail.
         let expected = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
             v4 = unchecked_mul v3, v0
@@ -2738,7 +2738,7 @@ mod control_dependence {
         // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
         // that the upper loop bound is dynamic
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             jmp loop(u32 0)
           loop(v2: u32):
@@ -2764,7 +2764,7 @@ mod control_dependence {
         // If the constrain were to be hoisted out it could potentially
         // cause the program to fail when it is not meant to fail.
         let expected = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
             v4 = unchecked_mul v3, v0
@@ -2791,7 +2791,7 @@ mod control_dependence {
         // is replaced with a call to pure with predicates functions.
         // We cannot guarantee that the loop body will be executed when we have dynamic bounds.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             jmp loop(u32 0)
           loop(v2: u32):
@@ -2806,7 +2806,7 @@ mod control_dependence {
           exit():
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           entry(v0: u32):
             constrain v0 == u32 12
             return
@@ -2818,7 +2818,7 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
             v4 = unchecked_mul v3, v0
@@ -2833,7 +2833,7 @@ mod control_dependence {
           b3():
             return
         }
-        brillig(inline) predicate_pure fn foo f1 {
+        brillig(inline, unroll_default) predicate_pure fn foo f1 {
           b0(v0: u32):
             constrain v0 == u32 12
             return
@@ -2846,7 +2846,7 @@ mod control_dependence {
         // This test is the same as `do_not_hoist_pure_with_predicate_call_in_non_executed_loop_body`
         // except that the loop bounds are guaranteed to execute.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32):
             jmp loop(u32 0)
           loop(v2: u32):
@@ -2861,7 +2861,7 @@ mod control_dependence {
           exit():
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           entry(v0: u32):
             constrain v0 == u32 12
             return
@@ -2873,7 +2873,7 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
@@ -2888,7 +2888,7 @@ mod control_dependence {
           b3():
             return
         }
-        brillig(inline) predicate_pure fn foo f1 {
+        brillig(inline, unroll_default) predicate_pure fn foo f1 {
           b0(v0: u32):
             constrain v0 == u32 12
             return
@@ -2900,7 +2900,7 @@ mod control_dependence {
     fn simplify_constraint() {
         // This test shows the constraint constrain v17 == u1 1 is not simplified into constrain u1 0 == u1 1
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
@@ -2935,7 +2935,7 @@ mod control_dependence {
         // Despite the loop is guaranteed to fully execute, which implies that the constrain will fail at some iteration,
         // the constraint is not simplified in case some side-effect instruction would run in the previous iterations.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
@@ -2968,7 +2968,7 @@ mod control_dependence {
     fn do_not_simplify_constraint() {
         // This test is similar to simplify_constraint but does not simplify because loop_exit has 2 predecessors
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
@@ -3049,7 +3049,7 @@ mod control_dependence {
     fn simplify_comparison() {
         // This tests shows that the comparison v12 = lt v3, u32 8 is simplified because v3 is bounded by 5
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
@@ -3081,7 +3081,7 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
@@ -3112,7 +3112,7 @@ mod control_dependence {
     fn simplify_not_equal_constraint() {
         // This tests shows that the not equal on v3 is simplified due to the loop bounds
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             jmp b1(u32 0)
@@ -3134,7 +3134,7 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             jmp b1(u32 0)
@@ -3153,7 +3153,7 @@ mod control_dependence {
     #[test]
     fn do_not_hoist_non_control_dependent_div_in_non_executed_loop() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -3359,7 +3359,7 @@ mod control_dependence {
         //     }
         // }
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -3505,7 +3505,7 @@ mod control_dependence {
         // so that the header is not the first block or the one
         // with the lowest ID.
         let src = r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v2 = allocate -> &mut u32
             store u32 0 at v2
@@ -3540,7 +3540,7 @@ mod control_dependence {
     #[test]
     fn infinite_loop_is_not_fully_executed() {
         let src = r"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
@@ -3571,7 +3571,7 @@ mod control_dependence {
         //     }
         // }
         let src = r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u1, v1: &mut u32):
             v17 = allocate -> &mut u32
             store u32 0 at v17
@@ -3638,7 +3638,7 @@ mod control_dependence {
     /// Checks that hoisting a function call returning an array adds an inc_rc operation
     fn call_func_call_inc_rc() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v2 = make_array [u8 0, u8 0, u8 0, u8 0] : [u8; 4]
             v3 = allocate -> &mut [u8; 4]
@@ -3657,7 +3657,7 @@ mod control_dependence {
             v9 = call black_box(v7) -> [u8; 4]
             return
         }
-        brillig(inline) predicate_pure fn ret_arr f1 {
+        brillig(inline, unroll_default) predicate_pure fn ret_arr f1 {
           b0():
             v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
             return u8 7, v4
@@ -3677,7 +3677,7 @@ mod control_dependence {
         g1 = make_array [Field 3, Field 4] : [Field; 2]
         g2 = make_array [g0, g1] : [[Field; 2]; 2]
 
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v3 = allocate -> &mut Field
             store Field 0 at v3

@@ -992,7 +992,7 @@ mod tests {
                 return
         }
 
-        brillig(inline) fn br f1 {
+        brillig(inline, unroll_default) fn br f1 {
           b0(v0: Field, v1: Field):
             v2 = add v0, v1
             return v2
@@ -1063,7 +1063,7 @@ mod tests {
             return
         }
 
-        brillig(inline) fn maximum_price f1 {
+        brillig(inline, unroll_default) fn maximum_price f1 {
           b0(v0: [u32; 2]):
             v2 = array_get v0, index u32 0 -> u32
             return v2
@@ -1095,7 +1095,7 @@ mod tests {
             return
         }
 
-        brillig(inline) fn factor f1 {
+        brillig(inline, unroll_default) fn factor f1 {
           b0(v0: u32):
             return u32 0, u32 0
         }
@@ -1125,7 +1125,7 @@ mod tests {
             return
         }
 
-        brillig(inline) fn factor f1 {
+        brillig(inline, unroll_default) fn factor f1 {
           b0(v0: Field):
             return u32 0, u32 0
         }
@@ -1154,7 +1154,7 @@ mod tests {
             return
         }
 
-        brillig(inline) fn dummy f1 {
+        brillig(inline, unroll_default) fn dummy f1 {
           b0(v0: u32):
             return u32 0
         }
@@ -1209,7 +1209,7 @@ mod tests {
             return v2, v3, v4
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             return Field 4, u8 2, v0
         }
@@ -1237,7 +1237,7 @@ mod tests {
             return v8
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field, v1: Field):
             v2 = add v0, v1
             return v2
@@ -1269,7 +1269,7 @@ mod tests {
             return v3
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field, v1: Field):
             v2 = add v0, v1
             return v2
@@ -1296,7 +1296,7 @@ mod tests {
             return v17
         }
 
-        brillig(inline) fn into_array f1 {
+        brillig(inline, unroll_default) fn into_array f1 {
           b0(v0: u32):
             v4 = make_array [v0, v0, v0] : [u32; 3]
             return v4
@@ -1325,7 +1325,7 @@ mod tests {
             return v17
         }
 
-        brillig(inline) fn into_array f1 {
+        brillig(inline, unroll_default) fn into_array f1 {
           b0(v0: u32):
             v4 = make_array [v0, v0, v0] : [u32; 3]
             return v4
@@ -1390,12 +1390,12 @@ mod tests {
             return v30, v31, v32
         }
 
-        brillig(inline) fn foo f2 {
+        brillig(inline, unroll_default) fn foo f2 {
           b0(v0: Field):
             return Field 4, u8 2, v0
         }
 
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0(v0: Field, v1: u8, v2: Field):
             v7 = add v2, Field 1
             return v0, v1, v7
@@ -1422,7 +1422,7 @@ mod tests {
             return v3
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field, v1: Field):
             v2 = add v0, v1
             return v2
@@ -1449,7 +1449,7 @@ mod tests {
             call f2(u1 1, v0)
             return
         }
-        brillig(inline) fn print_unconstrained f2 {
+        brillig(inline, unroll_default) fn print_unconstrained f2 {
           b0(v0: u1, v1: Field):
             return
         }
@@ -1486,7 +1486,7 @@ mod tests {
             constrain v4 == v5
             return
         }
-        brillig(inline) predicate_pure fn identity f1 {
+        brillig(inline, unroll_default) predicate_pure fn identity f1 {
             b0(v0: u64):
             return v0
         }
@@ -1508,7 +1508,7 @@ mod tests {
             constrain v2 == v0
             return
         }
-        brillig(inline) predicate_pure fn identity32 f1 {
+        brillig(inline, unroll_default) predicate_pure fn identity32 f1 {
             b0(v0: Field):
             return v0
         }

@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn does_not_expand_signed_lt_in_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i8, v1: i8):
             v2 = lt v0, v1
             return v2
@@ -450,7 +450,7 @@ mod tests {
     #[test]
     fn does_not_expands_signed_div_in_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i8, v1: i8):
             v2 = div v0, v1
             return v2
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn does_not_expands_signed_mod_in_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: i8, v1: i8):
             v2 = mod v0, v1
             return v2

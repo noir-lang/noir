@@ -47,7 +47,7 @@
 //!
 //! Original function `f1`:
 //! ```text
-//! brillig(inline) fn f1:
+//! brillig(inline, unroll_default) fn f1:
 //!   b0(v0: Field, v1: Field):
 //!     jmp b1(Field 1)
 //!   b1(v2: Field):
@@ -61,7 +61,7 @@
 //!
 //! After pruning::
 //! ```text
-//! brillig(inline) fn f1:
+//! brillig(inline, unroll_default) fn f1:
 //!   b0():
 //!     jmp b1(Field 1)
 //!   b1(v2: Field):
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn prune_unused_block_params() {
         let src = r#"
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0():
             jmp b1(Field 1, Field 2, Field 3)
           b1(v0: Field, v1: Field, v2: Field):
@@ -300,7 +300,7 @@ mod tests {
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0():
             jmp b1(Field 2)
           b1(v0: Field):
@@ -314,7 +314,7 @@ mod tests {
         let src = r#"
         g0 = u32 2825334515
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v4 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v4
@@ -362,7 +362,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         g0 = u32 2825334515
         
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v3 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v3
@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn do_not_prune_brillig_main_dead_entry_block_params() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field):
             jmp b1(Field 1)
           b1(v2: Field):
@@ -409,7 +409,7 @@ mod tests {
         // b0 still has both parameters even though v0 is unused
         // as b0 is the entry block which would also change the function signature.
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field):
             jmp b1(Field 1)
           b1(v2: Field):
@@ -420,12 +420,12 @@ mod tests {
     #[test]
     fn prune_brillig_non_entry_point_dead_entry_block_params() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = call f1(Field 5, Field 10) -> Field
             return v0
         }
-        brillig(inline) fn test f1 {
+        brillig(inline, unroll_default) fn test f1 {
           b0(v0: Field, v1: Field):
             jmp b1(Field 1)
           b1(v2: Field):
@@ -453,12 +453,12 @@ mod tests {
         // and we can rewrite its call site.
         // The call to f1 should also be rewritten to not pass any arguments.
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v1 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn test f1 {
+        brillig(inline, unroll_default) fn test f1 {
           b0():
             jmp b1(Field 1)
           b1(v0: Field):
@@ -475,7 +475,7 @@ mod tests {
             v0 = call f1(Field 5, Field 10) -> Field
             return v0
         }
-        brillig(inline) fn test f1 {
+        brillig(inline, unroll_default) fn test f1 {
           b0(v0: Field, v1: Field):
             jmp b1(Field 1)
           b1(v2: Field):
@@ -498,7 +498,7 @@ mod tests {
             v1 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn test f1 {
+        brillig(inline, unroll_default) fn test f1 {
           b0():
             jmp b1(Field 1)
           b1(v0: Field):
@@ -569,7 +569,7 @@ mod tests {
         // }
         // ```
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v5 = lt i16 3, v0
             jmpif v5 then: b1, else: b2
@@ -635,7 +635,7 @@ mod tests {
         }
 
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1, else: b2
@@ -666,7 +666,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination_with_pruning(false);
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1, else: b2

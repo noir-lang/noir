@@ -1214,7 +1214,7 @@ mod tests {
             v22, v23 = call black_box(v19, v20) -> (u32, [Field])
             return
         }
-        brillig(inline) impure fn void_to_array f1 {
+        brillig(inline, unroll_default) impure fn void_to_array f1 {
         b0():
             v1 = call void_to_array_oracle() -> [Field; 4294967295]
             return v1

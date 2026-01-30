@@ -672,7 +672,7 @@ mod tests {
     #[test]
     fn keep_paired_rcs_with_array_set() {
         let src = "
-            brillig(inline) fn main f0 {
+            brillig(inline, unroll_default) fn main f0 {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_set v0, index u32 0, value u32 0
@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
-        // brillig(inline) fn main f0 {
+        // brillig(inline, unroll_default) fn main f0 {
         //     b0():
         //       v1 = make_array [u32 0, u32 0]
         //       v2 = allocate
@@ -739,7 +739,7 @@ mod tests {
     #[test]
     fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
         let src = "
-            brillig(inline) fn borrow_mut f0 {
+            brillig(inline, unroll_default) fn borrow_mut f0 {
               b0(v0: &mut [Field; 3]):
                 v1 = load v0 -> [Field; 3]
                 inc_rc v1 // this one shouldn't be removed
@@ -769,7 +769,7 @@ mod tests {
         // If we then remove the inc_rc as we see no mutations to that array in the block,
         // we may end up with an the incorrect reference count.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v4 = make_array [Field 0, Field 1, Field 2] : [Field; 3]
             inc_rc v4
@@ -777,7 +777,7 @@ mod tests {
             constrain v0 == v6
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: [Field; 3]):
             v1 = array_get v0, index u32 0 -> Field
             return v1
@@ -837,7 +837,7 @@ mod tests {
     #[test]
     fn do_not_remove_inc_rc_if_mutated_in_other_block() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut [Field; 3]):
             v1 = load v0 -> [Field; 3]
             inc_rc v1
@@ -852,7 +852,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: &mut [Field; 3]):
             v1 = load v0 -> [Field; 3]
             inc_rc v1
@@ -972,7 +972,7 @@ mod tests {
     fn does_not_remove_inc_rc_of_return_value_that_points_to_a_make_array() {
         // Here we would previously incorrectly remove `inc_rc v1`
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v1 = make_array [u1 1] : [u1; 1]
             v2 = make_array [v1] : [[u1; 1]; 1]
@@ -989,7 +989,7 @@ mod tests {
         let src = r#"
         g0 = make_array [u1 1] : [u1; 1]
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v0 = make_array [g0] : [[u1; 1]; 1]
             inc_rc v0
@@ -1058,7 +1058,7 @@ mod tests {
     #[test]
     fn removes_an_array_get_which_is_in_bounds_due_to_offset() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             v3 = array_get v0, index u32 1 minus 1 -> Field
             return v0
@@ -1069,7 +1069,7 @@ mod tests {
         let ssa = ssa.dead_instruction_elimination();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             return v0
         }
@@ -1105,7 +1105,7 @@ mod tests {
         //     constrain v5 == u1 1, "Index out of bounds"
         //     return
         //   }
-        // brillig(inline) predicate_pure fn inject_value f1 {
+        // brillig(inline, unroll_default) predicate_pure fn inject_value f1 {
         //   b0():
         //     return u32 0
         // }
@@ -1125,7 +1125,7 @@ mod tests {
     #[test]
     fn do_not_remove_inc_rc_on_nested_constant_array() {
         let src = "
-        brillig(inline) fn func_1 f0 {
+        brillig(inline, unroll_default) fn func_1 f0 {
           b0(v0: [[Field; 1]; 1]):
             v1 = allocate -> &mut [[Field; 1]; 1]
             store v0 at v1

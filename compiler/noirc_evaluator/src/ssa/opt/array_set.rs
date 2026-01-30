@@ -326,7 +326,7 @@ mod tests {
                 return v3
             }
 
-            brillig(inline) fn func_1 f1 {
+            brillig(inline, unroll_default) fn func_1 f1 {
               b0(v0: [Field; 1]):
                 v1 = array_get v0, index u32 0 -> Field
                 return v1

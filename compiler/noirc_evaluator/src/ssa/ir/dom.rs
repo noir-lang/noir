@@ -661,7 +661,7 @@ mod tests {
     /// ```
     fn loop_with_cond() -> Ssa {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v1: u32, v2: u32):
             v5 = eq v1, u32 5
             jmp b1(u32 0)
@@ -798,7 +798,7 @@ mod tests {
         // the blocks in its own Dominance Frontier. But its dominance does not end
         // there, so we don't consider it part of the DF.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u1):
             jmp b1()
           b1():

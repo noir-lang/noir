@@ -888,7 +888,7 @@ mod tests {
         // Extracted from `execution_success/brillig_fns_as_values` with `--force-brillig`
         // with an additional simple higher-order function
         let src = "
-          brillig(inline) fn main f0 {
+          brillig(inline, unroll_default) fn main f0 {
             b0(v0: u32):
               v3 = call f1(f2, v0) -> u32
               v5 = add v0, u32 1
@@ -903,22 +903,22 @@ mod tests {
               constrain v11 == v12
               return
           }
-          brillig(inline) fn wrapper f1 {
+          brillig(inline, unroll_default) fn wrapper f1 {
             b0(v0: function, v1: u32):
               v2 = call v0(v1) -> u32
               return v2
           }
-          brillig(inline) fn increment f2 {
+          brillig(inline, unroll_default) fn increment f2 {
             b0(v0: u32):
               v2 = add v0, u32 1
               return v2
           }
-          brillig(inline) fn increment_acir f3 {
+          brillig(inline, unroll_default) fn increment_acir f3 {
             b0(v0: u32):
               v2 = add v0, u32 1
               return v2
           }
-          brillig(inline) fn increment_three f4 {
+          brillig(inline, unroll_default) fn increment_three f4 {
             b0(v0: u32):
               v2 = add v0, u32 1
               return v2
@@ -929,7 +929,7 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v3 = call f1(Field 2, v0) -> u32
             v5 = add v0, u32 1
@@ -944,27 +944,27 @@ mod tests {
             constrain v12 == v13
             return
         }
-        brillig(inline) fn wrapper f1 {
+        brillig(inline, unroll_default) fn wrapper f1 {
           b0(v0: Field, v1: u32):
             v3 = call f5(v0, v1) -> u32
             return v3
         }
-        brillig(inline) fn increment f2 {
+        brillig(inline, unroll_default) fn increment f2 {
           b0(v0: u32):
             v2 = add v0, u32 1
             return v2
         }
-        brillig(inline) fn increment_acir f3 {
+        brillig(inline, unroll_default) fn increment_acir f3 {
           b0(v0: u32):
             v2 = add v0, u32 1
             return v2
         }
-        brillig(inline) fn increment_three f4 {
+        brillig(inline, unroll_default) fn increment_three f4 {
           b0(v0: u32):
             v2 = add v0, u32 1
             return v2
         }
-        brillig(inline_always) fn apply f5 {
+        brillig(inline_always, unroll_default) fn apply f5 {
           b0(v0: Field, v1: u32):
             v5 = eq v0, Field 2
             jmpif v5 then: b2, else: b1
@@ -1006,7 +1006,7 @@ mod tests {
             constrain v11 == v14
             return
         }
-        brillig(inline) fn wrapper f1 {
+        brillig(inline, unroll_default) fn wrapper f1 {
           b0(v0: function, v1: u32):
             v2 = call v0(v1) -> u32
             return v2
@@ -1016,7 +1016,7 @@ mod tests {
             v2 = call v0(v1) -> u32
             return v2
         }
-        brillig(inline) fn increment f3 {
+        brillig(inline, unroll_default) fn increment f3 {
           b0(v0: u32):
             v2 = add v0, u32 1
             return v2
@@ -1031,7 +1031,7 @@ mod tests {
             v2 = add v0, u32 1
             return v2
         }
-        brillig(inline) fn increment_brillig1 f6 {
+        brillig(inline, unroll_default) fn increment_brillig1 f6 {
           b0(v0: u32):
             v2 = add v0, u32 1
             return v2
@@ -1215,7 +1215,7 @@ mod tests {
     #[test]
     fn missing_fn() {
         let src = "
-          brillig(inline) fn main f0 {
+          brillig(inline, unroll_default) fn main f0 {
             b0(v0: function, v1: u32):
               v2 = call v0(v1) -> u32
               return v2
@@ -1226,12 +1226,12 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: u32):
             v3 = call f1(v1) -> u32
             return v3
         }
-        brillig(inline_always) pure fn apply_dummy f1 {
+        brillig(inline_always, unroll_default) pure fn apply_dummy f1 {
           b0(v0: u32):
             return u32 0
         }
@@ -1241,16 +1241,16 @@ mod tests {
     #[test]
     fn missing_fn_variant() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v2 = call f1(f2) -> i64
             return v2
         }
-        brillig(inline) fn func_3 f1 {
+        brillig(inline, unroll_default) fn func_3 f1 {
           b0(v0: function):
             return i64 0
         }
-        brillig(inline) fn func_2 f2 {
+        brillig(inline, unroll_default) fn func_2 f2 {
           b0(v0: function):
             v2 = call v0(u128 1) -> u1
             return v2
@@ -1264,21 +1264,21 @@ mod tests {
         // However, this is fine as a function with no variants means that function
         // was never actually called.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v2 = call f1(Field 2) -> i64
             return v2
         }
-        brillig(inline) fn func_3 f1 {
+        brillig(inline, unroll_default) fn func_3 f1 {
           b0(v0: Field):
             return i64 0
         }
-        brillig(inline) fn func_2 f2 {
+        brillig(inline, unroll_default) fn func_2 f2 {
           b0(v0: Field):
             v3 = call f3(u128 1) -> u1
             return v3
         }
-        brillig(inline_always) pure fn apply_dummy f3 {
+        brillig(inline_always, unroll_default) pure fn apply_dummy f3 {
           b0(v0: u128):
             return u1 0
         }
@@ -1611,22 +1611,22 @@ mod tests {
     #[test]
     fn mixed_signature() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
         b0():
             v0 = allocate -> &mut function
             store f1 at v0
             v4 = call f3(v0, f2) -> &mut function
             return
         }
-        brillig(inline) fn lambda f1 {
+        brillig(inline, unroll_default) fn lambda f1 {
         b0():
             return Field 0
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
         b0(v0: &mut function):
             return v0
         }
-        brillig(inline) fn get f3 {
+        brillig(inline, unroll_default) fn get f3 {
         b0(v0: &mut function, v1: function):
             v2 = call v1(v0) -> &mut function
             return v2
@@ -1637,22 +1637,22 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
             v4 = call f3(v0, Field 2) -> &mut Field
             return
         }
-        brillig(inline) fn lambda f1 {
+        brillig(inline, unroll_default) fn lambda f1 {
           b0():
             return Field 0
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0(v0: &mut Field):
             return v0
         }
-        brillig(inline) fn get f3 {
+        brillig(inline, unroll_default) fn get f3 {
           b0(v0: &mut Field, v1: Field):
             v3 = call f2(v0) -> &mut Field
             return v3
@@ -1883,7 +1883,7 @@ mod tests {
         // However, some generated code (e.g the zeroed impls generated by the frontend) may produce such code.
         // We ensure that the apply function does not allow calling acir functions from a brillig function
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field):
             v4 = allocate -> &mut Field
             store v0 at v4
@@ -1900,12 +1900,12 @@ mod tests {
             v13 = call v3(v12) -> Field
             return
         }
-        brillig(inline) fn foo1 f1 {
+        brillig(inline, unroll_default) fn foo1 f1 {
           b0(v0: Field):
             v1 = mul v0, v0
             return v1
         }
-        brillig(inline) fn foo2 f2 {
+        brillig(inline, unroll_default) fn foo2 f2 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -1930,7 +1930,7 @@ mod tests {
         // The `apply` method skips calling the acir function f3.
         // As there is only one other variant, we just call f1 directly.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field):
             v4 = allocate -> &mut Field
             store v0 at v4
@@ -1947,12 +1947,12 @@ mod tests {
             v13 = call f1(v11) -> Field
             return
         }
-        brillig(inline) fn foo1 f1 {
+        brillig(inline, unroll_default) fn foo1 f1 {
           b0(v0: Field):
             v1 = mul v0, v0
             return v1
         }
-        brillig(inline) fn foo2 f2 {
+        brillig(inline, unroll_default) fn foo2 f2 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -1980,7 +1980,7 @@ mod tests {
         // so that if f3/f4 are ever used, the program fails.
         // If f3/f4 are ever used it means there is a bug upstream in the frontend.
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
             jmpif v4 then: b1, else: b2
@@ -2003,12 +2003,12 @@ mod tests {
             v14 = call v2(v13) -> Field
             return
         }
-        brillig(inline) fn foo1 f1 {
+        brillig(inline, unroll_default) fn foo1 f1 {
           b0(v0: Field):
             v1 = mul v0, v0
             return v1
         }
-        brillig(inline) fn foo2 f2 {
+        brillig(inline, unroll_default) fn foo2 f2 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -2038,7 +2038,7 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
             jmpif v4 then: b1, else: b2
@@ -2061,12 +2061,12 @@ mod tests {
             v13 = call f5(v2, v11) -> Field
             return
         }
-        brillig(inline) fn foo1 f1 {
+        brillig(inline, unroll_default) fn foo1 f1 {
           b0(v0: Field):
             v1 = mul v0, v0
             return v1
         }
-        brillig(inline) fn foo2 f2 {
+        brillig(inline, unroll_default) fn foo2 f2 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -2081,7 +2081,7 @@ mod tests {
             v1 = div v0, v0
             return v1
         }
-        brillig(inline_always) fn apply f5 {
+        brillig(inline_always, unroll_default) fn apply f5 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
             jmpif v4 then: b2, else: b1
@@ -2101,7 +2101,7 @@ mod tests {
     #[test]
     fn acir_variant_in_brillig_not_last_to_dispatch() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
             jmpif v4 then: b1, else: b2
@@ -2114,15 +2114,15 @@ mod tests {
             call v2()
             return
         }
-        brillig(inline) fn lambda f1 {
+        brillig(inline, unroll_default) fn lambda f1 {
           b0():
             return
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0():
             return
         }
-        brillig(inline) fn return_lambda f3 {
+        brillig(inline, unroll_default) fn return_lambda f3 {
           b0():
             return f4, f5
         }
@@ -2130,7 +2130,7 @@ mod tests {
           b0():
             return
         }
-        brillig(inline) fn zeroed_lambda f5 {
+        brillig(inline, unroll_default) fn zeroed_lambda f5 {
           b0():
             return
         }
@@ -2141,7 +2141,7 @@ mod tests {
 
         // If Field 4 were ever to be passed to `apply` the program would fail.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
             jmpif v4 then: b1, else: b2
@@ -2154,15 +2154,15 @@ mod tests {
             call f6(v2)
             return
         }
-        brillig(inline) fn lambda f1 {
+        brillig(inline, unroll_default) fn lambda f1 {
           b0():
             return
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0():
             return
         }
-        brillig(inline) fn return_lambda f3 {
+        brillig(inline, unroll_default) fn return_lambda f3 {
           b0():
             return Field 4, Field 5
         }
@@ -2170,11 +2170,11 @@ mod tests {
           b0():
             return
         }
-        brillig(inline) fn zeroed_lambda f5 {
+        brillig(inline, unroll_default) fn zeroed_lambda f5 {
           b0():
             return
         }
-        brillig(inline_always) fn apply f6 {
+        brillig(inline_always, unroll_default) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
             jmpif v2 then: b2, else: b1
@@ -2225,7 +2225,7 @@ mod tests {
           b0():
             return f4, f5
         }
-        brillig(inline) fn zeroed_lambda f4 {
+        brillig(inline, unroll_default) fn zeroed_lambda f4 {
           b0():
             return
         }
@@ -2266,7 +2266,7 @@ mod tests {
           b0():
             return Field 4, Field 5
         }
-        brillig(inline) fn zeroed_lambda f4 {
+        brillig(inline, unroll_default) fn zeroed_lambda f4 {
           b0():
             return
         }
@@ -2345,11 +2345,11 @@ mod tests {
             constrain v7 == Field 1
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0():
             return Field 1
         }
-        brillig(inline) fn bar f2 {
+        brillig(inline, unroll_default) fn bar f2 {
           b0():
             return Field 2
         }
@@ -2378,11 +2378,11 @@ mod tests {
             constrain v8 == Field 1
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0():
             return Field 1
         }
-        brillig(inline) fn bar f2 {
+        brillig(inline, unroll_default) fn bar f2 {
           b0():
             return Field 2
         }
@@ -2429,7 +2429,7 @@ mod tests {
             v2 = make_array [Field 1, Field 2] : [Field]
             return u32 2, v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0():
             v2 = make_array [Field 1, Field 2] : [Field]
             return u32 2, v2
@@ -2439,7 +2439,7 @@ mod tests {
             v2 = make_array [Field 3, Field 4] : [Field]
             return u32 2, v2
         }
-        brillig(inline) fn lambda f4 {
+        brillig(inline, unroll_default) fn lambda f4 {
           b0():
             v2 = make_array [Field 3, Field 4] : [Field]
             return u32 2, v2
@@ -2468,7 +2468,7 @@ mod tests {
             v2 = make_array [Field 1, Field 2] : [Field]
             return u32 2, v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0():
             v2 = make_array [Field 1, Field 2] : [Field]
             return u32 2, v2
@@ -2478,7 +2478,7 @@ mod tests {
             v2 = make_array [Field 3, Field 4] : [Field]
             return u32 2, v2
         }
-        brillig(inline) fn lambda f4 {
+        brillig(inline, unroll_default) fn lambda f4 {
           b0():
             v2 = make_array [Field 3, Field 4] : [Field]
             return u32 2, v2

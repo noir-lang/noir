@@ -429,7 +429,7 @@ fn accepts_globals() {
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
         b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             constrain v0 == g2
@@ -446,7 +446,7 @@ fn accepts_print() {
     //     println(x);
     // }
     let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
         b0(v0: Field):
             v12 = make_array b"{\"kind\":\"field\"}"
             call print(u1 0, v0, v12, u1 0)
@@ -498,14 +498,14 @@ fn calls_with_higher_order_function() {
 #[test]
 fn is_odd_is_even_recursive_calls() {
     let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32, v1: u1):
             v3 = call f2(v0) -> u1
             v4 = eq v3, v1
             constrain v3 == v1
             return
         }
-        brillig(inline) fn is_even f1 {
+        brillig(inline, unroll_default) fn is_even f1 {
           b0(v0: u32):
             v3 = eq v0, u32 0
             jmpif v3 then: b2, else: b1
@@ -518,7 +518,7 @@ fn is_odd_is_even_recursive_calls() {
           b3(v1: u1):
             return v1
         }
-        brillig(inline) fn is_odd f2 {
+        brillig(inline, unroll_default) fn is_odd f2 {
           b0(v0: u32):
             v3 = eq v0, u32 0
             jmpif v3 then: b2, else: b1
@@ -531,7 +531,7 @@ fn is_odd_is_even_recursive_calls() {
           b3(v1: u1):
             return v1
         }
-        brillig(inline) fn decrement f3 {
+        brillig(inline, unroll_default) fn decrement f3 {
           b0(v0: u32):
             v2 = sub v0, u32 1
             return v2
@@ -1836,7 +1836,7 @@ fn infinite_loop_with_step_limit() {
       call f1(u1 0)
       return
     }
-    brillig(inline) predicate_pure fn func_2 f1 {
+    brillig(inline, unroll_default) predicate_pure fn func_2 f1 {
       b0(v0: u1):
         jmp b1()
       b1():
@@ -1903,7 +1903,7 @@ fn infinite_recursion() {
       call f1()
       return
     }
-    brillig(inline) predicate_pure fn recur f1 {
+    brillig(inline, unroll_default) predicate_pure fn recur f1 {
       b0():
         call f1()
         return

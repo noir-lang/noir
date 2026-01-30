@@ -1295,7 +1295,7 @@ mod tests {
     #[test]
     fn do_not_transform_failing_array_access_in_brillig() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut u8
             store u8 0 at v0

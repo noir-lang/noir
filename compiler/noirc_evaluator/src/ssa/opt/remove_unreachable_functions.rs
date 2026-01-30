@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn remove_unused_brillig() {
         let src = "
-          brillig(inline) fn main f0 {
+          brillig(inline, unroll_default) fn main f0 {
             b0(v0: u32):
               v2 = call f1(v0) -> u32
               v4 = add v0, u32 1
@@ -150,12 +150,12 @@ mod tests {
               constrain v2 == v4
               return
           }
-          brillig(inline) fn increment f1 {
+          brillig(inline, unroll_default) fn increment f1 {
             b0(v0: u32):
               v2 = add v0, u32 1
               return v2
           }
-          brillig(inline) fn increment_acir f2 {
+          brillig(inline, unroll_default) fn increment_acir f2 {
             b0(v0: u32):
               v2 = add v0, u32 1
               return v2
@@ -166,7 +166,7 @@ mod tests {
         let ssa = ssa.remove_unreachable_functions();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v2 = call f1(v0) -> u32
             v4 = add v0, u32 1
@@ -174,7 +174,7 @@ mod tests {
             constrain v2 == v4
             return
         }
-        brillig(inline) fn increment f1 {
+        brillig(inline, unroll_default) fn increment f1 {
           b0(v0: u32):
             v2 = add v0, u32 1
             return v2

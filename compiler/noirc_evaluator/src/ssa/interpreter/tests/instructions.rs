@@ -827,7 +827,7 @@ fn array_get() {
 fn array_get_with_offset() {
     let value = expect_value(
         r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             v1 = array_get v0, index u32 2 minus 1 -> Field
@@ -947,7 +947,7 @@ fn array_set_disabled_by_enable_side_effects() {
 fn array_set_with_offset() {
     let values = expect_values(
         "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             inc_rc v0
@@ -975,7 +975,7 @@ fn array_set_with_offset() {
 fn increment_rc() {
     let value = expect_value(
         "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             inc_rc v0
@@ -1011,7 +1011,7 @@ fn increment_rc_disabled_in_acir() {
 fn decrement_rc() {
     let value = expect_value(
         "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             dec_rc v0

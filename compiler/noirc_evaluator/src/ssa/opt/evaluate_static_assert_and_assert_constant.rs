@@ -291,7 +291,7 @@ mod tests {
           b3():
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0():
             v0 = make_array [] : [Field; 0]
             return v0
@@ -316,7 +316,7 @@ mod tests {
           b3():
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0():
             v0 = make_array [] : [Field; 0]
             return v0

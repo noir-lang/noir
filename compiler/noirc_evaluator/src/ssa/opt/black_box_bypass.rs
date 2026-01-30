@@ -137,7 +137,7 @@ mod tests {
             v2 = add v0, Field 1
             return v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -157,7 +157,7 @@ mod tests {
             v2 = add v0, Field 1
             return v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -179,7 +179,7 @@ mod tests {
             v2 = add v0, Field 1
             return v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -198,7 +198,7 @@ mod tests {
             v2 = add v0, Field 1
             return v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -224,7 +224,7 @@ mod tests {
             v2 = add v0, Field 10
             return v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
         b0(v0: Field):
             v2 = add v0, Field 10
             return v2
@@ -244,7 +244,7 @@ mod tests {
             v2 = add v0, Field 10
             return v2
         }
-        brillig(inline) fn lambda f2 {
+        brillig(inline, unroll_default) fn lambda f2 {
           b0(v0: Field):
             v2 = add v0, Field 10
             return v2

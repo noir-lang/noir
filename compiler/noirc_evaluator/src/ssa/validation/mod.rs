@@ -1315,12 +1315,12 @@ mod tests {
     #[should_panic(expected = "ToRadix value must be a Field, not u1")]
     fn to_le_radix_on_non_field_value() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             call f1(u1 1)
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: u1):
             v2 = call to_le_radix(v0, u32 256) -> [u7; 1]
             return
@@ -1333,12 +1333,12 @@ mod tests {
     #[should_panic(expected = "ToBits value must be a Field, not u1")]
     fn to_le_bits_on_non_field_value() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             call f1(u1 1)
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: u1):
             v2 = call to_le_bits(v0) -> [u1; 32]
             return
@@ -1350,7 +1350,7 @@ mod tests {
     #[test]
     fn valid_to_le_radix() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = call to_le_radix(v0, u32 256) -> [u8; 1]
             return
@@ -1362,7 +1362,7 @@ mod tests {
     #[test]
     fn valid_to_le_bits() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = call to_le_bits(v0) -> [u1; 32]
             return
@@ -1377,7 +1377,7 @@ mod tests {
     #[test]
     fn constrain_with_different_types() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u8, v1: i8):
             constrain v0 == v1
             return
@@ -1392,7 +1392,7 @@ mod tests {
     #[test]
     fn constrain_neq_with_different_types() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u8, v1: i8):
             constrain v0 != v1
             return
@@ -1748,7 +1748,7 @@ mod tests {
     #[should_panic(expected = "Call to ACIR function 'foo f1' from unconstrained 'main f0'")]
     fn disallows_calling_acir_from_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             call f1(v0)
             return
@@ -1791,7 +1791,7 @@ mod tests {
             call f1(v1)
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: &mut u32):
             return
         }
@@ -1811,7 +1811,7 @@ mod tests {
             v3 = call v1(v0) -> u32
             return v3
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0():
             return f2, f3
         }
@@ -1819,7 +1819,7 @@ mod tests {
           b0(v0: u32):
             return v0
         }
-        brillig(inline) fn identity f3 {
+        brillig(inline, unroll_default) fn identity f3 {
           b0(v0: u32):
             return v0
         }
@@ -1967,7 +1967,7 @@ mod tests {
         // This test constructs the following function manually, which cannot be constructed using the SSA parser
         // because the parser does not support jumping to the entry block.
         //
-        // brillig(inline) fn main f0 {
+        // brillig(inline, unroll_default) fn main f0 {
         //   b0(v0: u1):
         //     jmp b1()
         //   b1():

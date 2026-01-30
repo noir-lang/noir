@@ -461,7 +461,7 @@ mod tests {
             call f2(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v3: Field, v4: Field):
             v5 = add g0, v3
             v6 = add v5, v4
@@ -469,7 +469,7 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v3: Field, v4: Field):
             v5 = add g1, v3
             v6 = add v5, v4
@@ -477,7 +477,7 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v3: Field, v4: Field):
             v5 = add g2, v3
             v6 = add v5, v4
@@ -502,7 +502,7 @@ mod tests {
             call f2(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v3: Field, v4: Field):
             v5 = add Field 1, v3
             v6 = add v5, v4
@@ -510,7 +510,7 @@ mod tests {
             call f4(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v3: Field, v4: Field):
             v5 = add Field 2, v3
             v6 = add v5, v4
@@ -518,14 +518,14 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
             return
         }
-        brillig(inline) fn inner_func f4 {
+        brillig(inline, unroll_default) fn inner_func f4 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
@@ -547,7 +547,7 @@ mod tests {
             call f2(v2, v3)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v2: Field, v3: Field):
             v4 = add g0, v2
             v5 = add v4, v3
@@ -555,7 +555,7 @@ mod tests {
             call f3(v2, v3)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v2: Field, v3: Field):
             v4 = add g0, v2
             v5 = add v4, v3
@@ -563,7 +563,7 @@ mod tests {
             call f3(v2, v3)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v2: Field, v3: Field):
             v4 = add g0, v2
             v5 = add v4, v3
@@ -571,7 +571,7 @@ mod tests {
             call f4(v2, v3)
             return
         }
-        brillig(inline) fn nested_inner_func f4 {
+        brillig(inline, unroll_default) fn nested_inner_func f4 {
           b0(v2: Field, v3: Field):
             v4 = add g1, v2
             v5 = add v4, v3
@@ -595,7 +595,7 @@ mod tests {
             call f2(v2, v3)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v2: Field, v3: Field):
             v4 = add Field 2, v2
             v5 = add v4, v3
@@ -603,7 +603,7 @@ mod tests {
             call f5(v2, v3)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v2: Field, v3: Field):
             v4 = add Field 2, v2
             v5 = add v4, v3
@@ -611,7 +611,7 @@ mod tests {
             call f3(v2, v3)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v2: Field, v3: Field):
             v4 = add Field 2, v2
             v5 = add v4, v3
@@ -619,14 +619,14 @@ mod tests {
             call f4(v2, v3)
             return
         }
-        brillig(inline) fn nested_inner_func f4 {
+        brillig(inline, unroll_default) fn nested_inner_func f4 {
           b0(v2: Field, v3: Field):
             v4 = add Field 3, v2
             v5 = add v4, v3
             constrain v5 == Field 4
             return
         }
-        brillig(inline) fn inner_func f5 {
+        brillig(inline, unroll_default) fn inner_func f5 {
           b0(v2: Field, v3: Field):
             v4 = add Field 2, v2
             v5 = add v4, v3
@@ -634,7 +634,7 @@ mod tests {
             call f6(v2, v3)
             return
         }
-        brillig(inline) fn nested_inner_func f6 {
+        brillig(inline, unroll_default) fn nested_inner_func f6 {
           b0(v2: Field, v3: Field):
             v4 = add Field 3, v2
             v5 = add v4, v3
@@ -662,26 +662,26 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_inner_func_globals f1 {
+        brillig(inline, unroll_default) fn entry_point_inner_func_globals f1 {
           b0(v3: Field, v4: Field):
             call f4(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one_global f2 {
+        brillig(inline, unroll_default) fn entry_point_one_global f2 {
           b0(v3: Field, v4: Field):
             v5 = add g0, v3
             v6 = add v5, v4
             constrain v6 == Field 3
             return
         }
-        brillig(inline) fn entry_point_one_diff_global f3 {
+        brillig(inline, unroll_default) fn entry_point_one_diff_global f3 {
           b0(v3: Field, v4: Field):
             v5 = add g1, v3
             v6 = add v5, v4
             constrain v6 == Field 4
             return
         }
-        brillig(inline) fn wrapper f4 {
+        brillig(inline, unroll_default) fn wrapper f4 {
           b0(v3: Field, v4: Field):
             v5 = add g2, v3
             v6 = add v5, v4
@@ -708,26 +708,26 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_inner_func_globals f1 {
+        brillig(inline, unroll_default) fn entry_point_inner_func_globals f1 {
           b0(v3: Field, v4: Field):
             call f4(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one_global f2 {
+        brillig(inline, unroll_default) fn entry_point_one_global f2 {
           b0(v3: Field, v4: Field):
             v5 = add Field 2, v3
             v6 = add v5, v4
             constrain v6 == Field 3
             return
         }
-        brillig(inline) fn entry_point_one_diff_global f3 {
+        brillig(inline, unroll_default) fn entry_point_one_diff_global f3 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
             return
         }
-        brillig(inline) fn wrapper f4 {
+        brillig(inline, unroll_default) fn wrapper f4 {
           b0(v3: Field, v4: Field):
             v5 = add Field 1, v3
             v6 = add v5, v4
@@ -736,14 +736,14 @@ mod tests {
             call f5(v4, v3)
             return
         }
-        brillig(inline) fn entry_point_one_diff_global f5 {
+        brillig(inline, unroll_default) fn entry_point_one_diff_global f5 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
             return
         }
-        brillig(inline) fn entry_point_one_global f6 {
+        brillig(inline, unroll_default) fn entry_point_one_global f6 {
           b0(v3: Field, v4: Field):
             v5 = add Field 2, v3
             v6 = add v5, v4
@@ -767,7 +767,7 @@ mod tests {
             constrain v6 == u1 0
             return
         }
-        brillig(inline) impure fn func_1 f1 {
+        brillig(inline, unroll_default) impure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -781,7 +781,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) impure fn func_2 f2 {
+        brillig(inline, unroll_default) impure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -811,7 +811,7 @@ mod tests {
             constrain v6 == u1 0
             return
         }
-        brillig(inline) impure fn func_1 f1 {
+        brillig(inline, unroll_default) impure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -825,7 +825,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) impure fn func_2 f2 {
+        brillig(inline, unroll_default) impure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -839,7 +839,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f3 {
+        brillig(inline, unroll_default) fn func_2 f3 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -853,7 +853,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f4 {
+        brillig(inline, unroll_default) fn func_1 f4 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -867,7 +867,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f5 {
+        brillig(inline, unroll_default) fn func_2 f5 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -881,7 +881,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f6 {
+        brillig(inline, unroll_default) fn func_1 f6 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -910,12 +910,12 @@ mod tests {
             call f2(Field 1)
             return
         }
-        brillig(inline) impure fn foo f1 {
+        brillig(inline, unroll_default) impure fn foo f1 {
           b0(v0: Field):
             call f2(v0)
             return
         }
-        brillig(inline) impure fn bar f2 {
+        brillig(inline, unroll_default) impure fn bar f2 {
           b0(v0: Field):
             call f1(Field 1)
             call f2(Field 1)
@@ -935,35 +935,35 @@ mod tests {
             call f2(Field 1)
             return
         }
-        brillig(inline) impure fn foo f1 {
+        brillig(inline, unroll_default) impure fn foo f1 {
           b0(v0: Field):
             call f5(v0)
             return
         }
-        brillig(inline) impure fn bar f2 {
+        brillig(inline, unroll_default) impure fn bar f2 {
           b0(v0: Field):
             call f4(Field 1)
             call f3(Field 1)
             return
         }
-        brillig(inline) fn bar f3 {
+        brillig(inline, unroll_default) fn bar f3 {
           b0(v0: Field):
             call f4(Field 1)
             call f3(Field 1)
             return
         }
-        brillig(inline) fn foo f4 {
+        brillig(inline, unroll_default) fn foo f4 {
           b0(v0: Field):
             call f3(v0)
             return
         }
-        brillig(inline) fn bar f5 {
+        brillig(inline, unroll_default) fn bar f5 {
           b0(v0: Field):
             call f6(Field 1)
             call f5(Field 1)
             return
         }
-        brillig(inline) fn foo f6 {
+        brillig(inline, unroll_default) fn foo f6 {
           b0(v0: Field):
             call f5(v0)
             return
@@ -981,17 +981,17 @@ mod tests {
             call f1(v1)
             return
         }
-        brillig(inline) fn entry_point f1 {
+        brillig(inline, unroll_default) fn entry_point f1 {
           b0(v1: Field):
             call f2(v1)
             return
         }
-        brillig(inline) fn helper_func f2 {
+        brillig(inline, unroll_default) fn helper_func f2 {
           b0(v1: Field):
             call f3(v1)
             return
         }
-        brillig(inline) fn leaf_func f3 {
+        brillig(inline, unroll_default) fn leaf_func f3 {
           b0(v1: Field):
             v2 = add g0, v1
             return
@@ -1010,17 +1010,17 @@ mod tests {
             call f1(v1)
             return
         }
-        brillig(inline) fn entry_point f1 {
+        brillig(inline, unroll_default) fn entry_point f1 {
           b0(v1: Field):
             call f2(v1)
             return
         }
-        brillig(inline) fn helper_func f2 {
+        brillig(inline, unroll_default) fn helper_func f2 {
           b0(v1: Field):
             call f3(v1)
             return
         }
-        brillig(inline) fn leaf_func f3 {
+        brillig(inline, unroll_default) fn leaf_func f3 {
           b0(v1: Field):
             v2 = add Field 1, v1
             return
@@ -1041,7 +1041,7 @@ mod tests {
             call f2(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v3: Field, v4: Field):
             v5 = add g0, v3
             v6 = add v5, v4
@@ -1049,7 +1049,7 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v3: Field, v4: Field):
             v5 = add g1, v3
             v6 = add v5, v4
@@ -1057,7 +1057,7 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v3: Field, v4: Field):
             v5 = add g2, v3
             v6 = add v5, v4
@@ -1081,7 +1081,7 @@ mod tests {
             call f2(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v3: Field, v4: Field):
             v5 = add Field 1, v3
             v6 = add v5, v4
@@ -1089,7 +1089,7 @@ mod tests {
             call f4(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v3: Field, v4: Field):
             v5 = add Field 2, v3
             v6 = add v5, v4
@@ -1097,14 +1097,14 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
             return
         }
-        brillig(inline) fn inner_func f4 {
+        brillig(inline, unroll_default) fn inner_func f4 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
@@ -1128,7 +1128,7 @@ mod tests {
             call f2(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_one f1 {
+        brillig(inline, unroll_default) fn entry_point_one f1 {
           b0(v3: Field, v4: Field):
             v5 = add Field 1, v3
             v6 = add v5, v4
@@ -1136,7 +1136,7 @@ mod tests {
             call f4(v3, v4)
             return
         }
-        brillig(inline) fn entry_point_two f2 {
+        brillig(inline, unroll_default) fn entry_point_two f2 {
           b0(v3: Field, v4: Field):
             v5 = add Field 2, v3
             v6 = add v5, v4
@@ -1144,14 +1144,14 @@ mod tests {
             call f3(v3, v4)
             return
         }
-        brillig(inline) fn inner_func f3 {
+        brillig(inline, unroll_default) fn inner_func f3 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
             return
         }
-        brillig(inline) fn inner_func f4 {
+        brillig(inline, unroll_default) fn inner_func f4 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4

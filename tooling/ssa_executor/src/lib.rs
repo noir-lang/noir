@@ -90,8 +90,7 @@ mod tests {
 
     #[test]
     fn bound_constraint_with_offset_bug() {
-        let ssa_without_runtime = "
-            (inline) fn main f0 {
+        let ssa_body = "fn main f0 {
               b0(v0: i32, v1: u1, v2: u1, v3: u1, v4: u1, v5: u1, v6: u1):
                 jmpif v6 then: b1, else: b2
               b1():
@@ -121,8 +120,8 @@ mod tests {
                 jmp b8()
             }
         ";
-        let acir_ssa = "acir".to_string() + ssa_without_runtime;
-        let brillig_ssa = "brillig".to_string() + ssa_without_runtime;
+        let acir_ssa = "acir(inline) ".to_string() + ssa_body;
+        let brillig_ssa = "brillig(inline, unroll_default) ".to_string() + ssa_body;
         let mut witness_map = WitnessMap::new();
         witness_map.insert(Witness(0), FieldElement::from(1188688178_u32));
         for i in 1..6 {
@@ -154,7 +153,7 @@ mod tests {
             constrain v9 == u32 1
             return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: u32, v1: u32):
             v2 = eq v0, v1
             constrain v2 == u1 0

@@ -97,7 +97,7 @@ mod tests {
         //     *b[c % 2]
         //}
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline, unroll_default) predicate_pure fn main f0 {
             b0(v0: u32):
                 v1 = allocate -> &mut u1
                 v2 = allocate -> &mut u1

@@ -802,7 +802,7 @@ mod tests {
     #[test]
     fn simplify_derive_generators_has_correct_type() {
         let src = r#"
-            brillig(inline) fn main func {
+            brillig(inline, unroll_default) fn main func {
               block():
                 separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
@@ -815,7 +815,7 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
             v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
@@ -846,7 +846,7 @@ mod tests {
     #[test]
     fn does_not_simplify_array_refcount_in_brillig() {
         let src = r#"
-        brillig(inline) fn main func {
+        brillig(inline, unroll_default) fn main func {
           b0(v0: [Field; 3]):
             v1 = call array_refcount(v0) -> u32
             return v1
@@ -855,7 +855,7 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = call array_refcount(v0) -> u32
             return v2
@@ -885,7 +885,7 @@ mod tests {
     #[test]
     fn does_not_simplify_vector_refcount_in_brillig() {
         let src = r#"
-        brillig(inline) fn main func {
+        brillig(inline, unroll_default) fn main func {
           b0(v0: [Field]):
             v1 = call vector_refcount(u32 3, v0) -> u32
             return v1
@@ -894,7 +894,7 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field]):
             v3 = call vector_refcount(u32 3, v0) -> u32
             return v3

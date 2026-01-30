@@ -453,7 +453,7 @@ mod tests {
         // This test checks for a case which would result in some functions not having a purity status applied.
         // See https://github.com/noir-lang/noir/issues/8625
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [u8; 3]):
             inc_rc v0
             v1 = allocate -> &mut [u8; 3]
@@ -463,17 +463,17 @@ mod tests {
             call f1(v1, u32 0, u32 2, Field 3)
             return
         }
-        brillig(inline) fn impure_because_reference_arg f1 {
+        brillig(inline, unroll_default) fn impure_because_reference_arg f1 {
           b0(v0: &mut [u8; 3], v1: u32, v2: u32, v3: Field):
             call f2(v0, v1, v2, v3)
             return
         }
-        brillig(inline) fn also_impure_because_reference_arg f2 {
+        brillig(inline, unroll_default) fn also_impure_because_reference_arg f2 {
           b0(v0: &mut [u8; 3], v1: u32, v2: u32, v3: Field):
             call f3()
             return
         }
-        brillig(inline) fn pure f3 {
+        brillig(inline, unroll_default) fn pure f3 {
           b0():
             return
         }"#;
@@ -492,11 +492,11 @@ mod tests {
     fn handles_unreachable_functions() {
         // Regression test for https://github.com/noir-lang/noir/issues/8666
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             return
         }
-        brillig(inline) fn func_1 f1 {
+        brillig(inline, unroll_default) fn func_1 f1 {
           b0():
             return
         }"#;
@@ -516,13 +516,13 @@ mod tests {
         // This test ensures that a function which mutates an array pointer is marked impure.
         // This protects against future deduplication passes incorrectly assuming purity.
         let src = r#"
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             v3 = array_set v0, index u32 0, value Field 5
             return v3
         }
-        brillig(inline) fn mutator f1 {
+        brillig(inline, unroll_default) fn mutator f1 {
           b0(v0: [Field; 2]):
             dec_rc v0  // We wouldn't produce this code. This is just to ensure dec_rc is impure.
             v3 = array_set v0, index u32 0, value Field 5
@@ -541,14 +541,14 @@ mod tests {
     #[test]
     fn brillig_array_set_is_impure() {
         let src = r#"
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             v3 = array_set v0, index u32 0, value Field 5
             return v3
         }
         // We wouldn't produce this code. This is to ensure `array_set` on a function parameter is marked impure.
-        brillig(inline) fn mutator f1 {
+        brillig(inline, unroll_default) fn mutator f1 {
           b0(v0: [Field; 2]):
             v3 = array_set v0, index u32 0, value Field 5
             return v3
@@ -566,12 +566,12 @@ mod tests {
     #[test]
     fn brillig_array_set_on_local_array_pure() {
         let src = r#"
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 2]):
             v3 = array_set v0, index u32 0, value Field 5
             return v3
         }
-        brillig(inline) fn mutator f1 {
+        brillig(inline, unroll_default) fn mutator f1 {
           b0():
             v2 = make_array [Field 1, Field 2] : [Field; 2]
             v5 = array_set v2, index u32 0, value Field 5
@@ -591,12 +591,12 @@ mod tests {
     #[test]
     fn direct_brillig_recursion_marks_functions_pure_with_predicate() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             call f1()
             return
         }
-        brillig(inline) fn f1 f1 {
+        brillig(inline, unroll_default) fn f1 f1 {
           b0():
             call f1()
             return
@@ -662,12 +662,12 @@ mod tests {
     #[test]
     fn brillig_mutual_recursion_marks_functions_pure_with_predicate() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = call f1(u32 4) -> bool
             return
         }
-        brillig(inline) fn is_even f1 {
+        brillig(inline, unroll_default) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
             jmpif v1 then: b1, else: b2
@@ -680,7 +680,7 @@ mod tests {
           b3(v4: bool):
             return v4
         }
-        brillig(inline) fn is_odd f2 {
+        brillig(inline, unroll_default) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
             jmpif v1 then: b1, else: b2
@@ -755,23 +755,23 @@ mod tests {
     #[test]
     fn brillig_mutual_recursion_marks_functions_impure() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = call f2() -> Field
             return
         }
-        brillig(inline) fn f1 f1 {
+        brillig(inline, unroll_default) fn f1 f1 {
           b0():
             v0 = call f2() -> Field
             return v0
         }
-        brillig(inline) fn f2 f2 {
+        brillig(inline, unroll_default) fn f2 f2 {
           b0():
             v0 = call f3() -> &mut Field
             v1 = load v0 -> Field
             return v1
         }
-        brillig(inline) fn f3 f3 {
+        brillig(inline, unroll_default) fn f3 f3 {
           b0():
             v0 = call f1() -> Field
             v1 = allocate -> &mut Field
@@ -798,7 +798,7 @@ mod tests {
             call f1()
             return
         }
-        brillig(inline) fn pure_basic f1 {
+        brillig(inline, unroll_default) fn pure_basic f1 {
           b0():
             v2 = make_array [Field 0, Field 1] : [Field; 2]
             v4 = array_get v2, index u32 1 -> Field
@@ -819,13 +819,13 @@ mod tests {
     #[test]
     fn brillig_functions_are_pure_with_predicate_if_they_are_not_an_entry_point() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u1):
             call f1()
             call f1()
             return
         }
-        brillig(inline) fn pure_basic f1 {
+        brillig(inline, unroll_default) fn pure_basic f1 {
           b0():
             v2 = make_array [Field 0, Field 1] : [Field; 2]
             v4 = array_get v2, index u32 1 -> Field

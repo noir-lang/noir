@@ -80,20 +80,20 @@ fn print() {
             call f4(u1 1, v0, v1, v2, v3, v4, v5, v6, v7)
             return
         }
-        brillig(inline) fn print_unconstrained f4 {
+        brillig(inline, unroll_default) fn print_unconstrained f4 {
           b0(v0: u1, v1: [u8; 16], v2: Field, v3: i8, v4: u1, v5: [Field; 2], v6: i8, v7: u1, v8: [Field; 2]):
             v37 = make_array b"{\"kind\":\"tuple\",\"types\":[{\"kind\":\"signedinteger\",\"width\":8},{\"kind\":\"boolean\"},{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"field\"}}]}"
             v38 = make_array b"{\"kind\":\"tuple\",\"types\":[{\"kind\":\"signedinteger\",\"width\":8},{\"kind\":\"boolean\"},{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"field\"}}]}"
             call print(v0, v1, v2, v3, v4, v5, v6, v7, v8, v37, v38, u1 1)
             return
         }
-        brillig(inline) fn print_unconstrained f5 {
+        brillig(inline, unroll_default) fn print_unconstrained f5 {
           b0(v0: u1, v1: i8, v2: u1, v3: [Field; 2]):
             v32 = make_array b"{\"kind\":\"tuple\",\"types\":[{\"kind\":\"signedinteger\",\"width\":8},{\"kind\":\"boolean\"},{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"field\"}}]}"
             call print(v0, v1, v2, v3, v32, u1 0)
             return
         }
-        brillig(inline) fn print_unconstrained f6 {
+        brillig(inline, unroll_default) fn print_unconstrained f6 {
           b0(v0: u1, v1: u8):
             v20 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
             call print(v0, v1, v20, u1 0)
@@ -143,7 +143,7 @@ fn print_lambda() {
         call f3(u1 1, v0, v1, v2)
         return
     }
-    brillig(inline) fn print_unconstrained f3 {
+    brillig(inline, unroll_default) fn print_unconstrained f3 {
       b0(v0: u1, v1: Field, v2: Field, v3: function):
         v31 = make_array b"{\"kind\":\"function\",\"arguments\":[{\"kind\":\"field\"}],\"return_type\":{\"kind\":\"field\"},\"env\":{\"kind\":\"tuple\",\"types\":[{\"kind\":\"field\"},{\"kind\":\"field\"}]},\"unconstrained\":false}"
         call print(v0, v1, v2, v3, v31, u1 0)

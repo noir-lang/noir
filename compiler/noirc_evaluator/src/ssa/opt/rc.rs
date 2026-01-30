@@ -195,7 +195,7 @@ mod tests {
         //     [array]
         // }
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             inc_rc v0
@@ -219,7 +219,7 @@ mod tests {
         //     array[0] = 5;
         // }
         let src = "
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 2]):
             v1 = allocate -> &mut [Field; 2]
             store v0 at v1
@@ -250,7 +250,7 @@ mod tests {
         //     array[0] = 5;
         // }
         let src = "
-        brillig(inline) fn mutator2 f0 {
+        brillig(inline, unroll_default) fn mutator2 f0 {
           b0(v0: &mut [Field; 2]):
             v1 = load v0 -> [Field; 2]
             inc_rc v1
@@ -278,7 +278,7 @@ mod tests {
     #[test]
     fn lone_inc_rc() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             return v0
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn lone_dec_rc() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2]):
             dec_rc v0
             return v0
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn multiple_rc_pairs_mutation_on_different_types() {
         let src = "
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 3], v1: [Field; 5]):
             inc_rc v0
             inc_rc v1
@@ -323,7 +323,7 @@ mod tests {
         // We expect the paired RC on v0 to remain, but we expect the paired RC on v1 to be removed
         // as they operate over different types ([Field; 2] and [Field; 5]) respectively.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 3], v1: [Field; 5]):
             inc_rc v0
             v2 = allocate -> &mut [Field; 3]
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn multiple_rc_pairs_mutation_on_matching_types() {
         let src = "
-        brillig(inline) fn mutator f0 {
+        brillig(inline, unroll_default) fn mutator f0 {
           b0(v0: [Field; 5], v1: [Field; 5]):
             inc_rc v0
             inc_rc v1
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn rc_pair_with_same_type_but_different_values() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2], v1: [Field; 2]):
             inc_rc v0
             dec_rc v1
@@ -378,7 +378,7 @@ mod tests {
     #[test]
     fn do_not_remove_pairs_across_blocks() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             jmp b1()
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn remove_pair_across_blocks() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             jmp b1()
@@ -415,7 +415,7 @@ mod tests {
         // As the program has an RC pair where the increment is in the entry block and
         // the decrement is in the return block this pair is safe to remove.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: [Field; 2]):
             jmp b1()
           b1():

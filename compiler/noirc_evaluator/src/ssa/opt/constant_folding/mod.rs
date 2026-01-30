@@ -863,7 +863,7 @@ mod tests {
     fn constant_fold_duplicated_field_divisions() {
         // We should remove the duplicated field inversions here.
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = div Field 1, v0
             v2 = div Field 1, v0
@@ -874,7 +874,7 @@ mod tests {
         let ssa = ssa.fold_constants(MIN_ITER);
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field):
             v2 = div Field 1, v0
             v3 = div Field 1, v0
@@ -998,7 +998,7 @@ mod tests {
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u64):
             v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
             v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
@@ -1018,7 +1018,7 @@ mod tests {
         let ssa = ssa.fold_constants(MIN_ITER);
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u64):
             v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
             inc_rc v2
@@ -1059,7 +1059,7 @@ mod tests {
     #[test]
     fn deduplicate_across_non_dominated_blocks() {
         let src = "
-            brillig(inline) fn main f0 {
+            brillig(inline, unroll_default) fn main f0 {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
@@ -1088,7 +1088,7 @@ mod tests {
         // - v8 hasn't been recognized as a duplicate of v6 yet since they still reference v4 and
         //   v5 respectively
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v2 = lt u32 1000, v0
             v4 = shl v0, u32 1
@@ -1113,7 +1113,7 @@ mod tests {
     #[test]
     fn increment_rc_on_make_array_deduplication() {
         let src = "
-            brillig(inline) fn main f0 {
+            brillig(inline, unroll_default) fn main f0 {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
@@ -1138,7 +1138,7 @@ mod tests {
         // v7 has been replaced by a v5, and its reference count is increased
         // v6 is not yet replaced but will be in a subsequent constant folding run
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn main f0 {
+            brillig(inline, unroll_default) fn main f0 {
               b0(v0: u32):
                 v3 = lt u32 1000, v0
                 v5 = make_array [u1 0] : [u1; 1]
@@ -1162,7 +1162,7 @@ mod tests {
     fn repeatedly_hoist_and_deduplicate() {
         // Repeating the same block 3x times.
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
@@ -1207,7 +1207,7 @@ mod tests {
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
         // 3. v14 is a duplicate of v10 -> hoisted to b2
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
@@ -1248,7 +1248,7 @@ mod tests {
 
         // All duplicates hoisted into b0.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
@@ -1292,7 +1292,7 @@ mod tests {
         //     (xs[x])()
         // }
         let src = r#"
-          brillig(inline) predicate_pure fn main f0 {
+          brillig(inline, unroll_default) predicate_pure fn main f0 {
             b0(v0: u32):
               v8 = sub v0, u32 1
               v13 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
@@ -1387,7 +1387,7 @@ mod tests {
 
         // All make_array hoisted into b0
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u32):
             v8 = sub v0, u32 1
             v13 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
@@ -1474,7 +1474,7 @@ mod tests {
         // visit blocks in an order where we see a cached instruction in
         // an origin that the current block dominates.
         let src = r#"
-          brillig(inline) predicate_pure fn main f0 {
+          brillig(inline, unroll_default) predicate_pure fn main f0 {
             b0(v0: u1):
               v1 = make_array [u8 0]: [u8; 1] // this array appears multiple times
               v2 = allocate -> &mut [u8; 1]
@@ -1514,7 +1514,7 @@ mod tests {
         // again to see this opportunity.
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u1):
             v3 = make_array [u8 0] : [u8; 1]
             v4 = allocate -> &mut [u8; 1]
@@ -1582,7 +1582,7 @@ mod tests {
         //     is not updated to point at b0, and leads to the error during normalization.
 
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
             jmpif v0 then: b1, else: b10
           b1():
@@ -1646,7 +1646,7 @@ mod tests {
         let ssa = ssa.fold_constants(2);
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
             v3 = make_array [u8 0] : [u8; 1]
             jmpif v0 then: b1, else: b10
@@ -1720,7 +1720,7 @@ mod tests {
                 return v0
             }
 
-            brillig(inline) fn one f1 {
+            brillig(inline, unroll_default) fn one f1 {
               b0():
                 v0 = add Field 2, Field 3
                 return v0
@@ -1747,7 +1747,7 @@ mod tests {
                 return v0
             }
 
-            brillig(inline) fn one f1 {
+            brillig(inline, unroll_default) fn one f1 {
               b0(v0: Field, v1: Field):
                 v2 = add v0, v1
                 return v2
@@ -1774,7 +1774,7 @@ mod tests {
                 return v0
             }
 
-            brillig(inline) fn one f1 {
+            brillig(inline, unroll_default) fn one f1 {
               b0(v0: i32, v1: i32):
                 v2 = unchecked_add v0, v1
                 v3 = truncate v2 to 32 bits, max_bit_size: 33
@@ -1802,7 +1802,7 @@ mod tests {
                 return v0
             }
 
-            brillig(inline) fn one f1 {
+            brillig(inline, unroll_default) fn one f1 {
               b0(v0: Field, v1: Field, v2: Field):
                 v3 = make_array [v0, v1, v2] : [Field; 3]
                 return v3
@@ -1830,7 +1830,7 @@ mod tests {
                 return v0
             }
 
-            brillig(inline) fn one f1 {
+            brillig(inline, unroll_default) fn one f1 {
               b0(v0: Field, v1: i32, v2: Field, v3: i32):
                 v4 = make_array [v0, v1, v2, v3] : [(Field, i32); 2]
                 return v4
@@ -1859,7 +1859,7 @@ mod tests {
                 return v1
             }
 
-            brillig(inline) fn one f1 {
+            brillig(inline, unroll_default) fn one f1 {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_get v0, index u32 0 -> Field
@@ -1892,7 +1892,7 @@ mod tests {
             return v1
         }
 
-        brillig(inline) fn one f1 {
+        brillig(inline, unroll_default) fn one f1 {
           b0():
             v1 = add g0, Field 3
             return v1
@@ -1923,13 +1923,13 @@ mod tests {
             return v1
         }
 
-        brillig(inline) fn entry_point f1 {
+        brillig(inline, unroll_default) fn entry_point f1 {
           b0():
             v1 = call f2() -> Field
             return v1
         }
 
-        brillig(inline) fn one f2 {
+        brillig(inline, unroll_default) fn one f2 {
           b0():
             v1 = add g0, Field 3
             return v1
@@ -1955,7 +1955,7 @@ mod tests {
         // because of the constrain in b1. However, b2 is not dominated by b1 so this
         // assumption is not valid.
         let src = "
-            brillig(inline) fn main f0 {
+            brillig(inline, unroll_default) fn main f0 {
               b0(v0: Field, v1: Field):
                 v3 = eq v0, Field 0
                 jmpif v3 then: b1, else: b2
@@ -1975,7 +1975,7 @@ mod tests {
     #[test]
     fn does_not_hoist_constrain_to_common_ancestor() {
         let src = "
-            brillig(inline) fn main f0 {
+            brillig(inline, unroll_default) fn main f0 {
               b0(v0: Field, v1: Field):
                 v2 = eq v0, Field 0
                 jmpif v2 then: b1, else: b2
@@ -2024,7 +2024,7 @@ mod tests {
     fn deduplicates_side_effecting_intrinsics() {
         let src = "
         // After EnableSideEffectsIf removal:
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v7 = call to_be_radix(v0, u32 256) -> [u8; 1]    // `a.to_be_radix(256)`;
             inc_rc v7
@@ -2041,7 +2041,7 @@ mod tests {
 
         let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v5 = call to_be_radix(v0, u32 256) -> [u8; 1]
             inc_rc v5
@@ -2224,7 +2224,7 @@ mod tests {
                 v2 = call f1(u1 0) -> u1
                 return v2
             }
-            brillig(inline) predicate_pure fn func_5 f1 {
+            brillig(inline, unroll_default) predicate_pure fn func_5 f1 {
             b0(v0: u1):
                 v2 = shl v0, u1 1
                 return v2
@@ -2240,7 +2240,7 @@ mod tests {
         //
         // This is not an issue for user code as these functions will be monomorphized whereas intrinsics haven't been.
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
@@ -2256,7 +2256,7 @@ mod tests {
 
         // Only the first one is cached at the moment.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field):
             v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
@@ -2273,7 +2273,7 @@ mod tests {
         // constrain instructions. We want to make sure that those simplifications
         // are still used for any terminator arguments.
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field, v1: Field):
             v5 = eq v0, Field 1
             constrain v0 == Field 1
@@ -2304,7 +2304,7 @@ mod tests {
 
         // The terminators of b1 and b2 should now have constant arguments
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: Field, v1: Field):
             v5 = eq v0, Field 1
             constrain v0 == Field 1
@@ -2331,7 +2331,7 @@ mod tests {
         // Previously no `inc_rc` was being generated when deduplicating the calls to `f1`,
         // resulting in both references mutating the same array as opposed to having their own copies.
         let src = r#"
-        brillig(inline) impure fn constructor f0 {
+        brillig(inline, unroll_default) impure fn constructor f0 {
           b0():
             v8 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
             v23 = call f1() -> [Field; 4]
@@ -2353,12 +2353,12 @@ mod tests {
             call f4(v8, v35, u32 0)
             return v35
         }
-        brillig(inline) predicate_pure fn new f1 {
+        brillig(inline, unroll_default) predicate_pure fn new f1 {
           b0():
             v7 = make_array [Field 0, Field 0, Field 0, Field 55340232221128654848] : [Field; 4]
             return v7
         }
-        brillig(inline) impure fn absorb f2 {
+        brillig(inline, unroll_default) impure fn absorb f2 {
           b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v8: Field):
             v13 = load v6 -> u32
             v14 = load v4 -> [Field; 3]
@@ -2372,7 +2372,7 @@ mod tests {
             store v21 at v6
             return
         }
-        brillig(inline) impure fn perform_duplex f4 {
+        brillig(inline, unroll_default) impure fn perform_duplex f4 {
           b0(v4: [Field; 3], v5: &mut [Field; 4], v18: u32):
             jmp b1(u32 0)
           b1(v8: u32):
@@ -2418,7 +2418,7 @@ mod tests {
         // The increasing RC numbers reflect the current expectation that the RC of the
         // original array does not get decremented when a copy is made.
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v3 = make_array [Field 1, Field 2] : [Field; 2]
             v5 = call array_refcount(v3) -> u32
@@ -2433,7 +2433,7 @@ mod tests {
             v15 = array_set v3, index v0, value Field 9
             return v3, v15
         }
-        brillig(inline) fn mutator f1 {
+        brillig(inline, unroll_default) fn mutator f1 {
           b0(v0: [Field; 2]):
             inc_rc v0
             v3 = array_set v0, index u32 0, value Field 5
@@ -2457,7 +2457,7 @@ mod tests {
     #[test]
     fn do_not_deduplicate_call_with_array_set_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v2 = make_array [Field 1, Field 2] : [Field; 2]
             call f1(v2, Field 9)
@@ -2467,7 +2467,7 @@ mod tests {
             constrain v9 == Field 9
             return
         }
-        brillig(inline) fn mutator f1 {
+        brillig(inline, unroll_default) fn mutator f1 {
           b0(v0: [Field; 2], v1: Field):
             v3 = array_set v0, index u32 0, value v1
             return

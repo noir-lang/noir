@@ -161,7 +161,7 @@ fn brillig_access_check_on_array_read() {
     let ssa = get_initial_ssa(src).unwrap();
 
     let expected = r#"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0(v0: [Field; 3], v1: u32):
         v2 = allocate -> &mut [Field; 3]
         store v0 at v2
@@ -185,7 +185,7 @@ fn brillig_access_check_on_array_assignment() {
     let ssa = get_initial_ssa(src).unwrap();
 
     let expected = r#"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0(v0: [Field; 3], v1: u32, v2: Field):
         v3 = allocate -> &mut [Field; 3]
         store v0 at v3
@@ -224,7 +224,7 @@ fn pure_builtin_call_args_do_not_get_cloned() {
     let ssa = generate_ssa(program).unwrap();
 
     let expected = r#"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0():
         v2 = make_array [u32 1, u32 2] : [u32; 2]
         v3 = make_array [u32 1, u32 2] : [u32]
@@ -250,7 +250,7 @@ fn foreign_call_args_do_not_get_cloned() {
     let ssa = generate_ssa(program).unwrap();
 
     let expected = r#"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0():
         v2 = make_array [Field 1, Field 2] : [Field; 2]
         v23 = make_array b"{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"field\"}}"
@@ -414,7 +414,7 @@ fn for_loop_inclusive_max_value_with_break() {
     //   `if cond { break; }` now has the break take us to b8, which jumps to b7, which
     //   exits main (that is, the break skips the final iteration).
     assert_ssa_snapshot!(ssa, @r"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0(v0: u1):
         v2 = allocate -> &mut u8
         store u8 0 at v2
@@ -475,7 +475,7 @@ fn for_loop_inclusive_unknown_range_with_break() {
     // `start < end` to determine whether the final iteration should be executed
     // (in addition to checking if a break was hit or not).
     assert_ssa_snapshot!(ssa, @r"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0(v0: u8, v1: u8):
         v3 = allocate -> &mut u8
         store u8 0 at v3
@@ -534,7 +534,7 @@ fn for_loop_inclusive_with_continue() {
     // Here we can see that the `continue` in the final iteration jumps
     // to the end of the loop (from b4 to b5).
     assert_ssa_snapshot!(ssa, @r"
-    brillig(inline) fn main f0 {
+    brillig(inline, unroll_default) fn main f0 {
       b0():
         v1 = allocate -> &mut u1
         store u1 1 at v1

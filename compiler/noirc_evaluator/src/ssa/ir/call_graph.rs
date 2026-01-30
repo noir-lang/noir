@@ -329,17 +329,17 @@ mod tests {
             call f1()
             return
         }
-        brillig(inline) fn starter f1 {
+        brillig(inline, unroll_default) fn starter f1 {
           b0():
             call f2()
             return
         }
-        brillig(inline) fn ping f2 {
+        brillig(inline, unroll_default) fn ping f2 {
           b0():
             call f3()
             return
         }
-        brillig(inline) fn pong f3 {
+        brillig(inline, unroll_default) fn pong f3 {
           b0():
             call f2()
             return
@@ -366,34 +366,34 @@ mod tests {
             return
         }
         // First recursive cycle: f1 -> f2 -> f3 -> f1
-        brillig(inline) fn starter f1 {
+        brillig(inline, unroll_default) fn starter f1 {
           b0():
             call f2()
             return
         }
-        brillig(inline) fn ping f2 {
+        brillig(inline, unroll_default) fn ping f2 {
           b0():
             call f3()
             return
         }
-        brillig(inline) fn pong f3 {
+        brillig(inline, unroll_default) fn pong f3 {
           b0():
             call f1()
             return
         }
         // Second recursive cycle: f4 <-> f5
-        brillig(inline) fn foo f4 {
+        brillig(inline, unroll_default) fn foo f4 {
           b0():
             call f5()
             return
         }
-        brillig(inline) fn bar f5 {
+        brillig(inline, unroll_default) fn bar f5 {
           b0():
             call f4()
             return
         }
         // Non-recursive leaf function
-        brillig(inline) fn baz f6 {
+        brillig(inline, unroll_default) fn baz f6 {
           b0(): 
             return
         }
@@ -432,7 +432,7 @@ mod tests {
             call f1()
             return
         }
-        brillig(inline) fn self_recur f1 {
+        brillig(inline, unroll_default) fn self_recur f1 {
           b0():
             call f1()
             return
@@ -455,13 +455,13 @@ mod tests {
             call f1()
             return
         }
-        brillig(inline) fn self_recur f1 {
+        brillig(inline, unroll_default) fn self_recur f1 {
           b0():
             call f1()
             call f2()
             return
         }
-        brillig(inline) fn foo f2 {
+        brillig(inline, unroll_default) fn foo f2 {
           b0(): 
             return
         }
@@ -505,7 +505,7 @@ mod tests {
     #[test]
     fn pure_self_recursive_function() {
         let src = "
-        brillig(inline) fn self_recur f0 {
+        brillig(inline, unroll_default) fn self_recur f0 {
           b0(): 
             call f0()
             return
@@ -537,18 +537,18 @@ mod tests {
             call f3()
             return
         }
-        brillig(inline) fn bar f2 {
+        brillig(inline, unroll_default) fn bar f2 {
           b0():
             call f3()
             call f4()
             call f4()
             return
         }
-        brillig(inline) fn baz f3 {
+        brillig(inline, unroll_default) fn baz f3 {
           b0():
             return
         }
-        brillig(inline) fn qux f4 {
+        brillig(inline, unroll_default) fn qux f4 {
           b0():
             call f3()
             return
@@ -669,7 +669,7 @@ mod tests {
           b0(): 
             return
         }
-        brillig(inline) fn dead_code f1 {
+        brillig(inline, unroll_default) fn dead_code f1 {
           b0(): 
             return
         }

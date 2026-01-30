@@ -495,7 +495,7 @@ mod tests {
     #[test]
     fn swap_negated_jmpif_branches_in_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -513,7 +513,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         assert_ssa_snapshot!(ssa.simplify_cfg(), @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -549,7 +549,7 @@ mod tests {
     #[test]
     fn remove_converging_jmpif() {
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1, else: b2
@@ -573,7 +573,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmp b1()
@@ -592,7 +592,7 @@ mod tests {
         // as b1 and b2 jump to b3 and b4 respectively before ultimately jumping to b5.
         // b5 then also continues the jump chain. We expect the b1 and b2 jump chain to settle on b7.
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1, else: b2
@@ -624,7 +624,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             jmp b1()
@@ -640,7 +640,7 @@ mod tests {
     #[test]
     fn do_not_remove_non_converging_jmpif() {
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1, else: b2
@@ -669,7 +669,7 @@ mod tests {
         // We expect the jmpif in b0 to remain in place as the jump chains for b1 and b2
         // resolved to b7 and b8 respectively which are not the same block.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             jmpif v2 then: b1, else: b2
@@ -782,7 +782,7 @@ mod tests {
     #[test]
     fn do_not_remove_converging_jmpif_with_instructions() {
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1, else: b2
@@ -803,7 +803,7 @@ mod tests {
         // Check that we handle a cyclic jump chain when checking for a converging jmpif.
         // If we were missing the appropriate checks this code could trigger an infinite loop.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1, else: b2
@@ -818,7 +818,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             jmpif v2 then: b1, else: b1
@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn completely_removes_noop_jmpif() {
         let src = r#"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             jmpif u1 1 then: b1, else: b2
           b1():
@@ -847,7 +847,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             return
         }
@@ -862,7 +862,7 @@ mod tests {
         // In this case we have a jmpif which is simplified to a jmp, which then can be inlined into its predecessor.
         // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             jmpif u1 1 then: b1, else: b2
           b1():
@@ -884,7 +884,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             jmp b1()
           b1():
@@ -896,7 +896,7 @@ mod tests {
     #[test]
     fn removes_unreachable_block() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             jmp b1()
           b1():
@@ -910,7 +910,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             return
         }
@@ -920,7 +920,7 @@ mod tests {
     #[test]
     fn double_jmp_empty_blocks() {
         let src = "
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0():
             jmp b1()
           b1():
@@ -934,7 +934,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0():
             return
         }
@@ -944,7 +944,7 @@ mod tests {
     #[test]
     fn double_jmp_with_args_blocks() {
         let src = "
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0(v0: Field):
             jmp b1(v0, Field 2)
           b1(v1: Field, v2: Field):
@@ -958,7 +958,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0(v0: Field):
             return v0
         }
@@ -968,7 +968,7 @@ mod tests {
     #[test]
     fn deep_jmp_empty_blocks() {
         let src = "
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0():
             jmp b1()
           b1():
@@ -990,7 +990,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn test f0 {
+        brillig(inline, unroll_default) fn test f0 {
           b0():
             return
         }

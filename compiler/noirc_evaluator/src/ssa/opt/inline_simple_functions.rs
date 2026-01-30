@@ -365,17 +365,17 @@ mod tests {
           call f1()
           return
       }
-      brillig(inline) fn starter f1 {
+      brillig(inline, unroll_default) fn starter f1 {
         b0():
           call f2()
           return
       }
-      brillig(inline) fn ping f2 {
+      brillig(inline, unroll_default) fn ping f2 {
         b0():
           call f3()
           return
       }
-      brillig(inline) fn pong f3 {
+      brillig(inline, unroll_default) fn pong f3 {
         b0():
           call f2()
           return
@@ -393,7 +393,7 @@ mod tests {
             v1 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             return Field 72
         }
@@ -429,13 +429,13 @@ mod tests {
     #[test]
     fn inline_never_function() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1()
               return
         }
 
-        brillig(inline_never) fn never_inline f1 {
+        brillig(inline_never, unroll_default) fn never_inline f1 {
             b0():
               return
         }

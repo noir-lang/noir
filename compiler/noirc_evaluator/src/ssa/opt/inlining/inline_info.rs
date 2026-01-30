@@ -373,17 +373,17 @@ mod tests {
             call f1()
             return
         }
-        brillig(inline) fn starter f1 {
+        brillig(inline, unroll_default) fn starter f1 {
           b0():
             call f2()
             return
         }
-        brillig(inline) fn ping f2 {
+        brillig(inline, unroll_default) fn ping f2 {
           b0():
             call f3()
             return
         }
-        brillig(inline) fn pong f3 {
+        brillig(inline, unroll_default) fn pong f3 {
           b0():
             call f2()
             return
@@ -411,14 +411,14 @@ mod tests {
     #[test]
     fn bottom_up_order_and_weights() {
         let src = "
-          brillig(inline) fn main f0 {
+          brillig(inline, unroll_default) fn main f0 {
             b0(v0: u32, v1: u1):
               v3 = call f2(v0) -> u1
               v4 = eq v3, v1
               constrain v3 == v1
               return
           }
-          brillig(inline) fn is_even f1 {
+          brillig(inline, unroll_default) fn is_even f1 {
             b0(v0: u32):
               v3 = eq v0, u32 0
               jmpif v3 then: b2, else: b1
@@ -431,7 +431,7 @@ mod tests {
             b3(v1: u1):
               return v1
           }
-          brillig(inline) fn is_odd f2 {
+          brillig(inline, unroll_default) fn is_odd f2 {
             b0(v0: u32):
               v3 = eq v0, u32 0
               jmpif v3 then: b2, else: b1
@@ -444,7 +444,7 @@ mod tests {
             b3(v1: u1):
               return v1
           }
-          brillig(inline) fn decrement f3 {
+          brillig(inline, unroll_default) fn decrement f3 {
             b0(v0: u32):
               v2 = sub v0, u32 1
               return v2
@@ -503,12 +503,12 @@ mod tests {
     #[test]
     fn mark_static_assertions_to_always_be_inlined() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1(Field 1)
               return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
             b0(v0: Field):
               call assert_constant(v0)
               return
@@ -580,13 +580,13 @@ mod tests {
     #[test]
     fn inline_always_functions_are_inlined() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1()
               return
         }
 
-        brillig(inline_always) fn always_inline f1 {
+        brillig(inline_always, unroll_default) fn always_inline f1 {
             b0():
               return
         }
@@ -603,13 +603,13 @@ mod tests {
     #[test]
     fn inline_never_functions_are_not_inlined() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1()
               return
         }
 
-        brillig(inline_never) fn never_inline f1 {
+        brillig(inline_never, unroll_default) fn never_inline f1 {
             b0():
               return
         }
@@ -631,7 +631,7 @@ mod tests {
             v1 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             return Field 72
         }

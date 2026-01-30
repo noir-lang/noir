@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn offset_array_get_constant_index() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -150,7 +150,7 @@ mod tests {
         let ssa = ssa.brillig_array_get_and_set();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 1 minus 1 -> Field
             return v2
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn offset_vector_array_get_constant_index() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -172,7 +172,7 @@ mod tests {
         let ssa = ssa.brillig_array_get_and_set();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field]):
             v2 = array_get v0, index u32 3 minus 3 -> Field
             return v2
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn do_not_offset_dynamic_array_get() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3], v1: u32):
             v2 = array_get v0, index v1 -> Field
             return v2
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn offset_array_set_constant_index() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_set v0, index u32 0, value Field 2
             return v2
@@ -218,7 +218,7 @@ mod tests {
         let ssa = ssa.brillig_array_get_and_set();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3]):
             v3 = array_set v0, index u32 1 minus 1, value Field 2
             return v3
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn offset_vector_array_set_constant_index() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field]):
             v2 = array_set v0, index u32 0, value Field 2
             return v2
@@ -240,7 +240,7 @@ mod tests {
         let ssa = ssa.brillig_array_get_and_set();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field]):
             v3 = array_set v0, index u32 3 minus 3, value Field 2
             return v3
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn do_not_offset_dynamic_array_set() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 3], v1: u32):
             v2 = array_set v0, index v1, value Field 2
             return v2
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn is_safe_index_unexpected_after_pass() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field; 1]):
             v1 = array_get v0, index u32 0 -> Field
             return v1
@@ -310,7 +310,7 @@ mod tests {
     #[should_panic(expected = "offset at most once")]
     fn only_executes_once() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [Field]):
             v2 = array_get v0, index u32 3 minus 3 -> Field
             return v2

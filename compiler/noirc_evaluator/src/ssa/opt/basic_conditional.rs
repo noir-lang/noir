@@ -448,7 +448,7 @@ mod tests {
     #[test]
     fn basic_jmpif() {
         let src = "
-              brillig(inline) fn foo f0 {
+              brillig(inline, unroll_default) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 0
                   jmpif v3 then: b2, else: b1
@@ -465,7 +465,7 @@ mod tests {
 
         let ssa = ssa.flatten_basic_conditionals();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: u32):
             v2 = eq v0, u32 0
             v3 = not v2
@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn array_jmpif() {
         let src = r#"
-              brillig(inline) fn foo f0 {
+              brillig(inline, unroll_default) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 5
                   jmpif v3 then: b2, else: b1
@@ -506,7 +506,7 @@ mod tests {
     #[test]
     fn nested_jmpifs() {
         let src = "
-            brillig(inline) fn foo f0 {
+            brillig(inline, unroll_default) fn foo f0 {
               b0(v0: u32):
                 v5 = eq v0, u32 5
                 v6 = not v5
@@ -543,7 +543,7 @@ mod tests {
         let ssa = ssa.flatten_basic_conditionals();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0(v0: u32):
             v3 = eq v0, u32 5
             v4 = not v3

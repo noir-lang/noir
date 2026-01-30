@@ -108,6 +108,11 @@ impl Ssa {
                     }
                 }
             }
+
+            // Remove the unroll always attribute after unrolling has been attempted.
+            if is_unroll_always {
+                function.remove_unroll_always();
+            }
         }
         Ok(self)
     }
@@ -356,7 +361,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline, unroll_default) predicate_pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -387,7 +392,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline, unroll_default) predicate_pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 10)               // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -417,7 +422,7 @@ impl Loop {
     ///
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
-    /// brillig(inline) fn main f0 {
+    /// brillig(inline, unroll_default) fn main f0 {
     ///   b0(v0: u32):                  // Pre-header
     ///     ...
     ///     jmp b1(u32 0)               // Lower-bound
@@ -440,7 +445,7 @@ impl Loop {
     ///
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
-    /// brillig(inline) fn main f0 {
+    /// brillig(inline, unroll_default) fn main f0 {
     ///   b0(v0: u32):
     ///     ...
     ///     jmp b1(u32 0)
@@ -876,7 +881,7 @@ impl Loop {
 
 /// All the instructions in the following example are boilerplate:
 /// ```text
-/// brillig(inline) fn main f0 {
+/// brillig(inline, unroll_default) fn main f0 {
 ///   b0(v0: u32):
 ///     ...
 ///     jmp b1(u32 0)
@@ -1470,7 +1475,7 @@ mod tests {
     #[test]
     fn test_boilerplate_stats_const_zero_jump_condition() {
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -1498,7 +1503,7 @@ mod tests {
         // Expectation taken by compiling the Noir program as ACIR,
         // ie. by removing the `unconstrained` from `main`.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut u32
             store u32 0 at v1
@@ -1533,7 +1538,7 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: [u64; 6]):
             inc_rc v0
             v2 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
@@ -1608,7 +1613,7 @@ mod tests {
         //     assert(count == 4);
         // }
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -1671,7 +1676,7 @@ mod tests {
         let src = format!(
             "
         // After `static_assert` and `assert_constant`:
-        brillig(inline) fn main f0 {{
+        brillig(inline, unroll_default) fn main f0 {{
           b0(v0: u32):
             v2 = allocate -> &mut u32
             store u32 0 at v2
@@ -1717,7 +1722,7 @@ mod tests {
         let src = format!(
             "
         // After `static_assert` and `assert_constant`:
-        brillig(inline) fn main f0 {{
+        brillig(inline, unroll_default) fn main f0 {{
           b0(v0: [u64; 6]):
             inc_rc v0
             v3 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
@@ -1772,7 +1777,7 @@ mod tests {
         // This logic is how we identify a loop with a break expression.
         // We do not support unrolling these types of loops.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -1803,7 +1808,7 @@ mod tests {
         // but the back edge passes a constant that would result in
         // an infinite loop of attempting to unroll.
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline, unroll_default) predicate_pure fn main f0 {
           b0():
             jmp b1(u32 10)
           b1(v0: u32):
@@ -1830,7 +1835,7 @@ mod tests {
         //     while run { }
         // }
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline, unroll_default) impure fn main f0 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0

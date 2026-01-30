@@ -752,7 +752,7 @@ mod tests {
             v1 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             return Field 72
         }
@@ -979,12 +979,12 @@ mod tests {
     #[test]
     fn inliner_disabled() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0():
             v1 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             return Field 72
         }
@@ -999,7 +999,7 @@ mod tests {
     fn conditional_inlining() {
         // In this example we call a larger brillig function 3 times so the inliner refuses to inline the function.
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0():
             v1 = call f1() -> Field
             v2 = call f1() -> Field
@@ -1007,7 +1007,7 @@ mod tests {
             return v1
         }
 
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             jmpif u1 1 then: b1, else: b2
           b1():
@@ -1022,14 +1022,14 @@ mod tests {
         let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened in f0
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0():
             v1 = call f1() -> Field
             v2 = call f1() -> Field
             v3 = call f1() -> Field
             return v1
         }
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             jmp b1()
           b1():
@@ -1043,14 +1043,14 @@ mod tests {
     #[test]
     fn conditional_inlining_const_from_param_and_direct_constant() {
         let src = "
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0():
             v1 = call f1() -> Field
             v2 = call f2(u1 1) -> Field
             v3 = call f2(u1 0) -> Field
             return v1, v2, v3
         }
-        brillig(inline) fn bar f1 {
+        brillig(inline, unroll_default) fn bar f1 {
           b0():
             jmpif u1 1 then: b1, else: b2
           b1():
@@ -1060,7 +1060,7 @@ mod tests {
           b3(v3: Field):
             return v3
         }
-        brillig(inline) fn baz f2 {
+        brillig(inline, unroll_default) fn baz f2 {
           b0(v0: u1):
             jmpif v0 then: b1, else: b2
           b1():
@@ -1078,7 +1078,7 @@ mod tests {
         // is propagated to the jmpif conditional in b0.
         // Field 1 to be returned from the first call to f2 and Field 2 should be returned from the second call to f2.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn foo f0 {
+        brillig(inline, unroll_default) fn foo f0 {
           b0():
             jmp b1()
           b1():
@@ -1100,12 +1100,12 @@ mod tests {
     #[test]
     fn static_assertions_to_always_be_inlined() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1(Field 1)
               return
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
             b0(v0: Field):
               call assert_constant(v0)
               return
@@ -1115,7 +1115,7 @@ mod tests {
         let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             return
         }
@@ -1169,12 +1169,12 @@ mod tests {
     #[test]
     fn inline_always_function() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1()
               return
         }
-        brillig(inline_always) fn always_inline f1 {
+        brillig(inline_always, unroll_default) fn always_inline f1 {
             b0():
                 return
         }
@@ -1182,7 +1182,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             return
         }
@@ -1199,13 +1199,13 @@ mod tests {
     #[test]
     fn inline_never_function() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
             b0():
               call f1()
               return
         }
 
-        brillig(inline_never) fn never_inline f1 {
+        brillig(inline_never, unroll_default) fn never_inline f1 {
             b0():
               return
         }
@@ -1255,12 +1255,12 @@ mod tests {
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
 
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = call f1() -> [Field; 2]
             return v0
         }
-        brillig(inline) fn create_array f1 {
+        brillig(inline, unroll_default) fn create_array f1 {
           b0():
             return g2
         }
@@ -1274,7 +1274,7 @@ mod tests {
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
 
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             return g2
         }
@@ -1325,12 +1325,12 @@ mod tests {
         let src = "
         g0 = Field 1
 
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v0 = call f1() -> Field
             return v0
         }
-        brillig(inline) fn get_constant f1 {
+        brillig(inline, unroll_default) fn get_constant f1 {
           b0():
             return g0
         }
@@ -1352,7 +1352,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
 
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             return Field 1
         }
@@ -1383,7 +1383,7 @@ mod tests {
     // We should not inline an ACIR function called from a Brillig function because ACIR and Brillig semantics are different.
     fn inlining_acir_into_brillig_function() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: u32):
             call f1(v0)
             return
@@ -1449,7 +1449,7 @@ mod simple_functions {
     #[test]
     fn inline_functions_with_zero_instructions() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v2 = call f1(v0) -> Field
             v3 = call f1(v0) -> Field
@@ -1457,7 +1457,7 @@ mod simple_functions {
             return v4
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             return v0
         }
@@ -1466,7 +1466,7 @@ mod simple_functions {
 
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -1479,16 +1479,16 @@ mod simple_functions {
         // f2 has greater than 10 instructions, which should initially prevent it from being inlined into f0.
         // However, once f1 is inlined into f2, we should be able to fully inline into f0.
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v1 = call f2(v0) -> Field
             return v1
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             return v0
         }
-        brillig(inline) fn bar f2 {
+        brillig(inline, unroll_default) fn bar f2 {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
             v2 = call f1(v0) -> Field
@@ -1508,7 +1508,7 @@ mod simple_functions {
 
         let mut ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(&mut ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -1519,7 +1519,7 @@ mod simple_functions {
     #[test]
     fn inline_functions_with_one_instruction() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v2 = call f1(v0) -> Field
             v3 = call f1(v0) -> Field
@@ -1527,7 +1527,7 @@ mod simple_functions {
             return v4
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -1537,7 +1537,7 @@ mod simple_functions {
 
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v2 = add v0, Field 1
             v3 = add v0, Field 1
@@ -1550,13 +1550,13 @@ mod simple_functions {
     #[test]
     fn does_not_inline_function_with_one_instruction_that_calls_itself() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
             return v1
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
             return v1
@@ -1588,7 +1588,7 @@ mod simple_functions {
     #[test]
     fn does_inline_brillig_functions_with_no_predicates() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v2 = call f1(v0) -> Field
             v3 = call f1(v0) -> Field
@@ -1596,7 +1596,7 @@ mod simple_functions {
             return v4
         }
 
-        brillig(no_predicates) fn foo f1 {
+        brillig(no_predicates, unroll_default) fn foo f1 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -1605,7 +1605,7 @@ mod simple_functions {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v2 = add v0, Field 1
             v3 = add v0, Field 1
@@ -1625,7 +1625,7 @@ mod simple_functions {
             v4 = add v2, v3
             return v4
         }
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
@@ -1670,17 +1670,17 @@ mod simple_functions {
             call f1()
             return
         }
-        brillig(inline) fn starter f1 {
+        brillig(inline, unroll_default) fn starter f1 {
           b0():
             call f2()
             return
         }
-        brillig(inline) fn ping f2 {
+        brillig(inline, unroll_default) fn ping f2 {
           b0():
             call f3()
             return
         }
-        brillig(inline) fn pong f3 {
+        brillig(inline, unroll_default) fn pong f3 {
           b0():
             call f2()
             return
@@ -1692,13 +1692,13 @@ mod simple_functions {
     #[test]
     fn does_not_inline_function_with_multiple_instructions() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
             return v1
         }
 
-        brillig(inline) fn foo f1 {
+        brillig(inline, unroll_default) fn foo f1 {
           b0(v0: Field):
             v1 = add v0, Field 1
             v2 = mul v1, Field 2

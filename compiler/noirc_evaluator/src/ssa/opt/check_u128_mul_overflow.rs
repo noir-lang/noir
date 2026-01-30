@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn does_nothing_for_brillig() {
         let src = "
-        brillig(inline) fn main f0 {
+        brillig(inline, unroll_default) fn main f0 {
           b0():
             v2 = mul u128 18446744073709551617, u128 18446744073709551616
             return

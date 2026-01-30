@@ -254,7 +254,7 @@ mod tests {
             enable_side_effects u1 1
             return v12
         }
-        brillig(inline) predicate_pure fn func_1 f1 {
+        brillig(inline, unroll_default) predicate_pure fn func_1 f1 {
           b0(v0: [u16; 3], v1: u1):
             v3 = make_array [u1 0] : [u1; 1]
             return v3

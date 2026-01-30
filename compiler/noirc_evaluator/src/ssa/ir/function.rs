@@ -157,6 +157,13 @@ impl Function {
         self.dfg.runtime()
     }
 
+    /// Removes the unroll always attribute if it is present.
+    pub(crate) fn remove_unroll_always(&mut self) {
+        if let RuntimeType::Brillig(inline_type, unroll_type) = self.runtime() {
+            self.set_runtime(RuntimeType::Brillig(inline_type, UnrollType::default()));
+        }
+    }
+
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.dfg.set_runtime(runtime);
