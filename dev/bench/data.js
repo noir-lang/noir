@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769766918458,
+  "lastUpdate": 1769766919847,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -51996,6 +51996,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.113,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c695737c4f9b4d86c961cdf21fed215dfcc65452",
+          "message": "fix: ignore parameters with reference in hint::blackbox() (#11386)",
+          "timestamp": "2026-01-30T09:23:24Z",
+          "tree_id": "c815fb253db446748ed27ebafb4ef6624618d4f4",
+          "url": "https://github.com/noir-lang/noir/commit/c695737c4f9b4d86c961cdf21fed215dfcc65452"
+        },
+        "date": 1769766878113,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.766,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.73,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.158,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.15,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.142,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.116,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.107,
             "unit": "s"
           }
         ]
