@@ -293,12 +293,20 @@ impl<'a> Parser<'a> {
     fn parse_unroll_type(&mut self) -> ParseResult<UnrollType> {
         if self.eat_keyword(Keyword::UnrollDefault)? {
             Ok(UnrollType::Default)
-        } else if self.eat_keyword(Keyword::UnrollAlways)? {
-            Ok(UnrollType::UnrollAlways)
+        } else if self.eat_keyword(Keyword::TryUnroll)? {
+            // Parse try_unroll(N)
+            self.eat_or_error(Token::LeftParen)?;
+            let max_iterations_span = self.token.span();
+            let max_iterations = self.eat_int_or_error()?;
+            let Some(max_iterations) = max_iterations.try_to_unsigned::<u32>() else {
+                return Err(ParserError::ExpectedU32 { found: max_iterations, span: max_iterations_span });
+            };
+            self.eat_or_error(Token::RightParen)?;
+            Ok(UnrollType::TryUnroll(max_iterations))
         } else {
             self.expected_one_of_tokens(&[
                 Token::Keyword(Keyword::UnrollDefault),
-                Token::Keyword(Keyword::UnrollAlways),
+                Token::Keyword(Keyword::TryUnroll),
             ])
         }
     }

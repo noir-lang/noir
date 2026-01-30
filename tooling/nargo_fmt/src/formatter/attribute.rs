@@ -90,13 +90,13 @@ impl Formatter<'_> {
             SecondaryAttributeKind::ContractLibraryMethod
             | SecondaryAttributeKind::Export
             | SecondaryAttributeKind::Varargs
-            | SecondaryAttributeKind::UseCallersScope
-            | SecondaryAttributeKind::UnrollAlways => {
+            | SecondaryAttributeKind::UseCallersScope => {
                 self.format_no_args_attribute();
             }
             SecondaryAttributeKind::Field(_)
             | SecondaryAttributeKind::Abi(_)
-            | SecondaryAttributeKind::Allow(_) => {
+            | SecondaryAttributeKind::Allow(_)
+            | SecondaryAttributeKind::TryUnroll(_) => {
                 self.format_one_arg_attribute();
             }
             SecondaryAttributeKind::Tag(_) => {

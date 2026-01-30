@@ -333,7 +333,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unroll_type: *u.choose(&[UnrollType::Default, UnrollType::UnrollAlways])?,
+            unroll_type: *u.choose(&[UnrollType::Default, UnrollType::TryUnroll(100)])?,
             unconstrained,
         };
 

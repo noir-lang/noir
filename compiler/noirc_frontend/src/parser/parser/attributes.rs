@@ -287,11 +287,10 @@ impl Parser<'_> {
                 let attr = Attribute::Secondary(attr);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "unroll_always" => {
-                let kind = SecondaryAttributeKind::UnrollAlways;
+            "try_unroll" => {
+                let kind = self.parse_try_unroll_attribute(ident, arguments);
                 let attr = SecondaryAttribute { kind, location };
-                let attr = Attribute::Secondary(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                Attribute::Secondary(attr)
             }
             _ => {
                 let kind = SecondaryAttributeKind::Meta(MetaAttribute {
@@ -336,6 +335,46 @@ impl Parser<'_> {
         };
 
         SecondaryAttributeKind::Deprecated(Some(message))
+    }
+
+    fn parse_try_unroll_attribute(
+        &mut self,
+        ident: &Ident,
+        mut arguments: Vec<Expression>,
+    ) -> SecondaryAttributeKind {
+        if arguments.len() != 1 {
+            self.push_error(
+                ParserErrorReason::WrongNumberOfAttributeArguments {
+                    name: ident.to_string(),
+                    min: 1,
+                    max: 1,
+                    found: arguments.len(),
+                },
+                ident.location(),
+            );
+            // Return a default value
+            return SecondaryAttributeKind::TryUnroll(0);
+        }
+
+        let argument = arguments.remove(0);
+        let ExpressionKind::Literal(Literal::Integer(value, _suffix)) = argument.kind else {
+            self.push_error(
+                ParserErrorReason::TryUnrollAttributeExpectsAnIntegerArgument,
+                argument.location,
+            );
+            return SecondaryAttributeKind::TryUnroll(0);
+        };
+
+        match value.try_to_unsigned::<u32>() {
+            Some(n) => SecondaryAttributeKind::TryUnroll(n),
+            None => {
+                self.push_error(
+                    ParserErrorReason::TryUnrollAttributeExpectsAnIntegerArgument,
+                    argument.location,
+                );
+                SecondaryAttributeKind::TryUnroll(0)
+            }
+        }
     }
 
     fn parse_test_attribute(&mut self, start_location: Location) -> Attribute {

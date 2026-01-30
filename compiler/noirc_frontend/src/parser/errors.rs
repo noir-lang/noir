@@ -97,6 +97,8 @@ pub enum ParserErrorReason {
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
     #[error("The `deprecated` attribute expects a string argument")]
     DeprecatedAttributeExpectsAStringArgument,
+    #[error("The `try_unroll` attribute expects a positive integer argument")]
+    TryUnrollAttributeExpectsAnIntegerArgument,
     #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]

@@ -511,7 +511,8 @@ impl Display for InlineType {
 pub enum UnrollType {
     #[default]
     Default,
-    UnrollAlways,
+    /// Try to unroll loops with at most this many iterations.
+    TryUnroll(u32),
 }
 
 impl From<&Attributes> for UnrollType {
@@ -519,8 +520,14 @@ impl From<&Attributes> for UnrollType {
         attributes
             .secondary
             .iter()
-            .find(|attr| attr.kind == SecondaryAttributeKind::UnrollAlways)
-            .map_or(UnrollType::default(), |_| UnrollType::UnrollAlways)
+            .find_map(|attr| {
+                if let SecondaryAttributeKind::TryUnroll(n) = attr.kind {
+                    Some(UnrollType::TryUnroll(n))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -528,7 +535,7 @@ impl Display for UnrollType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             UnrollType::Default => write!(f, "unroll_default"),
-            UnrollType::UnrollAlways => write!(f, "unroll_always"),
+            UnrollType::TryUnroll(n) => write!(f, "try_unroll({n})"),
         }
     }
 }

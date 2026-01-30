@@ -66,8 +66,12 @@ impl RuntimeType {
         )
     }
 
-    pub(crate) fn is_unroll_always(&self) -> bool {
-        matches!(self, RuntimeType::Brillig(_, UnrollType::UnrollAlways))
+    /// Returns the max iterations if this is a Brillig function with try_unroll set.
+    pub(crate) fn try_unroll_max_iterations(&self) -> Option<u32> {
+        match self {
+            RuntimeType::Brillig(_, UnrollType::TryUnroll(n)) => Some(*n),
+            _ => None,
+        }
     }
 
     pub(crate) fn is_brillig(&self) -> bool {
@@ -157,9 +161,9 @@ impl Function {
         self.dfg.runtime()
     }
 
-    /// Removes the unroll always attribute if it is present.
-    pub(crate) fn remove_unroll_always(&mut self) {
-        if let RuntimeType::Brillig(inline_type, unroll_type) = self.runtime() {
+    /// Removes the try_unroll attribute if it is present.
+    pub(crate) fn remove_try_unroll(&mut self) {
+        if let RuntimeType::Brillig(inline_type, _) = self.runtime() {
             self.set_runtime(RuntimeType::Brillig(inline_type, UnrollType::default()));
         }
     }

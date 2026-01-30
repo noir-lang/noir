@@ -132,7 +132,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new_try(move |ssa| ssa.unroll_loops_iteratively(None, true), "Unrolling Always"),
+        SsaPass::new_try(move |ssa| ssa.unroll_loops_iteratively(None, true), "Try Unrolling"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.preprocess_functions(

@@ -78,12 +78,12 @@ impl Ssa {
     pub(crate) fn unroll_loops_iteratively(
         mut self,
         max_bytecode_increase_percent: Option<i32>,
-        only_unroll_always: bool,
+        only_try_unroll: bool,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
-            let is_unroll_always = function.runtime().is_unroll_always();
-            if only_unroll_always && !is_unroll_always {
+            let has_try_unroll = function.runtime().try_unroll_max_iterations().is_some();
+            if only_try_unroll && !has_try_unroll {
                 continue;
             }
 
@@ -98,7 +98,7 @@ impl Ssa {
             // This is here now instead of in `Function::unroll_loops_iteratively` because we'd need
             // more finessing to convince the borrow checker that it's okay to share a read-only reference
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
-            if has_unrolled && is_brillig && !is_unroll_always {
+            if has_unrolled && is_brillig && !has_try_unroll {
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
@@ -109,9 +109,9 @@ impl Ssa {
                 }
             }
 
-            // Remove the unroll always attribute after unrolling has been attempted.
-            if is_unroll_always {
-                function.remove_unroll_always();
+            // Remove the try_unroll attribute after unrolling has been attempted.
+            if has_try_unroll {
+                function.remove_try_unroll();
             }
         }
         Ok(self)
@@ -183,14 +183,15 @@ impl Function {
                 }
 
                 // For Brillig, only unroll loops that meet the criteria:
-                // - unroll_always: has const bounds, no breaks
+                // - try_unroll(N): has const bounds, no breaks, and <= N iterations
                 // - otherwise: must be a small loop
                 if self.runtime().is_brillig() {
-                    let should_unroll = if self.runtime().is_unroll_always() {
-                        next_loop.is_unrollable(self, &loops.cfg)
-                    } else {
-                        next_loop.is_small_loop(self, &loops.cfg)
-                    };
+                    let should_unroll =
+                        if let Some(max_iterations) = self.runtime().try_unroll_max_iterations() {
+                            next_loop.should_try_unroll(self, &loops.cfg, max_iterations)
+                        } else {
+                            next_loop.is_small_loop(self, &loops.cfg)
+                        };
                     if !should_unroll {
                         continue;
                     }
@@ -831,8 +832,19 @@ impl Loop {
 
     /// Check if this loop can be unrolled (i.e., we can determine its bounds at compile time
     /// and it doesn't have complex control flow like breaks to outer loops).
-    fn is_unrollable(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
-        self.boilerplate_stats(function, cfg).is_some() && self.is_fully_executed(cfg)
+    /// Check if this loop should be unrolled when try_unroll(max_iterations) is set.
+    /// Returns true if the loop is unrollable and has at most max_iterations iterations.
+    fn should_try_unroll(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+        max_iterations: u32,
+    ) -> bool {
+        if let Some(stats) = self.boilerplate_stats(function, cfg) {
+            self.is_fully_executed(cfg) && (stats.iterations as u32) <= max_iterations
+        } else {
+            false
+        }
     }
 
     /// Decide if this loop is small enough that it can be inlined in a way that the number
