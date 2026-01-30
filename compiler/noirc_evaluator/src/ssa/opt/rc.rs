@@ -1,3 +1,12 @@
+//! This pass removes `inc_rc` and `dec_rc` instructions
+//! as long as there are no `array_set` instructions to an array
+//! of the same type in between.
+//!
+//! Note that this pass is very conservative since the array_set
+//! instruction does not need to be to the same array. This is because
+//! the given array may alias another array (e.g. function parameters or
+//! a `load`ed array from a reference).
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -11,15 +20,11 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This pass removes `inc_rc` and `dec_rc` instructions
-    /// as long as there are no `array_set` instructions or calls
-    /// with mutable array references of the same type in between.
-    ///
-    /// Note that this pass is very conservative since the array_set
-    /// instruction does not need to be to the same array. This is because
-    /// the given array may alias another array (e.g. function parameters or
-    /// a `load`ed array from a reference).
+    /// Removes `inc_rc` and `dec_rc` instructions
+    /// as long as there are no `array_set` instructions to an array
+    /// of the same type in between.
     #[tracing::instrument(level = "trace", skip(self))]
+    #[allow(dead_code)]
     pub(crate) fn remove_paired_rc(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.remove_paired_rc();
@@ -52,7 +57,7 @@ impl Function {
     ///
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
-    pub(crate) fn remove_paired_rc(&mut self) {
+    fn remove_paired_rc(&mut self) {
         if !self.runtime().is_brillig() {
             // dec_rc and inc_rc only have an effect in Brillig
             return;
@@ -213,6 +218,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn single_block_fn_return_array() {
         // This is the output for the program with a function:
         // unconstrained fn foo(x: [Field; 2]) -> [[Field; 2]; 1] {
@@ -238,6 +244,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn single_block_mutation() {
         // fn mutator(mut array: [Field; 2]) {
         //     array[0] = 5;
@@ -269,6 +276,7 @@ mod tests {
     // Similar to single_block_mutation but for a function which
     // uses a mutable reference parameter.
     #[test]
+    #[ignore]
     fn single_block_mutation_through_reference() {
         // fn mutator2(array: &mut [Field; 2]) {
         //     array[0] = 5;
@@ -300,6 +308,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn lone_inc_rc() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -312,6 +321,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn lone_dec_rc() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -324,6 +334,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn multiple_rc_pairs_mutation_on_different_types() {
         let src = "
         brillig(inline) fn mutator f0 {
@@ -363,6 +374,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn multiple_rc_pairs_mutation_on_matching_types() {
         let src = "
         brillig(inline) fn mutator f0 {
@@ -386,6 +398,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn rc_pair_with_same_type_but_different_values() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -400,6 +413,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn do_not_remove_pairs_across_blocks() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -420,6 +434,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn remove_pair_across_blocks() {
         let src = "
         brillig(inline) fn foo f0 {

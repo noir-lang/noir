@@ -305,6 +305,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Pipe
             | Token::Bang
             | Token::At
+            | Token::Backslash
             | Token::DollarSign => {
                 write!(f, "{token}")
             }

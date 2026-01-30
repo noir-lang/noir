@@ -10,6 +10,7 @@ use crate::{
     },
     parser::ParserError,
     signed_field::SignedField,
+    token::Token,
 };
 use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -299,6 +300,10 @@ pub enum InterpreterError {
     AttributeRecursionLimitExceeded {
         location: Location,
     },
+    UnexpectedEscapedTokenInQuote {
+        token: Option<Token>,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -397,6 +402,7 @@ impl InterpreterError {
             | InterpreterError::StackOverflow { location, .. }
             | InterpreterError::EvaluationDepthOverflow { location, .. }
             | InterpreterError::CheckedTransmuteFailed { location, .. }
+            | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
             | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -845,6 +851,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "This attribute generates code with the same attribute, causing infinite recursion".to_string(),
                     *location,
                 )
+            }
+            InterpreterError::UnexpectedEscapedTokenInQuote { token, location } => {
+                let primary = match token {
+                    Some(token) => format!("`{token}` cannot be escaped in quoted expressions"),
+                    None => "Unexpected end of input after escape character in quoted expression".to_string(),
+                };
+                let secondary = "Only `$` may be escaped in `quote` expressions".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
             }
         }
     }
