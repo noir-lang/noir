@@ -699,12 +699,7 @@ fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
 
 #[test]
 fn regression_10537() {
-    let mut stdlib = format!(r#"
-    mod cmp {{
-        {}
-        {}
-    }}"#, stdlib_src::EQ, stdlib_src::ORD);
-    stdlib.push_str(r#"
+    let src = r#"
     use cmp::Ord;
 
     pub fn min<T>(v1: T, v2: T) -> T
@@ -717,7 +712,6 @@ fn regression_10537() {
             v1
         }
     }
-    "#);
-    let src = "";
-    check_errors_with_stdlib(src, &stdlib);
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ, stdlib_src::ORD]);
 }
