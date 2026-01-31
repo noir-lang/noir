@@ -1,0 +1,5 @@
+recipient_secret = "1234567890"
+mint_amount = "100"
+nonce = "1"
+output_commitment = "0"
+mint_request_id = "0"

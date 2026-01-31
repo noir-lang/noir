@@ -1,0 +1,46 @@
+[package]
+name = "private-token-client"
+version = "0.1.0"
+edition = "2021"
+authors = [""]
+description = "Privacy-preserving token client using Noir ZK proofs"
+
+[dependencies]
+# Ethereum interaction
+alloy = { version = "0.1", features = ["full"] }
+alloy-primitives = "0.7"
+alloy-sol-types = "0.7"
+
+# Noir proving
+noirc_abi = { path = "../../../noir/tooling/noirc_abi" }
+acvm = { path = "../../../noir/acvm-repo/acvm" }
+bn254_blackbox_solver = { path = "../../../noir/acvm-repo/bn254_blackbox_solver" }
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Cryptography
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Environment
+dotenv = "0.15"
+
+[dev-dependencies]
+tempfile = "3.9"
