@@ -1,4 +1,3 @@
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::DebugVarId;
 use noirc_errors::Location;
@@ -76,7 +75,7 @@ impl Monomorphizer<'_> {
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.clone().to_u128().into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
@@ -98,7 +97,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_var_drop call");
         };
         // update variable ID for tracked drops (ie. when the var goes out of scope)
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.clone().to_u128().into();
         let var_id = self
             .debug_type_tracker
             .get_var_id(source_var_id)
@@ -126,7 +125,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_member_assign call");
         };
         // update variable member assignments
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.clone().to_u128().into();
 
         let var_type = self
             .debug_type_tracker
@@ -138,7 +137,7 @@ impl Monomorphizer<'_> {
             if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let index = fe_i.absolute_value().to_i128().unsigned_abs();
+                let index = fe_i.clone().to_i128().unsigned_abs();
                 if fe_i.is_negative() {
                     // We use negative indices at instrumentation time to indicate
                     // and reference member accesses by name which cannot be

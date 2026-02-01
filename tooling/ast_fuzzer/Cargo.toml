@@ -18,6 +18,7 @@ build-data.workspace = true
 arbitrary.workspace = true
 color-eyre.workspace = true
 im.workspace = true
+num-bigint.workspace = true
 proptest.workspace = true
 strum.workspace = true
 rand.workspace = true

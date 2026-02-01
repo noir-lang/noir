@@ -13,7 +13,6 @@ use crate::shared::Visibility;
 use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 use crate::{Kind, Type};
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
@@ -210,14 +209,17 @@ impl ExpressionKind {
                     kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
                 },
             ) if !field.is_negative() => {
-                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
+                ExpressionKind::Literal(Literal::Integer(-field.clone(), *suffix))
             }
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
 
-    pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents), suffix))
+    pub fn integer(
+        contents: impl Into<SignedField>,
+        suffix: Option<IntegerTypeSuffix>,
+    ) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(contents.into(), suffix))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {

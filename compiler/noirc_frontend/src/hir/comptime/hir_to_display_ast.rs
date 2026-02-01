@@ -17,6 +17,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
+use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -104,7 +105,7 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 // Losing the integer suffix information here, but this should just be for
                 // displaying these values anyway
-                ExpressionKind::Literal(Literal::Integer(*value, None))
+                ExpressionKind::Literal(Literal::Integer(value.clone(), None))
             }
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
@@ -279,7 +280,9 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value, None)),
+            Constructor::Int(value) => {
+                ExpressionKind::Literal(Literal::Integer(value.clone(), None))
+            }
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -472,7 +475,7 @@ impl Type {
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(value, kind) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
-                    *value,
+                    value.clone(),
                     kind.as_integer_type_suffix(),
                     Location::dummy(),
                 ))
@@ -547,7 +550,8 @@ impl HirArrayLiteral {
                 let length = match length {
                     Type::Constant(length, kind) => {
                         let suffix = kind.as_integer_type_suffix();
-                        let literal = Literal::Integer(*length, suffix);
+                        let literal =
+                            Literal::Integer(SignedField::positive(length.clone()), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

@@ -5,6 +5,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
+use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::ast::BinaryOpKind;
@@ -35,9 +36,11 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
+    DivisionByZero { lhs: BigUint, rhs: BigUint, location: Location },
+    #[error("Division by zero: {lhs} / {rhs}")]
+    DivisionByZeroField { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: SignedField,
@@ -48,12 +51,7 @@ pub enum TypeCheckError {
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
-    OverflowingConstant {
-        value: SignedField,
-        kind: Kind,
-        maximum_size: FieldElement,
-        location: Location,
-    },
+    OverflowingConstant { value: BigUint, kind: Kind, maximum_size: BigUint, location: Location },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
     )]
@@ -64,7 +62,7 @@ pub enum TypeCheckError {
         location: Location,
     },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -77,8 +75,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: SignedField,
-        from_value: SignedField,
+        to_value: BigUint,
+        from_value: BigUint,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -285,6 +283,7 @@ impl TypeCheckError {
     pub fn location(&self) -> Location {
         match self {
             TypeCheckError::DivisionByZero { location, .. }
+            | TypeCheckError::DivisionByZeroField { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
@@ -387,6 +386,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diag
             }
             TypeCheckError::DivisionByZero { lhs, rhs, location } => Diagnostic::simple_error(
+                format!("Division by zero: {lhs} / {rhs}"),
+                String::new(),
+                *location,
+            ),
+            TypeCheckError::DivisionByZeroField { lhs, rhs, location } => Diagnostic::simple_error(
                 format!("Division by zero: {lhs} / {rhs}"),
                 String::new(),
                 *location,

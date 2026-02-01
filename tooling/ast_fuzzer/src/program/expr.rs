@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
 use nargo::errors::Location;
+use num_bigint::BigUint;
 
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
@@ -31,50 +31,49 @@ pub fn gen_literal(
     typ: &Type,
     config: &Config,
 ) -> arbitrary::Result<Expression> {
-    use FieldElement as Field;
     use IntegerBitSize::*;
 
     let expr = match typ {
         Type::Unit => Expression::Literal(Literal::Unit),
         Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
-            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
+            let field = SignedField::new(BigUint::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
-            let (field, is_negative) = if signedness.is_signed() {
+            let (value, is_negative) = if signedness.is_signed() {
                 match integer_bit_size {
-                    One => bool::arbitrary(u).map(|n| (Field::from(n), n))?,
+                    One => bool::arbitrary(u).map(|n| (BigUint::from(n as u8), n))?,
                     Eight => i8::arbitrary(u)
-                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
+                        .map(|n| (BigUint::from(u32::from(n.unsigned_abs())), n < 0))?,
                     Sixteen => i16::arbitrary(u)
-                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
+                        .map(|n| (BigUint::from(u32::from(n.unsigned_abs())), n < 0))?,
                     ThirtyTwo => {
-                        i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                        i32::arbitrary(u).map(|n| (BigUint::from(n.unsigned_abs()), n < 0))?
                     }
                     SixtyFour => {
-                        i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
+                        i64::arbitrary(u).map(|n| (BigUint::from(n.unsigned_abs()), n < 0))?
                     }
                     HundredTwentyEight => {
                         // `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
                         // values with 128 bits, so let's stick to the positive range.
-                        i128::arbitrary(u).map(|n| (Field::from(n.abs()), false))?
+                        i128::arbitrary(u).map(|n| (BigUint::from(n.unsigned_abs()), false))?
                     }
                 }
             } else {
                 let f = match integer_bit_size {
-                    One => Field::from(bool::arbitrary(u)?),
-                    Eight => Field::from(u32::from(u8::arbitrary(u)?)),
-                    Sixteen => Field::from(u32::from(u16::arbitrary(u)?)),
-                    ThirtyTwo => Field::from(u32::arbitrary(u)?),
-                    SixtyFour => Field::from(u64::arbitrary(u)?),
-                    HundredTwentyEight => Field::from(u128::arbitrary(u)?),
+                    One => BigUint::from(bool::arbitrary(u)? as u8),
+                    Eight => BigUint::from(u32::from(u8::arbitrary(u)?)),
+                    Sixteen => BigUint::from(u32::from(u16::arbitrary(u)?)),
+                    ThirtyTwo => BigUint::from(u32::arbitrary(u)?),
+                    SixtyFour => BigUint::from(u64::arbitrary(u)?),
+                    HundredTwentyEight => BigUint::from(u128::arbitrary(u)?),
                 };
                 (f, false)
             };
 
             Expression::Literal(Literal::Integer(
-                SignedField::new(field, is_negative),
+                SignedField::new(value, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -128,7 +127,6 @@ pub fn gen_range(
     typ: &Type,
     max_size: usize,
 ) -> arbitrary::Result<(Expression, Expression)> {
-    use FieldElement as Field;
     use IntegerBitSize::*;
 
     let Type::Integer(signedness, integer_bit_size) = typ else {
@@ -141,29 +139,29 @@ pub fn gen_range(
                 Eight => {
                     let s = i8::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u8);
-                    let s = (Field::from(u32::from(s.unsigned_abs())), s < 0);
-                    let e = (Field::from(u32::from(e.unsigned_abs())), e < 0);
+                    let s = (BigUint::from(u32::from(s.unsigned_abs())), s < 0);
+                    let e = (BigUint::from(u32::from(e.unsigned_abs())), e < 0);
                     (s, e)
                 }
                 Sixteen => {
                     let s = i16::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u16);
-                    let s = (Field::from(u32::from(s.unsigned_abs())), s < 0);
-                    let e = (Field::from(u32::from(e.unsigned_abs())), e < 0);
+                    let s = (BigUint::from(u32::from(s.unsigned_abs())), s < 0);
+                    let e = (BigUint::from(u32::from(e.unsigned_abs())), e < 0);
                     (s, e)
                 }
                 ThirtyTwo => {
                     let s = i32::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u32);
-                    let s = (Field::from(s.unsigned_abs()), s < 0);
-                    let e = (Field::from(e.unsigned_abs()), e < 0);
+                    let s = (BigUint::from(s.unsigned_abs()), s < 0);
+                    let e = (BigUint::from(e.unsigned_abs()), e < 0);
                     (s, e)
                 }
                 SixtyFour => {
                     let s = i64::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u64);
-                    let s = (Field::from(s.unsigned_abs()), s < 0);
-                    let e = (Field::from(e.unsigned_abs()), e < 0);
+                    let s = (BigUint::from(s.unsigned_abs()), s < 0);
+                    let e = (BigUint::from(e.unsigned_abs()), e < 0);
                     (s, e)
                 }
                 _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
@@ -173,36 +171,36 @@ pub fn gen_range(
                 Eight => {
                     let s = u8::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u8);
-                    let s = Field::from(u32::from(s));
-                    let e = Field::from(u32::from(e));
+                    let s = BigUint::from(u32::from(s));
+                    let e = BigUint::from(u32::from(e));
                     (s, e)
                 }
                 Sixteen => {
                     let s = u16::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u16);
-                    let s = Field::from(u32::from(s));
-                    let e = Field::from(u32::from(e));
+                    let s = BigUint::from(u32::from(s));
+                    let e = BigUint::from(u32::from(e));
                     (s, e)
                 }
                 ThirtyTwo => {
                     let s = u32::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u32);
-                    let s = Field::from(s);
-                    let e = Field::from(e);
+                    let s = BigUint::from(s);
+                    let e = BigUint::from(e);
                     (s, e)
                 }
                 SixtyFour => {
                     let s = u64::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u64);
-                    let s = Field::from(s);
-                    let e = Field::from(e);
+                    let s = BigUint::from(s);
+                    let e = BigUint::from(e);
                     (s, e)
                 }
                 HundredTwentyEight => {
                     let s = u128::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u128);
-                    let s = Field::from(s);
-                    let e = Field::from(e);
+                    let s = BigUint::from(s);
+                    let e = BigUint::from(e);
                     (s, e)
                 }
                 _ => unreachable!("invalid bit size for range: {integer_bit_size} (unsigned)"),
@@ -211,9 +209,9 @@ pub fn gen_range(
         }
     };
 
-    let to_lit = |(field, is_negative)| {
+    let to_lit = |(value, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField::new(field, is_negative),
+            SignedField::new(value, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -257,7 +255,7 @@ pub(crate) fn ident_inner(
 /// Integer literal, can be positive or negative depending on type.
 pub fn int_literal<V>(value: V, is_negative: bool, typ: Type) -> Expression
 where
-    FieldElement: From<V>,
+    BigUint: From<V>,
 {
     Expression::Literal(Literal::Integer(
         SignedField::new(value.into(), is_negative),

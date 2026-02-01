@@ -2,6 +2,8 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
+use num_bigint::BigUint;
+
 use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
@@ -136,9 +138,9 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: SignedField,
+        lhs: BigUint,
         op: crate::BinaryTypeOperator,
-        rhs: SignedField,
+        rhs: BigUint,
         err: Box<TypeCheckError>,
         location: Location,
     },

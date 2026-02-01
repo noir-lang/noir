@@ -284,7 +284,7 @@ impl FunctionContext<'_> {
             ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(value.clone(), typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
@@ -1132,7 +1132,7 @@ impl FunctionContext<'_> {
         typ: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         match constructor {
-            Constructor::Int(value) => self.checked_numeric_constant(*value, typ),
+            Constructor::Int(value) => self.checked_numeric_constant(value.clone(), typ),
             other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
         }
     }

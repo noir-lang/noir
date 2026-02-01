@@ -182,6 +182,6 @@ mod tests {
         };
 
         assert!(value.is_negative());
-        assert_eq!(value.absolute_value(), FieldElement::from(17u128));
+        assert_eq!(value.absolute_value(), num_bigint::BigUint::from(17u128));
     }
 }

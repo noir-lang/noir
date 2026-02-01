@@ -4,6 +4,8 @@ use std::collections::HashMap;
 
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigUint;
+use num_traits::Zero;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -39,7 +41,6 @@ use crate::{
         pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -426,7 +427,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(BigUint::zero(), None, location)
                     },
                 );
 

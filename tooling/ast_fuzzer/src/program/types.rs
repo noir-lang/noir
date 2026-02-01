@@ -5,8 +5,8 @@ use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
-    signed_field::SignedField,
 };
+use num_bigint::BigUint;
 use strum::IntoEnumIterator as _;
 
 pub const U8: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
@@ -323,7 +323,7 @@ pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
     // Meet the expectations of `Type::evaluate_to_u32`.
     fn size_const(size: u32) -> Box<HirType> {
         Box::new(HirType::Constant(
-            SignedField::from(size),
+            BigUint::from(size),
             HirKind::Numeric(Box::new(HirType::Integer(
                 Signedness::Unsigned,
                 IntegerBitSize::ThirtyTwo,

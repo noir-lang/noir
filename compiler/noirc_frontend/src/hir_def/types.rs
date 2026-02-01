@@ -1,6 +1,8 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 use im::HashSet;
+use num_bigint::{BigInt, BigUint};
+use num_traits::{ToPrimitive, Zero};
 use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
@@ -38,6 +40,38 @@ pub use unification::UnificationError;
 /// Arbitrary recursion limit when following type variables or recurring on types some other way.
 /// Types form trees but are not likely to be more deep than just a few levels in real code.
 pub const TYPE_RECURSION_LIMIT: u32 = 100;
+
+/// Represents the maximum value for an integral type.
+/// This distinguishes between Field types (which wrap around at the field modulus)
+/// and Integer types (which have explicit bit-width bounds).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum MaximumIntegerValue {
+    /// Maximum value for a Field type (field modulus - 1)
+    Field(BigUint),
+    /// Maximum value for an Integer type (2^bits - 1 for unsigned, 2^(bits-1) - 1 for signed)
+    Integer(BigUint),
+}
+
+impl MaximumIntegerValue {
+    /// Get the maximum size as a BigUint regardless of whether it's a Field or Integer
+    pub fn get_maximum_size(&self) -> BigUint {
+        match self {
+            MaximumIntegerValue::Field(value) => value.clone(),
+            MaximumIntegerValue::Integer(value) => value.clone(),
+        }
+    }
+
+    pub fn to_u128(&self) -> u128 {
+        use num_traits::ToPrimitive;
+        self.get_maximum_size().to_u128().unwrap_or(u128::MAX)
+    }
+}
+
+impl std::fmt::Display for MaximumIntegerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get_maximum_size())
+    }
+}
 
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
@@ -133,7 +167,7 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(SignedField, Kind),
+    Constant(BigUint, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -262,7 +296,7 @@ impl Kind {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
+    fn integral_maximum_size(&self) -> Option<MaximumIntegerValue> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
@@ -279,32 +313,34 @@ impl Kind {
     /// Ensure the given value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: SignedField,
+        value: BigUint,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
-        if let Some(maximum_size) = self.integral_maximum_size() {
-            if value > SignedField::positive(maximum_size) {
-                return Err(TypeCheckError::OverflowingConstant {
-                    value,
-                    kind: self.clone(),
-                    maximum_size,
-                    location,
-                });
+    ) -> Result<BigUint, TypeCheckError> {
+        match self.integral_maximum_size() {
+            None => Ok(value),
+            Some(maximum_size) => {
+                let max = maximum_size.get_maximum_size();
+                // For signed types, we use two's complement, so values up to 2^N-1 are valid
+                // (where 2^N = 2 * (max + 1) for signed types)
+                let effective_max = if self.integral_minimum_size().is_some_and(|m| m.is_negative())
+                {
+                    // Signed type: allow up to 2^N - 1 = 2 * max + 1
+                    &max * BigUint::from(2u8) + BigUint::from(1u8)
+                } else {
+                    max.clone()
+                };
+                if value <= effective_max {
+                    Ok(value)
+                } else {
+                    Err(TypeCheckError::OverflowingConstant {
+                        value,
+                        kind: self.clone(),
+                        maximum_size: max,
+                        location,
+                    })
+                }
             }
         }
-
-        if let Some(minimum_size) = self.integral_minimum_size() {
-            if value < minimum_size {
-                return Err(TypeCheckError::UnderflowingConstant {
-                    value,
-                    kind: self.clone(),
-                    minimum_size,
-                    location,
-                });
-            }
-        }
-
-        Ok(value)
     }
 
     /// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
@@ -2183,36 +2219,33 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_signed_field(&Kind::u32(), location).map(|signed_field| {
-            signed_field
-                .try_to_unsigned::<u32>()
-                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+        self.evaluate_to_biguint(&Kind::u32(), location).map(|biguint| {
+            biguint
+                .to_u32()
+                .expect("ICE: size should have already been checked by evaluate_to_biguint")
         })
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/6260): remove
-    // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_signed_field(
+    pub(crate) fn evaluate_to_biguint(
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<BigUint, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
+        self.evaluate_to_biguint_helper(kind, location, run_simplifications)
     }
 
-    /// `evaluate_to_field_element` with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_signed_field_helper(
+    pub(crate) fn evaluate_to_biguint_helper(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<BigUint, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(binding) => {
                     if kind.unifies(&binding_kind) {
-                        return binding.evaluate_to_signed_field_helper(
+                        return binding.evaluate_to_biguint_helper(
                             &binding_kind,
                             location,
                             run_simplifications,
@@ -2238,16 +2271,10 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_signed_field_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
-                    let rhs_value = rhs.evaluate_to_signed_field_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
+                    let lhs_value =
+                        lhs.evaluate_to_biguint_helper(&infix_kind, location, run_simplifications)?;
+                    let rhs_value =
+                        rhs.evaluate_to_biguint_helper(&infix_kind, location, run_simplifications)?;
                     op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
@@ -2258,13 +2285,11 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_signed_field(kind, location)?;
+                let to_value = to.evaluate_to_biguint(kind, location)?;
 
-                // if both 'to' and 'from' evaluate to a constant,
-                // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_signed_field_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_biguint_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -2827,7 +2852,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<MaximumIntegerValue> {
         match self {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
@@ -2835,10 +2860,14 @@ impl Type {
                 if sign == &Signedness::Signed {
                     max_bit_size -= 1;
                 }
-                let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
-                Some(max.into())
+                let max = if max_bit_size == 128 {
+                    BigUint::from(u128::MAX)
+                } else {
+                    (BigUint::from(1u128) << max_bit_size) - 1u32
+                };
+                Some(MaximumIntegerValue::Integer(max))
             }
-            Type::Bool => Some(FieldElement::one()),
+            Type::Bool => Some(MaximumIntegerValue::Integer(BigUint::from(1u32))),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -2980,7 +3009,7 @@ impl From<u32> for Type {
 
 impl From<SignedField> for Type {
     fn from(value: SignedField) -> Self {
-        Type::Constant(value, Kind::numeric(Type::FieldElement))
+        Type::Constant(value.to_biguint(), Kind::numeric(Type::FieldElement))
     }
 }
 
@@ -2988,65 +3017,138 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: SignedField,
-        b: SignedField,
+        a: BigUint,
+        b: BigUint,
         kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
-        match kind.integral_maximum_size() {
-            None => match self {
-                BinaryTypeOperator::Addition => Ok(a + b),
-                BinaryTypeOperator::Subtraction => Ok(a - b),
-                BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (!b.is_zero())
-                    .then(|| a / b)
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
-                BinaryTypeOperator::Modulo => {
-                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
+    ) -> Result<BigUint, TypeCheckError> {
+        match kind.follow_bindings().integral_maximum_size() {
+            // For field operations or unbound types, use FieldElement arithmetic
+            Some(MaximumIntegerValue::Field(_)) | None => {
+                let a_fe = FieldElement::from_be_bytes_reduce(&a.to_bytes_be());
+                let b_fe = FieldElement::from_be_bytes_reduce(&b.to_bytes_be());
+                let result = match self {
+                    BinaryTypeOperator::Addition => Ok(a_fe + b_fe),
+                    BinaryTypeOperator::Subtraction => Ok(a_fe - b_fe),
+                    BinaryTypeOperator::Multiplication => Ok(a_fe * b_fe),
+                    BinaryTypeOperator::Division => {
+                        if b_fe == FieldElement::zero() {
+                            Err(TypeCheckError::DivisionByZeroField {
+                                lhs: a_fe,
+                                rhs: b_fe,
+                                location,
+                            })
+                        } else {
+                            Ok(a_fe / b_fe)
+                        }
+                    }
+                    BinaryTypeOperator::Modulo => {
+                        Err(TypeCheckError::ModuloOnFields { lhs: a_fe, rhs: b_fe, location })
+                    }
+                };
+                result.map(|fe| BigUint::from_bytes_be(&fe.to_be_bytes()))
+            }
+            Some(MaximumIntegerValue::Integer(ref _maximum_size)) => {
+                // Convert BigUint to BigInt, interpreting two's complement for signed types
+                let to_bigint = |value: &BigUint| -> BigInt {
+                    if let Some(max_size) = kind.integral_maximum_size() {
+                        let max = max_size.get_maximum_size();
+                        if kind.integral_minimum_size().is_some_and(|m| m.is_negative()) {
+                            // Signed type: values > max are two's complement negatives
+                            if value > &max {
+                                // Convert: -(2^N - value) where 2^N = 2*(max+1)
+                                let two_pow_n = (&max + BigUint::from(1u8)) * BigUint::from(2u8);
+                                -BigInt::from(&two_pow_n - value)
+                            } else {
+                                BigInt::from(value.clone())
+                            }
+                        } else {
+                            BigInt::from(value.clone())
+                        }
+                    } else {
+                        BigInt::from(value.clone())
+                    }
+                };
+                let a_bigint = to_bigint(&a);
+                let b_bigint = to_bigint(&b);
+
+                let result = match self {
+                    BinaryTypeOperator::Addition => a_bigint + &b_bigint,
+                    BinaryTypeOperator::Subtraction => a_bigint - &b_bigint,
+                    BinaryTypeOperator::Multiplication => a_bigint * &b_bigint,
+                    BinaryTypeOperator::Division => {
+                        if b_bigint.is_zero() {
+                            return Err(TypeCheckError::DivisionByZero {
+                                lhs: a,
+                                rhs: b,
+                                location,
+                            });
+                        }
+                        a_bigint / &b_bigint
+                    }
+                    BinaryTypeOperator::Modulo => {
+                        if b_bigint.is_zero() {
+                            return Err(TypeCheckError::DivisionByZero {
+                                lhs: a,
+                                rhs: b,
+                                location,
+                            });
+                        }
+                        a_bigint % &b_bigint
+                    }
+                };
+
+                // Check for underflow: if result is below the minimum value for this type
+                if let Some(minimum_size) = kind.integral_minimum_size() {
+                    let min_bigint = minimum_size.clone().to_bigint();
+                    if result < min_bigint {
+                        return Err(TypeCheckError::UnderflowingConstant {
+                            value: SignedField::from_bigint(&result),
+                            kind: kind.clone(),
+                            minimum_size,
+                            location,
+                        });
+                    }
                 }
-            },
-            Some(maximum_size) => {
-                if maximum_size.to_u128() == u128::MAX {
-                    // For u128 operations we need to use u128
-                    let a = a.to_u128();
-                    let b = b.to_u128();
 
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
+                // Check for overflow: if result exceeds the maximum value for this type
+                if let Some(maximum_size) = kind.integral_maximum_size() {
+                    let max = maximum_size.get_maximum_size();
+                    let max_bigint = BigInt::from(max.clone());
+                    if result > max_bigint {
+                        return Err(TypeCheckError::OverflowingConstant {
+                            value: result.magnitude().clone(),
+                            kind: kind.clone(),
+                            maximum_size: max,
+                            location,
+                        });
+                    }
+                }
 
-                    Ok(result.into())
+                // For signed types with negative values, use two's complement representation
+                let result_biguint = if result.sign() == num_bigint::Sign::Minus {
+                    // For signed types, 2^N = 2 * (max_positive + 1)
+                    // For unsigned types, 2^N = max + 1
+                    let two_pow_n = kind
+                        .integral_maximum_size()
+                        .map(|m| {
+                            let max = m.get_maximum_size();
+                            // Check if this is a signed type by seeing if minimum_size is negative
+                            if kind.integral_minimum_size().is_some_and(|min| min.is_negative()) {
+                                // Signed: max is (2^(N-1) - 1), so 2^N = 2 * (max + 1)
+                                (&max + BigUint::from(1u8)) * BigUint::from(2u8)
+                            } else {
+                                // Unsigned: max is (2^N - 1), so 2^N = max + 1
+                                &max + BigUint::from(1u8)
+                            }
+                        })
+                        .unwrap_or_else(|| BigUint::from(1u8) << 256);
+                    // Two's complement: 2^N - |value|
+                    &two_pow_n - result.magnitude()
                 } else {
-                    // Every other type first in i128, allowing both positive and negative values
-                    let a = a.to_i128();
-                    let b = b.to_i128();
-
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    kind.ensure_value_fits(result.into(), location)
-                }
+                    result.magnitude().clone()
+                };
+                kind.ensure_value_fits(result_biguint, location)
             }
         }
     }

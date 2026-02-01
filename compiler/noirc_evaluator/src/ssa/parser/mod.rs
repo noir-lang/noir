@@ -13,7 +13,7 @@ use super::{
     opt::pure::Purity,
 };
 
-use acvm::{FieldElement, acir::brillig::lengths::SemanticLength};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -305,9 +305,10 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::LeftParen)?;
         let call_data_id_span = self.token.span();
         let call_data_id = self.eat_int_or_error()?;
-        let Some(call_data_id) = call_data_id.try_to_unsigned::<u32>() else {
+        let Some(call_data_id_val) = call_data_id.clone().try_to_unsigned::<u32>() else {
             return Err(ParserError::ExpectedU32 { found: call_data_id, span: call_data_id_span });
         };
+        let call_data_id = call_data_id_val;
         self.eat_or_error(Token::RightParen)?;
         self.eat_or_error(Token::Colon)?;
 
@@ -330,10 +331,10 @@ impl<'a> Parser<'a> {
                 self.eat_or_error(Token::Colon)?;
                 let index_span = self.token.span();
                 let index = self.eat_int_or_error()?;
-                let Some(index) = index.try_to_unsigned::<usize>() else {
+                let Some(index_val) = index.clone().try_to_unsigned::<usize>() else {
                     return Err(ParserError::ExpectedUSize { found: index, span: index_span });
                 };
-                index_map.push((value, index));
+                index_map.push((value, index_val));
 
                 if self.eat(Token::Comma)? {
                     continue;
@@ -922,10 +923,13 @@ impl<'a> Parser<'a> {
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
             let value = if typ.is_signed() && value.is_negative() {
-                // 2-complement representation:
-                FieldElement::from(2u128.pow(typ.bit_size())) - value.absolute_value()
+                // Two's complement representation: 2^N - |value|
+                let two_pow_n = FieldElement::from(2u128.pow(typ.bit_size()));
+                let abs_value =
+                    FieldElement::from_be_bytes_reduce(&value.absolute_value().to_bytes_be());
+                two_pow_n - abs_value
             } else {
-                value.absolute_value()
+                value.to_field_element()
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
@@ -1094,7 +1098,10 @@ impl<'a> Parser<'a> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Int(int) => Ok(Some(SignedField::new(int, negative))),
+                Token::Int(int) => {
+                    let signed = SignedField::from_field_element(int);
+                    Ok(Some(if negative { -signed } else { signed }))
+                }
                 _ => unreachable!(),
             }
         } else {
