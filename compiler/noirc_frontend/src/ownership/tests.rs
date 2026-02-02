@@ -426,9 +426,12 @@ fn pure_builtin_args_get_cloned() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> pub u32 {
         let a$l0 = [1, 2, 3];
-        let x$l1 = len$array_len(a$l0.clone());
-        let y$l2 = len$array_len(a$l0);
+        let x$l1 = len$f1(a$l0.clone());
+        let y$l2 = len$f1(a$l0);
         (x$l1 + y$l2)
+    }
+    unconstrained fn len$f1(self$l3: [Field; 3]) -> u32 {
+        3
     }
     ");
 }

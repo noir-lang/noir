@@ -236,8 +236,9 @@ pub mod stdlib_src {
 
     pub const ARRAY_LEN: &str = "
         impl<T, let N: u32> [T; N] {
-            #[builtin(array_len)]
-            pub fn len(self) -> u32 {}
+            pub fn len(self) -> u32 {
+                N
+            }
         }
     ";
 

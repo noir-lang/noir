@@ -1295,7 +1295,10 @@ fn does_not_evaluate_array_len() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub u32 {
         let a$l0 = [1, 2, 3];
-        len$array_len(a$l0)
+        len$f1(a$l0)
+    }
+    fn len$f1(self$l1: [Field; 3]) -> u32 {
+        3
     }
     ");
 }

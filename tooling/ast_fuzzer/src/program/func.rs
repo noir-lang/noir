@@ -2173,7 +2173,7 @@ impl<'a> FunctionContext<'a> {
         (*id, name.clone(), let_expr)
     }
 
-    /// Construct a `Call` to the `array_len` builtin function, calling it with the
+    /// Construct a `Call` to the `vector_len` builtin function, calling it with the
     /// identifier of a vector or an array.
     fn call_vector_len(&mut self, array_or_vector: Expression, typ: Type) -> Expression {
         let func_ident = Ident {

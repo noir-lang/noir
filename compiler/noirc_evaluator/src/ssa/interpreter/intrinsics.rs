@@ -25,7 +25,7 @@ impl<W: Write> Interpreter<'_, W> {
         match intrinsic {
             Intrinsic::VectorLen => {
                 check_argument_count(args, 1, intrinsic)?;
-                let array = self.lookup_array_or_vector(args[0], "call to array_len")?;
+                let array = self.lookup_array_or_vector(args[0], "call to vector_len")?;
                 let length = array.elements.borrow().len();
                 Ok(vec![Value::u32(length as u32)])
             }
