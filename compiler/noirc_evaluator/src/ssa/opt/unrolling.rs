@@ -179,7 +179,9 @@ impl Function {
                 }
 
                 // Only unroll small loops in Brillig.
-                if self.runtime().is_brillig() && !next_loop.should_unroll_in_brillig(self, &loops.cfg) {
+                if self.runtime().is_brillig()
+                    && !next_loop.should_unroll_in_brillig(self, &loops.cfg)
+                {
                     continue;
                 }
 
