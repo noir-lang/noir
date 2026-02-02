@@ -234,6 +234,22 @@ pub mod stdlib_src {
         }
     ";
 
+    pub const ADD: &str = "
+        pub mod ops {
+            pub mod arith {
+                pub trait Add {
+                    fn add(self, other: Self) -> Self;
+                }
+
+                impl Add for Field {
+                    fn add(self, other: Field) -> Field {
+                        self + other
+                    }
+                }
+            }
+        }
+    ";
+
     pub const ARRAY_LEN: &str = "
         impl<T, let N: u32> [T; N] {
             #[builtin(array_len)]
