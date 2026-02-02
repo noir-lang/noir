@@ -178,7 +178,8 @@ use crate::{
     },
     elaborator::{
         PathResolutionMode, PathResolutionTarget, WildcardDisallowedContext,
-        path_resolution::PathResolutionItem, types::WildcardAllowed,
+        path_resolution::PathResolutionItem,
+        types::{SELF_TYPE_NAME, WildcardAllowed},
     },
     hir::{
         def_collector::dc_crate::UnresolvedTrait,
@@ -657,10 +658,10 @@ impl Elaborator<'_> {
                     let name_location = the_trait.name.location();
 
                     this.add_existing_generic(
-                        &UnresolvedGeneric::from(Ident::from("Self")),
+                        &UnresolvedGeneric::from(Ident::from(SELF_TYPE_NAME)),
                         name_location,
                         &ResolvedGeneric {
-                            name: Rc::new("Self".to_owned()),
+                            name: Rc::new(SELF_TYPE_NAME.to_string()),
                             type_var: self_typevar,
                             location: name_location,
                         },
@@ -671,6 +672,18 @@ impl Elaborator<'_> {
 
                     // Attach any trait constraints on the trait to the function,
                     where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
+
+                    // Treat any parent traits as syntactic sugar for a `where Self: <parent>` clause.
+                    for parent_bound in &unresolved_trait.trait_def.bounds {
+                        where_clause.push(UnresolvedTraitConstraint {
+                            typ: UnresolvedType::from_path(Path::from_single(
+                                SELF_TYPE_NAME.to_string(),
+                                parent_bound.trait_path.location,
+                            )),
+                            trait_bound: parent_bound.clone(),
+                        });
+                    }
+
                     let mut def = FunctionDefinition::normal(
                         name,
                         *is_unconstrained,
