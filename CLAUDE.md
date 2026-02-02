@@ -204,3 +204,36 @@ Special labels to control CI behavior:
 - ✅ Run tests for modified code
 - ✅ Use single-package commands when possible (faster)
 - ❌ Never run `yarn test` from project root - always cd into package first
+
+## Workflow Orchestration
+
+### Plan Mode
+- Enter plan mode for any non-trivial task (3+ steps, multi-file changes, or architectural decisions).
+- Include verification steps in the plan upfront, not as an afterthought.
+- If new information invalidates the plan: stop, update the plan, then continue.
+- Write a crisp spec first when requirements are ambiguous (inputs/outputs, edge cases, success criteria).
+
+### Subagent Strategy
+- Use subagents to keep the main context clean and to parallelize: repo exploration, pattern discovery, test failure triage, dependency research.
+- Give each subagent one focused objective and a concrete deliverable.
+- Merge subagent outputs into a short, actionable synthesis before coding.
+
+### Incremental Delivery
+- Prefer thin vertical slices over big-bang changes.
+- Land work in small, verifiable increments: implement, test, verify, then expand.
+- When feasible, keep changes behind safe defaults or conditional checks.
+
+### Verification Before "Done"
+- Never mark a task complete without evidence: tests pass, lint/typecheck clean, build succeeds.
+- Compare baseline vs changed behavior when relevant.
+
+### Autonomous Bug Fixing
+- When given a bug report: reproduce, isolate root cause, fix, add regression coverage, verify.
+- Do not offload debugging work to the user unless truly blocked.
+- If blocked, ask for one specific missing detail with a recommended default.
+
+### Lessons Learned
+- After any user correction or discovered mistake, add an entry to `tasks/lessons.md` capturing:
+  - The failure mode, the detection signal, and a prevention rule.
+- Review `tasks/lessons.md` at session start and before major refactors.
+- This file acts as an evolving extension of CLAUDE.md for project-specific learnings.
