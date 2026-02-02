@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770042947784,
+  "lastUpdate": 1770042949820,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -53501,6 +53501,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.107,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a1b7994daaa32ed76235ad82869459b020a5648a",
+          "message": "fix: clean up after foreign call resolver fails (#11423)",
+          "timestamp": "2026-02-02T14:03:02Z",
+          "tree_id": "4382d77986a595c808785d3f8aa99b6ce95465c3",
+          "url": "https://github.com/noir-lang/noir/commit/a1b7994daaa32ed76235ad82869459b020a5648a"
+        },
+        "date": 1770042910445,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.839,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.757,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.773,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.148,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.15,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.114,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.136,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.116,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.103,
             "unit": "s"
           }
         ]
