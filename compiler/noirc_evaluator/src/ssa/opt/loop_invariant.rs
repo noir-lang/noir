@@ -888,7 +888,7 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before hoisted.
         // An ACIR it is always safe to hoist MakeArray.
-        MakeArray { .. } => Yes,
+        MakeArray { .. } => No, // Yes,
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
