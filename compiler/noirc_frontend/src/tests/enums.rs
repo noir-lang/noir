@@ -445,7 +445,6 @@ fn impl_eq_for_enum() {
     assert!(errors.is_empty());
 }
 
-// TODO: WIP
 #[test]
 fn regression_7651() {
     let src = r#"
