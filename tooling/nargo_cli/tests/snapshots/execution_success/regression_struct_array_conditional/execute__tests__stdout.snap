@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: [(Field, u8, u8); 3], v1: u32, v2: u32):
+    (no terminator instruction)
+}
 [regression_struct_array_conditional] Circuit output: 10

@@ -282,6 +282,7 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             rc: Shared::new(1),
             element_types: Arc::new(types),
             is_vector: false,
+            is_flat: false,
         })
     };
     match input {

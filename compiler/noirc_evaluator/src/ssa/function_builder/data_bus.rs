@@ -196,16 +196,21 @@ impl FunctionBuilder {
         mut databus: DataBusBuilder,
         call_data_id: Option<u32>,
     ) -> DataBusBuilder {
-        for value in values {
-            self.add_to_data_bus(*value, &mut databus);
+        // Only decompose values into flat array_gets and build the data bus array
+        // for ACIR functions. In Brillig, the data bus array is never created and
+        // the flat array_get instructions would be dead code.
+        let is_acir = matches!(self.current_function.runtime(), RuntimeType::Acir(_));
+        if is_acir {
+            for value in values {
+                self.add_to_data_bus(*value, &mut databus);
+            }
         }
         let len = databus.values.len() as u32;
 
-        let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
-            .then(|| {
-                let array_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(len));
-                self.insert_make_array(databus.values, array_type)
-            });
+        let array = (len > 0 && is_acir).then(|| {
+            let array_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(len));
+            self.insert_make_array(databus.values, array_type)
+        });
 
         DataBusBuilder {
             index: 0,

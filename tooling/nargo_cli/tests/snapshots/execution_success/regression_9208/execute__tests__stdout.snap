@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v2: u32):
+    (no terminator instruction)
+}
 [regression_9208] Circuit output: 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000

@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v10: [Field; 64], v11: [Field; 64], v12: [(Field, Field, Field); 16], v13: [Field; 2], v14: [Field; 2], v15: [Field; 2], v16: [(Field, Field); 1]):
+    (no terminator instruction)
+}
 [brillig_cow_regression] Circuit output: [0xf50cb573ecfb7e886e89b51bb5f8c36e, 0x0b9ba0a18c34b492cba2a2b850108117]

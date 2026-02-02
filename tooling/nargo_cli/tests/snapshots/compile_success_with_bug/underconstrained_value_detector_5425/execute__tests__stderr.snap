@@ -2,6 +2,600 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            9,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            48,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            9,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            48,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            9,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            48,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            9,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            48,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            9,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            48,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            9,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            48,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            0,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            7,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 1
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            12,
+        ),
+    },
+)
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
+    ArrayGet {
+        array: Id(
+            1,
+        ),
+        index: Id(
+            17,
+        ),
+    },
+)
 bug: Brillig function call isn't properly covered by a manual constraint
    ┌─ src/main.nr:37:36
    │

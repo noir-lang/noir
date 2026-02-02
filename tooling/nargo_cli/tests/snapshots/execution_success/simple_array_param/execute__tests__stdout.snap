@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: [Field; 2]):
+    (no terminator instruction)
+}
 [simple_array_param] Circuit output: 0x01

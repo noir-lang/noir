@@ -12,4 +12,8 @@ quote {
     }
     
 }
+brillig(inline) fn main f0 {
+  b0():
+    (no terminator instruction)
+}
 0x03

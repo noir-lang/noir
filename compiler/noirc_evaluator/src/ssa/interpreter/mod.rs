@@ -297,6 +297,17 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             println!("enter function {} ({})", function_id, function.name());
         }
 
+        // Flatten nested array arguments to match the flat indexing SSA gen produces.
+        // For ACIR functions: always flatten nested arrays (SSA gen uses codegen_flat_index).
+        // For Brillig functions: arrays are kept semi-flat. Flat indexing (e.g., from
+        // add_to_data_bus) is handled dynamically in interpret_array_get/set via
+        // flat navigation through nested structures.
+        if !function.runtime().is_brillig() {
+            for argument in arguments.iter_mut() {
+                *argument = Self::flatten_for_acir(argument);
+            }
+        }
+
         let mut block_id = function.entry_block();
         let dfg = self.dfg();
 
@@ -938,14 +949,24 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     // If we're crossing a constrained -> unconstrained boundary we have to wipe
                     // any shared mutable fields in our arguments since brillig should conceptually
                     // receive fresh array on each invocation.
-                    if !self.in_unconstrained_context()
-                        && self.functions[&id].runtime().is_brillig()
-                    {
+                    let crossing_to_brillig = !self.in_unconstrained_context()
+                        && self.functions[&id].runtime().is_brillig();
+                    if crossing_to_brillig {
                         for argument in arguments.iter_mut() {
                             Self::reset_array_state(argument)?;
+                            // Unflatten flat ACIR arrays back to nested form for Brillig
+                            *argument = Self::unflatten_for_brillig(argument);
                         }
                     }
-                    self.call_function(id, arguments)?
+                    let mut call_results = self.call_function(id, arguments)?;
+                    // When crossing Brillig→ACIR boundary, flatten return values
+                    // since ACIR code uses flat array indexing.
+                    if crossing_to_brillig {
+                        for result in call_results.iter_mut() {
+                            *result = Self::flatten_for_acir(result);
+                        }
+                    }
+                    call_results
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
@@ -1024,6 +1045,135 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 array_value.elements = Shared::new(elements);
                 array_value.rc = Shared::new(1);
                 Ok(())
+            }
+        }
+    }
+
+    /// Flatten a semi-flat array value (with nested `ArrayValue`s) into a fully flat
+    /// array of scalars, for use in ACIR functions where SSA gen produces flat indexing.
+    fn flatten_for_acir(value: &Value) -> Value {
+        match value {
+            Value::ArrayOrVector(array)
+                if !array.is_flat
+                    && !array.is_vector
+                    && array.element_types.iter().any(|t| t.contains_an_array()) =>
+            {
+                // Don't flatten when the flat stride is 0 (zero-size inner arrays like
+                // [[u128; 0]; 2]) — flattening would produce 0 elements and lose
+                // the semantic length.
+                let flat_per_cycle: usize = array
+                    .element_types
+                    .iter()
+                    .map(|t| t.flattened_size().0 as usize)
+                    .sum();
+                if flat_per_cycle == 0 {
+                    return value.clone();
+                }
+
+                let mut flat_elements = Vec::new();
+                Self::flatten_elements(&array.elements.borrow(), &mut flat_elements);
+                Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(flat_elements),
+                    rc: Shared::new(1),
+                    element_types: array.element_types.clone(),
+                    is_vector: false,
+                    is_flat: true,
+                })
+            }
+            _ => value.clone(),
+        }
+    }
+
+    /// Recursively flatten all elements, expanding nested `ArrayValue`s into scalars.
+    fn flatten_elements(elements: &[Value], out: &mut Vec<Value>) {
+        for element in elements {
+            match element {
+                Value::ArrayOrVector(inner) => {
+                    Self::flatten_elements(&inner.elements.borrow(), out);
+                }
+                other => out.push(other.clone()),
+            }
+        }
+    }
+
+    /// Create semi-flat inner arrays for a zero-size nested array type.
+    /// For example, `[[u128; 0]; 2]` → two empty `ArrayValue`s with element_types `[u128]`.
+    /// This preserves the semantic length when the flat representation would have 0 elements.
+    fn create_zero_size_inner_arrays(
+        element_types: &[Type],
+        semantic_length: usize,
+        id: ValueId,
+    ) -> Vec<Value> {
+        let mut elements = Vec::new();
+        for _ in 0..semantic_length {
+            for typ in element_types.iter() {
+                elements.push(Value::uninitialized(typ, id));
+            }
+        }
+        elements
+    }
+
+    /// Unflatten a flat ACIR array back to nested form for Brillig consumption.
+    /// If the array is not flat or element_types don't contain arrays, it's a no-op.
+    fn unflatten_for_brillig(value: &Value) -> Value {
+        match value {
+            Value::ArrayOrVector(array) if array.is_flat => {
+                let elements = array.elements.borrow();
+                let mut nested = Vec::new();
+                let mut offset = 0;
+                let flat_len = elements.len();
+                let flat_per_cycle: usize =
+                    array.element_types.iter().map(|t| t.flattened_size().0 as usize).sum();
+                if flat_per_cycle == 0 {
+                    return value.clone();
+                }
+                let repeats = flat_len / flat_per_cycle;
+                for _ in 0..repeats {
+                    for typ in array.element_types.iter() {
+                        let (val, consumed) =
+                            Self::unflatten_value(typ, &elements, offset);
+                        nested.push(val);
+                        offset += consumed;
+                    }
+                }
+                Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(nested),
+                    rc: Shared::new(1),
+                    element_types: array.element_types.clone(),
+                    is_vector: array.is_vector,
+                    is_flat: false,
+                })
+            }
+            _ => value.clone(),
+        }
+    }
+
+    /// Reconstruct a single value of the given type from flat scalar elements.
+    /// Returns the reconstructed value and the number of flat elements consumed.
+    fn unflatten_value(typ: &Type, flat: &[Value], offset: usize) -> (Value, usize) {
+        match typ {
+            Type::Array(element_types, len) => {
+                let mut elements = Vec::new();
+                let mut consumed = 0;
+                for _ in 0..len.0 {
+                    for et in element_types.iter() {
+                        let (val, c) = Self::unflatten_value(et, flat, offset + consumed);
+                        elements.push(val);
+                        consumed += c;
+                    }
+                }
+                let array = Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(1),
+                    element_types: element_types.clone(),
+                    is_vector: false,
+                    is_flat: false,
+                });
+                (array, consumed)
+            }
+            _ => {
+                // Scalar or non-array type: take one flat element
+                (flat[offset].clone(), 1)
             }
         }
     }
@@ -1135,6 +1285,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         rc: array.rc,
                         element_types: array.element_types,
                         is_vector: array.is_vector,
+                        is_flat: array.is_flat,
                     })
                 } else {
                     element.clone()
@@ -1186,7 +1337,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
                 let is_vector = array.is_vector;
-                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
+                let is_flat = array.is_flat;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector, is_flat })
             }
         } else {
             // Side effects are disabled, return the original array
@@ -1279,34 +1431,71 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
-        if element_types.is_empty() {
-            if !elements.is_empty() {
+
+        // Check if SSA gen has produced flat scalar elements but element_types describe
+        // nested structure (contains arrays). This happens in ACIR context.
+        let in_acir_context = self
+            .try_current_function()
+            .is_some_and(|f| !f.runtime().is_brillig());
+        let has_nested = element_types.iter().any(|t| t.contains_an_array());
+        let all_scalars =
+            has_nested && elements.iter().all(|e| !matches!(e, Value::ArrayOrVector(_)));
+
+        // Compute the flat stride (number of scalars per element_types cycle).
+        // When this is 0 (zero-size inner arrays like [[u128; 0]; 2]), we can't use
+        // flat representation because get_type() can't recover the semantic length.
+        let flat_per_cycle: usize = if has_nested {
+            element_types.iter().map(|t| t.flattened_size().0 as usize).sum()
+        } else {
+            0
+        };
+
+        // Mark as flat when we have scalar elements with nested element_types in ACIR context,
+        // but only when the flat stride is non-zero (otherwise we lose length info).
+        let is_flat = in_acir_context && all_scalars && flat_per_cycle > 0;
+
+        // For ACIR arrays with zero-size nested types (e.g., make_array [] : [[u128; 0]; 2]),
+        // construct empty inner arrays to preserve the semantic length.
+        let elements = if in_acir_context && has_nested && flat_per_cycle == 0 && elements.is_empty()
+        {
+            let semantic_length = match result_type {
+                Type::Array(_, len) => len.to_usize(),
+                _ => 0,
+            };
+            Self::create_zero_size_inner_arrays(&element_types, semantic_length, result)
+        } else {
+            elements
+        };
+        if !is_flat {
+            if element_types.is_empty() {
+                if !elements.is_empty() {
+                    return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                        result,
+                        elements_count: elements.len(),
+                        types_count: element_types.len(),
+                    }));
+                }
+            } else if elements.len() % element_types.len() != 0 {
                 return Err(internal(InternalError::MakeArrayElementCountMismatch {
                     result,
                     elements_count: elements.len(),
                     types_count: element_types.len(),
                 }));
             }
-        } else if elements.len() % element_types.len() != 0 {
-            return Err(internal(InternalError::MakeArrayElementCountMismatch {
-                result,
-                elements_count: elements.len(),
-                types_count: element_types.len(),
-            }));
-        }
 
-        // Make sure each element's type matches the one in element_types
-        for (index, (element, expected_type)) in
-            elements.iter().zip(element_types.iter().cycle()).enumerate()
-        {
-            let actual_type = element.get_type();
-            if &actual_type != expected_type {
-                return Err(internal(InternalError::MakeArrayElementTypeMismatch {
-                    result,
-                    index,
-                    actual_type: actual_type.to_string(),
-                    expected_type: expected_type.to_string(),
-                }));
+            // Make sure each element's type matches the one in element_types
+            for (index, (element, expected_type)) in
+                elements.iter().zip(element_types.iter().cycle()).enumerate()
+            {
+                let actual_type = element.get_type();
+                if &actual_type != expected_type {
+                    return Err(internal(InternalError::MakeArrayElementTypeMismatch {
+                        result,
+                        index,
+                        actual_type: actual_type.to_string(),
+                        expected_type: expected_type.to_string(),
+                    }));
+                }
             }
         }
 
@@ -1315,6 +1504,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             rc: Shared::new(1),
             element_types,
             is_vector,
+            is_flat,
         });
         self.define(result, array)
     }

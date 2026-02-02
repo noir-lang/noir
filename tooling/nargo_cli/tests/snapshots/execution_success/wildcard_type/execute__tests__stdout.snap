@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: [Field; 2]):
+    (no terminator instruction)
+}
 [wildcard_type] Circuit output: [0x07, 0x0e, 0x0a, 0x06]

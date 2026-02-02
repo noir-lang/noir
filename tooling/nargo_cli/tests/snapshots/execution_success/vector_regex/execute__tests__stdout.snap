@@ -2,6 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0():
+    (no terminator instruction)
+}
 Match { succeeded: true, match_ends: 4, leftover: @[] }
 Match { succeeded: true, match_ends: 4, leftover: @[] }
 Match { succeeded: true, match_ends: 5, leftover: @[] }

@@ -2,4 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-
+brillig(inline) fn main f0 {
+  b0(v2: Field, v3: Field):
+    (no terminator instruction)
+}

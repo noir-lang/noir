@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: u1):
+    (no terminator instruction)
+}
 [regression_7744] Circuit output: std::embedded_curve_ops::EmbeddedCurvePoint { x: 0x00, y: 0x05, is_infinite: false }

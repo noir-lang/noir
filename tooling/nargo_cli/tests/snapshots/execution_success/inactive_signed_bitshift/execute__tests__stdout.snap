@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: u1, v1: i16):
+    (no terminator instruction)
+}
 [inactive_signed_bitshift] Circuit output: 0

@@ -2,5 +2,9 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0():
+    (no terminator instruction)
+}
 ([Foo::Zero, Foo::One(0x0a), Foo::Two(20, 30)], 0x28)
 Hello [Foo::Zero, Foo::One(0x0a), Foo::Two(20, 30)]!

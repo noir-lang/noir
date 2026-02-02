@@ -40,9 +40,9 @@ fn main() -> Result<(), String> {
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 
-    generate_minimal_execution_success_tests(&mut test_file, &test_dir);
-    // generate_interpret_execution_success_tests(&mut test_file, &test_dir);
-    // generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
+    // generate_minimal_execution_success_tests(&mut test_file, &test_dir);
+    generate_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     // generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
     // generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);

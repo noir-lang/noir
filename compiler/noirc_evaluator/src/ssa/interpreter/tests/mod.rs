@@ -258,6 +258,9 @@ fn call_function() {
 
 #[test]
 fn run_flattened_function() {
+    // In ACIR, nested arrays are flattened: [[u1; 2]; 3] has 6 flat u1 elements.
+    // array_get at flat indices returns individual scalars, and if-then-else
+    // merges them per-element. Flat indices: 0,1 = inner[0], 2,3 = inner[1], 4,5 = inner[2].
     let src = "
         acir(inline) pure fn main f0 {
           b0(v0: u1, v1: [[u1; 2]; 3]):
@@ -265,18 +268,24 @@ fn run_flattened_function() {
             enable_side_effects v0
             v3 = not v0
             enable_side_effects v0
-            v5 = array_get v1, index u32 0 -> [u1; 2]
+            v5 = array_get v1, index u32 0 -> u1
+            v50 = array_get v1, index u32 1 -> u1
             v6 = not v0
             v7 = unchecked_mul v0, v6
             enable_side_effects v7
-            v8 = array_get v1, index u32 1 -> [u1; 2]
+            v8 = array_get v1, index u32 2 -> u1
+            v80 = array_get v1, index u32 3 -> u1
             enable_side_effects v0
             v9 = if v0 then v5 else (if v7) v8
+            v90 = if v0 then v50 else (if v7) v80
             enable_side_effects v6
-            v10 = array_get v1, index u32 2 -> [u1; 2]
+            v10 = array_get v1, index u32 4 -> u1
+            v100 = array_get v1, index u32 5 -> u1
             enable_side_effects u1 1
             v12 = if v0 then v5 else (if v6) v10
-            return v12
+            v120 = if v0 then v50 else (if v6) v100
+            v13 = make_array [v12, v120] : [u1; 2]
+            return v13
         }";
 
     let v1_elements = vec![
@@ -293,6 +302,39 @@ fn run_flattened_function() {
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
     assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 1]");
+}
+
+#[test]
+fn brillig_semi_flat_nested_array() {
+    // In Brillig, nested arrays are stored semi-flat: the outer array contains
+    // nested ArrayValues as elements. array_get returns inner arrays at semi-flat
+    // indices. This verifies that Brillig nested arrays work correctly without
+    // flat indexing (regression_7612: call_data arrays in force-brillig were broken
+    // because add_to_data_bus emitted dead flat array_get instructions).
+    let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [[Field; 2]; 3]):
+            v1 = array_get v0, index u32 0 -> [Field; 2]
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            v4 = array_get v0, index u32 2 -> [Field; 2]
+            v5 = array_get v4, index u32 0 -> Field
+            v6 = add v2, v5
+            return v6
+        }";
+
+    let inner = |a: u128, b: u128| {
+        Value::array(
+            vec![Value::field(a.into()), Value::field(b.into())],
+            vec![Type::field()],
+        )
+    };
+    let element_types = vec![Type::Array(Arc::new(vec![Type::field()]), SemanticLength(2))];
+    let v0 = Value::array(vec![inner(10, 20), inner(30, 40), inner(50, 60)], element_types);
+
+    let result = expect_value_with_args(src, vec![v0]);
+    // v2 = 10 (inner[0][0]), v5 = 50 (inner[2][0]), result = 60
+    assert_eq!(result, Value::field(60_u128.into()));
 }
 
 #[test]

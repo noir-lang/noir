@@ -2,4 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: u32, v2: [u32; 2], v3: [u32; 4]):
+    v1 = allocate -> &mut u32
+    store v0 at v1
+    (no terminator instruction)
+}
 [databus_two_calldata_simple] Circuit output: 11

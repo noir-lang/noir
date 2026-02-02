@@ -3,3 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
 hello world
+brillig(inline) fn main f0 {
+  b0():
+    (no terminator instruction)
+}

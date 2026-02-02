@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: u8):
+    (no terminator instruction)
+}
 [shift_left_rhs_value_casted_from_smaller_type] Circuit output: 7435510297333629952

@@ -2,4 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0(v0: [u8; 3], v1: u1, v2: [u8; 1]):
+    (no terminator instruction)
+}
 @[98, 99]

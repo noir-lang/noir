@@ -2,6 +2,28 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 2
+[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = None
 bug: Assertion is always false: Index out of bounds
   ┌─ src/main.nr:3:8
   │

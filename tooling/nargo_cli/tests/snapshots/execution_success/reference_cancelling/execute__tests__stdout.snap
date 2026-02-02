@@ -4,5 +4,9 @@ expression: stdout
 ---
 true
 true
+brillig(inline) fn main f0 {
+  b0():
+    (no terminator instruction)
+}
 true
 true

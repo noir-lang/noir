@@ -2,5 +2,9 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
+brillig(inline) fn main f0 {
+  b0():
+    (no terminator instruction)
+}
 i: {i}, j: {j}
 i: 0x32, j: 0x64
