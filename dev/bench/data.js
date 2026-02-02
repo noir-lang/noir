@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770059071669,
+  "lastUpdate": 1770059668581,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -53897,6 +53897,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.11,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "af76ed21dd9793242c94ba5af4052a70bdb8a990",
+          "message": "chore(ssa): force-unroll small Brillig loops under instruction threshold (#11431)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-02-02T18:23:10Z",
+          "tree_id": "d65b2b71a024f8388c5876da02a61170d7dc9d32",
+          "url": "https://github.com/noir-lang/noir/commit/af76ed21dd9793242c94ba5af4052a70bdb8a990"
+        },
+        "date": 1770059628984,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.114,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.168,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.192,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.117,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.097,
             "unit": "s"
           }
         ]
