@@ -370,27 +370,13 @@ fn non_homogenous_array_dynamic_access() {
     public parameters: []
     return values: [w29, w30, w31]
     INIT b0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
-    ASSERT w32 = 0
-    ASSERT w33 = 1
-    ASSERT w34 = 4
-    ASSERT w35 = 7
-    ASSERT w36 = 8
-    ASSERT w37 = 11
-    ASSERT w38 = 14
-    ASSERT w39 = 15
-    ASSERT w40 = 18
-    ASSERT w41 = 21
-    ASSERT w42 = 22
-    ASSERT w43 = 25
-    INIT b1 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
-    READ w44 = b1[w28]
-    READ w45 = b0[w44]
-    ASSERT w46 = w44 + 1
-    READ w47 = b0[w46]
-    ASSERT w48 = w46 + 1
-    READ w49 = b0[w48]
-    ASSERT w29 = w45
-    ASSERT w30 = w47
-    ASSERT w31 = w49
+    READ w32 = b0[w28]
+    ASSERT w33 = w28 + 1
+    READ w34 = b0[w33]
+    ASSERT w35 = w33 + 1
+    READ w36 = b0[w35]
+    ASSERT w29 = w32
+    ASSERT w30 = w34
+    ASSERT w31 = w36
     ");
 }

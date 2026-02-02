@@ -250,7 +250,7 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        // self.vector_constant_size_override(context.dfg, intrinsic, arguments);
+                        self.vector_constant_size_override(context.dfg, intrinsic, arguments);
 
                         let size_change =
                             self.vector_capacity_change(context.dfg, intrinsic, arguments, results);
@@ -368,9 +368,18 @@ impl Context {
             | Intrinsic::VectorRemove
             | Intrinsic::VectorPopFront => {
                 if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
+                    let semantic_len = const_len.try_to_u32().expect("Type should be u32");
+                    // Convert semantic length to flat length since vector_sizes stores flat counts
+                    let element_stride: u32 = dfg
+                        .type_of_value(arguments[1])
+                        .element_types()
+                        .iter()
+                        .map(|elem| elem.flattened_size())
+                        .sum::<FlattenedLength>()
+                        .0;
                     self.vector_sizes.insert(
                         arguments[1],
-                        SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                        SemanticLength(semantic_len * element_stride),
                     );
                 }
             }
@@ -385,9 +394,17 @@ impl Context {
                     }
                     assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
                     if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
+                        let semantic_len = const_len.try_to_u32().expect("Type should be u32");
+                        let element_stride: u32 = dfg
+                            .type_of_value(*argument)
+                            .element_types()
+                            .iter()
+                            .map(|elem| elem.flattened_size())
+                            .sum::<FlattenedLength>()
+                            .0;
                         self.vector_sizes.insert(
                             *argument,
-                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                            SemanticLength(semantic_len * element_stride),
                         );
                     }
                 }

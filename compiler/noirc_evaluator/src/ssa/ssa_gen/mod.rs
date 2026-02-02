@@ -609,7 +609,7 @@ impl FunctionContext<'_> {
         Self::map_type_with_ast_type(element_type, |_ast_typ, typ| {
             let index = self.make_offset(flattened_index, field_index, true);
             field_index += u128::from(typ.flattened_size().0);
-            let result = if typ.contains_an_array() {
+            let result = if matches!(typ, Type::Array(_, _)) {
                 let mut flat_elements = im::Vector::new();
                 let flat_typ = typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {

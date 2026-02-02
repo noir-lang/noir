@@ -85,19 +85,20 @@ fn basic_loop() {
         v2 = allocate -> &mut u32
         store u32 0 at v2
         jmp b1(u32 0)
-      b1(v4: u32):
-        v5 = lt v4, u32 4
+      b1(v1: u32):
+        v5 = lt v1, u32 4
         jmpif v5 then: b2, else: b3
       b2():
-        v6 = load v2 -> u32
-        v7 = add v6, v4
-        store v7 at v2
-        v9 = unchecked_add v4, u32 1
-        jmp b1(v9)
-      b3():
+        v8 = load v2 -> u32
+        v9 = add v8, v1
         v10 = load v2 -> u32
-        v11 = eq v0, v10
-        constrain v0 == v10
+        store v9 at v2
+        v12 = unchecked_add v1, u32 1
+        jmp b1(v12)
+      b3():
+        v6 = load v2 -> u32
+        v7 = eq v0, v6
+        constrain v0 == v6
         return
     }
     ";
@@ -305,9 +306,10 @@ fn for_loop_exclusive() {
       b2():
         v6 = load v1 -> u32
         v7 = add v6, v0
+        v8 = load v1 -> u32
         store v7 at v1
-        v9 = unchecked_add v0, u32 1
-        jmp b1(v9)
+        v10 = unchecked_add v0, u32 1
+        jmp b1(v10)
       b3():
         v5 = load v1 -> u32
         return v5
@@ -346,11 +348,12 @@ fn for_loop_inclusive_max_value_without_break() {
         v6 = lt v0, u8 255
         jmpif v6 then: b2, else: b3
       b2():
-        v12 = load v1 -> u8
-        v13 = add v12, v0
-        store v13 at v1
-        v15 = unchecked_add v0, u8 1
-        jmp b1(v15)
+        v13 = load v1 -> u8
+        v14 = add v13, v0
+        v15 = load v1 -> u8
+        store v14 at v1
+        v17 = unchecked_add v0, u8 1
+        jmp b1(v17)
       b3():
         v7 = load v3 -> u1
         v8 = unchecked_mul v7, u1 1
@@ -358,11 +361,12 @@ fn for_loop_inclusive_max_value_without_break() {
       b4():
         v9 = load v1 -> u8
         v10 = add v9, u8 255
+        v11 = load v1 -> u8
         store v10 at v1
         jmp b5()
       b5():
-        v11 = load v1 -> u8
-        return v11
+        v12 = load v1 -> u8
+        return v12
     }
     ");
 }
@@ -393,9 +397,10 @@ fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
       b2():
         v6 = load v1 -> u8
         v7 = add v6, v0
+        v8 = load v1 -> u8
         store v7 at v1
-        v9 = unchecked_add v0, u8 1
-        jmp b1(v9)
+        v10 = unchecked_add v0, u8 1
+        jmp b1(v10)
       b3():
         v5 = load v1 -> u8
         return v5
@@ -599,11 +604,12 @@ fn for_loop_inclusive_max_value_to_max_value() {
         v6 = lt v0, u8 255
         jmpif v6 then: b2, else: b3
       b2():
-        v12 = load v1 -> u8
-        v13 = add v12, v0
-        store v13 at v1
-        v15 = unchecked_add v0, u8 1
-        jmp b1(v15)
+        v13 = load v1 -> u8
+        v14 = add v13, v0
+        v15 = load v1 -> u8
+        store v14 at v1
+        v17 = unchecked_add v0, u8 1
+        jmp b1(v17)
       b3():
         v7 = load v3 -> u1
         v8 = unchecked_mul v7, u1 1
@@ -611,11 +617,12 @@ fn for_loop_inclusive_max_value_to_max_value() {
       b4():
         v9 = load v1 -> u8
         v10 = add v9, u8 255
+        v11 = load v1 -> u8
         store v10 at v1
         jmp b5()
       b5():
-        v11 = load v1 -> u8
-        return v11
+        v12 = load v1 -> u8
+        return v12
     }
     ");
 }

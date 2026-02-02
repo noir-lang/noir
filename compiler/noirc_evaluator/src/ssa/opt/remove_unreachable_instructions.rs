@@ -822,7 +822,7 @@ mod tests {
           b0(v0: u1):
             enable_side_effects v0
             v1 = make_array [u8 1, u8 2] : [u8; 2]
-            v2 = make_array [v1, u1 0] : [([u8; 2], u1); 1]
+            v2 = make_array [u8 1, u8 2, u1 0] : [([u8; 2], u1); 1]
             v3 = mul u32 4294967295, u32 2          // overflow
             v4 = add v3, u32 1                      // after overflow, replaced by default
             enable_side_effects u1 1                // end of side effects mode
@@ -842,7 +842,7 @@ mod tests {
           b0(v0: u1):
             enable_side_effects v0
             v3 = make_array [u8 1, u8 2] : [u8; 2]
-            v5 = make_array [v3, u1 0] : [([u8; 2], u1); 1]
+            v5 = make_array [u8 1, u8 2, u1 0] : [([u8; 2], u1); 1]
             constrain u1 0 == v0, "attempt to multiply with overflow"
             enable_side_effects u1 1
             enable_side_effects v0

@@ -322,13 +322,13 @@ impl Type {
         }
     }
 
-    // pub(crate) fn is_nested_array(&self) -> bool {
-    //     if let Type::Array(element_types, _) = self {
-    //         element_types.as_ref().iter().any(|typ| typ.contains_an_array())
-    //     } else {
-    //         false
-    //     }
-    // }
+    pub(crate) fn is_nested_array(&self) -> bool {
+        if let Type::Array(element_types, _) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_an_array())
+        } else {
+            false
+        }
+    }
 
     /// True if this type is an array (or slice) or internally contains an array (or slice)
     pub(crate) fn contains_an_array(&self) -> bool {

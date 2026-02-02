@@ -40,9 +40,28 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
     try_ssa_to_acir(src).expect("Should compile manually written SSA into ACIR")
 }
 
+/// Like ssa_to_acir_program but skips SSA validation.
+#[allow(dead_code)]
+fn ssa_to_acir_program_no_validation(src: &str) -> Program<FieldElement> {
+    try_ssa_to_acir_no_validation(src).expect("Should compile manually written SSA into ACIR").0
+}
+
 /// Attempts to convert SSA to ACIR, returning the error if compilation fails.
 fn try_ssa_to_acir(src: &str) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
-    let ssa = Ssa::from_str(src).unwrap();
+    try_ssa_to_acir_impl(Ssa::from_str(src).unwrap())
+}
+
+/// Like try_ssa_to_acir but skips SSA validation (useful for tests with non-flat nested arrays).
+#[allow(dead_code)]
+fn try_ssa_to_acir_no_validation(
+    src: &str,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
+    try_ssa_to_acir_impl(Ssa::from_str_no_validation(src).unwrap())
+}
+
+fn try_ssa_to_acir_impl(
+    ssa: Ssa,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let arg_size_and_visibilities = ssa
         .functions
         .iter()

@@ -1186,7 +1186,7 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0():
             v2 = make_array b"KO"
-            v4 = make_array [u1 0, v2] : [(u1, [u8; 2]); 1]
+            v4 = make_array [u1 0, u8 75, u8 79] : [(u1, [u8; 2]); 1]
             v6 = array_get v4, index u32 20 -> u1
             v8 = array_get v4, index u32 1 -> [u8; 2]
             return v8
@@ -1198,11 +1198,10 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = make_array b"KO"
-            v4 = make_array [u1 0, v2] : [(u1, [u8; 2]); 1]
+            v3 = make_array [u1 0, u8 75, u8 79] : [(u1, [u8; 2]); 1]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v7 = array_get v4, index u32 1 -> [u8; 2]
-            return v7
+            v6 = array_get v3, index u32 1 -> [u8; 2]
+            return v6
         }
         "#);
     }

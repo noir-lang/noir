@@ -697,17 +697,18 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: Field, v1: u32):
             v2 = make_array [v0, v0] : [Field; 2]
-            v3 = make_array [v2] : [[Field; 2]; 1]
+            v3 = make_array [v0, v0] : [[Field; 2]; 1]
             v4 = make_array [] : [Field; 0]
-            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
+            v5 = make_array [v0] : [([Field; 0], Field); 1]
             v6 = array_get v3, index v1 -> [Field; 2]
             v7 = add v1, u32 1
             v8 = array_get v5, index v7 -> Field
             return v6, v8
         }
         ";
-        // The flattened size of v3 is 2, but it has 1 element -> it can be optimized.
-        // The flattened size of v5 is 1, but it has 2 elements -> it cannot be optimized.
+        // With flat arrays, the length-one optimization only applies when
+        // flattened_size == 1 and no empty arrays. Neither v3 (flattened_size 2)
+        // nor v5 (contains empty array [Field; 0]) qualifies.
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
@@ -715,13 +716,13 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: Field, v1: u32):
             v2 = make_array [v0, v0] : [Field; 2]
-            v3 = make_array [v2] : [[Field; 2]; 1]
+            v3 = make_array [v0, v0] : [[Field; 2]; 1]
             v4 = make_array [] : [Field; 0]
-            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
-            constrain v1 == u32 0, "Index out of bounds"
+            v5 = make_array [v0] : [([Field; 0], Field); 1]
+            v6 = array_get v3, index v1 -> [Field; 2]
             v8 = add v1, u32 1
             v9 = array_get v5, index v8 -> Field
-            return v2, v9
+            return v6, v9
         }
         "#);
     }
