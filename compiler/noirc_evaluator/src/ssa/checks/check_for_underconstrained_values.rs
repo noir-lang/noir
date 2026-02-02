@@ -484,7 +484,7 @@ impl DependencyContext {
                                 Intrinsic::AsWitness | Intrinsic::IsUnconstrained => {
                                     // These intrinsics won't affect the dependency graph
                                 }
-                                Intrinsic::ArrayLen
+                                Intrinsic::VectorLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
                                 | Intrinsic::AsVector
@@ -798,7 +798,7 @@ impl Context {
                             | Intrinsic::AssertConstant
                             | Intrinsic::AsWitness
                             | Intrinsic::IsUnconstrained => {}
-                            Intrinsic::ArrayLen
+                            Intrinsic::VectorLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
                             | Intrinsic::AsVector

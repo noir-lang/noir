@@ -457,7 +457,7 @@ impl Context {
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            | Intrinsic::ArrayLen
+            | Intrinsic::VectorLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::StrAsBytes
             | Intrinsic::BlackBox(_)

@@ -890,7 +890,7 @@ impl<'a> FunctionContext<'a> {
         let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
 
         // Get the runtime length.
-        let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
+        let len_expr = self.call_vector_len(Expression::Ident(ident_1), src_type.clone());
 
         // The rules around dynamic indexing is the same as for arrays.
         let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
@@ -2175,10 +2175,10 @@ impl<'a> FunctionContext<'a> {
 
     /// Construct a `Call` to the `array_len` builtin function, calling it with the
     /// identifier of a vector or an array.
-    fn call_array_len(&mut self, array_or_vector: Expression, typ: Type) -> Expression {
+    fn call_vector_len(&mut self, array_or_vector: Expression, typ: Type) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("array_len".to_string()),
+            definition: Definition::Builtin("vector_len".to_string()),
             mutable: false,
             name: "len".to_string(),
             typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),

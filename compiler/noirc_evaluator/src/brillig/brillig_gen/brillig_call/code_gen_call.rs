@@ -378,7 +378,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         unreachable!("unsupported function call type {:?}", dfg[func])
                     }
                     Intrinsic::IsUnconstrained
-                    | Intrinsic::ArrayLen
+                    | Intrinsic::VectorLen
                     | Intrinsic::ArrayAsStrUnchecked
                     | Intrinsic::StrAsBytes
                     | Intrinsic::StaticAssert

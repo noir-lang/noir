@@ -964,7 +964,7 @@ impl<'f> Context<'f> {
             }
             // The following intrinsics may have side effects, but we don't deal with them by
             // multiplying their arguments with the condition.
-            Intrinsic::ArrayLen
+            Intrinsic::VectorLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsVector
             | Intrinsic::AssertConstant

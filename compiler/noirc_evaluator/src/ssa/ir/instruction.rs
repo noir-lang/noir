@@ -40,10 +40,6 @@ pub(crate) type InstructionId = Id<Instruction>;
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
-    /// ArrayLen - returns the length of the input array
-    /// argument: array (value id)
-    /// result: length of the array, panic if the input is not an array
-    ArrayLen,
     /// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
     /// argument: array (value id)
     /// result: str
@@ -60,6 +56,10 @@ pub enum Intrinsic {
     /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
     /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
+    /// VectorLen - returns the length of the input vector
+    /// argument: vector length, vector contents
+    /// result: length of the vector, panic if the input is not a vector
+    VectorLen,
     /// VectorPushBack - Add elements at the end of a vector
     /// arguments:  vector length, vector contents, ...elements_to_push
     /// result: a vector containing `vector contents,..elements_to_push`
@@ -140,11 +140,11 @@ pub enum Intrinsic {
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
             Intrinsic::AsVector => write!(f, "as_vector"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
+            Intrinsic::VectorLen => write!(f, "vector_len"),
             Intrinsic::VectorPushBack => write!(f, "vector_push_back"),
             Intrinsic::VectorPushFront => write!(f, "vector_push_front"),
             Intrinsic::VectorPopBack => write!(f, "vector_pop_back"),
@@ -193,7 +193,7 @@ impl Intrinsic {
             // These imply a check that the vector is non-empty and should fail otherwise.
             Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
 
-            Intrinsic::ArrayLen
+            Intrinsic::VectorLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsVector
             | Intrinsic::VectorPushBack
@@ -244,12 +244,12 @@ impl Intrinsic {
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
-            "array_len" => Some(Intrinsic::ArrayLen),
             "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
             "as_vector" => Some(Intrinsic::AsVector),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
+            "vector_len" => Some(Intrinsic::VectorLen),
             "vector_push_back" => Some(Intrinsic::VectorPushBack),
             "vector_push_front" => Some(Intrinsic::VectorPushFront),
             "vector_pop_back" => Some(Intrinsic::VectorPopBack),

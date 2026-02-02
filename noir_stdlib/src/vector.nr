@@ -2,7 +2,7 @@ use crate::append::Append;
 
 impl<T> [T] {
     /// Returns the length of the vector.
-    #[builtin(array_len)]
+    #[builtin(vector_len)]
     pub fn len(self) -> u32 {}
 
     /// Push a new element to the end of the vector, returning a

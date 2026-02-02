@@ -23,7 +23,7 @@ impl<W: Write> Interpreter<'_, W> {
         results: &[ValueId],
     ) -> IResults {
         match intrinsic {
-            Intrinsic::ArrayLen => {
+            Intrinsic::VectorLen => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to array_len")?;
                 let length = array.elements.borrow().len();

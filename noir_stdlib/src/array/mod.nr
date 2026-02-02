@@ -20,8 +20,9 @@ impl<T, let N: u32> [T; N] {
     ///     assert(array.len() == 2);
     /// }
     /// ```
-    #[builtin(array_len)]
-    pub fn len(self) -> u32 {}
+    pub fn len(_self: Self) -> u32 {
+        N
+    }
 
     /// Returns this array as a vector.
     ///

@@ -100,16 +100,13 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayLen => {
+        Intrinsic::VectorLen => {
             let length = match dfg.type_of_value(arguments[0]) {
-                Type::Array(_, length) => {
-                    dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
-                }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
                     assert!(matches!(dfg.type_of_value(arguments[1]), Type::Vector(_)));
                     arguments[0]
                 }
-                _ => panic!("First argument to ArrayLen must be an array or a vector length"),
+                _ => panic!("First argument to VectorLen must be a vector length"),
             };
             SimplifyResult::SimplifiedTo(length)
         }
@@ -903,30 +900,11 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_array_len_for_array() {
-        let src = r#"
-        acir(inline) fn main func {
-          b0(v0: [Field; 3]):
-            v1 = call array_len(v0) -> u32
-            return v1
-        }
-        "#;
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            return u32 3
-        }
-        ");
-    }
-
-    #[test]
-    fn simplifies_array_len_for_vector() {
+    fn simplifies_vector_len() {
         let src = r#"
         acir(inline) fn main func {
           b0(v0: u32, v1: [Field]):
-            v2 = call array_len(v0, v1) -> u32
+            v2 = call vector_len(v0, v1) -> u32
             return v2
         }
         "#;
@@ -940,13 +918,13 @@ mod tests {
         ");
     }
 
-    #[should_panic(expected = "First argument to ArrayLen must be an array or a vector length")]
+    #[should_panic(expected = "First argument to VectorLen must be a vector length")]
     #[test]
-    fn panics_on_array_len_with_wrong_type() {
+    fn panics_on_vector_len_with_wrong_type() {
         let src = r#"
         acir(inline) fn main func {
           b0(v0: u64):
-            v2 = call array_len(v0) -> u32
+            v2 = call vector_len(v0) -> u32
             return v2
         }
         "#;

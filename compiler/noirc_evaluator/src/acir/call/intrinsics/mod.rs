@@ -148,7 +148,7 @@ impl Context<'_> {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }
             Intrinsic::IsUnconstrained
-            | Intrinsic::ArrayLen
+            | Intrinsic::VectorLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::StrAsBytes
             | Intrinsic::StaticAssert

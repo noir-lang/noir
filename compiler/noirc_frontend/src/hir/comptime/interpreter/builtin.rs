@@ -73,7 +73,6 @@ impl Interpreter<'_, '_> {
         match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
-            "array_len" => array_len(arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_vector" => as_vector(arguments, location),
@@ -182,6 +181,7 @@ impl Interpreter<'_, '_> {
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
+            "vector_len" => vector_len(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
             "vector_pop_front" => vector_pop_front(arguments, location, call_stack),
@@ -280,19 +280,6 @@ fn failing_constraint<T>(
         location,
         call_stack: call_stack.clone(),
     })
-}
-
-fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (argument, argument_location) = check_one_argument(arguments, location)?;
-
-    match argument {
-        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::U32(values.len() as u32)),
-        value => {
-            let expected = "array".to_string();
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
-        }
-    }
 }
 
 fn apply_range_constraint(
@@ -791,6 +778,19 @@ fn type_def_set_fields(
 
     struct_def.set_fields(new_fields);
     Ok(Value::Unit)
+}
+
+fn vector_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (argument, argument_location) = check_one_argument(arguments, location)?;
+
+    match argument {
+        Value::Vector(values, _) => Ok(Value::U32(values.len() as u32)),
+        value => {
+            let expected = "vector".to_string();
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
+        }
+    }
 }
 
 fn vector_remove(

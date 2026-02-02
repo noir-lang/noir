@@ -376,13 +376,14 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "ToBits");
                 assert_u1_array(&result_type, "to_bits output");
             }
-            Intrinsic::ArrayLen => {
-                // fn len(self: [T; N]) -> u32 {}
-                let argument_type = self.assert_one_argument(arguments, "ArrayLen");
-                assert_array(&argument_type, "ArrayLen argument");
+            Intrinsic::VectorLen => {
+                // fn len(self: [T]) -> u32 {}
+                let (length_type, vector_type) = self.assert_two_arguments(arguments, "VectorLen");
+                assert_u32(&length_type, "VectorLen length");
+                assert_vector(&vector_type, "VectorLen vector");
 
-                let result_type = self.assert_one_result(instruction, "ArrayLen");
-                assert_u32(&result_type, "ArrayLen return");
+                let result_type = self.assert_one_result(instruction, "VectorLen");
+                assert_u32(&result_type, "VectorLen return");
             }
             Intrinsic::ArrayAsStrUnchecked => {
                 // fn as_str_unchecked(self: [u8; N]) -> str<N> {}
