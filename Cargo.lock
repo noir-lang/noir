@@ -3669,12 +3669,16 @@ name = "noir_inspector"
 version = "1.0.0-beta.18"
 dependencies = [
  "acir",
+ "assert_cmd",
+ "bn254_blackbox_solver",
  "clap",
  "color-eyre",
  "const_format",
+ "nargo",
  "noir_artifact_cli",
  "noirc_artifacts",
  "noirc_artifacts_info",
+ "predicates 2.1.5",
  "serde",
  "serde_json",
 ]

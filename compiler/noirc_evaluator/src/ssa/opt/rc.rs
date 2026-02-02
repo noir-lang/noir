@@ -72,7 +72,7 @@ impl Function {
         let mut context = Context::default();
 
         context.find_rcs_in_entry_block(self);
-        context.scan_for_array_sets(self);
+        context.scan_for_mutations(self);
         let to_remove = context.find_rcs_to_remove(self);
         remove_instructions(to_remove, self);
     }
@@ -99,20 +99,51 @@ impl Context {
         }
     }
 
-    /// Find each array_set instruction in the function and mark any arrays used
+    /// Find each array_set or call instruction in the function and mark any arrays used
     /// by the inc_rc instructions as possibly mutated if they're the same type.
-    fn scan_for_array_sets(&mut self, function: &Function) {
+    fn scan_for_mutations(&mut self, function: &Function) {
         for block in function.reachable_blocks() {
             for instruction in function.dfg[block].instructions() {
-                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction] {
-                    let typ = function.dfg.type_of_value(array);
-                    if let Some(inc_rcs) = self.inc_rcs.get_mut(&typ) {
-                        for inc_rc in inc_rcs {
-                            inc_rc.possibly_mutated = true;
+                match &function.dfg[*instruction] {
+                    Instruction::ArraySet { array, .. } => {
+                        let typ = function.dfg.type_of_value(*array);
+                        self.mark_as_mutated(&typ);
+                    }
+                    Instruction::Call { arguments, .. } => {
+                        // A call with an array argument could mutate that array
+                        for arg in arguments {
+                            let typ = function.dfg.type_of_value(*arg);
+                            self.mark_each_contained_array_as_mutated(&typ);
                         }
                     }
+
+                    _ => {}
                 }
             }
+        }
+    }
+
+    fn mark_as_mutated(&mut self, typ: &Type) {
+        if let Some(inc_rcs) = self.inc_rcs.get_mut(typ) {
+            for inc_rc in inc_rcs {
+                inc_rc.possibly_mutated = true;
+            }
+        }
+    }
+
+    /// Recursively unwrap references and mark any contained arrays as mutated.
+    fn mark_each_contained_array_as_mutated(&mut self, typ: &Type) {
+        match typ {
+            Type::Reference(element) => self.mark_each_contained_array_as_mutated(element),
+            Type::Array(element_types, _) | Type::Vector(element_types) => {
+                // Mark the array type we have found as being possibly mutated
+                self.mark_as_mutated(typ);
+                // We now need to also mark nested arrays which are possibly mutated
+                for element in element_types.iter() {
+                    self.mark_each_contained_array_as_mutated(element);
+                }
+            }
+            Type::Numeric(_) | Type::Function => {}
         }
     }
 
@@ -440,5 +471,92 @@ mod tests {
             return v1
         }
         ");
+    }
+
+    #[test]
+    #[ignore]
+    fn mutation_through_call_with_mutable_reference() {
+        // We expect `inc_rc v0` to remain.
+        // If you accessed v0 directly after the call (not through the reference):
+        // - With inc_rc: v0 is protected, COW happens, v0 retains old value
+        // - Without inc_rc: v0 is mutated in place
+        let src = "                                                                                    
+        brillig(inline) fn main f0 {                                                                   
+            b0(v0: [Field; 2]):                                                                          
+            inc_rc v0                                                                                  
+            v1 = allocate -> &mut [Field; 2]                                                           
+            store v0 at v1                                                                             
+            call f1(v1)                                                                                
+            v3 = load v1 -> [Field; 2]                                                                 
+            v5 = array_get v3, index u32 0 -> Field                                                    
+            constrain v5 == Field 5                                                                    
+            dec_rc v0                                                                                  
+            return                                                                                     
+        }                                                                                           
+        brillig(inline) fn mutator f1 {                                                                
+            b0(v0: &mut [Field; 2]):                                                                     
+            v1 = load v0 -> [Field; 2]                                                                 
+            v2 = array_set v1, index u32 0, value Field 5                                              
+            store v2 at v0                                                                             
+            return                                                                                     
+        }                                                                                              
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    /// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&mut &mut [Field; 2]`)
+    #[test]
+    #[ignore]
+    fn mutation_through_call_with_deeply_nested_reference() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v1 = allocate -> &mut [Field; 2]
+            store v0 at v1
+            v2 = allocate -> &mut &mut [Field; 2]
+            store v1 at v2
+            call f1(v2)
+            v4 = load v1 -> [Field; 2]
+            v6 = array_get v4, index u32 0 -> Field
+            constrain v6 == Field 5
+            dec_rc v0
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: &mut &mut [Field; 2]):
+            v1 = load v0 -> &mut [Field; 2]
+            v2 = load v1 -> [Field; 2]
+            v3 = array_set v2, index u32 0, value Field 5
+            store v3 at v1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    #[ignore]
+    fn mutation_through_call_with_array_passed_by_value() {
+        // We expect `inc_rc v0` to remain
+        // After the call to f1 we expect v0 to be unchanged.
+        // If the inc_rc were removed, f1 would mutate v0 in place.
+        let src = "                                                                                    
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            call f1(v0)
+            v3 = array_get v0, index u32 0 -> Field
+            constrain v3 == Field 5
+            dec_rc v0
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            v3 = array_set v0, index u32 0, value Field 5
+            return
+        }                                                                                            
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 }
