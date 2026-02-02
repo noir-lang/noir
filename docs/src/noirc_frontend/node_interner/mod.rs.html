@@ -1635,7 +1635,14 @@
 <a href="#1634" id="1634">1634</a>
 <a href="#1635" id="1635">1635</a>
 <a href="#1636" id="1636">1636</a>
-<a href="#1637" id="1637">1637</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
 
 <span class="kw">use </span>fm::FileId;
@@ -1941,6 +1948,12 @@
     <span class="doccomment">/// Tracks statements that encountered errors during elaboration.
     /// Used by the interpreter to skip evaluation of errored statements.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) stmts_with_errors: HashSet&lt;StmtId&gt;,
+
+    <span class="doccomment">/// Associates type bindings that resulted from unifying the type of a macro call expression
+    /// with the expected type at the callsite.
+    /// Since a single macro call expression might end up having different types across loop
+    /// iterations, before unifying its type we undo bindings from the last time we unified it.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) macro_call_expression_bindings: HashMap&lt;ExprId, TypeBindings&gt;,
 }
 
 <span class="doccomment">/// A trait implementation is either a normal implementation that is present in the source
@@ -2137,6 +2150,7 @@
             primitive_docs: HashMap::default(),
             exprs_with_errors: HashSet::default(),
             stmts_with_errors: HashSet::default(),
+            macro_call_expression_bindings: HashMap::default(),
         }
     }
 }

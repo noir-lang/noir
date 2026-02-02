@@ -1946,7 +1946,28 @@
 <a href="#1945" id="1945">1945</a>
 <a href="#1946" id="1946">1946</a>
 <a href="#1947" id="1947">1947</a>
-<a href="#1948" id="1948">1948</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a>
+<a href="#1952" id="1952">1952</a>
+<a href="#1953" id="1953">1953</a>
+<a href="#1954" id="1954">1954</a>
+<a href="#1955" id="1955">1955</a>
+<a href="#1956" id="1956">1956</a>
+<a href="#1957" id="1957">1957</a>
+<a href="#1958" id="1958">1958</a>
+<a href="#1959" id="1959">1959</a>
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a>
+<a href="#1964" id="1964">1964</a>
+<a href="#1965" id="1965">1965</a>
+<a href="#1966" id="1966">1966</a>
+<a href="#1967" id="1967">1967</a>
+<a href="#1968" id="1968">1968</a>
+<a href="#1969" id="1969">1969</a></pre></div><pre class="rust"><code><span class="doccomment">//! The comptime interpreter is a tree-walking interpreter used for evaluating Noir code
 //! at compile-time. It is typically triggered (by the elaborator) in one of four scenarios:
 //! 1. A `comptime {}` block
 //!   - Everything in the block is interpreted
@@ -1989,7 +2010,6 @@
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
-<span class="kw">use </span><span class="kw">crate</span>::TypeVariable;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
@@ -2023,6 +2043,7 @@
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
 };
+<span class="kw">use crate</span>::{TypeVariable, UnificationError};
 
 <span class="kw">use </span><span class="kw">super</span>::errors::{IResult, InterpreterError};
 <span class="kw">use </span><span class="kw">super</span>::value::{Closure, Value, unwrap_rc};
@@ -3104,14 +3125,7 @@
                         </span>});
                     result = <span class="self">self</span>.evaluate(expr)<span class="question-mark">?</span>;
 
-                    <span class="comment">// Macro calls are typed as type variables during type checking.
-                    // Now that we know the type we need to further unify it in case there
-                    // are inconsistencies or the type needs to be known.
-                    // We don't commit any type bindings made this way in case the type of
-                    // the macro result changes across loop iterations.
-                    </span><span class="kw">let </span>expected_type = <span class="self">self</span>.elaborator.interner.id_type(id);
-                    <span class="kw">let </span>actual_type = result.get_type();
-                    <span class="self">self</span>.unify_without_binding(<span class="kw-2">&amp;</span>actual_type, <span class="kw-2">&amp;</span>expected_type, location);
+                    <span class="self">self</span>.unify_macro_call_result_with_expected_type(id, location, <span class="kw-2">&amp;</span>result);
                 }
                 <span class="prelude-val">Ok</span>(result)
             }
@@ -3123,17 +3137,45 @@
         }
     }
 
-    <span class="doccomment">/// This function is used by the interpreter for some comptime code
-    /// which can change types e.g. on each iteration of a for loop.
-    </span><span class="kw">fn </span>unify_without_binding(<span class="kw-2">&amp;mut </span><span class="self">self</span>, actual: <span class="kw-2">&amp;</span>Type, expected: <span class="kw-2">&amp;</span>Type, location: Location) {
+    <span class="doccomment">/// Macro calls are typed as type variables during type checking.
+    /// Once we know their type we need to further  unify it in case there
+    /// are inconsistencies or the type needs to be known.
+    </span><span class="kw">fn </span>unify_macro_call_result_with_expected_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        id: ExprId,
+        location: Location,
+        result: <span class="kw-2">&amp;</span>Value,
+    ) {
+        <span class="kw">let </span>expected_type = <span class="self">self</span>.elaborator.interner.id_type(id);
+        <span class="kw">let </span>actual_type = result.get_type();
+
+        <span class="comment">// Undo any bindings (if any) from the last time we unified this expression's
+        // type against the actual type
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(bindings) = <span class="self">self</span>.elaborator.interner.macro_call_expression_bindings.remove(<span class="kw-2">&amp;</span>id)
+        {
+            <span class="kw">for </span>(var, kind, _typ) <span class="kw">in </span>bindings.values() {
+                var.unbind(var.id(), kind.clone());
+            }
+        }
+
         <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-        <span class="kw">if </span>actual.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings).is_err() {
-            <span class="kw">let </span>error = TypeCheckError::TypeMismatch {
-                expected_typ: expected.to_string(),
-                expr_typ: actual.to_string(),
-                expr_location: location,
-            };
-            <span class="self">self</span>.elaborator.push_err(error);
+        <span class="kw">match </span>actual_type.try_unify(<span class="kw-2">&amp;</span>expected_type, <span class="kw-2">&amp;mut </span>bindings) {
+            <span class="prelude-val">Ok</span>(()) =&gt; {
+                <span class="comment">// Store the bindings so we can undo them next time
+                </span><span class="self">self</span>.elaborator
+                    .interner
+                    .macro_call_expression_bindings
+                    .insert(id, bindings.clone());
+                Type::apply_type_bindings(bindings);
+            }
+            <span class="prelude-val">Err</span>(UnificationError) =&gt; {
+                <span class="kw">let </span>error = TypeCheckError::TypeMismatch {
+                    expected_typ: expected_type.to_string(),
+                    expr_typ: actual_type.to_string(),
+                    expr_location: location,
+                };
+                <span class="self">self</span>.elaborator.push_err(error);
+            }
         }
     }
 
