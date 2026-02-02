@@ -70,7 +70,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// force-unrolled regardless of the cost model. Loops with no function calls,
 /// constant bounds, and no breaks whose unrolled instruction count is at or
 /// below this threshold will always be unrolled.
-const BRILLIG_FORCE_UNROLL_THRESHOLD: usize = 48;
+const BRILLIG_FORCE_UNROLL_THRESHOLD: usize = 32;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
