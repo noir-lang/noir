@@ -1185,7 +1185,12 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match &*type_var.borrow() {
-                TypeBinding::Bound(type_var) if !type_var.is_unbound_type_var() => type_var.fmt(f),
+                TypeBinding::Bound(type_var)
+                    if !type_var.follow_bindings_shallow().is_bindable() =>
+                {
+                    // If the generic is bound to an unbound type variable, show its name instead.
+                    type_var.fmt(f)
+                }
                 _ if name.is_empty() => write!(f, "_"),
                 _ => write!(f, "{name}"),
             },
@@ -1892,18 +1897,6 @@ impl Type {
             | Type::Quoted(..)
             | Type::InfixExpr(..)
             | Type::Error => false,
-        }
-    }
-
-    /// Check if this is a [Type::TypeVariable] with a [TypeBinding::Unbound] binding.
-    fn is_unbound_type_var(&self) -> bool {
-        let Type::TypeVariable(type_var) = self else {
-            return false;
-        };
-        let binding = type_var.borrow();
-        match &*binding {
-            TypeBinding::Unbound(_, _) => true,
-            TypeBinding::Bound(typ) => typ.is_unbound_type_var(),
         }
     }
 
