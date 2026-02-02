@@ -160,6 +160,16 @@ impl Function {
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
             let mut loops = Loops::find_all(self);
+
+            if self.runtime().is_brillig() {
+                // For Brillig, reverse the sort so we pop and unroll smaller, inner loops first.
+                // This is safe because if inner loop bounds depend on an outer induction variable,
+                // `get_const_bounds` returns None, `is_small_loop` returns false, and we skip it.
+                // After unrolling inner loops, outer loops have simpler bodies and more accurate
+                // cost estimates for the `is_small_loop` heuristic.
+                loops.yet_to_unroll.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
+            }
+
             // Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
             // so if an outer loop is unrolled, we have to restart looking for the nested ones.
             let mut modified_blocks = HashSet::new();
