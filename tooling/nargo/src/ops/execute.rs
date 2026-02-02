@@ -440,7 +440,7 @@ mod test {
                 NargoError::ForeignCallError(
                     ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(error_message))
                 )
-                 if error_message == "ORACLE_CALL_BROKE".to_string()
+                 if error_message == *"ORACLE_CALL_BROKE"
             ),
             "Execution did not fail with expected message"
         );
