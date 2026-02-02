@@ -159,13 +159,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
-
-        // TODO: WIP
         SsaPass::new_try(
             Ssa::try_evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
         ),
-
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
         SsaPass::new_try(

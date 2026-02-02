@@ -32,57 +32,40 @@ use crate::{
 };
 
 impl Ssa {
-    // TODO: WIP
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn evaluate_static_assert_and_assert_constant(
-        // TODO: WIP
-        // mut self,
-        self,
-    ) -> Result<Ssa, RuntimeError> {
-        // for function in self.functions.values_mut() {
-        //     function.evaluate_static_assert_and_assert_constant()?;
-        // }
-        // Ok(self)
-        let ensure_valid = true;
-        self.evaluate_static_assert_and_assert_constant_helper(ensure_valid)
+    pub(crate) fn evaluate_static_assert_and_assert_constant(self) -> Result<Ssa, RuntimeError> {
+        let error_on_failure = true;
+        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
     }
 
-    // TODO: WIP (update comment?)
-    // TODO: WIP (rename because only assert_constant is getting skipped when it fails?)
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn try_evaluate_static_assert_and_assert_constant(
-        // TODO: WIP
-        // mut self,
         self,
     ) -> Result<Ssa, RuntimeError> {
-        // for function in self.functions.values_mut() {
-        //     function.evaluate_static_assert_and_assert_constant()?;
-        // }
-        // Ok(self)
-        let skip_invalid_assert_constant = false;
-        self.evaluate_static_assert_and_assert_constant_helper(skip_invalid_assert_constant)
+        let skip_invalid = false;
+        self.evaluate_static_assert_and_assert_constant_helper(skip_invalid)
     }
 
-    // TODO: WIP (add docs here?)
+    /// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
+    /// or `static_assert` is detected.
     fn evaluate_static_assert_and_assert_constant_helper(
         mut self,
-        ensure_valid: bool,
+        error_on_failure: bool,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            // TODO: WIP
-            // function.evaluate_static_assert_and_assert_constant()?;
-            function.evaluate_static_assert_and_assert_constant(ensure_valid)?;
+            function.evaluate_static_assert_and_assert_constant(error_on_failure)?;
         }
         Ok(self)
     }
 }
 
 impl Function {
-    // TODO: WIP (add documentation about 'ensure_valid'?)
-    // fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
-    fn evaluate_static_assert_and_assert_constant(&mut self, ensure_valid: bool) -> Result<(), RuntimeError> {
+    fn evaluate_static_assert_and_assert_constant(
+        &mut self,
+        error_on_failure: bool,
+    ) -> Result<(), RuntimeError> {
         let assert_constant_id = self.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
         let static_assert_id = self.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
         if assert_constant_id.is_none() && static_assert_id.is_none() {
@@ -106,9 +89,7 @@ impl Function {
                     assert_constant_id,
                     static_assert_id,
                     inside_empty_loop,
-                    // TODO: WIP
-                    // ensure_valid,
-                    ensure_valid,
+                    error_on_failure,
                 )? {
                     filtered_instructions.push(instruction);
                 }
@@ -155,14 +136,16 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
 ///
 /// This returns Ok(true) if the given instruction should be kept in the block and
 /// Ok(false) if it should be removed.
+///
+/// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
+/// or `static_assert` is detected.
 fn check_instruction(
     function: &Function,
     instruction: InstructionId,
     assert_constant_id: Option<ValueId>,
     static_assert_id: Option<ValueId>,
     inside_empty_loop: bool,
-    // TODO: WIP (add documentation about this option?)
-    ensure_valid: bool,
+    error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
@@ -175,13 +158,9 @@ fn check_instruction(
             }
 
             if is_assert_constant {
-                // TODO: WIP
-                // evaluate_assert_constant(function, instruction, arguments)
-                evaluate_assert_constant(function, instruction, arguments, ensure_valid)
+                evaluate_assert_constant(function, instruction, arguments, error_on_failure)
             } else if is_static_assert {
-                // TODO: WIP
-                // evaluate_static_assert(function, instruction, arguments)
-                evaluate_static_assert(function, instruction, arguments, ensure_valid)
+                evaluate_static_assert(function, instruction, arguments, error_on_failure)
             } else {
                 Ok(true)
             }
@@ -194,25 +173,22 @@ fn check_instruction(
 /// constants. If all of the elements are constants, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled
 /// since it has already been evaluated.
+///
+/// If `error_on_failure` is set, an error is thrown when a failing `static_assert`
+/// is detected.
 fn evaluate_assert_constant(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
-    // TODO: WIP
-    ensure_valid: bool,
+    error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
+    } else if error_on_failure {
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
+        Err(RuntimeError::AssertConstantFailed { call_stack })
     } else {
-        // TODO: WIP
-        // let call_stack = function.dfg.get_instruction_call_stack(instruction);
-        // Err(RuntimeError::AssertConstantFailed { call_stack })
-        if ensure_valid {
-            let call_stack = function.dfg.get_instruction_call_stack(instruction);
-            Err(RuntimeError::AssertConstantFailed { call_stack })
-        } else {
-            Ok(true)
-        }
+        Ok(true)
     }
 }
 
@@ -222,12 +198,14 @@ fn evaluate_assert_constant(
 /// When it passes, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled
 /// since it has already been evaluated.
+///
+/// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
+/// is detected.
 fn evaluate_static_assert(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
-    // // TODO: WIP
-    ensure_valid: bool,
+    error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.len() < 2 {
         panic!("ICE: static_assert called with wrong number of arguments")
@@ -263,18 +241,14 @@ fn evaluate_static_assert(
 
     let call_stack = function.dfg.get_instruction_call_stack(instruction);
     if !function.dfg.is_constant(arguments[0]) {
-        // TODO: WIP
-        // return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
-        if ensure_valid {
+        if error_on_failure {
             return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
         } else {
             return Ok(true);
         }
     }
 
-    // TODO: WIP
-    // Err(RuntimeError::StaticAssertFailed { message, call_stack })
-    if ensure_valid {
+    if error_on_failure {
         Err(RuntimeError::StaticAssertFailed { message, call_stack })
     } else {
         Ok(true)
