@@ -2,40 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
-[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
-    ArrayGet {
-        array: Id(
-            85,
-        ),
-        index: Id(
-            86,
-        ),
-    },
-)
-[compiler/noirc_evaluator/src/ssa/ssa_gen/mod.rs:98:13] "initialize_data_bus" = "initialize_data_bus"
-[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
-[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
-    ArrayGet {
-        array: Id(
-            116,
-        ),
-        index: Id(
-            124,
-        ),
-    },
-)
-[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:118:17] index = 0
-[compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs:120:17] &res = SimplifiedToInstruction(
-    ArrayGet {
-        array: Id(
-            116,
-        ),
-        index: Id(
-            124,
-        ),
-    },
-)
 warning: Unnecessary `unsafe` block
    ┌─ src/main.nr:14:75
    │

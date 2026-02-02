@@ -2,8 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-brillig(inline) fn main f0 {
-  b0(v0: u32, v1: u32, v2: u32):
-    (no terminator instruction)
-}
 [vector_pop_back_simplify] Circuit output: ((10, 4), 1)

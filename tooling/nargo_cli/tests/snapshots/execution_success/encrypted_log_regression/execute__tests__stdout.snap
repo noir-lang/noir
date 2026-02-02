@@ -2,8 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-brillig(inline) fn main f0 {
-  b0(v3: [u8; 3], v4: [u8; 2], v5: [u8; 9], v6: u1):
-    (no terminator instruction)
-}
 [encrypted_log_regression] Circuit output: [1, 2, 3, 1, 2, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1]

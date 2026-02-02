@@ -2,10 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-brillig(inline) fn main f0 {
-  b0():
-    (no terminator instruction)
-}
 pre array ([0x01, 0x02, 0x03]) post array
 pre one (pre array ([0x01, 0x02, 0x03]) post array) post one
 pre two (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) post two

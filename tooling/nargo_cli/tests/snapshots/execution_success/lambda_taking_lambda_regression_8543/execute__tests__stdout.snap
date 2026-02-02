@@ -2,8 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-brillig(inline) fn main f0 {
-  b0():
-    (no terminator instruction)
-}
 [lambda_taking_lambda_regression_8543] Circuit output: 0

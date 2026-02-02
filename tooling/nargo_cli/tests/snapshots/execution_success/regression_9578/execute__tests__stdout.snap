@@ -2,10 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-brillig(inline) fn main f0 {
-  b0():
-    (no terminator instruction)
-}
 (1, <<mutable ref>>, ())
 (2, <<mutable ref>>, 0x7b)
 (3, <<mutable ref>>, [0x01, 0x02, 0x03])

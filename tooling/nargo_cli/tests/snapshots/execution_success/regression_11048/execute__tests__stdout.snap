@@ -2,8 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-brillig(inline) fn main f0 {
-  b0(v0: [(Field, [u32; 3]); 2], v1: u1, v2: u32, v3: u32):
-    (no terminator instruction)
-}
 [regression_11048] Circuit output: 3
