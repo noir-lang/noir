@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770042085850,
+  "lastUpdate": 1770042355445,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fcd6cc9ce2371b6bca4e4d478088c6c27ee8594c",
-          "message": "chore(deps-dev): bump cspell from 8.19.4 to 9.6.2 (#11341)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-01-27T11:22:54Z",
-          "tree_id": "7050d03f359e4013892f684b9c08793535077553",
-          "url": "https://github.com/noir-lang/noir/commit/fcd6cc9ce2371b6bca4e4d478088c6c27ee8594c"
-        },
-        "date": 1769514446902,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259992,
-            "range": "± 880",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228873,
-            "range": "± 2918",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2268350,
-            "range": "± 1392",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2799438,
             "range": "± 2290",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a1b7994daaa32ed76235ad82869459b020a5648a",
+          "message": "fix: clean up after foreign call resolver fails (#11423)",
+          "timestamp": "2026-02-02T14:03:02Z",
+          "tree_id": "4382d77986a595c808785d3f8aa99b6ce95465c3",
+          "url": "https://github.com/noir-lang/noir/commit/a1b7994daaa32ed76235ad82869459b020a5648a"
+        },
+        "date": 1770042315840,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257716,
+            "range": "± 2008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229347,
+            "range": "± 4084",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800351,
+            "range": "± 37639",
             "unit": "ns/iter"
           }
         ]
