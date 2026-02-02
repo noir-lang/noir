@@ -575,12 +575,12 @@ impl Type {
         if let (Type::Array(_size, element1), Type::Vector(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
-            if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
+            if let Some(as_vector) = interner.lookup_direct_method(&this, "as_vector", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::default();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
-                    invoke_function_on_expression(expression, this, target, as_slice, interner);
+                    invoke_function_on_expression(expression, this, target, as_vector, interner);
                     Self::apply_type_bindings(bindings);
                     return true;
                 }
