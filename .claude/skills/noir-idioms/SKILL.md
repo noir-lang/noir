@@ -152,7 +152,6 @@ assert_eq(result[i], expected);
 
 Integer comparisons (`<`, `<=`, `>`, `>=`) require range checks, which cost gates. Equality checks (`==`) are cheaper. Strategies to reduce comparison costs:
 
-- **Comptime loop indices are cheap**: In `for i in 0..N`, the variable `i` is comptime. A comparison like `i <= runtime_index` compiles to a single range check per iteration, which is relatively cheap.
 - **Avoid redundant comparisons**: If you need to check `i <= index` in a loop, do it once per iteration — don't check the same condition in multiple places.
 - **Don't over-optimize comparisons**: Replacing a simple `<=` with flag-tracking (`if i == index { flag = true }`) adds state and may produce *more* gates. Always measure before committing to a "cleverer" approach.
 
