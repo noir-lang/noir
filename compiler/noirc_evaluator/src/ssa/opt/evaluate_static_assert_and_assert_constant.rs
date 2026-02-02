@@ -44,11 +44,12 @@ impl Ssa {
         //     function.evaluate_static_assert_and_assert_constant()?;
         // }
         // Ok(self)
-        let ensure_valid_assert_constant = true;
-        self.evaluate_static_assert_and_assert_constant_helper(ensure_valid_assert_constant)
+        let ensure_valid = true;
+        self.evaluate_static_assert_and_assert_constant_helper(ensure_valid)
     }
 
     // TODO: WIP (update comment?)
+    // TODO: WIP (rename because only assert_constant is getting skipped when it fails?)
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn try_evaluate_static_assert_and_assert_constant(
@@ -67,12 +68,12 @@ impl Ssa {
     // TODO: WIP (add docs here?)
     fn evaluate_static_assert_and_assert_constant_helper(
         mut self,
-        ensure_valid_assert_constant: bool,
+        ensure_valid: bool,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             // TODO: WIP
             // function.evaluate_static_assert_and_assert_constant()?;
-            function.evaluate_static_assert_and_assert_constant(ensure_valid_assert_constant)?;
+            function.evaluate_static_assert_and_assert_constant(ensure_valid)?;
         }
         Ok(self)
     }
@@ -81,7 +82,7 @@ impl Ssa {
 impl Function {
     // TODO: WIP (add documentation about 'ensure_valid'?)
     // fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
-    fn evaluate_static_assert_and_assert_constant(&mut self, ensure_valid_assert_constant: bool) -> Result<(), RuntimeError> {
+    fn evaluate_static_assert_and_assert_constant(&mut self, ensure_valid: bool) -> Result<(), RuntimeError> {
         let assert_constant_id = self.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
         let static_assert_id = self.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
         if assert_constant_id.is_none() && static_assert_id.is_none() {
@@ -107,7 +108,7 @@ impl Function {
                     inside_empty_loop,
                     // TODO: WIP
                     // ensure_valid,
-                    ensure_valid_assert_constant,
+                    ensure_valid,
                 )? {
                     filtered_instructions.push(instruction);
                 }
@@ -161,7 +162,7 @@ fn check_instruction(
     static_assert_id: Option<ValueId>,
     inside_empty_loop: bool,
     // TODO: WIP (add documentation about this option?)
-    ensure_valid_assert_constant: bool,
+    ensure_valid: bool,
 ) -> Result<bool, RuntimeError> {
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
@@ -176,11 +177,11 @@ fn check_instruction(
             if is_assert_constant {
                 // TODO: WIP
                 // evaluate_assert_constant(function, instruction, arguments)
-                evaluate_assert_constant(function, instruction, arguments, ensure_valid_assert_constant)
+                evaluate_assert_constant(function, instruction, arguments, ensure_valid)
             } else if is_static_assert {
                 // TODO: WIP
-                // evaluate_static_assert(function, instruction, arguments, ensure_valid)
-                evaluate_static_assert(function, instruction, arguments)
+                // evaluate_static_assert(function, instruction, arguments)
+                evaluate_static_assert(function, instruction, arguments, ensure_valid)
             } else {
                 Ok(true)
             }
@@ -226,7 +227,7 @@ fn evaluate_static_assert(
     instruction: InstructionId,
     arguments: &[ValueId],
     // // TODO: WIP
-    // ensure_valid: bool,
+    ensure_valid: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.len() < 2 {
         panic!("ICE: static_assert called with wrong number of arguments")
@@ -262,10 +263,22 @@ fn evaluate_static_assert(
 
     let call_stack = function.dfg.get_instruction_call_stack(instruction);
     if !function.dfg.is_constant(arguments[0]) {
-        return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+        // TODO: WIP
+        // return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+        if ensure_valid {
+            return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+        } else {
+            return Ok(true);
+        }
     }
 
-    Err(RuntimeError::StaticAssertFailed { message, call_stack })
+    // TODO: WIP
+    // Err(RuntimeError::StaticAssertFailed { message, call_stack })
+    if ensure_valid {
+        Err(RuntimeError::StaticAssertFailed { message, call_stack })
+    } else {
+        Ok(true)
+    }
 }
 
 fn append_foreign_call_param(
