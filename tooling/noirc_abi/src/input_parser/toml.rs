@@ -299,4 +299,21 @@ mod tests {
         let err = parse_toml(toml, &abi).unwrap_err();
         assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
     }
+
+    #[test]
+    fn suggests_wrapping_large_hex_numbers_in_double_quotes() {
+        let typ = AbiType::Field;
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let toml = "input = 0x19223372036854775807";
+        let err = parse_toml(toml, &abi).unwrap_err();
+        assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
+    }
 }
