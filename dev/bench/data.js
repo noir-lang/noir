@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770047746947,
+  "lastUpdate": 1770047749007,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -53699,6 +53699,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.106,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62c8464c297a620340f6dce89f71e7cd765cdf5a",
+          "message": "chore: adding regression test for #6581 (#11420)",
+          "timestamp": "2026-02-02T15:19:52Z",
+          "tree_id": "b884fcec9ac11cb5c1d4edb64f69776f7dea59ab",
+          "url": "https://github.com/noir-lang/noir/commit/62c8464c297a620340f6dce89f71e7cd765cdf5a"
+        },
+        "date": 1770047701690,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.798,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.749,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.764,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.178,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.076,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.152,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.117,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.097,
             "unit": "s"
           }
         ]
