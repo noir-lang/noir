@@ -172,11 +172,8 @@ impl Value {
             }
             Value::ArrayOrVector(array) if array.is_flat => {
                 // For flat arrays, compute length from flattened size
-                let flat_per_cycle: u32 = array
-                    .element_types
-                    .iter()
-                    .map(|t| t.flattened_size().0)
-                    .sum();
+                let flat_per_cycle: u32 =
+                    array.element_types.iter().map(|t| t.flattened_size().0).sum();
                 let len = if flat_per_cycle == 0 {
                     SemanticLength(0)
                 } else {

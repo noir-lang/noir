@@ -182,8 +182,6 @@ impl<'f> Validator<'f> {
             | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
                 if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
-                    dbg!(index);
-                    dbg!(array);
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
                 let array_type = dfg.type_of_value(*array);
@@ -242,7 +240,9 @@ impl<'f> Validator<'f> {
                             // we can't check divisibility by composite_type.len().
                         }
                         _ => {
-                            panic!("MakeArray must return an array or vector type, not {result_type}");
+                            panic!(
+                                "MakeArray must return an array or vector type, not {result_type}"
+                            );
                         }
                     }
                     // Elements are fully flattened in ACIR, so we skip the

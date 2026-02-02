@@ -1,4 +1,4 @@
-use crate::acir::arrays::{flattened_value_size, ElementTypeSizesArrayShift};
+use crate::acir::arrays::{ElementTypeSizesArrayShift, flattened_value_size};
 use crate::acir::types::{flat_element_types, flat_numeric_types};
 use crate::acir::{AcirDynamicArray, AcirValue};
 use crate::brillig::assert_u32;
@@ -32,7 +32,6 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        // dbg!("got here");
         let vector_length = self.convert_value(arguments[0], dfg).into_var()?;
         let vector_contents = arguments[1];
         let elements_to_push = &arguments[2..];
@@ -766,8 +765,13 @@ impl Context<'_> {
         let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
 
         // Fetch the flattened index from the user provided index argument.
-        let flat_user_index: crate::acir::AcirVar =
-            self.get_flattened_index(&vector_typ, vector_contents, remove_index, dfg, ElementTypeSizesArrayShift::None)?;
+        let flat_user_index: crate::acir::AcirVar = self.get_flattened_index(
+            &vector_typ,
+            vector_contents,
+            remove_index,
+            dfg,
+            ElementTypeSizesArrayShift::None,
+        )?;
 
         // Fetch the values we are remove from the vector.
         // As we fetch the values we can determine the size of the removed values

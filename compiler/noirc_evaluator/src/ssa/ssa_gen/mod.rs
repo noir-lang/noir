@@ -79,7 +79,6 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
 
-    println!("{}", function_context.builder.current_function);
     function_context.codegen_function_body(&main.body)?;
 
     let mut return_data = DataBusBuilder::new();
@@ -95,7 +94,6 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
                     _ => unreachable!("ICE - expect return on the last block"),
                 };
 
-            dbg!("initialize_data_bus");
             return_data = function_context.builder.initialize_data_bus(
                 &return_data_values,
                 return_data,
@@ -577,14 +575,12 @@ impl FunctionContext<'_> {
         // When the element type is zero-sized (e.g. `()`), codegen_flat_array_get
         // produces no instructions, so there is no implicit OOB failure from ACIR.
         // Emit an explicit bounds check in that case, matching codegen_array_index.
-        let element_flat_size =
-            Self::convert_type(&index.element_type).size_of_type();
+        let element_flat_size = Self::convert_type(&index.element_type).size_of_type();
         if element_flat_size == 0 {
             let array_type = &self.builder.type_of_value(array);
             if let Type::Array(_, len) = array_type {
-                let len = self
-                    .builder
-                    .numeric_constant(u128::from(len.0), NumericType::length_type());
+                let len =
+                    self.builder.numeric_constant(u128::from(len.0), NumericType::length_type());
                 self.codegen_access_check(index_value, len);
             }
         }

@@ -310,11 +310,8 @@ impl Function {
                             };
                             // With flattened arrays, elements.len() is the fully flattened count.
                             // Divide by the flattened element stride to get the semantic length.
-                            let flat_element_stride: u32 = typ
-                                .element_types()
-                                .iter()
-                                .map(|e| e.flattened_size().0)
-                                .sum();
+                            let flat_element_stride: u32 =
+                                typ.element_types().iter().map(|e| e.flattened_size().0).sum();
                             SemanticLength(assert_u32(elements.len()) / flat_element_stride)
                         }
                         _ => return,

@@ -327,9 +327,6 @@ impl Context {
             return;
         }
         let capacity = self.get_or_find_capacity(dfg, old);
-        // dbg!(old);
-        // dbg!(new);
-        // dbg!(capacity);
         self.vector_sizes.insert(new, f(capacity));
     }
 

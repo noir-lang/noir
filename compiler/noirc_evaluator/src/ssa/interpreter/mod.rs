@@ -1061,11 +1061,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // Don't flatten when the flat stride is 0 (zero-size inner arrays like
                 // [[u128; 0]; 2]) — flattening would produce 0 elements and lose
                 // the semantic length.
-                let flat_per_cycle: usize = array
-                    .element_types
-                    .iter()
-                    .map(|t| t.flattened_size().0 as usize)
-                    .sum();
+                let flat_per_cycle: usize =
+                    array.element_types.iter().map(|t| t.flattened_size().0 as usize).sum();
                 if flat_per_cycle == 0 {
                     return value.clone();
                 }
@@ -1130,8 +1127,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let repeats = flat_len / flat_per_cycle;
                 for _ in 0..repeats {
                     for typ in array.element_types.iter() {
-                        let (val, consumed) =
-                            Self::unflatten_value(typ, &elements, offset);
+                        let (val, consumed) = Self::unflatten_value(typ, &elements, offset);
                         nested.push(val);
                         offset += consumed;
                     }
@@ -1434,9 +1430,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         // Check if SSA gen has produced flat scalar elements but element_types describe
         // nested structure (contains arrays). This happens in ACIR context.
-        let in_acir_context = self
-            .try_current_function()
-            .is_some_and(|f| !f.runtime().is_brillig());
+        let in_acir_context =
+            self.try_current_function().is_some_and(|f| !f.runtime().is_brillig());
         let has_nested = element_types.iter().any(|t| t.contains_an_array());
         let all_scalars =
             has_nested && elements.iter().all(|e| !matches!(e, Value::ArrayOrVector(_)));
@@ -1456,16 +1451,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         // For ACIR arrays with zero-size nested types (e.g., make_array [] : [[u128; 0]; 2]),
         // construct empty inner arrays to preserve the semantic length.
-        let elements = if in_acir_context && has_nested && flat_per_cycle == 0 && elements.is_empty()
-        {
-            let semantic_length = match result_type {
-                Type::Array(_, len) => len.to_usize(),
-                _ => 0,
+        let elements =
+            if in_acir_context && has_nested && flat_per_cycle == 0 && elements.is_empty() {
+                let semantic_length = match result_type {
+                    Type::Array(_, len) => len.to_usize(),
+                    _ => 0,
+                };
+                Self::create_zero_size_inner_arrays(&element_types, semantic_length, result)
+            } else {
+                elements
             };
-            Self::create_zero_size_inner_arrays(&element_types, semantic_length, result)
-        } else {
-            elements
-        };
         if !is_flat {
             if element_types.is_empty() {
                 if !elements.is_empty() {

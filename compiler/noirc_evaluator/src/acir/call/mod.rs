@@ -210,10 +210,17 @@ impl Context<'_> {
                             // The Array may contain a mix of flat Vars and nested Arrays
                             // (e.g. flat scalars + nested [Field; 3]). Use the total flat size
                             // divided by the flat element size to get the logical element count.
-                            let flat_size: usize =
-                                array.iter().map(|v| arrays::flattened_value_size(v).to_usize()).sum();
-                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size().0).sum();
-                            SemanticLength(if sum == 0 { 0 } else { (flat_size / sum as usize) as u32 })
+                            let flat_size: usize = array
+                                .iter()
+                                .map(|v| arrays::flattened_value_size(v).to_usize())
+                                .sum();
+                            let sum: u32 =
+                                item_types.iter().map(|typ| typ.flattened_size().0).sum();
+                            SemanticLength(if sum == 0 {
+                                0
+                            } else {
+                                (flat_size / sum as usize) as u32
+                            })
                         }
                         _ => unreachable!("ICE: Vector value is not an array"),
                     };

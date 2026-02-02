@@ -266,12 +266,6 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         instruction: InstructionId,
     ) -> Result<bool, RuntimeError> {
-        // dbg!(self.has_zero_length(array, dfg));
-
-        if self.has_zero_length(array, dfg) {
-            dbg!(array);
-        }
-
         if !self.has_zero_length(array, dfg) {
             return Ok(false);
         }

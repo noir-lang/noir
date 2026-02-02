@@ -49,7 +49,6 @@ pub(super) struct FunctionContext<'a> {
     /// These are ordered such that an inner loop is at the end of the vector and
     /// outer loops are at the beginning. When a loop is finished, it is popped.
     loops: Vec<Loop>,
-
 }
 
 /// Shared context for all functions during ssa codegen. This is the only
@@ -1170,8 +1169,7 @@ impl<'a> FunctionContext<'a> {
             ast::Expression::Index(index) => {
                 let index_value = self.codegen_non_tuple_expression(&index.index)?;
 
-                indices
-                    .push(NestedArrayIndex::Value(index_value, index.element_type.clone()));
+                indices.push(NestedArrayIndex::Value(index_value, index.element_type.clone()));
                 self.extract_ident_from_expr(&index.collection, indices)?
             }
             ast::Expression::ExtractTupleField(tuple, field_index) => {

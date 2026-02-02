@@ -28,8 +28,7 @@ impl<W: Write> Interpreter<'_, W> {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to array_len")?;
                 let stride = array.element_stride();
-                let length =
-                    if stride == 0 { 0 } else { array.elements.borrow().len() / stride };
+                let length = if stride == 0 { 0 } else { array.elements.borrow().len() / stride };
                 Ok(vec![Value::u32(length as u32)])
             }
             Intrinsic::ArrayAsStrUnchecked => {
@@ -40,8 +39,7 @@ impl<W: Write> Interpreter<'_, W> {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
                 let stride = array.element_stride();
-                let length =
-                    if stride == 0 { 0 } else { array.elements.borrow().len() / stride };
+                let length = if stride == 0 { 0 } else { array.elements.borrow().len() / stride };
                 let length = Value::u32(length as u32);
 
                 let elements = array.elements.borrow().to_vec();
@@ -629,8 +627,7 @@ impl<W: Write> Interpreter<'_, W> {
         // We want the last valid element, ignoring any extras following it.
         // We don't ever access the extras, so we might as well remove any.
         vector_elements.truncate(stride * length as usize);
-        let mut popped_elements =
-            vecmap(0..stride, |_| vector_elements.pop().unwrap());
+        let mut popped_elements = vecmap(0..stride, |_| vector_elements.pop().unwrap());
         popped_elements.reverse();
 
         let popped_results = if vector.is_flat {
@@ -668,11 +665,8 @@ impl<W: Write> Interpreter<'_, W> {
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
         let drained: Vec<_> = vector_elements.drain(0..stride).collect();
-        let mut results = if vector.is_flat {
-            regroup_flat_elements(&drained, &element_types)
-        } else {
-            drained
-        };
+        let mut results =
+            if vector.is_flat { regroup_flat_elements(&drained, &element_types) } else { drained };
 
         let new_length = Value::u32(length - 1);
         let new_vector = Value::ArrayOrVector(ArrayValue {
@@ -745,11 +739,8 @@ impl<W: Write> Interpreter<'_, W> {
         let index = index as usize * stride;
         let removed: Vec<_> = vector_elements.drain(index..index + stride).collect();
 
-        let removed_results = if vector.is_flat {
-            regroup_flat_elements(&removed, &element_types)
-        } else {
-            removed
-        };
+        let removed_results =
+            if vector.is_flat { regroup_flat_elements(&removed, &element_types) } else { removed };
 
         let new_length = Value::u32(length - 1);
         let new_vector = Value::ArrayOrVector(ArrayValue {

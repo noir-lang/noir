@@ -324,10 +324,7 @@ fn brillig_semi_flat_nested_array() {
         }";
 
     let inner = |a: u128, b: u128| {
-        Value::array(
-            vec![Value::field(a.into()), Value::field(b.into())],
-            vec![Type::field()],
-        )
+        Value::array(vec![Value::field(a.into()), Value::field(b.into())], vec![Type::field()])
     };
     let element_types = vec![Type::Array(Arc::new(vec![Type::field()]), SemanticLength(2))];
     let v0 = Value::array(vec![inner(10, 20), inner(30, 40), inner(50, 60)], element_types);

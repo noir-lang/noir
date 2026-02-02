@@ -115,10 +115,7 @@ pub(crate) fn simplify(
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                dbg!(index);
-                let res =  try_optimize_array_get_from_previous_set(dfg, *array, index);
-                dbg!(&res);
-                return res;
+                return try_optimize_array_get_from_previous_set(dfg, *array, index);
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
@@ -127,7 +124,6 @@ pub(crate) fn simplify(
             };
 
             let has_empty_arrays = element_types.iter().any(|typ| typ.contains_an_empty_array());
-            dbg!(has_empty_arrays);
             if array_or_vector_type.flattened_size() == FlattenedLength(1) && !has_empty_arrays {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
