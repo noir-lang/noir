@@ -288,7 +288,6 @@ fn regression_6581_impl_only() {
          ~ Hint: remove the `T` type parameter
                 ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
                 ~ Hint: remove the `N` type parameter
-        // TODO: WIP (remove method?)
         fn foo(self) -> Self {
             ()
         }
