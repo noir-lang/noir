@@ -2911,7 +2911,11 @@
 <a href="#2910" id="2910">2910</a>
 <a href="#2911" id="2911">2911</a>
 <a href="#2912" id="2912">2912</a>
-<a href="#2913" id="2913">2913</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2913" id="2913">2913</a>
+<a href="#2914" id="2914">2914</a>
+<a href="#2915" id="2915">2915</a>
+<a href="#2916" id="2916">2916</a>
+<a href="#2917" id="2917">2917</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -3371,14 +3375,18 @@
                 typ
             }
             <span class="prelude-val">Ok</span>(PathResolutionItem::TraitAssociatedType(associated_type_id)) =&gt; {
-                <span class="kw">let </span>associated_type = <span class="self">self</span>.interner.get_trait_associated_type(associated_type_id);
-                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(associated_type.trait_id);
-
-                <span class="self">self</span>.push_err(ResolverError::AmbiguousAssociatedType {
-                    trait_name: trait_.name.to_string(),
-                    associated_type_name: associated_type.name.to_string(),
-                    location,
-                });
+                <span class="kw">if </span>wildcard_allowed == WildcardAllowed::No(WildcardDisallowedContext::ImplType) {
+                    <span class="self">self</span>.push_err(ResolverError::TraitImplOnAssociatedType { location });
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>associated_type =
+                        <span class="self">self</span>.interner.get_trait_associated_type(associated_type_id);
+                    <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(associated_type.trait_id);
+                    <span class="self">self</span>.push_err(ResolverError::AmbiguousAssociatedType {
+                        trait_name: trait_.name.to_string(),
+                        associated_type_name: associated_type.name.to_string(),
+                        location,
+                    });
+                }
 
                 Type::Error
             }
