@@ -373,7 +373,7 @@ mod tests {
         }
 
         // Batch MSM
-        let output_point2 = multi_scalar_mul(&points, &scalars_lo, &scalars_hi).unwrap();
+        let output_point2 = multi_scalar_mul(points, scalars_lo, scalars_hi).unwrap();
 
         // Checks both implementations have the same result
         if let Some((out_x, out_y)) = output_point.xy() {
