@@ -32,20 +32,56 @@ use crate::{
 };
 
 impl Ssa {
+    // TODO: WIP
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(
+        // TODO: WIP
+        // mut self,
+        self,
+    ) -> Result<Ssa, RuntimeError> {
+        // for function in self.functions.values_mut() {
+        //     function.evaluate_static_assert_and_assert_constant()?;
+        // }
+        // Ok(self)
+        let ensure_valid_assert_constant = true;
+        self.evaluate_static_assert_and_assert_constant_helper(ensure_valid_assert_constant)
+    }
+
+    // TODO: WIP (update comment?)
+    /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn try_evaluate_static_assert_and_assert_constant(
+        // TODO: WIP
+        // mut self,
+        self,
+    ) -> Result<Ssa, RuntimeError> {
+        // for function in self.functions.values_mut() {
+        //     function.evaluate_static_assert_and_assert_constant()?;
+        // }
+        // Ok(self)
+        let skip_invalid_assert_constant = false;
+        self.evaluate_static_assert_and_assert_constant_helper(skip_invalid_assert_constant)
+    }
+
+    // TODO: WIP (add docs here?)
+    fn evaluate_static_assert_and_assert_constant_helper(
         mut self,
+        ensure_valid_assert_constant: bool,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            function.evaluate_static_assert_and_assert_constant()?;
+            // TODO: WIP
+            // function.evaluate_static_assert_and_assert_constant()?;
+            function.evaluate_static_assert_and_assert_constant(ensure_valid_assert_constant)?;
         }
         Ok(self)
     }
 }
 
 impl Function {
-    fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
+    // TODO: WIP (add documentation about 'ensure_valid'?)
+    // fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
+    fn evaluate_static_assert_and_assert_constant(&mut self, ensure_valid_assert_constant: bool) -> Result<(), RuntimeError> {
         let assert_constant_id = self.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
         let static_assert_id = self.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
         if assert_constant_id.is_none() && static_assert_id.is_none() {
@@ -69,6 +105,9 @@ impl Function {
                     assert_constant_id,
                     static_assert_id,
                     inside_empty_loop,
+                    // TODO: WIP
+                    // ensure_valid,
+                    ensure_valid_assert_constant,
                 )? {
                     filtered_instructions.push(instruction);
                 }
@@ -121,6 +160,8 @@ fn check_instruction(
     assert_constant_id: Option<ValueId>,
     static_assert_id: Option<ValueId>,
     inside_empty_loop: bool,
+    // TODO: WIP (add documentation about this option?)
+    ensure_valid_assert_constant: bool,
 ) -> Result<bool, RuntimeError> {
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
@@ -133,8 +174,12 @@ fn check_instruction(
             }
 
             if is_assert_constant {
-                evaluate_assert_constant(function, instruction, arguments)
+                // TODO: WIP
+                // evaluate_assert_constant(function, instruction, arguments)
+                evaluate_assert_constant(function, instruction, arguments, ensure_valid_assert_constant)
             } else if is_static_assert {
+                // TODO: WIP
+                // evaluate_static_assert(function, instruction, arguments, ensure_valid)
                 evaluate_static_assert(function, instruction, arguments)
             } else {
                 Ok(true)
@@ -152,12 +197,21 @@ fn evaluate_assert_constant(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
+    // TODO: WIP
+    ensure_valid: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else {
-        let call_stack = function.dfg.get_instruction_call_stack(instruction);
-        Err(RuntimeError::AssertConstantFailed { call_stack })
+        // TODO: WIP
+        // let call_stack = function.dfg.get_instruction_call_stack(instruction);
+        // Err(RuntimeError::AssertConstantFailed { call_stack })
+        if ensure_valid {
+            let call_stack = function.dfg.get_instruction_call_stack(instruction);
+            Err(RuntimeError::AssertConstantFailed { call_stack })
+        } else {
+            Ok(true)
+        }
     }
 }
 
@@ -171,6 +225,8 @@ fn evaluate_static_assert(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
+    // // TODO: WIP
+    // ensure_valid: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.len() < 2 {
         panic!("ICE: static_assert called with wrong number of arguments")
