@@ -748,3 +748,25 @@ fn regression_10219() {
     ";
     check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }
+
+#[test]
+fn regression_10766() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    pub struct Example { }
+    pub struct Baz { }
+
+    impl Foo for Example {
+        type Bar = Baz;
+    }
+
+    impl Foo::Bar { }
+         ^^^^^^^^ Cannot define a trait impl on associated types
+
+    fn main() { }
+    "#;
+    check_errors(src);
+}
