@@ -123,7 +123,7 @@ impl Ssa {
 
 impl Function {
     pub(super) fn loop_invariant_code_motion(&mut self) {
-        Loops::find_all(self).hoist_loop_invariants(self);
+        Loops::find_all(self, false).hoist_loop_invariants(self);
     }
 }
 
@@ -1948,7 +1948,7 @@ mod tests {
 
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, false);
         let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
@@ -3527,7 +3527,7 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut loops = Loops::find_all(ssa.main());
+        let mut loops = Loops::find_all(ssa.main(), false);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
     }
@@ -3549,7 +3549,7 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut loops = Loops::find_all(ssa.main());
+        let mut loops = Loops::find_all(ssa.main(), false);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
     }
@@ -3590,7 +3590,7 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut loops = Loops::find_all(ssa.main());
+        let mut loops = Loops::find_all(ssa.main(), false);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
     }

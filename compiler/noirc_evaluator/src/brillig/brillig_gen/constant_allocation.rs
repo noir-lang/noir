@@ -43,7 +43,7 @@ pub(crate) struct ConstantAllocation {
 impl ConstantAllocation {
     /// Run the constant allocation algorithm for a [Function] and return the decisions.
     pub(crate) fn from_function(func: &Function) -> Self {
-        let loops = Loops::find_all(func);
+        let loops = Loops::find_all(func, false);
         let blocks_within_loops =
             loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
 

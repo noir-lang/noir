@@ -115,7 +115,7 @@ pub(crate) struct VariableLiveness {
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
     pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
-        let loops = Loops::find_all(func);
+        let loops = Loops::find_all(func, false);
 
         let back_edges: LoopMap = loops
             .yet_to_unroll

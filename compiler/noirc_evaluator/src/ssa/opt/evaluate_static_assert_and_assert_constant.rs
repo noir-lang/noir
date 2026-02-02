@@ -82,7 +82,7 @@ impl Function {
 
 /// Returns all of a function's block that are part of empty loops.
 fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
-    let loops = Loops::find_all(function);
+    let loops = Loops::find_all(function, false);
 
     let cfg = ControlFlowGraph::with_function(function);
     let mut blocks_within_empty_loop = HashSet::default();

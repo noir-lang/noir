@@ -132,7 +132,7 @@ impl Function {
     ///
     /// Returns a set of values that may have loop carried aliases.
     fn analyze_loop_aliases(function: &Function) -> HashSet<ValueId> {
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, false);
         let mut aliases: HashSet<ValueId> = HashSet::default();
 
         // For each loop, find all `store ref_value at ref_address` patterns
