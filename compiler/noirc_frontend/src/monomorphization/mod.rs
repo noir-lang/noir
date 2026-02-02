@@ -989,7 +989,6 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Ident { location: Some(location), definition, mutable: false, name, typ, id };
             ast::Expression::Ident(ident)
         });
-        // dbg!(contents.len());
         let array = if is_vector {
             ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ }))
         } else {
@@ -1517,10 +1516,6 @@ impl<'interner> Monomorphizer<'interner> {
             // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
             // into expression specific to the LHS, so we are using it as the target type.
             let expr = self.expr_with_target_type(expr, Some(&typ))?;
-
-            if !self.in_unconstrained_function {
-                return Ok(expr);
-            }
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
