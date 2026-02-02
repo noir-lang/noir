@@ -1556,7 +1556,7 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (48)
+        // 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
         let parse_ssa = || brillig_unroll_test_case_6470(13);
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
