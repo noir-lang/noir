@@ -10,11 +10,25 @@ This workflow targets **ACIR circuit size** for constrained Noir programs. It do
 
 ## Measuring Circuit Size
 
+### Binary projects
+
 Compile the program and measure gate count with:
 
 ```bash
 nargo compile && bb gates -b ./target/<package>.json
 ```
+
+### Library projects
+
+Libraries cannot be compiled with `nargo compile`. Instead, mark the functions you want to measure with `#[export]` and use `nargo export`:
+
+```bash
+nargo export && bb gates -b ./export/<function_name>.json
+```
+
+Artifacts are written to the `export/` directory and named after the exported function (not the package).
+
+---
 
 If `bb` is not available, ask the user for their backend's equivalent command. Other backends should have a similar CLI interface.
 
