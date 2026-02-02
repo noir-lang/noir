@@ -284,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn something_something() {
+    fn suggests_wrapping_large_numbers_in_double_quotes() {
         let typ = AbiType::Field;
         let abi = Abi {
             parameters: vec![AbiParameter {
@@ -296,7 +296,7 @@ mod tests {
             error_types: Default::default(),
         };
         let toml = "input = 19223372036854775807";
-        let input = parse_toml(toml, &abi);
-        dbg!(&input);
+        let err = parse_toml(toml, &abi).unwrap_err();
+        assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
     }
 }
