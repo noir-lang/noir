@@ -2915,7 +2915,14 @@
 <a href="#2914" id="2914">2914</a>
 <a href="#2915" id="2915">2915</a>
 <a href="#2916" id="2916">2916</a>
-<a href="#2917" id="2917">2917</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
+<a href="#2917" id="2917">2917</a>
+<a href="#2918" id="2918">2918</a>
+<a href="#2919" id="2919">2919</a>
+<a href="#2920" id="2920">2920</a>
+<a href="#2921" id="2921">2921</a>
+<a href="#2922" id="2922">2922</a>
+<a href="#2923" id="2923">2923</a>
+<a href="#2924" id="2924">2924</a></pre></div><pre class="rust"><code><span class="doccomment">//! Type resolution, unification, and method resolution (for both types and traits).
 
 </span><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
@@ -4915,6 +4922,13 @@
                     expected_typ: expected_object_type.to_string(),
                     expr_typ: object_type.to_string(),
                     expr_location: location,
+                });
+            }
+            Type::Error =&gt; {
+                <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
+                    message: <span class="string">"type_check_operator_method: encountered method_type of type 'error'"
+                        </span>.to_string(),
+                    location,
                 });
             }
             other =&gt; {
