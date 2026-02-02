@@ -2808,7 +2808,7 @@ fn bind_named_generics(
 /// Binds the type variable in a [ResolvedGeneric], e.g. a generic parameter of a trait,
 /// to a [Type], which itself can be an unbound type variable.
 ///
-/// If the type varia itself appears in the type, then it does nothing.
+/// If the type variable itself appears in the type, then it does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
     // Avoid binding t = t
     if !arg.occurs(param.type_var.id()) {
