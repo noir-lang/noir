@@ -1866,7 +1866,26 @@
 <a href="#1865" id="1865">1865</a>
 <a href="#1866" id="1866">1866</a>
 <a href="#1867" id="1867">1867</a>
-<a href="#1868" id="1868">1868</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a>
+<a href="#1873" id="1873">1873</a>
+<a href="#1874" id="1874">1874</a>
+<a href="#1875" id="1875">1875</a>
+<a href="#1876" id="1876">1876</a>
+<a href="#1877" id="1877">1877</a>
+<a href="#1878" id="1878">1878</a>
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1933,6 +1952,12 @@
     },
 };
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+
+<span class="doccomment">/// Maximum number of instructions (after unrolling) for Brillig loops to be
+/// force-unrolled regardless of the cost model. Loops with no function calls,
+/// constant bounds, and no breaks whose unrolled instruction count is at or
+/// below this threshold will always be unrolled.
+</span><span class="kw">const </span>BRILLIG_FORCE_UNROLL_THRESHOLD: usize = <span class="number">32</span>;
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -2041,7 +2066,9 @@
                 }
 
                 <span class="comment">// Only unroll small loops in Brillig.
-                </span><span class="kw">if </span><span class="self">self</span>.runtime().is_brillig() &amp;&amp; !next_loop.is_small_loop(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg) {
+                </span><span class="kw">if </span><span class="self">self</span>.runtime().is_brillig()
+                    &amp;&amp; !next_loop.should_unroll_in_brillig(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg)
+                {
                     <span class="kw">continue</span>;
                 }
 
@@ -2678,12 +2705,19 @@
             .count()
     }
 
-    <span class="doccomment">/// Decide if this loop is small enough that it can be inlined in a way that the number
-    /// of unrolled instructions times the number of iterations would result in smaller bytecode
-    /// than if we keep the loops with their overheads.
-    </span><span class="kw">fn </span>is_small_loop(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; bool {
+    <span class="doccomment">/// Whether this loop should be unrolled when compiling to Brillig.
+    ///
+    /// A loop is unrolled if:
+    /// 1. It has constant bounds and no breaks (`boilerplate_stats` + `is_fully_executed`)
+    /// 2. AND either:
+    ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
+    ///    b. The total unrolled instruction count is within the force-unroll threshold
+    </span><span class="kw">fn </span>should_unroll_in_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; bool {
         <span class="self">self</span>.boilerplate_stats(function, cfg)
-            .map(|s| s.is_small() &amp;&amp; <span class="self">self</span>.is_fully_executed(cfg))
+            .map(|s| {
+                <span class="kw">let </span>force_unroll = s.unrolled_instructions() &lt;= BRILLIG_FORCE_UNROLL_THRESHOLD;
+                (force_unroll || s.is_small()) &amp;&amp; <span class="self">self</span>.is_fully_executed(cfg)
+            })
             .unwrap_or_default()
     }
 
@@ -3084,7 +3118,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::integer::IntegerConstant;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    <span class="kw">use super</span>::{BoilerplateStats, Loops, is_new_size_ok};
+    <span class="kw">use super</span>::{BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, Loops, is_new_size_ok};
 
     <span class="doccomment">/// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -3409,11 +3443,15 @@
     <span class="doccomment">/// Test that with more iterations it's not unrolled.
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>test_brillig_unroll_6470_large() {
-        <span class="comment">// More iterations than it can unroll
-        </span><span class="kw">let </span>parse_ssa = || brillig_unroll_test_case_6470(<span class="number">6</span>);
+        <span class="comment">// 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
+        </span><span class="kw">let </span>parse_ssa = || brillig_unroll_test_case_6470(<span class="number">13</span>);
         <span class="kw">let </span>ssa = parse_ssa();
         <span class="kw">let </span>stats = loop0_stats(<span class="kw-2">&amp;</span>ssa);
         <span class="macro">assert!</span>(!stats.is_small(), <span class="string">"the loop should be considered large"</span>);
+        <span class="macro">assert!</span>(
+            stats.unrolled_instructions() &gt; BRILLIG_FORCE_UNROLL_THRESHOLD,
+            <span class="string">"the loop should exceed the force-unroll threshold"
+        </span>);
 
         <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
