@@ -100,12 +100,10 @@ impl Elaborator<'_> {
         kind: BindableTypeVariableKind,
         location: Location,
     ) {
-        if self.in_comptime_context() {
-            return;
+        if !self.in_comptime_context() {
+            let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
+            self.get_function_context_mut().required_type_variables.push(var);
         }
-
-        let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
-        self.get_function_context_mut().required_type_variables.push(var);
     }
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed

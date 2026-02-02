@@ -1156,43 +1156,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         });
                     result = self.evaluate(expr)?;
 
-                    // Macro calls are typed as type variables during type checking.
-                    // Now that we know the type we need to further unify it in case there
-                    // are inconsistencies or the type needs to be known.
-                    // We don't commit any type bindings made this way in case the type of
-                    // the macro result changes across loop iterations.
-                    let expected_type = self.elaborator.interner.id_type(id);
-                    let actual_type = result.get_type();
-
-                    // Undo any bindings (if any) from the last time we unified this expression's
-                    // type against the actual type
-                    if let Some(bindings) =
-                        self.elaborator.interner.macro_call_expression_bindings.remove(&id)
-                    {
-                        for (var, kind, _typ) in bindings.values() {
-                            var.unbind(var.id(), kind.clone());
-                        }
-                    }
-
-                    let mut bindings = TypeBindings::default();
-                    match actual_type.try_unify(&expected_type, &mut bindings) {
-                        Ok(()) => {
-                            // Store the bindings so we can undo them next time
-                            self.elaborator
-                                .interner
-                                .macro_call_expression_bindings
-                                .insert(id, bindings.clone());
-                            Type::apply_type_bindings(bindings);
-                        }
-                        Err(UnificationError) => {
-                            let error = TypeCheckError::TypeMismatch {
-                                expected_typ: expected_type.to_string(),
-                                expr_typ: actual_type.to_string(),
-                                expr_location: location,
-                            };
-                            self.elaborator.push_err(error);
-                        }
-                    }
+                    self.unify_macro_call_result_with_expected_type(id, location, &result);
                 }
                 Ok(result)
             }
@@ -1200,6 +1164,48 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
+            }
+        }
+    }
+
+    /// Macro calls are typed as type variables during type checking.
+    /// Once we know their type we need to further  unify it in case there
+    /// are inconsistencies or the type needs to be known.
+    fn unify_macro_call_result_with_expected_type(
+        &mut self,
+        id: ExprId,
+        location: Location,
+        result: &Value,
+    ) {
+        let expected_type = self.elaborator.interner.id_type(id);
+        let actual_type = result.get_type();
+
+        // Undo any bindings (if any) from the last time we unified this expression's
+        // type against the actual type
+        if let Some(bindings) = self.elaborator.interner.macro_call_expression_bindings.remove(&id)
+        {
+            for (var, kind, _typ) in bindings.values() {
+                var.unbind(var.id(), kind.clone());
+            }
+        }
+
+        let mut bindings = TypeBindings::default();
+        match actual_type.try_unify(&expected_type, &mut bindings) {
+            Ok(()) => {
+                // Store the bindings so we can undo them next time
+                self.elaborator
+                    .interner
+                    .macro_call_expression_bindings
+                    .insert(id, bindings.clone());
+                Type::apply_type_bindings(bindings);
+            }
+            Err(UnificationError) => {
+                let error = TypeCheckError::TypeMismatch {
+                    expected_typ: expected_type.to_string(),
+                    expr_typ: actual_type.to_string(),
+                    expr_location: location,
+                };
+                self.elaborator.push_err(error);
             }
         }
     }
