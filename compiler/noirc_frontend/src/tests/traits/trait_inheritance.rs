@@ -216,7 +216,7 @@ fn trait_impl_with_child_constraint() {
 
 #[test]
 fn trait_inheritance_with_ambiguous_associated_type() {
-    // FIXME: This test is currently showing how it works in Noir.
+    // FIXME(#11401): This test is currently showing how it works in Noir.
     let src = r#"
     pub trait Foo {
         type Bar;
