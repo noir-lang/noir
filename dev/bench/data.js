@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770040273589,
+  "lastUpdate": 1770040411277,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b015a8bfbb2107376763e7e271269893f981a575",
-          "message": "chore(deps-dev): bump @types/node from 22.19.5 to 22.19.7 (#11340)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-01-27T10:17:53Z",
-          "tree_id": "5546dfde75ec8fbdc7c89b496330ee96866fd384",
-          "url": "https://github.com/noir-lang/noir/commit/b015a8bfbb2107376763e7e271269893f981a575"
-        },
-        "date": 1769513154560,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 288.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 503.86,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 261.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 360.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 360.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 360.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 360.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 11340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 11340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 361.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 3040,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 360.4,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 98.19,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 184.97,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 184.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abd35162a6ce97fdb11a843e0a58c07d31416c66",
+          "message": "chore: adding regression test for #7651 (#11419)",
+          "timestamp": "2026-02-02T13:06:27Z",
+          "tree_id": "daaccbbd9e36a76c9ed5f5f0468c94c863cce4d5",
+          "url": "https://github.com/noir-lang/noir/commit/abd35162a6ce97fdb11a843e0a58c07d31416c66"
+        },
+        "date": 1770040371564,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 290.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 505.38,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 263.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 352.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 351.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 354.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 354.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 11320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 11320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1080,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 351.26,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 98.06,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 184.8,
             "unit": "MB"
           }
         ]
