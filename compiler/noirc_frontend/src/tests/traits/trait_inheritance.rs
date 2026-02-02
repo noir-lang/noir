@@ -233,3 +233,40 @@ fn trait_inheritance_with_ambiguous_associated_type() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn trait_impl_inheritance_with_ambiguous_associated_type() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Bar;
+        fn quy() -> <Self as Qux>::Bar;
+        fn quz() -> <Self as Foo>::Bar;
+    }
+
+    pub struct Spam;
+
+    impl Foo for Spam {
+        type Bar = u32;
+        fn foo() -> Self::Bar { 10 }
+    }
+
+    impl Qux for Spam {
+        type Bar = str<5>;
+
+        fn quy() -> <Self as Qux>::Bar {
+            "hello"
+        }
+        fn quz() -> <Self as Foo>::Bar {
+            <Self as Foo>::foo()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
