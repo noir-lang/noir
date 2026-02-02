@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770058926312,
+  "lastUpdate": 1770059071669,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f00ead976b22b35a2746c6db06fd77609cabe6ea",
-          "message": "fix: check trait constraints with type and generics (#11332)",
-          "timestamp": "2026-01-27T14:34:12Z",
-          "tree_id": "7df1237eddd89a3e4b07a6c036e2b8bcef6d8b53",
-          "url": "https://github.com/noir-lang/noir/commit/f00ead976b22b35a2746c6db06fd77609cabe6ea"
-        },
-        "date": 1769526027995,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257274,
-            "range": "± 992",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228426,
-            "range": "± 5638",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799554,
-            "range": "± 18541",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796992,
             "range": "± 18251",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "242b61d72ff7c42d7b1c1b9b5337b2d4dddc14dc",
+          "message": "feat: improve error message when large numbers are used in TOML (#11426)",
+          "timestamp": "2026-02-02T18:40:28Z",
+          "tree_id": "c648041954998a294127582a77cb6322b82a13ee",
+          "url": "https://github.com/noir-lang/noir/commit/242b61d72ff7c42d7b1c1b9b5337b2d4dddc14dc"
+        },
+        "date": 1770059010381,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267512,
+            "range": "± 622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234099,
+            "range": "± 6764",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799340,
+            "range": "± 1810",
             "unit": "ns/iter"
           }
         ]
