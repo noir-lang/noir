@@ -154,8 +154,10 @@ fn step3(blocks: &[BasicBlockId], inserter: &mut FunctionInserter, cfg: &Control
     }
 }
 
-/// Mapping from a variable to its value at a point in time
-type StateVec = BTreeMap<ValueId, ValueId>;
+/// Mapping from a variable to its value at a point in time.
+///
+/// The value is `None` if it has yet to be stored to.
+type StateVec = BTreeMap<ValueId, Option<ValueId>>;
 
 /// Filter `variables`, returning only those that are visible at the start of the given block.
 /// Since we do not consider variables within a block, the visible variables at the start of a block
@@ -176,8 +178,10 @@ fn add_visible_variables_as_block_arguments(
                     .expect("All variables should be references")
                     .clone();
 
-                let new_value =
-                    if block == *decl_block { *var } else { dfg.add_block_parameter(block, typ) };
+                // If it is the declaration block, we've done no analysis so far so its initial
+                // value is None. Otherwise, we can make a new block parameter and assume that is
+                // its value.
+                let new_value = (block != *decl_block).then(|| dfg.add_block_parameter(block, typ));
                 Some((*var, new_value))
             } else {
                 None
@@ -296,7 +300,7 @@ fn abstract_interpret_block(
                 // those addresses are eligible for mem2reg optimization. If the address is
                 // in the state, we remove it.
                 if let Entry::Occupied(mut entry) = exit_state.entry(*address) {
-                    *entry.get_mut() = *value;
+                    *entry = *value;
                     inserter.map_value(*address, *value);
                     false
                 } else {
