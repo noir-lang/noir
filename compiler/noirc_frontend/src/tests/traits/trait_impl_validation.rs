@@ -316,7 +316,6 @@ fn regression_6581_using_impl_method() {
     fn println<T>(_x: T) {}
 
     fn main() {
-        // only errors with this line
         println(().foo());
     }
     ";
