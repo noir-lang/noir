@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770038139276,
+  "lastUpdate": 1770038886624,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3babd3511f4e7185313028c369ccef038d167d43",
-          "message": "chore(frontend): Clearer error for missing unsafe block (#11337)",
-          "timestamp": "2026-01-26T23:41:39Z",
-          "tree_id": "2bf2008dcd017dad9c2b8df2c356e831da623a68",
-          "url": "https://github.com/noir-lang/noir/commit/3babd3511f4e7185313028c369ccef038d167d43"
-        },
-        "date": 1769472216008,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264643,
-            "range": "± 783",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232873,
-            "range": "± 1118",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2804696,
-            "range": "± 6616",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2801085,
             "range": "± 1672",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "91d90e32d8ef2bbfaa318ce42334bba3039908af",
+          "message": "chore: Add workflow orchestration guidelines to CLAUDE.md (#11421)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
+          "timestamp": "2026-02-02T13:05:59Z",
+          "tree_id": "051d2fac3601a495ae86c9a51ae1e1bbaf1ba29c",
+          "url": "https://github.com/noir-lang/noir/commit/91d90e32d8ef2bbfaa318ce42334bba3039908af"
+        },
+        "date": 1770038847975,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256746,
+            "range": "± 1274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228007,
+            "range": "± 4767",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801979,
+            "range": "± 2061",
             "unit": "ns/iter"
           }
         ]
