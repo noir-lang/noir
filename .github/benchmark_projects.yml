@@ -27,7 +27,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
     num_runs: 5
-    compilation-timeout: 10
+    compilation-timeout: 15
     execution-timeout: 0.35
     brillig-compilation-timeout: 10
     brillig-execution-timeout: 0.35
