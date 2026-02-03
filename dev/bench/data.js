@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770115109905,
+  "lastUpdate": 1770115151503,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23095,48 +23095,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "d6cc27e1c02edb2e2e21132fda096de15fa0ae07",
-          "message": "fix(elaborator): Disambiguate associated types from ordered generics (#11346)",
-          "timestamp": "2026-01-27T16:51:09Z",
-          "tree_id": "be5139aa3ad825ac9f60e7afe184c5ec4e4b6e28",
-          "url": "https://github.com/noir-lang/noir/commit/d6cc27e1c02edb2e2e21132fda096de15fa0ae07"
-        },
-        "date": 1769534028986,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257796,
-            "range": "± 1584",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229215,
-            "range": "± 5250",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2802970,
-            "range": "± 32543",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "4a862a26c6718a1763d85cf564e583a1bc2c5f98",
           "message": "fix(hir): Do not ignore the name in `PartialEq` for `Type::NamedGeneric` for implicit unbound (#11351)",
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803112,
             "range": "± 5302",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "eb564299193cf24664c74c262afb893b6514171f",
+          "message": "chore(deps-dev): bump readable-stream and @types/readable-stream (#11439)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-03T10:13:17Z",
+          "tree_id": "f10c42753c902f2af7c1ff2496396fc3647b1f69",
+          "url": "https://github.com/noir-lang/noir/commit/eb564299193cf24664c74c262afb893b6514171f"
+        },
+        "date": 1770115111097,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267154,
+            "range": "± 703",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235225,
+            "range": "± 3678",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2796548,
+            "range": "± 7985",
             "unit": "ns/iter"
           }
         ]
