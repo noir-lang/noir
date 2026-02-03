@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770124062935,
+  "lastUpdate": 1770124065045,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -54112,6 +54112,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.108,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "743dd9cfda36c629b5f9a10fb9699996be1b15f2",
+          "message": "fix(lsp): correctly auto-import trait when completion trait method (#11433)",
+          "timestamp": "2026-02-03T12:34:03Z",
+          "tree_id": "abd590692dc14ba8ed97bca694717d7d3674ecdd",
+          "url": "https://github.com/noir-lang/noir/commit/743dd9cfda36c629b5f9a10fb9699996be1b15f2"
+        },
+        "date": 1770124019004,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.77,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.742,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.753,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.15,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.142,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.184,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.196,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.113,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.105,
             "unit": "s"
           }
         ]
