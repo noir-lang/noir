@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770115098220,
+  "lastUpdate": 1770115100006,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25188,105 +25188,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8592c53286c029e50f9dbdd4fd74fe5cd7173880",
-          "message": "chore(brillig): Regression test for foreign call vector input truncation (#11276)",
-          "timestamp": "2026-01-27T15:50:35Z",
-          "tree_id": "c56c62c482d39063d95ea4ea443955fca2e96c91",
-          "url": "https://github.com/noir-lang/noir/commit/8592c53286c029e50f9dbdd4fd74fe5cd7173880"
-        },
-        "date": 1769531388513,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1020.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2161.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 486.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 224.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 228.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 300.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 387.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 48654.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 48715.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 418.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 5452.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4770.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 175.1,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 551.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 473,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -30066,6 +29967,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-root-single-block",
             "value": 48691.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 416.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5441.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4767.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 178.1,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 551.6,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 473,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c321f66edfd5826059e36c251ba8b2fe33eb1729",
+          "message": "chore(deps-dev): bump cspell from 9.6.2 to 9.6.3 (#11436)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-03T10:00:44Z",
+          "tree_id": "9ed93dd970163dda18b659538d222ff3649c05e5",
+          "url": "https://github.com/noir-lang/noir/commit/c321f66edfd5826059e36c251ba8b2fe33eb1729"
+        },
+        "date": 1770115059178,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1014.5,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2212.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 496.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 227.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 231.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 303.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 385,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 48691.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 48764.4,
             "unit": "KB"
           },
           {
