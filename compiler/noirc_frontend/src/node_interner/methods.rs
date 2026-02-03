@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    Kind, Type, TypeBindings, TypeVariableId,
+    Kind, Type, TypeBinding, TypeBindings, TypeVariableId,
     hir_def::types::NamedGeneric,
     node_interner::{FuncId, TraitId},
 };
@@ -60,11 +60,14 @@ impl Methods {
         typ: &Type,
         interner: &NodeInterner,
     ) -> Option<(FuncId, Type)> {
+        if self.direct.is_empty() {
+            return None;
+        }
+        let instantiate_typ = Self::instantiate_named_generics(typ, interner);
         for existing in &self.direct {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
             let instantiate_existing = Self::instantiate_named_generics(&existing.typ, interner);
-            let instantiate_typ = Self::instantiate_named_generics(typ, interner);
 
             if Self::types_can_unify(&instantiate_existing, &instantiate_typ) {
                 return Some((existing.method, existing.typ.clone()));
@@ -104,8 +107,7 @@ impl Methods {
         match typ {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 let id = type_var.id();
-                if !seen.contains(&id) {
-                    seen.insert(id);
+                if seen.insert(id) {
                     result.push((id, type_var.clone(), type_var.kind()));
                 }
             }
@@ -144,6 +146,11 @@ impl Methods {
                 Self::collect_named_generics(left, result, seen);
                 Self::collect_named_generics(right, result, seen);
             }
+            Type::TypeVariable(type_var) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    Self::collect_named_generics(typ, result, seen);
+                }
+            }
             // These types don't contain NamedGenerics
             Type::FieldElement
             | Type::Integer(..)
@@ -151,7 +158,6 @@ impl Methods {
             | Type::Unit
             | Type::Quoted(..)
             | Type::Error
-            | Type::TypeVariable(..)
             | Type::Constant(..)
             | Type::TraitAsType(..) => {}
         }
