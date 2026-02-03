@@ -1,6 +1,6 @@
 //! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
 use iter_extended::vecmap;
-use std::collections::{BTreeMap, btree_map::Entry};
+use std::collections::BTreeMap;
 
 use crate::ssa::{
     ir::{
@@ -282,43 +282,27 @@ fn abstract_interpret_block(
 ) -> StateVec {
     // Any variables not in the exit_state by function end are assumed to be unchanged from the entry_state
     let mut exit_state = StateVec::new();
-    let mut instructions = inserter.function.dfg[block].take_instructions();
+    let instructions = inserter.function.dfg[block].take_instructions();
 
-    // We're going to remove any load/store instructions we already know the answer of,
-    // just with what we know in this single block.
-    instructions.retain(|instruction_id| {
-        let keep = match &inserter.function.dfg[*instruction_id] {
+    for instruction_id in &instructions {
+        match &inserter.function.dfg[*instruction_id] {
             Instruction::Store { address, value } => {
                 // Only update the value if the address is already in the entry state, since only
                 // those addresses are eligible for mem2reg optimization. If the address is
                 // in the state, we remove it.
                 if entry_state.contains_key(address) {
                     exit_state.insert(*address, *value);
-                    false
-                } else {
-                    true
                 }
             }
             Instruction::Load { address } => {
                 if let Some(value) = exit_state.get(address).or_else(|| entry_state.get(address)) {
                     let result = inserter.function.dfg.instruction_results(*instruction_id)[0];
                     inserter.map_value(result, *value);
-                    false
-                } else {
-                    true
                 }
             }
-            _ => true,
+            _ => (),
         };
-
-        if keep {
-            let instruction = &mut inserter.function.dfg[*instruction_id];
-            instruction.map_values_mut(|value| {
-                FunctionInserter::resolve_detached(value, &inserter.values)
-            });
-        }
-        keep
-    });
+    }
 
     *inserter.function.dfg[block].instructions_mut() = instructions;
     exit_state
@@ -380,16 +364,9 @@ fn commit(
                     let address = inserter.function.dfg.instruction_results(*instruction_id)[0];
                     !variables.contains_key(&address)
                 }
-                Instruction::Load { address } => {
-                    if variables.contains_key(address) {
-                        let result = inserter.function.dfg.instruction_results(*instruction_id)[0];
-                        inserter.map_value(result, inserter.resolve(*address));
-                        false
-                    } else {
-                        true
-                    }
+                Instruction::Load { address } | Instruction::Store { address, value: _ } => {
+                    !variables.contains_key(address)
                 }
-                Instruction::Store { address, value: _ } => !variables.contains_key(address),
                 _ => true,
             };
 
