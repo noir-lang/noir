@@ -23,14 +23,6 @@
 //!     greater than `max_bytecode_increase_percent` (if set).
 //!   - Differing post-conditions (see below).
 //!
-//! Loop ordering:
-//!   - Both ACIR and Brillig use inside-out ordering (process smaller/inner loops first).
-//!   - For Brillig: if inner loop bounds depend on an outer induction variable, `get_const_bounds`
-//!     returns None, `is_small_loop` returns false, and we skip it.
-//!   - For ACIR: if inner loop bounds aren't constant (depend on outer loop variable) and the loop
-//!     is nested inside another unprocessed loop, we skip it temporarily. After outer loops are
-//!     unrolled, we refresh and retry - the inner loop bounds should now be constant.
-//!
 //! Relevance to other passes:
 //!   - Loop unrolling is a required pass for constrained code (ACIR functions) since ACIR itself
 //!     does not contain any branching constructs.
@@ -171,12 +163,14 @@ impl Function {
         let mut unroll_errors = vec![];
         let mut has_unrolled = false;
 
-        // Repeatedly find all loops as we unroll them.
+        // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
-            // Always use inside-out: unroll inner loops first when bounds are constant.
-            // For ACIR, if inner loop bounds aren't constant (depend on outer loop),
-            // we skip until the outer loop is unrolled.
-            let mut loops = Loops::find_all(self, LoopOrder::InsideOut);
+            let order = if self.runtime().is_brillig() {
+                LoopOrder::InsideOut
+            } else {
+                LoopOrder::OutsideIn
+            };
+            let mut loops = Loops::find_all(self, order);
 
             // Blocks which were part of loops we unrolled. Nested loops are included in the
             // outer loops, so if an outer loop is unrolled, we have to restart looking for
@@ -196,7 +190,7 @@ impl Function {
                 let result = if failed_to_unroll.contains(&next_loop.header) {
                     LoopUnrollResult::Skipped
                 } else {
-                    self.try_unroll_loop(next_loop, &loops, &failed_to_unroll, &mut needs_refresh)
+                    self.try_unroll_loop(next_loop, &loops)
                 };
                 match result {
                     LoopUnrollResult::Skipped => continue,
@@ -222,13 +216,7 @@ impl Function {
     /// Try to unroll a single loop.
     ///
     /// Returns the result: whether the loop was skipped, failed, or unrolled.
-    fn try_unroll_loop(
-        &mut self,
-        loop_: Loop,
-        loops: &Loops,
-        failed_to_unroll: &HashSet<BasicBlockId>,
-        needs_refresh: &mut bool,
-    ) -> LoopUnrollResult {
+    fn try_unroll_loop(&mut self, loop_: Loop, loops: &Loops) -> LoopUnrollResult {
         // Only unroll small loops in Brillig.
         if self.runtime().is_brillig() && !loop_.should_unroll_in_brillig(self, &loops.cfg) {
             return LoopUnrollResult::Skipped;
@@ -245,28 +233,6 @@ impl Function {
                 );
             }
             return LoopUnrollResult::Skipped;
-        }
-
-        // For ACIR: If bounds aren't constant and we're nested, skip until outer is unrolled
-        if self.runtime().is_acir() {
-            let pre_header = loop_.get_pre_header(self, &loops.cfg).ok();
-            let has_const_bounds =
-                pre_header.and_then(|ph| loop_.get_const_bounds(&self.dfg, ph)).is_some();
-
-            if !has_const_bounds {
-                // Check if this loop is nested inside another unprocessed loop
-                // (excluding loops that have already failed to unroll)
-                let is_nested = loops.yet_to_unroll.iter().any(|other_loop| {
-                    !failed_to_unroll.contains(&other_loop.header)
-                        && other_loop.blocks.contains(&loop_.header)
-                });
-
-                if is_nested {
-                    // Skip - bounds may become constant after outer loop is unrolled
-                    *needs_refresh = true;
-                    return LoopUnrollResult::Skipped;
-                }
-            }
         }
 
         // Try to unroll.
@@ -1312,8 +1278,6 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use test_case::test_case;
 
     use crate::assert_ssa_snapshot;
@@ -1975,178 +1939,5 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
         assert_ne!(lower, upper);
-    }
-
-    /// Test that nested ACIR loops where inner bounds depend on outer variable
-    /// will skip the inner loop and unroll the outer loop first.
-    #[test]
-    fn unroll_nested_loops_skip_inner_dependent_on_outer() {
-        // Inner loop `for j in 0..i` depends on outer's induction variable
-        let src = "
-            acir(inline) fn main f0 {
-                b0():
-                    jmp b1(u32 0)
-                b1(v0: u32):
-                    v1 = lt v0, u32 3
-                    jmpif v1 then: b2, else: b3
-                b2():
-                    jmp b4(u32 0)
-                b4(v2: u32):
-                    v3 = lt v2, v0
-                    jmpif v3 then: b5, else: b6
-                b5():
-                    v5 = add v2, u32 1
-                    jmp b4(v5)
-                b6():
-                    v6 = add v0, u32 1
-                    jmp b1(v6)
-                b3():
-                    return
-            }
-        ";
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
-        let mut loops = Loops::find_all(function, LoopOrder::InsideOut);
-        let failed_to_unroll = HashSet::new();
-        let mut needs_refresh = false;
-
-        // Pop the inner loop (smaller, processed first with InsideOut)
-        let inner_loop = loops.yet_to_unroll.pop().unwrap();
-        let result =
-            function.try_unroll_loop(inner_loop, &loops, &failed_to_unroll, &mut needs_refresh);
-        assert!(matches!(result, super::LoopUnrollResult::Skipped));
-
-        // Pop the outer loop - this one should unroll
-        let outer_loop = loops.yet_to_unroll.pop().unwrap();
-        let result =
-            function.try_unroll_loop(outer_loop, &loops, &failed_to_unroll, &mut needs_refresh);
-        assert!(matches!(result, super::LoopUnrollResult::Unrolled(_)));
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            jmp b2(u32 0)
-          b1():
-            return
-          b2(v0: u32):
-            jmp b3()
-          b3():
-            jmp b4(u32 0)
-          b4(v1: u32):
-            v4 = eq v1, u32 0
-            jmpif v4 then: b5, else: b6
-          b5():
-            v9 = add v1, u32 1
-            jmp b4(v9)
-          b6():
-            jmp b7(u32 0)
-          b7(v2: u32):
-            v6 = lt v2, u32 2
-            jmpif v6 then: b8, else: b9
-          b8():
-            v8 = add v2, u32 1
-            jmp b7(v8)
-          b9():
-            jmp b1()
-        }
-        ");
-    }
-
-    /// Test that nested ACIR loops with constant inner bounds unroll inner first.
-    #[test]
-    fn unroll_nested_loops_inner_first_when_possible() {
-        // Inner loop `for j in 0..2` has constant bounds, should unroll first
-        let src = "
-            acir(inline) fn main f0 {
-                b0():
-                    jmp b1(u32 0)
-                b1(v0: u32):
-                    v1 = lt v0, u32 3
-                    jmpif v1 then: b2, else: b3
-                b2():
-                    jmp b4(u32 0)
-                b4(v2: u32):
-                    v3 = lt v2, u32 2
-                    jmpif v3 then: b5, else: b6
-                b5():
-                    v5 = add v2, u32 1
-                    jmp b4(v5)
-                b6():
-                    v6 = add v0, u32 1
-                    jmp b1(v6)
-                b3():
-                    return
-            }
-        ";
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
-        let mut loops = Loops::find_all(function, LoopOrder::InsideOut);
-        let failed_to_unroll = HashSet::new();
-        let mut needs_refresh = false;
-
-        // Pop the inner loop (smaller, processed first with InsideOut) - should unroll
-        let inner_loop = loops.yet_to_unroll.pop().unwrap();
-        let result =
-            function.try_unroll_loop(inner_loop, &loops, &failed_to_unroll, &mut needs_refresh);
-        assert!(matches!(result, super::LoopUnrollResult::Unrolled(_)));
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            jmp b1(u32 0)
-          b1(v0: u32):
-            v3 = lt v0, u32 3
-            jmpif v3 then: b2, else: b4
-          b2():
-            jmp b3()
-          b3():
-            v5 = add v0, u32 1
-            jmp b1(v5)
-          b4():
-            return
-        }
-        ");
-    }
-
-    /// Test that nested ACIR loops where ALL bounds are non-constant (e.g., depend on
-    /// a function parameter) will eventually terminate unrolling rather than looping forever.
-    ///
-    /// This is a regression test: before the fix, inner loops would be skipped because they
-    /// were nested inside an outer loop that hadn't been processed yet. But the outer loop
-    /// would fail to unroll (non-constant bounds), getting added to `failed_to_unroll`.
-    /// On the next iteration, inner loops would still be skipped (because the check didn't
-    /// exclude failed outer loops), leading to an infinite loop.
-    #[test]
-    fn unroll_nested_loops_all_non_constant_bounds_terminates() {
-        // Two nested loops where bounds depend on parameter `n` (v0)
-        let src = "
-            acir(inline) fn main f0 {
-                b0(v0: u32):
-                    jmp b1(u32 0)
-                b1(v1: u32):                         // outer loop header
-                    v2 = lt v1, v0
-                    jmpif v2 then: b2, else: b3
-                b2():
-                    jmp b4(u32 0)
-                b4(v3: u32):                         // inner loop header
-                    v4 = lt v3, v0
-                    jmpif v4 then: b5, else: b6
-                b5():
-                    v5 = add v3, u32 1
-                    jmp b4(v5)
-                b6():
-                    v6 = add v1, u32 1
-                    jmp b1(v6)
-                b3():
-                    return
-            }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // This should terminate (not hang) and return errors for the loops that couldn't be unrolled
-        let (_, errors) = try_unroll_loops(ssa);
-
-        // Both loops have non-constant bounds, so they should fail
-        assert!(!errors.is_empty(), "Expected unroll errors for non-constant bounds");
     }
 }
