@@ -26,7 +26,13 @@ pub(super) fn try_interpret_call(
 
     match evaluation_result {
         EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
-        EvaluationResult::Evaluated(const_results) => {
+        EvaluationResult::Evaluated(mut const_results) => {
+            // Brillig returns non-flat arrays; ACIR expects flat.
+            if !dfg.runtime().is_brillig() {
+                for result in const_results.iter_mut() {
+                    *result = InterpreterValue::flatten_for_acir(result);
+                }
+            }
             let new_results = vecmap(const_results, |const_result| {
                 interpreter_value_to_ir_value(const_result, dfg, block)
             });
