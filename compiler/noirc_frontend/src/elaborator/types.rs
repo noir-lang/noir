@@ -2000,6 +2000,13 @@ impl Elaborator<'_> {
                     expr_location: location,
                 });
             }
+            Type::Error => {
+                self.push_err(TypeCheckError::ExpectingOtherError {
+                    message: "type_check_operator_method: encountered method_type of type 'error'"
+                        .to_string(),
+                    location,
+                });
+            }
             other => {
                 unreachable!(
                     "Expected operator method on {object_type} to have a function type, but found {other}"

@@ -1465,3 +1465,28 @@ fn escape_nested_unquote() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unifies_macro_call_type_with_variable_type_in_comptime_block() {
+    let src = r#"
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    struct Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> {
+        fn len(_self: Self) -> u32 {
+            N
+        }
+    }
+
+    fn main() -> pub u32 {
+        comptime {
+            let foo: Foo<_> = unquote!(quote { Foo::<10> {} });
+            foo.len()
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}

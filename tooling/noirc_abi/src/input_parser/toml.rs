@@ -5,7 +5,7 @@ use super::{
 use crate::{Abi, AbiType, MAIN_RETURN_NAME, errors::InputParserError};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error};
 use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
@@ -13,7 +13,16 @@ pub(crate) fn parse_toml(
     abi: &Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap.
-    let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)?;
+    let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string).map_err(|err| {
+        // Try to improve a bit the error message we get when large numbers are used in TOML
+        let message = err.to_string();
+        if message.contains("number too large to fit in target type") {
+            let message = message.trim_end();
+            toml::de::Error::custom(format!("{message}\n\nnote: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"))
+        } else {
+            err
+        }
+    })?;
 
     // Convert arguments to field elements.
     let mut parsed_inputs = try_btree_map(abi.to_btree_map(), |(arg_name, abi_type)| {
@@ -220,7 +229,7 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::{
-        AbiType,
+        Abi, AbiParameter, AbiType, AbiVisibility,
         arbitrary::arb_abi_and_input_map,
         input_parser::{InputValue, arbitrary::arb_signed_integer_type_and_value, toml::TomlTypes},
     };
@@ -272,5 +281,39 @@ mod tests {
             panic!("Expected field");
         };
         assert_eq!(field, FieldElement::from(255_u128));
+    }
+
+    #[test]
+    fn suggests_wrapping_large_numbers_in_double_quotes() {
+        let typ = AbiType::Field;
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let toml = "input = 19223372036854775807";
+        let err = parse_toml(toml, &abi).unwrap_err();
+        assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
+    }
+
+    #[test]
+    fn suggests_wrapping_large_hex_numbers_in_double_quotes() {
+        let typ = AbiType::Field;
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let toml = "input = 0x19223372036854775807";
+        let err = parse_toml(toml, &abi).unwrap_err();
+        assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
     }
 }

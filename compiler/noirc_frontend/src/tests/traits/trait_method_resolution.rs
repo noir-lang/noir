@@ -716,6 +716,39 @@ fn regression_10537() {
     check_errors_with_stdlib(src, [stdlib_src::EQ, stdlib_src::ORD]);
 }
 
+// Expecting missing `Eq` impl errors to resolve to a `NoMatchingImplFound` error
+// with a trait name of "PopulateDummyOperatorTraitsTrait" when the `Eq` trait
+// hasn't been explicitly defined, i.e. when it's only been defined by
+// `NodeInterner::populate_dummy_operator_traits`
+#[test]
+fn missing_eq_trait_error() {
+    let src = "
+    struct Foo {}
+    fn main() {
+        let x = Foo {};
+        let y = Foo {};
+        assert(x == y);
+               ^^^^^^ No matching impl found for `Foo: PopulateDummyOperatorTraitsTrait`
+               ~~~~~~ No impl for `Foo: PopulateDummyOperatorTraitsTrait`
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10219() {
+    let src = "
+    fn main() {
+        let mut x: u32 = 0;
+        let mut y: u32 = 0;
+        assert(&mut x == &mut y);
+               ^^^^^^^^^^^^^^^^ No matching impl found for `&mut u32: Eq`
+               ~~~~~~~~~~~~~~~~ No impl for `&mut u32: Eq`
+    }
+    ";
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
 #[test]
 fn regression_10766() {
     let src = r#"
