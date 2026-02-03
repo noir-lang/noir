@@ -275,3 +275,49 @@ fn trait_impl_associated_type_without_body() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn regression_6581_impl_only() {
+    let src = "
+    trait Foo {
+        fn foo(self) -> Self;
+    }
+
+    impl<T, let N: u32> Foo for () {
+         ^ The type parameter `T` is not constrained by the impl trait, self type, or predicates
+         ~ Hint: remove the `T` type parameter
+                ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `N` type parameter
+        fn foo(self) -> Self {
+            ()
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_6581_using_impl_method() {
+    let src = "
+    trait Foo {
+        fn foo(self) -> Self;
+    }
+
+    impl<T, let N: u32> Foo for () {
+         ^ The type parameter `T` is not constrained by the impl trait, self type, or predicates
+         ~ Hint: remove the `T` type parameter
+                ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `N` type parameter
+        fn foo(self) -> Self {
+            ()
+        }
+    }
+
+    fn println<T>(_x: T) {}
+
+    fn main() {
+        println(().foo());
+    }
+    ";
+    check_errors(src);
+}

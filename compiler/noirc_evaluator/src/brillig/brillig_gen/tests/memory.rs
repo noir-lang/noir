@@ -90,7 +90,7 @@ fn brillig_array_set() {
     ");
 }
 
-// Tests array operations with reference counting inc_rc/dec_rc
+// Tests array operations with reference counting inc_rc
 #[test]
 fn brillig_array_with_rc_ops() {
     let src = "
@@ -99,7 +99,6 @@ fn brillig_array_with_rc_ops() {
         v0 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
         inc_rc v0
         v1 = array_set v0, index u32 0, value u32 99
-        dec_rc v0
         v2 = array_get v1, index u32 0 -> u32
         return v2
     }
@@ -135,10 +134,9 @@ fn brillig_array_with_rc_ops() {
     23: sp[3] = @5
     24: sp[5] = u32 add sp[3], sp[1]
     25: store sp[2] at sp[5]
-    26: sp[2] = load sp[4]
-    27: sp[4] = u32 add sp[3], sp[1]
-    28: sp[2] = load sp[4]
-    29: sp[1] = sp[2]
-    30: return
+    26: sp[4] = u32 add sp[3], sp[1]
+    27: sp[2] = load sp[4]
+    28: sp[1] = sp[2]
+    29: return
     ");
 }

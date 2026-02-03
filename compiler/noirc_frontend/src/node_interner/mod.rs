@@ -305,6 +305,12 @@ pub struct NodeInterner {
     /// Tracks statements that encountered errors during elaboration.
     /// Used by the interpreter to skip evaluation of errored statements.
     pub(crate) stmts_with_errors: HashSet<StmtId>,
+
+    /// Associates type bindings that resulted from unifying the type of a macro call expression
+    /// with the expected type at the callsite.
+    /// Since a single macro call expression might end up having different types across loop
+    /// iterations, before unifying its type we undo bindings from the last time we unified it.
+    pub(crate) macro_call_expression_bindings: HashMap<ExprId, TypeBindings>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -501,6 +507,7 @@ impl Default for NodeInterner {
             primitive_docs: HashMap::default(),
             exprs_with_errors: HashSet::default(),
             stmts_with_errors: HashSet::default(),
+            macro_call_expression_bindings: HashMap::default(),
         }
     }
 }
@@ -1242,7 +1249,7 @@ impl NodeInterner {
             method_ids,
             associated_types: vec![],
             associated_type_bounds: Default::default(),
-            name: Ident::new("Dummy".to_string(), Location::dummy()),
+            name: Ident::new("PopulateDummyOperatorTraitsTrait".to_string(), Location::dummy()),
             generics: vec![],
             location: Location::dummy(),
             visibility: ItemVisibility::Public,

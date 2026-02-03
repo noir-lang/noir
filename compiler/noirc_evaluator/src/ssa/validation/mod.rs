@@ -280,6 +280,11 @@ impl<'f> Validator<'f> {
                 let condition_type = dfg.type_of_value(*condition);
                 assert_u1(&condition_type, "enable_side_effects condition");
             }
+            Instruction::DecrementRc { .. } => {
+                panic!(
+                    "DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
+                );
+            }
             _ => (),
         }
     }

@@ -1226,13 +1226,10 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_i
 
 #[test]
 fn zeroed_comptime_type() {
-    let mut stdlib = stdlib_src::ZEROED.to_string();
-    stdlib.push_str(
-        "
+    let module_hash_str = "
         #[builtin(module_hash)]
         comptime fn module_hash(_module: Module) -> Field {}
-    ",
-    );
+    ";
     let src = r#"
     fn main() {
         comptime {
@@ -1243,7 +1240,7 @@ fn zeroed_comptime_type() {
         }
     }
     "#;
-    check_errors_with_stdlib(src, &stdlib);
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED, module_hash_str]);
 }
 
 #[test]
@@ -1465,6 +1462,31 @@ fn escape_nested_unquote() {
 
             result
         }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unifies_macro_call_type_with_variable_type_in_comptime_block() {
+    let src = r#"
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    struct Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> {
+        fn len(_self: Self) -> u32 {
+            N
+        }
+    }
+
+    fn main() -> pub u32 {
+        comptime {
+            let foo: Foo<_> = unquote!(quote { Foo::<10> {} });
+            foo.len()
+        }
+    }
     "#;
     assert_no_errors(src);
 }

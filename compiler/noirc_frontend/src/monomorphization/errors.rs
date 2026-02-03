@@ -29,6 +29,7 @@ pub enum MonomorphizationError {
     ReferenceReturnedFromOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    ComplexType { complexity: usize, max_complexity: usize, location: Location },
 }
 
 impl MonomorphizationError {
@@ -55,7 +56,8 @@ impl MonomorphizationError {
             | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
-            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. } => *location,
+            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::ComplexType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -181,6 +183,13 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 return diagnostic;
+            }
+            MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
+                let message = format!(
+                    "Type is too complex (complexity: {complexity}, max: {max_complexity})",
+                );
+                let secondary = "This usually happens with exponentially growing types. Consider simplifying the type structure.".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 
