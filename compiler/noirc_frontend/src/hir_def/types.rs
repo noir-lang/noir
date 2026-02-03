@@ -320,9 +320,13 @@ impl Kind {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub fn has_cyclic_alias(&self, aliases: &mut im::HashSet<TypeAliasId>) -> bool {
+    pub fn has_cyclic_alias(
+        &self,
+        aliases: &mut im::HashSet<TypeAliasId>,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
-            Self::Numeric(typ) => typ.has_cyclic_alias(aliases),
+            Self::Numeric(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
             Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
         }
     }
@@ -1093,9 +1097,13 @@ impl TypeVariable {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub fn has_cyclic_alias(&self, aliases: &mut im::HashSet<TypeAliasId>) -> bool {
+    pub fn has_cyclic_alias(
+        &self,
+        aliases: &mut im::HashSet<TypeAliasId>,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
+            TypeBinding::Bound(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
             TypeBinding::Unbound(_, _) => false,
         }
     }
@@ -1556,12 +1564,25 @@ impl Type {
     /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
     /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
     /// due to the same non-cyclic alias being detected twice in different recursive calls
-    pub fn has_cyclic_alias(&self, aliases: &mut im::HashSet<TypeAliasId>) -> bool {
+    pub fn has_cyclic_alias(&self) -> bool {
+        let mut aliases = im::HashSet::<TypeAliasId>::default();
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.has_cyclic_alias_helper(&mut aliases, &mut seen_data_types)
+    }
+
+    /// `aliases` is a mutable set of TypeAliasId to track visited aliases
+    fn has_cyclic_alias_helper(
+        &self,
+        aliases: &mut im::HashSet<TypeAliasId>,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.has_cyclic_alias(aliases),
-            Type::TypeVariable(var) => var.has_cyclic_alias(aliases),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
+                type_var.has_cyclic_alias(aliases, seen_data_types)
+            }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias(&mut aliases.clone()) || rhs.has_cyclic_alias(aliases)
+                lhs.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    || rhs.has_cyclic_alias_helper(aliases, seen_data_types)
             }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
@@ -1569,59 +1590,71 @@ impl Type {
                     true
                 } else {
                     aliases.insert(alias_id);
-                    def.borrow().get_type(generics).has_cyclic_alias(aliases)
+                    def.borrow()
+                        .get_type(generics)
+                        .has_cyclic_alias_helper(aliases, seen_data_types)
                 }
             }
             Type::TraitAsType(_id, _name, generics) => {
-                generics
-                    .ordered
-                    .iter()
-                    .any(|generic| generic.has_cyclic_alias(&mut aliases.clone()))
-                    || generics
-                        .named
-                        .iter()
-                        .any(|generic| generic.typ.has_cyclic_alias(&mut aliases.clone()))
+                generics.ordered.iter().any(|generic| {
+                    generic.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                }) || generics.named.iter().any(|generic| {
+                    generic.typ.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                })
             }
-            Type::String(len) => len.has_cyclic_alias(aliases),
+            Type::String(len) => len.has_cyclic_alias_helper(aliases, seen_data_types),
             Type::Array(len, typ) => {
-                len.has_cyclic_alias(&mut aliases.clone()) || typ.has_cyclic_alias(aliases)
+                len.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    || typ.has_cyclic_alias_helper(aliases, seen_data_types)
             }
-            Type::Vector(typ) => typ.has_cyclic_alias(aliases),
+            Type::Vector(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
             Type::DataType(s, args) => {
                 let data_type = s.borrow();
-                data_type
-                    .get_fields(args)
-                    .unwrap_or_else(Vec::new)
-                    .iter()
-                    .any(|(_name, field, _visibility)| field.has_cyclic_alias(&mut aliases.clone()))
-                    || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
+                let key = (data_type.id, args.clone());
+                if seen_data_types.insert(key) {
+                    data_type.get_fields(args).unwrap_or_else(Vec::new).iter().any(
+                        |(_name, field, _visibility)| {
+                            field.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                        },
+                    ) || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
                         |(_name, variant)| {
                             variant.iter().any(|variant_field| {
-                                variant_field.has_cyclic_alias(&mut aliases.clone())
+                                variant_field
+                                    .has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
                             })
                         },
                     )
+                } else {
+                    false
+                }
             }
-            Type::Tuple(elements) => {
-                elements.iter().any(|element| element.has_cyclic_alias(&mut aliases.clone()))
-            }
+            Type::Tuple(elements) => elements.iter().any(|element| {
+                element.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+            }),
             Type::FmtString(len, elements) => {
-                len.has_cyclic_alias(&mut aliases.clone()) || (*elements).has_cyclic_alias(aliases)
+                len.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    || (*elements).has_cyclic_alias_helper(aliases, seen_data_types)
             }
             Type::CheckedCast { to, from } => {
-                to.has_cyclic_alias(&mut aliases.clone()) || from.has_cyclic_alias(aliases)
+                to.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    || from.has_cyclic_alias_helper(aliases, seen_data_types)
             }
-            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases),
+            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases, seen_data_types),
             Type::Forall(typevars, typ) => {
-                typevars.iter().any(|typevar| typevar.has_cyclic_alias(&mut aliases.clone()))
-                    || typ.has_cyclic_alias(aliases)
+                typevars
+                    .iter()
+                    .any(|typevar| typevar.has_cyclic_alias(&mut aliases.clone(), seen_data_types))
+                    || typ.has_cyclic_alias_helper(aliases, seen_data_types)
             }
             Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(|arg| arg.has_cyclic_alias(&mut aliases.clone()))
-                    || ret.has_cyclic_alias(&mut aliases.clone())
-                    || env.has_cyclic_alias(aliases)
+                args.iter()
+                    .any(|arg| arg.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types))
+                    || ret.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    || env.has_cyclic_alias_helper(aliases, seen_data_types)
             }
-            Type::Reference(element, _mutable) => element.has_cyclic_alias(aliases),
+            Type::Reference(element, _mutable) => {
+                element.has_cyclic_alias_helper(aliases, seen_data_types)
+            }
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
@@ -1688,7 +1721,6 @@ impl Type {
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
     pub(crate) fn is_nested_vector(&self) -> bool {
         let mut seen_data_types = rustc_hash::FxHashSet::default();
-
         self.is_nested_vector_helper(&mut seen_data_types)
     }
 
@@ -1706,8 +1738,7 @@ impl Type {
             Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector_helper(seen_data_types),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let id = typ.id;
-                let key = (id, generics.clone());
+                let key = (typ.id, generics.clone());
                 if seen_data_types.insert(key) {
                     if let Some(fields) = typ.get_fields(generics) {
                         if fields
@@ -1766,46 +1797,69 @@ impl Type {
 
     /// Check whether this type is itself a vector, or a struct/enum/tuple/array which contains a vector.
     pub(crate) fn contains_vector(&self) -> bool {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.contains_vector_helper(&mut seen_data_types)
+    }
+
+    pub(crate) fn contains_vector_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
             Type::Vector(_) => true,
-            Type::Array(_, elem) => elem.as_ref().contains_vector(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_vector(),
+            Type::Array(_, elem) => elem.as_ref().contains_vector_helper(seen_data_types),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).contains_vector_helper(seen_data_types)
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_vector()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_vector()) {
-                        return true;
+                let key = (typ.id, generics.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = typ.get_fields(generics) {
+                        if fields
+                            .iter()
+                            .any(|(_, field, _)| field.contains_vector_helper(seen_data_types))
+                        {
+                            return true;
+                        }
+                    } else if let Some(variants) = typ.get_variants(generics) {
+                        if variants
+                            .iter()
+                            .flat_map(|(_, args)| args)
+                            .any(|typ| typ.contains_vector_helper(seen_data_types))
+                        {
+                            return true;
+                        }
                     }
                 }
                 false
             }
             Type::Tuple(types) => {
                 for typ in types.iter() {
-                    if typ.contains_vector() {
+                    if typ.contains_vector_helper(seen_data_types) {
                         return true;
                     }
                 }
                 false
             }
-            Type::FmtString(_size, elem) => elem.contains_vector(),
+            Type::FmtString(_size, elem) => elem.contains_vector_helper(seen_data_types),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_vector(),
+                    TypeBinding::Bound(binding) => binding.contains_vector_helper(seen_data_types),
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from, to } => from.contains_vector() || to.contains_vector(),
-            Type::Reference(element, _) => element.contains_vector(),
-            Type::Forall(_, typ) => typ.contains_vector(),
+            Type::CheckedCast { from, to } => {
+                from.contains_vector_helper(seen_data_types)
+                    || to.contains_vector_helper(seen_data_types)
+            }
+            Type::Reference(element, _) => element.contains_vector_helper(seen_data_types),
+            Type::Forall(_, typ) => typ.contains_vector_helper(seen_data_types),
             Type::Function(_arg, _ret, env, _unconstrained) => {
                 // The only part of a function type that actually holds types is the `env` portion as that's
                 // carried with the function. Arguments are passed in and the return type is returned.
-                env.contains_vector()
+                env.contains_vector_helper(seen_data_types)
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1919,6 +1973,14 @@ impl Type {
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.contains_reference_helper(&mut seen_data_types)
+    }
+
+    fn contains_reference_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
             Type::Unit
             | Type::Bool
@@ -1930,43 +1992,62 @@ impl Type {
             | Type::TraitAsType(..)
             | Type::Forall(..)
             | Type::Error => false,
-            Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Vector(typ) => typ.contains_reference(),
-            Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
-            Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
+            Type::Array(length, typ) => {
+                length.contains_reference_helper(seen_data_types)
+                    || typ.contains_reference_helper(seen_data_types)
+            }
+            Type::Vector(typ) => typ.contains_reference_helper(seen_data_types),
+            Type::FmtString(length, typ) => {
+                length.contains_reference_helper(seen_data_types)
+                    || typ.contains_reference_helper(seen_data_types)
+            }
+            Type::Tuple(types) => {
+                types.iter().any(|typ| typ.contains_reference_helper(seen_data_types))
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_reference()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants
-                        .iter()
-                        .flat_map(|(_, args)| args)
-                        .any(|typ| typ.contains_reference())
-                    {
-                        return true;
+                let key = (typ.id, generics.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = typ.get_fields(generics) {
+                        if fields
+                            .iter()
+                            .any(|(_, field, _)| field.contains_reference_helper(seen_data_types))
+                        {
+                            return true;
+                        }
+                    } else if let Some(variants) = typ.get_variants(generics) {
+                        if variants
+                            .iter()
+                            .flat_map(|(_, args)| args)
+                            .any(|typ| typ.contains_reference_helper(seen_data_types))
+                        {
+                            return true;
+                        }
                     }
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).contains_reference_helper(seen_data_types)
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_reference(),
+                    TypeBinding::Bound(binding) => {
+                        binding.contains_reference_helper(seen_data_types)
+                    }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from: _, to } => to.contains_reference(),
+            Type::CheckedCast { from: _, to } => to.contains_reference_helper(seen_data_types),
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.contains_reference() || rhs.contains_reference()
+                lhs.contains_reference_helper(seen_data_types)
+                    || rhs.contains_reference_helper(seen_data_types)
             }
             Type::Function(_args, _ret, env, _unconstrained) => {
                 // The only part of a function type that actually holds types is the `env` portion as that's
                 // carried with the function. Arguments are passed in and the return type is returned.
-                env.contains_reference()
+                env.contains_reference_helper(seen_data_types)
             }
             Type::Reference(..) => true,
         }

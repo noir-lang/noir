@@ -358,6 +358,12 @@ fn deny_cyclic_structs() {
                ~~~ 'Bar' recursively depends on itself: Bar -> Foo -> Bar
         foo: Foo,
     }
+
+    // Here we check if `Foo` contains references, and this check could
+    // cause a stack overflow unless we properly track visited data types.
+    pub unconstrained fn foo() -> [Foo; 0] {
+        []
+    }
     "#;
     check_errors(src);
 }
