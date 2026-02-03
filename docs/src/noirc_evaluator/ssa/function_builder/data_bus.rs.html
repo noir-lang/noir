@@ -303,7 +303,12 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
 <span class="kw">use crate</span>::{
     brillig::assert_usize,
@@ -513,16 +518,21 @@
         <span class="kw-2">mut </span>databus: DataBusBuilder,
         call_data_id: <span class="prelude-ty">Option</span>&lt;u32&gt;,
     ) -&gt; DataBusBuilder {
+        <span class="comment">// Only decompose values into flat array_gets and build the data bus array
+        // for ACIR functions. In Brillig, the data bus array is never created and
+        // the flat array_get instructions would be dead code.
+        </span><span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.current_function.runtime(), RuntimeType::Acir(<span class="kw">_</span>)) {
+            <span class="kw">return </span>DataBusBuilder { call_data_id, ..DataBusBuilder::new() };
+        }
+
         <span class="kw">for </span>value <span class="kw">in </span>values {
             <span class="self">self</span>.add_to_data_bus(<span class="kw-2">*</span>value, <span class="kw-2">&amp;mut </span>databus);
         }
         <span class="kw">let </span>len = databus.values.len() <span class="kw">as </span>u32;
-
-        <span class="kw">let </span>array = (len &gt; <span class="number">0 </span>&amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.current_function.runtime(), RuntimeType::Acir(<span class="kw">_</span>)))
-            .then(|| {
-                <span class="kw">let </span>array_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field()]), SemanticLength(len));
-                <span class="self">self</span>.insert_make_array(databus.values, array_type)
-            });
+        <span class="kw">let </span>array = (len &gt; <span class="number">0</span>).then(|| {
+            <span class="kw">let </span>array_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field()]), SemanticLength(len));
+            <span class="self">self</span>.insert_make_array(databus.values, array_type)
+        });
 
         DataBusBuilder {
             index: <span class="number">0</span>,
