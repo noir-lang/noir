@@ -165,7 +165,13 @@ impl Function {
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
-            let mut loops = Loops::find_all(self);
+            let order = if self.runtime().is_brillig() {
+                LoopOrder::InsideOut
+            } else {
+                LoopOrder::OutsideIn
+            };
+            let mut loops = Loops::find_all(self, order);
+
             // Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
             // so if an outer loop is unrolled, we have to restart looking for the nested ones.
             let mut modified_blocks = HashSet::new();
@@ -241,6 +247,18 @@ pub(crate) struct Loop {
     pub(crate) blocks: BTreeSet<BasicBlockId>,
 }
 
+/// Order in which loops should be processed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoopOrder {
+    /// Process inner (smaller) loops first, then outer loops.
+    /// Used for Brillig which can tolerate inner loops that reference outer induction variables.
+    InsideOut,
+    /// Process outer (larger) loops first, then inner loops.
+    /// Used for ACIR which cannot tolerate inner loops that reference outer induction variables,
+    /// so outer loops must be unrolled first.
+    OutsideIn,
+}
+
 /// All the unrolled loops in the SSA.
 pub(crate) struct Loops {
     /// Loops that haven't been unrolled yet, which is all the loops currently in the CFG.
@@ -283,7 +301,7 @@ impl Loops {
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
-    pub(crate) fn find_all(function: &Function) -> Self {
+    pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -301,10 +319,22 @@ impl Loops {
             }
         }
 
-        // Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
-        // This is needed because inner loops may use the induction variable from their outer loops in
-        // their loop range. We will start popping loops from the back.
-        loops.sort_by_key(|loop_| loop_.blocks.len());
+        match order {
+            LoopOrder::InsideOut => {
+                // Sort by block size descending so we pop and unroll smaller, inner loops first.
+                // This is safe for Brillig because if inner loop bounds depend on an outer
+                // induction variable, `get_const_bounds` returns None, `is_small_loop` returns
+                // false, and we skip it. After unrolling inner loops, outer loops have simpler
+                // bodies and more accurate cost estimates for the `is_small_loop` heuristic.
+                loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
+            }
+            LoopOrder::OutsideIn => {
+                // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
+                // This is needed because inner loops may use the induction variable from their
+                // outer loops in their loop range.
+                loops.sort_by_key(|loop_| loop_.blocks.len());
+            }
+        }
 
         Self { yet_to_unroll: loops, cfg, dom: dom_tree }
     }
@@ -1231,7 +1261,9 @@ mod tests {
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, Loops, is_new_size_ok};
+    use super::{
+        BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, LoopOrder, Loops, is_new_size_ok,
+    };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -1346,7 +1378,7 @@ mod tests {
     fn test_get_const_bounds() {
         let ssa = brillig_unroll_test_case();
         let function = ssa.main();
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];
@@ -1378,7 +1410,7 @@ mod tests {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];
@@ -1396,7 +1428,7 @@ mod tests {
     fn test_find_pre_header_reference_values() {
         let ssa = brillig_unroll_test_case();
         let function = ssa.main();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().unwrap();
 
         let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
@@ -1748,7 +1780,7 @@ mod tests {
     // Boilerplate stats of the first loop in the SSA.
     fn loop0_stats(ssa: &Ssa) -> BoilerplateStats {
         let function = ssa.main();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         loop0.boilerplate_stats(function, &loops.cfg).expect("there should be stats")
     }
@@ -1844,7 +1876,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
@@ -1874,7 +1906,7 @@ mod tests {
         let ssa = Ssa::from_str(&ssa).unwrap();
         let function = ssa.main();
 
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];
