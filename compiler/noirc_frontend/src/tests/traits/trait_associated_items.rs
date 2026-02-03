@@ -909,3 +909,25 @@ fn associated_type_referred_via_self_as_in_impl() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn associated_type_referred_via_full_path_from_function() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+    }
+
+    pub fn qux_foo_bar() -> <Qux as Foo>::Bar {
+        0
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
