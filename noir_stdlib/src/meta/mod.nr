@@ -278,9 +278,9 @@ mod tests {
 
         for token in q.tokens() {
             if result != "".as_ctstring() {
-                result = result.append_str("  ");
+                result.append_str("  ");
             }
-            result = result.append_fmtstr(f"{token}");
+            result.append_fmtstr(f"{token}");
         }
 
         result

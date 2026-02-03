@@ -7,18 +7,18 @@ impl CtString {
         "".as_ctstring()
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/6980): Bug: using &mut self
-    // as the object results in this method not being found
     // docs:start:append_str
-    pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
+    pub comptime fn append_str<let N: u32>(&mut self, s: str<N>) {
         // docs:end:append_str
-        f"{self}{s}".as_ctstring()
+        let self_str = *self;
+        *self = f"{self_str}{s}".as_ctstring()
     }
 
     // docs:start:append_fmtstr
-    pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
+    pub comptime fn append_fmtstr<let N: u32, T>(&mut self, s: fmtstr<N, T>) {
         // docs:end:append_fmtstr
-        f"{self}{s}".as_ctstring()
+        let self_str = *self;
+        *self = f"{self_str}{s}".as_ctstring()
     }
 
     /// CtString cannot directly return a str since the size would not be known.
