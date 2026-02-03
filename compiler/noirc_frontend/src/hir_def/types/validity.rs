@@ -364,7 +364,7 @@ impl Type {
                 .all(|elem| elem.is_valid_for_unconstrained_boundary_helper(seen_data_types)),
             Type::DataType(definition, generics) => {
                 let key = (definition.borrow().id, generics.clone());
-                if seen_data_types.contains(&key) {
+                if seen_data_types.insert(key) {
                     if let Some(fields) = definition.borrow().get_fields(generics) {
                         fields.into_iter().all(|(_, field, _)| {
                             field.is_valid_for_unconstrained_boundary_helper(seen_data_types)
@@ -373,7 +373,7 @@ impl Type {
                         false
                     }
                 } else {
-                    false
+                    true
                 }
             }
         }
