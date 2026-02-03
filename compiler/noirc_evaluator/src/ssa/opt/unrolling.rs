@@ -1310,8 +1310,6 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use test_case::test_case;
 
     use crate::assert_ssa_snapshot;
