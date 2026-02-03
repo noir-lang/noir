@@ -603,3 +603,39 @@ fn for_loop_inclusive_max_value_to_max_value() {
     }
     ");
 }
+
+#[test]
+fn brillig_function_with_databus_array_input() {
+    let src = "
+    unconstrained fn main(x: call_data(0) [Field; 3]) {}
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    // No databus instructions emitted for Brillig functions
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        return
+    }
+    ");
+}
+
+#[test]
+fn acir_function_with_databus_array_input() {
+    let src = "
+    fn main(x: call_data(0) [Field; 3]) {}
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      call_data(0): array: v7, indices: [v0: 0]
+      b0(v0: [Field; 3]):
+        v2 = array_get v0, index u32 0 -> Field
+        v4 = array_get v0, index u32 1 -> Field
+        v6 = array_get v0, index u32 2 -> Field
+        v7 = make_array [v2, v4, v6] : [Field; 3]
+        return
+    }
+    ");
+}
