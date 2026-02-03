@@ -289,7 +289,8 @@ impl FunctionContext<'_> {
                 // for each additional copy to ensure proper reference counting in unconstrained code.
                 if *length > 1 {
                     for value in element_value.clone().into_value_list(self) {
-                        if self.builder.type_of_value(value).contains_an_array() {
+                        let value_type = self.builder.type_of_value(value);
+                        if matches!(value_type, Type::Array(..) | Type::Vector(_)) {
                             for _ in 1..*length {
                                 self.builder.insert_inc_rc(value);
                             }
