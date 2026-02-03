@@ -93,7 +93,7 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
-    opt::unrolling::Loops,
+    opt::unrolling::{LoopOrder, Loops},
     ssa_gen::Ssa,
 };
 
@@ -132,7 +132,7 @@ impl Function {
     ///
     /// Returns a set of values that may have loop carried aliases.
     fn analyze_loop_aliases(function: &Function) -> HashSet<ValueId> {
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let mut aliases: HashSet<ValueId> = HashSet::default();
 
         // For each loop, find all `store ref_value at ref_address` patterns
