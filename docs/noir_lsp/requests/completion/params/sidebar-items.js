@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["find_function_and_parameter_name_at_byte_index","names_to_exclude"]};

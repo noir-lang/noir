@@ -2048,7 +2048,28 @@
 <a href="#2047" id="2047">2047</a>
 <a href="#2048" id="2048">2048</a>
 <a href="#2049" id="2049">2049</a>
-<a href="#2050" id="2050">2050</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2073,10 +2094,10 @@
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
         IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
-        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
-        UseTreeKind, Visitor,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, Path, PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl,
+        TypePath, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UseTree, UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -2108,6 +2129,7 @@
 <span class="kw">mod </span>builtins;
 <span class="kw">mod </span>completion_items;
 <span class="kw">mod </span>kinds;
+<span class="kw">mod </span>params;
 <span class="kw">mod </span>sort_text;
 <span class="kw">mod </span>tests;
 
@@ -3296,6 +3318,14 @@
         <span class="bool-val">false
     </span>}
 
+    <span class="kw">fn </span>visit_parsed_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parsed_module: <span class="kw-2">&amp;</span>ParsedModule) -&gt; bool {
+        <span class="kw">if </span><span class="self">self</span>.try_complete_function_param_in_parsed_module(parsed_module) {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+
+        <span class="bool-val">true
+    </span>}
+
     <span class="kw">fn </span>visit_parsed_submodule(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parsed_sub_module: <span class="kw-2">&amp;</span>ParsedSubModule, _span: Span) -&gt; bool {
         <span class="comment">// Switch `self.module_id` to the submodule
         </span><span class="kw">let </span>previous_module_id = <span class="self">self</span>.module_id;
@@ -3419,6 +3449,10 @@
     </span>}
 
     <span class="kw">fn </span>visit_type_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_impl: <span class="kw-2">&amp;</span>TypeImpl, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="kw">if </span><span class="self">self</span>.try_complete_function_param_in_type_impl(type_impl) {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+
         <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>type_impl.generics {
             generic.accept(<span class="self">self</span>);
         }
@@ -3457,6 +3491,14 @@
         <span class="self">self</span>.type_parameters.clear();
 
         <span class="bool-val">false
+    </span>}
+
+    <span class="kw">fn </span>visit_noir_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_: <span class="kw-2">&amp;</span>NoirTrait, <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="kw">if </span><span class="self">self</span>.try_complete_function_param_in_trait(trait_) {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+
+        <span class="bool-val">true
     </span>}
 
     <span class="kw">fn </span>visit_trait_item_function(
