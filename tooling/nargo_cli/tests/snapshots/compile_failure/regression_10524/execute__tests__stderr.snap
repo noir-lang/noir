@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: The return value has 4294967294 witnesses which exceeds the limit of 16777216
+error: The return value has 4294967294 elements which exceeds the limit of 16777216
    ┌─ src/main.nr:13:5
    │  
 13 │ ╭     unsafe {
