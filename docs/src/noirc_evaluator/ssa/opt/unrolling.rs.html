@@ -1885,7 +1885,39 @@
 <a href="#1884" id="1884">1884</a>
 <a href="#1885" id="1885">1885</a>
 <a href="#1886" id="1886">1886</a>
-<a href="#1887" id="1887">1887</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2052,7 +2084,13 @@
 
         <span class="comment">// Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         </span><span class="kw">loop </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(<span class="self">self</span>);
+            <span class="kw">let </span>order = <span class="kw">if </span><span class="self">self</span>.runtime().is_brillig() {
+                LoopOrder::InsideOut
+            } <span class="kw">else </span>{
+                LoopOrder::OutsideIn
+            };
+            <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(<span class="self">self</span>, order);
+
             <span class="comment">// Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
             // so if an outer loop is unrolled, we have to restart looking for the nested ones.
             </span><span class="kw">let </span><span class="kw-2">mut </span>modified_blocks = HashSet::new();
@@ -2128,6 +2166,18 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) blocks: BTreeSet&lt;BasicBlockId&gt;,
 }
 
+<span class="doccomment">/// Order in which loops should be processed.
+</span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>LoopOrder {
+    <span class="doccomment">/// Process inner (smaller) loops first, then outer loops.
+    /// Used for Brillig which can tolerate inner loops that reference outer induction variables.
+    </span>InsideOut,
+    <span class="doccomment">/// Process outer (larger) loops first, then inner loops.
+    /// Used for ACIR which cannot tolerate inner loops that reference outer induction variables,
+    /// so outer loops must be unrolled first.
+    </span>OutsideIn,
+}
+
 <span class="doccomment">/// All the unrolled loops in the SSA.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Loops {
     <span class="doccomment">/// Loops that haven't been unrolled yet, which is all the loops currently in the CFG.
@@ -2170,7 +2220,7 @@
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_all(function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_all(function: <span class="kw-2">&amp;</span>Function, order: LoopOrder) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
         <span class="kw">let </span>post_order = PostOrder::with_function(function);
         <span class="kw">let </span><span class="kw-2">mut </span>dom_tree = DominatorTree::with_cfg_and_post_order(<span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;</span>post_order);
@@ -2188,10 +2238,22 @@
             }
         }
 
-        <span class="comment">// Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
-        // This is needed because inner loops may use the induction variable from their outer loops in
-        // their loop range. We will start popping loops from the back.
-        </span>loops.sort_by_key(|loop_| loop_.blocks.len());
+        <span class="kw">match </span>order {
+            LoopOrder::InsideOut =&gt; {
+                <span class="comment">// Sort by block size descending so we pop and unroll smaller, inner loops first.
+                // This is safe for Brillig because if inner loop bounds depend on an outer
+                // induction variable, `get_const_bounds` returns None, `is_small_loop` returns
+                // false, and we skip it. After unrolling inner loops, outer loops have simpler
+                // bodies and more accurate cost estimates for the `is_small_loop` heuristic.
+                </span>loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
+            }
+            LoopOrder::OutsideIn =&gt; {
+                <span class="comment">// Sort by block size ascending so we unroll larger, outer loops of nested loops first.
+                // This is needed because inner loops may use the induction variable from their
+                // outer loops in their loop range.
+                </span>loops.sort_by_key(|loop_| loop_.blocks.len());
+            }
+        }
 
         <span class="self">Self </span>{ yet_to_unroll: loops, cfg, dom: dom_tree }
     }
@@ -3118,7 +3180,9 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::integer::IntegerConstant;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    <span class="kw">use super</span>::{BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, Loops, is_new_size_ok};
+    <span class="kw">use super</span>::{
+        BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, LoopOrder, Loops, is_new_size_ok,
+    };
 
     <span class="doccomment">/// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -3233,7 +3297,7 @@
     </span><span class="kw">fn </span>test_get_const_bounds() {
         <span class="kw">let </span>ssa = brillig_unroll_test_case();
         <span class="kw">let </span>function = ssa.main();
-        <span class="kw">let </span>loops = Loops::find_all(function);
+        <span class="kw">let </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="macro">assert_eq!</span>(loops.yet_to_unroll.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>loop_ = <span class="kw-2">&amp;</span>loops.yet_to_unroll[<span class="number">0</span>];
@@ -3265,7 +3329,7 @@
         "#</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>function = ssa.main();
-        <span class="kw">let </span>loops = Loops::find_all(function);
+        <span class="kw">let </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="macro">assert_eq!</span>(loops.yet_to_unroll.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>loop_ = <span class="kw-2">&amp;</span>loops.yet_to_unroll[<span class="number">0</span>];
@@ -3283,7 +3347,7 @@
     </span><span class="kw">fn </span>test_find_pre_header_reference_values() {
         <span class="kw">let </span>ssa = brillig_unroll_test_case();
         <span class="kw">let </span>function = ssa.main();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function);
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="kw">let </span>loop0 = loops.yet_to_unroll.pop().unwrap();
 
         <span class="kw">let </span>refs = loop0.find_pre_header_reference_values(function, <span class="kw-2">&amp;</span>loops.cfg).unwrap();
@@ -3635,7 +3699,7 @@
     <span class="comment">// Boilerplate stats of the first loop in the SSA.
     </span><span class="kw">fn </span>loop0_stats(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BoilerplateStats {
         <span class="kw">let </span>function = ssa.main();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function);
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="kw">let </span>loop0 = loops.yet_to_unroll.pop().expect(<span class="string">"there should be a loop"</span>);
         loop0.boilerplate_stats(function, <span class="kw-2">&amp;</span>loops.cfg).expect(<span class="string">"there should be stats"</span>)
     }
@@ -3731,7 +3795,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>function = ssa.main();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function);
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="kw">let </span>loop0 = loops.yet_to_unroll.pop().expect(<span class="string">"there should be a loop"</span>);
         <span class="kw">let </span>pre_header = loop0.get_pre_header(function, <span class="kw-2">&amp;</span>loops.cfg).unwrap();
         <span class="macro">assert!</span>(loop0.get_const_lower_bound(<span class="kw-2">&amp;</span>function.dfg, pre_header).is_none());
@@ -3761,7 +3825,7 @@
         <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>ssa).unwrap();
         <span class="kw">let </span>function = ssa.main();
 
-        <span class="kw">let </span>loops = Loops::find_all(function);
+        <span class="kw">let </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="macro">assert_eq!</span>(loops.yet_to_unroll.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>loop_ = <span class="kw-2">&amp;</span>loops.yet_to_unroll[<span class="number">0</span>];

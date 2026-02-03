@@ -3701,7 +3701,8 @@
 <a href="#3700" id="3700">3700</a>
 <a href="#3701" id="3701">3701</a>
 <a href="#3702" id="3702">3702</a>
-<a href="#3703" id="3703">3703</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3703" id="3703">3703</a>
+<a href="#3704" id="3704">3704</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -3808,7 +3809,7 @@
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
-<span class="kw">use </span><span class="kw">super</span>::unrolling::{Loop, Loops};
+<span class="kw">use </span><span class="kw">super</span>::unrolling::{Loop, LoopOrder, Loops};
 
 <span class="kw">mod </span>simplify;
 
@@ -3826,7 +3827,7 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>loop_invariant_code_motion(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        Loops::find_all(<span class="self">self</span>).hoist_loop_invariants(<span class="self">self</span>);
+        Loops::find_all(<span class="self">self</span>, LoopOrder::OutsideIn).hoist_loop_invariants(<span class="self">self</span>);
     }
 }
 
@@ -4610,11 +4611,11 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::Type;
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::Loops;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::pure::Purity;
+    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::{LoopOrder, Loops};
     <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     <span class="kw">use </span>acvm::AcirField;
     <span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
@@ -5651,7 +5652,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>function = ssa.functions.get_mut(<span class="kw-2">&amp;</span>ssa.main_id).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function);
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function, LoopOrder::OutsideIn);
         <span class="kw">let </span>ctx = LoopInvariantContext::new(function, <span class="kw-2">&amp;</span>loops.yet_to_unroll);
         <span class="kw">let </span>pre_header = BasicBlockId::new(<span class="number">0</span>);
         <span class="kw">let </span>loop_ = loops.yet_to_unroll.pop().unwrap();
@@ -6164,7 +6165,8 @@
             ir::{function::RuntimeType, types::NumericType},
             opt::{
                 assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
-                assert_ssa_does_not_change, unrolling::Loops,
+                assert_ssa_does_not_change,
+                unrolling::{LoopOrder, Loops},
             },
             ssa_gen::Ssa,
         },
@@ -7230,7 +7232,7 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main());
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main(), LoopOrder::OutsideIn);
         <span class="kw">let </span>loop_ = loops.yet_to_unroll.pop().unwrap();
         <span class="macro">assert!</span>(!loop_.is_fully_executed(<span class="kw-2">&amp;</span>loops.cfg));
     }
@@ -7252,7 +7254,7 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main());
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main(), LoopOrder::OutsideIn);
         <span class="kw">let </span>loop_ = loops.yet_to_unroll.pop().unwrap();
         <span class="macro">assert!</span>(!loop_.is_fully_executed(<span class="kw-2">&amp;</span>loops.cfg));
     }
@@ -7293,7 +7295,7 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main());
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(ssa.main(), LoopOrder::OutsideIn);
         <span class="kw">let </span>loop_ = loops.yet_to_unroll.pop().unwrap();
         <span class="macro">assert!</span>(!loop_.is_fully_executed(<span class="kw-2">&amp;</span>loops.cfg));
     }

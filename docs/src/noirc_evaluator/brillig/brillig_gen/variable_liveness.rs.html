@@ -1031,7 +1031,7 @@
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    opt::Loops,
+    opt::{LoopOrder, Loops},
 };
 
 <span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
@@ -1132,7 +1132,7 @@
 <span class="kw">impl </span>VariableLiveness {
     <span class="doccomment">/// Computes the liveness of variables throughout a function.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_function(func: <span class="kw-2">&amp;</span>Function, constants: <span class="kw-2">&amp;</span>ConstantAllocation) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>loops = Loops::find_all(func);
+        <span class="kw">let </span>loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
         <span class="kw">let </span>back_edges: LoopMap = loops
             .yet_to_unroll

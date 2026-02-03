@@ -201,7 +201,7 @@
 };
 
 <span class="kw">use </span><span class="kw">super</span>::variable_liveness::{is_variable, variables_used_in_instruction};
-<span class="kw">use </span><span class="kw">crate</span>::ssa::opt::Loops;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::opt::{LoopOrder, Loops};
 
 <span class="doccomment">/// Indicate where a variable was used in a block.
 </span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -230,7 +230,7 @@
 <span class="kw">impl </span>ConstantAllocation {
     <span class="doccomment">/// Run the constant allocation algorithm for a [Function] and return the decisions.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_function(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>loops = Loops::find_all(func);
+        <span class="kw">let </span>loops = Loops::find_all(func, LoopOrder::OutsideIn);
         <span class="kw">let </span>blocks_within_loops =
             loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
 

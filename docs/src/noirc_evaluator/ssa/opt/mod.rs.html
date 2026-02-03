@@ -199,7 +199,7 @@
 
 <span class="kw">pub use </span>constant_folding::DEFAULT_MAX_ITER <span class="kw">as </span>CONSTANT_FOLDING_MAX_ITER;
 <span class="kw">pub use </span>inlining::MAX_INSTRUCTIONS <span class="kw">as </span>INLINING_MAX_INSTRUCTIONS;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>unrolling::Loops;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>unrolling::{LoopOrder, Loops};
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
