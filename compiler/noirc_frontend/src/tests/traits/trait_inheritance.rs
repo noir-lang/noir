@@ -235,6 +235,34 @@ fn trait_inheritance_with_ambiguous_associated_type() {
 }
 
 #[test]
+fn trait_impl_inheritance_with_fully_qualified_path() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub trait Qux: Foo {
+        fn quz() -> <Self as Foo>::Bar;
+    }
+
+    pub struct Spam;
+
+    impl Foo for Spam {
+        type Bar = u32;
+    }
+
+    impl Qux for Spam {
+        fn quz() -> <Self as Foo>::Bar {
+            10
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn trait_impl_inheritance_with_ambiguous_associated_type() {
     let src = r#"
     pub trait Foo {
