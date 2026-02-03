@@ -59,9 +59,7 @@ fn try_ssa_to_acir_no_validation(
     try_ssa_to_acir_impl(Ssa::from_str_no_validation(src).unwrap())
 }
 
-fn try_ssa_to_acir_impl(
-    ssa: Ssa,
-) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
+fn try_ssa_to_acir_impl(ssa: Ssa) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let arg_size_and_visibilities = ssa
         .functions
         .iter()

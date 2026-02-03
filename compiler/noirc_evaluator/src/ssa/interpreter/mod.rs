@@ -275,14 +275,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // Evaluate Brillig globals (non-flat arrays)
             self.evaluating_acir_globals = false;
             self.evaluate_globals_graph(brillig_globals)?;
-            self.brillig_global_scope =
-                std::mem::take(&mut self.call_stack[0].scope);
+            self.brillig_global_scope = std::mem::take(&mut self.call_stack[0].scope);
 
             // Evaluate ACIR globals (flat arrays)
             self.evaluating_acir_globals = true;
             self.evaluate_globals_graph(acir_globals)?;
-            self.acir_global_scope =
-                std::mem::take(&mut self.call_stack[0].scope);
+            self.acir_global_scope = std::mem::take(&mut self.call_stack[0].scope);
             self.evaluating_acir_globals = false;
         } else {
             // Fallback: use first function's globals for both scopes
@@ -290,8 +288,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let globals = &function.dfg.globals;
             self.evaluate_globals_graph(globals)?;
             self.brillig_global_scope = self.call_stack[0].scope.clone();
-            self.acir_global_scope =
-                std::mem::take(&mut self.call_stack[0].scope);
+            self.acir_global_scope = std::mem::take(&mut self.call_stack[0].scope);
         }
 
         Ok(())

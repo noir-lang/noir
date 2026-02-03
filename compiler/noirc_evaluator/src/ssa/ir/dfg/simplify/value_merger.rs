@@ -243,11 +243,8 @@ impl<'a> ValueMerger<'a> {
             SemanticLength(vector.len() as u32)
         });
         let len = then_len.max(else_len);
-        let composite_len = if flat_element_types_size == 0 {
-            0
-        } else {
-            len.0 / flat_element_types_size
-        };
+        let composite_len =
+            if flat_element_types_size == 0 { 0 } else { len.0 / flat_element_types_size };
 
         let flat_types: Vec<Type> = (0..composite_len)
             .flat_map(|_| element_types.iter().cloned().flat_map(Type::flatten))

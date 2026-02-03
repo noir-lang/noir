@@ -377,10 +377,8 @@ impl Context {
                         .map(|elem| elem.flattened_size())
                         .sum::<FlattenedLength>()
                         .0;
-                    self.vector_sizes.insert(
-                        arguments[1],
-                        SemanticLength(semantic_len * element_stride),
-                    );
+                    self.vector_sizes
+                        .insert(arguments[1], SemanticLength(semantic_len * element_stride));
                 }
             }
             Intrinsic::Hint(Hint::BlackBox) => {
@@ -402,10 +400,8 @@ impl Context {
                             .map(|elem| elem.flattened_size())
                             .sum::<FlattenedLength>()
                             .0;
-                        self.vector_sizes.insert(
-                            *argument,
-                            SemanticLength(semantic_len * element_stride),
-                        );
+                        self.vector_sizes
+                            .insert(*argument, SemanticLength(semantic_len * element_stride));
                     }
                 }
             }
