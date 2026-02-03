@@ -365,12 +365,14 @@ fn deny_cyclic_structs() {
         []
     }
 
-    fn main() {
+    // Here we check the input and output types
+    fn main(_: Foo) -> pub [Foo; 0] {
         // Here we also check if the call returns a function, another check
         // that must be done with care.
         // Safety:
         let _ = unsafe { foo() };
                          ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
+        []
     }
     "#;
     check_errors(src);

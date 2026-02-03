@@ -213,6 +213,14 @@ impl Type {
     /// certain types which through compilation we know what their size should be.
     /// This includes types such as numeric generics.
     pub(crate) fn non_inlined_function_input_validity(&self) -> Option<InvalidType> {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.non_inlined_function_input_validity_helper(&mut seen_data_types)
+    }
+
+    fn non_inlined_function_input_validity_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> Option<InvalidType> {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
@@ -235,11 +243,11 @@ impl Type {
             | Type::Quoted(_)
             | Type::TraitAsType(..) => Some(InvalidType::Primitive(self.clone())),
 
-            Type::CheckedCast { to, .. } => to.non_inlined_function_input_validity(),
+            Type::CheckedCast { to, .. } => to.non_inlined_function_input_validity_helper(seen_data_types),
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
-                if let Some(invalid_type) = alias.get_type(generics).non_inlined_function_input_validity() {
+                if let Some(invalid_type) = alias.get_type(generics).non_inlined_function_input_validity_helper(seen_data_types) {
                     let alias_name = alias.name.clone();
                     Some(InvalidType::Alias { alias_name, invalid_type: Box::new(invalid_type) })
                 } else {
@@ -248,36 +256,41 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                length.non_inlined_function_input_validity().or_else(|| element.non_inlined_function_input_validity())
+                length.non_inlined_function_input_validity_helper(seen_data_types).or_else(|| element.non_inlined_function_input_validity_helper(seen_data_types))
             }
-            Type::String(length) => length.non_inlined_function_input_validity(),
+            Type::String(length) => length.non_inlined_function_input_validity_helper(seen_data_types),
             Type::Tuple(elements) => {
                 for element in elements {
-                    if let Some(invalid_type) = element.non_inlined_function_input_validity() {
+                    if let Some(invalid_type) = element.non_inlined_function_input_validity_helper(seen_data_types) {
                         return Some(invalid_type);
                     }
                 }
                 None
             },
             Type::DataType(definition, generics) => {
-                let definition = definition.borrow();
+                let key = (definition.borrow().id, generics.clone());
+                if seen_data_types.insert(key) {
+                    let definition = definition.borrow();
 
-                if let Some(fields) = definition.get_fields(generics) {
-                    for (field_name, field, _) in fields {
-                        if let Some(invalid_type) = field.non_inlined_function_input_validity() {
-                            let struct_name = definition.name.clone();
-                            let mut fields_raw = definition.fields_raw().unwrap().iter();
-                            let field = fields_raw.find(|field| field.name.as_str() == field_name);
-                            return Some(InvalidType::StructField {
-                                struct_name,
-                                field_name: field.unwrap().name.clone(),
-                                invalid_type: Box::new(invalid_type),
-                            });
+                    if let Some(fields) = definition.get_fields(generics) {
+                        for (field_name, field, _) in fields {
+                            if let Some(invalid_type) = field.non_inlined_function_input_validity_helper(seen_data_types) {
+                                let struct_name = definition.name.clone();
+                                let mut fields_raw = definition.fields_raw().unwrap().iter();
+                                let field = fields_raw.find(|field| field.name.as_str() == field_name);
+                                return Some(InvalidType::StructField {
+                                    struct_name,
+                                    field_name: field.unwrap().name.clone(),
+                                    invalid_type: Box::new(invalid_type),
+                                });
+                            }
                         }
+                        None
+                    } else {
+                        Some(InvalidType::Enum(self.clone()))
                     }
-                    None
                 } else {
-                    Some(InvalidType::Enum(self.clone()))
+                    None
                 }
             }
             Type::TypeVariable(type_var)
@@ -285,7 +298,7 @@ impl Type {
                 // Unbound TypeVariable and Generic are allowed here as they can only result from
                 // generics being declared on the function itself, but we produce a different error in that case.
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    typ.non_inlined_function_input_validity()
+                    typ.non_inlined_function_input_validity_helper(seen_data_types)
                 } else {
                     None
                 }
