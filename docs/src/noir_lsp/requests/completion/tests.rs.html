@@ -3503,7 +3503,26 @@
 <a href="#3502" id="3502">3502</a>
 <a href="#3503" id="3503">3503</a>
 <a href="#3504" id="3504">3504</a>
-<a href="#3505" id="3505">3505</a></pre></div><pre class="rust"><code><span class="kw">mod </span>after_change;
+<a href="#3505" id="3505">3505</a>
+<a href="#3506" id="3506">3506</a>
+<a href="#3507" id="3507">3507</a>
+<a href="#3508" id="3508">3508</a>
+<a href="#3509" id="3509">3509</a>
+<a href="#3510" id="3510">3510</a>
+<a href="#3511" id="3511">3511</a>
+<a href="#3512" id="3512">3512</a>
+<a href="#3513" id="3513">3513</a>
+<a href="#3514" id="3514">3514</a>
+<a href="#3515" id="3515">3515</a>
+<a href="#3516" id="3516">3516</a>
+<a href="#3517" id="3517">3517</a>
+<a href="#3518" id="3518">3518</a>
+<a href="#3519" id="3519">3519</a>
+<a href="#3520" id="3520">3520</a>
+<a href="#3521" id="3521">3521</a>
+<a href="#3522" id="3522">3522</a>
+<a href="#3523" id="3523">3523</a>
+<a href="#3524" id="3524">3524</a></pre></div><pre class="rust"><code><span class="kw">mod </span>after_change;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>completion_tests {
@@ -7006,6 +7025,25 @@ fn main() {
 
         </span><span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
         <span class="macro">assert_eq!</span>(changed, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">async fn </span>autoimports_correct_trait_for_ctstring_append() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        fn main() {
+            let s = CtString::new();
+            s.appen&gt;|&lt;
+        }
+        "#</span>;
+        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        <span class="macro">assert_eq!</span>(items.len(), <span class="number">3</span>);
+        <span class="kw">let </span>item = items
+            .iter()
+            .find(|item| item.label == <span class="string">"append(…)"</span>)
+            .expect(<span class="string">"Expected to find a completion for 'append'"</span>);
+        <span class="kw">let </span>addition_text_edit = <span class="kw-2">&amp;</span>item.additional_text_edits.as_ref().unwrap()[<span class="number">0</span>];
+        <span class="comment">// This used to suggest `use std::meta::ctstring::Append`, which is wrong
+        </span><span class="macro">assert_eq!</span>(addition_text_edit.new_text, <span class="string">"use std::append::Append;\n"</span>);
     }
 }
 </code></pre></div></section></main></body></html>
