@@ -876,3 +876,36 @@ fn associated_constant_in_trait_method_missing_in_impl() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn associated_type_referred_via_self_as_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+
+        // This works, because when we create the function meta we will have
+        // already inserted the associated types for the current impl, and
+        // we have special handling for `Self` and a type.
+        // fn foo() -> Self::Bar { 10 }
+
+        // This does not work, because we would try to look up an impl,
+        // which hasn't actually been registered yet, and if we had an
+        // assumed one, then it wouldn't be the same associated type as
+        // the u32 we declared above. We could make it work if we recognize
+        // that Foo is the trait that we are currently implementing,
+        // but it wouldn't work for non-self traits, because there is
+        // no guarantee they have been processed yet.
+        fn foo() -> <Self as Foo>::Bar { 10 }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
