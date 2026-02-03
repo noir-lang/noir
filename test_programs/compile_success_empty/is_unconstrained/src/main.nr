@@ -9,7 +9,7 @@ unconstrained fn unconstrained_intermediate() {
 }
 
 fn main() {
-    /// Safety: testing context
+    // Safety: testing context
     unsafe {
         unconstrained_intermediate();
     }

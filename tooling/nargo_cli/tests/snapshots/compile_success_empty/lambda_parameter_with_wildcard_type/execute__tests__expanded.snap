@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let x: [Field; 3] = [1_Field, 2_Field, 3_Field];
+    let _: [Field; 3] = x.map(|i: Field| -> Field { i + 1_Field });
+}

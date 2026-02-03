@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Duplicate definitions of trait associated item with name Bar found
+  ┌─ src/main.nr:4:10
+  │
+4 │     type Bar;
+  │          --- First trait associated item found here
+5 │     let Bar: u32;
+  │         --- Second trait associated item found here
+  │
+
+error: Expected type, found numeric generic
+   ┌─ src/main.nr:10:9
+   │
+10 │     let Bar: u32 = 0;
+   │         --- not a type
+   │
+
+Aborting due to 2 previous errors

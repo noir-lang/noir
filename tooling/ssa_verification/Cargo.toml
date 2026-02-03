@@ -1,0 +1,20 @@
+
+[package]
+name = "ssa_verification"
+description = "CLI tool to generate input for SSA formal verification"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+noirc_evaluator.workspace = true
+acvm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+flate2.workspace = true

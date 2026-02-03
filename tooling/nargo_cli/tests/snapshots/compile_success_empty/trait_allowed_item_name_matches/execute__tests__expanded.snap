@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Trait1 {
+    type Tralala;
+
+    let Tralala: u32;
+}
+
+pub trait Trait2 {
+    let Tralala: u32;
+
+    type Tralala;
+}
+
+pub trait Trait3 {
+    type Tralala;
+
+    fn Tralala();
+}
+
+pub trait Trait4 {
+    type Tralala;
+
+    fn Tralala();
+}
+
+fn main() {}

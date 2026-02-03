@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ src/main.nr:37:36
+   │
+37 │         let most_expensive_snack = maximum_price(snacks);
+   │                                    --------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1. src/main.nr:37:36

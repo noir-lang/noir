@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: Field) {
+    let z: bool = x == y;
+    let t: u8 = z as u8;
+    assert(t == 1_u8);
+}

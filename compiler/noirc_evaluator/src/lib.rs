@@ -1,11 +1,9 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 pub mod errors;
 
-mod acir;
+pub mod acir;
 pub mod brillig;
 pub mod ssa;
 
@@ -20,10 +18,20 @@ pub(crate) fn trim_leading_whitespace_from_lines(src: &str) -> String {
     while first_line.is_empty() {
         first_line = lines.next().unwrap();
     }
+    let first_line_original_length = first_line.len();
     let mut result = first_line.trim_start().to_string();
+    let first_line_trimmed_length = result.len();
+
+    // Try to see how many spaces we chopped off the first line
+    let difference = first_line_original_length - first_line_trimmed_length;
     for line in lines {
         result.push('\n');
-        result.push_str(line.trim_start());
+        // Try to remove just `difference` spaces to preserve indents
+        if line.len() - line.trim_start().len() >= difference {
+            result.push_str(&line.chars().skip(difference).collect::<String>());
+        } else {
+            result.push_str(line.trim_start());
+        }
     }
     result
 }

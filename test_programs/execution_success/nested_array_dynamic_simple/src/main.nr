@@ -1,4 +1,4 @@
-fn main(x: Field) {
+fn main(x: u32) {
     // x = 3
     let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];
 

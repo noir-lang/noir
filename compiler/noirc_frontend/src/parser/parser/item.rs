@@ -1,11 +1,12 @@
 use iter_extended::vecmap;
+use noirc_errors::Location;
 
 use crate::{
-    parser::{labels::ParsingRuleLabel, Item, ItemKind, ParserErrorReason},
-    token::{Keyword, Token},
+    parser::{Item, ItemKind, ParserErrorReason, labels::ParsingRuleLabel},
+    token::{Attribute, Keyword, Token},
 };
 
-use super::{impls::Impl, parse_many::without_separator, Parser};
+use super::{Parser, impls::Impl, parse_many::without_separator};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
@@ -87,18 +88,31 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Item = OuterDocComments ItemKind
+    /// Item = ( Attribute | OuterDocComments )* ItemKind
     fn parse_item(&mut self) -> Vec<Item> {
-        let start_span = self.current_token_span;
-        let doc_comments = self.parse_outer_doc_comments();
-        let kinds = self.parse_item_kind();
-        let span = self.span_since(start_span);
+        let start_location = self.current_token_location;
 
-        if kinds.is_empty() && !doc_comments.is_empty() {
-            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_span);
+        // Attributes and doc comments can come in any order, and can even be interspersed
+        let mut doc_comments = Vec::new();
+        let mut attributes = Vec::new();
+        loop {
+            if let Some(doc_comment) = self.parse_outer_doc_comment() {
+                doc_comments.push(doc_comment);
+            } else if let Some(attribute) = self.parse_attribute() {
+                attributes.push(attribute);
+            } else {
+                break;
+            }
         }
 
-        vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })
+        let kinds = self.parse_item_kind(attributes);
+        let location = self.location_since(start_location);
+
+        if kinds.is_empty() && !doc_comments.is_empty() {
+            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
+        }
+
+        vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.
@@ -118,13 +132,12 @@ impl<'a> Parser<'a> {
     ///         | TypeAlias
     ///         | Function
     ///         )
-    fn parse_item_kind(&mut self) -> Vec<ItemKind> {
+    fn parse_item_kind(&mut self, attributes: Vec<(Attribute, Location)>) -> Vec<ItemKind> {
         if let Some(kind) = self.parse_inner_attribute() {
             return vec![ItemKind::InnerAttribute(kind)];
         }
 
-        let start_span = self.current_token_span;
-        let attributes = self.parse_attributes();
+        let start_location = self.current_token_location;
 
         let modifiers = self.parse_modifiers(
             true, // allow mut
@@ -140,7 +153,18 @@ impl<'a> Parser<'a> {
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility)];
+            if let Some(ident) = self.eat_non_underscore_ident() {
+                return vec![self.parse_mod_or_contract(
+                    ident,
+                    attributes,
+                    is_contract,
+                    modifiers.visibility,
+                )];
+            };
+
+            self.expected_identifier();
+            self.bump();
+            self.eat_semicolons();
         }
 
         if self.eat_keyword(Keyword::Struct) {
@@ -149,7 +173,7 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::Struct(self.parse_struct(
                 attributes,
                 modifiers.visibility,
-                start_span,
+                start_location,
             ))];
         }
 
@@ -159,7 +183,7 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::Enum(self.parse_enum(
                 attributes,
                 modifiers.visibility,
-                start_span,
+                start_location,
             ))];
         }
 
@@ -176,7 +200,7 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let (noir_trait, noir_impl) =
-                self.parse_trait(attributes, modifiers.visibility, start_span);
+                self.parse_trait(attributes, modifiers.visibility, start_location);
             let mut output = vec![ItemKind::Trait(noir_trait)];
             if let Some(noir_impl) = noir_impl {
                 output.push(ItemKind::TraitImpl(noir_impl));
@@ -202,11 +226,25 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             return vec![ItemKind::TypeAlias(
-                self.parse_type_alias(modifiers.visibility, start_span),
+                self.parse_type_alias(modifiers.visibility, start_location),
             )];
         }
 
-        if self.eat_keyword(Keyword::Fn) {
+        let is_function = if self.eat_keyword(Keyword::Fn) {
+            true
+        } else if !modifiers.is_empty()
+            && matches!(self.token.token(), Token::Ident(..))
+            && self.next_is(Token::LeftParen)
+        {
+            // If it's something like `pub foo(` then it's likely the user forgot to put `fn` after `pub`,
+            // so we error but keep parsing what comes next as a function.
+            self.expected_token(Token::Keyword(Keyword::Fn));
+            true
+        } else {
+            false
+        };
+
+        if is_function {
             self.mutable_not_applicable(modifiers);
 
             return vec![ItemKind::Function(self.parse_function(
@@ -234,9 +272,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
-        parse_program,
-        parser::parser::tests::{get_single_error, get_source_with_error_span},
+        parse_program_with_dummy_file,
+        parser::{
+            ItemKind, Parser, ParserErrorReason,
+            parser::tests::{get_single_error, get_source_with_error_span},
+        },
     };
 
     #[test]
@@ -246,23 +289,23 @@ mod tests {
                     ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an item but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected an item but found 'hello'");
     }
 
     #[test]
     fn errors_on_eof_in_nested_mod() {
         let src = "
-        mod foo { fn foo() {} 
-                             ^
+        mod foo { fn foo() {}
+                            ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a '}' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a '}' but found end of input");
     }
 
     #[test]
@@ -273,9 +316,102 @@ mod tests {
         ^^^^^^^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("Documentation comment does not document anything"));
+        assert!(error.to_string().contains("This doc comment doesn't document anything"));
+    }
+
+    #[test]
+    fn parse_item_with_mixed_attributes_and_doc_comments() {
+        let src = "
+        /// One
+        #[one]
+        /// Two
+        #[two]
+        /// Three
+        fn foo() {}
+        ";
+
+        let (module, errors) = parse_program_with_dummy_file(src);
+        assert!(errors.is_empty());
+
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        assert_eq!(
+            item.doc_comments.iter().map(|c| c.contents.clone()).collect::<Vec<String>>(),
+            vec!["One".to_string(), "Two".to_string(), "Three".to_string(),]
+        );
+        let ItemKind::Function(func) = &item.kind else {
+            panic!("Expected function");
+        };
+        let attributes = &func.attributes().secondary;
+        assert_eq!(attributes.len(), 2);
+        assert_eq!(attributes[0].to_string(), "#[one]");
+        assert_eq!(attributes[1].to_string(), "#[two]");
+    }
+
+    #[test]
+    fn error_recovery_for_missing_fn_between_visibility_and_name() {
+        let src = "
+        pub foo() { }
+            ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let module = parser.parse_program();
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.name(), "foo");
+
+        let reason = get_single_error(&parser.errors, span);
+        assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
+    }
+
+    #[test]
+    fn error_recovery_for_missing_fn_between_unconstrained_and_name() {
+        let src = "
+        unconstrained foo() { }
+                      ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let module = parser.parse_program();
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.name(), "foo");
+
+        let reason = get_single_error(&parser.errors, span);
+        assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
+    }
+
+    #[test]
+    fn errors_on_missing_mod_identifier() {
+        let src = "
+        mod ; fn foo() {}
+            ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found ';'");
+    }
+
+    #[test]
+    fn errors_on_mod_named_underscore() {
+        let src = "
+        mod _ {}
+            ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert!(matches!(error.reason(), Some(ParserErrorReason::ExpectedIdentifierGotUnderscore)));
     }
 }

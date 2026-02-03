@@ -1,6 +1,0 @@
-[package]
-name = "brillig_slice_input"
-type = "bin"
-authors = [""]
-
-[dependencies]

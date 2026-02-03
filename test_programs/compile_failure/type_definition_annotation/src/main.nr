@@ -1,7 +1,7 @@
 #[fail_assert]
 struct Foo { x: Field }
 
-comptime fn fail_assert(_typ: StructDefinition) {
+comptime fn fail_assert(_typ: TypeDefinition) {
     assert(false);
 }
 

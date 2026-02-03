@@ -1,0 +1,53 @@
+name: Non-deterministic fuzz tests
+on:
+  workflow_dispatch:
+  schedule:
+    # Run nightly at 0300
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # How long should we run the fuzzing for, in seconds.
+  NOIR_AST_FUZZER_BUDGET_SECS: 300
+
+jobs:
+  ast-fuzz:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: taiki-e/install-action@just
+
+      - name: Run fuzzer
+        run: just fuzz-nightly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUST_MIN_STACK: 8388608
+
+      - name: Get current date
+        id: date
+        run: echo "DAY=date::$(date +'%u')" >> $GITHUB_OUTPUT
+
+      - name: Send an alert in slack
+        # Send notifications on weekdays if there's a failure.
+        if: ${{ failure() && steps.date.outputs.DAY <= 5 }}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.FUZZING_ALERT_URL }}
+          webhook-type: webhook-trigger
+          payload: |
+            workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

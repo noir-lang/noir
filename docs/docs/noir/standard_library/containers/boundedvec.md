@@ -1,13 +1,14 @@
 ---
 title: Bounded Vectors
-keywords: [noir, vector, bounded vector, slice]
+description: Growable vectors with a fixed maximum length; safer and more efficient than vectors, with rich methods for access and mutation.
+keywords: [noir, vector, bounded vector, vector]
 sidebar_position: 1
 ---
 
 A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
-via slices and thus is not subject to the same restrictions slices are (notably, nested
-slices - and thus nested vectors as well - are disallowed).
+via vectors and thus is not subject to the same restrictions vectors are (notably, nested
+vectors - and thus nested vectors as well - are disallowed).
 
 Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
 pushing an additional element is also more efficient - the length only needs to be increased
@@ -238,7 +239,7 @@ Example:
 pub fn from_array<Len>(array: [T; Len]) -> Self
 ```
 
-Creates a new vector, populating it with values derived from an array input. 
+Creates a new vector, populating it with values derived from an array input.
 The maximum length of the vector is determined based on the type signature.
 
 Example:
@@ -288,11 +289,48 @@ Example:
 pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen>
 ```
 
-Creates a new vector of equal size by calling a closure on each element in this vector.  
+Creates a new vector of equal size by calling a closure on each element in this vector.
 
 Example:
 
 #include_code bounded-vec-map-example noir_stdlib/src/collections/bounded_vec.nr rust
+
+### mapi
+
+```rust
+pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen>
+```
+
+Creates a new vector of equal size by calling a closure on each element in this
+vector, along with its index in the vector.
+
+Example:
+
+#include_code bounded-vec-mapi-example noir_stdlib/src/collections/bounded_vec.nr rust
+
+### for_each
+
+```rust
+pub fn for_each<Env>(self, f: fn[Env](T) -> ())
+```
+
+Calls a closure on each element in this vector.
+
+Example:
+
+#include_code bounded-vec-for-each-example noir_stdlib/src/collections/bounded_vec.nr rust
+
+### for_eachi
+
+```rust
+pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ())
+```
+
+Calls a closure on each element in this vector, along with its index in the vector.
+
+Example:
+
+#include_code bounded-vec-for-eachi-example noir_stdlib/src/collections/bounded_vec.nr rust
 
 ### any
 

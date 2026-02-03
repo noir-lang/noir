@@ -1,1 +1,1 @@
-mod foo;
+pub mod foo;

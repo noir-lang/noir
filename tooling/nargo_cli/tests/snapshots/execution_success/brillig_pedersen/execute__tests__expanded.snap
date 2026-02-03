@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(
+    x: Field,
+    y: Field,
+    salt: Field,
+    out_x: Field,
+    out_y: Field,
+    out_hash: Field,
+) {
+    let res: std::embedded_curve_ops::EmbeddedCurvePoint =
+        std::hash::pedersen_commitment_with_separator([x, y], 0_u32);
+    assert(res.x == out_x);
+    assert(res.y == out_y);
+    let res_hash: Field = std::hash::pedersen_hash_with_separator([x, y], 0_u32);
+    assert(res_hash == out_hash);
+    assert(res_hash != res.x);
+    let raw_data: [Field; 2] = [x, y];
+    let mut state: Field = 0_Field;
+    for i in 0_u32..2_Field as u32 {
+        state = (state * 8_Field) + raw_data[i];
+    }
+    state = state + salt;
+    let hash: std::embedded_curve_ops::EmbeddedCurvePoint =
+        std::hash::pedersen_commitment_with_separator([state], 0_u32);
+    assert(std::hash::pedersen_commitment_with_separator([43_Field], 0_u32).x == hash.x);
+}

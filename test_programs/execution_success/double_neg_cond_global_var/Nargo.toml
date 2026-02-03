@@ -1,0 +1,6 @@
+[package]
+name = "double_neg_cond_global_var"
+type = "bin"
+authors = [""]
+
+[dependencies]

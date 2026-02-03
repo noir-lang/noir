@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn sub_array_extended<let SRC_LEN: u32, let DST_LEN: u32>(
+    src: [Field; SRC_LEN],
+    offset: u32,
+) -> [Field; DST_LEN] {
+    let available_elements_to_copy: u32 = SRC_LEN - offset;
+    let elements_to_copy: u32 = if DST_LEN > available_elements_to_copy {
+        available_elements_to_copy
+    } else {
+        DST_LEN
+    };
+    let mut dst: [Field; DST_LEN] = std::mem::zeroed();
+    for i in 0_u32..elements_to_copy {
+        dst[i] = src[i + offset];
+    }
+    dst
+}
+
+unconstrained fn main() {
+    assert(sub_array_extended([], 0_u32) == []);
+}

@@ -1,1 +1,1 @@
-pub(super) mod ecdsa;
+pub(crate) mod ecdsa;

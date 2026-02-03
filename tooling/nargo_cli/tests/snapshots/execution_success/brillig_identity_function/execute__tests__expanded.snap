@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct myStruct {
+    foo: Field,
+    foo_arr: [Field; 2],
+}
+
+fn main(x: Field) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(x == identity(x));
+        let arr: [Field; 2] = identity_array([x, x]);
+        assert(x == arr[0_u32]);
+        assert(x == arr[1_u32]);
+        let s: myStruct = myStruct { foo: x, foo_arr: [x, x] };
+        let identity_struct: myStruct = identity_struct(s);
+        assert(x == identity_struct.foo);
+        assert(x == identity_struct.foo_arr[0_u32]);
+        assert(x == identity_struct.foo_arr[1_u32]);
+    }
+}
+
+unconstrained fn identity(x: Field) -> Field {
+    x
+}
+
+unconstrained fn identity_array(arr: [Field; 2]) -> [Field; 2] {
+    arr
+}
+
+unconstrained fn identity_struct(s: myStruct) -> myStruct {
+    s
+}

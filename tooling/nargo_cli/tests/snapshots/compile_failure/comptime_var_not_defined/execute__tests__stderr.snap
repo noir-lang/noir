@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: cannot find `foo` in this scope
+  ┌─ src/main.nr:3:9
+  │
+3 │         foo();
+  │         --- not found in this scope
+  │
+
+Aborting due to 1 previous error

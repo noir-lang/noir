@@ -1,0 +1,6 @@
+[package]
+name = "lambda_from_empty_array"
+type = "bin"
+authors = [""]
+
+[dependencies]

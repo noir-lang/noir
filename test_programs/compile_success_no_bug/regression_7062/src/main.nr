@@ -1,5 +1,5 @@
 fn main(args: [Field; 2]) {
-    /// Safety: n/a
+    // Safety: n/a
     unsafe { store(args) };
     // Dummy test to remove the 'underconstraint bug'
     assert(args[0] + args[1] != 0);

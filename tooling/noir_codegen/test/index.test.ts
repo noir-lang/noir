@@ -1,7 +1,14 @@
 import { expect } from 'chai';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore File is codegenned at test time.
-import { exported_function_foo, MyStruct, u64, u32, ForeignCallHandler } from './codegen/index.js';
+import {
+  exported_function_foo,
+  exported_function_baz,
+  MyStruct,
+  u64,
+  u32,
+  ForeignCallHandler,
+} from './codegen/index.js';
 
 it('codegens a callable function', async () => {
   const my_struct = { foo: true, bar: ['123', '123', '123', '123'], baz: '0x00' };
@@ -103,4 +110,9 @@ it('allows passing a custom foreign call handler', async () => {
   expect(sum).to.be.eq('0x05');
   expect(constant).to.be.eq('0x03');
   expect(struct).to.be.deep.eq(my_struct);
+});
+
+it('codegens a callable argless function', async () => {
+  const val: u64 = await exported_function_baz();
+  expect(val).to.be.eq('0x01');
 });

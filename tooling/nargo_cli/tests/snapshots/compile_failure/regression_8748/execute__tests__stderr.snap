@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot assign to a mutable variable which contains a reference internally
+  ┌─ src/main.nr:5:13
+  │
+5 │         a = [a[1], a[0]];
+  │             ------------ Assigned expression has the type `[&mut bool; 2]`, which contains a reference type internally
+  │
+
+Aborting due to 1 previous error

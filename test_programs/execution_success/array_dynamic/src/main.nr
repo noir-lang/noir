@@ -2,12 +2,12 @@ fn main(
     x: [u32; 5],
     mut z: u32,
     t: u32,
-    index: [Field; 5],
-    index2: [Field; 5],
-    offset: Field,
+    index: [u32; 5],
+    index2: [u32; 5],
+    offset: u32,
     sublen: Field,
 ) {
-    let idx = (z - 5 * t - 5) as Field;
+    let idx = (z - 5 * t - 5);
     //dynamic array test
     dyn_array(x, idx, idx - 3);
     //regression for issue 1283
@@ -23,7 +23,7 @@ fn main(
     }
 }
 
-fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
+fn dyn_array(mut x: [u32; 5], y: u32, z: u32) {
     assert(x[y] == 111);
     assert(x[z] == 101);
     x[z] = 0;

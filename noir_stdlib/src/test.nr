@@ -16,6 +16,9 @@ unconstrained fn set_mock_times_oracle(id: Field, times: u64) {}
 #[oracle(clear_mock)]
 unconstrained fn clear_mock_oracle(id: Field) {}
 
+#[oracle(get_times_called)]
+unconstrained fn get_times_mock_called(id: Field) -> Field {}
+
 pub struct OracleMock {
     id: Field,
 }
@@ -46,5 +49,9 @@ impl OracleMock {
 
     pub unconstrained fn clear(self) {
         clear_mock_oracle(self.id);
+    }
+
+    pub unconstrained fn times_called(self) -> Field {
+        get_times_mock_called(self.id)
     }
 }

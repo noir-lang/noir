@@ -1,20 +1,26 @@
-# ACIR - Abstract Circuit Intermediate Representation
+## Project Structure
 
-ACIR is an NP complete language that generalizes R1CS and arithmetic circuits while not losing proving system specific optimizations through the use of black box functions.
+This folder is organized into several key components:
 
-# ACVM - Abstract Circuit Virtual Machine
+- `acir/` - Definition and implementation of ACIR
+- `acvm/` - Implementation of ACVM that executes ACIR
+- `brillig/` - Definition and implementation of unconstrained Brillig opcodes
+- `brillig_vm/` - Implementation of Brillig VM that executes Brillig
 
-This can be seen as the ACIR compiler. It will take an ACIR instance and convert it to the format required
-by a particular proving system to create a proof.
+Click into each folder to learn more from their READMEs.
 
-# How to add a new crate to the workspace
+## Development
 
-- Create the new crate with the current version of the other crates.
-- In root `Cargo.toml`, add the new crate to the workspace members list.
-- If you want to import it from multiple packages, you can add it as a dependency in the root `Cargo.toml`.
-- In `release-please-config.json`:
-  - Add a package entry
-  - Add the crate name to the `linked-versions` plugin list
-  - If you added the new crate as a dependency in the root `Cargo.toml`, add it to the extra-files of the root package.
-- In `.release-please-manifest.json`, add the new crate with the same version of the others.
-- In [publish.yml](.github/workflows/publish.yml), add the new crate to the `publish` job after its dependencies.
+### Adding a New Crate
+
+To add a new crate to the workspace:
+
+1. Create the new crate with the current version of other crates
+2. In root `Cargo.toml`, add the new crate to the workspace members list
+3. If you want to import it in other noir-lang packages, add it as a dependency in the root `Cargo.toml`
+4. Update `release-please-config.json`:
+   - Add a package entry
+   - Add the crate name to the `linked-versions` plugin list
+   - If added as a dependency in the root `Cargo.toml`, add it to the extra-files of the root package
+5. Update `.release-please-manifest.json` with the new crate at the same versioning number as others
+6. Update [publish.yml](../.github/workflows/publish-acvm.yml) to include the new crate in the `publish` job

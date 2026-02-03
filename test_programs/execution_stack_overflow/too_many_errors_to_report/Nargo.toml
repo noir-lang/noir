@@ -1,0 +1,6 @@
+[package]
+name = "too_many_errors_to_report"
+type = "bin"
+authors = [""]
+
+[dependencies]

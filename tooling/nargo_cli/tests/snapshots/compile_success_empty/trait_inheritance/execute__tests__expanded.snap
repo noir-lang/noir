@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    fn foo(self) -> Field;
+}
+
+trait Bar: Foo {
+    fn bar(self) -> Field {
+        self.foo() + 1_Field
+    }
+
+    fn baz(self) -> Field;
+}
+
+struct Struct {
+    x: Field,
+}
+
+impl Foo for Struct {
+    fn foo(self) -> Field {
+        self.x
+    }
+}
+
+impl Bar for Struct {
+    fn bar(self) -> Field {
+        self.foo() + 1_Field
+    }
+
+    fn baz(self) -> Field {
+        self.foo() + 2_Field
+    }
+}
+
+fn main() {
+    let s: Struct = Struct { x: 1_Field };
+    assert(s.bar() == 2_Field);
+    assert(s.baz() == 3_Field);
+}

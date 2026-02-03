@@ -1,8 +1,8 @@
-use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
-use acir::circuit::{opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
 use acir::AcirField;
+use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
+use acir::circuit::{Opcode as AcirOpcode, opcodes::BlackBoxFuncCall};
 
-fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
+fn format_blackbox_function<F: AcirField>(call: &BlackBoxFuncCall<F>) -> String {
     match call {
         BlackBoxFuncCall::AES128Encrypt { .. } => "aes128_encrypt".to_string(),
         BlackBoxFuncCall::AND { .. } => "and".to_string(),
@@ -16,12 +16,6 @@ fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
         BlackBoxFuncCall::EmbeddedCurveAdd { .. } => "embedded_curve_add".to_string(),
         BlackBoxFuncCall::Keccakf1600 { .. } => "keccakf1600".to_string(),
         BlackBoxFuncCall::RecursiveAggregation { .. } => "recursive_aggregation".to_string(),
-        BlackBoxFuncCall::BigIntAdd { .. } => "big_int_add".to_string(),
-        BlackBoxFuncCall::BigIntSub { .. } => "big_int_sub".to_string(),
-        BlackBoxFuncCall::BigIntMul { .. } => "big_int_mul".to_string(),
-        BlackBoxFuncCall::BigIntDiv { .. } => "big_int_div".to_string(),
-        BlackBoxFuncCall::BigIntFromLeBytes { .. } => "big_int_from_le_bytes".to_string(),
-        BlackBoxFuncCall::BigIntToLeBytes { .. } => "big_int_to_le_bytes".to_string(),
         BlackBoxFuncCall::Poseidon2Permutation { .. } => "poseidon2_permutation".to_string(),
         BlackBoxFuncCall::Sha256Compression { .. } => "sha256_compression".to_string(),
     }
@@ -37,19 +31,13 @@ fn format_blackbox_op(call: &BlackBoxOp) -> String {
         BlackBoxOp::MultiScalarMul { .. } => "multi_scalar_mul".to_string(),
         BlackBoxOp::EmbeddedCurveAdd { .. } => "embedded_curve_add".to_string(),
         BlackBoxOp::Keccakf1600 { .. } => "keccakf1600".to_string(),
-        BlackBoxOp::BigIntAdd { .. } => "big_int_add".to_string(),
-        BlackBoxOp::BigIntSub { .. } => "big_int_sub".to_string(),
-        BlackBoxOp::BigIntMul { .. } => "big_int_mul".to_string(),
-        BlackBoxOp::BigIntDiv { .. } => "big_int_div".to_string(),
-        BlackBoxOp::BigIntFromLeBytes { .. } => "big_int_from_le_bytes".to_string(),
-        BlackBoxOp::BigIntToLeBytes { .. } => "big_int_to_le_bytes".to_string(),
         BlackBoxOp::Poseidon2Permutation { .. } => "poseidon2_permutation".to_string(),
         BlackBoxOp::Sha256Compression { .. } => "sha256_compression".to_string(),
         BlackBoxOp::ToRadix { .. } => "to_radix".to_string(),
     }
 }
 
-fn format_acir_opcode_kind<F>(opcode: &AcirOpcode<F>) -> String {
+fn format_acir_opcode_kind<F: AcirField>(opcode: &AcirOpcode<F>) -> String {
     match opcode {
         AcirOpcode::AssertZero(_) => "arithmetic".to_string(),
         AcirOpcode::BlackBoxFuncCall(call) => {
@@ -106,10 +94,9 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
         BrilligOpcode::ConditionalMov { .. } => "cmov".to_string(),
         BrilligOpcode::Const { .. } => "const".to_string(),
         BrilligOpcode::IndirectConst { .. } => "iconst".to_string(),
-        BrilligOpcode::ForeignCall { function, .. } => format!("foreign_call({})", function),
+        BrilligOpcode::ForeignCall { function, .. } => format!("foreign_call({function})"),
         BrilligOpcode::Jump { .. } => "jump".to_string(),
         BrilligOpcode::JumpIf { .. } => "jump_if".to_string(),
-        BrilligOpcode::JumpIfNot { .. } => "jump_if_not".to_string(),
         BrilligOpcode::Load { .. } => "load".to_string(),
         BrilligOpcode::Mov { .. } => "mov".to_string(),
         BrilligOpcode::Return => "return".to_string(),

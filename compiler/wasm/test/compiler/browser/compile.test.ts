@@ -24,6 +24,7 @@ async function getPrecompiledSource(path: string): Promise<any> {
 
 describe('noir-compiler/browser', () => {
   shouldCompileProgramIdentically(
+    'simple',
     async () => {
       const { simpleScriptExpectedArtifact } = paths;
       const fm = createFileManager('/');
@@ -42,6 +43,7 @@ describe('noir-compiler/browser', () => {
   );
 
   shouldCompileProgramIdentically(
+    'deps',
     async () => {
       const { depsScriptExpectedArtifact } = paths;
       const fm = createFileManager('/');
@@ -60,6 +62,7 @@ describe('noir-compiler/browser', () => {
   );
 
   shouldCompileContractIdentically(
+    'noir-contract',
     async () => {
       const { contractExpectedArtifact } = paths;
       const fm = createFileManager('/');

@@ -2,7 +2,7 @@
 title: Compile-time Code & Metaprogramming
 description: Learn how to use metaprogramming in Noir to create macros or derive your own traits
 keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote]
-sidebar_position: 15
+sidebar_position: 16
 ---
 
 ## Overview
@@ -103,19 +103,6 @@ fn main() {
 comptime fn get_type() -> Type { ... }
 ```
 
-Values of certain types may also change type when they are lowered. For example, a comptime format string will already be
-formatted, and thus lowers into a runtime string instead:
-
-```rust
-fn main() {
-    let foo = comptime {
-        let i = 2;
-        f"i = {i}"
-    };
-    assert_eq(foo, "i = 2");
-}
-```
-
 ---
 
 ## (Quasi) Quote
@@ -211,6 +198,30 @@ over each token of a larger quoted value with `.tokens()`:
 
 #include_code concatenate-example noir_stdlib/src/meta/mod.nr rust
 
+### $crate
+
+A common case when we have a library exporting macro code is that if you quote `foo::my_function()`, whether the
+function can resolve will depend on the imports of where the macro code is used. It isn't enough to specify the
+full path either. `crate::foo::my_function()` will not work in external crates and `my_crate_name::foo::my_function()`
+will not work if the external crate renames the dependency `my_function` was defined in.
+
+For cases like this there is `$crate` which when used in a quote will always resolve to the crate the quote is in.
+So the library author can instead quote `$crate::foo::my_function()` and have it work in all cases as long as
+`foo` and `my_function` are both publicly visible.
+
+```rust
+/// We want to access this function within the quoted code below
+/// and we want it to work in external crates.
+pub fn double(x: u64) -> u64 { x * 2 }
+
+comptime fn double_twice(code: Quoted) -> Quoted {
+    quote {
+        // `$crate` is a stand-in for the current crate
+        $crate::double($crate::double($code))
+    }
+}
+```
+
 ---
 
 ## Attributes
@@ -222,7 +233,7 @@ When you use an attribute, the function with the same name will be called with t
 #[my_struct_attribute]
 struct Foo {}
 
-comptime fn my_struct_attribute(s: StructDefinition) {
+comptime fn my_struct_attribute(s: TypeDefinition) {
     println("Called my_struct_attribute!");
 }
 
@@ -307,11 +318,11 @@ The following is an incomplete list of some `comptime` types along with some use
 - `FunctionDefinition`: A function definition
   - Methods:
     - `fn parameters(self) -> [(Quoted, Type)]`
-      - Returns a slice of `(name, type)` pairs for each parameter
-- `StructDefinition`: A struct definition
+      - Returns a vector of `(name, type)` pairs for each parameter
+- `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`
-      - Returns this `StructDefinition` as a `Type`. Any generics are kept as-is
+      - Returns this `TypeDefinition` as a `Type`. Any generics are kept as-is
     - `fn generics(self) -> [Quoted]`
       - Return the name of each generic on this struct
     - `fn fields(self) -> [(Quoted, Type)]`

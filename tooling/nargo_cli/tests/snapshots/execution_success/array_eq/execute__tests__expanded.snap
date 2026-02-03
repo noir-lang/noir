@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: [Field; 32], b: [Field; 32]) {
+    assert(a == b);
+}

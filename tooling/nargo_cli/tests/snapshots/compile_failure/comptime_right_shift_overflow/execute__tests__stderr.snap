@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to bit-shift with overflow
+  ┌─ src/main.nr:2:24
+  │
+2 │     let y = comptime { 1 >> 32 };
+  │                        -------
+  │
+
+Aborting due to 1 previous error

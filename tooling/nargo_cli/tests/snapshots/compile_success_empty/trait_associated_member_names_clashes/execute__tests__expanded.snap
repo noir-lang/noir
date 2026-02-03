@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Trait1 {
+    fn tralala() -> Field;
+}
+
+trait Trait2 {
+    fn tralala() -> Field;
+}
+
+pub struct Struct1 {}
+
+impl Struct1 {
+    fn tralala() -> Field {
+        123456_Field
+    }
+}
+
+impl Trait1 for Struct1 {
+    fn tralala() -> Field {
+        111111_Field
+    }
+}
+
+impl Trait2 for Struct1 {
+    fn tralala() -> Field {
+        222222_Field
+    }
+}
+
+fn main() {
+    assert(Struct1::tralala() == 123456_Field);
+}

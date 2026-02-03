@@ -5,6 +5,9 @@ This is the source code for the Noir documentation site at [noir-lang.org](https
 This website is built using [Docusaurus 3](https://docusaurus.io/), a modern static website
 generator.
 
+> **Note**: The docs folder is now a standalone project and no longer part of the main Noir yarn workspace.
+> This change was made to resolve conflicts with Netlify deployments.
+
 ## Contributing
 
 Interested in contributing to the docs?
@@ -13,28 +16,37 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ## Development
 
+### Prerequisites
+
+- Node.js (tested and working with v21.6.1)
+- Yarn (tested and working with v4.5.2)
+
 ### Installation
 
-This project requires recent versions of rust and cargo to be installed.
+This project requires recent versions of Rust and Cargo to be installed.
 Any build errors should indicate dependencies that need installing, and at what version.
 
-On the root folder of the repository, run:
+Navigate to the docs directory and install dependencies:
 
-```
-yarn
-yarn build
+```sh
+cd docs
+yarn install
 ```
 
 ### Local Development
 
-```
-yarn workspace docs version
+From the _docs_ directory:
+
+1. Fetch and generate the list of recent stable documentation versions to build:
+
+```sh
+yarn version::stables
 ```
 
-This command fetches and compiles the list of documentation versions to build with.
+2. Start a development server serving docs preview:
 
-```
-yarn workspace docs dev
+```sh
+yarn dev
 ```
 
 This command starts a local development server and opens up a browser window. Most changes are
@@ -42,13 +54,48 @@ reflected live without having to restart the server.
 
 ### Build
 
-```
-yarn workspace docs build
+From the _docs_ directory:
+
+1. Fetch and generate the list of recent stable documentation versions to build:
+
+```sh
+yarn version::stables
 ```
 
-This command generates static content into the `build` directory and can be served using any static
-contents hosting service. You can see a preview by running:
+2. Build the docs:
 
+```sh
+yarn build
 ```
-yarn workspace docs serve
+
+This command generates static content into the _build_ directory and can be served using any static
+contents hosting service.
+
+3. Verify build by serving a preview locally:
+
+```sh
+yarn serve
 ```
+
+## Production Testing
+
+The site will be deployed at `noir-lang.org/docs/`. Test production configuration locally:
+
+### Simple Test
+```sh
+yarn production:serve
+```
+Access at: `http://localhost:3000/docs/`
+
+## Quick Commands Reference
+
+All commands should be run from the `docs` directory:
+
+| Command | Description |
+|---------|-------------|
+| `yarn install` | Install dependencies |
+| `yarn dev` | Start development server |
+| `yarn build` | Build production site |
+| `yarn serve` | Serve built site locally |
+| `yarn version::stables` | Update stable versions list |
+| `yarn clean` | Clean build artifacts |

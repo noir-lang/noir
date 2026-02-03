@@ -3,11 +3,6 @@ fn test_vec_new_good() {
     good();
 }
 
-#[test(should_fail)]
-fn test_vec_new_bad() {
-    bad();
-}
-
 // docs:start:new_example
 fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is specified with a type annotation
@@ -17,28 +12,21 @@ fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is known from the type of `good`'s return value
     v2
 }
-
-fn bad() {
-    // Error: Type annotation needed
-    // The compiler can't infer `MaxLen` from this code.
-    let mut v3 = BoundedVec::new();
-    v3.push(5);
-}
 // docs:end:new_example
 
 #[test]
 fn test_vec_push_pop() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
-    assert(vec.len == 0);
+    assert(vec.len() == 0);
     vec.push(2);
-    assert(vec.len == 1);
+    assert(vec.len() == 1);
     vec.push(4);
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     vec.push(6);
-    assert(vec.len == 3);
+    assert(vec.len() == 3);
     let x = vec.pop();
     assert(x == 6);
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
 }
@@ -169,7 +157,7 @@ fn test_vec_extend_from_array() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
 
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
     // docs:end:bounded-vec-extend-from-array-example
@@ -199,7 +187,7 @@ fn test_vec_extend_from_array_out_of_bound() {
 fn test_vec_extend_from_array_twice_out_of_bound() {
     let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
     vec.extend_from_array([2]);
-    assert(vec.len == 1);
+    assert(vec.len() == 1);
     vec.extend_from_array([4, 6]);
 }
 
@@ -269,4 +257,3 @@ fn test_vec_any_not_default() {
     vec.extend_from_array([2, 4]);
     assert(!vec.any(|v| v == default_value));
 }
-

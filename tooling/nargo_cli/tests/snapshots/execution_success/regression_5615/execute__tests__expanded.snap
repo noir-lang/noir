@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon::poseidon2::Poseidon2Hasher;
+use std::{collections::umap::UHashMap, hash::BuildHasherDefault};
+
+unconstrained fn main() {
+    ()
+}

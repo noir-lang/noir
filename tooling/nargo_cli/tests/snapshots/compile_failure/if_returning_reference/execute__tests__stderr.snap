@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot return a reference type from an if or match expression
+  ┌─ src/main.nr:5:13
+  │
+5 │     let s = if false { s1 } else { s2 };
+  │             --------------------------- `Alias<S>`, which contains a reference type internally, returned here
+  │
+
+Aborting due to 1 previous error

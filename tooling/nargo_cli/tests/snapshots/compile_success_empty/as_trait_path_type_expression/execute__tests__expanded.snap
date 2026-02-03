@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::mem::zeroed;
+
+trait Trait {
+    let N: u32;
+}
+
+impl Trait for Field {
+    let N: u32 = 10;
+}
+
+fn main() {
+    let something: [Field; 10] = zeroed();
+    assert(something.len() == <Field as Trait>::N);
+}

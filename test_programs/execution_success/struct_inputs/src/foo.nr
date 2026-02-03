@@ -1,6 +1,6 @@
-mod bar;
+pub(crate) mod bar;
 
-struct fooStruct {
-    bar_struct: bar::barStruct,
-    baz: Field,
+pub(crate) struct fooStruct {
+    pub(crate) bar_struct: bar::barStruct,
+    pub(crate) baz: Field,
 }

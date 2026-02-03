@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    foo(|| -> bool std::runtime::is_unconstrained());
+}
+
+fn foo(is_brillig: fn() -> bool) {
+    let force_brillig: bool = std::runtime::is_unconstrained();
+    assert(!acir_function(is_brillig) | force_brillig);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(brillig_function(is_brillig));
+        assert(brillig_function2(is_brillig));
+    };
+}
+
+fn acir_function(f: fn() -> bool) -> bool {
+    f()
+}
+
+unconstrained fn brillig_function(f: fn() -> bool) -> bool {
+    f()
+}
+
+unconstrained fn brillig_function2(f: fn() -> bool) -> bool {
+    acir_function(f)
+}

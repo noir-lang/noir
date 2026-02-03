@@ -28,10 +28,27 @@ pub(crate) fn foo() {}  //foo can only be called within its crate
 ```
 
 All parameters in a function must have a type and all types are known at compile time. The parameter
-is pre-pended with a colon and the parameter type. Multiple parameters are separated using a comma.
+is prepended with a colon and the parameter type. Multiple parameters are separated using a comma.
 
 ```rust
 fn foo(x : Field, y : Field){}
+```
+
+You can use an underscore `_` as a parameter name when you don't need to use the parameter in the function body. This is useful when you need to satisfy a function signature but don't need to use all the parameters:
+
+```rust
+fn foo(_ : Field, y : Field) {
+    // Only using y parameter
+}
+```
+
+Alternatively, you can prefix a parameter name with an underscore (e.g. `_x`), which also indicates that the parameter is unused. This approach is often preferred as it preserves the parameter name for documentation purposes:
+
+```rust
+fn foo(_x : Field, y : Field) -> Field {
+    // Only using y parameter
+    y
+}
 ```
 
 The return type of a function can be stated by using the `->` arrow notation. The function below
@@ -62,7 +79,7 @@ fn main(x : [Field]) // can't compile, has variable size
 fn main(....// i think you got it by now
 ```
 
-Keep in mind [tests](../../tooling/testing.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
+Keep in mind [tests](../../tooling/tests.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
 
 ```rust
 fn main(x : [Field]) {
@@ -71,7 +88,7 @@ fn main(x : [Field]) {
 
 #[test]
 fn test_one() {
-    main(&[1, 2]);
+    main(@[1, 2]);
 }
 ```
 
@@ -184,43 +201,4 @@ See [Lambdas](./lambdas.md) for more details.
 
 Attributes are metadata that can be applied to a function, using the following syntax: `#[attribute(value)]`.
 
-Supported attributes include:
-
-- **builtin**: the function is implemented by the compiler, for efficiency purposes.
-- **deprecated**: mark the function as _deprecated_. Calling the function will generate a warning: `warning: use of deprecated function`
-- **field**: Used to enable conditional compilation of code depending on the field size. See below for more details
-- **oracle**: mark the function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./unconstrained.md) and [NoirJS](../../reference/NoirJS/noir_js/index.md) for more details.
-- **test**: mark the function as unit tests. See [Tests](../../tooling/testing.md) for more details
-
-### Field Attribute
-
-The field attribute defines which field the function is compatible for. The function is conditionally compiled, under the condition that the field attribute matches the Noir native field.
-The field can be defined implicitly, by using the name of the elliptic curve usually associated to it - for instance bn254, bls12_381 - or explicitly by using the field (prime) order, in decimal or hexadecimal form.
-As a result, it is possible to define multiple versions of a function with each version specialized for a different field attribute. This can be useful when a function requires different parameters depending on the underlying elliptic curve.
-
-Example: we define the function `foo()` three times below. Once for the default Noir bn254 curve, once for the field $\mathbb F_{23}$, which will normally never be used by Noir, and once again for the bls12_381 curve.
-
-```rust
-#[field(bn254)]
-fn foo() -> u32 {
-    1
-}
-
-#[field(23)]
-fn foo() -> u32 {
-    2
-}
-
-// This commented code would not compile as foo would be defined twice because it is the same field as bn254
-// #[field(21888242871839275222246405745257275088548364400416034343698204186575808495617)]
-// fn foo() -> u32 {
-//     2
-// }
-
-#[field(bls12_381)]
-fn foo() -> u32 {
-    3
-}
-```
-
-If the field name is not known to Noir, it will discard the function. Field names are case insensitive.
+See [Attributes](./attributes.md) for more details.

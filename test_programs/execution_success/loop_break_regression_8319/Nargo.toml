@@ -1,0 +1,6 @@
+[package]
+name = "loop_break_regression_8319"
+type = "bin"
+authors = [""]
+
+[dependencies]

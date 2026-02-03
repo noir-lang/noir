@@ -4,7 +4,7 @@ import '@nomicfoundation/hardhat-ethers';
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: '0.8.19',
+    version: '0.8.28',
     settings: {
       optimizer: {
         enabled: true,
@@ -14,6 +14,11 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 5 * 60 * 1000,
+  },
+  networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
   },
 };
 

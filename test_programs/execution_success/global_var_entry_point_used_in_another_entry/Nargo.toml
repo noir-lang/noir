@@ -1,0 +1,6 @@
+[package]
+name = "global_var_entry_point_used_in_another_entry"
+type = "bin"
+authors = [""]
+
+[dependencies]

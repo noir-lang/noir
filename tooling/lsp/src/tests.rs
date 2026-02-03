@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 
 pub(crate) fn apply_text_edit(src: &str, text_edit: &TextEdit) -> String {
     let mut lines: Vec<_> = src.lines().collect();

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use async_lsp::lsp_types::{Position, Range, TextEdit};
 use fm::{FileId, FileMap};
-use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Span;
 use noirc_frontend::ast::{PathKind, UseTree, UseTreeKind};
 
@@ -89,6 +89,7 @@ impl UseSegmentPositions {
             PathKind::Crate => Some("crate".to_string()),
             PathKind::Super => Some("super".to_string()),
             PathKind::Dep | PathKind::Plain => None,
+            PathKind::Resolved(_) => Some("$crate".to_string()),
         };
         if let Some(kind_string) = kind_string {
             if let Some(segment) = use_tree.prefix.segments.first() {
@@ -96,7 +97,7 @@ impl UseSegmentPositions {
                     kind_string,
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
-                            segment.ident.span().start()..use_tree.span.end() - 1,
+                            segment.ident.span().start()..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -111,7 +112,7 @@ impl UseSegmentPositions {
             if !prefix.is_empty() {
                 prefix.push_str("::");
             };
-            prefix.push_str(&ident.0.contents);
+            prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
                 self.insert_use_segment_position(
@@ -119,7 +120,7 @@ impl UseSegmentPositions {
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
                             use_tree.prefix.segments[index + 1].ident.span().start()
-                                ..use_tree.span.end() - 1,
+                                ..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -133,7 +134,7 @@ impl UseSegmentPositions {
                 if !prefix.is_empty() {
                     prefix.push_str("::");
                 }
-                prefix.push_str(&ident.0.contents);
+                prefix.push_str(ident.as_str());
 
                 if alias.is_none() {
                     self.insert_use_segment_position(
@@ -163,7 +164,7 @@ impl UseSegmentPositions {
                     prefix,
                     UseSegmentPosition::BeforeSegment {
                         segment_span_until_end: Span::from(
-                            ident.span().start()..use_tree.span.end() - 1,
+                            ident.span().start()..use_tree.location.span.end() - 1,
                         ),
                     },
                 );
@@ -182,7 +183,7 @@ impl UseSegmentPositions {
                         prefix,
                         UseSegmentPosition::BeforeList {
                             first_entry_span: Span::from(
-                                use_tree.span.end() - 1..use_tree.span.end() - 1,
+                                use_tree.location.span.end() - 1..use_tree.location.span.end() - 1,
                             ),
                             list_is_empty: true,
                         },
@@ -246,7 +247,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             if let Some(lsp_location) = to_lsp_location(request.files, request.file, span) {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: format!("::{{self, {}}}", name),
+                    new_text: format!("::{{self, {name}}}"),
                     range: Range { start: range.end, end: range.end },
                 }]
             } else {
@@ -281,7 +282,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
                         range: Range { start: range.start, end: range.start },
                     },
                     TextEdit {
-                        new_text: format!(", {}}}", name),
+                        new_text: format!(", {name}}}"),
                         range: Range { start: range.end, end: range.end },
                     },
                 ]
@@ -307,7 +308,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: if list_is_empty { name } else { format!("{}, ", name) },
+                    new_text: if list_is_empty { name } else { format!("{name}, ") },
                     range: Range { start: range.start, end: range.start },
                 }]
             } else {

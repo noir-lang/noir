@@ -1,0 +1,6 @@
+[package]
+name = "assign_mutation_in_lvalue"
+type = "bin"
+authors = [""]
+
+[dependencies]

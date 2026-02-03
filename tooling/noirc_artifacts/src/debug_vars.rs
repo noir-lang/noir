@@ -1,10 +1,8 @@
 use acvm::AcirField;
-use noirc_abi::decode_printable_value;
-use noirc_errors::debug_info::{
-    DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
-};
-use noirc_printable_type::{PrintableType, PrintableValue};
+use noirc_printable_type::{PrintableType, PrintableValue, decode_printable_value};
 use std::collections::HashMap;
+
+use crate::debug::{DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable};
 
 #[derive(Debug, Default, Clone)]
 pub struct DebugVars<F> {
@@ -37,8 +35,8 @@ impl<F: AcirField> DebugVars<F> {
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
         self.variables.get(&var_id).and_then(|debug_var| {
-            let ptype = self.types.get(&debug_var.debug_type_id)?;
-            Some((debug_var.name.as_str(), ptype))
+            let printable_type = self.types.get(&debug_var.debug_type_id)?;
+            Some((debug_var.name.as_str(), printable_type))
         })
     }
 
@@ -67,13 +65,13 @@ impl<F: AcirField> DebugVars<F> {
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[F]) {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
-        let ptype = self.types.get(type_id).unwrap();
+        let printable_type = self.types.get(type_id).unwrap();
 
         self.frames
             .last_mut()
             .expect("unexpected empty stack frames")
             .1
-            .insert(var_id, decode_printable_value(&mut values.iter().copied(), ptype));
+            .insert(var_id, decode_printable_value(&mut values.iter().copied(), printable_type));
     }
 
     pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[F]) {
@@ -93,10 +91,10 @@ impl<F: AcirField> DebugVars<F> {
         for index in indexes.iter() {
             (cursor, cursor_type) = match (cursor, cursor_type) {
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableValue::Vec { array_elements, is_vector },
                     PrintableType::Array { length, typ },
                 ) => {
-                    assert!(!*is_slice, "slice has array type");
+                    assert!(!*is_vector, "vector has array type");
                     if *index >= *length {
                         panic!("unexpected field index past array length")
                     }
@@ -106,10 +104,10 @@ impl<F: AcirField> DebugVars<F> {
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
-                    PrintableType::Slice { typ },
+                    PrintableValue::Vec { array_elements, is_vector },
+                    PrintableType::Vector { typ },
                 ) => {
-                    assert!(*is_slice, "slice doesn't have slice type");
+                    assert!(*is_vector, "vector doesn't have vector type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
                 (
@@ -123,10 +121,10 @@ impl<F: AcirField> DebugVars<F> {
                     (field_map.get_mut(key).unwrap(), typ)
                 }
                 (
-                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableValue::Vec { array_elements, is_vector },
                     PrintableType::Tuple { types },
                 ) => {
-                    assert!(!*is_slice, "slice has tuple type");
+                    assert!(!*is_vector, "vector has tuple type");
                     if *index >= types.len() as u32 {
                         panic!(
                             "unexpected field index ({index}) past tuple length ({})",

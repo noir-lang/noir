@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+type Foo<T> = [T; 2];
+
+type Bar = Field;
+
+type One<A, B> = (A, B);
+
+type Two<A> = One<A, u32>;
+
+type Three = Two<u8>;
+
+struct MyStruct {
+    foo: Bar,
+}
+
+fn main(x: [Field; 2]) {
+    let a: Foo<Field> = [1_Field, 2_Field];
+    assert(a[0_u32] != x[0_u32]);
+    let b: Bar = 2_Field;
+    assert(x[0_u32] == b);
+    let c: u8 = 1_u8;
+    let d: u32 = 2_u32;
+    let e: Three = (c, d);
+    assert(e.0 == 1_u8);
+    let s: MyStruct = MyStruct { foo: 10_Field };
+    assert(s.foo == 10_Field);
+    let _regression2502: Regression2502Alias = Regression2502 {};
+}
+
+type Regression2502Alias = Regression2502;
+
+struct Regression2502 {}

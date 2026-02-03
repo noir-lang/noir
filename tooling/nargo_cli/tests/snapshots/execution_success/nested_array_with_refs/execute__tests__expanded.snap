@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub bool {
+    let a: [[&mut bool; 1]; 2] = [[&mut false], [&mut true]];
+    if *a[if *a[1_u32][0_u32] { 0_u32 } else { 1_u32 }][0_u32] {
+        true
+    } else {
+        false
+    }
+}

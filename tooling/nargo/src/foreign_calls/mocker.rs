@@ -1,9 +1,9 @@
 use acvm::{
+    AcirField,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
-    AcirField,
 };
-use noirc_abi::decode_string_value;
+use noirc_printable_type::decode_string_value;
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
@@ -22,6 +22,8 @@ struct MockedCall<F> {
     result: ForeignCallResult<F>,
     /// How many times should this mock be called before it is removed
     times_left: Option<u64>,
+    /// How many times this mock was actually called
+    times_called: u32,
 }
 
 impl<F> MockedCall<F> {
@@ -33,6 +35,7 @@ impl<F> MockedCall<F> {
             last_called_params: None,
             result: ForeignCallResult { values: vec![] },
             times_left: None,
+            times_called: 0,
         }
     }
 }
@@ -99,7 +102,7 @@ where
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.find_mock_by_id_mut(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .unwrap_or_else(|| panic!("Unknown mock id {id}"))
                     .params = Some(params.to_vec());
 
                 Ok(ForeignCallResult::default())
@@ -107,7 +110,7 @@ where
             Some(ForeignCall::GetMockLastParams) => {
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 let mock =
-                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {}", id));
+                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {id}"));
 
                 let last_called_params = mock
                     .last_called_params
@@ -119,7 +122,7 @@ where
             Some(ForeignCall::SetMockReturns) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.find_mock_by_id_mut(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .unwrap_or_else(|| panic!("Unknown mock id {id}"))
                     .result = ForeignCallResult { values: params.to_vec() };
 
                 Ok(ForeignCallResult::default())
@@ -130,7 +133,7 @@ where
                     params[0].unwrap_field().try_to_u64().expect("Invalid bit size of times");
 
                 self.find_mock_by_id_mut(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id))
+                    .unwrap_or_else(|| panic!("Unknown mock id {id}"))
                     .times_left = Some(times);
 
                 Ok(ForeignCallResult::default())
@@ -139,6 +142,13 @@ where
                 let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
                 self.mocked_responses.retain(|response| response.id != id);
                 Ok(ForeignCallResult::default())
+            }
+            Some(ForeignCall::GetTimesCalled) => {
+                let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
+                let mock =
+                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {id}"));
+                let times_called = mock.times_called;
+                Ok(ForeignCallResult::from(F::from(times_called)))
             }
             _ => {
                 let mock_response_position = self
@@ -158,6 +168,9 @@ where
                     mock.last_called_params = Some(foreign_call.inputs.clone());
 
                     let result = mock.result.values.clone();
+
+                    // Update the total number of calls to the mock
+                    mock.times_called += 1;
 
                     if let Some(times_left) = &mut mock.times_left {
                         *times_left -= 1;

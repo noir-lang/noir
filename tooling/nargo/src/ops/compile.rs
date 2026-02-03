@@ -1,60 +1,13 @@
 use fm::FileManager;
-use noirc_driver::{
-    link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
-};
+use noirc_artifacts::contract::CompiledContract;
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompilationResult, CompileOptions, CrateId, check_crate, link_to_debug_crate};
 use noirc_frontend::debug::DebugInstrumenter;
-use noirc_frontend::hir::ParsedFiles;
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CompileError;
 use crate::prepare_package;
 use crate::{package::Package, workspace::Workspace};
-
-use rayon::prelude::*;
-
-/// Compiles workspace.
-///
-/// # Errors
-///
-/// This function will return an error if there are any compilations errors reported.
-pub fn compile_workspace(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    workspace: &Workspace,
-    compile_options: &CompileOptions,
-) -> CompilationResult<(Vec<CompiledProgram>, Vec<CompiledContract>)> {
-    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .into_iter()
-        .filter(|package| !package.is_library())
-        .cloned()
-        .partition(|package| package.is_binary());
-
-    // Compile all of the packages in parallel.
-    let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
-        .par_iter()
-        .map(|package| {
-            compile_program(file_manager, parsed_files, workspace, package, compile_options, None)
-        })
-        .collect();
-    let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
-        .par_iter()
-        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
-        .collect();
-
-    // Collate any warnings/errors which were encountered during compilation.
-    let compiled_programs = collect_errors(program_results);
-    let compiled_contracts = collect_errors(contract_results);
-
-    match (compiled_programs, compiled_contracts) {
-        (Ok((programs, program_warnings)), Ok((contracts, contract_warnings))) => {
-            let warnings = [program_warnings, contract_warnings].concat();
-            Ok(((programs, contracts), warnings))
-        }
-        (Err(program_errors), Err(contract_errors)) => {
-            Err([program_errors, contract_errors].concat())
-        }
-        (Err(errors), _) | (_, Err(errors)) => Err(errors),
-    }
-}
 
 pub fn compile_program(
     file_manager: &FileManager,
@@ -86,6 +39,7 @@ pub fn compile_program_with_debug_instrumenter(
     debug_instrumenter: DebugInstrumenter,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;
     context.package_build_path = workspace.package_build_path(package);
@@ -120,11 +74,7 @@ pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResul
         }
     }
 
-    if errors.is_empty() {
-        Ok((artifacts, warnings))
-    } else {
-        Err(errors)
-    }
+    if errors.is_empty() { Ok((artifacts, warnings)) } else { Err(errors) }
 }
 
 pub fn report_errors<T>(
@@ -150,4 +100,15 @@ pub fn report_errors<T>(
     );
 
     Ok(t)
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, options);
+    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }

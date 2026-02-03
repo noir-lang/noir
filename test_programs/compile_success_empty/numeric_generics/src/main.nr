@@ -27,7 +27,7 @@ impl<let S: u32> MyStruct<S> {
         // Regression test for numeric generics on impls
         assert(index as u64 < S as u64);
 
-        self.data[index] = elem;
+        self.data[index as u32] = elem;
         self
     }
 }

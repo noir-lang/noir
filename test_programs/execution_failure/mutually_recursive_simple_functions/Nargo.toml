@@ -1,0 +1,6 @@
+[package]
+name = "mutually_recursive_simple_functions"
+type = "bin"
+authors = [""]
+
+[dependencies]

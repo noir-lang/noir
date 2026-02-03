@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: pub Field) {
+    let z: Field = foo(x, y);
+    let z2: Field = foo(x, y);
+    let z3: Field = foo(x, y);
+    assert(z == z2);
+    assert(z2 == z3);
+}
+
+#[fold]
+fn foo(x: Field, y: Field) -> Field {
+    assert(x != y);
+    x
+}

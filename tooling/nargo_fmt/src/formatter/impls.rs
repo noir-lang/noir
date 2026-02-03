@@ -2,7 +2,7 @@ use noirc_frontend::{ast::TypeImpl, token::Keyword};
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_impl(&mut self, type_impl: TypeImpl) {
         let has_where_clause = !type_impl.where_clause.is_empty();
 

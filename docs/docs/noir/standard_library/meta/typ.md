@@ -1,5 +1,6 @@
 ---
 title: Type
+description: Represent and analyze types at compile time—query structure, check trait bounds, and resolve trait impls.
 ---
 
 `std::meta::typ` contains methods on the built-in `Type` type used for representing
@@ -69,11 +70,11 @@ if the type is signed, as well as the number of bits of this integer type.
 
 If this is a mutable reference type `&mut T`, returns the mutable type `T`.
 
-### as_slice
+### as_vector
 
-#include_code as_slice noir_stdlib/src/meta/typ.nr rust
+#include_code as_vector noir_stdlib/src/meta/typ.nr rust
 
-If this is a slice type, return the element type of the slice.
+If this is a vector type, return the element type of the vector.
 
 ### as_str
 
@@ -81,9 +82,9 @@ If this is a slice type, return the element type of the slice.
 
 If this is a `str<N>` type, returns the length `N` as a type.
 
-### as_struct
+### as_data_type
 
-#include_code as_struct noir_stdlib/src/meta/typ.nr rust
+#include_code as_data_type noir_stdlib/src/meta/typ.nr rust
 
 If this is a struct type, returns the struct in addition to
 any generic arguments on this type.

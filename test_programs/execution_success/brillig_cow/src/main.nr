@@ -15,7 +15,7 @@ impl ExecutionResult {
     }
 }
 
-fn modify_in_inlined_constrained(original: [Field; ARRAY_SIZE], index: u64) -> ExecutionResult {
+fn modify_in_inlined_constrained(original: [Field; ARRAY_SIZE], index: u32) -> ExecutionResult {
     let mut modified = original;
 
     modified[index] = 27;
@@ -29,7 +29,7 @@ fn modify_in_inlined_constrained(original: [Field; ARRAY_SIZE], index: u64) -> E
 
 unconstrained fn modify_in_unconstrained(
     original: [Field; ARRAY_SIZE],
-    index: u64,
+    index: u32,
 ) -> ExecutionResult {
     let mut modified = original;
 
@@ -42,7 +42,7 @@ unconstrained fn modify_in_unconstrained(
     ExecutionResult { original, modified_once, modified_twice: modified }
 }
 
-unconstrained fn main(original: [Field; ARRAY_SIZE], index: u64, expected_result: ExecutionResult) {
+unconstrained fn main(original: [Field; ARRAY_SIZE], index: u32, expected_result: ExecutionResult) {
     assert(expected_result.is_equal(modify_in_unconstrained(original, index)));
     assert(expected_result.is_equal(modify_in_inlined_constrained(original, index)));
 }

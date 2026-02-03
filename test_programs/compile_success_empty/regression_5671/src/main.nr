@@ -4,7 +4,7 @@ struct MyOtherStruct<A, B> {
     field2: B,
 }
 
-comptime fn foo(_s: StructDefinition) -> Quoted {
+comptime fn foo(_s: TypeDefinition) -> Quoted {
     quote {
         impl<A, B> Eq for MyOtherStruct<A, B> where A: Eq, B: Eq {
             fn eq(self, other: Self) -> bool {

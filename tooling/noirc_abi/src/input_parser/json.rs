@@ -1,14 +1,14 @@
 use super::{
-    field_to_signed_hex, parse_integer_to_signed, parse_str_to_field, parse_str_to_signed,
-    InputValue,
+    InputValue, field_to_signed_hex, parse_integer_to_signed, parse_str_to_field,
+    parse_str_to_signed,
 };
-use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
+use crate::{Abi, AbiType, MAIN_RETURN_NAME, errors::InputParserError};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub(crate) fn parse_json(
+pub fn parse_json(
     input_string: &str,
     abi: &Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
@@ -42,7 +42,7 @@ pub(crate) fn parse_json(
     Ok(parsed_inputs)
 }
 
-pub(crate) fn serialize_to_json(
+pub fn serialize_to_json(
     input_map: &BTreeMap<String, InputValue>,
     abi: &Abi,
 ) -> Result<String, InputParserError> {
@@ -120,7 +120,12 @@ impl JsonTypes {
                 JsonTypes::Array(fields)
             }
 
-            _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
+            _ => {
+                return Err(InputParserError::AbiTypeMismatch(
+                    format!("{value:?}"),
+                    abi_type.clone(),
+                ));
+            }
         };
         Ok(json_value)
     }
@@ -161,7 +166,7 @@ impl InputValue {
                 JsonTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let new_value = parse_integer_to_signed(integer as i128, *width, arg_name)?;
+                let new_value = parse_integer_to_signed(i128::from(integer), *width, arg_name)?;
                 InputValue::Field(new_value)
             }
 
@@ -212,7 +217,12 @@ impl InputValue {
                 InputValue::Vec(tuple_fields)
             }
 
-            (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+            (value, _) => {
+                return Err(InputParserError::AbiTypeMismatch(
+                    format!("{value:?}"),
+                    param_type.clone(),
+                ));
+            }
         };
 
         Ok(input_value)
@@ -220,14 +230,14 @@ impl InputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::FieldElement;
     use proptest::prelude::*;
 
     use crate::{
-        arbitrary::arb_abi_and_input_map,
-        input_parser::{arbitrary::arb_signed_integer_type_and_value, json::JsonTypes, InputValue},
         AbiType,
+        arbitrary::arb_abi_and_input_map,
+        input_parser::{InputValue, arbitrary::arb_signed_integer_type_and_value, json::JsonTypes},
     };
 
     use super::{parse_json, serialize_to_json};

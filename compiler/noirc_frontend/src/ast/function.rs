@@ -1,10 +1,11 @@
 use std::fmt::Display;
 
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
-    ast::{FunctionReturnType, Ident, Param, Visibility},
-    token::{Attributes, FunctionAttribute, SecondaryAttribute},
+    ast::{FunctionReturnType, Ident, Param},
+    hir::def_map::MAIN_FUNCTION,
+    token::{Attributes, FunctionAttributeKind, SecondaryAttribute},
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -49,28 +50,17 @@ impl NoirFunction {
     pub fn normal(def: FunctionDefinition) -> NoirFunction {
         NoirFunction { kind: FunctionKind::Normal, def }
     }
-    pub fn builtin(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::Builtin, def }
-    }
-    pub fn low_level(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::LowLevel, def }
-    }
-    pub fn oracle(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::Oracle, def }
-    }
-
-    pub fn return_visibility(&self) -> Visibility {
-        self.def.return_visibility
-    }
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
-            FunctionReturnType::Default(span) => UnresolvedTypeData::Unit.with_span(*span),
+            FunctionReturnType::Default(location) => {
+                UnresolvedTypeData::Unit.with_location(*location)
+            }
             FunctionReturnType::Ty(ty) => ty.clone(),
         }
     }
     pub fn name(&self) -> &str {
-        &self.name_ident().0.contents
+        self.name_ident().as_str()
     }
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
@@ -81,46 +71,45 @@ impl NoirFunction {
     pub fn attributes(&self) -> &Attributes {
         &self.def.attributes
     }
-    pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
-        self.def.attributes.function()
-    }
     pub fn secondary_attributes(&self) -> &[SecondaryAttribute] {
         self.def.attributes.secondary.as_ref()
     }
-    pub fn def(&self) -> &FunctionDefinition {
-        &self.def
+    pub fn location(&self) -> Location {
+        self.def.location
     }
-    pub fn def_mut(&mut self) -> &mut FunctionDefinition {
-        &mut self.def
+    /// Both the `#[fold]` and `#[no_predicates]` alter a function's inline type and code generation in similar ways.
+    /// In certain cases such as type checking (for which the following flag will be used) both attributes
+    /// indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+    pub(crate) fn has_inline_attribute(&self) -> bool {
+        let attributes = self.attributes();
+        attributes.is_no_predicates() || attributes.is_foldable()
     }
-    pub fn number_of_statements(&self) -> usize {
-        self.def.body.statements.len()
-    }
-    pub fn span(&self) -> Span {
-        self.def.span
-    }
-
-    pub fn foreign(&self) -> Option<&FunctionDefinition> {
-        match &self.kind {
-            FunctionKind::LowLevel => {}
-            _ => return None,
+    pub(crate) fn is_entry_point(&self, in_contract: bool, is_crate_root: bool) -> bool {
+        if in_contract {
+            self.attributes().is_contract_entry_point()
+        } else {
+            is_crate_root && self.name() == MAIN_FUNCTION
         }
-        assert!(self.function_attribute().unwrap().is_foreign());
-        Some(&self.def)
+    }
+    pub(crate) fn is_test_or_fuzz(&self) -> bool {
+        let attributes = self.attributes();
+        attributes.is_test_function() || attributes.is_fuzzing_harness()
     }
 }
 
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
         // The function type is determined by the existence of a function attribute
-        let kind = match fd.attributes.function() {
-            Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
-            Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
-            Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(FunctionAttribute::Fold) => FunctionKind::Normal,
-            Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
-            Some(FunctionAttribute::InlineAlways) => FunctionKind::Normal,
+        let kind = match fd.attributes.function().map(|attr| &attr.kind) {
+            Some(FunctionAttributeKind::Builtin(_)) => FunctionKind::Builtin,
+            Some(FunctionAttributeKind::Foreign(_)) => FunctionKind::LowLevel,
+            Some(FunctionAttributeKind::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::FuzzingHarness { .. }) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::Oracle(_)) => FunctionKind::Oracle,
+            Some(FunctionAttributeKind::Fold) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::NoPredicates) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::InlineAlways) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::InlineNever) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

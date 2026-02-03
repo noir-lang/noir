@@ -1,0 +1,75 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon::poseidon2::Poseidon2Hasher;
+use std::hash::Hasher;
+
+fn main(x: Field, y: pub Field) {
+    let mut a_mut_ref: AType = AType { x: x };
+    pass_trait_by_value(a_mut_ref, y);
+    assert(a_mut_ref.x == x);
+    pass_trait_by_value_impl_param(a_mut_ref, y);
+    assert(a_mut_ref.x == x);
+    pass_trait_by_mut_ref(&mut a_mut_ref, y);
+    assert(a_mut_ref.x == y);
+    let mut hasher: Poseidon2Hasher = Poseidon2Hasher::default();
+    hasher.write(x);
+    hasher.write(y);
+    let expected_hash: Field = hasher.finish();
+    assert(hash_simple_array::<Poseidon2Hasher>([x, y]) == expected_hash);
+}
+
+trait SomeTrait {
+    fn set_value(&mut self, new_value: Field);
+
+    fn get_value(self) -> Field;
+}
+
+struct AType {
+    x: Field,
+}
+
+impl SomeTrait for AType {
+    fn set_value(&mut self, new_value: Field) {
+        self.x = new_value;
+    }
+
+    fn get_value(self) -> Field {
+        self.x
+    }
+}
+
+fn pass_trait_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field)
+where
+    impl SomeTrait: SomeTrait,
+{
+    a_mut_ref.set_value(value);
+    assert(a_mut_ref.get_value() == value);
+}
+
+fn pass_trait_by_value<T>(mut a_mut_ref: T, value: Field)
+where
+    T: SomeTrait,
+{
+    a_mut_ref.set_value(value);
+    assert(a_mut_ref.get_value() == value);
+}
+
+fn pass_trait_by_mut_ref<T>(a_mut_ref: &mut T, value: Field)
+where
+    T: SomeTrait,
+{
+    a_mut_ref.set_value(value);
+}
+
+fn hash_simple_array<H>(input: [Field; 2]) -> Field
+where
+    H: Hasher,
+    H: Default,
+{
+    let mut hasher: H = H::default();
+    hasher.write(input[0_u32]);
+    hasher.write(input[1_u32]);
+    hasher.finish()
+}

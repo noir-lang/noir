@@ -1,19 +1,20 @@
 use std::collections::HashMap;
 
-use lsp_types::TextEdit;
-use noirc_errors::Span;
+use async_lsp::lsp_types::TextEdit;
+use fm::FileId;
+use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    ParsedModule,
     ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
     parser::{Item, ItemKind},
     usage_tracker::UnusedItem,
-    ParsedModule,
 };
 
 use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn remove_unused_import(
         &mut self,
         use_tree: &UseTree,
@@ -80,11 +81,7 @@ fn use_tree_without_unused_import(
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            if unused_items.contains_key(ident) {
-                (None, 1)
-            } else {
-                (Some(use_tree.clone()), 0)
-            }
+            if unused_items.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
         }
         UseTreeKind::List(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();
@@ -106,12 +103,12 @@ fn use_tree_without_unused_import(
                 let mut prefix = use_tree.prefix.clone();
                 prefix.segments.extend(new_use_tree.prefix.segments);
 
-                Some(UseTree { prefix, kind: new_use_tree.kind, span: use_tree.span })
+                Some(UseTree { prefix, kind: new_use_tree.kind, location: use_tree.location })
             } else {
                 Some(UseTree {
                     prefix: use_tree.prefix.clone(),
                     kind: UseTreeKind::List(new_use_trees),
-                    span: use_tree.span,
+                    location: use_tree.location,
                 })
             };
 
@@ -130,7 +127,7 @@ fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: us
     let parsed_module = ParsedModule {
         items: vec![Item {
             kind: ItemKind::Import(use_tree, visibility),
-            span: Span::from(0..source.len() as u32),
+            location: Location::new(Span::from(0..source.len() as u32), FileId::dummy()),
             doc_comments: Vec::new(),
         }],
         inner_doc_comments: Vec::new(),
@@ -145,7 +142,7 @@ fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: us
     let string = if nesting > 0 && string.contains('\n') {
         // If the import is nested in a module, we just formatted it without indents so we need to add them.
         let indent = " ".repeat(nesting * 4);
-        string.lines().map(|line| format!("{}{}", indent, line)).collect::<Vec<_>>().join("\n")
+        string.lines().map(|line| format!("{indent}{line}")).collect::<Vec<_>>().join("\n")
     } else {
         string
     };

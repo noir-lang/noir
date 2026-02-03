@@ -8,7 +8,7 @@ use crate::config::ImportsGranularity;
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_items(&mut self, mut items: Vec<Item>, mut ignore_next: bool) {
         // Reverse the items because we'll be processing them one by one, and it's a bit
         // more efficient to pop than to shift.
@@ -50,7 +50,7 @@ impl<'a> Formatter<'a> {
         ignore_next |= self.ignore_next;
 
         if ignore_next {
-            self.write_and_skip_span_without_formatting(item.span);
+            self.write_and_skip_span_without_formatting(item.location.span);
             return;
         }
 
@@ -98,7 +98,7 @@ impl<'a> Formatter<'a> {
         let mut imports = Vec::new();
 
         let item = items.last()?;
-        if self.span_has_comments(item.span) {
+        if self.span_has_comments(item.location.span) {
             return None;
         }
 
@@ -112,16 +112,17 @@ impl<'a> Formatter<'a> {
         };
 
         imports.push(use_tree);
-        let mut span_end = item.span.end();
+        let mut span_end = item.location.span.end();
 
         while let Some(item) = items.last() {
-            if self.span_is_import_group_separator(Span::from(span_end..item.span.start())) {
+            if self.span_is_import_group_separator(Span::from(span_end..item.location.span.start()))
+            {
                 break;
             }
 
             let next_item_start = if items.len() > 1 {
                 if let Some(next_item) = items.get(items.len() - 2) {
-                    next_item.span.start()
+                    next_item.location.span.start()
                 } else {
                     self.source.len() as u32
                 }
@@ -129,8 +130,9 @@ impl<'a> Formatter<'a> {
                 self.source.len() as u32
             };
 
-            if self.span_starts_with_trailing_comment(Span::from(item.span.end()..next_item_start))
-            {
+            if self.span_starts_with_trailing_comment(Span::from(
+                item.location.span.end()..next_item_start,
+            )) {
                 break;
             }
 
@@ -147,27 +149,27 @@ impl<'a> Formatter<'a> {
                 panic!("Expected import, got {:?}", item.kind);
             };
             imports.push(use_tree);
-            span_end = item.span.end();
+            span_end = item.location.span.end();
         }
 
         Some(ImportGroup { imports, visibility, span_end })
     }
 
     fn span_has_comments(&self, span: Span) -> bool {
-        let slice = &self.source[span.start() as usize..span.end() as usize];
-        slice.contains("/*") || slice.contains("//")
+        let vector = &self.source[span.start() as usize..span.end() as usize];
+        vector.contains("/*") || vector.contains("//")
     }
 
     fn span_starts_with_trailing_comment(&self, span: Span) -> bool {
-        let slice = &self.source[span.start() as usize..span.end() as usize];
-        slice.trim_start_matches(' ').starts_with("//")
+        let vector = &self.source[span.start() as usize..span.end() as usize];
+        vector.trim_start_matches(' ').starts_with("//")
     }
 
     /// Returns true if there at most one newline in the given span and it contains no comments.
     fn span_is_import_group_separator(&self, span: Span) -> bool {
-        let slice = &self.source[span.start() as usize..span.end() as usize];
-        let number_of_newlines = slice.chars().filter(|char| *char == '\n').count();
-        number_of_newlines > 1 || slice.contains("//") || slice.contains("/*")
+        let vector = &self.source[span.start() as usize..span.end() as usize];
+        let number_of_newlines = vector.chars().filter(|char| *char == '\n').count();
+        number_of_newlines > 1 || vector.contains("//") || vector.contains("/*")
     }
 }
 
@@ -176,4 +178,29 @@ struct ImportGroup {
     imports: Vec<UseTree>,
     visibility: ItemVisibility,
     span_end: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::assert_format;
+
+    #[test]
+    fn formats_item_with_mixed_attributes_and_doc_comments() {
+        let src = "
+        /// One
+        #[one]
+        /// Two
+        #[two]
+        /// Three
+        fn  foo( ) { }
+        ";
+        let expected = "/// One
+#[one]
+/// Two
+#[two]
+/// Three
+fn foo() {}
+";
+        assert_format(src, expected);
+    }
 }

@@ -4,4 +4,3 @@ fn main(x: Field, y: Field, expected_hash: Field) {
     assert_eq(hash, expected_hash);
 }
 // docs:end:pedersen-hash
-

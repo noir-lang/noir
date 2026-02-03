@@ -1,10 +1,10 @@
 use buffer::Buffer;
 use noirc_frontend::{
+    ParsedModule,
     ast::Ident,
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
-    ParsedModule,
 };
 
 use crate::Config;
@@ -71,16 +71,19 @@ pub(crate) struct Formatter<'a> {
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     pub(crate) max_width: usize,
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: Buffer,
+
+    /// Is the formatter inside a chunk?
+    pub(crate) in_chunk: bool,
 }
 
 impl<'a> Formatter<'a> {
     pub(crate) fn new(source: &'a str, config: &'a Config) -> Self {
-        let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
+        let lexer = Lexer::new_with_dummy_file(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
             source,
@@ -94,6 +97,7 @@ impl<'a> Formatter<'a> {
             group_tag_counter: 0,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: false,
         };
         formatter.bump();
         formatter
@@ -107,6 +111,7 @@ impl<'a> Formatter<'a> {
         );
 
         self.format_parsed_module(parsed_module, self.ignore_next);
+        self.buffer.trim_multiple_newlines();
     }
 
     pub(crate) fn format_parsed_module(&mut self, parsed_module: ParsedModule, ignore_next: bool) {
@@ -124,7 +129,7 @@ impl<'a> Formatter<'a> {
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
         };
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -134,7 +139,7 @@ impl<'a> Formatter<'a> {
         if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
             panic!("Expected identifier or integer, got {:?}", self.token);
         }
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -206,13 +211,6 @@ impl<'a> Formatter<'a> {
         self.bump();
     }
 
-    /// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    pub(crate) fn write_current_token_trimming_end(&mut self) {
-        self.write(self.token.to_string().trim_end());
-    }
-
     /// Writes the current token but without turning it into a string using `to_string()`.
     /// Instead, we check the token's span and format what's in the original source there
     /// (useful when formatting integer tokens, because a token like 0xFF ends up being an
@@ -224,6 +222,13 @@ impl<'a> Formatter<'a> {
     /// Writes whatever is in the given span relative to the file's source that's being formatted.
     pub(crate) fn write_source_span(&mut self, span: Span) {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
+    }
+
+    /// Writes whatever is in the given span relative to the file's source that's being formatted
+    /// but trims the whitespaces at the end.
+    pub(crate) fn write_source_span_trimmed(&mut self, span: Span) {
+        let source = self.source[span.start() as usize..span.end() as usize].trim_end();
+        self.write(source);
     }
 
     /// Writes the current indentation to the buffer, but only if the buffer
@@ -295,7 +300,7 @@ impl<'a> Formatter<'a> {
         self.ignore_next = false;
 
         let next_token = self.read_token_internal();
-        self.token_span = next_token.to_span();
+        self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
 
@@ -303,8 +308,8 @@ impl<'a> Formatter<'a> {
         let token = self.lexer.next();
         if let Some(token) = token {
             match token {
-                Ok(token) => token,
-                Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
+                Ok(token) => token.into_spanned_token(),
+                Err(err) => panic!("Expected lexer not to error, but got: {err:?}"),
             }
         } else {
             SpannedToken::new(Token::EOF, Default::default())

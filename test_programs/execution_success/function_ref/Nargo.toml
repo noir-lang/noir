@@ -1,0 +1,6 @@
+[package]
+name = "function_ref"
+type = "bin"
+authors = [""]
+
+[dependencies]

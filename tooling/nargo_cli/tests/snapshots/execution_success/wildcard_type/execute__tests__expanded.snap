@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct bar {
+    enable: [bool; 4],
+    data: [Field; 2],
+    pad: u32,
+}
+
+fn main(enable: [Field; 2]) -> pub [Field; 4] {
+    let mut result: [Field; 4] = [0_Field; 4];
+    let a: [bar; 4] = foo(enable[1_u32]);
+    for i in 0_u32..4_u32 {
+        result[i] = a[i].data[i % 2_u32];
+    }
+    result
+}
+
+fn foo(x: Field) -> [bar; 4] {
+    [
+        bar { enable: [true, true, false, false], data: [x, x + 1_Field], pad: 0_u32 },
+        bar { enable: [true, false, false, false], data: [x + 2_Field, x + 7_Field], pad: 0_u32 },
+        bar { enable: [true, true, false, true], data: [x + 3_Field, x + 5_Field], pad: 0_u32 },
+        bar { enable: [false, false, false, false], data: [x + 4_Field, x - 1_Field], pad: 0_u32 },
+    ]
+}

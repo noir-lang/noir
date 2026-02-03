@@ -1,31 +1,10 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct Index(usize);
-
-impl Index {
-    #[cfg(test)]
-    pub fn test_new(index: usize) -> Index {
-        Self(index)
-    }
-
-    /// Return a dummy index (max value internally).
-    /// This should be avoided over `Option<Index>` if possible.
-    pub fn dummy() -> Self {
-        Self(usize::MAX)
-    }
-
-    /// Return the zeroed index. This is unsafe since we don't know
-    /// if this is a valid index for any particular map yet.
-    pub fn unsafe_zeroed() -> Self {
-        Self(0)
-    }
-}
 
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

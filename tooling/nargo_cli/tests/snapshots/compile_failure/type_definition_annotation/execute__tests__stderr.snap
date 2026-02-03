@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: struct `Foo` is never constructed
+  ┌─ src/main.nr:2:8
+  │
+2 │ struct Foo { x: Field }
+  │        --- struct is never constructed
+  │
+
+error: Assertion failed
+  ┌─ src/main.nr:5:12
+  │
+5 │     assert(false);
+  │            -----
+  │
+  = Call stack:
+    1. src/main.nr:1:1
+
+Aborting due to 1 previous error

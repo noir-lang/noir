@@ -1,4 +1,6 @@
-use std::field::bn254::{TWO_POW_128, assert_gt};
+use std::field::bn254::assert_gt;
+
+pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
 #[test(should_fail)]
 fn test_assert_gt_should_fail_eq() {

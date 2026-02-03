@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(input: [(Field, [u32; 3]); 2], b: bool, i1: u32, i2: u32) -> pub u32 {
+    if b {
+        let c: u16 = input[i1].1[0_u32] as u16;
+        c as u32
+    } else {
+        input[i2].1[2_u32]
+    }
+}

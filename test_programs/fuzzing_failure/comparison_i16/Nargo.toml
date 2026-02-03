@@ -1,0 +1,3 @@
+[package]
+name = "comparison_i16"
+type = "bin"

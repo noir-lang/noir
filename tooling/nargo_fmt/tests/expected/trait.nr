@@ -1,2 +1,1 @@
 trait Foo: Bar + Baz {}
-

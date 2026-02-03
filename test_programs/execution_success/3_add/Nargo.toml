@@ -1,6 +1,0 @@
-[package]
-name = "3_add"
-type = "bin"
-authors = [""]
-
-[dependencies]

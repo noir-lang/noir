@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Could not resolve 'hello' in path
+  ┌─ src/main.nr:5:16
+  │
+5 │         Self::<hello> {}
+  │                -----
+  │
+
+error: turbofish (`::<_>`) not allowed on self type
+  ┌─ src/main.nr:5:13
+  │
+5 │         Self::<hello> {}
+  │             ---------
+  │
+
+Aborting due to 2 previous errors

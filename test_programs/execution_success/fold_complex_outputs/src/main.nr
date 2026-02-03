@@ -69,4 +69,3 @@ fn map_fields(mut input: ParentStruct) -> ParentStruct {
 
     input
 }
-

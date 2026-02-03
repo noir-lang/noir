@@ -2,10 +2,9 @@ import { expect } from 'chai';
 import { abiEncode, abiDecode, WitnessMap } from '@noir-lang/noirc_abi';
 import { MyNestedStruct, MyStruct } from '../shared/structs';
 import { DecodedInputs } from '../types';
+import { abi, inputs } from '../shared/structs';
 
 it('correctly handles struct inputs', async () => {
-  const { abi, inputs } = await import('../shared/structs');
-
   const initial_witness: WitnessMap = abiEncode(abi, inputs);
   const decoded_inputs: DecodedInputs = abiDecode(abi, initial_witness);
 

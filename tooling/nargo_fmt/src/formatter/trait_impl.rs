@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
         // skip synthetic trait impl's, e.g. generated from trait aliases
         if trait_impl.is_synthetic {
@@ -18,8 +18,7 @@ impl<'a> Formatter<'a> {
         self.write_keyword(Keyword::Impl);
         self.format_generics(trait_impl.impl_generics);
         self.write_space();
-        self.format_path(trait_impl.trait_name);
-        self.format_generic_type_args(trait_impl.trait_generics);
+        self.format_type(trait_impl.r#trait);
         self.write_space();
         self.write_keyword(Keyword::For);
         self.write_space();
@@ -89,10 +88,12 @@ impl<'a> Formatter<'a> {
                 self.write_keyword(Keyword::Type);
                 self.write_space();
                 self.write_identifier(name);
-                self.write_space();
-                self.write_token(Token::Assign);
-                self.write_space();
-                self.format_type(alias);
+                if let Some(alias) = alias {
+                    self.write_space();
+                    self.write_token(Token::Assign);
+                    self.write_space();
+                    self.format_type(alias);
+                }
                 self.write_semicolon();
             }
         }
@@ -184,20 +185,6 @@ pub fn foo ( ) { }
     impl Foo for Bar {
         /// Some doc comment
         fn foo() {}
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_trait_impl_constant_without_type() {
-        let src = " mod moo { impl  Foo  for  Bar {  
-            let X =42 ;
-         } }";
-        let expected = "mod moo {
-    impl Foo for Bar {
-        let X = 42;
     }
 }
 ";

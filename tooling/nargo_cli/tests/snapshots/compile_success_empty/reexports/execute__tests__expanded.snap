@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use reexporting_lib::{FooStruct, lib, MyStruct};
+
+fn main() {
+    let x: FooStruct = MyStruct { inner: 0_Field };
+    assert(lib::is_struct_zero(x));
+}

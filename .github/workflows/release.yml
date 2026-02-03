@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
@@ -40,17 +40,17 @@ jobs:
 
       - name: Update lockfile
         run: |
-            cargo update --workspace
+          cargo update --workspace
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v6
         with:
-          node-version: 18.19.0
-          cache: 'yarn'
-          cache-dependency-path: 'yarn.lock'
-      
+          node-version: 22.21.1
+          cache: "yarn"
+          cache-dependency-path: "yarn.lock"
+
       - name: Update yarn.lock
         run: yarn
-        
+
       - name: Configure git
         run: |
           git config user.name noirwhal
@@ -61,16 +61,16 @@ jobs:
           git add .
           git commit -m 'chore: Update root workspace acvm versions and lockfile'
           git push
-  
+
   update-docs:
     name: Update docs
     needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
- 
+
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
@@ -78,10 +78,14 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
+
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.86
+          tool: wasm-bindgen-cli@0.2.100
 
       - name: Install wasm-opt
         run: |
@@ -95,7 +99,7 @@ jobs:
 
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn version ${{ steps.noir-version.outputs.semver }}
+        run: yarn cut_version ${{ steps.noir-version.outputs.semver }}
 
       - name: Configure git
         run: |
@@ -112,8 +116,10 @@ jobs:
     name: Release End
     runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we need apply changes to the sticky comment.
-    if: ${{ always() }}
-    
+    if: ${{ always() && needs.release-please.outputs.release-pr }}
+    permissions:
+      pull-requests: write
+
     needs:
       - release-please
       - update-acvm-workspace-package-versions
@@ -123,7 +129,7 @@ jobs:
       # We treat any skipped or failing jobs as a failure for the workflow as a whole.
       FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
 
-    steps:  
+    steps:
       - name: Add warning to sticky comment
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -137,8 +143,6 @@ jobs:
         run: |
           if [[ $FAIL == true ]]; then
               exit 1
-          else
-              exit 0
           fi
 
   build-binaries:
@@ -153,7 +157,7 @@ jobs:
           workflow: publish-nargo.yml
           repo: noir-lang/noir
           ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
           inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-es-packages:
@@ -175,7 +179,7 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
-    
+
     steps:
       - name: Dispatch to publish-acvm
         uses: benc-uk/workflow-dispatch@v1

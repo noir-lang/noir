@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Foo {}
+
+fn main() {
+    assert(ONE == 1_Field);
+    assert(TWO == 2_u32);
+}
+
+comptime fn foo(_: TypeDefinition) -> Quoted {
+    quote {
+        global ONE: Field = 1;
+        global TWO: u32 = 2;
+    }
+}
+
+global ONE: Field = 1;
+
+global TWO: u32 = 2;

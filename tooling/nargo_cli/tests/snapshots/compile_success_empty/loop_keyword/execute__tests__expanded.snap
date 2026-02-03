@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe { check_loop(); };
+    check_comptime_loop();
+}
+
+unconstrained fn check_loop() {
+    let mut i: Field = 0_Field;
+    let mut sum: Field = 0_Field;
+    loop {
+        if i == 4_Field { break; };
+        if i == 2_Field {
+            i = i + 1_Field;
+            continue;
+        };
+        sum = sum + i;
+        i = i + 1_Field;
+    }
+    assert(sum == (1_Field + 3_Field));
+}
+
+fn check_comptime_loop() {
+    ()
+}

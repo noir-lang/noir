@@ -1,0 +1,6 @@
+[package]
+name = "brillig_entry_points_shared_recursive"
+type = "bin"
+authors = [""]
+
+[dependencies]

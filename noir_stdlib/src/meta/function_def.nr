@@ -4,6 +4,11 @@ impl FunctionDefinition {
     pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
     // docs:end:add_attribute
 
+    #[builtin(function_def_as_typed_expr)]
+    // docs:start:as_typed_expr
+    pub comptime fn as_typed_expr(self) -> TypedExpr {}
+    // docs:end:as_typed_expr
+
     #[builtin(function_def_body)]
     // docs:start:body
     pub comptime fn body(self) -> Expr {}
@@ -60,12 +65,17 @@ impl FunctionDefinition {
     // docs:end:set_return_public
 
     #[builtin(function_def_set_return_data)]
-    comptime fn set_return_data(self) {}
+    pub comptime fn set_return_data(self) {}
 
     #[builtin(function_def_set_unconstrained)]
     // docs:start:set_unconstrained
     pub comptime fn set_unconstrained(self, value: bool) {}
     // docs:end:set_unconstrained
+
+    #[builtin(function_def_visibility)]
+    // docs:start:visibility
+    pub comptime fn visibility(self) -> Quoted {}
+    // docs:end:visibility
 }
 
 impl crate::hash::Hash for FunctionDefinition {

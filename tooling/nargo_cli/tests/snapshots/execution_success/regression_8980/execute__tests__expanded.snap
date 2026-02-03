@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub bool {
+    let s: i64 = -1_i64;
+    let e: i64 = 1_i64;
+    for idx_b in s..e {
+        let mut idx_c: u32 = 0_u32;
+        while idx_b >= 2_i64 {
+            if idx_c == 0_u32 {
+                break;
+            } else {
+                assert((1_i64 / idx_b) >= idx_b, "NEVER");
+            }
+        }
+    }
+    true
+}

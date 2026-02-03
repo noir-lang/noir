@@ -37,7 +37,7 @@ At ~/noir-examples/recursion/circuits/main/src/main.nr:2:12
   1    fn main(x : Field, y : pub Field) {
   2 ->     assert(x != y);
   3    }
-> 
+>
 ```
 
 The debugger displays the current opcode, and the corresponding Noir code location associated to it, and it is now waiting for us to drive it.
@@ -84,7 +84,7 @@ The command menu is pretty self-explanatory. Some commands operate only at Brill
 ```
 > registers
 Not executing a Brillig block
-> 
+>
 ```
 
 Before continuing, we can take a look at the initial witness map:
@@ -93,7 +93,7 @@ Before continuing, we can take a look at the initial witness map:
 > witness
 _1 = 1
 _2 = 2
-> 
+>
 ```
 
 Cool, since `x==1`, `y==2`, and we want to check that `x != y`, our circuit should succeed. At this point we could intervene and use the witness setter command to change one of the witnesses. Let's set `y=3`, then back to 2:
@@ -112,7 +112,7 @@ _2 = 2
 > witness
 _1 = 1
 _2 = 2
-> 
+>
 ```
 
 Let's take a look at this circuit's ACIR, using the `opcodes` command:
@@ -129,7 +129,7 @@ Let's take a look at this circuit's ACIR, using the `opcodes` command:
   2    EXPR [ (1, _3, _4) (1, _5) -1 ]
   3    EXPR [ (1, _3, _5) 0 ]
   4    EXPR [ (-1, _5) 0 ]
-> 
+>
 ```
 
 Note: in future versions of the debugger, we could explore prettier or more compact formats to print opcodes.
@@ -166,7 +166,7 @@ In disassembly view:
 _1 = 1
 _2 = 2
 _3 = 1
-> 
+>
 ```
 
 We can see two arrow `->` cursors: one indicates where we are from the perspective of ACIR (opcode 1), and the other one shows us where we are in the context of the current Brillig block (opcode 1.0).
@@ -193,7 +193,7 @@ Brillig VM registers not available
 
 Oops. This is unexpected, even though we were already in a Brillig block, we couldn't access the Brillig registers. This is a known issue: when just entering the Brillig block, the ACVM has not yet initialized the Brillig VM, so we can't introspect it.
 
-Note: In order to solve this, we would have to change the way the ACVM works, or add special handling for this case (after all, the debugger does know we're at the first opcode of a Brillig block and could keep track of how registers will be initialized). At the time of writing, we haven't yet solved this case. 
+Note: In order to solve this, we would have to change the way the ACVM works, or add special handling for this case (after all, the debugger does know we're at the first opcode of a Brillig block and could keep track of how registers will be initialized). At the time of writing, we haven't yet solved this case.
 
 For now, let's just step once more:
 
@@ -216,7 +216,7 @@ At opcode 1.2: BinaryFieldOp { destination: RegisterIndex(0), op: Div, lhs: Regi
 >
 ```
 
-The last operation will compute `Reg0 <- Reg1 / Reg0`: 
+The last operation will compute `Reg0 <- Reg1 / Reg0`:
 
 ```
 > i
@@ -300,7 +300,7 @@ At opcode 1.2: BinaryFieldOp { destination: RegisterIndex(0), op: Div, lhs: Regi
   2    EXPR [ (1, _3, _4) (1, _5) -1 ]
   3    EXPR [ (1, _3, _5) 0 ]
   4    EXPR [ (-1, _5) 0 ]
-> 
+>
 ```
 
 Let's continue to the end:
@@ -335,11 +335,11 @@ There are currently 2 experimental features in the debugger:
 - Variables inspection
 - Stacktrace inspection
 
-NOTE: Supporting variables inspection requires extensive instrumentation of the compiler, handling all cases of variable creation, types, and value assignment. At the time of writing this README, some cases are still not supported. For example, if your program uses slices or references, this compiler version might panic when trying to compile them, or at some point during the debugger step-by-step execution. This is the main reason why this feature has not yet been merged into master. 
+NOTE: Supporting variables inspection requires extensive instrumentation of the compiler, handling all cases of variable creation, types, and value assignment. At the time of writing this README, some cases are still not supported. For example, if your program uses slices or references, this compiler version might panic when trying to compile them, or at some point during the debugger step-by-step execution. This is the main reason why this feature has not yet been merged into master.
 
 ## Trying out REPL experimental features
 
-To try out these features, go through the same steps as described at the REPL Debugger section above, but instead of using `nargo debug` use `$NARGO_EXP debug` (assuming you exported your custom built Nargo binary to NARGO_EXP). 
+To try out these features, go through the same steps as described at the REPL Debugger section above, but instead of using `nargo debug` use `$NARGO_EXP debug` (assuming you exported your custom built Nargo binary to NARGO_EXP).
 
 When entering `help` on this version, you'll find two new commands:
 
@@ -366,7 +366,7 @@ At /mul_1/src/main.nr:6:5
   9    }
 > vars
 y:UnsignedInteger { width: 32 }=Field(4), z:UnsignedInteger { width: 32 }=Field(2¹⁶×6561), x:UnsignedInteger { width: 32 }=Field(2⁴×9)
-> 
+>
 ```
 
 Running `stacktrace` will print information about the current frame in the stacktrace:
@@ -374,7 +374,7 @@ Running `stacktrace` will print information about the current frame in the stack
 ```
 > stacktrace
 Frame #0, opcode 12: EXPR [ (1, _5, _5) (-1, _6) 0 ]
-At /1_mul/src/main.nr:6:5
+At /a_1_mul/src/main.nr:6:5
   1    // Test unsafe integer multiplication with overflow: 12^8 = 429 981 696
   2    // The circuit should handle properly the growth of the bit size
   3    fn main(mut x: u32, y: u32, z: u32) {
@@ -384,7 +384,7 @@ At /1_mul/src/main.nr:6:5
   7        x *= x; //429 981 696
   8        assert(x == z);
   9    }
-> 
+>
 ```
 
 ## Testing the VS Code extension (experimental)
@@ -399,7 +399,7 @@ In this section, we'll explain how to test the VS Code Noir debugger combining t
 
 3. Open the root folder of the extension on VS Code.
 
-4. From VS Code, press fn+F5. This will open a new VS Code window with the extension loaded from source. 
+4. From VS Code, press fn+F5. This will open a new VS Code window with the extension loaded from source.
 
 5. Go to Code -> Settings -> Extensions -> Noir Language Server. Look for the property `Nargo Path` and enter the path to the experimental build you got as a result of following the steps at [Trying out REPL experimental features](#trying-out-repl-experimental-features).
 
@@ -409,7 +409,7 @@ In this section, we'll explain how to test the VS Code Noir debugger combining t
 
 7. Go to a Noir file you want to debug. Navigate again to the debug section of VS Code, and click the "play" icon.
 
-The debugger should now have started. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registers and memory are not being exposed, but they will soon be.  
+The debugger should now have started. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registers and memory are not being exposed, but they will soon be.
 
 ![Screen Recording 2023-12-18 at 14 14 28](https://github.com/manastech/noir/assets/651693/36b4becb-953a-4158-9c5a-7a185673f54f)
 

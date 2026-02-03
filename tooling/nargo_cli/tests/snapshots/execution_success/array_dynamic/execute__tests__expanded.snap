@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(
+    x: [u32; 5],
+    mut z: u32,
+    t: u32,
+    index: [u32; 5],
+    index2: [u32; 5],
+    offset: u32,
+    sublen: Field,
+) {
+    let idx: u32 = (z - (5_u32 * t)) - 5_u32;
+    dyn_array(x, idx, idx - 3_u32);
+    let mut s: Field = 0_Field;
+    let x3: [Field; 5] = [246_Field, 159_Field, 32_Field, 176_Field, 8_Field];
+    for i in 0_u32..5_u32 {
+        s = s + x3[index[i]];
+    }
+    assert(s != 0_Field);
+    if 3_u32 < (sublen as u32) {
+        assert(index[offset + 3_u32] == index2[3_u32]);
+    }
+}
+
+fn dyn_array(mut x: [u32; 5], y: u32, z: u32) {
+    assert(x[y] == 111_u32);
+    assert(x[z] == 101_u32);
+    x[z] = 0_u32;
+    assert(x[y] == 111_u32);
+    assert(x[1_u32] == 0_u32);
+    if (y as u32) < 10_u32 {
+        x[y] = x[y] - 2_u32;
+    } else {
+        x[y] = 0_u32;
+    };
+    assert(x[4_u32] == 109_u32);
+}

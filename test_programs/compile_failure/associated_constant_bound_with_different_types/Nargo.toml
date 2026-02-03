@@ -1,0 +1,6 @@
+[package]
+name = "associated_constant_bound_with_different_types"
+type = "bin"
+authors = [""]
+
+[dependencies]

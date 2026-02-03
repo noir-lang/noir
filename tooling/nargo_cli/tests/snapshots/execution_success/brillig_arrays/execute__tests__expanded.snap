@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: [Field; 3]) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        read_array(x);
+        read_write_array(x);
+    }
+}
+
+unconstrained fn read_array(x: [Field; 3]) {
+    assert(x[0_u32] == 1_Field);
+    let y: [Field; 3] = [1_Field, 5_Field, 27_Field];
+    assert(y[x[0_u32] as u32] == 5_Field);
+}
+
+unconstrained fn read_write_array(x: [Field; 3]) {
+    let mut y: [Field; 3] = x;
+    y[0_u32] = 5_Field;
+    assert(y[0_u32] == 5_Field);
+    assert(y[1_u32] == 2_Field);
+    assert(y[2_u32] == 3_Field);
+    assert(x[0_u32] == 1_Field);
+    assert(x[1_u32] == 2_Field);
+    assert(x[2_u32] == 3_Field);
+}

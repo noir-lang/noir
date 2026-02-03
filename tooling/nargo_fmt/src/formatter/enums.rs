@@ -6,7 +6,7 @@ use noirc_frontend::{
 use super::Formatter;
 use crate::chunks::ChunkGroup;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_enum(&mut self, noir_enum: NoirEnumeration) {
         self.format_secondary_attributes(noir_enum.attributes);
         self.write_indentation();
@@ -77,7 +77,7 @@ impl<'a> Formatter<'a> {
                 self.chunk_formatter().skip_comments_and_whitespace_chunk();
             comments_and_whitespace_chunk.string =
                 comments_and_whitespace_chunk.string.trim_end().to_string();
-            group.text(comments_and_whitespace_chunk);
+            group.trailing_comment_at_block_end(comments_and_whitespace_chunk);
 
             if self.is_at(Token::Comma) {
                 self.bump();

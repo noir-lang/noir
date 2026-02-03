@@ -1,0 +1,7 @@
+[package]
+name = "test_and_fuzz_attribute_errors"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

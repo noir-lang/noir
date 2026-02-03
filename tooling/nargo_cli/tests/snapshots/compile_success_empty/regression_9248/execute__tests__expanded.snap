@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Deserialize {
+    let N: u32;
+
+    fn deserialize(fields: [Field; N]) -> Self;
+}
+
+impl Deserialize for Field {
+    let N: u32 = 1;
+
+    fn deserialize(fields: [Self; 1]) -> Self {
+        fields[0_u32]
+    }
+}
+
+impl<let M: u32, T> Deserialize for [T; M]
+where
+    T: Deserialize,
+{
+    let N: u32 = M * <T as Deserialize>::N;
+
+    fn deserialize(fields: [Field; M * <T as Deserialize>::N]) -> Self {
+        let mut result: Self = std::mem::zeroed();
+        for i in 0_u32..M {
+            let mut element_fields: [Field; <T as Deserialize>::N] =
+                [0_Field; <T as Deserialize>::N];
+            for j in 0_u32..T::N {
+                element_fields[j] = fields[(i * T::N) + j];
+            }
+            result[i] = T::deserialize(element_fields);
+        }
+        result
+    }
+}
+
+pub struct Log<let M: u32> {
+    pub fields: [Field; M],
+}
+
+impl<let M: u32> Deserialize for Log<M> {
+    let N: u32 = M;
+
+    fn deserialize(serialized: [Field; M]) -> Self {
+        let fields: [Field; M] = <[Field; M] as Deserialize>::deserialize(serialized);
+        Self { fields: fields }
+    }
+}
+
+fn main() {}

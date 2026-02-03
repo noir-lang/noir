@@ -8,7 +8,7 @@ pub trait Eq {
 // docs:end:eq-trait
 
 // docs:start:derive_eq
-comptime fn derive_eq(s: StructDefinition) -> Quoted {
+comptime fn derive_eq(s: TypeDefinition) -> Quoted {
     let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
     let for_each_field = |name| quote { (_self.$name == _other.$name) };
     let body = |fields| {
@@ -20,7 +20,7 @@ comptime fn derive_eq(s: StructDefinition) -> Quoted {
     };
     crate::meta::make_trait_impl(
         s,
-        quote { Eq },
+        quote { $crate::cmp::Eq },
         signature,
         for_each_field,
         quote { & },
@@ -35,6 +35,11 @@ impl Eq for Field {
     }
 }
 
+impl Eq for u128 {
+    fn eq(self, other: u128) -> bool {
+        self == other
+    }
+}
 impl Eq for u64 {
     fn eq(self, other: u64) -> bool {
         self == other
@@ -112,8 +117,10 @@ where
 {
     fn eq(self, other: [T]) -> bool {
         let mut result = self.len() == other.len();
-        for i in 0..self.len() {
-            result &= self[i].eq(other[i]);
+        if result {
+            for i in 0..self.len() {
+                result &= self[i].eq(other[i]);
+            }
         }
         result
     }
@@ -214,24 +221,36 @@ pub trait Ord {
 // docs:end:ord-trait
 
 // docs:start:derive_ord
-comptime fn derive_ord(s: StructDefinition) -> Quoted {
-    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+comptime fn derive_ord(s: TypeDefinition) -> Quoted {
+    let name = quote { $crate::cmp::Ord };
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> $crate::cmp::Ordering };
     let for_each_field = |name| quote {
-        if result == std::cmp::Ordering::equal() {
+        if result == $crate::cmp::Ordering::equal() {
             result = _self.$name.cmp(_other.$name);
         }
     };
     let body = |fields| quote {
-        let mut result = std::cmp::Ordering::equal();
+        let mut result = $crate::cmp::Ordering::equal();
         $fields
         result
     };
-    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, body)
 }
 // docs:end:derive_ord
 
 // Note: Field deliberately does not implement Ord
 
+impl Ord for u128 {
+    fn cmp(self, other: u128) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
 impl Ord for u64 {
     fn cmp(self, other: u64) -> Ordering {
         if self < other {
@@ -374,13 +393,26 @@ where
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T]) -> Ordering {
-        let mut result = self.len().cmp(other.len());
-        for i in 0..self.len() {
+        let self_len = self.len();
+        let other_len = other.len();
+        let min_len = if self_len < other_len {
+            self_len
+        } else {
+            other_len
+        };
+
+        let mut result = Ordering::equal();
+        for i in 0..min_len {
             if result == Ordering::equal() {
                 result = self[i].cmp(other[i]);
             }
         }
-        result
+
+        if result != Ordering::equal() {
+            result
+        } else {
+            self_len.cmp(other_len)
+        }
     }
 }
 
@@ -525,21 +557,40 @@ where
 }
 
 mod cmp_tests {
-    use crate::cmp::{max, min};
+    use super::{Eq, max, min, Ord};
 
     #[test]
     fn sanity_check_min() {
-        assert_eq(min(0 as u64, 1 as u64), 0);
-        assert_eq(min(0 as u64, 0 as u64), 0);
-        assert_eq(min(1 as u64, 1 as u64), 1);
-        assert_eq(min(255 as u8, 0 as u8), 0);
+        assert_eq(min(0_u64, 1), 0);
+        assert_eq(min(0_u64, 0), 0);
+        assert_eq(min(1_u64, 1), 1);
+        assert_eq(min(255_u8, 0), 0);
     }
 
     #[test]
     fn sanity_check_max() {
-        assert_eq(max(0 as u64, 1 as u64), 1);
-        assert_eq(max(0 as u64, 0 as u64), 0);
-        assert_eq(max(1 as u64, 1 as u64), 1);
-        assert_eq(max(255 as u8, 0 as u8), 255);
+        assert_eq(max(0_u64, 1), 1);
+        assert_eq(max(0_u64, 0), 0);
+        assert_eq(max(1_u64, 1), 1);
+        assert_eq(max(255_u8, 0), 255);
+    }
+
+    #[test]
+    fn correctly_handles_unequal_length_vectors() {
+        let vector_1 = [0, 1, 2, 3].as_vector();
+        let vector_2 = [0, 1, 2].as_vector();
+        assert(!vector_1.eq(vector_2));
+    }
+
+    #[test]
+    fn lexicographic_ordering_for_vectors() {
+        assert(
+            [2_u32].as_vector().cmp([1_u32, 1_u32, 1_u32].as_vector())
+                == super::Ordering::greater(),
+        );
+        assert(
+            [1_u32, 2_u32].as_vector().cmp([1_u32, 2_u32, 3_u32].as_vector())
+                == super::Ordering::less(),
+        );
     }
 }

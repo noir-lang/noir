@@ -1,0 +1,7 @@
+[package]
+name = "signed_truncation"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.20.0"
+
+[dependencies]

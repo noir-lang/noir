@@ -1,0 +1,6 @@
+[package]
+name = "trait_as_type_associated_type_not_lost"
+type = "bin"
+authors = [""]
+
+[dependencies]

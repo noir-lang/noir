@@ -1,0 +1,125 @@
+---
+title: ECDSA Signature Verification
+description: Learn about the cryptographic primitives regarding ECDSA over the secp256k1 and secp256r1 curves
+keywords: [cryptographic primitives, Noir project, ecdsa, secp256k1, secp256r1, signatures]
+sidebar_position: 3
+---
+
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
+
+Noir supports ECDSA signatures verification over the secp256k1 and secp256r1 curves.
+
+## ecdsa_secp256k1::verify_signature
+
+Verifier for ECDSA Secp256k1 signatures.
+See ecdsa_secp256k1::verify_signature_slice for a version that accepts slices directly.
+
+```rust title="ecdsa_secp256k1" showLineNumbers 
+/// Verifies a ECDSA signature over the secp256k1 curve.
+/// - inputs:
+///     - x coordinate of public key as 32 bytes
+///     - y coordinate of public key as 32 bytes
+///     - the signature, as a 64 bytes array
+///       The signature internally will be represented as `(r, s)`,
+///       where `r` and `s` are fixed-sized big endian scalar values.
+///       As the `secp256k1` has a 256-bit modulus, we have a 64 byte signature
+///       while `r` and `s` will both be 32 bytes.
+///       We expect `s` to be normalized. This means given the curve's order,
+///       `s` should be less than or equal to `order / 2`.
+///       This is done to prevent malleability.
+///       For more context regarding malleability you can reference BIP 0062.
+///     - the hash of the message, as a vector of bytes
+/// - output: false for failure and true for success
+pub fn verify_signature<let N: u32>(
+    public_key_x: [u8; 32],
+    public_key_y: [u8; 32],
+    signature: [u8; 64],
+    message_hash: [u8; N],
+) -> bool
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/ecdsa_secp256k1.nr#L2-L24" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ecdsa_secp256k1.nr#L2-L24</a></sub></sup>
+
+
+example:
+
+```rust
+fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], signature : [u8;64]) {
+     let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+     assert(valid_signature);
+}
+```
+
+<BlackBoxInfo to="../black_box_fns" />
+
+## ecdsa_secp256k1::verify_signature_slice
+
+:::info
+
+This method is deprecated and will be removed in 1.0.0-beta.12
+
+:::
+
+Verifier for ECDSA Secp256k1 signatures where the message is a slice.
+
+```rust title="ecdsa_secp256k1_slice" showLineNumbers 
+pub fn verify_signature_slice(
+    public_key_x: [u8; 32],
+    public_key_y: [u8; 32],
+    signature: [u8; 64],
+    message_hash: [u8],
+) -> bool
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/ecdsa_secp256k1.nr#L28-L35" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ecdsa_secp256k1.nr#L28-L35</a></sub></sup>
+
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## ecdsa_secp256r1::verify_signature
+
+Verifier for ECDSA Secp256r1 signatures.
+See ecdsa_secp256r1::verify_signature_slice for a version that accepts slices directly.
+
+```rust title="ecdsa_secp256r1" showLineNumbers 
+pub fn verify_signature<let N: u32>(
+    public_key_x: [u8; 32],
+    public_key_y: [u8; 32],
+    signature: [u8; 64],
+    message_hash: [u8; N],
+) -> bool
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/ecdsa_secp256r1.nr#L2-L9" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ecdsa_secp256r1.nr#L2-L9</a></sub></sup>
+
+
+example:
+
+```rust
+fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], signature : [u8;64]) {
+     let valid_signature = std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+     assert(valid_signature);
+}
+```
+
+<BlackBoxInfo to="../black_box_fns"/>
+
+## ecdsa_secp256r1::verify_signature
+
+:::info
+
+This method is deprecated and will be removed in 1.0.0-beta.12
+
+:::
+
+Verifier for ECDSA Secp256r1 signatures where the message is a slice.
+
+```rust title="ecdsa_secp256r1_slice" showLineNumbers 
+pub fn verify_signature_slice(
+    public_key_x: [u8; 32],
+    public_key_y: [u8; 32],
+    signature: [u8; 64],
+    message_hash: [u8],
+) -> bool
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/ecdsa_secp256r1.nr#L13-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ecdsa_secp256r1.nr#L13-L20</a></sub></sup>
+
+
+<BlackBoxInfo to="../black_box_fns"/>

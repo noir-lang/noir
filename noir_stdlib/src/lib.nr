@@ -1,13 +1,10 @@
 pub mod hash;
 pub mod aes128;
 pub mod array;
-pub mod slice;
-pub mod merkle;
+pub mod vector;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
 pub mod embedded_curve_ops;
-pub mod sha256;
-pub mod sha512;
 pub mod field;
 pub mod collections;
 pub mod compat;
@@ -19,8 +16,6 @@ pub mod cmp;
 pub mod ops;
 pub mod default;
 pub mod prelude;
-pub mod uint128;
-pub mod bigint;
 pub mod runtime;
 pub mod meta;
 pub mod append;
@@ -28,7 +23,7 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
-use convert::AsPrimitive;
+mod primitive_docs;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
@@ -40,28 +35,47 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
 }
 
 pub fn println<T>(input: T) {
-    /// Safety: a print statement cannot be constrained
+    // Safety: a print statement cannot be constrained
     unsafe {
         print_unconstrained(true, input);
     }
 }
 
 pub fn print<T>(input: T) {
-    /// Safety: a print statement cannot be constrained
+    // Safety: a print statement cannot be constrained
     unsafe {
         print_unconstrained(false, input);
     }
 }
 
-pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
-    verification_key: [Field; N],
-    proof: [Field; M],
-    public_inputs: [Field; K],
-    key_hash: Field,
-) {
-    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
-}
-
+/// Asserts the validity of the provided proof and public inputs against the provided verification key and hash.
+///
+/// The ACVM cannot determine whether the provided proof is valid during execution as this requires knowledge of
+/// the backend against which the program is being proven. However if an invalid proof if submitted, the program may
+/// fail to prove or the backend may generate a proof which will subsequently fail to verify.
+///
+/// # Important Note
+///
+/// If you are not developing your own backend such as [Barretenberg](https://github.com/AztecProtocol/barretenberg)
+/// you probably shouldn't need to interact with this function directly. It's easier and safer to use a verification
+/// library which is published by the developers of the backend which will document or enforce any safety requirements.
+///
+/// If you use this directly, you're liable to introduce underconstrainedness bugs and *your circuit will be insecure*.
+///
+/// # Arguments
+/// - verification_key: The verification key of the circuit to be verified.
+/// - proof: The proof to be verified.
+/// - public_inputs: The public inputs associated with `proof`
+/// - key_hash: The hash of `verification_key` of the form expected by the backend.
+/// - proof_type: An identifier for the proving scheme used to generate the proof to be verified. This allows
+///               for a single backend to support verifying multiple proving schemes.
+///
+/// # Constraining `key_hash`
+///
+/// The Noir compiler does not by itself constrain that `key_hash` is a valid hash of `verification_key`.
+/// This is because different backends may differ in how they hash their verification keys.
+/// It is then the responsibility of either the noir developer (by explicitly hashing the verification key
+/// in the correct manner) or by the proving system itself internally asserting the correctness of `key_hash`.
 pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     verification_key: [Field; N],
     proof: [Field; M],
@@ -89,41 +103,10 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(x: T) {}
 
-// Asserts that the given value is both true and known at compile-time
+// Asserts that the given value is both true and known at compile-time.
+// The message can be a string, a format string, or any value, as long as it is known at compile-time
 #[builtin(static_assert)]
-pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
-
-pub fn wrapping_add<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() + y.as_())
-}
-
-pub fn wrapping_sub<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
-}
-
-pub fn wrapping_mul<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() * y.as_())
-}
+pub fn static_assert<T>(predicate: bool, message: T) {}
 
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
-
-mod tests {
-    #[test(should_fail_with = "custom message")]
-    fn test_static_assert_custom_message() {
-        super::static_assert(1 == 2, "custom message");
-    }
-}

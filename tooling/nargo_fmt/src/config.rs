@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::ConfigError;
 
 macro_rules! config {
-    ($($field_name:ident: $field_ty:ty, $default_value:expr, $description:expr );+ $(;)*) => (
+    ($($field_name:ident: $field_ty:ty, $default_value:expr_2021, $description:expr_2021 );+ $(;)*) => (
         pub struct Config {
             $(
                 #[doc = $description]
@@ -53,24 +53,35 @@ config! {
     single_line_if_else_max_width: usize, 50, "Maximum line length for single line if-else expressions";
     imports_granularity: ImportsGranularity, ImportsGranularity::Preserve, "How imports should be grouped into use statements.";
     reorder_imports: bool, true, "Reorder imports alphabetically";
+    wrap_comments: bool, false, "Break comments to fit on the line";
+    comment_width: usize, 100, "Maximum length of comments. No effect unless `wrap_comments = true`"
 }
 
 impl Config {
-    pub fn read(path: &Path) -> Result<Self, ConfigError> {
-        let config_path = path.join("noirfmt.toml");
+    /// Reads a Config starting at the given path and going through the path parents
+    /// until a `noirfmt.toml` file is found in one of them or the root is reached.
+    pub fn read(mut path: &Path) -> Result<Self, ConfigError> {
+        loop {
+            let config_path = path.join("noirfmt.toml");
+            if config_path.exists() {
+                match std::fs::read_to_string(&config_path) {
+                    Ok(input) => return Self::of(&input, &config_path),
+                    Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
+                };
+            }
 
-        let input = match std::fs::read_to_string(&config_path) {
-            Ok(input) => input,
-            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
-        };
+            let Some(parent_path) = path.parent() else {
+                return Ok(Config::default());
+            };
 
-        Self::of(&input)
+            path = parent_path;
+        }
     }
 
-    pub fn of(s: &str) -> Result<Self, ConfigError> {
+    pub fn of(s: &str, path: &Path) -> Result<Self, ConfigError> {
         let mut config = Self::default();
-        let toml = toml::from_str(s).map_err(ConfigError::MalformedFile)?;
+        let toml =
+            toml::from_str(s).map_err(|err| ConfigError::MalformedFile(path.to_path_buf(), err))?;
         config.fill_from_toml(toml);
         Ok(config)
     }

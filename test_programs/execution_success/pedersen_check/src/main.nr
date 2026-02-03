@@ -17,4 +17,3 @@ fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: F
     let hash = std::hash::pedersen_commitment([state]);
     assert(std::hash::pedersen_commitment([43]).x == hash.x);
 }
-
