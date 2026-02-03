@@ -1917,7 +1917,31 @@
 <a href="#1916" id="1916">1916</a>
 <a href="#1917" id="1917">1917</a>
 <a href="#1918" id="1918">1918</a>
-<a href="#1919" id="1919">1919</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2091,64 +2115,88 @@
             };
             <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(<span class="self">self</span>, order);
 
-            <span class="comment">// Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
-            // so if an outer loop is unrolled, we have to restart looking for the nested ones.
+            <span class="comment">// Blocks which were part of loops we unrolled. Nested loops are included in the
+            // outer loops, so if an outer loop is unrolled, we have to restart looking for
+            // the nested ones.
             </span><span class="kw">let </span><span class="kw-2">mut </span>modified_blocks = HashSet::new();
-            <span class="comment">// Indicate whether we will have to have another go looking for loops, to deal with nested ones.
-            </span><span class="kw">let </span><span class="kw-2">mut </span>needs_refresh = <span class="bool-val">false</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>needs_refresh = <span class="bool-val">false</span>;
 
             <span class="kw">while let </span><span class="prelude-val">Some</span>(next_loop) = loops.yet_to_unroll.pop() {
-                <span class="comment">// Don't try to unroll the loop again if it is known to fail
-                </span><span class="kw">if </span>failed_to_unroll.contains(<span class="kw-2">&amp;</span>next_loop.header) {
-                    <span class="kw">continue</span>;
-                }
-
-                <span class="comment">// Only unroll small loops in Brillig.
-                </span><span class="kw">if </span><span class="self">self</span>.runtime().is_brillig()
-                    &amp;&amp; !next_loop.should_unroll_in_brillig(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg)
-                {
-                    <span class="kw">continue</span>;
-                }
-
-                <span class="comment">// Check if we will be able to unroll this loop, before starting to modify the blocks.
-                </span><span class="kw">if </span>next_loop.has_const_back_edge_induction_value(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg) {
-                    <span class="comment">// Don't try to unroll this.
-                    </span>failed_to_unroll.insert(next_loop.header);
-                    <span class="comment">// If this is Brillig, we can still evaluate this loop at runtime.
-                    </span><span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
-                        unroll_errors
-                            .push(RuntimeError::UnknownLoopBound { call_stack: CallStack::new() });
-                    }
-                    <span class="kw">continue</span>;
-                }
-
-                <span class="comment">// If we've previously modified a block in this loop we need to refresh the context.
+                <span class="comment">// If we've previously modified a block in this loop we need to refresh.
                 // This happens any time we have nested loops.
                 </span><span class="kw">if </span>next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
                     needs_refresh = <span class="bool-val">true</span>;
-                    <span class="comment">// Carry on unrolling the loops which weren't related to the ones we have already done.
-                    </span><span class="kw">continue</span>;
+                    <span class="kw">continue</span>;
                 }
 
-                <span class="comment">// Try to unroll.
-                </span><span class="kw">match </span>next_loop.unroll(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg) {
-                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
-                        has_unrolled = <span class="bool-val">true</span>;
-                        modified_blocks.extend(next_loop.blocks);
+                <span class="comment">// Don't try to unroll the loop again if it is known to fail
+                </span><span class="kw">let </span>result = <span class="kw">if </span>failed_to_unroll.contains(<span class="kw-2">&amp;</span>next_loop.header) {
+                    LoopUnrollResult::Skipped
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.try_unroll_loop(next_loop, <span class="kw-2">&amp;</span>loops)
+                };
+                <span class="kw">match </span>result {
+                    LoopUnrollResult::Skipped =&gt; <span class="kw">continue</span>,
+                    LoopUnrollResult::Failed(header, error) =&gt; {
+                        failed_to_unroll.insert(header);
+                        unroll_errors.push(error);
                     }
-                    <span class="prelude-val">Err</span>(call_stack) =&gt; {
-                        failed_to_unroll.insert(next_loop.header);
-                        unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
+                    LoopUnrollResult::Unrolled(blocks) =&gt; {
+                        has_unrolled = <span class="bool-val">true</span>;
+                        modified_blocks.extend(blocks);
                     }
                 }
             }
-            <span class="comment">// Once we have no more nested loops, we are done.
+
+            <span class="comment">// If we didn't need to refresh, we're done
             </span><span class="kw">if </span>!needs_refresh {
                 <span class="kw">break</span>;
             }
         }
         (has_unrolled, unroll_errors)
     }
+
+    <span class="doccomment">/// Try to unroll a single loop.
+    ///
+    /// Returns the result: whether the loop was skipped, failed, or unrolled.
+    </span><span class="kw">fn </span>try_unroll_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: Loop, loops: <span class="kw-2">&amp;</span>Loops) -&gt; LoopUnrollResult {
+        <span class="comment">// Only unroll small loops in Brillig.
+        </span><span class="kw">if </span><span class="self">self</span>.runtime().is_brillig() &amp;&amp; !loop_.should_unroll_in_brillig(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg) {
+            <span class="kw">return </span>LoopUnrollResult::Skipped;
+        }
+
+        <span class="comment">// Check if we will be able to unroll this loop, before starting to modify the blocks.
+        </span><span class="kw">if </span>loop_.has_const_back_edge_induction_value(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg) {
+            <span class="comment">// Don't try to unroll this.
+            // If this is Brillig, we can still evaluate this loop at runtime.
+            </span><span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
+                <span class="kw">return </span>LoopUnrollResult::Failed(
+                    loop_.header,
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::new() },
+                );
+            }
+            <span class="kw">return </span>LoopUnrollResult::Skipped;
+        }
+
+        <span class="comment">// Try to unroll.
+        </span><span class="kw">match </span>loop_.unroll(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg) {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; LoopUnrollResult::Unrolled(loop_.blocks),
+            <span class="prelude-val">Err</span>(call_stack) =&gt; LoopUnrollResult::Failed(
+                loop_.header,
+                RuntimeError::UnknownLoopBound { call_stack },
+            ),
+        }
+    }
+}
+
+<span class="doccomment">/// Result of trying to unroll a single loop.
+</span><span class="kw">enum </span>LoopUnrollResult {
+    <span class="doccomment">/// Loop was skipped (not eligible for unrolling, or deferred for later).
+    </span>Skipped,
+    <span class="doccomment">/// Loop failed to unroll.
+    </span>Failed(BasicBlockId, RuntimeError),
+    <span class="doccomment">/// Loop was successfully unrolled. Contains the blocks that were part of the loop.
+    </span>Unrolled(BTreeSet&lt;BasicBlockId&gt;),
 }
 
 <span class="doccomment">/// Describe the blocks that constitute up a loop.
