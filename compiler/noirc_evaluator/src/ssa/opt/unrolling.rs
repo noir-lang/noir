@@ -192,8 +192,12 @@ impl Function {
                     continue;
                 }
 
-                let result =
-                    self.try_unroll_loop(next_loop, &loops, &failed_to_unroll, &mut needs_refresh);
+                // Don't try to unroll the loop again if it is known to fail
+                let result = if failed_to_unroll.contains(&next_loop.header) {
+                    LoopUnrollResult::Skipped
+                } else {
+                    self.try_unroll_loop(next_loop, &loops, &mut needs_refresh)
+                };
                 match result {
                     LoopUnrollResult::Skipped => continue,
                     LoopUnrollResult::Failed(header, error) => {
@@ -222,14 +226,8 @@ impl Function {
         &mut self,
         loop_: Loop,
         loops: &Loops,
-        failed_to_unroll: &HashSet<BasicBlockId>,
         needs_refresh: &mut bool,
     ) -> LoopUnrollResult {
-        // Don't try to unroll the loop again if it is known to fail
-        if failed_to_unroll.contains(&loop_.header) {
-            return LoopUnrollResult::Skipped;
-        }
-
         // Only unroll small loops in Brillig.
         if self.runtime().is_brillig() && !loop_.should_unroll_in_brillig(self, &loops.cfg) {
             return LoopUnrollResult::Skipped;
@@ -2010,14 +2008,12 @@ mod tests {
 
         // Pop the inner loop (smaller, processed first with InsideOut)
         let inner_loop = loops.yet_to_unroll.pop().unwrap();
-        let result =
-            function.try_unroll_loop(inner_loop, &loops, &HashSet::new(), &mut needs_refresh);
+        let result = function.try_unroll_loop(inner_loop, &loops, &mut needs_refresh);
         assert!(matches!(result, super::LoopUnrollResult::Skipped));
 
         // Pop the outer loop - this one should unroll
         let outer_loop = loops.yet_to_unroll.pop().unwrap();
-        let result =
-            function.try_unroll_loop(outer_loop, &loops, &HashSet::new(), &mut needs_refresh);
+        let result = function.try_unroll_loop(outer_loop, &loops, &mut needs_refresh);
         assert!(matches!(result, super::LoopUnrollResult::Unrolled(_)));
 
         assert_ssa_snapshot!(ssa, @r"
@@ -2083,8 +2079,7 @@ mod tests {
 
         // Pop the inner loop (smaller, processed first with InsideOut) - should unroll
         let inner_loop = loops.yet_to_unroll.pop().unwrap();
-        let result =
-            function.try_unroll_loop(inner_loop, &loops, &HashSet::new(), &mut needs_refresh);
+        let result = function.try_unroll_loop(inner_loop, &loops, &mut needs_refresh);
         assert!(matches!(result, super::LoopUnrollResult::Unrolled(_)));
 
         assert_ssa_snapshot!(ssa, @r"
