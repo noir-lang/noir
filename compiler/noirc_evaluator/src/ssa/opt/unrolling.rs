@@ -894,8 +894,8 @@ impl Loop {
 
                 let mut all_operands_constant = true;
                 instruction.for_each_value(|value| {
-                    all_operands_constant &=
-                        constant_after_unroll.contains(&value) || function.dfg.is_constant(value);
+                    all_operands_constant &= constant_after_unroll.contains(&value)
+                        || is_from_constant_source(value, &function.dfg);
                 });
 
                 if all_operands_constant {
@@ -965,6 +965,25 @@ impl Loop {
             all_instructions,
             useless_instructions,
         })
+    }
+}
+
+/// Check if a value ultimately comes from constant data by tracing through
+/// `array_get` instructions. Returns true if:
+/// - The value is a compile-time constant (`dfg.is_constant`), OR
+/// - The value is the result of an `array_get` whose array operand
+///   recursively traces back to a constant source (global, MakeArray)
+///
+/// This lets the cost model recognize that `array_get constant_array, index`
+/// will fold away after unrolling, even when `constant_array` is itself
+/// the result of indexing into a higher-dimensional constant.
+fn is_from_constant_source(value: ValueId, dfg: &DataFlowGraph) -> bool {
+    if dfg.is_constant(value) {
+        return true;
+    }
+    match dfg.get_local_or_global_instruction(value) {
+        Some(Instruction::ArrayGet { array, .. }) => is_from_constant_source(*array, dfg),
+        _ => false,
     }
 }
 
@@ -1585,6 +1604,44 @@ mod tests {
         }";
         let ssa = Ssa::from_str(src).unwrap();
         let stats = loop0_stats(&ssa);
+        assert!(stats.is_small());
+    }
+
+    #[test]
+    fn test_boilerplate_stats_constant_array_source() {
+        // v3 is a constant array (MakeArray) defined outside the loop.
+        // Inside the loop, `array_get v3, index v0` should be recognized as
+        // useless because v3 traces back to constant data via is_from_constant_source.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            v3 = make_array [u32 10, u32 20, u32 30, u32 40] : [u32; 4]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 4
+            jmpif v5 then: b2, else: b3
+          b2():
+            v6 = load v2 -> u32
+            v7 = array_get v3, index v0 -> u32
+            v8 = add v6, v7
+            store v8 at v2
+            v9 = unchecked_add v0, u32 1
+            jmp b1(v9)
+          b3():
+            v10 = load v2 -> u32
+            return v10
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let stats = loop0_stats(&ssa);
+        // is_from_constant_source recognizes v3 (MakeArray) as constant even though
+        // it's outside the loop and not in constant_after_unroll.
+        // Useless: lt, array_get (constant source + induction var), unchecked_add = 3
+        // all=7, boilerplate=2 (jmpif+jmp), loads=1, stores=1, useless=3
+        // useful = 7 - 2 - 2 - 3 = 0, but add v6, v7 has v6 from load (runtime) = 1 useful
+        assert_eq!(stats.useless_instructions, 3);
+        assert_eq!(stats.useful_instructions(), 1);
         assert!(stats.is_small());
     }
 
