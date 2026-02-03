@@ -705,7 +705,6 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -718,6 +717,7 @@ mod test {
             },
         },
     };
+    use std::collections::BTreeMap;
 
     // Do just 1 iteration in tests where we want to minimize the expected changes in the SSA.
     const MIN_ITER: usize = 1;
