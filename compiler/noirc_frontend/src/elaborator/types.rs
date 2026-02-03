@@ -2783,7 +2783,10 @@ fn bind_named_generics(
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert!(args.len() <= params.len(), "bind_named_generics: trait bound has more named generics than associated types");
+    assert!(
+        args.len() <= params.len(),
+        "bind_named_generics: trait bound has more named generics than associated types"
+    );
 
     if params.is_empty() {
         return;
