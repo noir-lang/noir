@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770118017990,
+  "lastUpdate": 1770118781335,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14776,95 +14776,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "d6cc27e1c02edb2e2e21132fda096de15fa0ae07",
-          "message": "fix(elaborator): Disambiguate associated types from ordered generics (#11346)",
-          "timestamp": "2026-01-27T16:51:09Z",
-          "tree_id": "be5139aa3ad825ac9f60e7afe184c5ec4e4b6e28",
-          "url": "https://github.com/noir-lang/noir/commit/d6cc27e1c02edb2e2e21132fda096de15fa0ae07"
-        },
-        "date": 1769535325461,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 271.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 309.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 260.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 361.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 361.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 361.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 545.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 487.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 361.04,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.17,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.4,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "4a862a26c6718a1763d85cf564e583a1bc2c5f98",
           "message": "fix(hir): Do not ignore the name in `PartialEq` for `Type::NamedGeneric` for implicit unbound (#11351)",
@@ -19145,6 +19056,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ebff5f2b234c4a89f64847ce7b025f2968f832f0"
         },
         "date": 1770116565030,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 273.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 311.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 262.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 352.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 351.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 352.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 540.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 481.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 350.53,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.17,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.4,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1d434ab2d99e8c8566e817459a3816edeaadbc10",
+          "message": "chore(ssa): Skip emitting databus instructions for Brillig functions (#11418)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
+          "timestamp": "2026-02-03T10:51:18Z",
+          "tree_id": "43f48e03151afa5ac3bdf9d42b61e0018d24b7ec",
+          "url": "https://github.com/noir-lang/noir/commit/1d434ab2d99e8c8566e817459a3816edeaadbc10"
+        },
+        "date": 1770118741310,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
