@@ -2237,7 +2237,7 @@ __metadata:
     path-browserify: "npm:^1.0.1"
     prettier: "npm:3.8.1"
     process: "npm:^0.11.10"
-    readable-stream: "npm:^4.4.2"
+    readable-stream: "npm:^4.7.0"
     sinon: "npm:^21.0.1"
     ts-loader: "npm:^9.5.2"
     ts-node: "npm:^10.9.2"
@@ -3585,12 +3585,11 @@ __metadata:
   linkType: hard
 
 "@types/readable-stream@npm:^4":
-  version: 4.0.10
-  resolution: "@types/readable-stream@npm:4.0.10"
+  version: 4.0.23
+  resolution: "@types/readable-stream@npm:4.0.23"
   dependencies:
     "@types/node": "npm:*"
-    safe-buffer: "npm:~5.1.1"
-  checksum: 10/9154572484b28d74294862e6e30f347d36ad677e6a220379693dff08b0eb79581a9198978473335bce52ee4953b2016c5d04b944cdfcef05985ef9a8867f7f81
+  checksum: 10/2798c083eb74c9c5910cdda2e8132e333e2435362cc811eb866871e6a2ea77cd5a665dd3085be0e45ccc90a6d7b533d3d221f3b5ccfcf3080f4133517105b3fd
   languageName: node
   linkType: hard
 
@@ -11308,16 +11307,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"readable-stream@npm:^4.4.2":
-  version: 4.4.2
-  resolution: "readable-stream@npm:4.4.2"
+"readable-stream@npm:^4.7.0":
+  version: 4.7.0
+  resolution: "readable-stream@npm:4.7.0"
   dependencies:
     abort-controller: "npm:^3.0.0"
     buffer: "npm:^6.0.3"
     events: "npm:^3.3.0"
     process: "npm:^0.11.10"
     string_decoder: "npm:^1.3.0"
-  checksum: 10/02950422df3f20d2e231f40e9f312e3306b7d4c2a9716849509d0d6668eea24657c96f85ed057e38cc576b34a72db613fbde9ba3689ca8de466cd31bdda96827
+  checksum: 10/bdf096c8ff59452ce5d08f13da9597f9fcfe400b4facfaa88e74ec057e5ad1fdfa140ffe28e5ed806cf4d2055f0b812806e962bca91dce31bc4cef08e53be3a4
   languageName: node
   linkType: hard
 
