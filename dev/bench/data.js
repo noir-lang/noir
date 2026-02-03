@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770115733716,
+  "lastUpdate": 1770115805246,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4933,105 +4933,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4a862a26c6718a1763d85cf564e583a1bc2c5f98",
-          "message": "fix(hir): Do not ignore the name in `PartialEq` for `Type::NamedGeneric` for implicit unbound (#11351)",
-          "timestamp": "2026-01-27T17:37:14Z",
-          "tree_id": "987d9b43db6d74830ad69ef2c0c9462860d507b8",
-          "url": "https://github.com/noir-lang/noir/commit/4a862a26c6718a1763d85cf564e583a1bc2c5f98"
-        },
-        "date": 1769537331451,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.446,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.21,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 2.616,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.618,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.61,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.57,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.486,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 385,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 393,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.652,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 20.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 83.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.52,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.966,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.636,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -9841,6 +9742,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.848,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ebff5f2b234c4a89f64847ce7b025f2968f832f0",
+          "message": "chore: add skills for idiomatic noir and how to optimize (#11427)",
+          "timestamp": "2026-02-03T10:14:07Z",
+          "tree_id": "85822c66db181ce07fc7178fb4c2ee071dea5297",
+          "url": "https://github.com/noir-lang/noir/commit/ebff5f2b234c4a89f64847ce7b025f2968f832f0"
+        },
+        "date": 1770115765639,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.346,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.74,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.52,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.564,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.49,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.594,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 411,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 387,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.594,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 19.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 73.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.498,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.952,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.68,
             "unit": "s"
           }
         ]
