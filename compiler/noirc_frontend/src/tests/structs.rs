@@ -345,3 +345,19 @@ fn abi_attribute_outside_contract() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn deny_cyclic_structs() {
+    let src = r#"
+    pub struct Foo {
+        bar: Bar,
+    }
+
+    pub struct Bar {
+               ^^^ Dependency cycle found
+               ~~~ 'Bar' recursively depends on itself: Bar -> Foo -> Bar
+        foo: Foo,
+    }
+    "#;
+    check_errors(src);
+}

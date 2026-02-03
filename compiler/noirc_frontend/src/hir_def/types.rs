@@ -1,6 +1,5 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
-use im::HashSet;
 use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
@@ -321,7 +320,7 @@ impl Kind {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+    pub fn has_cyclic_alias(&self, aliases: &mut im::HashSet<TypeAliasId>) -> bool {
         match self {
             Self::Numeric(typ) => typ.has_cyclic_alias(aliases),
             Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
@@ -1094,7 +1093,7 @@ impl TypeVariable {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+    pub fn has_cyclic_alias(&self, aliases: &mut im::HashSet<TypeAliasId>) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
             TypeBinding::Unbound(_, _) => false,
@@ -1557,7 +1556,7 @@ impl Type {
     /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
     /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
     /// due to the same non-cyclic alias being detected twice in different recursive calls
-    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+    pub fn has_cyclic_alias(&self, aliases: &mut im::HashSet<TypeAliasId>) -> bool {
         match self {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.has_cyclic_alias(aliases),
             Type::TypeVariable(var) => var.has_cyclic_alias(aliases),
@@ -1688,29 +1687,50 @@ impl Type {
 
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
     pub(crate) fn is_nested_vector(&self) -> bool {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+
+        self.is_nested_vector_helper(&mut seen_data_types)
+    }
+
+    fn is_nested_vector_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
 
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_vector(),
-            Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).is_nested_vector_helper(seen_data_types)
+            }
+            Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector_helper(seen_data_types),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.is_nested_vector()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.is_nested_vector())
-                    {
-                        return true;
+                let id = typ.id;
+                let key = (id, generics.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = typ.get_fields(generics) {
+                        if fields
+                            .iter()
+                            .any(|(_, field, _)| field.is_nested_vector_helper(seen_data_types))
+                        {
+                            return true;
+                        }
+                    } else if let Some(variants) = typ.get_variants(generics) {
+                        if variants
+                            .iter()
+                            .flat_map(|(_, args)| args)
+                            .any(|typ| typ.is_nested_vector_helper(seen_data_types))
+                        {
+                            return true;
+                        }
                     }
                 }
                 false
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    if typ.is_nested_vector() {
+                    if typ.is_nested_vector_helper(seen_data_types) {
                         return true;
                     }
                 }
@@ -1719,13 +1739,16 @@ impl Type {
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.is_nested_vector(),
+                    TypeBinding::Bound(binding) => binding.is_nested_vector_helper(seen_data_types),
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from, to } => from.is_nested_vector() || to.is_nested_vector(),
-            Type::Reference(element, _) => element.is_nested_vector(),
-            Type::Forall(_, typ) => typ.is_nested_vector(),
+            Type::CheckedCast { from, to } => {
+                from.is_nested_vector_helper(seen_data_types)
+                    || to.is_nested_vector_helper(seen_data_types)
+            }
+            Type::Reference(element, _) => element.is_nested_vector_helper(seen_data_types),
+            Type::Forall(_, typ) => typ.is_nested_vector_helper(seen_data_types),
 
             Type::FieldElement
             | Type::Integer(..)
