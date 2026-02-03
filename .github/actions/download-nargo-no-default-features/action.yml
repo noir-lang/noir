@@ -7,7 +7,7 @@ runs:
     - name: Download nargo binary
       uses: actions/download-artifact@v4
       with:
-        name: nargo
+        name: nargo-no-default-features
         path: ./nargo-no-default-features
 
     - name: Set nargo on PATH
