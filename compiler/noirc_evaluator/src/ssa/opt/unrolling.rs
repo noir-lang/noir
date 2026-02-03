@@ -968,8 +968,7 @@ impl Loop {
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header)?;
-        let (refs, constant_initial_refs) =
-            self.find_pre_header_reference_values(function, cfg)?;
+        let (refs, constant_initial_refs) = self.find_pre_header_reference_values(function, cfg)?;
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
         // If we then unroll the loop, the induction variable will not exist anymore.
