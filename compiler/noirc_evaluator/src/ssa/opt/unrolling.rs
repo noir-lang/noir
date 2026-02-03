@@ -1261,7 +1261,9 @@ mod tests {
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, LoopOrder, Loops, is_new_size_ok};
+    use super::{
+        BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, LoopOrder, Loops, is_new_size_ok,
+    };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
