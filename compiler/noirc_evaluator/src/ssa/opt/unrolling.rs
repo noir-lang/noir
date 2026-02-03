@@ -958,13 +958,7 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats {
-            iterations,
-            loads,
-            stores,
-            all_instructions,
-            useless_instructions,
-        })
+        Some(BoilerplateStats { iterations, loads, stores, all_instructions, useless_instructions })
     }
 }
 
