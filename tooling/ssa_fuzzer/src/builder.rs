@@ -1,7 +1,9 @@
 use crate::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
+use acvm::acir::brillig::lengths::SemanticLength;
 use noir_ssa_executor::compiler::compile_from_ssa;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
@@ -393,13 +395,13 @@ impl FuzzerBuilder {
         TypedValue::new(res, array_elements_type)
     }
 
-    pub fn insert_slice(&mut self, elements: Vec<TypedValue>) -> TypedValue {
+    pub fn insert_vector(&mut self, elements: Vec<TypedValue>) -> TypedValue {
         let element_type = elements[0].type_of_variable.clone();
         assert!(
             elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
-        let array_elements_type = Type::Slice(Arc::new(vec![element_type]));
+        let array_elements_type = Type::Vector(Arc::new(vec![element_type]));
         let res = self.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
             array_elements_type.clone().into(),
@@ -608,10 +610,9 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("aes128_encrypt")
             .expect("aes128_encrypt intrinsic should be available");
-        let return_type = Type::Array(
-            Arc::new(vec![Type::Numeric(NumericType::U8)]),
-            input_size + 16 - (input_size % 16),
-        );
+        // With auto padding disabled in libaes, output size equals input size.
+        // Input must be a multiple of 16 (pre-padded).
+        let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), input_size);
         let result = self.builder.insert_call(
             intrinsic,
             vec![input.value_id, key.value_id, iv.value_id],
@@ -770,12 +771,15 @@ impl FuzzerBuilder {
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                1,
+                SemanticLength(1),
             ),
         );
         let scalar_id = self.builder.insert_make_array(
             vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
-            SsaType::Array(Arc::new(vec![field_type.clone().into(), field_type.clone().into()]), 1),
+            SsaType::Array(
+                Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
+                SemanticLength(1),
+            ),
         );
         let return_type = Type::Array(
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
@@ -844,14 +848,14 @@ impl FuzzerBuilder {
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                points.len() as u32,
+                SemanticLength(points.len() as u32),
             ),
         );
         let scalar_ids_array = self.builder.insert_make_array(
             scalar_ids.into_iter().collect(),
             SsaType::Array(
                 Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
-                scalars.len() as u32,
+                SemanticLength(scalars.len() as u32),
             ),
         );
         let return_type = Type::Array(

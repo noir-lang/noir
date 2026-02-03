@@ -151,7 +151,7 @@ impl Parser<'_> {
             return None;
         }
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
             let name = self.unknown_ident_at_previous_token_end();
@@ -172,7 +172,7 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();

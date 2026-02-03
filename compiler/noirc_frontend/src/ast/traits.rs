@@ -7,7 +7,6 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
-use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
 use super::{
@@ -100,7 +99,6 @@ pub struct UnresolvedTraitConstraint {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TraitBound {
     pub trait_path: Path,
-    pub trait_id: Option<TraitId>, // initially None, gets assigned during DC
     pub trait_generics: GenericTypeArgs,
 }
 

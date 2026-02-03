@@ -1,6 +1,0 @@
-[package]
-name = "reference_counts_slices_inliner_0"
-type = "bin"
-authors = [""]
-
-[dependencies]

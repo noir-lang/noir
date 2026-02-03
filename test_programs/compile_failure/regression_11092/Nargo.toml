@@ -1,0 +1,7 @@
+[package]
+name = "regression_11092"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

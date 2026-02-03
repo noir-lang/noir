@@ -375,7 +375,7 @@ mod tests {
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
-    use crate::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa};
+    use crate::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa, assert_u32};
 
     use super::ConstantAllocation;
 
@@ -441,7 +441,7 @@ mod tests {
                 };
                 assert_eq!(
                     destination.unwrap_direct(),
-                    GlobalSpace::start_with_layout(&options.layout)
+                    assert_u32(GlobalSpace::start_with_layout(&options.layout))
                 );
                 assert!(matches!(bit_size, BitSize::Field));
                 assert_eq!(*value, FieldElement::from(2u128));
@@ -554,7 +554,7 @@ mod tests {
                 };
                 assert_eq!(
                     destination.unwrap_direct(),
-                    GlobalSpace::start_with_layout(&options.layout)
+                    assert_u32(GlobalSpace::start_with_layout(&options.layout))
                 );
                 assert!(matches!(bit_size, BitSize::Field));
                 assert_eq!(*value, FieldElement::from(1u128));
@@ -572,7 +572,7 @@ mod tests {
                     .get(&func_id)
                     .copied()
                     .expect("Should have globals memory size");
-                assert_eq!(globals_max_memory, 7);
+                assert_eq!(globals_max_memory, 7 - 2, "maximum minus temporary");
             } else {
                 panic!("Unexpected function id: {func_id}");
             }
@@ -655,7 +655,7 @@ mod tests {
             };
             assert_eq!(
                 destination.unwrap_direct(),
-                GlobalSpace::start_with_layout(&options.layout)
+                assert_u32(GlobalSpace::start_with_layout(&options.layout))
             );
             assert!(matches!(bit_size, BitSize::Integer(IntegerBitSize::U1)));
             assert_eq!(*value, FieldElement::from(0u128));
@@ -665,7 +665,7 @@ mod tests {
             };
             assert_eq!(
                 destination.unwrap_direct(),
-                GlobalSpace::start_with_layout(&options.layout) + 1
+                assert_u32(GlobalSpace::start_with_layout(&options.layout) + 1)
             );
             assert!(matches!(bit_size, BitSize::Field));
             assert_eq!(*value, FieldElement::from(1u128));

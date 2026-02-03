@@ -15,7 +15,8 @@ mod subone {
     trait SomeTrait {
     }
 
-    global some_global = 2;
+    pub global invalid_global = 2;
+    pub global valid_global: Field = 2;
 
     type SomeAlias = i32;
 

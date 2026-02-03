@@ -8,17 +8,17 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
-use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
-use crate::{Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
@@ -129,11 +129,11 @@ pub(crate) fn get_struct_field<T>(
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<T> {
-    let key = Rc::new(field_name.to_string());
+    let key = field_name.to_string();
     let Some(value) = struct_fields.get(&key) else {
         return Err(InterpreterError::ExpectedStructToHaveField {
             typ: struct_type.clone(),
-            field_name: Rc::into_inner(key).unwrap(),
+            field_name: key,
             location,
         });
     };
@@ -147,13 +147,13 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
     }
 }
 
-pub(crate) fn get_slice(
+pub(crate) fn get_vector(
     (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
-        Value::Slice(values, typ) => Ok((values, typ)),
+        Value::Vector(values, typ) => Ok((values, typ)),
         value => {
-            let expected = "slice";
+            let expected = "vector";
             type_mismatch(value, expected, location)
         }
     }
@@ -183,8 +183,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
         let Type::Array(_, ref elem) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let expected =
-            Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone()).to_string();
+        let len: u32 =
+            N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
+        let expected = Type::Array(Box::new(len.into()), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -202,7 +203,7 @@ pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String
 pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
     match value {
         Value::CtString(string) => Ok(string),
-        value => type_mismatch(value, Type::Quoted(QuotedType::CtString).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }
 
@@ -219,7 +220,7 @@ pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Sha
 pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
         Value::Field(value) => Ok(value),
-        value => type_mismatch(value, Type::FieldElement.to_string(), location),
+        value => type_mismatch(value, Type::FieldElement, location),
     }
 }
 
@@ -228,7 +229,7 @@ pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
         Value::U8(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            type_mismatch(value, expected.to_string(), location)
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -237,8 +238,8 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
-            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            type_mismatch(value, expected.to_string(), location)
+            let expected = Type::u32();
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -248,7 +249,7 @@ pub(crate) fn get_u64((value, location): (Value, Location)) -> IResult<u64> {
         Value::U64(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-            type_mismatch(value, expected.to_string(), location)
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -273,15 +274,15 @@ pub(crate) fn get_expr(
             }
             _ => Ok(*expr),
         },
-        value => type_mismatch(value, Type::Quoted(QuotedType::Expr).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
     }
 }
 
 pub(crate) fn get_format_string(
     (value, location): (Value, Location),
-) -> IResult<(Rc<String>, Type)> {
+) -> IResult<(Rc<Vec<FormatStringFragment>>, Type, u32)> {
     match value {
-        Value::FormatString(value, typ) => Ok((value, typ)),
+        Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
         value => type_mismatch(value, "fmtstr", location),
     }
 }
@@ -289,23 +290,21 @@ pub(crate) fn get_format_string(
 pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
-        value => {
-            type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition).to_string(), location)
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition), location),
     }
 }
 
 pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<ModuleId> {
     match value {
         Value::ModuleDefinition(module_id) => Ok(module_id),
-        value => type_mismatch(value, Type::Quoted(QuotedType::Module).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Module), location),
     }
 }
 
 pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
         Value::TypeDefinition(id) => Ok(id),
-        _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition).to_string(), location),
+        _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
     }
 }
 
@@ -314,46 +313,42 @@ pub(crate) fn get_trait_constraint(
 ) -> IResult<(TraitId, TraitGenerics)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
-        value => {
-            type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint).to_string(), location)
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint), location),
     }
 }
 
 pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<TraitId> {
     match value {
         Value::TraitDefinition(id) => Ok(id),
-        value => {
-            type_mismatch(value, Type::Quoted(QuotedType::TraitDefinition).to_string(), location)
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::TraitDefinition), location),
     }
 }
 
 pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<TraitImplId> {
     match value {
         Value::TraitImpl(id) => Ok(id),
-        value => type_mismatch(value, Type::Quoted(QuotedType::TraitImpl).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::TraitImpl), location),
     }
 }
 
 pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
-        value => type_mismatch(value, Type::Quoted(QuotedType::Type).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
     }
 }
 
 pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<TypedExpr> {
     match value {
         Value::TypedExpr(typed_expr) => Ok(typed_expr),
-        value => type_mismatch(value, Type::Quoted(QuotedType::TypedExpr).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::TypedExpr), location),
     }
 }
 
 pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<LocatedToken>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
-        value => type_mismatch(value, Type::Quoted(QuotedType::Quoted).to_string(), location),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
     }
 }
 
@@ -370,15 +365,56 @@ pub(crate) fn get_unresolved_type(
                 Ok(typ)
             }
         }
-        value => {
-            type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType).to_string(), location)
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
     }
 }
 
-fn type_mismatch<T>(value: Value, expected: impl Into<String>, location: Location) -> IResult<T> {
+enum TypeOrString {
+    Type(Type),
+    String(String),
+}
+
+impl From<&'static str> for TypeOrString {
+    fn from(value: &'static str) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<String> for TypeOrString {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Type> for TypeOrString {
+    fn from(value: Type) -> Self {
+        Self::Type(value)
+    }
+}
+
+/// Helper function to report an [InterpreterError::TypeMismatch] where a [Value] could not be unwrapped
+/// into an expected type, which can either be a concrete [Type] or a textual description, e.g. "tuple".
+///
+/// It has special handling for [Value::Zeroed], which wraps a [Type] that might actually be the
+/// one we expected, but we expected a concrete _value_ with that type, not a zeroed placeholder,
+/// which we optimistically created expecting that it will never be used. In such cases
+/// [InterpreterError::UnexpectedZeroedValue] is returned.
+fn type_mismatch<T>(
+    value: Value,
+    expected: impl Into<TypeOrString>,
+    location: Location,
+) -> IResult<T> {
     let actual = value.get_type().into_owned();
-    let expected = expected.into();
+    let expected = match expected.into() {
+        TypeOrString::Type(t) if t == actual && matches!(value, Value::Zeroed(_)) => {
+            return Err(InterpreterError::UnexpectedZeroedValue {
+                expected: t.to_string(),
+                location,
+            });
+        }
+        TypeOrString::Type(t) => t.to_string(),
+        TypeOrString::String(s) => s,
+    };
     Err(InterpreterError::TypeMismatch { expected, actual, location })
 }
 
@@ -508,7 +544,10 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
-        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = errors
+            .into_iter()
+            .find(|error| !error.is_warning())
+            .expect("there is at least 1 error");
         let error = Box::new(error);
         let tokens = tokens_to_string(&tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
@@ -541,7 +580,7 @@ pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<
 pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
     match typ {
         Type::Function(_, ret, _, _) => {
-            *ret = Box::new(return_type);
+            **ret = return_type;
         }
         Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
         _ => {}
@@ -549,11 +588,11 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
 }
 
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
-    Value::Slice(statements, typ)
+    Value::Vector(statements, typ)
 }
 
 pub(super) fn has_named_attribute(
@@ -634,25 +673,16 @@ pub(super) fn eq_item<T: Eq>(
 
 /// Type to be used in `Value::Array(<values>, <array-type>)`.
 pub(crate) fn byte_array_type(len: usize) -> Type {
+    let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(Type::Constant(len.into(), Kind::u32())),
+        Box::new(len.into()),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
-}
-
-/// Type to be used in `Value::Slice(<values>, <slice-type>)`.
-pub(crate) fn byte_slice_type() -> Type {
-    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
 }
 
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
     Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
-}
-
-/// Create a `Value::Slice` from bytes.
-pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
-    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
@@ -713,4 +743,42 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     };
     let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
     Value::Quoted(Rc::new(tokens))
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+) -> String {
+    let mut result = String::new();
+    for fragment in fragments {
+        match fragment {
+            FormatStringFragment::String(string) => {
+                result.push_str(string);
+            }
+            FormatStringFragment::Value { name: _, value } => {
+                match value {
+                    Value::Quoted(tokens) => {
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        for (index, token) in tokens.iter().enumerate() {
+                            if index > 0 {
+                                result.push(' ');
+                            }
+                            result.push_str(&token.token().display(interner).to_string());
+                        }
+                    }
+                    Value::FormatString(fragments, _, _) => {
+                        // Nested format strings might have quoted values inside them,
+                        // so we need to recurse here instead of calling `value.display`.
+                        let inner_string = fragments_to_string(fragments, interner);
+                        result.push_str(&inner_string);
+                    }
+                    _ => {
+                        result.push_str(&value.display(interner).to_string());
+                    }
+                }
+            }
+        }
+    }
+    result
 }

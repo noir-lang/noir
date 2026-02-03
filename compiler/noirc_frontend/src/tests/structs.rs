@@ -327,3 +327,21 @@ fn constructor_private_field() {
     // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
     check_errors(src);
 }
+
+#[test]
+fn abi_attribute_outside_contract() {
+    let src = r#"
+        pub contract moo {
+            #[abi(hello)]
+            pub struct Foo {}
+                       ^^^ #[abi(tag)] attributes can only be used in contracts
+                       ~~~ misplaced #[abi(tag)] attribute
+        }
+
+        pub fn foo(_: moo::Foo) {}
+                      ~~~~~~~~ the type is used outside of a contract
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}

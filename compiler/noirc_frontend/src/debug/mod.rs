@@ -5,7 +5,7 @@ use crate::signed_field::SignedField;
 use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
-use noirc_errors::debug_info::{DebugFnId, DebugFunction};
+use noirc_artifacts::debug::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -118,6 +118,7 @@ impl DebugInstrumenter {
                 | FunctionAttributeKind::Fold
                 | FunctionAttributeKind::NoPredicates
                 | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::InlineNever
                 | FunctionAttributeKind::FuzzingHarness(..) => (),
             }
         }

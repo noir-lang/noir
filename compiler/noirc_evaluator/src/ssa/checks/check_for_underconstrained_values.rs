@@ -1,7 +1,6 @@
 //! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
-use crate::errors::{InternalBug, SsaReport};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
@@ -10,6 +9,7 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use crate::ssa::visit_once_deque::VisitOnceDeque;
 use im::HashMap;
+use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -20,6 +20,7 @@ impl Ssa {
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
     /// Go through each top-level non-Brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
         self.functions
             .values()
@@ -40,6 +41,7 @@ impl Ssa {
 
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_missing_brillig_constraints(
         &mut self,
         enable_lookback: bool,
@@ -172,7 +174,7 @@ impl BrilligTaintedIds {
                 // of the resulting sets for future reference
                 Some(length) => {
                     array_elements.insert(*result, vec![]);
-                    for _ in 0..length {
+                    for _ in 0..length.0 {
                         array_elements[result].push(results_status.len());
                         results_status
                             .push(ResultStatus::Unconstrained { descendants: HashSet::new() });
@@ -485,17 +487,17 @@ impl DependencyContext {
                                 Intrinsic::ArrayLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsSlice
+                                | Intrinsic::AsVector
                                 | Intrinsic::BlackBox(..)
                                 | Intrinsic::DerivePedersenGenerators
                                 | Intrinsic::Hint(..)
-                                | Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRefCount
-                                | Intrinsic::SliceInsert
-                                | Intrinsic::SliceRemove
+                                | Intrinsic::VectorPushBack
+                                | Intrinsic::VectorPushFront
+                                | Intrinsic::VectorPopBack
+                                | Intrinsic::VectorPopFront
+                                | Intrinsic::VectorRefCount
+                                | Intrinsic::VectorInsert
+                                | Intrinsic::VectorRemove
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -569,7 +571,7 @@ impl DependencyContext {
 
     /// Every Brillig call not properly constrained should remain in the tainted set
     /// at this point. For each, emit a corresponding warning.
-    fn collect_warnings(&mut self, function: &Function) -> Vec<SsaReport> {
+    fn collect_warnings(&self, function: &Function) -> Vec<SsaReport> {
         let warnings: Vec<SsaReport> = self
             .tainted
             .keys()
@@ -690,7 +692,7 @@ impl Context {
     ///
     /// Goes through each set of connected ValueIds and see if function arguments or return values are in the set
     fn find_sets_connected_to_function_inputs_or_outputs(
-        &mut self,
+        &self,
         function: &Function,
     ) -> BTreeSet<usize> {
         let returns = function.returns().unwrap_or_default();
@@ -799,17 +801,17 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsSlice
+                            | Intrinsic::AsVector
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::SliceInsert
-                            | Intrinsic::SlicePushBack
-                            | Intrinsic::SlicePushFront
-                            | Intrinsic::SlicePopBack
-                            | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceRefCount
-                            | Intrinsic::SliceRemove
+                            | Intrinsic::VectorInsert
+                            | Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorPopFront
+                            | Intrinsic::VectorRefCount
+                            | Intrinsic::VectorRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
@@ -952,7 +954,7 @@ impl Context {
     }
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::Ssa;
     use tracing_test::traced_test;
 

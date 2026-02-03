@@ -269,7 +269,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let typ = alias.borrow().get_type(generics);
             input_value_to_comptime_value(input, &typ, location)
         }
-        Type::Slice(_)
+        Type::Vector(_)
         | Type::FmtString(_, _)
         | Type::TypeVariable(..)
         | Type::TraitAsType(..)
@@ -309,7 +309,7 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         Value::U32(value) => value.to_string(),
         Value::U64(value) => value.to_string(),
         Value::U128(value) => value.to_string(),
-        Value::String(string) | Value::FormatString(string, _) | Value::CtString(string) => {
+        Value::String(string) => {
             format!("{string:?}")
         }
         Value::Tuple(values) => {
@@ -367,7 +367,7 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         Value::Function(..)
         | Value::Closure(..)
         | Value::Pointer(..)
-        | Value::Slice(..)
+        | Value::Vector(..)
         | Value::Quoted(..)
         | Value::TypeDefinition(..)
         | Value::TraitConstraint(..)
@@ -379,7 +379,9 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         | Value::Zeroed(_)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) => {
+        | Value::UnresolvedType(..)
+        | Value::FormatString(..)
+        | Value::CtString(..) => {
             panic!("Unexpected output value: {}", value.display(&context.def_interner))
         }
     }

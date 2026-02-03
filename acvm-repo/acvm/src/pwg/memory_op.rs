@@ -31,13 +31,16 @@ impl<F: AcirField> MemoryOpSolver<F> {
         })
     }
 
-    fn len(&self) -> u32 {
+    pub(crate) fn len(&self) -> u32 {
         u32::try_from(self.block_value.len()).expect("expected a length that fits into a u32")
     }
 
     /// Convert a field element into a memory index
     /// Only 32 bits values are valid memory indices
-    fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
+    pub(crate) fn index_from_field(
+        &self,
+        index: F,
+    ) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
         index.try_to_u32().ok_or_else({
             || OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
@@ -49,7 +52,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
     /// Update the 'block_value' map with the provided index/value
     /// Returns an 'IndexOutOfBounds' error if the index is outside the block range.
-    fn write_memory_index(
+    pub(crate) fn write_memory_index(
         &mut self,
         index: MemoryIndex,
         value: F,
@@ -68,7 +71,10 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
     /// Returns the value stored in the 'block_value' map for the provided index
     /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
-    fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
+    pub(crate) fn read_memory_index(
+        &self,
+        index: MemoryIndex,
+    ) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(index as usize).copied().ok_or(
             OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
@@ -100,7 +106,6 @@ impl<F: AcirField> MemoryOpSolver<F> {
         &mut self,
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
-        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
@@ -116,15 +121,13 @@ impl<F: AcirField> MemoryOpSolver<F> {
 
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
-        if pedantic_solving {
-            // We expect that the 'operation' should resolve to either 0 or 1.
-            if !is_read_operation && !operation.is_one() {
-                let opcode_location = ErrorLocation::Unresolved;
-                return Err(OpcodeResolutionError::MemoryOperationLargerThanOne {
-                    opcode_location,
-                    operation,
-                });
-            }
+        // We expect that the 'operation' should resolve to either 0 or 1.
+        if !is_read_operation && !operation.is_one() {
+            let opcode_location = ErrorLocation::Unresolved;
+            return Err(OpcodeResolutionError::MemoryOperationLargerThanOne {
+                opcode_location,
+                operation,
+            });
         }
 
         if is_read_operation {
@@ -181,8 +184,7 @@ mod tests {
         let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
 
         for op in trace {
-            let pedantic_solving = true;
-            block_solver.solve_memory_op(&op, &mut initial_witness, pedantic_solving).unwrap();
+            block_solver.solve_memory_op(&op, &mut initial_witness).unwrap();
         }
 
         assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
@@ -206,9 +208,7 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                let pedantic_solving = true;
-                err =
-                    block_solver.solve_memory_op(&op, &mut initial_witness, pedantic_solving).err();
+                err = block_solver.solve_memory_op(&op, &mut initial_witness).err();
             }
         }
 

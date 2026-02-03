@@ -1,9 +1,12 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{
-    function_builder::data_bus::DataBus,
-    ir::instruction::ArrayOffset,
-    opt::pure::{FunctionPurities, Purity},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        function_builder::data_bus::DataBus,
+        ir::instruction::ArrayOffset,
+        opt::pure::{FunctionPurities, Purity},
+    },
 };
 
 use super::{
@@ -18,7 +21,13 @@ use super::{
     value::{Value, ValueId, ValueMapping},
 };
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
@@ -648,36 +657,29 @@ impl DataFlowGraph {
 
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<u32> {
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<SemanticLength> {
         match self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
             _ => None,
         }
     }
-    pub(crate) fn try_get_slice_capacity(&self, value: ValueId) -> Option<u32> {
+    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
         // For arrays we know the size statically
         if let Some(length) = self.try_get_array_length(value) {
             return Some(length);
         }
 
-        // Check if the value was made by a MakeArray instruction, which can create slices as well.
+        // Check if the value was made by a MakeArray instruction, which can create vectors as well.
         let (array, typ) = self.get_array_constant(value)?;
         let elements_size = typ.element_size();
 
-        let length = if elements_size == 0 {
-            array.len()
+        let length = if elements_size.0 == 0 {
+            SemanticLength(assert_u32(array.len()))
         } else {
-            // Compute the slice length by dividing the flattened
-            // array length by the size of each array element
-            assert_eq!(
-                array.len() % elements_size,
-                0,
-                "expected array length to be multiple of its elements size"
-            );
-            array.len() / elements_size
+            SemiFlattenedLength(assert_u32(array.len())) / elements_size
         };
 
-        Some(length as u32)
+        Some(length)
     }
 
     /// If this value points to an array of constant bytes, returns a string
@@ -702,10 +704,10 @@ impl DataFlowGraph {
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
-            (Type::Array(elements, len), Some(index))
-                if index.to_u128() < (u128::from(len) * elements.len() as u128) =>
-            {
-                true
+            (Type::Array(elements, len), Some(index)) => {
+                let elements_length = ElementTypesLength(assert_u32(elements.len()));
+                let semi_flattened_length = len * elements_length;
+                index.to_u128() < u128::from(semi_flattened_length.0)
             }
             _ => false,
         }
@@ -826,7 +828,7 @@ impl DataFlowGraph {
         self.function_purities.get(&function).copied()
     }
 
-    /// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
     pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
         if !self.runtime.is_brillig()
             || !self.brillig_arrays_offset
@@ -836,7 +838,7 @@ impl DataFlowGraph {
         }
         match self.type_of_value(array) {
             Type::Array(_, _) => ArrayOffset::Array,
-            Type::Slice(_) => ArrayOffset::Slice,
+            Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,
         }
     }

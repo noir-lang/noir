@@ -47,7 +47,7 @@ impl InstructionResultCache {
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
             if let CacheResult::Cached { results, .. } = results {
-                let old_results = dfg.instruction_results(id).to_vec();
+                let old_results = dfg.instruction_results(id);
 
                 results.len() == old_results.len()
                     && old_results
@@ -103,7 +103,7 @@ impl InstructionResultCache {
                 return;
             };
 
-            // We only care about arrays and slices. (`Store` can act on non-array values as well)
+            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
             if !dfg.type_of_value(*value).is_array() {
                 return;
             };
@@ -130,7 +130,7 @@ impl InstructionResultCache {
 
         let mut remove_if_array = |value| go(dfg, self, value);
 
-        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        // Should we consider calls to vector_push_back and similar to be mutating operations as well?
         match instruction {
             Store { value, .. } | ArraySet { array: value, .. } => {
                 // If we write to a value, it's not safe for reuse, as its value has changed since its creation.

@@ -88,7 +88,7 @@ fn main(x : [Field]) {
 
 #[test]
 fn test_one() {
-    main(&[1, 2]);
+    main(@[1, 2]);
 }
 ```
 

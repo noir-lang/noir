@@ -14,8 +14,11 @@ use noirc_frontend::{
     },
 };
 
-use crate::use_segment_positions::{
-    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+use crate::{
+    requests::completion::sort_text::local_variable_sort_text,
+    use_segment_positions::{
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+    },
 };
 
 use super::{
@@ -636,6 +639,14 @@ pub(super) fn field_completion_item(
     } else {
         simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
     }
+}
+
+pub(super) fn variable_completion_item(
+    label: impl Into<String>,
+    description: Option<String>,
+) -> CompletionItem {
+    let item = simple_completion_item(label, CompletionItemKind::VALUE, description);
+    completion_item_with_sort_text(item, local_variable_sort_text())
 }
 
 pub(super) fn simple_completion_item(

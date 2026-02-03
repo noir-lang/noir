@@ -38,7 +38,7 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, ResolverMeta};
+use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -125,6 +125,7 @@ impl<'context> Elaborator<'context> {
             self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
+            self.unresolved_globals,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -151,6 +152,7 @@ impl<'context> Elaborator<'context> {
         };
 
         self.errors.extend(errors);
+        self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
         result
     }
 
@@ -394,9 +396,10 @@ impl<'context> Elaborator<'context> {
 
         arguments.insert(0, (item, location));
 
-        let value = interpreter
-            .call_function(function, arguments, TypeBindings::default(), location)
-            .map_err(CompilationError::from)?;
+        let result =
+            interpreter.call_function(function, arguments, TypeBindings::default(), location);
+
+        let value = result.map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
@@ -415,13 +418,13 @@ impl<'context> Elaborator<'context> {
     /// Attribute functions have a special calling convention:
     /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
     /// - Remaining parameters are provided explicitly in the attribute syntax
-    /// - If the function has `#[varargs]`, extra arguments are collected into a slice
+    /// - If the function has `#[varargs]`, extra arguments are collected into a vector
     ///
     /// This function:
     /// 1. Validates the first parameter matches the item type
     /// 2. Elaborates and type-checks each argument expression
     /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
-    /// 4. Collects varargs into a slice if applicable
+    /// 4. Collects varargs into a vector if applicable
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
         item: &Value,
@@ -458,13 +461,20 @@ impl<'context> Elaborator<'context> {
         // in `arguments` at this point.
         parameters.remove(0);
 
-        // If the function is varargs, push the type of the last slice element N times
+        // If the function is varargs, push the type of the last vector element N times
         // to account for N extra arguments.
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
         let is_varargs = modifiers.attributes.has_varargs();
         let varargs_type = if is_varargs { parameters.pop() } else { None };
 
-        let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
+        // If the varargs type is not a vector, make it a vector to avoid producing more errors
+        // (an error for this was already produced during name resolution). Here we assume the user
+        // used the vector element type instead of a vector.
+        let varargs_type = varargs_type.map(|typ| {
+            if matches!(typ, Type::Vector(..)) { typ } else { Type::Vector(Box::new(typ)) }
+        });
+
+        let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.vector_element_type());
 
         let mut new_arguments = Vec::with_capacity(arguments.len());
         let mut varargs = im::Vector::new();
@@ -521,7 +531,7 @@ impl<'context> Elaborator<'context> {
 
         if is_varargs {
             let typ = varargs_type.unwrap_or(Type::Error);
-            new_arguments.push((Value::Slice(varargs, typ), location));
+            new_arguments.push((Value::Vector(varargs, typ), location));
         }
 
         Ok(new_arguments)
@@ -583,6 +593,7 @@ impl<'context> Elaborator<'context> {
                         self.crate_id,
                         location.file,
                         local_module,
+                        &mut self.errors,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
@@ -726,6 +737,25 @@ impl<'context> Elaborator<'context> {
 
         // Execute each collected attribute
         for attr in attributes_to_run {
+            // Check macro expansion depth to prevent infinite recursion when an attribute
+            // generates code that triggers further attribute expansion (including mutual recursion).
+            //
+            // Note: This check is intentionally here in `run_attributes` rather than in
+            // `run_attribute` because the recursion path is:
+            //   run_attributes -> run_attribute -> elaborate_items -> run_attributes
+            // If we put the increment/decrement in `run_attribute`, the decrement would
+            // happen before `elaborate_items` is called, so the depth counter would reset
+            // before the recursive call and fail to detect the recursion.
+            if self.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
+                self.push_err(InterpreterError::AttributeRecursionLimitExceeded {
+                    location: attr.location,
+                });
+                // Halt further elaboration to prevent cascading errors
+                self.comptime_evaluation_halted = true;
+                return;
+            }
+            self.macro_expansion_depth += 1;
+
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
@@ -746,6 +776,8 @@ impl<'context> Elaborator<'context> {
                     elaborator.elaborate_items(generated_items);
                 });
             }
+
+            self.macro_expansion_depth -= 1;
         }
     }
 

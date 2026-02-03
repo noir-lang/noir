@@ -1,3 +1,5 @@
+//! Contains helper functions for performing SSA optimizations.
+
 use std::hash::BuildHasher;
 
 use iter_extended::vecmap;
@@ -200,6 +202,9 @@ impl SimpleOptimizationContext<'_, '_> {
     }
 
     /// Replaces the current instruction with another one.
+    ///
+    /// This assumes no change in the number and type of results,
+    /// it simply reassigns the existing ID with a modified instruction.
     pub(crate) fn replace_current_instruction_with(&mut self, instruction: Instruction) {
         self.dfg[self.instruction_id] = instruction;
     }

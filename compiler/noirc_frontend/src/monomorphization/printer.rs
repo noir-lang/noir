@@ -238,7 +238,7 @@ impl AstPrinter {
         }
     }
 
-    fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
+    fn next_line(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f)?;
         for _ in 0..self.indent_level {
             write!(f, "    ")?;
@@ -257,8 +257,8 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            Literal::Slice(array) => {
-                write!(f, "&[")?;
+            Literal::Vector(array) => {
+                write!(f, "@[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
@@ -381,7 +381,11 @@ impl AstPrinter {
     ) -> Result<(), std::fmt::Error> {
         write!(f, "for {} in ", self.fmt_local(&for_expr.index_name, for_expr.index_variable))?;
         self.print_expr(&for_expr.start_range, f)?;
-        write!(f, " .. ")?;
+        if for_expr.inclusive {
+            write!(f, " ..= ")?;
+        } else {
+            write!(f, " .. ")?;
+        }
         self.print_expr(&for_expr.end_range, f)?;
         write!(f, " {{")?;
 
@@ -570,7 +574,7 @@ impl AstPrinter {
             let is_unsafe = unconstrained && !self.in_unconstrained;
             let special = match definition {
                 Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("vector") => {
                     Some(SpecialCall::Object(name.clone()))
                 }
                 _ => None,

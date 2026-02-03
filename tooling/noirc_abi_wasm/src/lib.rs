@@ -2,6 +2,8 @@
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandom_v2 as _;
+use getrandom_v4 as _; // cSpell:disable-line
 
 use acvm::{
     AcirField, FieldElement,

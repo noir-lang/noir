@@ -16,6 +16,7 @@ acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 noirc_arena.workspace = true
 noirc_errors.workspace = true
+noirc_artifacts.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
 iter-extended.workspace = true

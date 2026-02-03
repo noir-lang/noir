@@ -1,9 +1,9 @@
 use crate::{
     elaborator::UnstableFeature,
-    tests::{check_errors, get_program_using_features},
+    tests::{
+        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+    },
 };
-
-use super::assert_no_errors;
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -136,4 +136,72 @@ fn immutable_references_without_ownership_feature() {
                           ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
     "#;
     check_errors(src);
+}
+
+#[test]
+fn calling_dereferenced_lambda_output_from_trait_impl() {
+    let src = r#"
+    trait Bar {
+      fn bar(&mut self) -> &mut Self;
+    }
+    
+    impl<T> Bar for T {
+      fn bar(&mut self) -> &mut Self {
+        self
+      }
+    }
+    
+    fn main() {
+      let mut foo = |_x: ()| { true };
+      let mut_ref_foo = &mut foo;
+      assert((*mut_ref_foo.bar())(()))
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
+    let src = r#"
+    trait Bar {
+      fn bar(&mut self) -> &mut Self;
+    }
+    
+    impl<T> Bar for T {
+      fn bar(&mut self) -> &mut Self {
+        self
+      }
+    }
+    
+    fn main() {
+      let mut foo = |_x: ()| { true };
+      let mut_ref_foo = &mut foo;
+      assert(mut_ref_foo.bar()(()))
+             ^^^^^^^^^^^^^^^^^^^^^ Expected a function, but found a(n) &mut fn(()) -> bool
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_behind_generics_returned_from_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        let y = &mut 10;
+        let add = |x: Field| { *y = *y + x; };
+        let mul = |x: Field| { *y = *y * x; };
+
+        let f = choose_func(add, mul);
+                ^^^^^^^^^^^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+
+        f(20);
+    }
+
+    #[oracle(choose_func)]
+    unconstrained fn choose_func<Env>(
+        f: fn[Env](Field) -> (),
+        g: fn[Env](Field) -> (),
+    ) -> fn[Env](Field) -> () {}
+    "#;
+    check_monomorphization_error(src);
 }

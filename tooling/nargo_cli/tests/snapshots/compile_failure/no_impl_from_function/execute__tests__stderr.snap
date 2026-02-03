@@ -5,7 +5,7 @@ expression: stderr
 error: Duplicate definitions of import with name Eq found
    ┌─ std/aes128.nr:1:1
    │
- 1 │ #[foreign(aes128_encrypt)]
+ 1 │ // docs:start:aes128
    │ - Second import found here
    │
    ┌─ src/main.nr:14:7

@@ -5,9 +5,10 @@
 use std::path::Path;
 
 use nargo::parse_all;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
+    prepare_crate,
 };
 use noirc_frontend::hir::Context;
 

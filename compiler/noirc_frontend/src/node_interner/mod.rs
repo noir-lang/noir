@@ -7,6 +7,7 @@ use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::QuotedType;
 use crate::ast::DocComment;
@@ -16,8 +17,9 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;
-use crate::hir::def_collector::dc_crate::{UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
@@ -25,7 +27,7 @@ use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
-use crate::Generics;
+use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
 use crate::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
@@ -294,6 +296,20 @@ pub struct NodeInterner {
     /// These are defined in `noir_stdlib/src/primitive_docs.nr` using a tag
     /// attribute `#['nargo_primitive_doc]` on private modules.
     pub primitive_docs: HashMap<String, Vec<DocComment>>,
+
+    /// Tracks expressions that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored expressions.
+    pub(crate) exprs_with_errors: HashSet<ExprId>,
+
+    /// Tracks statements that encountered errors during elaboration.
+    /// Used by the interpreter to skip evaluation of errored statements.
+    pub(crate) stmts_with_errors: HashSet<StmtId>,
+
+    /// Associates type bindings that resulted from unifying the type of a macro call expression
+    /// with the expected type at the callsite.
+    /// Since a single macro call expression might end up having different types across loop
+    /// iterations, before unifying its type we undo bindings from the last time we unified it.
+    pub(crate) macro_call_expression_bindings: HashMap<ExprId, TypeBindings>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -488,6 +504,9 @@ impl Default for NodeInterner {
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
             primitive_docs: HashMap::default(),
+            exprs_with_errors: HashSet::default(),
+            stmts_with_errors: HashSet::default(),
+            macro_call_expression_bindings: HashMap::default(),
         }
     }
 }
@@ -537,8 +556,8 @@ impl NodeInterner {
         &mut self,
         type_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
-        generics: Generics,
-        associated_types: Generics,
+        generics: ResolvedGenerics,
+        associated_types: ResolvedGenerics,
         associated_constant_ids: HashMap<String, DefinitionId>,
     ) {
         let new_trait = Trait {
@@ -569,7 +588,7 @@ impl NodeInterner {
         name: Ident,
         span: Span,
         attributes: Vec<SecondaryAttribute>,
-        generics: Generics,
+        generics: ResolvedGenerics,
         visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
@@ -587,7 +606,7 @@ impl NodeInterner {
     pub fn push_type_alias(
         &mut self,
         typ: &UnresolvedTypeAlias,
-        generics: Generics,
+        generics: ResolvedGenerics,
     ) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
@@ -626,7 +645,7 @@ impl NodeInterner {
     }
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let value = self.traits.get_mut(&trait_id).unwrap();
+        let value = self.get_trait_mut(trait_id);
         f(value);
     }
 
@@ -639,7 +658,7 @@ impl NodeInterner {
         &mut self,
         type_id: TypeAliasId,
         typ: Type,
-        generics: Generics,
+        generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
@@ -837,26 +856,39 @@ impl NodeInterner {
         self.try_id_type(index).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of an item, or `None` if it was not found.
     pub fn try_id_type(&self, index: impl Into<Index>) -> Option<&Type> {
         self.id_to_type.get(&index.into())
     }
 
     /// Returns the type of the definition, or [Type::Error] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
-        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
+        self.try_definition_type(id).cloned().unwrap_or(Type::Error)
+    }
+
+    /// Returns the type of the definition, or `None` if it was not found.
+    pub fn try_definition_type(&self, id: DefinitionId) -> Option<&Type> {
+        self.definition_to_type.get(&id)
     }
 
     /// Returns the type of the definition, unless it's a function returning an `impl Trait`,
     /// in which case it looks up the type of its body and returns a new function type with
     /// the type fo the body substituted to its return type.
-    pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
+    ///
+    /// Returns:
+    /// * `Ok` if it was able to substitute the type, either because it's not an `impl Trait`
+    ///   or because the type of the body of the function is already known
+    /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
+    pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
         let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
-                    let f = self.function(&func_id);
-                    let func_body = f.as_expr();
+                    let func = self.function(&func_id);
+                    let Some(func_body) = func.try_as_expr() else {
+                        return Err(func_id);
+                    };
                     let ret_type = self.id_type(func_body);
                     let new_type = Type::Function(
                         args.clone(),
@@ -864,11 +896,11 @@ impl NodeInterner {
                         env.clone(),
                         *unconstrained,
                     );
-                    return new_type;
+                    return Ok(new_type);
                 }
             }
         }
-        typ
+        Ok(typ)
     }
 
     /// Returns the span of an item stored in the Interner
@@ -975,23 +1007,35 @@ impl NodeInterner {
         method_name: String,
         method_id: FuncId,
         trait_id: Option<TraitId>,
-    ) -> Option<FuncId> {
+    ) -> Result<(), CompilationError> {
         match self_type {
-            Type::Error => None,
+            Type::Error => Ok(()),
             Type::Reference(element, _mutable) => {
                 self.add_method(element, method_name, method_id, trait_id)
             }
             _ => {
-                let key = get_type_method_key(self_type).unwrap_or_else(|| {
-                    unreachable!("Cannot add a method to the unsupported type '{}'", self_type)
-                });
+                let Some(key) = get_type_method_key(self_type) else {
+                    let location = self.function_ident(&method_id).location();
+                    let error = ResolverError::TypeUnsupportedForMethod {
+                        typ: self_type.clone(),
+                        location,
+                    };
+                    return Err(error.into());
+                };
 
                 if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
                     let check_self_param = false;
                     if let Some(existing) =
                         self.lookup_direct_method(self_type, &method_name, check_self_param)
                     {
-                        return Some(existing);
+                        let first_location = self.function_ident(&existing).location();
+                        let second_location = self.function_ident(&method_id).location();
+                        let error = ResolverError::DuplicateDefinition {
+                            name: method_name,
+                            first_location,
+                            second_location,
+                        };
+                        return Err(error.into());
                     }
                 }
 
@@ -1004,7 +1048,7 @@ impl NodeInterner {
                     .entry(method_name)
                     .or_default()
                     .add_method(method_id, typ, trait_id);
-                None
+                Ok(())
             }
         }
     }
@@ -1066,9 +1110,21 @@ impl NodeInterner {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Retrieves the impl selected for a given ExprId during name resolution.
+    /// Retrieves the impl selected for a given [ExprId] during name resolution.
     pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
+    }
+
+    /// Attempts to retrieve the trait id for a given binary operator.
+    /// All binary operators correspond to a trait - although multiple may correspond
+    /// to the same trait (such as `==` and `!=`).
+    /// `self.infix_operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn try_get_operator_trait_method(&self, operator: BinaryOpKind) -> Option<TraitItemId> {
+        let trait_id = *self.infix_operator_traits.get(&operator)?;
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        Some(TraitItemId { trait_id, item_id: self.function_definition_id(func_id) })
     }
 
     /// Retrieves the trait id for a given binary operator.
@@ -1077,10 +1133,12 @@ impl NodeInterner {
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitItemId {
-        let trait_id = self.infix_operator_traits[&operator];
-        let the_trait = self.get_trait(trait_id);
-        let func_id = *the_trait.method_ids.values().next().unwrap();
-        TraitItemId { trait_id, item_id: self.function_definition_id(func_id) }
+        self.try_get_operator_trait_method(operator).unwrap_or_else(|| {
+            panic!(
+                "get_operator_trait_method: missing trait method: {operator:?}, {:?}",
+                self.infix_operator_traits
+            )
+        })
     }
 
     /// Retrieves the trait id for a given unary operator.
@@ -1185,7 +1243,7 @@ impl NodeInterner {
             method_ids,
             associated_types: vec![],
             associated_type_bounds: Default::default(),
-            name: Ident::new("Dummy".to_string(), Location::dummy()),
+            name: Ident::new("PopulateDummyOperatorTraitsTrait".to_string(), Location::dummy()),
             generics: vec![],
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
@@ -1359,6 +1417,9 @@ impl NodeInterner {
         &self.trait_impl_associated_types[&impl_id]
     }
 
+    /// Find an associated type in a trait implementation by the last segment in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn find_associated_type_for_impl(
         &self,
         impl_id: TraitImplId,
@@ -1375,6 +1436,38 @@ impl NodeInterner {
         name: &str,
     ) -> Option<&(DefinitionId, Type)> {
         self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
+    }
+
+    /// Looks up associated constants for a type by name.
+    /// Returns all matching constants with their trait info.
+    pub fn lookup_trait_impl_constants_for_type(
+        &self,
+        typ: &Type,
+        constant_name: &str,
+    ) -> Vec<(DefinitionId, TraitId, TraitImplId)> {
+        let mut results = Vec::new();
+
+        for (impl_id, constants) in &self.trait_impl_associated_constants {
+            let Some((def_id, _constant_type)) = constants.get(constant_name) else {
+                continue;
+            };
+            let Some(trait_impl) = self.try_get_trait_implementation(*impl_id) else {
+                continue;
+            };
+
+            let trait_id = trait_impl.borrow().trait_id;
+
+            // Check if typ implements the trait
+            // This handles instantiation and unification correctly for generic impls
+            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
+                self.try_lookup_trait_implementation(typ, trait_id, &[], &[])
+            {
+                if found_impl_id == *impl_id {
+                    results.push((*def_id, trait_id, *impl_id));
+                }
+            }
+        }
+        results
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
@@ -1459,16 +1552,49 @@ impl NodeInterner {
             }
         }
     }
+
+    /// Clears data that is stored in this NodeInterner that is declared at the given file.
+    /// This isn't used by the compiler. It's only used by the LSP server when a file
+    /// changes, to clear the definitions of the previous version of the file.
+    pub fn clear_in_file(&mut self, file: FileId) {
+        // Clear in methods
+        for (_key, methods) in self.methods.iter_mut() {
+            for (_name, methods) in methods.iter_mut() {
+                methods.direct.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+
+                methods.trait_impl_methods.retain(|method| {
+                    let func_id = method.method;
+                    self.func_meta.get(&func_id).unwrap().location.file != file
+                });
+            }
+        }
+
+        // Clear in auto import names
+        for (_name, entries) in self.auto_import_names.iter_mut() {
+            entries.retain(|entry| entry.file != file);
+        }
+
+        // Clear in reexports
+        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+            reexports.retain(|reexport| reexport.name.location().file != file);
+        }
+
+        // Clear in LocationIndices
+        self.clear_file_locations(file);
+    }
 }
 
 /// These are the primitive type variants that we support adding methods to
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-enum TypeMethodKey {
+pub(crate) enum TypeMethodKey {
     /// Fields and integers share methods for ease of use. These methods may still
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
-    Slice,
+    Vector,
     Bool,
     String,
     FmtString,
@@ -1480,13 +1606,13 @@ enum TypeMethodKey {
     Struct(TypeId),
 }
 
-fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
+pub(crate) fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
         Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Slice(_) => Some(Slice),
+        Type::Vector(_) => Some(Vector),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(var) => {
             if var.is_integer() || var.is_integer_or_field() {

@@ -4,6 +4,7 @@
 
 mod black_box;
 mod foreign_call;
+pub mod lengths;
 mod opcodes;
 
 pub use black_box::BlackBoxOp;

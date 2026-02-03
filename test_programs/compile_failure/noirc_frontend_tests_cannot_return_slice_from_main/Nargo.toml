@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cannot_return_slice_from_main"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

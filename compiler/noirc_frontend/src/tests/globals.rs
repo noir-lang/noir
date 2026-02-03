@@ -1,10 +1,9 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
@@ -69,7 +68,7 @@ fn do_not_infer_partial_global_types() {
                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^ Globals must have a specified type
                                  ~~~~ Inferred type is `str<2>`
-        pub global NESTED_STR: [str<_>] = &["hi"];
+        pub global NESTED_STR: [str<_>] = @["hi"];
                                     ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^ Globals must have a specified type
                                           ~~~~~~~ Inferred type is `[str<2>]`
@@ -83,7 +82,7 @@ fn do_not_infer_partial_global_types() {
                                               ^ The placeholder `_` is not allowed in global definitions
                                                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
-            (&["hi"], [[]; 3]);
+            (@["hi"], [[]; 3]);
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
         pub global FOO: [i32; 3] = [1, 2, 3];
     "#;
@@ -142,19 +141,6 @@ fn disallows_references_in_globals() {
 }
 
 #[test]
-fn errors_on_cyclic_globals() {
-    let src = r#"
-    pub comptime global A: u32 = B;
-                                 ^ Failed to resolve this global
-                        ^ Dependency cycle found
-                        ~ 'A' recursively depends on itself: A -> B -> A
-    pub comptime global B: u32 = A;
-                                 ^ Failed to resolve this global
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn int_min_global() {
     let src = r#"
         global MIN: i8 = -128;
@@ -188,4 +174,63 @@ fn lazy_literal_globals() {
     }
     ";
     assert_no_errors(src);
+}
+
+#[test]
+fn global_fn_using_quoted() {
+    let src = "
+    global foo: fn() = || {
+        let _ = quote { 1 };
+                ^^^^^^^^^^^ Comptime-only type `Quoted` used in runtime code
+                ~~~~~~~~~~~ Comptime type used here
+    };
+
+    fn main() {
+        foo();
+    }
+    ";
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn global_using_nested_quoted_type() {
+    let src = "
+    global foo: [Quoted; 1] = [quote { 1 }];
+                 ^^^^^^ Comptime-only type `Quoted` cannot be used in runtime code
+                 ~~~~~~ Comptime-only type used here
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_using_nested_quoted_type() {
+    let src = "
+    comptime global foo: [Quoted; 1] = [quote { 1 }];
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn global_closure_with_undefined_variable_method_call() {
+    // A global contained a closure with a method call on an undefined variable.
+    // It should report an error, and not panic.
+    let src = r#"
+    global foo: fn() -> Field = || {
+        v0.bar()
+        ^^ cannot find `v0` in this scope
+        ~~ not found in this scope
+    };
+    fn main() {
+        let _ = foo;
+    }
+    "#;
+    check_errors(src);
 }

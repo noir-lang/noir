@@ -11,7 +11,7 @@ fn check_trait_impl_for_non_type() {
     }
 
     impl Default2 for main {
-                      ^^^^ expected type got function
+                      ^^^^ expected type, found function `main`
         fn default(x: Field, y: Field) -> Field {
             x + y
         }
@@ -253,6 +253,70 @@ fn check_trait_not_in_scope() {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_associated_type_without_body() {
+    let src = "
+    pub trait Trait {
+        type Assoc;
+    }
+
+    impl Trait for Field {
+        type Assoc;
+             ^^^^^ Associated type in impl without body
+             ~~~~~ Provide a definition for the type: ` = <type>;`
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_6581_impl_only() {
+    let src = "
+    trait Foo {
+        fn foo(self) -> Self;
+    }
+
+    impl<T, let N: u32> Foo for () {
+         ^ The type parameter `T` is not constrained by the impl trait, self type, or predicates
+         ~ Hint: remove the `T` type parameter
+                ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `N` type parameter
+        fn foo(self) -> Self {
+            ()
+        }
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_6581_using_impl_method() {
+    let src = "
+    trait Foo {
+        fn foo(self) -> Self;
+    }
+
+    impl<T, let N: u32> Foo for () {
+         ^ The type parameter `T` is not constrained by the impl trait, self type, or predicates
+         ~ Hint: remove the `T` type parameter
+                ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `N` type parameter
+        fn foo(self) -> Self {
+            ()
+        }
+    }
+
+    fn println<T>(_x: T) {}
+
+    fn main() {
+        println(().foo());
     }
     ";
     check_errors(src);

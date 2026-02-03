@@ -17,10 +17,11 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 }
 
 comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields = &[
+    let fields = [
         (quote {x}, quote {i32}.as_type(), quote { pub }),
         (quote {y}, quote {Field}.as_type(), quote { pub(crate) }),
-    ];
+    ]
+        .as_vector();
     s.set_fields(fields);
 
     let fields = s.fields([]);
@@ -81,8 +82,8 @@ fn main() {
         // Test TypeDefinition::as_type_with_generics
         let i32_type = quote [i32].as_type();
 
-        let applied = struct_def.as_type_with_generics(&[i32_type, i32_type, i32_type]);
-        let invalid = struct_def.as_type_with_generics(&[i32_type, i32_type]); // invalid generic count
+        let applied = struct_def.as_type_with_generics([i32_type, i32_type, i32_type].as_vector());
+        let invalid = struct_def.as_type_with_generics([i32_type, i32_type].as_vector()); // invalid generic count
 
         assert_eq(applied.unwrap(), quote [MyType<i32, i32, i32>].as_type());
         assert(invalid.is_none());

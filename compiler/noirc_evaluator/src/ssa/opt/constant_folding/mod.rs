@@ -157,11 +157,29 @@ impl Function {
             // Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
             let blocks_to_revisit = context.blocks_to_revisit;
 
+            // Preserve the values_to_replace mapping across iterations.
+            // This is necessary because instructions that were simplified or deduplicated in earlier
+            // iterations may still be referenced by instructions in blocks that are revisited.
+            // Without preserving this mapping, those references could point to orphaned instructions.
+            let values_to_replace = context.values_to_replace;
+
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
             context = Context::new(use_constraint_info);
+            context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
+        }
+
+        // After all iterations, apply the final values_to_replace mapping to all instructions
+        // in all reachable blocks. This is necessary in case an instruction uses a value re-mapped
+        // in another block that is processed after the instruction's block.
+        // By applying the final mapping here, we ensure consistency.
+        if !context.values_to_replace.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &context.values_to_replace);
+            }
+            self.dfg.data_bus.replace_values(&context.values_to_replace);
         }
     }
 }
@@ -188,7 +206,7 @@ struct Context {
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
-    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 2` without
     /// laying down constraints for the addition:
     ///
     /// ```ssa
@@ -458,37 +476,47 @@ impl Context {
         block: BasicBlockId,
     ) {
         if self.use_constraint_info {
-            // If the instruction was a constraint, then create a link between the two `ValueId`s
-            // to map from the more complex to the simpler value.
-            if let Instruction::Constrain(lhs, rhs, _) = instruction {
-                // These `ValueId`s should be fully resolved now.
-                self.constraint_simplification_mappings.cache(
-                    dfg,
-                    side_effects_enabled_var,
-                    block,
-                    *lhs,
-                    *rhs,
-                );
+            match instruction {
+                // If the instruction was a constraint, then create a link between the two `ValueId`s
+                // to map from the more complex to the simpler value.
+                Instruction::Constrain(lhs, rhs, _) => {
+                    // These `ValueId`s should be fully resolved now.
+                    self.constraint_simplification_mappings.cache(
+                        dfg,
+                        side_effects_enabled_var,
+                        block,
+                        *lhs,
+                        *rhs,
+                    );
+                }
+
+                // If we have an array get whose value is from an array set on the same array at the same index,
+                // we can simplify that array get to the value of the previous array set.
+                //
+                // For example:
+                // v3 = array_set v0, index v1, value v2
+                // v4 = array_get v3, index v1 -> Field
+                //
+                // We know that `v4` can be simplified to `v2`.
+                // Thus, even if the index is dynamic (meaning the array get would have side effects),
+                // we can simplify the operation when we take into account the predicate.
+                //
+                // Note that this does not work in brillig where array sets may actually mutate the arrays.
+                Instruction::ArraySet { index, value, .. } if dfg.runtime().is_acir() => {
+                    let array_get =
+                        Instruction::ArrayGet { array: instruction_results[0], index: *index };
+
+                    // If we encounter an array_get for this address, we know what the result will be.
+                    self.cached_instruction_results.cache(
+                        dom,
+                        array_get,
+                        Some(side_effects_enabled_var),
+                        block,
+                        vec![*value],
+                    );
+                }
+                _ => (),
             }
-        }
-
-        // If we have an array get whose value is from an array set on the same array at the same index,
-        // we can simplify that array get to the value of the previous array set.
-        //
-        // For example:
-        // v3 = array_set v0, index v1, value v2
-        // v4 = array_get v3, index v1 -> Field
-        //
-        // We know that `v4` can be simplified to `v2`.
-        // Thus, even if the index is dynamic (meaning the array get would have side effects),
-        // we can simplify the operation when we take into account the predicate.
-        if let Instruction::ArraySet { index, value, .. } = instruction {
-            let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
-
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
-
-            // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(dom, array_get, predicate, block, vec![*value]);
         }
 
         self.cached_instruction_results
@@ -654,11 +682,22 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
+        Binary(_) | ArrayGet { .. } => {
             if instruction.requires_acir_gen_predicate(dfg) {
                 CanBeDeduplicated::UnderSamePredicate
             } else {
                 CanBeDeduplicated::Always
+            }
+        }
+
+        // ArraySet has different behaviors based on both the EnableSideEffectsIf instruction
+        // (ACIR) and the underlying dynamic RC value of the array (Brillig). In the later case,
+        // we can never deduplicate
+        ArraySet { .. } => {
+            if dfg.runtime().is_acir() {
+                CanBeDeduplicated::UnderSamePredicate
+            } else {
+                CanBeDeduplicated::Never
             }
         }
     }
@@ -667,7 +706,6 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
-
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -675,8 +713,8 @@ mod test {
             interpreter::{Interpreter, InterpreterOptions, value::Value},
             ir::{types::NumericType, value::ValueMapping},
             opt::{
-                assert_normalized_ssa_equals, assert_ssa_does_not_change,
-                constant_folding::DEFAULT_MAX_ITER,
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, constant_folding::DEFAULT_MAX_ITER,
             },
         },
     };
@@ -1859,7 +1897,6 @@ mod test {
                 v2 = array_get v0, index u32 0 -> Field
                 v4 = array_get v0, index u32 1 -> Field
                 v5 = add v2, v4
-                dec_rc v0
                 return v5
             }
             ";
@@ -2397,10 +2434,11 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let result_before = ssa.interpret(vec![]);
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        let result_after = ssa.interpret(vec![]);
-        assert_eq!(result_before, result_after);
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 
     // Regression for #9451
@@ -2435,16 +2473,16 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let inputs = vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()];
 
-        let ssa = ssa.purity_analysis();
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 
     #[test]
@@ -2467,15 +2505,104 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let inputs = vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()];
 
-        let ssa = ssa.purity_analysis();
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
+    }
+
+    #[test]
+    fn bug_array_get_from_array_set_ignores_predicate_without_constraint_info() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 0
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    #[test]
+    fn keep_brillig_array_set() {
+        // We should avoid deduplicating array sets in brillig - they may mutate the underlying array
+        let src = r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = make_array [Field -2, Field -1] : [Field; 2]
+            v4 = call f1(v2) -> Field
+            call f2(u1 1, v4)
+            constrain Field 1 == v4
+            return
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v1 = allocate -> &mut [Field; 2]
+            v3 = array_get v0, index u32 1 -> Field
+            v5 = add Field 3, v3
+            v6 = array_set v0, index u32 1, value v5
+            store v6 at v1
+            v7 = allocate -> &mut u1
+            store u1 1 at v7
+            jmp b1()
+          b1():
+            v9 = load v7 -> u1
+            jmpif v9 then: b2, else: b3
+          b2():
+            v22 = load v1 -> [Field; 2]
+            v23 = array_get v22, index u32 0 -> Field
+            v24 = add Field 3, v23
+            v25 = array_set v22, index u32 0, value v24
+            store v25 at v1
+            store u1 0 at v7
+            jmp b1()
+          b3():
+            v10 = allocate -> &mut [Field; 2]
+            v11 = array_set v0, index u32 1, value v5
+            store v11 at v10
+            v12 = allocate -> &mut u1
+            store u1 1 at v12
+            jmp b4()
+          b4():
+            v13 = load v12 -> u1
+            jmpif v13 then: b5, else: b6
+          b5():
+            v17 = load v10 -> [Field; 2]
+            v18 = array_get v17, index u32 0 -> Field
+            v19 = add Field 3, v18
+            v20 = array_set v17, index u32 0, value v19
+            store v20 at v10
+            store u1 0 at v12
+            jmp b4()
+          b6():
+            v14 = load v10 -> [Field; 2]
+            v16 = array_get v14, index u32 0 -> Field
+            return v16
+        }
+        brillig(inline) impure fn print_unconstrained f2 {
+          b0(v0: u1, v1: Field):
+            v13 = make_array b"{\"kind\":\"field\"}"
+            call print(v0, v1, v13, u1 0)
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Ensure the assert passes
+        ssa.interpret(Vec::new()).unwrap();
+
+        let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+        folded.interpret(Vec::new()).unwrap();
     }
 }

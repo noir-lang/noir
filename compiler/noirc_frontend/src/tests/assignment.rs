@@ -489,7 +489,7 @@ fn struct_pattern_with_non_struct_type_name() {
     fn main() {
         let x = 5;
         let Field { value } = x;
-            ^^^^^ expected type got primitive type
+            ^^^^^ expected type, found primitive type `Field`
     }
     "#;
     check_errors(src);

@@ -66,7 +66,7 @@ pub(crate) fn field_element_to_js_string(field_element: &FieldElement) -> JsStri
 }
 
 #[cfg(all(test, any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))]
-mod test {
+mod tests {
     use wasm_bindgen_test::*;
 
     use std::collections::BTreeMap;

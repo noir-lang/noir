@@ -1,3 +1,4 @@
+use acvm::acir::brillig::lengths::SemanticLength;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType as SsaNumericType, Type as SsaType};
@@ -63,7 +64,7 @@ pub enum Type {
     Numeric(NumericType),
     Reference(Arc<Type>),
     Array(Arc<Vec<Type>>, u32),
-    Slice(Arc<Vec<Type>>),
+    Vector(Arc<Vec<Type>>),
 }
 
 /// Used as default value for mutations
@@ -78,7 +79,7 @@ impl Type {
         match self {
             Type::Numeric(numeric_type) => numeric_type.bit_length(),
             Type::Array(_, _) => unreachable!("Array type unexpected"),
-            Type::Slice(_) => unreachable!("Slice type unexpected"),
+            Type::Vector(_) => unreachable!("Vector type unexpected"),
             Type::Reference(value_type) => value_type.bit_length(),
         }
     }
@@ -97,7 +98,9 @@ impl Type {
             Type::Array(element_types, _) => {
                 element_types.iter().any(|t| t.type_contains_reference())
             }
-            Type::Slice(element_types) => element_types.iter().any(|t| t.type_contains_reference()),
+            Type::Vector(element_types) => {
+                element_types.iter().any(|t| t.type_contains_reference())
+            }
             Type::Numeric(_) => false,
         }
     }
@@ -106,8 +109,8 @@ impl Type {
         matches!(self, Type::Array(_, _))
     }
 
-    pub fn is_slice(&self) -> bool {
-        matches!(self, Type::Slice(_))
+    pub fn is_vector(&self) -> bool {
+        matches!(self, Type::Vector(_))
     }
 
     pub fn is_field(&self) -> bool {
@@ -234,13 +237,13 @@ impl From<SsaType> for Type {
             }
             SsaType::Array(element_types, length) => Type::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
-                length,
+                length.0,
             ),
             SsaType::Reference(element_type) => {
                 Type::Reference(Arc::new((*element_type).clone().into()))
             }
-            SsaType::Slice(element_types) => {
-                Type::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            SsaType::Vector(element_types) => {
+                Type::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
             _ => unreachable!("Not supported type: {:?}", type_),
         }
@@ -253,13 +256,13 @@ impl From<Type> for SsaType {
             Type::Numeric(numeric_type) => SsaType::Numeric(numeric_type.into()),
             Type::Array(element_types, length) => SsaType::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
-                length,
+                SemanticLength(length),
             ),
             Type::Reference(element_type) => {
                 SsaType::Reference(Arc::new((*element_type).clone().into()))
             }
-            Type::Slice(element_types) => {
-                SsaType::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            Type::Vector(element_types) => {
+                SsaType::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
         }
     }

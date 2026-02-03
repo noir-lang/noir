@@ -43,6 +43,7 @@ impl HirStatement {
                 range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
+                    for_stmt.inclusive,
                 ),
                 block: for_stmt.block.to_display_ast(interner),
                 location,
@@ -93,9 +94,9 @@ impl HirExpression {
                 let array = array.to_display_ast(interner, location);
                 ExpressionKind::Literal(Literal::Array(array))
             }
-            HirExpression::Literal(HirLiteral::Slice(array)) => {
+            HirExpression::Literal(HirLiteral::Vector(array)) => {
                 let array = array.to_display_ast(interner, location);
-                ExpressionKind::Literal(Literal::Slice(array))
+                ExpressionKind::Literal(Literal::Vector(array))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => {
                 ExpressionKind::Literal(Literal::Bool(*value))
@@ -390,9 +391,9 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::Slice(element)
+                UnresolvedTypeData::Vector(element)
             }
             Type::Integer(sign, bit_size) => {
                 UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())

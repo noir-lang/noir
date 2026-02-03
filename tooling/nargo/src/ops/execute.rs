@@ -164,8 +164,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     )));
                 }
                 ACVMStatus::RequiresForeignCall(foreign_call) => {
-                    let foreign_call_result = self.foreign_call_executor.execute(&foreign_call)?;
-                    acvm.resolve_pending_foreign_call(foreign_call_result);
+                    match self.foreign_call_executor.execute(&foreign_call) {
+                        Ok(foreign_call_result) => {
+                            acvm.resolve_pending_foreign_call(foreign_call_result);
+                        }
+                        Err(error) => {
+                            if self.return_witness_on_failure {
+                                self.failing_partial_witness = Some(acvm.witness_map().clone());
+                            }
+                            return Err(NargoError::ForeignCallError(error));
+                        }
+                    }
                 }
                 ACVMStatus::RequiresAcirCall(call_info) => {
                     // Store the parent function index whose context we are currently executing
@@ -344,4 +353,100 @@ fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignC
     executor.witness_stack.push(0, main_witness);
 
     Ok((executor.finalize(), profiling_samples))
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeSet;
+
+    use acvm::{
+        FieldElement,
+        acir::{
+            circuit::{
+                Circuit, Opcode, PublicInputs,
+                brillig::{BrilligBytecode, BrilligFunctionId},
+            },
+            native_types::{Expression, WitnessMap},
+        },
+        blackbox_solver::StubbedBlackBoxSolver,
+        pwg::ForeignCallWaitInfo,
+    };
+    use brillig::{ForeignCallResult, Opcode as BrilligOpcode};
+
+    use crate::{
+        NargoError,
+        foreign_calls::{ForeignCallError, ForeignCallExecutor},
+        ops::execute::ProgramExecutor,
+    };
+
+    struct FailingForeignCallExecutor;
+
+    impl<F> ForeignCallExecutor<F> for FailingForeignCallExecutor {
+        fn execute(
+            &mut self,
+            _: &ForeignCallWaitInfo<F>,
+        ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+            Err(ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(
+                "ORACLE_CALL_BROKE".to_string(),
+            )))
+        }
+    }
+
+    #[test]
+    fn returns_error_from_failing_foreign_call() {
+        let function = [Circuit {
+            function_name: "main".to_string(),
+            current_witness_index: 0,
+            opcodes: vec![Opcode::BrilligCall {
+                id: BrilligFunctionId(0),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                predicate: Expression::<FieldElement>::one(),
+            }],
+            private_parameters: BTreeSet::new(),
+            public_parameters: PublicInputs::default(),
+            return_values: PublicInputs::default(),
+            assert_messages: Vec::new(),
+        }];
+        let unconstrained_function = [BrilligBytecode {
+            function_name: "oracle_wrapper".to_string(),
+            bytecode: vec![BrilligOpcode::ForeignCall {
+                function: "failing_oracle".to_string(),
+                destinations: Vec::new(),
+                destination_value_types: Vec::new(),
+                inputs: Vec::new(),
+                input_value_types: Vec::new(),
+            }],
+        }];
+
+        // We pass a foreign call executor which always fails.
+        let mut failing_foreign_call_executor = FailingForeignCallExecutor;
+        let mut executor = ProgramExecutor::new(
+            &function,
+            &unconstrained_function,
+            &StubbedBlackBoxSolver,
+            &mut failing_foreign_call_executor,
+            false,
+        );
+        executor.with_partial_witness_on_failure(true);
+
+        let Err(error) = executor.execute_circuit(WitnessMap::new()) else {
+            panic!("Execution succeeded when it should not.")
+        };
+
+        assert!(
+            matches!(
+                error,
+                NargoError::ForeignCallError(
+                    ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(error_message))
+                )
+                 if error_message == *"ORACLE_CALL_BROKE"
+            ),
+            "Execution did not fail with expected message"
+        );
+        assert!(
+            executor.failing_partial_witness.is_some(),
+            "Failing witness map should be set but wasn't"
+        );
+    }
 }

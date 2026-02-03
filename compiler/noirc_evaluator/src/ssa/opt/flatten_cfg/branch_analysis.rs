@@ -283,7 +283,7 @@ impl<'cfg> Context<'cfg> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use crate::{
         brillig::BrilligOptions,

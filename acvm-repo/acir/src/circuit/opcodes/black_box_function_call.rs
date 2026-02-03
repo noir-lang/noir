@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use crate::BlackBoxFunc;
 use crate::native_types::Witness;
 
+use acir_field::AcirField;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
@@ -324,7 +325,7 @@ impl<F> BlackBoxFuncCall<F> {
     }
 }
 
-impl<F: Copy> BlackBoxFuncCall<F> {
+impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
             BlackBoxFuncCall::Blake2s { inputs, outputs: _ }
@@ -399,6 +400,26 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             }
         }
         result
+    }
+
+    pub fn get_predicate(&self) -> Option<Witness> {
+        let predicate = match self {
+            BlackBoxFuncCall::AES128Encrypt { .. }
+            | BlackBoxFuncCall::AND { .. }
+            | BlackBoxFuncCall::XOR { .. }
+            | BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::Blake2s { .. }
+            | BlackBoxFuncCall::Blake3 { .. }
+            | BlackBoxFuncCall::Keccakf1600 { .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { .. }
+            | BlackBoxFuncCall::Sha256Compression { .. } => FunctionInput::Constant(F::one()),
+            BlackBoxFuncCall::EcdsaSecp256k1 { predicate, .. }
+            | BlackBoxFuncCall::EcdsaSecp256r1 { predicate, .. }
+            | BlackBoxFuncCall::MultiScalarMul { predicate, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { predicate, .. }
+            | BlackBoxFuncCall::RecursiveAggregation { predicate, .. } => *predicate,
+        };
+        if predicate.is_constant() { None } else { Some(predicate.to_witness()) }
     }
 }
 
@@ -562,11 +583,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
-        use crate::serialization::{bincode_deserialize, bincode_serialize};
+        use crate::serialization::{msgpack_deserialize, msgpack_serialize};
 
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode_serialize(&opcode).unwrap();
-        let recovered_opcode = bincode_deserialize(&buf).unwrap();
+        let buf = msgpack_serialize(&opcode, true).unwrap();
+        let recovered_opcode = msgpack_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }
@@ -603,15 +624,17 @@ mod arb {
             let witness_arr_25 = any::<Box<[Witness; 25]>>();
             let witness_arr_32 = any::<Box<[Witness; 32]>>();
 
-            let case_aes128_encrypt = (
-                input_vec.clone(),
-                input_arr_16.clone(),
-                input_arr_16.clone(),
-                witness_vec.clone(),
-            )
-                .prop_map(|(inputs, iv, key, outputs)| {
-                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
-                });
+            // Input must be a multiple of 16 bytes, and output length must equal input length
+            // Use fixed 16-byte input/output for simplicity
+            let witness_arr_16 = any::<Box<[Witness; 16]>>();
+            let case_aes128_encrypt =
+                (input_arr_16.clone(), input_arr_16.clone(), input_arr_16.clone(), witness_arr_16)
+                    .prop_map(|(inputs, iv, key, outputs)| BlackBoxFuncCall::AES128Encrypt {
+                        inputs: inputs.to_vec(),
+                        iv,
+                        key,
+                        outputs: outputs.to_vec(),
+                    });
 
             let case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
                 |(lhs, rhs, output)| BlackBoxFuncCall::AND {

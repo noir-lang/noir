@@ -98,16 +98,16 @@
 //! with a `mem2reg` pass before any subsequent DIE pass would remove the `store`,
 //! leaving the `load` with a reference that never gets stored at.
 //!
-//! ## Handling of slice operations
+//! ## Handling of vector operations
 //!
-//! If a slice operation like `slice_push_back` or `slice_pop_front` in ACIR is guaranteed
-//! to fail, which can only happen if the slice is empty, the operation is removed
-//! and replaced with a constrain failure, then the returned slice is replaced with
-//! an empty slice. So this SSA:
+//! If a vector operation like `vector_push_back` or `vector_pop_front` in ACIR is guaranteed
+//! to fail, which can only happen if the vector is empty, the operation is removed
+//! and replaced with a constrain failure, then the returned vector is replaced with
+//! an empty vector. So this SSA:
 //!
 //! ```ssa
 //! v0 = make_array [] -> [u32]
-//! v2, v3, v4 = call slice_pop_front(u32 0, v0) -> (u32, u32, [u32])
+//! v2, v3, v4 = call vector_pop_front(u32 0, v0) -> (u32, u32, [u32])
 //! v5 = add v2, u32 1
 //! return v4, v5
 //! ```
@@ -126,24 +126,27 @@
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
 use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        function::{Function, FunctionId},
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::{Function, FunctionId},
+            instruction::{
+                Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
+                binary::{BinaryEvaluationResult, eval_constant_binary_op},
+            },
+            types::{NumericType, Type},
+            value::{Value, ValueId},
         },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+        opt::simple_optimization::SimpleOptimizationContext,
+        ssa_gen::Ssa,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -296,26 +299,25 @@ impl Function {
                 {
                     let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays,
-                    // and slices which have been declared as a literal.
+                    // and vectors which have been declared as a literal.
                     let len = match array_type {
                         Type::Array(_, len) => len,
-                        Type::Slice(_) => {
+                        Type::Vector(_) => {
                             let Some(Instruction::MakeArray { elements, typ }) =
                                 context.dfg.get_local_or_global_instruction(*array)
                             else {
                                 return;
                             };
                             // The index check expects `len` to be the logical length, like for arrays,
-                            // not the flattened size, so we need to divide by the number of items.
-                            (elements.len() / typ.element_size()) as u32
+                            // not the semi flattened size, so we need to divide by the number of items.
+                            SemiFlattenedLength(assert_u32(elements.len())) / typ.element_size()
                         }
                         _ => return,
                     };
 
-                    let array_op_always_fails = len == 0
+                    let array_op_always_fails = len.0 == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap())
-                                >= (array_type.element_size() as u32 * len)
+                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
                         });
                     if !array_op_always_fails {
                         return;
@@ -340,16 +342,16 @@ impl Function {
                     };
                 }
                 Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
-                    // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                    // Intrinsic Vector operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
                     // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
-                    let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
+                    let Value::Intrinsic(Intrinsic::VectorPopBack | Intrinsic::VectorPopFront) =
                         &context.dfg[*func]
                     else {
                         return;
                     };
 
                     let length = arguments.first().unwrap_or_else(|| {
-                        unreachable!("slice operations have 2 arguments: [length, slice]")
+                        unreachable!("vector operations have 2 arguments: [length, vector]")
                     });
                     let is_empty =
                         context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
@@ -357,7 +359,7 @@ impl Function {
                         return;
                     }
 
-                    // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
+                    // If the compiler knows the vector is empty, there is no point trying to pop from it, we know it will fail.
                     // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
                     // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
                     let always_fail = is_predicate_constant_one;
@@ -370,8 +372,8 @@ impl Function {
                         context.remove_current_instruction();
                         Reachability::Unreachable
                     } else {
-                        // Here we could use the empty slice as the replacement of the return value,
-                        // except that slice operations also return the removed element and the new length
+                        // Here we could use the empty vector as the replacement of the return value,
+                        // except that vector operations also return the removed element and the new length
                         // so it's easier to just use zeroed values here
                         remove_and_replace_with_defaults(context, func_id, block_id);
                         Reachability::UnreachableUnderPredicate
@@ -460,7 +462,7 @@ fn zeroed_value(
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(zeroed_value(dfg, func_id, block_id, typ));
                 }
@@ -469,7 +471,7 @@ fn zeroed_value(
             let stack = CallStackId::root();
             dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
         }
-        Type::Slice(_) => {
+        Type::Vector(_) => {
             let array = im::Vector::new();
             let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
             let stack = CallStackId::root();
@@ -548,8 +550,8 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
         // If it's zero, make sure that the type in the results
         if index_zero {
             let typ = match context.dfg.type_of_value(*array) {
-                Type::Array(typ, _) | Type::Slice(typ) => typ,
-                other => unreachable!("Array or Slice type expected; got {other:?}"),
+                Type::Array(typ, _) | Type::Vector(typ) => typ,
+                other => unreachable!("Array or Vector type expected; got {other:?}"),
             };
             let [result] = context.dfg.instruction_result(context.instruction_id);
             let result_type = context.dfg.type_of_value(result);
@@ -581,7 +583,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
@@ -873,7 +875,7 @@ mod test {
     }
 
     #[test]
-    fn removes_slice_literal_index_oob() {
+    fn removes_vector_literal_index_oob() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
@@ -1030,7 +1032,7 @@ mod test {
           b1():
             v2 = add Field 1, Field 2
             jmp b2(v2)
-          b2():
+          b2(v3: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
@@ -1048,16 +1050,16 @@ mod test {
           b0():
             jmp b1()
           b1():
-            v2 = add Field 1, Field 2
-            jmp b2(v2)
-          b2():
+            v3 = add Field 1, Field 2
+            jmp b2(v3)
+          b2(v0: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v4 = add Field 1, Field 2
-            return v4
+            v5 = add Field 1, Field 2
+            return v5
         }
         "#);
     }
@@ -1307,13 +1309,13 @@ mod test {
     }
 
     #[test]
-    fn transforms_failing_slice_pop_with_constraint_and_default() {
+    fn transforms_failing_vector_pop_with_constraint_and_default() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
             enable_side_effects v0
-            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            v4, v5, v6 = call vector_pop_front(u32 0, v1) -> (u32, u32, [u32])
             enable_side_effects u1 1
             return u32 1
         }
@@ -1336,12 +1338,12 @@ mod test {
     }
 
     #[test]
-    fn transforms_failing_slice_pop_if_always_enabled() {
+    fn transforms_failing_vector_pop_if_always_enabled() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
-            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            v4, v5, v6 = call vector_pop_front(u32 0, v1) -> (u32, u32, [u32])
             return v4
         }
         ";

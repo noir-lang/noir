@@ -153,14 +153,17 @@ mod tests {
     use acir::{
         FieldElement,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, Program,
+            Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
+        native_types::Expression,
     };
     use color_eyre::eyre;
     use fm::codespan_files::Files;
-    use noirc_artifacts::program::ProgramArtifact;
-    use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
+    use noirc_artifacts::{
+        debug::{DebugInfo, ProgramDebugInfo},
+        program::ProgramArtifact,
+    };
     use std::{collections::BTreeMap, path::Path};
 
     use crate::flamegraph::Sample;
@@ -205,7 +208,6 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file
@@ -233,19 +235,19 @@ mod tests {
                 id: BrilligFunctionId(0),
                 inputs: vec![],
                 outputs: vec![],
-                predicate: None,
+                predicate: Expression::one(),
             },
             Opcode::BrilligCall {
                 id: BrilligFunctionId(1),
                 inputs: vec![],
                 outputs: vec![],
-                predicate: None,
+                predicate: Expression::one(),
             },
             Opcode::BrilligCall {
                 id: BrilligFunctionId(2),
                 inputs: vec![],
                 outputs: vec![],
-                predicate: None,
+                predicate: Expression::one(),
             },
         ];
 
@@ -270,7 +272,6 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file

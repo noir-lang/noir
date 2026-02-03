@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use fm::FileManager;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompileOptions, CompiledProgram, CrateId, compile_no_check, file_manager_with_stdlib,
-    link_to_debug_crate,
+    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
@@ -56,7 +56,7 @@ pub fn get_test_function_for_debug(
     };
 
     let test_function_has_arguments =
-        !context.def_interner.function_meta(&test_function.id).function_signature().0.is_empty();
+        !context.def_interner.function_meta(&test_function.id).parameters.is_empty();
 
     if test_function_has_arguments {
         return Err(String::from("Cannot debug tests with arguments"));

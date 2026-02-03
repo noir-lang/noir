@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use acvm::acir::circuit::opcodes::BlockId;
+use acvm::acir::{
+    brillig::lengths::{FlattenedLength, SemanticLength},
+    circuit::opcodes::BlockId,
+};
 
 use crate::{
     errors::InternalError,
@@ -20,7 +23,7 @@ use noirc_errors::call_stack::CallStack;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum AcirType {
     NumericType(NumericType),
-    Array(Vec<AcirType>, usize),
+    Array(Vec<AcirType>, SemanticLength),
 }
 
 impl From<SsaType> for AcirType {
@@ -35,7 +38,7 @@ impl From<&SsaType> for AcirType {
             SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
             SsaType::Array(elements, size) => {
                 let elements = elements.iter().map(|e| e.into()).collect();
-                AcirType::Array(elements, *size as usize)
+                AcirType::Array(elements, *size)
             }
             _ => unreachable!("The type {value} cannot be represented in ACIR"),
         }
@@ -70,16 +73,16 @@ impl From<&SsaType> for AcirType {
 ///
 /// Dynamic arrays might result from other operations. For example:
 /// - setting the value of an array element with a dynamic index
-/// - pushing back to a slice where it's length is not known at compile time
-/// - inserting to a slice with a dynamic index
-/// - removing from a slice at a dynamic index
+/// - pushing back to a vector where it's length is not known at compile time
+/// - inserting to a vector with a dynamic index
+/// - removing from a vector at a dynamic index
 #[derive(Clone)]
 pub(super) struct AcirDynamicArray {
     /// Identification for the Acir dynamic array
     /// This is essentially a ACIR pointer to the array
     pub(super) block_id: BlockId,
     /// Flattened length of the elements in the array
-    pub(super) len: usize,
+    pub(super) len: FlattenedLength,
     /// An ACIR dynamic array is a flat structure, so we use
     /// the inner structure of an `AcirType::NumericType` directly.
     /// Some usages of ACIR arrays (e.g. black box functions) require the bit size
@@ -141,8 +144,10 @@ pub(crate) enum AcirValue {
     /// private parameters: [w0, w1, w2]
     /// public parameters: []
     /// return values: []
-    /// BRILLIG CALL func: 0, inputs: [[w0, w1, w2]], outputs: []
+    /// BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2]], outputs: []
     /// ```
+    ///
+    /// The length of the inner vector is a [acvm::acir::brillig::lengths::SemiFlattenedLength].
     ///
     /// Compare this with `DynamicArray` below.
     Array(im::Vector<AcirValue>),
@@ -201,34 +206,34 @@ impl AcirVar {
     }
 }
 
-/// Assumes `typ` is an array or slice type with nested numeric types, arrays or slices
+/// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
 /// (recursively) and returns a flat list of all the contained numeric types.
-/// Panics if `self` is not an array or slice type or if a function or reference type
+/// Panics if `self` is not an array or vector type or if a function or reference type
 /// is found along the way.
 pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
-        SsaType::Array(..) | SsaType::Slice(..) => {
+        SsaType::Array(..) | SsaType::Vector(..) => {
             let mut flat_types = Vec::new();
             collect_flat_numeric_types(typ, &mut flat_types);
             flat_types
         }
-        _ => panic!("Called flat_numeric_types on a non-array/slice type"),
+        _ => panic!("Called flat_numeric_types on a non-array/vector type"),
     }
 }
 
-/// Returns the fully flattened numeric types for one element of a slice/array,
+/// Returns the fully flattened numeric types for one element of a vector/array,
 /// recursively flattening nested arrays.
-/// For example, for Slice([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
+/// For example, for Vector([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
 pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
-        SsaType::Slice(element_types) | SsaType::Array(element_types, _) => {
+        SsaType::Vector(element_types) | SsaType::Array(element_types, _) => {
             let mut flat_types = Vec::new();
             for element_typ in element_types.iter() {
                 collect_fully_flattened_numeric_types(element_typ, &mut flat_types);
             }
             flat_types
         }
-        _ => panic!("Called flat_element_types on a non-array/slice type"),
+        _ => panic!("Called flat_element_types on a non-array/vector type"),
     }
 }
 
@@ -241,14 +246,14 @@ fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<Num
         }
         SsaType::Array(types, len) => {
             // For arrays, multiply by length to get the fully flattened representation
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in types.iter() {
                     collect_fully_flattened_numeric_types(typ, flat_types);
                 }
             }
         }
-        SsaType::Slice(_) => {
-            panic!("Cannot fully flatten a slice type - slices have dynamic length")
+        SsaType::Vector(_) => {
+            panic!("Cannot fully flatten a vector type - vectors have dynamic length")
         }
         _ => panic!("Called collect_fully_flattened_numeric_types on unsupported type"),
     }
@@ -261,11 +266,11 @@ fn collect_flat_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) 
         SsaType::Numeric(numeric_type) => {
             flat_types.push(*numeric_type);
         }
-        SsaType::Array(types, _) | SsaType::Slice(types) => {
+        SsaType::Array(types, _) | SsaType::Vector(types) => {
             for typ in types.iter() {
                 collect_flat_numeric_types(typ, flat_types);
             }
         }
-        _ => panic!("Called collect_flat_numeric_types on non-array/slice/number type"),
+        _ => panic!("Called collect_flat_numeric_types on non-array/vector/number type"),
     }
 }

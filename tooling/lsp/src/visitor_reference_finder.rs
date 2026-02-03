@@ -30,6 +30,7 @@ use crate::{
 /// - attribute references (see `visit_meta_attribute`).
 pub(crate) struct VisitorReferenceFinder<'a> {
     source: &'a str,
+    file_id: FileId,
     byte_index: usize,
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
@@ -47,7 +48,7 @@ pub(crate) struct VisitorReferenceFinder<'a> {
 impl<'a> VisitorReferenceFinder<'a> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        file: FileId,
+        file_id: FileId,
         source: &'a str,
         byte_index: usize,
         args: &'a ProcessRequestCallbackArgs<'a>,
@@ -56,7 +57,7 @@ impl<'a> VisitorReferenceFinder<'a> {
         let krate = args.crate_id;
         let def_map = &args.def_maps[&krate];
         let local_id = if let Some((module_index, _)) =
-            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
+            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file_id)
         {
             LocalModuleId::new(module_index)
         } else {
@@ -64,13 +65,16 @@ impl<'a> VisitorReferenceFinder<'a> {
         };
         let module_id = ModuleId { krate, local_id };
         let link_finder = LinkFinder::default();
-        Self { source, byte_index, module_id, args, link_finder, reference_id: None }
+        Self { source, file_id, byte_index, module_id, args, link_finder, reference_id: None }
     }
 
     pub(crate) fn find(
         &mut self,
         parsed_module: &ParsedModule,
     ) -> Option<(ReferenceId, Option<lsp_types::Location>)> {
+        // Find in the doc comments on the crate root, if we are in the crate root
+        self.find_in_reference_doc_comments(ReferenceId::Module(self.module_id));
+
         parsed_module.accept(self);
 
         std::mem::take(&mut self.reference_id)
@@ -101,6 +105,12 @@ impl<'a> VisitorReferenceFinder<'a> {
         self.link_finder.reset();
         for located_comment in doc_comments {
             let location = located_comment.location();
+            if location.file != self.file_id {
+                // A module's comments might happen inline in the same file or in a different file.
+                // We should not process comments that are not in the current file.
+                continue;
+            }
+
             let Some(lsp_location) = to_lsp_location(self.args.files, location.file, location.span)
             else {
                 continue;
@@ -122,6 +132,10 @@ impl<'a> VisitorReferenceFinder<'a> {
                 self.args.crate_graph,
             );
             for link in links {
+                let Some(target) = link.target else {
+                    continue;
+                };
+
                 let line = start_line + link.line as u32;
                 let start =
                     if link.line == 0 { start_char + link.start as u32 } else { link.start as u32 };
@@ -131,7 +145,7 @@ impl<'a> VisitorReferenceFinder<'a> {
                     && start <= byte_lsp_location.range.start.character
                     && byte_lsp_location.range.start.character <= end
                 {
-                    let reference = match link.target {
+                    let reference = match target {
                         LinkTarget::TopLevelItem(module_def_id) => {
                             module_def_id_to_reference_id(module_def_id)
                         }

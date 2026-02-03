@@ -118,7 +118,7 @@ impl Poseidon2<'_> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use acir::AcirField;

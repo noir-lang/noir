@@ -75,7 +75,7 @@ fn _derive_generators(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use ark_ec::AffineRepr;
     use ark_ff::{BigInteger, PrimeField};

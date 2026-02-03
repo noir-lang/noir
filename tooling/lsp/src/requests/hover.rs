@@ -147,14 +147,28 @@ mod hover_tests {
     }
 
     #[test]
-    async fn hover_on_global() {
+    async fn hover_on_invalid_global() {
         assert_hover(
             "workspace",
             "two/src/lib.nr",
             Position { line: 15, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global some_global: Field = 2"#,
+    global invalid_global: Field = 2"#,
+            // cSpell:enable
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_valid_global() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 122, character: 25 },
+            // cSpell:disable
+            r#"    one::subone
+    global valid_global: Field = 2"#,
             // cSpell:enable
         )
         .await;

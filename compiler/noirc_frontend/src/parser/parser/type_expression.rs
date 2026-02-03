@@ -363,9 +363,7 @@ impl Parser<'_> {
         })
     }
 
-    fn expected_type_expression_after_this(
-        &mut self,
-    ) -> Result<UnresolvedTypeExpression, ParserError> {
+    fn expected_type_expression_after_this(&self) -> Result<UnresolvedTypeExpression, ParserError> {
         Err(ParserError::expected_label(
             ParsingRuleLabel::TypeExpression,
             self.token.token().clone(),

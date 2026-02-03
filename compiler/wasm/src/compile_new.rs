@@ -257,7 +257,7 @@ fn prepare_compiler_context(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;

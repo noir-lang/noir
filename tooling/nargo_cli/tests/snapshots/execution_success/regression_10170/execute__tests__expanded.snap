@@ -9,30 +9,31 @@ struct foo {
 }
 
 fn main(cond: bool) {
-    let mut slice: [u32] = &[0_u32, 1_u32];
-    if cond { slice = slice.push_back(10_u32); };
+    let mut vector: [u32] = [0_u32, 1_u32].as_vector();
+    if cond { vector = vector.push_back(10_u32); };
     for i in 0_u32..2_u32 {
-        slice = slice.push_back(i);
-        assert(slice[slice.len() - 1_u32] == i);
-        let (new_slice, _): ([u32], u32) = slice.pop_back();
-        slice = new_slice;
+        vector = vector.push_back(i);
+        assert(vector[vector.len() - 1_u32] == i);
+        let (new_vector, _): ([u32], u32) = vector.pop_back();
+        vector = new_vector;
     }
-    let mut slice: [foo] = &[
+    let mut vector: [foo] = [
         foo { a: 0_u32, b: 0_u32, c: [0_Field, 0_Field, 0_Field] },
         foo { a: 1_u32, b: 1_u32, c: [0_Field, 0_Field, 0_Field] },
-    ];
+    ]
+        .as_vector();
     if cond {
-        slice = slice.push_back(foo { a: 10_u32, b: 10_u32, c: [0_Field, 0_Field, 0_Field] });
+        vector = vector.push_back(foo { a: 10_u32, b: 10_u32, c: [0_Field, 0_Field, 0_Field] });
     };
     for i in 0_u32..2_u32 {
-        slice = slice.push_back(foo { a: i, b: i, c: [0_Field, 0_Field, 0_Field] });
-        assert(slice[slice.len() - 1_u32].a == i);
-        let (new_slice, _): ([foo], foo) = slice.pop_back();
-        slice = new_slice;
+        vector = vector.push_back(foo { a: i, b: i, c: [0_Field, 0_Field, 0_Field] });
+        assert(vector[vector.len() - 1_u32].a == i);
+        let (new_vector, _): ([foo], foo) = vector.pop_back();
+        vector = new_vector;
     }
-    let mut slice: [Field] = &[0_Field, 1_Field];
-    if !cond { slice = slice.push_back(10_Field); };
-    let (new_slice, _): ([Field], Field) = slice.pop_back();
-    slice = new_slice.push_back(11_Field);
-    assert(slice[slice.len() - 1_u32] == 11_Field);
+    let mut vector: [Field] = [0_Field, 1_Field].as_vector();
+    if !cond { vector = vector.push_back(10_Field); };
+    let (new_vector, _): ([Field], Field) = vector.pop_back();
+    vector = new_vector.push_back(11_Field);
+    assert(vector[vector.len() - 1_u32] == 11_Field);
 }

@@ -1,5 +1,6 @@
 use acvm::{acir::circuit::AcirOpcodeLocation, compiler::CircuitSimulator};
-use noirc_driver::{CompiledProgram, ErrorsAndWarnings};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::ErrorsAndWarnings;
 use noirc_errors::CustomDiagnostic;
 
 /// Run each function through a circuit simulator to check that they are solvable.

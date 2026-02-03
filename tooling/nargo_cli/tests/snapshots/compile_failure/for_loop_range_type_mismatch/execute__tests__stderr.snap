@@ -9,11 +9,4 @@ error: Expected type i8, found type u8
   │                        ----
   │
 
-error: Range bounds have mismatched types: start is `i8` but end is `u8`
-  ┌─ src/main.nr:4:24
-  │
-4 │         for _ in 1_i8..2_u8 {}
-  │                        ----
-  │
-
-Aborting due to 2 previous errors
+Aborting due to 1 previous error

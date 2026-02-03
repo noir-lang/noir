@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: struct `FooParent` is never constructed
+  ┌─ src/main.nr:1:8
+  │
+1 │ struct FooParent {
+  │        --------- struct is never constructed
+  │
+
+warning: struct `Bar` is never constructed
+  ┌─ src/main.nr:6:8
+  │
+6 │ struct Bar {
+  │        --- struct is never constructed
+  │
+
+warning: struct `Foo` is never constructed
+   ┌─ src/main.nr:10:8
+   │
+10 │ struct Foo {
+   │        --- struct is never constructed
+   │
+
+error: Nested vectors, i.e. vectors within an array or vector, are not supported
+  ┌─ src/main.nr:1:1
+  │  
+1 │ ╭ struct FooParent {
+2 │ │     parent_arr: [Field; 3],
+3 │ │     foos: [Foo],
+4 │ │ }
+  │ ╰─' Try to use a constant sized array or BoundedVec instead
+  │  
+
+Aborting due to 1 previous error

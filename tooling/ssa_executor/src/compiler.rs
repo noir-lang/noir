@@ -1,7 +1,8 @@
 use acvm::acir::circuit::Program;
 use base64::Engine;
 use noirc_abi::Abi;
-use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileError, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::call_stack::CallStack;
 use noirc_evaluator::{
     errors::{InternalError, RuntimeError},
@@ -89,7 +90,6 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: noirc_driver::DEFAULT_EXPRESSION_WIDTH,
     }
 }
 

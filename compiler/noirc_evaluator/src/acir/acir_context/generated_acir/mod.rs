@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 use acvm::acir::{
     AcirField, BlackBoxFunc,
+    brillig::lengths::SemanticLength,
     circuit::{
         AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
@@ -17,18 +18,16 @@ use acvm::acir::{
     },
     native_types::{Expression, Witness},
 };
+use noirc_artifacts::{debug::ProcedureDebugId, ssa::SsaReport};
 
 use crate::{
     ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
-    errors::{InternalError, RuntimeError, SsaReport},
+    errors::{InternalError, RuntimeError},
 };
 
 use iter_extended::vecmap;
-use noirc_errors::{
-    call_stack::{CallStack, CallStackHelper, CallStackId},
-    debug_info::ProcedureDebugId,
-};
+use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 
 mod brillig_directive;
@@ -118,7 +117,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         // TODO: enable this check for all block_types
         if block_type == BlockType::ReturnData {
-            debug_assert!(!init.is_empty(), "Cannot initialize memory with empty init");
+            assert!(!init.is_empty(), "Cannot initialize memory with empty init");
         }
         self.push_opcode(AcirOpcode::MemoryInit { block_id, init, block_type });
     }
@@ -214,28 +213,33 @@ impl<F: AcirField> GeneratedAcir<F> {
             }
             BlackBoxFunc::AND => {
                 let [lhs, rhs] = expect_into(function_inputs);
+                let [lhs] = expect_into(lhs);
+                let [rhs] = expect_into(rhs);
                 let num_bits = num_bits.expect("missing num_bits");
-                BlackBoxFuncCall::AND { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
+                BlackBoxFuncCall::AND { lhs, rhs, num_bits, output: outputs[0] }
             }
             BlackBoxFunc::XOR => {
                 let [lhs, rhs] = expect_into(function_inputs);
+                let [lhs] = expect_into(lhs);
+                let [rhs] = expect_into(rhs);
                 let num_bits = num_bits.expect("missing num_bits");
-                BlackBoxFuncCall::XOR { lhs: lhs[0], rhs: rhs[0], num_bits, output: outputs[0] }
+                BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output: outputs[0] }
             }
             BlackBoxFunc::RANGE => {
                 let [input] = expect_into(function_inputs);
+                let [input] = expect_into(input);
                 let num_bits = num_bits.expect("missing num_bits");
-                BlackBoxFuncCall::RANGE { input: input[0], num_bits }
+                BlackBoxFuncCall::RANGE { input, num_bits }
             }
             BlackBoxFunc::Blake2s => {
                 let [inputs] = expect_into(function_inputs);
                 let outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake2s { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 => {
                 let [inputs] = expect_into(function_inputs);
                 let outputs = expect_into(outputs);
-                BlackBoxFuncCall::Blake3 { inputs: inputs.clone(), outputs }
+                BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
             BlackBoxFunc::EcdsaSecp256k1 => {
                 let [public_key_x, public_key_y, signature, hashed_message, predicate] =
@@ -350,7 +354,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         &mut self,
         input_expr: &Expression<F>,
         radix: u128,
-        limb_count: u32,
+        limb_count: SemanticLength,
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_range = 2..=256;
@@ -401,8 +405,9 @@ impl<F: AcirField> GeneratedAcir<F> {
         &mut self,
         expr: &Expression<F>,
         radix: u128,
-        limb_count: u32,
+        limb_count: SemanticLength,
     ) -> Vec<Witness> {
+        let limb_count = limb_count.0;
         // Create the witness for the result
         let limb_witnesses = vecmap(0..limb_count, |_| self.next_witness_index());
 
@@ -427,7 +432,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let outputs = vec![BrilligOutputs::Array(limb_witnesses.clone())];
 
         self.brillig_call(
-            None,
+            Expression::one(),
             &le_bytes_code,
             inputs,
             outputs,
@@ -454,7 +459,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig_call(
-            None,
+            Expression::one(),
             &inverse_code,
             inputs,
             outputs,
@@ -595,7 +600,7 @@ impl<F: AcirField> GeneratedAcir<F> {
 
     pub(crate) fn brillig_call(
         &mut self,
-        predicate: Option<Expression<F>>,
+        predicate: Expression<F>,
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<BrilligInputs<F>>,
         outputs: Vec<BrilligOutputs>,

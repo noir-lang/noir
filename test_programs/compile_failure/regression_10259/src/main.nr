@@ -10,7 +10,7 @@ fn bar<T>(x: T) -> T {
 }
 
 fn main(x: Field) {
-    let xs = &[x, x + 1, x + 2];
+    let xs = [x, x + 1, x + 2].as_vector();
     // Safety: testing
     unsafe { bar(xs) };
 }

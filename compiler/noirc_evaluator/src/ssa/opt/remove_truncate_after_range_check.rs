@@ -1,3 +1,8 @@
+//! This SSA pass removes `truncate` instructions that happen on values that
+//! have a `range_check` on them, where the checked range is less or equal than
+//! the bits to truncate (the truncate isn't needed then as it won't change the
+//! underlying value).
+
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -6,10 +11,9 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This SSA pass removes `truncate` instructions that happen on values that
+    /// Removes `truncate` instructions that happen on values that
     /// have a `range_check` on them, where the checked range is less or equal than
-    /// the bits to truncate (the truncate isn't needed then as it won't change the
-    /// underlying value).
+    /// the bits to truncate.
     pub(crate) fn remove_truncate_after_range_check(mut self) -> Self {
         for function in self.functions.values_mut() {
             function.remove_truncate_after_range_check();
@@ -19,7 +23,7 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn remove_truncate_after_range_check(&mut self) {
+    fn remove_truncate_after_range_check(&mut self) {
         // Keeps the minimum bit size a value was range-checked against
         let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
 

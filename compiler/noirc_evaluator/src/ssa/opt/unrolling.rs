@@ -66,6 +66,12 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
+/// Maximum number of instructions (after unrolling) for Brillig loops to be
+/// force-unrolled regardless of the cost model. Loops with no function calls,
+/// constant bounds, and no breaks whose unrolled instruction count is at or
+/// below this threshold will always be unrolled.
+const BRILLIG_FORCE_UNROLL_THRESHOLD: usize = 32;
+
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
@@ -173,7 +179,9 @@ impl Function {
                 }
 
                 // Only unroll small loops in Brillig.
-                if self.runtime().is_brillig() && !next_loop.is_small_loop(self, &loops.cfg) {
+                if self.runtime().is_brillig()
+                    && !next_loop.should_unroll_in_brillig(self, &loops.cfg)
+                {
                     continue;
                 }
 
@@ -716,7 +724,7 @@ impl Loop {
     ///   store v12 at v2               // store updated `sum`
     ///   v13 = load v4 -> u32          // load length of `arr`
     ///   v14 = load v6 -> [u32]        // load storage of `arr`
-    ///   v16, v17 = call slice_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
+    ///   v16, v17 = call vector_push_back(v13, v14, v12) -> (u32, [u32]) // builtin to push, will store to storage and length references
     ///   v19 = add v1, u32 1           // increase `arr`
     ///   jmp b1(v19)                   // back-edge of the loop
     /// b2():                           // after the loop
@@ -810,12 +818,19 @@ impl Loop {
             .count()
     }
 
-    /// Decide if this loop is small enough that it can be inlined in a way that the number
-    /// of unrolled instructions times the number of iterations would result in smaller bytecode
-    /// than if we keep the loops with their overheads.
-    fn is_small_loop(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
+    /// Whether this loop should be unrolled when compiling to Brillig.
+    ///
+    /// A loop is unrolled if:
+    /// 1. It has constant bounds and no breaks (`boilerplate_stats` + `is_fully_executed`)
+    /// 2. AND either:
+    ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
+    ///    b. The total unrolled instruction count is within the force-unroll threshold
+    fn should_unroll_in_brillig(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
         self.boilerplate_stats(function, cfg)
-            .map(|s| s.is_small() && self.is_fully_executed(cfg))
+            .map(|s| {
+                let force_unroll = s.unrolled_instructions() <= BRILLIG_FORCE_UNROLL_THRESHOLD;
+                (force_unroll || s.is_small()) && self.is_fully_executed(cfg)
+            })
             .unwrap_or_default()
     }
 
@@ -905,7 +920,7 @@ impl BoilerplateStats {
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
         let total_boilerplate = self.increments + load_and_store + boilerplate;
-        debug_assert!(
+        assert!(
             total_boilerplate <= self.all_instructions,
             "Boilerplate instructions exceed total instructions in loop"
         );
@@ -1216,7 +1231,7 @@ mod tests {
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{BoilerplateStats, Loops, is_new_size_ok};
+    use super::{BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -1533,7 +1548,6 @@ mod tests {
             jmp b1()
           b1():
             v15 = load v3 -> [u64; 6]
-            dec_rc v0
             return v15
         }
         ");
@@ -1542,11 +1556,15 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // More iterations than it can unroll
-        let parse_ssa = || brillig_unroll_test_case_6470(6);
+        // 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
+        let parse_ssa = || brillig_unroll_test_case_6470(13);
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
+        assert!(
+            stats.unrolled_instructions() > BRILLIG_FORCE_UNROLL_THRESHOLD,
+            "the loop should exceed the force-unroll threshold"
+        );
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
@@ -1720,7 +1738,6 @@ mod tests {
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
-            dec_rc v0
             return v8
         }}
         "

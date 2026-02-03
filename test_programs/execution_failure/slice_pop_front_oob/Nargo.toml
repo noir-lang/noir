@@ -1,6 +1,0 @@
-[package]
-name = "slice_pop_front_oob"
-type = "bin"
-authors = [""]
-
-[dependencies]

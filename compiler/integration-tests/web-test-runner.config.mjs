@@ -32,6 +32,10 @@ export default {
   concurrentBrowsers: 1,
   middleware: [
     async (ctx, next) => {
+      // Set Cross-Origin Isolation headers required for SharedArrayBuffer
+      ctx.set('Cross-Origin-Opener-Policy', 'same-origin');
+      ctx.set('Cross-Origin-Embedder-Policy', 'require-corp');
+
       if (ctx.url.endsWith('.wasm.gz')) {
         ctx.url = ctx.url.replace('/', '/node_modules/@aztec/bb.js/dest/browser/');
       }

@@ -9,8 +9,9 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use noirc_abi::{Abi, input_parser::json::serialize_to_json};
-use noirc_driver::{CompileError, CompileOptions, CompiledProgram, compile_no_check};
-use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
+use noirc_artifacts::{debug::DebugInfo, program::CompiledProgram};
+use noirc_driver::{CompileError, CompileOptions, compile_no_check};
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
         Context,

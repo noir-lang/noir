@@ -24,7 +24,7 @@ num-traits.workspace = true
 fm.workspace=true
 rayon.workspace = true
 
-rand_xorshift="0.3.0"
+rand_xorshift="0.4.0"
 walkdir = "2.5.0"
 sha256={ version = "1.5.0", default-features = false }
 termcolor = "1.1.2"

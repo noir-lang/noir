@@ -23,7 +23,7 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
     }
 
     pub(crate) fn select(&self, rng: &mut StdRng) -> T {
-        let mut selector = rng.gen_range(0..self.total_weight);
+        let mut selector = rng.random_range(0..self.total_weight);
         for (option, weight) in &self.options_with_weights {
             if selector < *weight {
                 return *option;
@@ -473,7 +473,7 @@ pub(crate) enum GenerateType {
     Numeric,
     Reference,
     Array,
-    Slice,
+    Vector,
 }
 
 pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
@@ -481,7 +481,7 @@ pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = Generat
     (GenerateType::Numeric, 40),
     (GenerateType::Reference, 6),
     (GenerateType::Array, 5),
-    (GenerateType::Slice, 6),
+    (GenerateType::Vector, 6),
 ]);
 pub(crate) const MAX_ARRAY_SIZE: usize = 10;
 

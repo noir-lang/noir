@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 use noirc_artifacts::program::ProgramArtifact;
-use prettytable::{Row, row, table};
+use prettytable::{Row, Table, row};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
 
@@ -91,11 +91,16 @@ pub fn show_info_report(info_report: InfoReport, json: bool) {
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"]);
+            let mut program_table = Table::new();
+            let titles =
+                row![Fm->"Package", Fm->"Function", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"];
+            let num_titles = titles.len();
+            program_table.set_titles(titles);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();
                 for row in program_rows {
+                    assert_eq!(row.len(), num_titles, "wrong number of columns");
                     program_table.add_row(row);
                 }
             }

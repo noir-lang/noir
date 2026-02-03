@@ -107,7 +107,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
     ("reference_counts_inliner_0", 0),
     ("reference_counts_inliner_min", i64::MIN),
     ("reference_counts_inliner_max", i64::MAX),
-    ("reference_counts_slices_inliner_0", 0),
+    ("reference_counts_vectors_inliner_0", 0),
 ];
 
 /// Some tests are expected to have warnings
@@ -136,15 +136,12 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 7] = [
-    // bugs
-    "array_sort",
-    "regression_11294",
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
-    "reference_counts_slices_inliner_0",
+    "reference_counts_vectors_inliner_0",
     // Enums are currently unsupported in comptime code
     "regression_7323",
 ];
@@ -163,7 +160,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
-    "array_to_slice_constant_length",
+    "array_to_vector_constant_length",
     "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
@@ -216,11 +213,9 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     // bug
     "associated_type_bounds",
-    // bug
-    "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -405,6 +400,7 @@ fn test_{test_name}() {{
     let corpus_dir = assert_fs::TempDir::new().unwrap();
     let fuzzing_failure_dir = assert_fs::TempDir::new().unwrap();
     let test_program_dir = PathBuf::from("{test_dir}");
+    #[allow(deprecated)]
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
     nargo.arg("fuzz").arg("--timeout").arg("{timeout_str}");

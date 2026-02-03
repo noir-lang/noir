@@ -278,7 +278,7 @@ impl DominatorTree {
             }
         }
 
-        debug_assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
+        assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
         block_a_id
     }
 

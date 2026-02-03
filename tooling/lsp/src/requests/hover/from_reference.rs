@@ -10,7 +10,7 @@ use noirc_frontend::modules::get_parent_module;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    DataType, EnumVariant, ResolvedGenerics, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
@@ -616,21 +616,21 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
-fn format_generics(generics: &Generics, string: &mut String) {
+fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
     format_generics_impl(
         generics, false, // only show names
         string,
     );
 }
 
-fn format_generic_names(generics: &Generics, string: &mut String) {
+fn format_generic_names(generics: &ResolvedGenerics, string: &mut String) {
     format_generics_impl(
         generics, true, // only show names
         string,
     );
 }
 
-fn format_generics_impl(generics: &Generics, only_show_names: bool, string: &mut String) {
+fn format_generics_impl(generics: &ResolvedGenerics, only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }
@@ -756,7 +756,7 @@ impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),
-            Type::Slice(typ) => self.gather_type_links(typ),
+            Type::Vector(typ) => self.gather_type_links(typ),
             Type::Tuple(types) => {
                 for typ in types {
                     self.gather_type_links(typ);
@@ -917,7 +917,11 @@ fn process_doc_comments_links(
     let mut lines = comments.lines().map(|line| line.to_string()).collect::<Vec<_>>();
 
     for link in links.into_iter().rev() {
-        let Some(location) = link_target_location(&link.target, args) else {
+        let Some(target) = link.target else {
+            continue;
+        };
+
+        let Some(location) = link_target_location(target, args) else {
             continue;
         };
         let mut line = lines[link.line].to_string();
@@ -932,54 +936,54 @@ fn process_doc_comments_links(
 /// Returns the Location where a link target exists.
 /// The Location might not exist. For example, primitive types have no definition location.
 fn link_target_location(
-    target: &LinkTarget,
+    target: LinkTarget,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<lsp_types::Location> {
     match target {
         LinkTarget::TopLevelItem(module_def_id) => match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                let module_attributes = args.interner.try_module_attributes(*module_id)?;
+                let module_attributes = args.interner.try_module_attributes(module_id)?;
                 let location = module_attributes.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::FunctionId(func_id) => {
-                let func_meta = args.interner.function_meta(func_id);
+                let func_meta = args.interner.function_meta(&func_id);
                 let location = func_meta.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TypeId(type_id) => {
-                let typ = args.interner.get_type(*type_id);
+                let typ = args.interner.get_type(type_id);
                 let typ = typ.borrow();
                 let location = typ.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TypeAliasId(type_alias_id) => {
-                let type_alias = args.interner.get_type_alias(*type_alias_id);
+                let type_alias = args.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 let location = type_alias.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TraitId(trait_id) => {
-                let some_trait = args.interner.get_trait(*trait_id);
+                let some_trait = args.interner.get_trait(trait_id);
                 let location = some_trait.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
             ModuleDefId::TraitAssociatedTypeId(..) => None,
             ModuleDefId::GlobalId(global_id) => {
-                let global_info = args.interner.get_global(*global_id);
+                let global_info = args.interner.get_global(global_id);
                 let location = global_info.location;
                 to_lsp_location(args.files, location.file, location.span)
             }
         },
         LinkTarget::Method(_, func_id) | LinkTarget::PrimitiveTypeFunction(_, func_id) => {
-            let func_meta = args.interner.function_meta(func_id);
+            let func_meta = args.interner.function_meta(&func_id);
             let location = func_meta.location;
             to_lsp_location(args.files, location.file, location.span)
         }
         LinkTarget::StructMember(type_id, index) => {
-            let struct_type = args.interner.get_type(*type_id);
+            let struct_type = args.interner.get_type(type_id);
             let struct_type = struct_type.borrow();
-            let field = struct_type.field_at(*index);
+            let field = struct_type.field_at(index);
             let location = field.name.location();
             to_lsp_location(args.files, location.file, location.span)
         }
@@ -1036,8 +1040,8 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
             }
             string.push(']');
         }
-        Value::Slice(values, _) => {
-            string.push_str("&[");
+        Value::Vector(values, _) => {
+            string.push_str("@[");
             for (index, value) in values.iter().enumerate() {
                 if index > 0 {
                     string.push_str(", ");

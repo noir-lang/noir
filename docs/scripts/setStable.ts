@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -7,10 +6,33 @@ const GITHUB_PAGES = 3;
 const IGNORE_VERSIONS = ['0.16.0'];
 const NUMBER_OF_VERSIONS_TO_SHOW = 2;
 
+const MAX_RETRIES = 3;
+const INITIAL_DELAY_MS = 1000;
+
+async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await axios.get(url, options);
+    } catch (error) {
+      const isRetryable =
+        error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || (error.response && error.response.status >= 500);
+
+      if (isRetryable && attempt < retries) {
+        const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
+        console.log(`Request failed (attempt ${attempt}/${retries}), retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 async function main() {
   const axiosOpts = {
     params: { per_page: 100 },
     headers: {},
+    timeout: 30000,
   };
 
   if (process.env.GITHUB_TOKEN) axiosOpts.headers = { Authorization: `token ${process.env.GITHUB_TOKEN}` };
@@ -19,7 +41,10 @@ async function main() {
   console.log('Retrieved versions:');
 
   for (let i = 0; i < GITHUB_PAGES; i++) {
-    const { data } = await axios.get(`https://api.github.com/repos/noir-lang/noir/releases?page=${i + 1}`, axiosOpts);
+    const { data } = await fetchWithRetry(
+      `https://api.github.com/repos/noir-lang/noir/releases?page=${i + 1}`,
+      axiosOpts,
+    );
 
     console.log(data.map((release) => release.tag_name));
     stables.push(

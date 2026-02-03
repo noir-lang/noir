@@ -2,7 +2,14 @@ import { expect } from 'chai';
 import { buildInfo } from '@noir-lang/acvm_js';
 
 import child_process from 'child_process';
-import pkg from '../../package.json';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Use fs.readFileSync instead of direct JSON import for Node 24 compatibility
+// Node 24 requires import attributes for JSON which isn't compatible with older versions
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8'));
 
 it('returns the correct build info', () => {
   let revision: string;

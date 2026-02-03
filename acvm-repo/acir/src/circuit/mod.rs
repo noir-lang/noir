@@ -5,9 +5,10 @@ pub mod brillig;
 pub mod opcodes;
 
 use crate::{
+    SerializationFormat,
     circuit::opcodes::display_opcode,
     native_types::{Expression, Witness},
-    serialization::{deserialize_any_format, serialize_with_format_from_env},
+    serialization::{self, deserialize_any_format, serialize_with_format},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -22,24 +23,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as Deser
 use std::collections::BTreeSet;
 
 use self::{brillig::BrilligBytecode, opcodes::BlockId};
-
-/// Specifies the maximum width of the expressions which will be constrained.
-///
-/// Unbounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports R1CS.
-///
-/// Bounded Expressions are useful if you are eventually going to pass the ACIR
-/// into a proving system which supports PLONK, where arithmetic expressions have a
-/// finite fan-in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-pub enum ExpressionWidth {
-    #[default]
-    Unbounded,
-    Bounded {
-        width: usize,
-    },
-}
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
@@ -266,24 +249,30 @@ impl<F: AcirField> Circuit<F> {
 }
 
 impl<F: Serialize + AcirField> Program<F> {
-    /// Serialize and compress the [Program] into bytes.
-    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = serialize_with_format_from_env(self)?;
-
+    /// Compress a serialized [Program].
+    fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
+        let mut compressed: Vec<u8> = Vec::new();
         // Compress the data, which should help with formats that uses field names.
-        let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
+        let mut encoder = flate2::write::GzEncoder::new(&mut compressed, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
-        Ok(())
+        Ok(compressed)
     }
 
+    /// Serialize and compress a [Program] into bytes, using the given format.
+    pub fn serialize_program_with_format(program: &Self, format: serialization::Format) -> Vec<u8> {
+        let program_bytes =
+            serialize_with_format(program, format).expect("expected circuit to be serializable");
+        Self::compress(program_bytes).expect("expected circuit to compress")
+    }
+
+    /// Serialize and compress a [Program] into bytes, using the format from the environment, or the default format.
     pub fn serialize_program(program: &Self) -> Vec<u8> {
-        let mut program_bytes: Vec<u8> = Vec::new();
-        program.write(&mut program_bytes).expect("expected circuit to be serializable");
-        program_bytes
+        let format = SerializationFormat::from_env().expect("invalid format");
+        Self::serialize_program_with_format(program, format.unwrap_or_default())
     }
 
-    /// Serialize and base64 encode program
+    /// Serialize, compress then base64 encode a [Program], using the format from the environment, or the default format,
     pub fn serialize_program_base64<S>(program: &Self, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -563,16 +552,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_program_bincode_roundtrip() {
-            run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = bincode_serialize(&program)?;
-                let de = bincode_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_program_msgpack_roundtrip() {
             run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
                 let bz = msgpack_serialize(&program, compact)?;
@@ -593,16 +572,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_stack_bincode_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = bincode_serialize(&witness)?;
-                let de = bincode_deserialize(&bz)?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_witness_stack_msgpack_roundtrip() {
             run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
                 let bz = msgpack_serialize(&witness, compact)?;
@@ -617,16 +586,6 @@ mod tests {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
                 let bz = witness.serialize()?;
                 let de = WitnessStack::deserialize(bz.as_slice())?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
-        fn prop_witness_map_bincode_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = bincode_serialize(&witness)?;
-                let de = bincode_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

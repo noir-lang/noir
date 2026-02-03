@@ -1,7 +1,9 @@
-use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
+use codespan_reporting::files::{Error, Files, SimpleFile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{ops::Range, path::PathBuf};
+
+use crate::simple_files::SimpleFiles;
 
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep
@@ -71,6 +73,10 @@ impl FileMap {
         let file_id = FileId(self.files.add(file_name.clone(), code));
         self.name_to_id.insert(file_name, file_id);
         file_id
+    }
+
+    pub fn replace_file(&mut self, file_id: FileId, source: String) {
+        self.files.replace(file_id.0, source);
     }
 
     pub fn get_file(&self, file_id: FileId) -> Option<File> {

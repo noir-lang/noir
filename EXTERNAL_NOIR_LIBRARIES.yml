@@ -1,4 +1,4 @@
-define: &AZ_COMMIT e3e13bb900cd82995a054024b1d8defbd9dc7fb5
+define: &AZ_COMMIT e4a6c70dc9e896f76fd4274d3d01e6ebd8f708c6
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -65,19 +65,19 @@ libraries:
     critical: true
   poseidon:
     repo: noir-lang/poseidon
-    timeout: 3
+    timeout: 5
     critical: true
   aztec_nr:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/aztec-nr
-    timeout: 150
+    timeout: 220
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 200
+    timeout: 230
     critical: false
   blob:
     repo: AztecProtocol/aztec-packages
@@ -85,17 +85,11 @@ libraries:
     path: noir-projects/noir-protocol-circuits/crates/blob
     timeout: 600
     critical: false
-  protocol_circuits_parity_lib:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/parity-lib
-    timeout: 15
-    critical: false
   protocol_circuits_private_kernel_lib:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
-    timeout: 400
+    timeout: 450
     critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages

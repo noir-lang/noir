@@ -1,6 +1,6 @@
 use ark_ec::AffineRepr;
-use ark_ff::MontConfig;
-use num_bigint::BigUint;
+use ark_ec::VariableBaseMSM;
+use ark_ff::{BigInt, MontConfig};
 
 use crate::FieldElement;
 use acir::AcirField;
@@ -34,7 +34,9 @@ pub fn multi_scalar_mul(
         ));
     }
 
-    let mut output_point = ark_grumpkin::Affine::zero();
+    // Collect all bases (affine points) and scalars for batch MSM
+    let mut bases = Vec::new();
+    let mut big_ints = Vec::new();
 
     for i in (0..points.len()).step_by(3) {
         if points[i + 2] > FieldElement::one() {
@@ -43,9 +45,8 @@ pub fn multi_scalar_mul(
                 "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
             ));
         }
-        let point =
-            create_point(points[i], points[i + 1], points[i + 2] == FieldElement::from(1_u128))
-                .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
+        let point = create_point(points[i], points[i + 1], points[i + 2])
+            .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e))?;
 
         let scalar_low: u128 =
             field_to_u128_limb(&scalars_lo[i / 3], BlackBoxFunc::MultiScalarMul)?;
@@ -53,24 +54,35 @@ pub fn multi_scalar_mul(
         let scalar_high: u128 =
             field_to_u128_limb(&scalars_hi[i / 3], BlackBoxFunc::MultiScalarMul)?;
 
-        let mut bytes = scalar_high.to_be_bytes().to_vec();
-        bytes.extend_from_slice(&scalar_low.to_be_bytes());
-
-        let grumpkin_integer = BigUint::from_bytes_be(&bytes);
+        // Convert to BigInt<4>, using u64 limbs.
+        let limbs_array = [
+            scalar_low as u64,
+            (scalar_low >> 64) as u64,
+            scalar_high as u64,
+            (scalar_high >> 64) as u64,
+        ];
+        let scalar_bigint = BigInt::new(limbs_array);
 
         // Check if this is smaller than the grumpkin modulus
-        if grumpkin_integer >= ark_grumpkin::FrConfig::MODULUS.into() {
+        if scalar_bigint >= ark_grumpkin::FrConfig::MODULUS {
+            // Format as hex string (big-endian, most significant limb first)
+            let hex_str = format!(
+                "{:016x}{:016x}{:016x}{:016x}",
+                limbs_array[3], limbs_array[2], limbs_array[1], limbs_array[0]
+            );
             return Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::MultiScalarMul,
-                format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
+                format!("{hex_str} is not a valid grumpkin scalar"),
             ));
         }
 
-        let iteration_output_point =
-            ark_grumpkin::Affine::from(point.mul_bigint(grumpkin_integer.to_u64_digits()));
-
-        output_point = ark_grumpkin::Affine::from(output_point + iteration_output_point);
+        bases.push(point);
+        big_ints.push(scalar_bigint);
     }
+
+    // Perform batch multi-scalar multiplication
+    let output_point = ark_grumpkin::Projective::msm_bigint(&bases, &big_ints);
+    let output_point = ark_grumpkin::Affine::from(output_point);
 
     if let Some((out_x, out_y)) = output_point.xy() {
         Ok((
@@ -89,14 +101,14 @@ pub fn embedded_curve_add(
 ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
     if input1[2] > FieldElement::one() || input2[2] > FieldElement::one() {
         return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::MultiScalarMul,
+            BlackBoxFunc::EmbeddedCurveAdd,
             "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
         ));
     }
 
-    let point1 = create_point(input1[0], input1[1], input1[2] == FieldElement::one())
+    let point1 = create_point(input1[0], input1[1], input1[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
-    let point2 = create_point(input2[0], input2[1], input2[2] == FieldElement::one())
+    let point2 = create_point(input2[0], input2[1], input2[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
 
     for point in [point1, point2] {
@@ -110,29 +122,24 @@ pub fn embedded_curve_add(
 
     let res = ark_grumpkin::Affine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
-        Ok((
-            FieldElement::from_repr(res_x),
-            FieldElement::from_repr(res_y),
-            FieldElement::from(u128::from(res.is_zero())),
-        ))
-    } else if res.is_zero() {
-        Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
+        Ok((FieldElement::from_repr(res_x), FieldElement::from_repr(res_y), FieldElement::zero()))
     } else {
-        Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EmbeddedCurveAdd,
-            "Point is not on curve".to_string(),
-        ))
+        assert!(res.is_zero());
+        Ok((FieldElement::from(0_u128), FieldElement::from(0_u128), FieldElement::from(1_u128)))
     }
 }
 
 fn create_point(
     x: FieldElement,
     y: FieldElement,
-    is_infinite: bool,
+    is_infinite: FieldElement,
 ) -> Result<ark_grumpkin::Affine, String> {
-    if is_infinite {
+    if is_infinite.is_one() {
         return Ok(ark_grumpkin::Affine::zero());
+    } else if !is_infinite.is_zero() {
+        return Err("`is_infinite` flag is non-boolean".to_string());
     }
+
     let point = ark_grumpkin::Affine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
         return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
@@ -147,6 +154,7 @@ fn create_point(
 mod tests {
     use super::*;
     use ark_ff::BigInteger;
+    use num_bigint::BigUint;
 
     fn get_generator() -> [FieldElement; 3] {
         let generator = ark_grumpkin::Affine::generator();
@@ -310,5 +318,211 @@ mod tests {
         assert_eq!(msm_res.0, add_res.0);
         assert_eq!(msm_res.1, add_res.1);
         Ok(())
+    }
+
+    #[test]
+    fn rejects_non_boolean_is_infinite_flag() {
+        let a = get_generator();
+
+        let mut b = get_generator();
+        // Manipulate `is_infinite` to be non-boolean.
+        b[2] = FieldElement::from(2u32);
+
+        let res = embedded_curve_add(a, b);
+
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".into(),
+            ))
+        );
+    }
+
+    fn msm_against_add_and_mul(
+        points: &[FieldElement],
+        scalars_lo: &[FieldElement],
+        scalars_hi: &[FieldElement],
+    ) {
+        // Manual MSM via add and mul
+        let mut output_point = ark_grumpkin::Affine::zero();
+        for i in (0..points.len()).step_by(3) {
+            let point = create_point(points[i], points[i + 1], points[i + 2]).unwrap();
+
+            let scalar_low: u128 =
+                field_to_u128_limb(&scalars_lo[i / 3], BlackBoxFunc::MultiScalarMul).unwrap();
+
+            let scalar_high: u128 =
+                field_to_u128_limb(&scalars_hi[i / 3], BlackBoxFunc::MultiScalarMul).unwrap();
+
+            let mut bytes = scalar_high.to_be_bytes().to_vec();
+            bytes.extend_from_slice(&scalar_low.to_be_bytes());
+
+            let grumpkin_integer = BigUint::from_bytes_be(&bytes);
+
+            // Check if this is smaller than the grumpkin modulus
+            assert!(
+                grumpkin_integer < ark_grumpkin::FrConfig::MODULUS.into(),
+                "invalid grumpkin scalar",
+            );
+
+            let iteration_output_point =
+                ark_grumpkin::Affine::from(point.mul_bigint(grumpkin_integer.to_u64_digits()));
+
+            output_point = ark_grumpkin::Affine::from(output_point + iteration_output_point);
+        }
+
+        // Batch MSM
+        let output_point2 = multi_scalar_mul(points, scalars_lo, scalars_hi).unwrap();
+
+        // Checks both implementations have the same result
+        if let Some((out_x, out_y)) = output_point.xy() {
+            assert_eq!(FieldElement::from_repr(out_x), output_point2.0);
+            assert_eq!(FieldElement::from_repr(out_y), output_point2.1);
+        } else {
+            // Point at infinity
+            assert_eq!(output_point2.2, FieldElement::from(1u128));
+        }
+    }
+
+    #[test]
+    // Checks that multi_scalar_mul() produce the same result as adding and multiplying manually the points.
+    fn batch_msm() {
+        let generator = get_generator();
+
+        // Helper to generate nth multiple of generator
+        let gen_multiple = |n: u64| -> (FieldElement, FieldElement, FieldElement) {
+            let mut point = ark_grumpkin::Affine::zero();
+            for _ in 0..n {
+                point = ark_grumpkin::Affine::from(point + ark_grumpkin::Affine::generator());
+            }
+            if let Some((x, y)) = point.xy() {
+                (FieldElement::from_repr(x), FieldElement::from_repr(y), FieldElement::zero())
+            } else {
+                (FieldElement::zero(), FieldElement::zero(), FieldElement::one())
+            }
+        };
+
+        // Test case 1: Single point with small scalar
+        {
+            let points = vec![generator[0], generator[1], generator[2]];
+            let scalars_lo = vec![FieldElement::from(7u128)];
+            let scalars_hi = vec![FieldElement::from(0u128)];
+            msm_against_add_and_mul(&points, &scalars_lo, &scalars_hi);
+        }
+
+        // Test case 2: Two points with varied scalars
+        {
+            let point2 = gen_multiple(2);
+            let points =
+                vec![generator[0], generator[1], generator[2], point2.0, point2.1, point2.2];
+            let scalars_lo = vec![FieldElement::from(3u128), FieldElement::from(11u128)];
+            let scalars_hi = vec![FieldElement::from(0u128), FieldElement::from(0u128)];
+            msm_against_add_and_mul(&points, &scalars_lo, &scalars_hi);
+        }
+
+        // Test case 3: Three points with high/low scalar combinations
+        {
+            let point2 = gen_multiple(2);
+            let point3 = gen_multiple(3);
+            let points = vec![
+                generator[0],
+                generator[1],
+                generator[2],
+                point2.0,
+                point2.1,
+                point2.2,
+                point3.0,
+                point3.1,
+                point3.2,
+            ];
+            let scalars_lo = vec![
+                FieldElement::from(5u128),
+                FieldElement::from(17u128),
+                FieldElement::from(42u128),
+            ];
+            let scalars_hi = vec![
+                FieldElement::from(0u128),
+                FieldElement::from(1u128),
+                FieldElement::from(2u128),
+            ];
+            msm_against_add_and_mul(&points, &scalars_lo, &scalars_hi);
+        }
+
+        // Test case 4: Five points with larger scalars
+        {
+            let point2 = gen_multiple(2);
+            let point3 = gen_multiple(3);
+            let point4 = gen_multiple(4);
+            let point5 = gen_multiple(5);
+            let points = vec![
+                generator[0],
+                generator[1],
+                generator[2],
+                point2.0,
+                point2.1,
+                point2.2,
+                point3.0,
+                point3.1,
+                point3.2,
+                point4.0,
+                point4.1,
+                point4.2,
+                point5.0,
+                point5.1,
+                point5.2,
+            ];
+            let scalars_lo = vec![
+                FieldElement::from(100u128),
+                FieldElement::from(200u128),
+                FieldElement::from(300u128),
+                FieldElement::from(u128::MAX),
+                FieldElement::from(12345678901234567890u128),
+            ];
+            let scalars_hi = vec![
+                FieldElement::from(0u128),
+                FieldElement::from(5u128),
+                FieldElement::from(10u128),
+                FieldElement::from(0u128),
+                FieldElement::from(100u128),
+            ];
+            msm_against_add_and_mul(&points, &scalars_lo, &scalars_hi);
+        }
+
+        // Test case 5: Single point with zero scalar
+        {
+            let points = vec![generator[0], generator[1], generator[2]];
+            let scalars_lo = vec![FieldElement::from(0u128)];
+            let scalars_hi = vec![FieldElement::from(0u128)];
+            msm_against_add_and_mul(&points, &scalars_lo, &scalars_hi);
+        }
+
+        // Test case 6: Multiple points with mixed zero and non-zero scalars
+        {
+            let point2 = gen_multiple(2);
+            let point3 = gen_multiple(3);
+            let points = vec![
+                generator[0],
+                generator[1],
+                generator[2],
+                point2.0,
+                point2.1,
+                point2.2,
+                point3.0,
+                point3.1,
+                point3.2,
+            ];
+            let scalars_lo = vec![
+                FieldElement::from(0u128),
+                FieldElement::from(42u128),
+                FieldElement::from(0u128),
+            ];
+            let scalars_hi = vec![
+                FieldElement::from(0u128),
+                FieldElement::from(0u128),
+                FieldElement::from(0u128),
+            ];
+            msm_against_add_and_mul(&points, &scalars_lo, &scalars_hi);
+        }
     }
 }

@@ -3,28 +3,33 @@ use noirc_errors::{CustomDiagnostic, Location};
 use crate::{
     Type,
     hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    validity::InvalidType,
 };
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
+    UnknownArrayLength { err: TypeCheckError, location: Location },
     UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: Type, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
     AssignedToVarContainingReference { typ: String, location: Location },
-    NestedSlices { location: Location },
+    NestedVectors { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
-    UnconstrainedSliceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    ReferenceReturnedFromOracle { typ: String, location: Location },
+    VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
+    InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    ComplexType { complexity: usize, max_complexity: usize, location: Location },
 }
 
 impl MonomorphizationError {
@@ -41,16 +46,18 @@ impl MonomorphizationError {
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
             | MonomorphizationError::AssignedToVarContainingReference { location, .. }
-            | MonomorphizationError::NestedSlices { location }
+            | MonomorphizationError::NestedVectors { location }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
             | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
             | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::UnconstrainedSliceReturnToConstrained { location, .. } => {
-                *location
-            }
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
+            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::ComplexType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -59,14 +66,16 @@ impl MonomorphizationError {
 impl From<MonomorphizationError> for CustomDiagnostic {
     fn from(error: MonomorphizationError) -> CustomDiagnostic {
         let message = match &error {
-            MonomorphizationError::UnknownArrayLength { length, err, .. } => {
-                format!("Could not determine array length `{length}`, encountered error: `{err}`")
+            MonomorphizationError::UnknownArrayLength { err, location } => {
+                let message = "Invalid array length".into();
+                let secondary = err.to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
-                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
+                format!("checked_transmute failed: expected `{expected}` but found `{actual}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
@@ -122,8 +131,9 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 };
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
-            MonomorphizationError::NestedSlices { .. } => {
-                "Nested slices, i.e. slices within an array or slice, are not supported".to_string()
+            MonomorphizationError::NestedVectors { .. } => {
+                "Nested vectors, i.e. vectors within an array or vector, are not supported"
+                    .to_string()
             }
             MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
                 let message = format!("Invalid type {typ} used in the error message");
@@ -137,13 +147,49 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
                 format!(
-                    "Mutable reference `{typ}` be returned from an unconstrained runtime to a constrained runtime"
+                    "Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
-            MonomorphizationError::UnconstrainedSliceReturnToConstrained { typ, .. } => {
+            MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } => {
                 format!(
-                    "Slice `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                    "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
+            }
+            MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
+                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
+                format!(
+                    "Vector with nested array `{typ}` cannot be returned from an oracle function"
+                )
+            }
+            MonomorphizationError::InvalidTypeForEntryPoint { invalid_type, location } => {
+                let primary_message =
+                    "Invalid type found in the entry point to a program".to_string();
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary_message, String::new(), *location);
+                diagnostic.secondaries.clear();
+
+                if matches!(
+                    invalid_type,
+                    InvalidType::StructField { .. } | InvalidType::Alias { .. }
+                ) {
+                    diagnostic.add_secondary(
+                        "This type has an invalid entry point type inside it".to_string(),
+                        *location,
+                    );
+                }
+
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                invalid_type.add_to_diagnostic(*location, &mut diagnostic);
+                return diagnostic;
+            }
+            MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
+                let message = format!(
+                    "Type is too complex (complexity: {complexity}, max: {max_complexity})",
+                );
+                let secondary = "This usually happens with exponentially growing types. Consider simplifying the type structure.".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 

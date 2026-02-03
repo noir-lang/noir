@@ -23,7 +23,8 @@ use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
 use noirc_frontend::hir::Context;
 
 use super::test_cmd::TestResult;
@@ -102,7 +103,6 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
         target_dir: &workspace.target_directory_path(),
     };
     let run_params = RunParams {
-        pedantic_solving: args.compile_options.pedantic_solving,
         raw_source_printing: args.raw_source_printing,
         oracle_resolver_url: args.oracle_resolver,
     };

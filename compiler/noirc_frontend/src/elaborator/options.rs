@@ -6,6 +6,7 @@ use std::str::FromStr;
 pub enum UnstableFeature {
     Enums,
     Ownership,
+    TraitAsType,
 }
 
 impl std::fmt::Display for UnstableFeature {
@@ -13,6 +14,7 @@ impl std::fmt::Display for UnstableFeature {
         match self {
             Self::Enums => write!(f, "enums"),
             Self::Ownership => write!(f, "ownership"),
+            Self::TraitAsType => write!(f, "trait_as_type"),
         }
     }
 }
@@ -24,6 +26,7 @@ impl FromStr for UnstableFeature {
         match s {
             "enums" => Ok(Self::Enums),
             "ownership" => Ok(Self::Ownership),
+            "trait_as_type" => Ok(Self::TraitAsType),
             other => Err(format!("Unknown unstable feature '{other}'")),
         }
     }
@@ -32,13 +35,10 @@ impl FromStr for UnstableFeature {
 /// Generic options struct meant to resolve to ElaboratorOptions below when
 /// we can resolve a file path to a file id later. This generic struct is used
 /// so that FrontendOptions doesn't need to duplicate fields and methods with ElaboratorOptions.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct GenericOptions<'a, T> {
     /// The scope of --debug-comptime, or None if unset
     pub debug_comptime_in_file: Option<T>,
-
-    /// Use pedantic ACVM solving
-    pub pedantic_solving: bool,
 
     /// Unstable compiler features that were explicitly enabled. Any unstable features
     /// that are not in this list result in an error when used.
@@ -60,7 +60,6 @@ impl<T> GenericOptions<'_, T> {
     pub fn test_default() -> GenericOptions<'static, T> {
         GenericOptions {
             debug_comptime_in_file: None,
-            pedantic_solving: true,
             enabled_unstable_features: &[UnstableFeature::Enums],
             disable_required_unstable_features: true,
         }

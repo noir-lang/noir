@@ -375,7 +375,7 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
-            func_sig: decl.signature(),
+            is_entry_point: id == FuncId(0), // we only need main as an entry point
         };
         self.functions.insert(id, func);
         Ok(())
@@ -391,19 +391,10 @@ impl Context {
     /// Return the generated [Program].
     fn finalize(self) -> Program {
         let functions = self.functions.into_values().collect::<Vec<_>>();
-
-        // The signatures should only contain entry functions. Currently that's just `main`.
-        let function_signatures =
-            functions.iter().take(1).map(|f| f.func_sig.clone()).collect::<Vec<_>>();
-
-        let main_function_signature = function_signatures[0].clone();
-
         let globals = self.globals.into_iter().collect();
 
         let program = Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location: None,
             globals,
             debug_variables: Default::default(),
@@ -435,7 +426,7 @@ impl Context {
         is_global: bool,
         is_main: bool,
         is_comptime_friendly: bool,
-        is_slice_allowed: bool,
+        is_vector_allowed: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
@@ -445,7 +436,7 @@ impl Context {
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
-                .filter(|typ| is_slice_allowed || !types::contains_slice(typ))
+                .filter(|typ| is_vector_allowed || !types::contains_vector(typ))
                 .collect::<Vec<_>>();
 
             if !existing_types.is_empty() {
@@ -457,14 +448,14 @@ impl Context {
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
         // Generate the inner type for composite types with reduced maximum depth.
-        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_slice_allowed: bool| {
+        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_vector_allowed: bool| {
             this.gen_type(
                 u,
                 max_depth - 1,
                 is_global,
                 is_main,
                 is_comptime_friendly,
-                is_slice_allowed,
+                is_vector_allowed,
             )
         };
 
@@ -493,13 +484,13 @@ impl Context {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| gen_inner_type(self, u, is_slice_allowed))
+                        .map(|_| gen_inner_type(self, u, is_vector_allowed))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
-                6 if is_slice_allowed && !self.config.avoid_slices => {
+                6 if is_vector_allowed && !self.config.avoid_vectors => {
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Slice(Box::new(typ))
+                    Type::Vector(Box::new(typ))
                 }
                 6 | 7 => {
                     let min_size = 0;
@@ -546,7 +537,7 @@ fn make_name(mut id: usize, is_global: bool) -> String {
     }
     name.reverse();
     let mut name = name.into_iter().collect::<String>();
-    if matches!(name.as_str(), "as" | "if" | "fn" | "for" | "loop") {
+    if matches!(name.as_str(), "as" | "if" | "in" | "fn" | "for" | "loop") {
         name = format!("{name}_");
     }
     if is_global { format!("G_{name}") } else { name }
