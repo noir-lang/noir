@@ -1876,36 +1876,63 @@ impl Type {
 
     /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
     pub(crate) fn contains_array(&self) -> bool {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.contains_array_helper(&mut seen_data_types)
+    }
+
+    fn contains_array_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
             Type::Array(..) => true,
-            Type::Vector(elem) => elem.as_ref().contains_array(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_array(),
+            Type::Vector(elem) => elem.as_ref().contains_array_helper(seen_data_types),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).contains_array_helper(seen_data_types)
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_array()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_array()) {
-                        return true;
+                let key = (typ.id, generics.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = typ.get_fields(generics) {
+                        if fields
+                            .iter()
+                            .any(|(_, field, _)| field.contains_array_helper(seen_data_types))
+                        {
+                            return true;
+                        }
+                    } else if let Some(variants) = typ.get_variants(generics) {
+                        if variants
+                            .iter()
+                            .flat_map(|(_, args)| args)
+                            .any(|typ| typ.contains_array_helper(seen_data_types))
+                        {
+                            return true;
+                        }
                     }
                 }
                 false
             }
-            Type::Tuple(types) => types.iter().any(|typ| typ.contains_array()),
-            Type::FmtString(_size, elem) => elem.contains_array(),
+            Type::Tuple(types) => {
+                types.iter().any(|typ| typ.contains_array_helper(seen_data_types))
+            }
+            Type::FmtString(_size, elem) => elem.contains_array_helper(seen_data_types),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_array(),
+                    TypeBinding::Bound(binding) => binding.contains_array_helper(seen_data_types),
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from, to } => from.contains_array() || to.contains_array(),
-            Type::Reference(element, _) => element.contains_array(),
-            Type::Forall(_, typ) => typ.contains_array(),
-            Type::Function(_arg, _ret, env, _unconstrained) => env.contains_array(),
+            Type::CheckedCast { from, to } => {
+                from.contains_array_helper(seen_data_types)
+                    || to.contains_array_helper(seen_data_types)
+            }
+            Type::Reference(element, _) => element.contains_array_helper(seen_data_types),
+            Type::Forall(_, typ) => typ.contains_array_helper(seen_data_types),
+            Type::Function(_arg, _ret, env, _unconstrained) => {
+                env.contains_array_helper(seen_data_types)
+            }
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
@@ -1921,43 +1948,68 @@ impl Type {
 
     /// Check whether this type is a vector that contains a nested array in its element type.
     pub(crate) fn is_vector_with_nested_array(&self) -> bool {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.is_vector_with_nested_array_helper(&mut seen_data_types)
+    }
+
+    fn is_vector_with_nested_array_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_array(),
-            Type::Array(_, elem) => elem.as_ref().is_vector_with_nested_array(),
-            Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).is_vector_with_nested_array()
+            Type::Array(_, elem) => {
+                elem.as_ref().is_vector_with_nested_array_helper(seen_data_types)
             }
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .is_vector_with_nested_array_helper(seen_data_types),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.is_vector_with_nested_array()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants
-                        .iter()
-                        .flat_map(|(_, args)| args)
-                        .any(|typ| typ.is_vector_with_nested_array())
-                    {
-                        return true;
+                let key = (typ.id, generics.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = typ.get_fields(generics) {
+                        if fields.iter().any(|(_, field, _)| {
+                            field.is_vector_with_nested_array_helper(seen_data_types)
+                        }) {
+                            return true;
+                        }
+                    } else if let Some(variants) = typ.get_variants(generics) {
+                        if variants
+                            .iter()
+                            .flat_map(|(_, args)| args)
+                            .any(|typ| typ.is_vector_with_nested_array_helper(seen_data_types))
+                        {
+                            return true;
+                        }
                     }
                 }
                 false
             }
-            Type::Tuple(types) => types.iter().any(|typ| typ.is_vector_with_nested_array()),
-            Type::FmtString(_size, elem) => elem.is_vector_with_nested_array(),
+            Type::Tuple(types) => {
+                types.iter().any(|typ| typ.is_vector_with_nested_array_helper(seen_data_types))
+            }
+            Type::FmtString(_size, elem) => {
+                elem.is_vector_with_nested_array_helper(seen_data_types)
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.is_vector_with_nested_array(),
+                    TypeBinding::Bound(binding) => {
+                        binding.is_vector_with_nested_array_helper(seen_data_types)
+                    }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.is_vector_with_nested_array() || to.is_vector_with_nested_array()
+                from.is_vector_with_nested_array_helper(seen_data_types)
+                    || to.is_vector_with_nested_array_helper(seen_data_types)
             }
-            Type::Reference(element, _) => element.is_vector_with_nested_array(),
-            Type::Forall(_, typ) => typ.is_vector_with_nested_array(),
+            Type::Reference(element, _) => {
+                element.is_vector_with_nested_array_helper(seen_data_types)
+            }
+            Type::Forall(_, typ) => typ.is_vector_with_nested_array_helper(seen_data_types),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
@@ -2054,6 +2106,14 @@ impl Type {
     }
 
     pub(crate) fn contains_function(&self) -> bool {
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        self.contains_function_helper(&mut seen_data_types)
+    }
+
+    fn contains_function_helper(
+        &self,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> bool {
         match self {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -2068,35 +2128,59 @@ impl Type {
 
             Type::Function(..) => true,
 
-            Type::Reference(typ, _) => typ.contains_function(),
-            Type::Array(length, typ) => length.contains_function() || typ.contains_function(),
-            Type::Vector(typ) => typ.contains_function(),
-            Type::FmtString(length, typ) => length.contains_function() || typ.contains_function(),
-            Type::Tuple(types) => types.iter().any(|typ| typ.contains_function()),
+            Type::Reference(typ, _) => typ.contains_function_helper(seen_data_types),
+            Type::Array(length, typ) => {
+                length.contains_function_helper(seen_data_types)
+                    || typ.contains_function_helper(seen_data_types)
+            }
+            Type::Vector(typ) => typ.contains_function_helper(seen_data_types),
+            Type::FmtString(length, typ) => {
+                length.contains_function_helper(seen_data_types)
+                    || typ.contains_function_helper(seen_data_types)
+            }
+            Type::Tuple(types) => {
+                types.iter().any(|typ| typ.contains_function_helper(seen_data_types))
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field, _)| field.contains_function()) {
-                        return true;
-                    }
-                } else if let Some(variants) = typ.get_variants(generics) {
-                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_function())
-                    {
-                        return true;
+                let key = (typ.id, generics.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = typ.get_fields(generics) {
+                        if fields
+                            .iter()
+                            .any(|(_, field, _)| field.contains_function_helper(seen_data_types))
+                        {
+                            return true;
+                        }
+                    } else if let Some(variants) = typ.get_variants(generics) {
+                        if variants
+                            .iter()
+                            .flat_map(|(_, args)| args)
+                            .any(|typ| typ.contains_function_helper(seen_data_types))
+                        {
+                            return true;
+                        }
                     }
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_function(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).contains_function_helper(seen_data_types)
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_function(),
+                    TypeBinding::Bound(binding) => {
+                        binding.contains_function_helper(seen_data_types)
+                    }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from: _, to } => to.contains_function(),
-            Type::InfixExpr(lhs, _op, rhs, _) => lhs.contains_function() || rhs.contains_function(),
+            Type::CheckedCast { from: _, to } => to.contains_function_helper(seen_data_types),
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.contains_function_helper(seen_data_types)
+                    || rhs.contains_function_helper(seen_data_types)
+            }
         }
     }
 

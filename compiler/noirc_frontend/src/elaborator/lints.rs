@@ -14,7 +14,7 @@ use crate::{
         stmt::HirStatement,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
+        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner, TypeId,
     },
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
@@ -157,27 +157,42 @@ pub(super) fn oracle_returns_multiple_vectors(
         return None;
     }
 
-    fn vector_count(typ: &Type) -> usize {
+    fn vector_count(
+        typ: &Type,
+        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+    ) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item),
-            Type::Vector(typ) => 1 + vector_count(typ),
-            Type::FmtString(_, item) => vector_count(item),
-            Type::Tuple(items) => items.iter().map(vector_count).sum(),
+            Type::Array(_, item) => vector_count(item, seen_data_types),
+            Type::Vector(typ) => 1 + vector_count(typ, seen_data_types),
+            Type::FmtString(_, item) => vector_count(item, seen_data_types),
+            Type::Tuple(items) => items.iter().map(|typ| vector_count(typ, seen_data_types)).sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, typ, _)| vector_count(typ)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(_, types)| types).map(vector_count).sum()
+                let key = (struct_type.id, args.clone());
+                if seen_data_types.insert(key) {
+                    if let Some(fields) = struct_type.get_fields(args) {
+                        fields.iter().map(|(_, typ, _)| vector_count(typ, seen_data_types)).sum()
+                    } else if let Some(variants) = struct_type.get_variants(args) {
+                        variants
+                            .iter()
+                            .flat_map(|(_, types)| types)
+                            .map(|typ| vector_count(typ, seen_data_types))
+                            .sum()
+                    } else {
+                        0
+                    }
                 } else {
+                    // If we bump into a recursive type, we stop counting.
+                    // "zero" isn't strictly correct here, but the recursive type will be an error
+                    // already so this count won't matter in the end.
                     0
                 }
             }
-            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args)),
+            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args), seen_data_types),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => vector_count(binding),
+                    TypeBinding::Bound(binding) => vector_count(binding, seen_data_types),
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -198,7 +213,9 @@ pub(super) fn oracle_returns_multiple_vectors(
         }
     }
 
-    if vector_count(func.return_type()) > 1 {
+    let mut seen_data_types = rustc_hash::FxHashSet::default();
+
+    if vector_count(func.return_type(), &mut seen_data_types) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {

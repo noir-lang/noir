@@ -191,3 +191,22 @@ fn errors_if_oracle_clashes_with_stdlib() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn oracle_returning_recursive_struct() {
+    let src = r#"
+    pub struct Foo {
+        bar: Bar,
+    }
+
+    pub struct Bar {
+               ^^^ Dependency cycle found
+               ~~~ 'Bar' recursively depends on itself: Bar -> Foo -> Bar
+        foo: Foo,
+    }
+
+    #[oracle(foo)]
+    pub unconstrained fn foo() -> Foo {}
+    "#;
+    check_errors(src);
+}
