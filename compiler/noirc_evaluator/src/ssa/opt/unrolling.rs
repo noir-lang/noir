@@ -837,83 +837,42 @@ impl Loop {
             .unwrap_or_default()
     }
 
-    // TODO: unify this method with the one in the loop invariant pass
-    // probably can unify some other code too
-    fn values_defined_in_loop(&self, function: &Function) -> HashSet<ValueId> {
-        let mut defined_in_loop = HashSet::default();
-        for block in self.blocks.iter() {
-            let params = function.dfg.block_parameters(*block);
-            defined_in_loop.extend(params);
-            for instruction_id in function.dfg[*block].instructions() {
-                let results = function.dfg.instruction_results(*instruction_id);
-                defined_in_loop.extend(results);
-            }
-        }
-        defined_in_loop
-    }
-
-    /// Given the values defined inside the loop, we should be able to determine which instructions
-    /// are "useless" inside of a loop.
-    /// Certain instructions are "useless" instruction when they have certain properties:
-    /// All values are either:
-    /// - Constant
-    /// - Induction variable
-    /// - Or not defined in the loop
-    fn redefine_useful_results(
-        &self,
-        function: &Function,
-        mut defined_in_loop: HashSet<ValueId>,
-        refs: &im::HashSet<ValueId>,
-    ) -> usize {
+    /// Count instructions that become compile-time constants after unrolling.
+    ///
+    /// An instruction is "useless" (will be folded away) if ALL of its operands will be
+    /// known constants once the loop is unrolled. We track this with a `constant_after_unroll`
+    /// set, seeded with:
+    /// - The induction variable (becomes a known constant per unrolled iteration)
+    /// - Any value that is already a compile-time constant (`dfg.is_constant`)
+    ///
+    /// For each instruction in the loop body, if every operand is in `constant_after_unroll`,
+    /// the result will also be constant after unrolling, so we add it to the set and count
+    /// the instruction as useless.
+    fn count_useless_instructions(&self, function: &Function) -> usize {
         let mut useless_instructions = 0;
         let Some(induction_var) = self.get_induction_variable(function) else {
             return 0;
         };
+
+        let mut constant_after_unroll: HashSet<ValueId> = HashSet::default();
+        constant_after_unroll.insert(induction_var);
+
         for block in &self.blocks {
-            for instruction in function.dfg[*block].instructions() {
-                let results = function.dfg.instruction_results(*instruction);
-                let instruction = &function.dfg[*instruction];
-                // TODO: unify how all these instructions are analyzed
-                match instruction {
-                    Instruction::Load { address } if refs.contains(address) => {
-                        if !defined_in_loop.contains(address) {
-                            defined_in_loop.remove(&results[0]);
-                        }
+            for instruction_id in function.dfg[*block].instructions() {
+                let results = function.dfg.instruction_results(*instruction_id);
+                let instruction = &function.dfg[*instruction_id];
+
+                let mut all_operands_constant = true;
+                instruction.for_each_value(|value| {
+                    all_operands_constant &= constant_after_unroll.contains(&value)
+                        || function.dfg.is_constant(value);
+                });
+
+                if all_operands_constant {
+                    for result in results {
+                        constant_after_unroll.insert(*result);
                     }
-                    Instruction::ArrayGet { array, index } => {
-                        let index_is_useless = induction_var == *index
-                            || function.dfg.is_constant(*index)
-                            || !defined_in_loop.contains(index);
-                        if !defined_in_loop.contains(array) && index_is_useless {
-                            defined_in_loop.remove(&results[0]);
-                            useless_instructions += 1;
-                        }
-                    }
-                    Instruction::ArraySet { array, index, value, .. } => {
-                        let index_is_useless = induction_var == *index
-                            || function.dfg.is_constant(*index)
-                            || !defined_in_loop.contains(index);
-                        if !defined_in_loop.contains(array)
-                            && index_is_useless
-                            && !defined_in_loop.contains(value)
-                        {
-                            defined_in_loop.remove(&results[0]);
-                            useless_instructions += 1;
-                        }
-                    }
-                    Instruction::Binary(_) => {
-                        let mut is_useless = true;
-                        instruction.for_each_value(|value| {
-                            is_useless &= !defined_in_loop.contains(&value)
-                                || value == induction_var
-                                || function.dfg.is_constant(value);
-                        });
-                        if is_useless {
-                            defined_in_loop.remove(&results[0]);
-                            useless_instructions += 1;
-                        }
-                    }
-                    _ => {}
+                    useless_instructions += 1;
                 }
             }
         }
@@ -953,12 +912,10 @@ impl Loop {
             }
         }
 
-        let defined_in_loop = self.values_defined_in_loop(function);
-
         let useless_instructions = if uses_induction_var_outside {
             0
         } else {
-            self.redefine_useful_results(function, defined_in_loop, &refs)
+            self.count_useless_instructions(function)
         };
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
@@ -1537,10 +1494,10 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 4);
         assert_eq!(stats.all_instructions, 2 + 5); // Instructions in b1 and b3
-                                                   // assert_eq!(stats.increments, 1);
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 1); // Adding to sum
+        assert_eq!(stats.useless_instructions, 2); // lt comparison, increment
+        assert_eq!(stats.useful_instructions(), 0); // load, add, store are boilerplate or involve runtime values
         assert_eq!(stats.baseline_instructions(), 8);
         assert!(stats.is_small());
     }
@@ -1566,8 +1523,7 @@ mod tests {
         );
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 3);
-                assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
-                                                   // assert_eq!(stats.increments, 2);
+        assert_eq!(stats.all_instructions, 2 + 9); // Instructions in b1 and b3
     }
 
     #[test]
@@ -1576,10 +1532,10 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 2);
         assert_eq!(stats.all_instructions, 2 + 9); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 2);
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 4); // cast, array get, add, array set
+        assert_eq!(stats.useless_instructions, 4); // lt, cast, 2× unchecked_add (induction-derived)
+        assert_eq!(stats.useful_instructions(), 2); // array_get v0 + add (runtime array operand prevents cascade)
         assert_eq!(stats.baseline_instructions(), 12);
         assert!(stats.is_small());
     }
@@ -1678,8 +1634,8 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
-        let parse_ssa = || brillig_unroll_test_case_6470(13);
+        // 17 iterations × 2 useful instructions = 34, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
+        let parse_ssa = || brillig_unroll_test_case_6470(17);
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
