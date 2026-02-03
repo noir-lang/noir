@@ -659,7 +659,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 }
 
                 diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
-                add_invalid_type_to_diagnostic(invalid_type, *location, &mut diagnostic);
+                invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 diagnostic
             },
             TypeCheckError::MismatchTraitImplNumParameters {
@@ -850,72 +850,5 @@ impl NoMatchingImplFoundError {
             .collect::<Option<Vec<_>>>()?;
 
         Some(Self { constraints, location })
-    }
-}
-
-fn add_invalid_type_to_diagnostic(
-    invalid_type: &InvalidType,
-    location: Location,
-    diagnostic: &mut Diagnostic,
-) {
-    match invalid_type {
-        InvalidType::Primitive(typ) => match typ {
-            // Use a slightly better message for common types that might be used as entry point types
-            Type::Unit => {
-                diagnostic
-                    .add_secondary("Unit is not a valid entry point type".to_string(), location);
-            }
-            Type::Reference(..) => {
-                diagnostic.add_secondary(
-                    format!("Reference is not a valid entry point type. Found: {typ}"),
-                    location,
-                );
-            }
-            Type::Vector(..) => {
-                diagnostic.add_secondary(
-                    format!("Vector is not a valid entry point type. Found: {typ}"),
-                    location,
-                );
-            }
-            _ => {
-                diagnostic.add_secondary(format!("Invalid entry point type: {typ}"), location);
-            }
-        },
-        InvalidType::Enum(typ) => {
-            diagnostic.add_secondary(
-                format!("Enum is not yet allowed as an entry point type. Found: {typ}"),
-                location,
-            );
-        }
-        InvalidType::EmptyArray(typ) => {
-            diagnostic.add_secondary(
-                format!("Empty array is not a valid entry point type. Found: {typ}"),
-                location,
-            );
-        }
-        InvalidType::EmptyString(typ) => {
-            diagnostic.add_secondary(
-                format!("Empty string is not a valid entry point type. Found: {typ}"),
-                location,
-            );
-        }
-        InvalidType::StructField { struct_name, field_name, invalid_type } => {
-            diagnostic.add_secondary(
-                format!("Struct {struct_name} has an invalid entry point type"),
-                struct_name.location(),
-            );
-            diagnostic.add_secondary(
-                format!("Field {field_name} has an invalid entry point type"),
-                field_name.location(),
-            );
-            add_invalid_type_to_diagnostic(invalid_type, field_name.location(), diagnostic);
-        }
-        InvalidType::Alias { alias_name, invalid_type } => {
-            diagnostic.add_secondary(
-                format!("Alias {alias_name} has an invalid entry point type"),
-                alias_name.location(),
-            );
-            add_invalid_type_to_diagnostic(invalid_type, alias_name.location(), diagnostic);
-        }
     }
 }

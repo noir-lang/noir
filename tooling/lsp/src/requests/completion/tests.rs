@@ -3502,4 +3502,23 @@ fn main() {
         let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
+
+    #[test]
+    async fn autoimports_correct_trait_for_ctstring_append() {
+        let src = r#"
+        fn main() {
+            let s = CtString::new();
+            s.appen>|<
+        }
+        "#;
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 3);
+        let item = items
+            .iter()
+            .find(|item| item.label == "append(…)")
+            .expect("Expected to find a completion for 'append'");
+        let addition_text_edit = &item.additional_text_edits.as_ref().unwrap()[0];
+        // This used to suggest `use std::meta::ctstring::Append`, which is wrong
+        assert_eq!(addition_text_edit.new_text, "use std::append::Append;\n");
+    }
 }

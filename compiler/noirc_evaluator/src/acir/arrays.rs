@@ -152,6 +152,15 @@ impl Context<'_> {
         })
     }
 
+    pub(crate) fn return_data_block_id(&mut self) -> BlockId {
+        self.return_data_block_id.unwrap_or_else(|| {
+            let block_id = BlockId(self.max_block_id);
+            self.max_block_id += 1;
+            self.return_data_block_id = Some(block_id);
+            block_id
+        })
+    }
+
     /// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
     /// only be accessed dynamically, such as the type structure
@@ -170,10 +179,9 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
-        if let Some(return_data) = self.data_bus.return_data {
+        if self.data_bus.return_data.is_some() {
             assert!(!witnesses.is_empty(), "return data cannot be empty");
-
-            let block_id = self.block_id(return_data);
+            let block_id = self.return_data_block_id();
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
                 // We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
@@ -1229,14 +1237,8 @@ impl Context<'_> {
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
         let mut databus = BlockType::Memory;
-        if self.data_bus.return_data.is_some()
-            && self.block_id(self.data_bus.return_data.unwrap()) == array
-        {
-            databus = BlockType::ReturnData;
-        }
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
             if self.block_id(array_id) == array {
-                assert!(databus == BlockType::Memory);
                 databus = BlockType::CallData(call_data_id);
                 break;
             }

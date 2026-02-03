@@ -41,6 +41,7 @@ mod types;
 mod use_tree;
 mod where_clause;
 
+pub use doc_comments::block_comment_has_all_leading_stars;
 pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 /// Entry function for the parser - also handles lexing internally.

@@ -399,15 +399,19 @@ pub struct UnsafeExpression {
 /// A special kind of path in the form `<MyType as Trait>::ident`.
 /// Note that this path must consist of exactly two segments.
 ///
-/// An AsTraitPath may be used in either a type context where `ident`
-/// refers to an associated type of a particular impl, or in a value
-/// context where `ident` may refer to an associated constant or a
-/// function within the impl.
+/// An `AsTraitPath` may be used in in the following contexts:
+/// * in a type context where the `ident` refers to an associated type of a particular impl
+/// * in a value context where `ident` may refer to an associated constant or a function within the impl
+/// * in the trait definition itself, referring to an associated type of the same trait
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct AsTraitPath {
+    /// The `MyType` in the path.
     pub typ: UnresolvedType,
+    /// The `Trait` in the path.
     pub trait_path: Path,
+    /// Any generics on the trait itself.
     pub trait_generics: GenericTypeArgs,
+    /// The `ident` in the path.
     pub impl_item: Ident,
 }
 
@@ -439,7 +443,7 @@ impl Path {
         self.segments.pop().unwrap()
     }
 
-    fn join(mut self, ident: Ident) -> Path {
+    pub fn join(mut self, ident: Ident) -> Path {
         self.segments.push(PathSegment::from(ident));
         self
     }

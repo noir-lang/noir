@@ -397,6 +397,32 @@ fn databus() {
 }
 
 #[test]
+fn databus_deduplicate_call_and_return_data() {
+    // call_data and return_data are the same
+    let src = "
+    acir(inline) pure fn main f0 {
+    call_data(0): array: v1, indices: []
+    return_data: v1
+    b0(v0: Field):
+        v1 = make_array [v0] : [Field; 1]
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that RETURNDATA and CALLDATA are distinct blocks
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    ASSERT w1 = w0
+    INIT RETURNDATA b0 = [w1]
+    INIT CALLDATA 0 b1 = [w0]
+    ");
+}
+
+#[test]
 fn blake3_slice_regression() {
     // Sanity check for blake3 black box call brillig codegen.
     let src = "
