@@ -270,9 +270,10 @@ impl Function {
         // Try to unroll.
         match loop_.unroll(self, &loops.cfg) {
             Ok(_) => LoopUnrollResult::Unrolled(loop_.blocks),
-            Err(call_stack) => {
-                LoopUnrollResult::Failed(loop_.header, RuntimeError::UnknownLoopBound { call_stack })
-            }
+            Err(call_stack) => LoopUnrollResult::Failed(
+                loop_.header,
+                RuntimeError::UnknownLoopBound { call_stack },
+            ),
         }
     }
 }
