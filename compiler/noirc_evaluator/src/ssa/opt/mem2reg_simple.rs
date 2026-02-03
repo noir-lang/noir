@@ -63,6 +63,7 @@ impl Function {
     }
 }
 
+/// Find the starting & ending states of each variable in each block
 fn step1(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
@@ -71,7 +72,6 @@ fn step1(
     entry_states: &mut BTreeMap<BasicBlockId, StateVec>,
     exit_states: &mut BTreeMap<BasicBlockId, StateVec>,
 ) {
-    // Find the starting & ending states of each variable in each block
     for block in blocks.iter().copied() {
         // All variables visible at the start of the current block
         let entry_state = add_visible_variables_as_block_arguments(
@@ -87,6 +87,7 @@ fn step1(
     }
 }
 
+/// Link entry & exit states by adding block parameters & terminator arguments for every variable stored to
 fn step2(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
@@ -95,7 +96,6 @@ fn step2(
     exit_states: &mut BTreeMap<BasicBlockId, StateVec>,
     cfg: &ControlFlowGraph,
 ) {
-    // Link entry & exit states by adding block parameters & terminator arguments for every variable stored to
     for block in blocks.iter().copied() {
         for (address, entry_value) in entry_states[&block].iter() {
             // If the current block is this variable's source block, no merge is needed.
@@ -109,7 +109,7 @@ fn step2(
             let predecessor_count = predecessors.len();
 
             for predecessor in predecessors {
-                let exit_value = exit_states[&predecessor][address];
+                let exit_value = *exit_states[&predecessor].get(address).unwrap_or(entry_value);
                 last_value = exit_value;
 
                 if predecessor_count > 1 {
@@ -155,9 +155,7 @@ fn step3(blocks: &[BasicBlockId], inserter: &mut FunctionInserter, cfg: &Control
 }
 
 /// Mapping from a variable to its value at a point in time.
-///
-/// The value is `None` if it has yet to be stored to.
-type StateVec = BTreeMap<ValueId, Option<ValueId>>;
+type StateVec = BTreeMap<ValueId, ValueId>;
 
 /// Filter `variables`, returning only those that are visible at the start of the given block.
 /// Since we do not consider variables within a block, the visible variables at the start of a block
@@ -171,17 +169,16 @@ fn add_visible_variables_as_block_arguments(
     variables
         .iter()
         .filter_map(|(var, decl_block)| {
-            if dom_tree.dominates(*decl_block, block) {
+            // We filter out the decl block because a reference has no value at the start of its
+            // declaration block - before it is actually declared.
+            if dom_tree.dominates(*decl_block, block) && block != *decl_block {
                 let typ = dfg
                     .type_of_value(*var)
                     .reference_element_type()
                     .expect("All variables should be references")
                     .clone();
 
-                // If it is the declaration block, we've done no analysis so far so its initial
-                // value is None. Otherwise, we can make a new block parameter and assume that is
-                // its value.
-                let new_value = (block != *decl_block).then(|| dfg.add_block_parameter(block, typ));
+                let new_value = dfg.add_block_parameter(block, typ);
                 Some((*var, new_value))
             } else {
                 None
@@ -283,32 +280,27 @@ fn abstract_interpret_block(
     block: BasicBlockId,
     entry_state: StateVec,
 ) -> StateVec {
-    // To calculate the exit state, we start with the entry state
-    let mut exit_state = entry_state;
+    // Any variables not in the exit_state by function end are assumed to be unchanged from the entry_state
+    let mut exit_state = StateVec::new();
     let mut instructions = inserter.function.dfg[block].take_instructions();
-
-    for (old_address, new_address) in exit_state.iter() {
-        inserter.map_value(*old_address, *new_address);
-    }
 
     // We're going to remove any load/store instructions we already know the answer of,
     // just with what we know in this single block.
     instructions.retain(|instruction_id| {
         let keep = match &inserter.function.dfg[*instruction_id] {
             Instruction::Store { address, value } => {
-                // Only update the value if the address is already in the state, since only
+                // Only update the value if the address is already in the entry state, since only
                 // those addresses are eligible for mem2reg optimization. If the address is
                 // in the state, we remove it.
-                if let Entry::Occupied(mut entry) = exit_state.entry(*address) {
-                    *entry = *value;
-                    inserter.map_value(*address, *value);
+                if entry_state.contains_key(address) {
+                    exit_state.insert(*address, *value);
                     false
                 } else {
                     true
                 }
             }
             Instruction::Load { address } => {
-                if let Some(value) = exit_state.get(address) {
+                if let Some(value) = exit_state.get(address).or_else(|| entry_state.get(address)) {
                     let result = inserter.function.dfg.instruction_results(*instruction_id)[0];
                     inserter.map_value(result, *value);
                     false
@@ -327,12 +319,6 @@ fn abstract_interpret_block(
         }
         keep
     });
-
-    // Remove the local block mappings. This shouldn't be necessary, but avoids other blocks
-    // accidentally referring to these mappings in the case of a bug.
-    for old_address in exit_state.keys() {
-        inserter.map_value(*old_address, *old_address);
-    }
 
     *inserter.function.dfg[block].instructions_mut() = instructions;
     exit_state
