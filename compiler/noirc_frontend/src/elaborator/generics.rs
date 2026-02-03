@@ -120,6 +120,7 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Find a generic variable among the generics of the current struct or function.
     pub(super) fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
         self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }

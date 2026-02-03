@@ -42,7 +42,7 @@
     "@types/prettier": "^3.0.0",
     "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.5",
-    "prettier": "3.8.0",
+    "prettier": "3.8.1",
     "typescript": "^5.8.3"
   }
 }

@@ -853,7 +853,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_range_check(
-        &mut self,
+        &self,
         value_id: ValueId,
         max_bit_size: u32,
         error_message: Option<&String>,
@@ -1053,7 +1053,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn interpret_store(&mut self, address: ValueId, value: ValueId) -> IResult<()> {
+    fn interpret_store(&self, address: ValueId, value: ValueId) -> IResult<()> {
         let reference_address = self.lookup_reference(address, "store")?;
 
         let value = self.lookup(value)?;

@@ -136,29 +136,23 @@ fn simple_closure_with_no_captured_variables() {
     insta::assert_snapshot!(program, @r"
     fn main$f0(y$l0: call_data(0) Field) -> pub Field {
         let x$l1 = 1;
-        let closure$l6 = ({
+        let closure$l4 = {
             let closure_variable$l3 = {
                 let env$l2 = (x$l1);
-                (env$l2, lambda$f1)
+                ((env$l2, lambda$f1), (env$l2, lambda$f2))
             };
             closure_variable$l3
-        }, {
-            let closure_variable$l5 = {
-                let env$l4 = (x$l1);
-                (env$l4, lambda$f2)
-            };
-            closure_variable$l5
-        });
+        };
         {
-            let tmp$l7 = closure$l6.0;
-            tmp$l7.1(tmp$l7.0)
+            let tmp$l5 = closure$l4.0;
+            tmp$l5.1(tmp$l5.0)
         }
     }
     fn lambda$f1(mut env$l2: (Field,)) -> Field {
         env$l2.0
     }
-    unconstrained fn lambda$f2(mut env$l4: (Field,)) -> Field {
-        env$l4.0
+    unconstrained fn lambda$f2(mut env$l2: (Field,)) -> Field {
+        env$l2.0
     }
     ");
 }
@@ -1341,4 +1335,111 @@ fn very_large_array() {
     }
     "#;
     assert!(get_monomorphized(src).is_ok());
+}
+
+#[test]
+fn closure_capture_chain_oom() {
+    let src = "
+    fn main() {
+        let x: Field = 1;
+        let f0 = || x;
+        let f1 = || f0();
+        let f2 = || f1();
+        let f3 = || f2();
+        let f4 = || f3();
+        let f5 = || f4();
+        let f6 = || f5();
+        let f7 = || f6();
+        let f8 = || f7();
+        let f9 = || f8();
+        let f10 = || f9();
+        let _ = f10();
+    }
+    ";
+    let _ = get_monomorphized(src);
+}
+
+#[test]
+fn deeply_nested_closures() {
+    const DEPTH: usize = 20;
+
+    // Build: let f0 = || { let f1 = || { ... let fN = || { 0 }; fN() }; ... f1() }; f0()
+    // The closures do not have exponential growth and should be allowed.
+    let mut opening = String::new();
+    let mut closing = String::new();
+
+    for i in 0..DEPTH {
+        opening.push_str(&format!("let f{i} = || {{ "));
+    }
+    // Close in reverse order
+    for i in (0..DEPTH).rev() {
+        closing.push_str(&format!("}}; f{i}() "));
+    }
+
+    let src = format!(
+        r#"
+    fn main() {{
+        {opening}0{closing};
+    }}
+    "#
+    );
+    assert!(get_monomorphized(&src).is_ok());
+}
+
+#[test]
+fn unbounded_monomorphization_queue() {
+    // Generate many unique monomorphic functions via different array sizes.
+    // Each [Field; N] is a distinct type, creating foo<[Field; N]>.
+    const NUM_MONOMORPHIC_FUNCTIONS: usize = 9000;
+
+    let mut calls = String::new();
+    for i in 1..=NUM_MONOMORPHIC_FUNCTIONS {
+        calls.push_str(&format!("        let v{i} = foo([0; {i}]);\n"));
+    }
+
+    let src = format!(
+        r#"
+    fn foo<T>(x: T) -> T {{ x }}
+    fn main() {{
+{calls}    }}
+    "#
+    );
+
+    assert!(get_monomorphized(&src).is_ok());
+}
+
+#[test]
+fn exponential_type_complexity_should_fail() {
+    // This test verifies that exponentially growing types are caught by the complexity limit.
+    // Each wrap(x) doubles the type size: Field -> (Field, Field) -> ((Field, Field), (Field, Field))
+    const DEPTH: usize = 20;
+
+    let mut body = String::from("let v0 = 1;\n");
+    for i in 1..=DEPTH {
+        body.push_str(&format!("    let v{} = wrap(v{});\n", i, i - 1));
+    }
+
+    let src = format!(
+        r#"
+fn wrap<T>(x: T) -> (T, T) {{
+    (x, x)
+}}
+fn main() {{
+    {body}
+}}
+"#
+    );
+
+    let result = get_monomorphized(&src);
+    match result {
+        Ok(_) => panic!("Expected ComplexType error, but got Ok"),
+        Err(MonomorphizationError::ComplexType { complexity, max_complexity, .. }) => {
+            // Verify the error is correct
+            assert!(
+                complexity > max_complexity,
+                "Complexity {complexity} should exceed max {max_complexity}",
+            );
+        }
+        Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
+    }
 }

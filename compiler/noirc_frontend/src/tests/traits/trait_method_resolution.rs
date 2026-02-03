@@ -1,7 +1,8 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::test_utils::stdlib_src;
+use crate::tests::{assert_no_errors, check_errors, check_errors_with_stdlib};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
@@ -264,7 +265,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     fn main() {
         let _ = Bar::foo();
                      ^^^ Multiple applicable items in scope
-                     ~~~ All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+                     ~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -401,7 +402,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
         let bar = Bar { x : 42 };
         let _ = bar.foo();
                 ^^^^^^^^^ Multiple applicable items in scope
-                ~~~~~~~~~ All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+                ~~~~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -642,7 +643,7 @@ fn ambiguous_trait_method_multiple_bounds_with_self() {
     fn foo<T: One + Two>(x: T) {
         x.method();
         ^^^^^^^^^^ Multiple applicable items in scope
-        ~~~~~~~~~~ All these trait which provide `method` are implemented and in scope: `One`, `Two`
+        ~~~~~~~~~~ Multiple traits which provide `method` are implemented and in scope: `One`, `Two`
     }
 
     fn main() {
@@ -666,7 +667,7 @@ fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
     pub fn foo<T: Child>(x: T) {
         x.foo();
         ^^^^^^^ Multiple applicable items in scope
-        ~~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+        ~~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}
@@ -688,10 +689,84 @@ fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
     pub fn foo<T: Child>() {
         T::foo();
         ^^^^^^ Multiple applicable items in scope
-        ~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+        ~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10537() {
+    let src = r#"
+    use cmp::Ord;
+
+    pub fn min<T>(v1: T, v2: T) -> T
+    where
+        T: Ord,
+    {
+        if v1 > v2 {
+            v2
+        } else {
+            v1
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ, stdlib_src::ORD]);
+}
+
+// Expecting missing `Eq` impl errors to resolve to a `NoMatchingImplFound` error
+// with a trait name of "PopulateDummyOperatorTraitsTrait" when the `Eq` trait
+// hasn't been explicitly defined, i.e. when it's only been defined by
+// `NodeInterner::populate_dummy_operator_traits`
+#[test]
+fn missing_eq_trait_error() {
+    let src = "
+    struct Foo {}
+    fn main() {
+        let x = Foo {};
+        let y = Foo {};
+        assert(x == y);
+               ^^^^^^ No matching impl found for `Foo: PopulateDummyOperatorTraitsTrait`
+               ~~~~~~ No impl for `Foo: PopulateDummyOperatorTraitsTrait`
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10219() {
+    let src = "
+    fn main() {
+        let mut x: u32 = 0;
+        let mut y: u32 = 0;
+        assert(&mut x == &mut y);
+               ^^^^^^^^^^^^^^^^ No matching impl found for `&mut u32: Eq`
+               ~~~~~~~~~~~~~~~~ No impl for `&mut u32: Eq`
+    }
+    ";
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
+#[test]
+fn regression_10766() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    pub struct Example { }
+    pub struct Baz { }
+
+    impl Foo for Example {
+        type Bar = Baz;
+    }
+
+    impl Foo::Bar { }
+         ^^^^^^^^ Cannot define a trait impl on associated types
+
+    fn main() { }
     "#;
     check_errors(src);
 }

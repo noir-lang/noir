@@ -111,6 +111,7 @@ mod unquote;
 mod variable;
 mod visibility;
 
+use self::traits::check_trait_impl_method_matches_declaration;
 use function_context::FunctionContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
@@ -119,8 +120,6 @@ pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
-
-use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 
@@ -136,6 +135,16 @@ pub use primitive_types::PrimitiveType;
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Maximum depth of macro expansion (attribute execution).
+///
+/// This prevents infinite recursion when an attribute generates code that
+/// triggers further attribute expansion, which would otherwise cause a
+/// Rust stack overflow.
+///
+/// This limit is lower than the [interpreter call stack limit][MAX_INTERPRETER_CALL_STACK_SIZE] because macro
+/// expansion involves more stack frames per level (elaboration, comptime evaluation, etc.).
+pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -276,6 +285,11 @@ pub struct Elaborator<'context> {
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     pub(crate) comptime_evaluation_halted: bool,
+
+    /// Tracks the current macro expansion depth to prevent infinite recursion
+    /// when an attribute generates code that triggers further attribute expansion.
+    /// This is a global counter that catches both single-function and mutual recursion.
+    pub(crate) macro_expansion_depth: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -345,6 +359,7 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
+            macro_expansion_depth: 0,
         }
     }
 
@@ -813,6 +828,8 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     pub fn interpret<W: Write + 'static>(
         src: &str,
         output: Rc<RefCell<W>>,
@@ -837,6 +854,7 @@ pub mod test_utils {
         let location = Location::new(Default::default(), file);
         let root_module = ModuleData::new(
             None,
+            None,
             location,
             Vec::new(),
             Vec::new(),
@@ -850,7 +868,7 @@ pub mod test_utils {
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         let (module, errors) = parse_program(src, file);
         // Skip parser warnings
@@ -864,8 +882,17 @@ pub mod test_utils {
         let def_map = CrateDefMap::new(krate, root_module);
         let root_module_id = def_map.root();
         let mut collector = DefCollector::new(def_map);
+        let reuse_existing_module_declarations = false;
 
-        collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+        collect_defs(
+            &mut collector,
+            ast,
+            FileId::dummy(),
+            root_module_id,
+            krate,
+            &mut context,
+            reuse_existing_module_declarations,
+        );
         context.def_maps.insert(krate, collector.def_map);
 
         let main = context.get_main_function(&krate).expect("Expected 'main' function");

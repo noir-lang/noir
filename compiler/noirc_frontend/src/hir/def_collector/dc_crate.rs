@@ -361,12 +361,61 @@ impl DefCollector {
         //
         // It is now possible to collect all of the definitions of this crate.
         let crate_root = def_map.root();
-        let mut def_collector = DefCollector::new(def_map);
+        let def_collector = DefCollector::new(def_map);
 
-        let module_id = ModuleId { krate: crate_id, local_id: crate_root };
+        let reuse_existing_module_declarations = false;
+        Self::collect_defs_and_elaborate(
+            ast,
+            root_file_id,
+            crate_root,
+            crate_id,
+            context,
+            def_collector,
+            options,
+            reuse_existing_module_declarations,
+            &mut errors,
+        );
+
+        Self::check_unused_items(context, crate_id, &mut errors);
+
+        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+            errors.retain(|error| !error.is_expecting_other_error_error());
+        }
+        errors
+    }
+
+    /// This method does several things:
+    ///
+    /// 1. Collects definitions in the given module
+    /// 2. Injects the prelude in the collected modules
+    /// 3. Processes all of the imports collected during definition collection
+    /// 4. Elaborates all of the collected items
+    ///
+    /// Any errors are appended to `errors`.
+    ///
+    /// If `reuse_existing_module_declarations` is true, when module declarations like `mod some_module;` are
+    /// encountered they will try to be found in existing modules in the `def_collector.def_map`
+    /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
+    /// need to be re-collected and re-type-checked.
+    #[allow(clippy::too_many_arguments)]
+    pub fn collect_defs_and_elaborate(
+        ast: SortedModule,
+        file_id: FileId,
+        local_module_id: LocalModuleId,
+        crate_id: CrateId,
+        context: &mut Context,
+        mut def_collector: DefCollector,
+        options: FrontendOptions,
+        reuse_existing_module_declarations: bool,
+        errors: &mut Vec<CompilationError>,
+    ) {
+        let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
         context
             .def_interner
             .set_doc_comments(ReferenceId::Module(module_id), ast.inner_doc_comments.clone());
+
+        // Check how many modules there were before we start collecting items
+        let modules_count_before_collect = def_collector.def_map.modules().iter().count();
 
         // Collecting module declarations with ModCollector
         // and lowering the functions
@@ -375,10 +424,11 @@ impl DefCollector {
         errors.extend(collect_defs(
             &mut def_collector,
             ast,
-            root_file_id,
-            crate_root,
+            file_id,
+            local_module_id,
             crate_id,
             context,
+            reuse_existing_module_declarations,
         ));
 
         let submodules =
@@ -386,17 +436,23 @@ impl DefCollector {
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
-        inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
-        for submodule in submodules {
-            inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
+        inject_prelude(crate_id, context, local_module_id, &mut def_collector.imports);
+
+        // We only need to inject the prelude for modules that were collected in `collect_defs`.
+        // This isn't important or necessary in the compiler. However, in LSP a file might be
+        // re-checked multiple times, ending in new modules in addition to many already existing
+        // before this function call, and there's no need to inject the prelude in those existing
+        // modules (it's very slow).
+        for submodule in submodules.iter().skip(modules_count_before_collect) {
+            inject_prelude(crate_id, context, *submodule, &mut def_collector.imports);
         }
 
-        Self::process_imports(def_collector.imports, crate_id, context, &mut errors);
+        Self::process_imports(def_collector.imports, crate_id, context, errors);
 
         let debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
             let file = context.file_manager.find_by_path_suffix(file_suffix);
             file.unwrap_or_else(|error| {
-                let location = Location::new(Span::empty(0), root_file_id);
+                let location = Location::new(Span::empty(0), file_id);
                 errors.push(CompilationError::DebugComptimeScopeNotFound(error, location));
                 None
             })
@@ -412,13 +468,6 @@ impl DefCollector {
             Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
 
         errors.append(&mut more_errors);
-
-        Self::check_unused_items(context, crate_id, &mut errors);
-
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        }
-        errors
     }
 
     fn process_imports(
@@ -523,6 +572,7 @@ impl DefCollector {
                                     context.def_interner.register_name_for_auto_import(
                                         name.to_string(),
                                         module_def_id,
+                                        file_id,
                                         visibility,
                                         Some(defining_module),
                                     );

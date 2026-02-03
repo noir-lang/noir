@@ -8,7 +8,7 @@ fn cannot_call_unconstrained_function_outside_of_unsafe() {
     let src = r#"
     fn main() {
         foo();
-        ^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+        ^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
     }
 
     unconstrained fn foo() {}
@@ -22,13 +22,13 @@ fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
     fn main() {
         let func = foo;
         func();
-        ^^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+        ^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
         inner(func);
     }
 
     fn inner(x: unconstrained fn() -> ()) {
         x();
-        ^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+        ^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
     }
 
     unconstrained fn foo() {}
@@ -67,7 +67,7 @@ fn missing_unsafe_block_when_needing_type_annotations() {
     impl<let N: u32> BigNumTrait for BigNum<N> {
         fn __is_zero(self) -> bool {
             self.__is_zero_impl()
-            ^^^^^^^^^^^^^^^^^^^ Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block
+            ^^^^^^^^^^^^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
         }
     }
     "#;
@@ -456,6 +456,18 @@ fn user_defined_verify_proof_with_type_is_allowed_in_brillig() {
         _key_hash: Field,
         _proof_type: u32,
     ) {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Globals are evaluated in a `comptime` context so they can call unconstrained functions without `unsafe` blocks
+#[test]
+fn call_unconstrained_function_in_lambda_in_global() {
+    let src = r#"
+    pub global foo: fn() = || bar();
+    unconstrained fn bar() {}
+
+    fn main() {}
     "#;
     assert_no_errors(src);
 }

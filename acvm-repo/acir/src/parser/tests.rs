@@ -166,9 +166,10 @@ fn xor() {
 #[test]
 fn aes128_encrypt() {
     // This ACIR represents an accurately constrained aes128 encryption in ACIR
+    // Layout: inputs (16 bytes w0-w15), iv (16 bytes w16-w31), key (16 bytes w32-w47), outputs (16 bytes w48-w63)
     let src = "
-    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
-    public parameters: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31]
+    public parameters: [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47]
     return values: []
     BLACKBOX::RANGE input: w0, bits: 8
     BLACKBOX::RANGE input: w1, bits: 8
@@ -218,35 +219,23 @@ fn aes128_encrypt() {
     BLACKBOX::RANGE input: w45, bits: 8
     BLACKBOX::RANGE input: w46, bits: 8
     BLACKBOX::RANGE input: w47, bits: 8
-    BLACKBOX::RANGE input: w48, bits: 8
-    BLACKBOX::RANGE input: w49, bits: 8
-    BLACKBOX::RANGE input: w50, bits: 8
-    BLACKBOX::RANGE input: w51, bits: 8
-    BLACKBOX::RANGE input: w52, bits: 8
-    BLACKBOX::RANGE input: w53, bits: 8
-    BLACKBOX::RANGE input: w54, bits: 8
-    BLACKBOX::RANGE input: w55, bits: 8
-    BLACKBOX::RANGE input: w56, bits: 8
-    BLACKBOX::RANGE input: w57, bits: 8
-    BLACKBOX::RANGE input: w58, bits: 8
-    BLACKBOX::RANGE input: w59, bits: 8
-    BLACKBOX::AES128_ENCRYPT inputs: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27], iv: [w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43], key: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59], outputs: [w60, w61, w62, w63, w64, w65, w66, w67, w68, w69, w70, w71, w72, w73, w74, w75]
+    BLACKBOX::AES128_ENCRYPT inputs: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15], iv: [w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31], key: [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47], outputs: [w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62, w63]
+    ASSERT w48 = w32
+    ASSERT w49 = w33
+    ASSERT w50 = w34
+    ASSERT w51 = w35
+    ASSERT w52 = w36
+    ASSERT w53 = w37
+    ASSERT w54 = w38
+    ASSERT w55 = w39
+    ASSERT w56 = w40
+    ASSERT w57 = w41
+    ASSERT w58 = w42
+    ASSERT w59 = w43
     ASSERT w60 = w44
     ASSERT w61 = w45
     ASSERT w62 = w46
     ASSERT w63 = w47
-    ASSERT w64 = w48
-    ASSERT w65 = w49
-    ASSERT w66 = w50
-    ASSERT w67 = w51
-    ASSERT w68 = w52
-    ASSERT w69 = w53
-    ASSERT w70 = w54
-    ASSERT w71 = w55
-    ASSERT w72 = w56
-    ASSERT w73 = w57
-    ASSERT w74 = w58
-    ASSERT w75 = w59
     ";
     assert_circuit_roundtrip(src);
 }

@@ -70,10 +70,7 @@ impl ConstraintSimplificationCache {
 
     /// Get the simplification mapping from complex to simpler instructions,
     /// which all depend on the same side effect condition variable.
-    pub(super) fn get(
-        &mut self,
-        predicate: ValueId,
-    ) -> Option<&HashMap<ValueId, SimplificationCache>> {
+    pub(super) fn get(&self, predicate: ValueId) -> Option<&HashMap<ValueId, SimplificationCache>> {
         self.0.get(&predicate)
     }
 }

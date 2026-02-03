@@ -104,6 +104,10 @@ pub struct FuncMeta {
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     pub parameter_idents: Vec<HirIdent>,
 
+    /// The return type as (and if) it appears in the AST.
+    ///
+    /// This is distinct from the `FuncMeta::return_type()` method,
+    /// which gets the return type from the [FuncMeta::typ] field.
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,

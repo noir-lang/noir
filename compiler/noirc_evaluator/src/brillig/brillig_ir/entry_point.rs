@@ -160,7 +160,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     }
 
     fn allocate_function_arguments(
-        &mut self,
+        &self,
         arguments: &[BrilligParameter],
     ) -> Vec<Allocated<BrilligVariable, Stack>> {
         arguments

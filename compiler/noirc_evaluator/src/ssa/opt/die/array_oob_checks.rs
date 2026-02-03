@@ -18,7 +18,7 @@ impl Context {
     /// some of the instructions in a group are used but not all of them, no check
     /// is inserted, so this method might return `false`.
     pub(super) fn replace_array_instructions_with_out_of_bounds_checks(
-        &mut self,
+        &self,
         function: &mut Function,
         block_id: BasicBlockId,
         possible_index_out_of_bounds_indexes: &mut Vec<usize>,

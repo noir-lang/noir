@@ -523,12 +523,14 @@ impl Elaborator<'_> {
             rhs_type
         } else {
             let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
+            let not_ord = false;
             self.handle_operand_type_rules_result(
                 result,
                 &rhs_type,
                 trait_method_id,
                 *expr_id,
                 location,
+                not_ord,
             )
         };
 
@@ -779,6 +781,7 @@ impl Elaborator<'_> {
 
         let function_type = self.interner.function_meta(&func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
+
         let generics = method_call.generics;
         let generics = generics.map(|generics| {
             vecmap(generics, |generic| {
@@ -1229,6 +1232,8 @@ impl Elaborator<'_> {
         let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
+        let is_ord =
+            infix.operator.contents.is_comparator() && !infix.operator.contents.is_equality();
         let operator = HirBinaryOp::new(infix.operator, file);
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
@@ -1246,6 +1251,7 @@ impl Elaborator<'_> {
             opt_trait_id,
             *expr_id,
             location,
+            is_ord,
         );
 
         let expr_id = self.intern_expr_type(expr_id, typ.clone());
@@ -1263,6 +1269,7 @@ impl Elaborator<'_> {
         trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
+        is_ord: bool,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
@@ -1286,6 +1293,7 @@ impl Elaborator<'_> {
                         operand_type,
                         &typ,
                         location,
+                        is_ord,
                     );
                 }
                 typ
@@ -1611,7 +1619,7 @@ impl Elaborator<'_> {
     }
 
     fn try_get_comptime_function(
-        &mut self,
+        &self,
         func: ExprId,
         location: Location,
     ) -> Result<Option<FuncId>, ResolverError> {

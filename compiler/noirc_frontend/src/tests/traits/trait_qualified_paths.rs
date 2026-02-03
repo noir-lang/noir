@@ -296,20 +296,10 @@ fn as_trait_path_with_method_turbofish() {
     assert_no_errors_without_report(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10436): Reactivate once the issue is resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/10436
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn self_with_associated_type_method_call_on_non_primitives() {
-    // In Rust, this would be valid:
-    // trait MyTrait {
-    //     type AssocType;
-    // }
-    // impl MyTrait for u32 {
-    //     type AssocType = Vec<i32>;
-    //     fn method() {
-    //         Self::AssocType::new()  // Valid in Rust
-    //     }
-    // }
+    // Self::AssocType::method() should work for non-primitives
     let src = r#"
     trait Default {
         fn default() -> Self;
@@ -330,7 +320,6 @@ fn self_with_associated_type_method_call_on_non_primitives() {
         type AssocType = Field;
 
         fn method() -> Field {
-            // This would work in Rust but not in Noir
             Self::AssocType::default()
         }
     }
@@ -339,19 +328,13 @@ fn self_with_associated_type_method_call_on_non_primitives() {
         let _ = MyStruct { };
     }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10436): use `assert_no_errors` once the issue is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10434): Reactivate once the issue is resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/10434
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn self_with_associated_type_method_call_on_primitive() {
-    // In Noir, the special Self:: handling for primitives only works with
-    // exactly 2 segments (Self::method or Self::AssociatedConstant).
-    // Paths with 3+ segments fall through to regular path resolution which
-    // cannot resolve Self as a path component for primitive types.
+    // Self::AssocType::method() should work for primitives
     let src = r#"
     trait Default {
         fn default() -> Self;
@@ -370,16 +353,92 @@ fn self_with_associated_type_method_call_on_primitive() {
         type AssocType = Field;
 
         fn method() -> Field {
-            // This would work in Rust but not in Noir
             Self::AssocType::default()
         }
     }
 
     fn main() {}
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/10434): use `assert_no_errors` once the issue is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
+}
+
+/// Test that Self::AssocType::method() with generic methods works when generics are inferable.
+#[test]
+fn self_with_associated_type_method_call_with_inferable_generics() {
+    // This tests a case where the method has generics but they can be inferred from return type.
+    let src = r#"
+    trait Identity {
+        fn identity<T>(x: T) -> T;
+    }
+
+    impl Identity for Field {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> u32;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = Field;
+
+        fn method() -> u32 {
+            // T is inferred as u32 from the return type
+            Self::AssocType::identity(42)
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Turbofish on Self::AssocType::method::<T>() is correctly handled.
+/// When turbofish is explicitly provided, it takes precedence over inference.
+#[test]
+fn self_with_associated_type_method_call_turbofish_type_mismatch() {
+    let src = r#"
+    trait Identity {
+        fn identity<T>(x: T) -> T;
+    }
+
+    impl Identity for u64 {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> u32;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = u64;
+
+        fn method() -> u32 {
+                       ^^^ expected type u32, found type u64
+                       ~~~ expected u32 because of return type
+            // The turbofish ::<u64> is respected, causing a type mismatch
+            Self::AssocType::identity::<u64>(42)
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ u64 returned here
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct {};
+    }
+    "#;
+    check_errors(src);
 }
 
 /// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message

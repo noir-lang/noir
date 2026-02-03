@@ -280,6 +280,11 @@ impl<'f> Validator<'f> {
                 let condition_type = dfg.type_of_value(*condition);
                 assert_u1(&condition_type, "enable_side_effects condition");
             }
+            Instruction::DecrementRc { .. } => {
+                panic!(
+                    "DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
+                );
+            }
             _ => (),
         }
     }
@@ -653,15 +658,19 @@ impl<'f> Validator<'f> {
                 );
             }
             BlackBoxFunc::AES128Encrypt => {
-                // fn aes128_encrypt<let N: u32>(
-                //     input: [u8; N],
+                // fn aes128_encrypt_padded_input<let N: u32>(
+                //     input: [u8; N],  // N must be a multiple of 16
                 //     iv: [u8; 16],
                 //     key: [u8; 16],
-                // ) -> [u8; N + 16 - N % 16] {}
+                // ) -> [u8; N] {}
                 let (input_type, iv_type, key_type) =
                     self.assert_three_arguments(arguments, "aes128_encrypt");
 
                 let input_length = assert_u8_array(&input_type, "aes128_encrypt input");
+                assert!(
+                    input_length % 16 == 0,
+                    "aes128_encrypt input length must be a multiple of 16"
+                );
 
                 let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
                 assert_array_length(iv_length, 16, "aes128_encrypt iv");
@@ -672,9 +681,8 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "aes128_encrypt");
                 let result_length = assert_u8_array(&result_type, "aes128_encrypt output");
                 assert_eq!(
-                    result_length,
-                    input_length + 16 - input_length % 16,
-                    "aes128_encrypt output length mismatch"
+                    result_length, input_length,
+                    "aes128_encrypt input length must match output length"
                 );
             }
             BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {

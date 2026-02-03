@@ -113,6 +113,21 @@ fn check_errors(src: &str) {
     );
 }
 
+/// Check for errors, prefixing user code with some snippet from the stdlib.
+fn check_errors_with_stdlib<'a>(src: &str, stdlib_src: impl IntoIterator<Item = &'a str>) {
+    let stdlib_src: String = stdlib_src.into_iter().flat_map(|s| [s, "\n"]).collect();
+    let monomorphize = false;
+    check_errors_with_options(
+        &format!("{stdlib_src}\n\n{src}"),
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            root_and_stdlib: true,
+            ..Default::default()
+        },
+    );
+}
+
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let monomorphize = false;
     check_errors_with_options(

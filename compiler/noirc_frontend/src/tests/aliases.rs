@@ -764,3 +764,151 @@ fn regression_10971() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn regression_10764_trait_as_type_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = impl Foo;
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore_with_empty_trait() {
+    let src = r#"
+    trait Foo { }
+
+    type Bar = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = impl Foo;
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo for Bar {
+                 ^^^ Cannot define a trait impl on values of type `Bar`
+        fn foo(self) { }
+           ^^^ Cannot define a method on values of type `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_trait_as_type_impl() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    type Bar = impl Foo;
+
+    impl Bar {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn regression_10764_undefined_generic_impl() {
+    let src = r#"
+    type Foo = N;
+               ^ Could not resolve 'N' in path
+
+    impl Foo {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10764_underscore_impl() {
+    let src = r#"
+    type Foo = _;
+               ^ The placeholder `_` is not allowed in type alias definitions
+
+    impl Foo {
+         ^^^ Non-enum, non-struct type used in impl
+         ~~~ Only enum and struct types may have implementation methods
+        fn foo() { }
+    }
+    "#;
+    check_errors(src);
+}

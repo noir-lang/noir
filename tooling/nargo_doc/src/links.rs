@@ -108,7 +108,7 @@ impl LinkFinder {
 
     #[allow(clippy::too_many_arguments)]
     fn find_links_in_line(
-        &mut self,
+        &self,
         line: &str,
         line_number: usize,
         current_module_id: ModuleId,

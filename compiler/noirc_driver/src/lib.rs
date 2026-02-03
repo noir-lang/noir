@@ -427,9 +427,10 @@ pub fn add_dep(
         .expect("cyclic dependency triggered");
 }
 
-/// Run the lexing, parsing, name resolution, and type checking passes.
+/// Run the def collection, elaboration and type checking passes.
 ///
-/// This returns a (possibly empty) vector of any warnings found on success.
+/// On success, this returns () alongside any warnings found during checking.
+///
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn check_crate(

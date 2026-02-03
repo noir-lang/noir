@@ -1533,7 +1533,6 @@ mod tests {
             jmp b1()
           b1():
             v15 = load v3 -> [u64; 6]
-            dec_rc v0
             return v15
         }
         ");
@@ -1720,7 +1719,6 @@ mod tests {
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
-            dec_rc v0
             return v8
         }}
         "
