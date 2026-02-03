@@ -78,13 +78,17 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
-    /// A pseudo function that represents global values.
+    /// Pseudo functions that represent global values, one per runtime.
     /// Globals are only concerned with the values and instructions (due to Instruction::MakeArray)
     /// in a function's DataFlowGraph. However, in order to re-use various codegen methods
     /// we need to use the same `Function` type.
-    pub(super) globals_context: Function,
+    ///
+    /// ACIR globals produce flat arrays, Brillig globals produce non-flat arrays.
+    pub(super) acir_globals_context: Function,
+    pub(super) brillig_globals_context: Function,
 
-    pub(super) globals: BTreeMap<GlobalId, Values>,
+    pub(super) acir_globals: BTreeMap<GlobalId, Values>,
+    pub(super) brillig_globals: BTreeMap<GlobalId, Values>,
 
     /// The entire monomorphized source program
     pub(super) program: Program,
@@ -128,7 +132,8 @@ impl<'a> FunctionContext<'a> {
         parameters: &Parameters,
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
-        globals: GlobalsGraph,
+        acir_globals: GlobalsGraph,
+        brillig_globals: GlobalsGraph,
     ) -> Self {
         let function_id = shared_context
             .pop_next_function_in_queue()
@@ -136,8 +141,8 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
-        builder.set_globals(Arc::new(globals));
         builder.set_runtime(runtime);
+        builder.set_globals(Arc::new(acir_globals), Arc::new(brillig_globals));
 
         let definitions = HashMap::default();
         let mut this = Self {
@@ -632,8 +637,12 @@ impl<'a> FunctionContext<'a> {
     }
 
     pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
-        self.shared_context
-            .globals
+        let globals = if self.builder.current_function.runtime().is_acir() {
+            &self.shared_context.acir_globals
+        } else {
+            &self.shared_context.brillig_globals
+        };
+        globals
             .get(&id)
             .unwrap_or_else(|| panic!("lookup_global: variable {id:?} not defined"))
             .clone()
@@ -1246,24 +1255,40 @@ pub(super) enum NestedArrayIndex {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
-        let globals_shared_context = SharedContext::new_for_globals();
-
         let globals_id = Program::global_space_id();
 
-        // Queue the function representing the globals space for compilation
-        globals_shared_context.get_or_queue_function(globals_id);
-
-        let mut context = FunctionContext::new(
+        // Codegen globals in Brillig context (non-flat arrays)
+        let brillig_globals_shared = SharedContext::new_for_globals();
+        brillig_globals_shared.get_or_queue_function(globals_id);
+        let mut brillig_ctx = FunctionContext::new(
             "globals".to_owned(),
             &vec![],
             RuntimeType::Brillig(InlineType::default()),
-            &globals_shared_context,
+            &brillig_globals_shared,
+            GlobalsGraph::default(),
             GlobalsGraph::default(),
         );
-        let mut globals = BTreeMap::default();
+        let mut brillig_globals = BTreeMap::default();
         for (id, (_, _, global)) in program.globals.iter() {
-            let values = context.codegen_expression(global).unwrap();
-            globals.insert(*id, values);
+            let values = brillig_ctx.codegen_expression(global).unwrap();
+            brillig_globals.insert(*id, values);
+        }
+
+        // Codegen globals in ACIR context (flat arrays)
+        let acir_globals_shared = SharedContext::new_for_globals();
+        acir_globals_shared.get_or_queue_function(globals_id);
+        let mut acir_ctx = FunctionContext::new(
+            "globals".to_owned(),
+            &vec![],
+            RuntimeType::Acir(InlineType::default()),
+            &acir_globals_shared,
+            GlobalsGraph::default(),
+            GlobalsGraph::default(),
+        );
+        let mut acir_globals = BTreeMap::default();
+        for (id, (_, _, global)) in program.globals.iter() {
+            let values = acir_ctx.codegen_expression(global).unwrap();
+            acir_globals.insert(*id, values);
         }
 
         Self {
@@ -1271,21 +1296,23 @@ impl SharedContext {
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
-            globals_context: context.builder.current_function,
-            globals,
+            brillig_globals_context: brillig_ctx.builder.current_function,
+            acir_globals_context: acir_ctx.builder.current_function,
+            brillig_globals,
+            acir_globals,
         }
     }
 
     pub(super) fn new_for_globals() -> Self {
-        let globals_context = Function::new_for_globals();
-
         Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program: Default::default(),
-            globals_context,
-            globals: Default::default(),
+            acir_globals_context: Function::new_for_globals(),
+            brillig_globals_context: Function::new_for_globals(),
+            acir_globals: Default::default(),
+            brillig_globals: Default::default(),
         }
     }
 

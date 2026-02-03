@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 use super::{
     Ssa,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, GlobalsGraph},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
@@ -40,6 +40,22 @@ pub(crate) struct Interpreter<'ssa, W> {
     call_stack: Vec<CallContext>,
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
+
+    /// ACIR (flat) globals graph, used to evaluate globals for ACIR functions.
+    acir_globals: Option<&'ssa GlobalsGraph>,
+
+    /// Brillig (non-flat) globals graph, used to evaluate globals for Brillig functions.
+    brillig_globals: Option<&'ssa GlobalsGraph>,
+
+    /// Evaluated ACIR global values (flat arrays), used by ACIR functions.
+    acir_global_scope: HashMap<ValueId, Value>,
+
+    /// Evaluated Brillig global values (non-flat arrays), used by Brillig functions.
+    brillig_global_scope: HashMap<ValueId, Value>,
+
+    /// True when evaluating ACIR globals in `interpret_globals()`.
+    /// Used by `interpret_make_array` to produce flat arrays during ACIR global evaluation.
+    evaluating_acir_globals: bool,
 
     /// The options the interpreter was created with.
     options: InterpreterOptions,
@@ -122,7 +138,10 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
-        Self::new_from_functions(&ssa.functions, options, output)
+        let mut interpreter = Self::new_from_functions(&ssa.functions, options, output);
+        interpreter.acir_globals = Some(ssa.acir_globals.as_ref());
+        interpreter.brillig_globals = Some(ssa.brillig_globals.as_ref());
+        interpreter
     }
 
     pub(crate) fn new_from_functions(
@@ -131,7 +150,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, options, output, step_counter: 0 }
+        Self {
+            functions,
+            acir_globals: None,
+            brillig_globals: None,
+            acir_global_scope: HashMap::default(),
+            brillig_global_scope: HashMap::default(),
+            evaluating_acir_globals: false,
+            call_stack,
+            options,
+            output,
+            step_counter: 0,
+        }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
@@ -162,7 +192,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn global_scope(&self) -> &HashMap<ValueId, Value> {
-        &self.call_stack.first().expect("call_stack should always be non-empty").scope
+        match self.try_current_function() {
+            Some(f) if f.runtime().is_brillig() => &self.brillig_global_scope,
+            Some(_) => &self.acir_global_scope,
+            // During global evaluation, use the working scope in call_stack[0]
+            None => &self.call_stack.first().expect("call_stack should always be non-empty").scope,
+        }
     }
 
     fn try_current_function(&self) -> Option<&'ssa Function> {
@@ -225,12 +260,47 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     /// Interpret the global instructions.
     ///
+    /// Evaluates globals from both ACIR and Brillig GlobalsGraphs into separate
+    /// scopes. ACIR functions will use the ACIR global scope (flat arrays) and
+    /// Brillig functions will use the Brillig global scope (non-flat arrays).
+    ///
     /// Once this is complete, the interpreter can be reused for multiple
     /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
         assert_eq!(self.call_stack.len(), 1, "should be in the global context");
-        let (_, function) = self.functions.first_key_value().unwrap();
-        let globals = &function.dfg.globals;
+
+        if let (Some(brillig_globals), Some(acir_globals)) =
+            (self.brillig_globals, self.acir_globals)
+        {
+            // Evaluate Brillig globals (non-flat arrays)
+            self.evaluating_acir_globals = false;
+            self.evaluate_globals_graph(brillig_globals)?;
+            self.brillig_global_scope =
+                std::mem::take(&mut self.call_stack[0].scope);
+
+            // Evaluate ACIR globals (flat arrays)
+            self.evaluating_acir_globals = true;
+            self.evaluate_globals_graph(acir_globals)?;
+            self.acir_global_scope =
+                std::mem::take(&mut self.call_stack[0].scope);
+            self.evaluating_acir_globals = false;
+        } else {
+            // Fallback: use first function's globals for both scopes
+            let (_, function) = self.functions.first_key_value().unwrap();
+            let globals = &function.dfg.globals;
+            self.evaluate_globals_graph(globals)?;
+            self.brillig_global_scope = self.call_stack[0].scope.clone();
+            self.acir_global_scope =
+                std::mem::take(&mut self.call_stack[0].scope);
+        }
+
+        Ok(())
+    }
+
+    /// Evaluate all values from a GlobalsGraph into the working global scope
+    /// (call_stack[0].scope). The caller is responsible for moving the results
+    /// to the appropriate field afterward.
+    fn evaluate_globals_graph(&mut self, globals: &GlobalsGraph) -> IResult<()> {
         for (global_id, global) in globals.values_iter() {
             let value = match global {
                 super::ir::value::Value::Instruction { instruction, .. } => {
@@ -1431,7 +1501,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         // Check if SSA gen has produced flat scalar elements but element_types describe
         // nested structure (contains arrays). This happens in ACIR context.
         let in_acir_context =
-            self.try_current_function().is_some_and(|f| !f.runtime().is_brillig());
+            self.try_current_function().is_some_and(|f| !f.runtime().is_brillig())
+                || self.evaluating_acir_globals;
         let has_nested = element_types.iter().any(|t| t.contains_an_array());
         let all_scalars =
             has_nested && elements.iter().all(|e| !matches!(e, Value::ArrayOrVector(_)));

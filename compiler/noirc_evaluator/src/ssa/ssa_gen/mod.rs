@@ -60,8 +60,10 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
 
-    let globals_dfg = std::mem::take(&mut context.globals_context.dfg);
-    let globals = GlobalsGraph::from_dfg(globals_dfg);
+    let acir_globals_dfg = std::mem::take(&mut context.acir_globals_context.dfg);
+    let acir_globals = GlobalsGraph::from_dfg(acir_globals_dfg);
+    let brillig_globals_dfg = std::mem::take(&mut context.brillig_globals_context.dfg);
+    let brillig_globals = GlobalsGraph::from_dfg(brillig_globals_dfg);
 
     let main_id = Program::main_id();
     let main = context.program.main();
@@ -73,8 +75,14 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     } else {
         RuntimeType::Acir(main.inline_type)
     };
-    let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
+    let mut function_context = FunctionContext::new(
+        main.name.clone(),
+        &main.parameters,
+        main_runtime,
+        &context,
+        acir_globals,
+        brillig_globals,
+    );
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
