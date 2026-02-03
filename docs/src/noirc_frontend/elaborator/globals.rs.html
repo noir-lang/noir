@@ -166,7 +166,10 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a></pre></div><pre class="rust"><code><span class="doccomment">//! Global constant definition elaboration and comptime evaluation.
 //!
 //! ## Design
 //!
@@ -191,7 +194,7 @@
 </span><span class="kw">use crate</span>::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
-    hir_def::stmt::HirStatement,
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{DependencyId, GlobalId, GlobalValue},
     token::SecondaryAttributeKind,
 };
@@ -300,22 +303,25 @@
         <span class="kw">let </span>definition_id = global.definition_id;
         <span class="kw">let </span>location = global.location;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
+        <span class="kw">let </span>expr = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>let_statement.expression);
+        <span class="kw">if </span>!<span class="macro">matches!</span>(expr, HirExpression::Error) {
+            <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
 
-        <span class="comment">// Evaluate the global's initializer expression at compile time using the interpreter.
-        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(error) = interpreter.evaluate_let(let_statement) {
-            <span class="self">self</span>.push_err(error);
-        } <span class="kw">else </span>{
-            <span class="comment">// The interpreter has now computed the constant value. Look it up and store it
-            // in the interner for use during compilation.
-            </span><span class="kw">let </span>value = interpreter
-                .lookup_id(definition_id, location)
-                .expect(<span class="string">"The global should be defined since evaluate_let did not error"</span>);
+            <span class="comment">// Evaluate the global's initializer expression at compile time using the interpreter.
+            </span><span class="kw">if let </span><span class="prelude-val">Err</span>(error) = interpreter.evaluate_let(let_statement) {
+                <span class="self">self</span>.push_err(error);
+            } <span class="kw">else </span>{
+                <span class="comment">// The interpreter has now computed the constant value. Look it up and store it
+                // in the interner for use during compilation.
+                </span><span class="kw">let </span>value = interpreter
+                    .lookup_id(definition_id, location)
+                    .expect(<span class="string">"The global should be defined since evaluate_let did not error"</span>);
 
-            <span class="self">self</span>.debug_comptime(location, |interner| value.display(interner).to_string());
+                <span class="self">self</span>.debug_comptime(location, |interner| value.display(interner).to_string());
 
-            <span class="comment">// Store the resolved value so it can be used later
-            </span><span class="self">self</span>.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+                <span class="comment">// Store the resolved value so it can be used later
+                </span><span class="self">self</span>.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+            }
         }
     }
 
