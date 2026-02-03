@@ -767,11 +767,16 @@ impl Loop {
     /// We won't always find load _and_ store ops (e.g. the push above doesn't come with a store),
     /// but it's likely that mem2reg could eliminate a lot of the loads we can find, so we can
     /// use this as an approximation of the gains we would see.
+    /// Find reference values defined before the loop (allocations + reference params).
+    ///
+    /// Returns `(refs, constant_initial_refs)` where:
+    /// - `refs`: all pre-header reference values
+    /// - `constant_initial_refs`: the subset of refs whose pre-header stores all have constant values
     fn find_pre_header_reference_values(
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<im::HashSet<ValueId>> {
+    ) -> Option<(im::HashSet<ValueId>, HashSet<ValueId>)> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -793,7 +798,35 @@ impl Loop {
         let params =
             function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
 
-        Some(params.chain(allocations).collect())
+        let refs: im::HashSet<ValueId> = params.chain(allocations).collect();
+
+        // Find refs whose pre-header stores all have constant values.
+        // A ref is "constant initial" if it has at least one store in the pre-header blocks
+        // AND every such store has a constant value.
+        //
+        // We must exclude the loop's own blocks from this scan: for nested loops,
+        // `find_blocks_in_loop(entry, pre_header)` traverses backward through the
+        // outer loop's back-edge and re-enters the inner loop blocks. Without this
+        // filter, stores *inside* the loop body (which are not initial values) would
+        // incorrectly prevent the ref from being recognized as constant-initial.
+        let mut has_store: HashSet<ValueId> = HashSet::default();
+        let mut has_non_constant_store: HashSet<ValueId> = HashSet::default();
+        for block in blocks.iter().filter(|b| !self.blocks.contains(b)) {
+            for instruction_id in function.dfg[*block].instructions() {
+                if let Instruction::Store { address, value } = &function.dfg[*instruction_id] {
+                    if refs.contains(address) {
+                        has_store.insert(*address);
+                        if !function.dfg.is_constant(*value) {
+                            has_non_constant_store.insert(*address);
+                        }
+                    }
+                }
+            }
+        }
+        let constant_initial_refs =
+            has_store.difference(&has_non_constant_store).copied().collect();
+
+        Some((refs, constant_initial_refs))
     }
 
     /// Count the number of load and store instructions of specific variables in the loop.
@@ -878,7 +911,11 @@ impl Loop {
     /// For each instruction in the loop body, if every operand is in `constant_after_unroll`,
     /// the result will also be constant after unrolling, so we add it to the set and count
     /// the instruction as useless.
-    fn count_useless_instructions(&self, function: &Function) -> usize {
+    fn count_useless_instructions(
+        &self,
+        function: &Function,
+        constant_initial_refs: &HashSet<ValueId>,
+    ) -> usize {
         let mut useless_instructions = 0;
         let Some(induction_var) = self.get_induction_variable(function) else {
             return 0;
@@ -891,6 +928,19 @@ impl Loop {
             for instruction_id in function.dfg[*block].instructions() {
                 let results = function.dfg.instruction_results(*instruction_id);
                 let instruction = &function.dfg[*instruction_id];
+
+                // Load from a pre-header ref with constant initial store:
+                // propagate the result into constant_after_unroll so downstream
+                // instructions can cascade, but don't count the load as useless
+                // (it's already counted as boilerplate via the load/store pair).
+                if let Instruction::Load { address } = instruction {
+                    if constant_initial_refs.contains(address) {
+                        for result in results {
+                            constant_after_unroll.insert(*result);
+                        }
+                        continue;
+                    }
+                }
 
                 let mut all_operands_constant = true;
                 instruction.for_each_value(|value| {
@@ -918,7 +968,8 @@ impl Loop {
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header)?;
-        let refs = self.find_pre_header_reference_values(function, cfg)?;
+        let (refs, constant_initial_refs) =
+            self.find_pre_header_reference_values(function, cfg)?;
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
         // If we then unroll the loop, the induction variable will not exist anymore.
@@ -942,8 +993,11 @@ impl Loop {
             }
         }
 
-        let useless_instructions =
-            if uses_induction_var_outside { 0 } else { self.count_useless_instructions(function) };
+        let useless_instructions = if uses_induction_var_outside {
+            0
+        } else {
+            self.count_useless_instructions(function, &constant_initial_refs)
+        };
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
         // let increments = self.count_induction_increments(function);
@@ -1524,9 +1578,12 @@ mod tests {
         let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().unwrap();
 
-        let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        let (refs, constant_initial_refs) =
+            loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
         assert!(refs.contains(&ValueId::test_new(2)));
+        assert_eq!(constant_initial_refs.len(), 1);
+        assert!(constant_initial_refs.contains(&ValueId::test_new(2)));
 
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);
@@ -1544,8 +1601,8 @@ mod tests {
         assert_eq!(stats.all_instructions, 2 + 5); // Instructions in b1 and b3
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useless_instructions, 2); // lt comparison, increment
-        assert_eq!(stats.useful_instructions(), 1); // add v8, v1 (runtime operand)
+        assert_eq!(stats.useless_instructions, 3); // lt comparison, add (load result + induction), increment
+        assert_eq!(stats.useful_instructions(), 0);
         assert_eq!(stats.baseline_instructions(), 8);
         assert!(stats.is_small());
     }
@@ -1637,11 +1694,75 @@ mod tests {
         let stats = loop0_stats(&ssa);
         // is_from_constant_source recognizes v3 (MakeArray) as constant even though
         // it's outside the loop and not in constant_after_unroll.
-        // Useless: lt, array_get (constant source + induction var), unchecked_add = 3
-        // all=7, boilerplate=2 (jmpif+jmp), loads=1, stores=1, useless=3
-        // useful = 7 - 2 - 2 - 3 = 0, but add v6, v7 has v6 from load (runtime) = 1 useful
+        // Load v6 from v2 (constant initial store u32 0) → v6 in constant_after_unroll.
+        // Useless: lt, array_get (constant source + induction var), add (v6 + v7 both constant), unchecked_add = 4
+        // all=7, boilerplate=2 (jmpif+jmp), loads=1, stores=1, useless=4
+        // useful = 7 - 2 - 2 - 4 = 0 (store folds too but is already boilerplate)
+        assert_eq!(stats.useless_instructions, 4);
+        assert_eq!(stats.useful_instructions(), 0);
+        assert!(stats.is_small());
+    }
+
+    /// Regression test for nested loops with an accumulator (simplified regression_4709).
+    ///
+    /// The inner loop (b3, b4) accumulates values from a constant array indexed by
+    /// the outer loop's induction variable. Without the filter that excludes `self.blocks`
+    /// from the constant-initial store scan, the inner loop's own store (`store v10 at v2`)
+    /// would be seen as a pre-header store with a non-constant value, preventing load
+    /// propagation and making the `add` instruction appear "useful".
+    ///
+    /// With 35 inner iterations and 1 useful instruction: unrolled = 35 > baseline (8),
+    /// so the loop would NOT be unrolled. With the fix, all instructions are useless,
+    /// unrolled = 0, and the loop IS unrolled.
+    #[test]
+    fn test_boilerplate_stats_nested_loop_constant_initial_ref() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [Field; 4]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 4
+            jmpif v5 then: b2, else: b5
+          b2():
+            v7 = array_get v3, index v0 -> Field
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v8 = lt v1, u32 35
+            jmpif v8 then: b4, else: b6
+          b4():
+            v9 = load v2 -> Field
+            v10 = add v9, v7
+            store v10 at v2
+            v11 = unchecked_add v1, u32 1
+            jmp b3(v11)
+          b6():
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b5():
+            v13 = load v2 -> Field
+            return v13
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn puts outer loop last; remove(0) gets the inner loop.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+        let inner = loops.yet_to_unroll.remove(0);
+        let stats = inner.boilerplate_stats(function, &loops.cfg).unwrap();
+        // Inner loop: blocks b3 (lt + jmpif) and b4 (load + add + store + unchecked_add + jmp)
+        assert_eq!(stats.iterations, 35);
+        assert_eq!(stats.all_instructions, 2 + 5); // b3=2, b4=5
+        assert_eq!(stats.loads, 1);
+        assert_eq!(stats.stores, 1);
+        // v2 has constant initial store (Field 0 in b0). The filter excludes b4's
+        // non-constant store from the scan, so load propagation works.
+        // Useless: lt (induction+const), add (propagated load + constant source), unchecked_add
         assert_eq!(stats.useless_instructions, 3);
-        assert_eq!(stats.useful_instructions(), 1);
+        assert_eq!(stats.useful_instructions(), 0);
+        // unrolled = 0 * 35 = 0 < baseline = 8
         assert!(stats.is_small());
     }
 
