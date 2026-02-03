@@ -894,8 +894,8 @@ impl Loop {
 
                 let mut all_operands_constant = true;
                 instruction.for_each_value(|value| {
-                    all_operands_constant &= constant_after_unroll.contains(&value)
-                        || function.dfg.is_constant(value);
+                    all_operands_constant &=
+                        constant_after_unroll.contains(&value) || function.dfg.is_constant(value);
                 });
 
                 if all_operands_constant {
@@ -942,11 +942,8 @@ impl Loop {
             }
         }
 
-        let useless_instructions = if uses_induction_var_outside {
-            0
-        } else {
-            self.count_useless_instructions(function)
-        };
+        let useless_instructions =
+            if uses_induction_var_outside { 0 } else { self.count_useless_instructions(function) };
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
         // let increments = self.count_induction_increments(function);
@@ -967,7 +964,6 @@ impl Loop {
             stores,
             all_instructions,
             useless_instructions,
-            has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
         })
     }
 }
@@ -1006,8 +1002,6 @@ struct BoilerplateStats {
     /// TODO: find a better term for this
     /// We do not have a loop invariant, but something that becomes simpler upon unrolling
     useless_instructions: usize,
-    /// Indicate whether the comparison with the upper bound has been simplified out.
-    has_const_zero_jump_condition: bool,
 }
 
 impl BoilerplateStats {
@@ -1020,9 +1014,10 @@ impl BoilerplateStats {
     /// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        // Two jumps + plus the comparison with the upper bound.
-        // This could be just 2 if the comparison has been simplified out.
-        let boilerplate = if self.has_const_zero_jump_condition { 2 } else { 3 };
+        // Two terminators (jmpif in header + jmp back-edge).
+        // The comparison instruction (lt) is handled by count_useless_instructions
+        // when its operands are constant/induction, so we don't count it here.
+        let boilerplate = 2;
         // Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
@@ -1031,7 +1026,9 @@ impl BoilerplateStats {
             total_boilerplate <= self.all_instructions,
             "Boilerplate instructions exceed total instructions in loop"
         );
-        self.all_instructions.saturating_sub(total_boilerplate).saturating_sub(self.useless_instructions)
+        self.all_instructions
+            .saturating_sub(total_boilerplate)
+            .saturating_sub(self.useless_instructions)
     }
 
     /// Estimated number of instructions if we unroll the loop.
@@ -1529,7 +1526,7 @@ mod tests {
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
         assert_eq!(stats.useless_instructions, 2); // lt comparison, increment
-        assert_eq!(stats.useful_instructions(), 0); // load, add, store are boilerplate or involve runtime values
+        assert_eq!(stats.useful_instructions(), 1); // add v8, v1 (runtime operand)
         assert_eq!(stats.baseline_instructions(), 8);
         assert!(stats.is_small());
     }
@@ -1567,7 +1564,7 @@ mod tests {
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
         assert_eq!(stats.useless_instructions, 4); // lt, cast, 2× unchecked_add (induction-derived)
-        assert_eq!(stats.useful_instructions(), 2); // array_get v0 + add (runtime array operand prevents cascade)
+        assert_eq!(stats.useful_instructions(), 3); // array_get, add, array_set (runtime array operand prevents cascade)
         assert_eq!(stats.baseline_instructions(), 12);
         assert!(stats.is_small());
     }
@@ -1666,8 +1663,8 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 17 iterations × 2 useful instructions = 34, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
-        let parse_ssa = || brillig_unroll_test_case_6470(17);
+        // 11 iterations × 3 useful instructions = 33, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
+        let parse_ssa = || brillig_unroll_test_case_6470(11);
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
