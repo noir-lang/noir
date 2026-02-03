@@ -26,7 +26,7 @@ use crate::{
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
-        opt::Loops,
+        opt::{LoopOrder, Loops},
         ssa_gen::Ssa,
     },
 };
@@ -82,7 +82,7 @@ impl Function {
 
 /// Returns all of a function's block that are part of empty loops.
 fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
-    let loops = Loops::find_all(function);
+    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
 
     let cfg = ControlFlowGraph::with_function(function);
     let mut blocks_within_empty_loop = HashSet::default();
