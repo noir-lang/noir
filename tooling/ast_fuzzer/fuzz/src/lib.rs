@@ -36,7 +36,7 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         inliner_aggressiveness: 0,
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
         small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
-        max_bytecode_increase_percent: None,
+        max_bytecode_increase_percent: i32::MAX,
         skip_passes: Default::default(),
     }
 }

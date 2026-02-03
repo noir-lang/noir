@@ -110,8 +110,6 @@ pub struct SsaEvaluatorOptions {
     pub small_function_max_instruction: usize,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
-    /// When `None` the size increase check is skipped altogether and any decrease in the SSA
-    /// instruction count is accepted.
     pub max_bytecode_increase_percent: i32,
 
     /// A list of SSA pass messages to skip, for testing purposes.
