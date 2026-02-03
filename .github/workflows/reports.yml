@@ -137,7 +137,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nargo
+          name: nargo-no-default-features
           path: ./dist/*
           retention-days: 3
 
