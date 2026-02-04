@@ -58,7 +58,7 @@ impl Function {
             &mut exit_states,
         );
         step2(&blocks, &variables, &mut inserter, &mut entry_states, &mut exit_states, &cfg);
-        step3(&blocks, &mut inserter, &cfg);
+        step3(&blocks, &entry_states, &exit_states, &mut inserter, &cfg);
         commit(&mut inserter, &variables, blocks);
     }
 }
@@ -132,14 +132,20 @@ fn step2(
     }
 }
 
-fn step3(blocks: &[BasicBlockId], inserter: &mut FunctionInserter, cfg: &ControlFlowGraph) {
+fn step3(
+    blocks: &[BasicBlockId],
+    entry_states: &BTreeMap<BasicBlockId, StateVec>,
+    exit_states: &BTreeMap<BasicBlockId, StateVec>,
+    inserter: &mut FunctionInserter,
+    cfg: &ControlFlowGraph,
+) {
     // Simplify block parameters where all arguments are identical
     for block in blocks.iter().copied() {
         let parameters = inserter.function.dfg.block_parameters(block).to_vec();
 
         // Mask of whether each parameter has non-identical arguments,
-        // E.g. if parameter 2's arguments are all identical, then keep_parameters[2] would be false
-        let mask = keep_argument_mask(inserter, cfg, block, &parameters);
+        // E.g. if parameter 2's arguments are all identical, then `mask[2]` would be false
+        let mask = keep_argument_mask(inserter, cfg, block, &parameters, entry_states, exit_states);
 
         // Remove unneeded parameters from the block
         retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
@@ -198,6 +204,8 @@ fn keep_argument_mask(
     cfg: &ControlFlowGraph,
     block: BasicBlockId,
     parameters: &[ValueId],
+    entry_states: &BTreeMap<BasicBlockId, StateVec>,
+    exit_states: &BTreeMap<BasicBlockId, StateVec>,
 ) -> Vec<bool> {
     let entry = inserter.function.entry_block();
     if block == entry {
@@ -206,34 +214,51 @@ fn keep_argument_mask(
     }
 
     vecmap(parameters.iter().enumerate(), |(i, parameter)| {
-        let predecessors = cfg.predecessors(block);
+        let mut predecessors = cfg.predecessors(block);
         let predecessor_count = predecessors.len();
         let parameter = inserter.resolve(*parameter);
 
-        let args = cfg.predecessors(block).map(|predecessor| {
+        if predecessor_count == 1 {
+            // If the block has 1 predecessor, we should always remove the block parameter, but the
+            // argument to map to may not come from a `Jmp`. In that case we'll have to grab the
+            // exit state of the previous block. This can be removed if we ever add arguments to
+            // jmpif instructions.
+            let predecessor = predecessors.next().unwrap();
+
+            // We map address -> block param, so we need to iterate all entries for this block to
+            // find the address for our block param if we don't want to maintain another map.
+            let parameter_variable = entry_states[&block]
+                .iter()
+                .find(|(_, v)| **v == parameter)
+                .map(|(k, _)| *k)
+                .unwrap();
+
+            let argument = *exit_states[&predecessor]
+                .get(&parameter_variable)
+                .unwrap_or_else(|| &entry_states[&predecessor][&parameter_variable]);
+
+            inserter.map_value(parameter, argument);
+            return false;
+        }
+
+        let mut args = predecessors.map(|predecessor| {
             let terminator = inserter.function.dfg[predecessor].unwrap_terminator();
             if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
-                arguments.get(i).copied()
+                arguments[i]
             } else {
-                assert_eq!(predecessor_count, 1);
-                None
+                unreachable!("Only blocks with 1 predecessor should have predecessors with non-Jmp terminators")
             }
         });
 
-        let mut args = args.filter(|arg| match arg {
-            Some(arg) => inserter.resolve(*arg) != parameter,
-            None => true,
-        });
-
-        let Some(Some(first_arg)) = args.next() else {
-            return false;
-        };
-
+        // The entry block is excluded so we always expec
+        let first_arg = args
+            .next()
+            .expect("Entry block is excluded so there should always be >= 1 predecessor");
         let first_arg = inserter.resolve(first_arg);
 
         // keep the parameter if the arguments do not all match
         // unwrap safety: for all multi-predecessor blocks, each predecessor should end in a jmp, not jmpif
-        let keep_param = !args.all(|arg| inserter.resolve(arg.unwrap()) == first_arg);
+        let keep_param = !args.all(|arg| inserter.resolve(arg) == first_arg);
         if !keep_param {
             // All arguments are identical, so the choice to map to the first is arbitrary
             inserter.map_value(parameter, first_arg);
@@ -251,6 +276,8 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
     });
 }
 
+/// Adds an argument to the `Jmp` terminator of the current block, panicking if the terminator is
+/// not a `Jmp`. Returns the index of the new argument.
 fn add_terminator_argument(function: &mut Function, arg: ValueId, block: BasicBlockId) -> usize {
     match function.dfg[block].unwrap_terminator_mut() {
         TerminatorInstruction::Jmp { arguments, .. } => {
