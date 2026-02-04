@@ -135,6 +135,9 @@ impl Hash for EmbeddedCurveScalar {
 //
 // The embedded curve being used is decided by the
 // underlying proof system.
+// The implementation of this function can be greatly improved via batching
+// the multiplications as much as possible.
+// For instance, Aztec implementation achieves it with less than 400 constraints.
 // docs:start:multi_scalar_mul
 pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
@@ -159,7 +162,13 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
     multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])
 }
 
-/// This function assumes that the points are on the curve
+/// Elliptic curve addition
+/// Warning: this function is expected to perform a full addition in order to handle all corner cases:
+/// - points on the curve
+/// - point doubling
+/// - point at infinity
+/// As a result, you may not get optimal performance, depending on the assumptions of your inputs.
+/// For instance, Aztec implementation is about 20 constraints for a single addition.
 // docs:start:embedded_curve_add
 pub fn embedded_curve_add(
     point1: EmbeddedCurvePoint,
