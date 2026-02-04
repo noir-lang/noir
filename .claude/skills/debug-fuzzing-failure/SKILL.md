@@ -1,5 +1,5 @@
 ---
-name: noir-ssa-bisect
+name: debug-fuzzing-failure
 description: Workflow for debugging SSA optimization bugs using the noir-ssa CLI. Use when bisecting fuzzer failures to identify which SSA pass introduces a bug.
 allowed-tools: Bash, Read, Grep, Glob, Write
 ---
