@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770231120835,
+  "lastUpdate": 1770231265585,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14777,95 +14777,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "1081812971b297e8897b3e3cd9c15a87df77dd68",
-          "message": "chore: re-use original type (#11368)",
-          "timestamp": "2026-01-28T16:39:30Z",
-          "tree_id": "20de89194711a3dc29b57a46afb2c92bb588723b",
-          "url": "https://github.com/noir-lang/noir/commit/1081812971b297e8897b3e3cd9c15a87df77dd68"
-        },
-        "date": 1769621067809,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 271.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 309.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 260.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 361.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 361.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 361.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 545.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 487.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 361.04,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.17,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.4,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c607adbf57eaac675023bff83cdffc044bbae707",
           "message": "chore: add test inputs for infinite R (#11364)",
           "timestamp": "2026-01-28T16:50:13Z",
@@ -19145,6 +19056,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/86eddc2c7eb004aa4aa69aeb089259acde2a0c04"
         },
         "date": 1770229766227,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 273.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 311.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 262.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 352.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 351.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 352.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 540.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 481.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 350.53,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.17,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.4,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9cf3c9dbf1da84d5b4ea8df509b2cbe6e6faceb0",
+          "message": "chore: fix spelling errors and standardize to US English (#11466)",
+          "timestamp": "2026-02-04T18:28:29Z",
+          "tree_id": "ce15a190ade7e708160452e8aef610a3b13cd431",
+          "url": "https://github.com/noir-lang/noir/commit/9cf3c9dbf1da84d5b4ea8df509b2cbe6e6faceb0"
+        },
+        "date": 1770231223848,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
