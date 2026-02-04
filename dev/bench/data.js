@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770210655609,
+  "lastUpdate": 1770211212433,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "0b31117f9cb98bfee60e5c06ed6625991d5178d3",
-          "message": "fix(frontend): Multiple segment Self paths for associated types  (#11338)",
-          "timestamp": "2026-01-28T14:15:55Z",
-          "tree_id": "660b1da9b8d146ef64fad5ba7e5273afddd21b27",
-          "url": "https://github.com/noir-lang/noir/commit/0b31117f9cb98bfee60e5c06ed6625991d5178d3"
-        },
-        "date": 1769611143265,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257017,
-            "range": "± 598",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227880,
-            "range": "± 4766",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2801066,
-            "range": "± 1570",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "6d2adb3642f864516845097b1cd0886824c655d9",
           "message": "fix(frontend): Do not error in trait method when impl is missing associated constant declaration (#11363)",
           "timestamp": "2026-01-28T15:03:41Z",
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796539,
             "range": "± 6154",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe873b94e791f7c4d7c0d183030efb94fc1777ad",
+          "message": "chore!: bump MSRV to 1.87.0 (#11449)",
+          "timestamp": "2026-02-04T12:52:12Z",
+          "tree_id": "8c139655c8e2c29dfab9c416e10e3a39d2810a67",
+          "url": "https://github.com/noir-lang/noir/commit/fe873b94e791f7c4d7c0d183030efb94fc1777ad"
+        },
+        "date": 1770211164761,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 239867,
+            "range": "± 1149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217811,
+            "range": "± 2869",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2209332,
+            "range": "± 4440",
             "unit": "ns/iter"
           }
         ]
