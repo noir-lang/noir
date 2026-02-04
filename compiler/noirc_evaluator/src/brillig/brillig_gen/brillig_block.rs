@@ -26,6 +26,15 @@ use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
 
+/// Estimated number of registers needed by `codegen_make_array` and surrounding
+/// logic beyond the array's constant elements (result register, write pointer,
+/// items pointer, array metadata, other constants at this instruction, etc.).
+///
+/// This is a rough over-estimate. Being conservative here is fine: it only
+/// widens the window in which we use temporary registers instead of
+/// pre-allocating, which avoids stack-frame overflow for large constant arrays.
+const MAKE_ARRAY_RESERVED_REGISTERS: usize = 64;
+
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// Per-function context shared across all of a function's blocks
@@ -332,35 +341,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
-        // For MakeArray, exclude numeric constant elements whose last use is at this
-        // instruction. They are handled with temporary registers in
-        // initialize_constant_array_comptime, avoiding stack frame overflow for large
-        // constant arrays. Constants that are live after this instruction must still be
-        // pre-allocated so they remain available in subsequent blocks.
-        let dead_at_this_instruction = self.last_uses.get(&instruction_id);
-        let excluded_constants = if let Instruction::MakeArray { elements, .. } = instruction {
-            let numeric_elements: HashSet<ValueId> = elements
-                .iter()
-                .filter(|id| {
-                    dfg.get_numeric_constant(**id).is_some()
-                        && dead_at_this_instruction.map_or(false, |dead| dead.contains(id))
-                })
-                .copied()
-                .collect();
-            if numeric_elements.is_empty() {
-                self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
-            } else {
-                self.initialize_constants_filtered(
-                    dfg,
-                    InstructionLocation::Instruction(instruction_id),
-                    |id| !numeric_elements.contains(&id),
-                );
-            }
-            numeric_elements
-        } else {
-            self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
-            HashSet::default()
-        };
+        let excluded_constants =
+            self.initialize_make_array_constants(instruction_id, instruction, dfg);
 
         match instruction {
             Instruction::Binary(binary) => {
@@ -463,6 +445,55 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.brillig_context.cast_instruction(destination, source);
     }
 
+    /// For MakeArray instructions whose element count approaches the stack frame
+    /// limit, identifies numeric constant elements that die at this instruction.
+    /// Those constants will use temporary registers in
+    /// `initialize_constant_array_comptime` instead of being pre-allocated,
+    /// preventing stack-frame overflow.
+    ///
+    /// For all other instructions (or small MakeArrays), initializes constants
+    /// normally and returns an empty set.
+    fn initialize_make_array_constants(
+        &mut self,
+        instruction_id: InstructionId,
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+    ) -> HashSet<ValueId> {
+        if let Instruction::MakeArray { elements, .. } = instruction {
+            let max_frame = self.brillig_context.registers().layout().max_stack_frame_size();
+            let used = self.brillig_context.registers().empty_registers_start().to_u32() as usize;
+            let available = max_frame.saturating_sub(used + MAKE_ARRAY_RESERVED_REGISTERS);
+
+            if elements.len() >= available {
+                let dead_at_this_instruction = self.last_uses.get(&instruction_id);
+                let numeric_elements: HashSet<ValueId> = elements
+                    .iter()
+                    .filter(|id| {
+                        dfg.get_numeric_constant(**id).is_some()
+                            && dead_at_this_instruction.is_some_and(|dead| dead.contains(id))
+                    })
+                    .copied()
+                    .collect();
+                if numeric_elements.is_empty() {
+                    self.initialize_constants(
+                        dfg,
+                        InstructionLocation::Instruction(instruction_id),
+                    );
+                } else {
+                    self.initialize_constants_filtered(
+                        dfg,
+                        InstructionLocation::Instruction(instruction_id),
+                        |id| !numeric_elements.contains(&id),
+                    );
+                }
+                return numeric_elements;
+            }
+        }
+
+        self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+        HashSet::default()
+    }
+
     /// Initializes constants allocated to a [InstructionLocation] by [ConstantAllocation](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation).
     ///
     /// It is expected that this method is called before converting an SSA instruction to Brillig
@@ -487,7 +518,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         else {
             return;
         };
-
         for constant_id in constants {
             if filter(constant_id) {
                 self.convert_ssa_value(constant_id, dfg);

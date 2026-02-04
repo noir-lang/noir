@@ -202,8 +202,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     let temp = self
                         .brillig_context
                         .make_constant_instruction(constant, typ.bit_size::<FieldElement>());
-                    self.brillig_context
-                        .store_instruction(*write_pointer_register, temp.address);
+                    self.brillig_context.store_instruction(*write_pointer_register, temp.address);
                 }
             } else {
                 let element_variable = self.convert_ssa_value(*element_id, dfg);
@@ -464,7 +463,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             result_id,
             dfg,
         );
-
         // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         match new_variable {
             BrilligVariable::BrilligArray(brillig_array) => {
