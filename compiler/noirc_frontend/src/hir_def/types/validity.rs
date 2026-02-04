@@ -1,8 +1,6 @@
 use noirc_errors::{CustomDiagnostic, Location};
 
-use crate::{
-    NamedGeneric, TYPE_RECURSION_LIMIT, Type, TypeBinding, ast::Ident, node_interner::TypeId,
-};
+use crate::{NamedGeneric, Type, TypeBinding, ast::Ident, node_interner::TypeId};
 
 /// An type incorrectly used as a program input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,12 +97,12 @@ impl Type {
             return None;
         }
 
-        fn helper(this: &Type, allow_empty_arrays: bool, mut i: u32) -> Option<InvalidType> {
-            if i == TYPE_RECURSION_LIMIT {
-                return None;
-            }
-            i += 1;
-            let recur = |typ| helper(typ, allow_empty_arrays, i);
+        fn helper(
+            this: &Type,
+            allow_empty_arrays: bool,
+            seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+        ) -> Option<InvalidType> {
+            let mut recur = |typ| helper(typ, allow_empty_arrays, seen_data_types);
 
             match this {
                 // Type::Error is allowed as usual since it indicates an error was already issued and
@@ -162,26 +160,33 @@ impl Type {
                     None
                 }
                 Type::DataType(definition, generics) => {
-                    let definition = definition.borrow();
+                    let key = (definition.borrow().id, generics.clone());
+                    if seen_data_types.insert(key) {
+                        let definition = definition.borrow();
 
-                    if let Some(fields) = definition.get_fields(generics) {
-                        for (field_name, field, _) in fields {
-                            if let Some(invalid_type) = helper(&field, allow_empty_arrays, i) {
-                                let struct_name = definition.name.clone();
-                                let mut fields_raw = definition.fields_raw().unwrap().iter();
-                                let field =
-                                    fields_raw.find(|field| field.name.as_str() == field_name);
-                                return Some(InvalidType::StructField {
-                                    struct_name,
-                                    field_name: field.unwrap().name.clone(),
-                                    invalid_type: Box::new(invalid_type),
-                                });
+                        if let Some(fields) = definition.get_fields(generics) {
+                            for (field_name, field, _) in fields {
+                                if let Some(invalid_type) =
+                                    helper(&field, allow_empty_arrays, seen_data_types)
+                                {
+                                    let struct_name = definition.name.clone();
+                                    let mut fields_raw = definition.fields_raw().unwrap().iter();
+                                    let field =
+                                        fields_raw.find(|field| field.name.as_str() == field_name);
+                                    return Some(InvalidType::StructField {
+                                        struct_name,
+                                        field_name: field.unwrap().name.clone(),
+                                        invalid_type: Box::new(invalid_type),
+                                    });
+                                }
                             }
+                            None
+                        } else {
+                            // Arbitrarily disallow enums from program input, though we may support them later
+                            Some(InvalidType::Enum(this.clone()))
                         }
-                        None
                     } else {
-                        // Arbitrarily disallow enums from program input, though we may support them later
-                        Some(InvalidType::Enum(this.clone()))
+                        None
                     }
                 }
                 Type::InfixExpr(lhs, _, rhs, _) => recur(lhs).or_else(|| recur(rhs)),
@@ -197,7 +202,9 @@ impl Type {
                 }
             }
         }
-        helper(self, output, 0)
+
+        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        helper(self, output, &mut seen_data_types)
     }
 
     /// Returns this type, or a nested one, if this type can be used as a parameter to an ACIR
