@@ -192,13 +192,21 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             // However, if the constant is already pre-allocated (live after this instruction),
             // reuse the existing allocation to avoid emitting a redundant Const opcode.
             if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(*element_id) {
-                if self.variables.is_allocated(element_id) {
+                // Reuse existing allocation if the constant lives in any known location:
+                // hoisted globals, block-local variables, or SSA globals.
+                if self.get_hoisted_global(dfg, *element_id).is_some()
+                    || self.variables.is_allocated(element_id)
+                    || dfg.is_global(*element_id)
+                {
                     let element_variable = self.convert_ssa_value(*element_id, dfg);
                     self.brillig_context.store_instruction(
                         *write_pointer_register,
                         element_variable.extract_register(),
                     );
                 } else {
+                    // Not allocated anywhere — use a temporary register.
+                    // This path is taken for large arrays where constants were
+                    // excluded from pre-allocation to avoid stack-frame overflow.
                     let temp = self
                         .brillig_context
                         .make_constant_instruction(constant, typ.bit_size::<FieldElement>());

@@ -618,7 +618,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// If the supplied value is a numeric constant check whether it is exists within
     /// the precomputed [hoisted globals map][Self::hoisted_global_constants].
     /// If the variable exists as a hoisted global return that value, otherwise return `None`.
-    fn get_hoisted_global(
+    pub(crate) fn get_hoisted_global(
         &self,
         dfg: &DataFlowGraph,
         value_id: ValueId,
