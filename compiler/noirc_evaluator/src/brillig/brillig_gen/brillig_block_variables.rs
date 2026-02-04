@@ -10,17 +10,20 @@
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-use acvm::FieldElement;
-use fxhash::FxHashSet as HashSet;
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    brillig::brillig_ir::{
-        BrilligContext,
-        brillig_variable::{
-            BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
-            get_bit_size_from_ssa_type,
+    brillig::{
+        assert_u32,
+        brillig_ir::{
+            BrilligContext,
+            brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
+            registers::{Allocated, RegisterAllocator},
         },
-        registers::RegisterAllocator,
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -51,8 +54,13 @@ impl BlockVariables {
         BlockVariables { available_variables: live_in }
     }
 
-    /// Returns all variables that have not been removed at this point.
-    pub(crate) fn get_available_variables(
+    /// Returns the allocations for all variables that are currently available.
+    ///
+    /// These might have been technically removed earlier in a different block,
+    /// because of the order in which we process blocks, but we expect that the
+    /// `FunctionContext` will remember the earlier allocations, and return them
+    /// so that we can restore them as pre-allocations in the next slot.
+    pub(crate) fn get_available_variable_allocations(
         &self,
         function_context: &FunctionContext,
     ) -> Vec<BrilligVariable> {
@@ -64,19 +72,31 @@ impl BlockVariables {
                     .get(value_id)
                     .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
             })
-            .cloned()
+            .copied()
             .collect()
     }
 
-    /// For a given SSA value id, define the variable and return the corresponding cached allocation.
+    /// For a given SSA value id, define the variable and return the corresponding cached memory allocation.
+    ///
+    /// The allocation will be cached in [FunctionContext::ssa_value_allocations], which is how it will be
+    /// passed on to the next block as a pre-allocated register, if it's still alive at that point.
+    ///
+    /// The variable is added to [Self::available_variables] to show that it's live, where it stays until
+    /// [Self::remove_variable] deletes it.
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let variable = allocate_value(value_id, brillig_context, dfg);
+        let allocated = allocate_value(value_id, brillig_context, dfg);
+
+        // Allocators get replaced in each block, with all visible variables becoming pre-allocated
+        // in the next block; what is allocated in one block might be deallocated in the next block,
+        // in a different allocator. Because of this we can detach from the allocator, and have to
+        // manage deallocation manually.
+        let variable = allocated.detach();
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
@@ -91,7 +111,7 @@ impl BlockVariables {
     pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -103,25 +123,35 @@ impl BlockVariables {
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        function_context: &FunctionContext,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+
+        // Do not remove the allocation, just get it so we can mark it as free in memory.
         let variable = function_context
             .ssa_value_allocations
             .get(value_id)
             .expect("ICE: Variable allocation not found");
-        brillig_context.deallocate_register(variable.extract_register());
+
+        // Explicitly deallocate the memory; note that this might be a different register
+        // than the one the variable was defined in, which is why don't rely on automation.
+        let register = variable.extract_register();
+        brillig_context.deallocate_register(register);
     }
 
-    /// Checks if a variable is allocated.
+    /// Checks if a variable is allocated and live.
     pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
         self.available_variables.contains(value_id)
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
+    ///
+    /// Panics if
+    /// * the variable is not in [Self::available_variables], which means it is no longer live
+    /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     pub(crate) fn get_allocation(
-        &mut self,
+        &self,
         function_context: &FunctionContext,
         value_id: ValueId,
     ) -> BrilligVariable {
@@ -130,47 +160,48 @@ impl BlockVariables {
             "ICE: ValueId {value_id:?} is not available"
         );
 
-        *function_context
+        let variable = function_context
             .ssa_value_allocations
             .get(&value_id)
-            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
+            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"));
+
+        *variable
     }
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
-    item_typ.len() * elem_count
+pub(crate) fn compute_array_length(
+    item_typ: &CompositeType,
+    elem_count: SemanticLength,
+) -> SemiFlattenedLength {
+    ElementTypesLength(assert_u32(item_typ.len())) * elem_count
 }
 
-/// For a given value_id, allocates the necessary registers to hold it.
+/// For a given [ValueId], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
-) -> BrilligVariable {
+) -> Allocated<BrilligVariable, Registers> {
     let typ = dfg.type_of_value(value_id);
 
     allocate_value_with_type(brillig_context, typ)
 }
 
-/// For a given value_id, allocates the necessary registers to hold it.
+/// For a given [Type], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     typ: Type,
-) -> BrilligVariable {
+) -> Allocated<BrilligVariable, Registers> {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
-            BrilligVariable::SingleAddr(SingleAddrVariable {
-                address: brillig_context.allocate_register(),
-                bit_size: get_bit_size_from_ssa_type(&typ),
-            })
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => brillig_context
+            .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
+            .map(BrilligVariable::SingleAddr),
+        Type::Array(item_typ, elem_count) => brillig_context
+            .allocate_brillig_array(compute_array_length(&item_typ, elem_count))
+            .map(BrilligVariable::BrilligArray),
+        Type::Vector(_) => {
+            brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
         }
-        Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
-            pointer: brillig_context.allocate_register(),
-            size: compute_array_length(&item_typ, elem_count as usize),
-        }),
-        Type::Slice(_) => BrilligVariable::BrilligVector(BrilligVector {
-            pointer: brillig_context.allocate_register(),
-        }),
     }
 }

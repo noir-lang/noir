@@ -4,7 +4,6 @@ pub use self::compile::{
     compile_program_with_debug_instrumenter, report_errors,
 };
 pub use self::optimize::{optimize_contract, optimize_program};
-pub use self::transform::{transform_contract, transform_program};
 
 pub use self::execute::{execute_program, execute_program_with_profiling};
 pub use self::fuzz::{
@@ -22,4 +21,3 @@ mod execute;
 mod fuzz;
 mod optimize;
 mod test;
-mod transform;

@@ -71,7 +71,7 @@ fn add_one() {}
 comptime fn mutate_add_one(f: FunctionDefinition) {
     // fn add_one(x: Field)
     assert_eq(f.parameters().len(), 0);
-    f.set_parameters(&[(quote { x }, type_of(0))]);
+    f.set_parameters([(quote { x }, type_of(0))].as_vector());
     assert_eq(f.parameters().len(), 1);
 
     // fn add_one(x: Field) -> Field
@@ -208,7 +208,7 @@ mod test_as_typed_expr_4 {
             let bar_q = quote {
             bar
         };
-            foo(bar_q.as_expr().unwrap().resolve(Option::none()))
+            foo!(bar_q.as_expr().unwrap().resolve(Option::none()))
         };
         x
     }

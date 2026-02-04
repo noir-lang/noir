@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-type Outer<let N: u32> = [u8; N];
-
-fn main(_arg: Outer<1>) {}

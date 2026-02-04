@@ -11,7 +11,7 @@ use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
-    Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
+    DocComment, Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
     desugar_generic_trait_bounds_and_reorder_where_clause,
@@ -19,9 +19,9 @@ use crate::ast::{
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
-use crate::token::{SecondaryAttribute, TestScope};
+use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
-use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
+use crate::{Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -52,6 +52,11 @@ struct ModCollector<'a> {
 /// Walk a module and collect its definitions.
 ///
 /// This performs the entirety of the definition collection phase of the name resolution pass.
+///
+/// The `reuse_existing_module_declarations` flag is only used by the LSP server to avoid parsing
+/// and processing the file behind `mod foo;` declarations, as when a file is changed those
+/// modules should already exist and they don't need to be reprocessed (they are added as child modules
+/// to `module_id`, though).
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,
@@ -59,15 +64,21 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    reuse_existing_module_declarations: bool,
 ) -> Vec<CompilationError> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<CompilationError> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        errors.extend(
-            collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
-        );
+        errors.extend(collector.parse_module_declaration(
+            context,
+            decl,
+            crate_id,
+            file_id,
+            module_id,
+            reuse_existing_module_declarations,
+        ));
     }
 
     errors.extend(collector.collect_submodules(
@@ -216,6 +227,7 @@ impl ModCollector<'_> {
                     krate,
                     self.file_id,
                     self.module_id,
+                    &mut errors,
                 );
 
             let module = ModuleId { krate, local_id: self.module_id };
@@ -448,7 +460,7 @@ impl ModCollector<'_> {
             let doc_comments = trait_definition.doc_comments;
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
-            let location = trait_definition.location;
+            let location = trait_definition.name.location();
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
@@ -462,7 +474,7 @@ impl ModCollector<'_> {
                 context,
                 &name,
                 ItemVisibility::Public,
-                name.location(),
+                location,
                 Vec::new(),
                 Vec::new(),
                 false,
@@ -514,12 +526,32 @@ impl ModCollector<'_> {
             };
 
             let mut method_ids = HashMap::default();
-            let mut associated_types = Generics::new();
+            let mut associated_types = ResolvedGenerics::new();
             let mut associated_constant_ids = HashMap::default();
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
                     desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
+                }
+            }
+
+            // Check for duplicate trait item names across all item types (functions, types, constants)
+            let mut trait_item_names: HashMap<String, Ident> = HashMap::default();
+            for trait_item in &trait_definition.items {
+                let item_name = match &trait_item.item {
+                    TraitItem::Function { name, .. } => name,
+                    TraitItem::Constant { name, .. } => name,
+                    TraitItem::Type { name, .. } => name,
+                };
+                if let Some(first_def) = trait_item_names.get(item_name.as_str()) {
+                    let error = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedItem,
+                        first_def: first_def.clone(),
+                        second_def: item_name.clone(),
+                    };
+                    errors.push(error.into());
+                } else {
+                    trait_item_names.insert(item_name.to_string(), item_name.clone());
                 }
             }
 
@@ -625,7 +657,8 @@ impl ModCollector<'_> {
                             errors.push(error.into());
                         } else {
                             let type_variable_id = context.def_interner.next_type_variable_id();
-                            let typ = self.resolve_associated_constant_type(typ, &mut errors);
+                            let typ =
+                                self.resolve_associated_constant_type(typ.as_ref(), &mut errors);
                             let type_var =
                                 TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
@@ -735,6 +768,8 @@ impl ModCollector<'_> {
                 false, // is struct
             ) {
                 Ok(child) => {
+                    let nargo_doc_primitive = check_nargo_doc_primitive(crate_id, &submodule);
+
                     self.collect_attributes(
                         submodule.outer_attributes,
                         file_id,
@@ -749,11 +784,19 @@ impl ModCollector<'_> {
                     {
                         doc_comments.extend(submodule.contents.inner_doc_comments.clone());
 
+                        if let Some(primitive) = nargo_doc_primitive {
+                            context
+                                .def_interner
+                                .primitive_docs
+                                .insert(primitive, doc_comments.clone());
+                        }
+
                         context
                             .def_interner
                             .set_doc_comments(ReferenceId::Module(child), doc_comments);
                     }
 
+                    let reuse_existing_module_declarations = false;
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -761,6 +804,7 @@ impl ModCollector<'_> {
                         child.local_id,
                         crate_id,
                         context,
+                        reuse_existing_module_declarations,
                     ));
                 }
                 Err(error) => {
@@ -774,6 +818,12 @@ impl ModCollector<'_> {
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
+    ///
+    /// If `reuse_existing_module_declarations` is true, this will first check if a module is
+    /// already registered in the CrateDefMap at the file where `mod mod_name;` happens, and reuse
+    /// that module declaration's contents.
+    /// This is only used by LSP when a file is modified, to avoid parsing and type-checking nested modules
+    /// that happen in separate files as these were already parsed and type-checked before.
     #[allow(clippy::too_many_arguments)]
     fn parse_module_declaration(
         &mut self,
@@ -782,6 +832,7 @@ impl ModCollector<'_> {
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
+        reuse_existing_module_declarations: bool,
     ) -> Vec<CompilationError> {
         let mut doc_comments = mod_decl.doc_comments;
         let mod_decl = mod_decl.item;
@@ -797,6 +848,30 @@ impl ModCollector<'_> {
         };
 
         let location = Location { file: self.file_id, span: mod_decl.ident.span() };
+
+        if reuse_existing_module_declarations {
+            let name = &mod_decl.ident;
+            let existing_child_module_id =
+                self.def_collector.def_map.modules().iter().find_map(|(index, module_data)| {
+                    let file_matches = module_data.location.file == child_file_id;
+                    let module_name = module_data.name.as_ref();
+                    let name_matches =
+                        module_name.is_some_and(|module_name| module_name == name.as_str());
+                    (file_matches && name_matches).then_some(LocalModuleId::new(index))
+                });
+            if let Some(existing_child_module_id) = existing_child_module_id {
+                let parent_module_data = &mut self.def_collector.def_map[parent_module_id];
+                parent_module_data.children.insert(name.clone(), existing_child_module_id);
+                let child_id = ModuleId { krate: crate_id, local_id: existing_child_module_id };
+                let _ = parent_module_data.declare_child_module(
+                    name.clone(),
+                    mod_decl.visibility,
+                    child_id,
+                );
+                context.def_interner.add_module_reference(child_id, location);
+                return errors;
+            }
+        }
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
@@ -854,6 +929,7 @@ impl ModCollector<'_> {
                         .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
                 }
 
+                let reuse_existing_module_declarations = false;
                 errors.extend(collect_defs(
                     self.def_collector,
                     ast,
@@ -861,6 +937,7 @@ impl ModCollector<'_> {
                     child_mod_id.local_id,
                     crate_id,
                     context,
+                    reuse_existing_module_declarations,
                 ));
             }
             Err(error) => {
@@ -902,9 +979,14 @@ impl ModCollector<'_> {
 
     fn resolve_associated_constant_type(
         &self,
-        typ: &UnresolvedType,
+        typ: Option<&UnresolvedType>,
         errors: &mut Vec<CompilationError>,
     ) -> Type {
+        let Some(typ) = typ else {
+            // Don't report an error again as it was already reported by the parser
+            return Type::Error;
+        };
+
         // TODO: delay this to the Elaborator
         // See https://github.com/noir-lang/noir/issues/8504
         if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ {
@@ -923,6 +1005,23 @@ impl ModCollector<'_> {
         errors.push(error.into());
         Type::Error
     }
+}
+
+/// If this submodule is an stdlib module that's tagged with `#['nargo_doc_primitive <primitive>]`,
+/// returns the primitive it refers to.
+fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> Option<String> {
+    if !crate_id.is_stdlib() {
+        return None;
+    }
+
+    submodule.outer_attributes.iter().find_map(|attr| {
+        if let SecondaryAttributeKind::Tag(tag) = &attr.kind {
+            if let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ") {
+                return Some(primitive.to_string());
+            }
+        }
+        None
+    })
 }
 
 /// Add a child module to the current def_map.
@@ -950,6 +1049,7 @@ fn push_child_module(
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(
+        Some(mod_name.to_string()),
         Some(parent),
         location,
         outer_attributes,
@@ -1011,7 +1111,7 @@ pub fn collect_function(
     usage_tracker: &mut UsageTracker,
     function: &NoirFunction,
     module: ModuleId,
-    doc_comments: Vec<String>,
+    doc_comments: Vec<DocComment>,
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
     if let Some(field) = function.attributes().get_field_attribute() {
@@ -1020,6 +1120,7 @@ pub fn collect_function(
         }
     }
 
+    let is_crate_root = def_map.root() == module.local_id;
     let module_data = &mut def_map[module.local_id];
 
     let test_attribute = function.def.attributes.as_test_function();
@@ -1029,7 +1130,7 @@ pub fn collect_function(
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
-        function.name() == MAIN_FUNCTION
+        is_crate_root && function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
     let has_allow_dead_code = function.def.attributes.has_allow("dead_code");
@@ -1430,8 +1531,8 @@ fn is_native_field(str: &str) -> bool {
     if let Ok(big_num) = big_num { big_num == FieldElement::modulus() } else { CHOSEN_FIELD == str }
 }
 
-type AssociatedTypes = Vec<(Ident, UnresolvedType)>;
-type AssociatedConstants = Vec<(Ident, UnresolvedType, Expression)>;
+type AssociatedTypes = Vec<(Ident, Option<UnresolvedType>)>;
+type AssociatedConstants = Vec<(Ident, Option<UnresolvedType>, Expression)>;
 
 /// Returns a tuple of (methods, associated types, associated constants)
 pub(crate) fn collect_trait_impl_items(
@@ -1440,6 +1541,7 @@ pub(crate) fn collect_trait_impl_items(
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
+    errors: &mut Vec<CompilationError>,
 ) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
@@ -1471,6 +1573,12 @@ pub(crate) fn collect_trait_impl_items(
                 associated_constants.push((name, typ, expr));
             }
             TraitImplItemKind::Type { name, alias } => {
+                if alias.is_none() {
+                    let ident = name.clone();
+                    let error = ResolverError::AssociatedTypeInImplWithoutBody { ident };
+                    errors.push(error.into());
+                }
+
                 associated_types.push((name, alias));
             }
         }

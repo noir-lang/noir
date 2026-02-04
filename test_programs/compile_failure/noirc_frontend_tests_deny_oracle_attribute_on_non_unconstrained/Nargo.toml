@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_deny_oracle_attribute_on_non_unconstrained"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

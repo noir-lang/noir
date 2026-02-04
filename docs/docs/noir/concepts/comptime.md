@@ -103,19 +103,6 @@ fn main() {
 comptime fn get_type() -> Type { ... }
 ```
 
-Values of certain types may also change type when they are lowered. For example, a comptime format string will already be
-formatted, and thus lowers into a runtime string instead:
-
-```rust
-fn main() {
-    let foo = comptime {
-        let i = 2;
-        f"i = {i}"
-    };
-    assert_eq(foo, "i = 2");
-}
-```
-
 ---
 
 ## (Quasi) Quote
@@ -225,7 +212,7 @@ So the library author can instead quote `$crate::foo::my_function()` and have it
 ```rust
 /// We want to access this function within the quoted code below
 /// and we want it to work in external crates.
-pub fn double(x: Field) -> Field { x * 2 }
+pub fn double(x: u64) -> u64 { x * 2 }
 
 comptime fn double_twice(code: Quoted) -> Quoted {
     quote {
@@ -331,7 +318,7 @@ The following is an incomplete list of some `comptime` types along with some use
 - `FunctionDefinition`: A function definition
   - Methods:
     - `fn parameters(self) -> [(Quoted, Type)]`
-      - Returns a slice of `(name, type)` pairs for each parameter
+      - Returns a vector of `(name, type)` pairs for each parameter
 - `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`

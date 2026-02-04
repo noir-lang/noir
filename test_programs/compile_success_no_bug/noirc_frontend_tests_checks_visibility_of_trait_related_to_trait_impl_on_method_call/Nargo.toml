@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_checks_visibility_of_trait_related_to_trait_impl_on_method_call"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -8,10 +8,10 @@ fn main() {
     assert(b[4] == 111);
     assert(b.len() == 5);
     let mut c = a.as_bytes_vec();
-    assert(c.get(0) == 104);
-    assert(c.get(1) == 101);
-    assert(c.get(2) == 108);
-    assert(c.get(3) == 108);
-    assert(c.get(4) == 111);
+    assert(c[0] == 104);
+    assert(c[1] == 101);
+    assert(c[2] == 108);
+    assert(c[3] == 108);
+    assert(c[4] == 111);
     assert(c.len() == 5);
 }

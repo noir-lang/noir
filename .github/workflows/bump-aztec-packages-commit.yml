@@ -11,16 +11,19 @@ jobs:
   bump-commit:
     name: Update external repo pinned commits
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: master
 
       - name: Check for existing PR
         id: pr-check
         run: |
-          set -xue # print commands         
+          set -xue # print commands
           PR_URL=$(gh pr list --repo noir-lang/noir --head bump-aztec-packages --json url --jq ".[0].url")
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
         env:
@@ -29,8 +32,8 @@ jobs:
       - name: Configure git
         run: |
           git config user.name noirwhal
-          git config user.email tomfrench@aztecprotocol.com    
-        
+          git config user.email tomfrench@aztecprotocol.com
+
       - name: Update commit
         run: |
           git checkout bump-aztec-packages || git checkout -b bump-aztec-packages

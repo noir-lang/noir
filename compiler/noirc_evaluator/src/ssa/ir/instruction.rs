@@ -1,16 +1,16 @@
 use noirc_errors::call_stack::CallStackId;
+use rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use acvm::{
     AcirField,
     acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
-use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::pure::Purity;
+use crate::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -40,29 +40,101 @@ pub(crate) type InstructionId = Id<Instruction>;
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
+    /// ArrayLen - returns the length of the input array
+    /// argument: array (value id)
+    /// result: length of the array, panic if the input is not an array
     ArrayLen,
+    /// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+    /// argument: array (value id)
+    /// result: str
     ArrayAsStrUnchecked,
-    AsSlice,
+    /// AsVector
+    /// argument: value id
+    /// result: a vector containing the elements of the argument. Panic if the value id does not correspond to an `array` type
+    AsVector,
+    /// AssertConstant - Enforce the argument to be a constant value, at compile time.
+    /// argument: value id
+    /// result: (), panic if the argument does not resolve to a constant value
     AssertConstant,
+    /// StaticAssert - Enforce the first argument to be true, at compile time
+    /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
+    /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
-    SlicePushBack,
-    SlicePushFront,
-    SlicePopBack,
-    SlicePopFront,
-    SliceInsert,
-    SliceRemove,
+    /// VectorPushBack - Add elements at the end of a vector
+    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// result: a vector containing `vector contents,..elements_to_push`
+    VectorPushBack,
+    /// VectorPushFront - Add elements at the start of a vector
+    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// result: a vector containing `..elements_to_push, vector contents`
+    VectorPushFront,
+    /// VectorPopBack - Removes the last element of a vector
+    /// arguments: vector length, vector contents
+    /// result: a vector without the last element of `vector contents`
+    VectorPopBack,
+    /// VectorPopFront - Removes the first element of a vector
+    /// arguments: vector length, vector contents
+    /// result: a vector without the first element of `vector contents`
+    VectorPopFront,
+    /// VectorInsert - Insert elements inside a vector.
+    /// arguments: vector length, vector contents, insert index, ...elements_to_insert
+    /// result: a vector with ...elements_to_insert inserted at the `insert index`
+    VectorInsert,
+    /// VectorRemove - Removes an element from a vector
+    /// arguments: vector length, vector contents, remove index
+    /// result: a vector with without the element at `remove index`
+    VectorRemove,
+    /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+    /// arguments: value id, bit size (constant)
+    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
     ApplyRangeConstraint,
+    /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+    /// arguments: value id
+    /// result: the argument. Internally a `str` is a byte array.
     StrAsBytes,
+    /// ToBits(Endian) - Computes the bit decomposition of the argument.
+    /// argument: a field element (value id)
+    /// result: an array whose elements are the bit decomposition of the argument, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
     ToBits(Endian),
+    /// ToRadix(Endian) - Decompose the first argument over the `radix` base
+    /// arguments: a field element (value id), the radix to use (constant, a power of 2 between 2 and 256)
+    /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
     ToRadix(Endian),
+    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
     BlackBox(BlackBoxFunc),
+    /// Hint(Hint) - Avoid its arguments to be removed by DIE.
+    /// arguments: ... value id
+    /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
     Hint(Hint),
+    /// AsWitness - Adds a new witness constrained to be equal to the argument
+    /// arguments: value id
+    /// result: the argument
     AsWitness,
+    /// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+    /// argument: ()
+    /// result: true if execution is under unconstrained context, false else.
     IsUnconstrained,
+    /// DerivePedersenGenerators - Computes the Pedersen generators
+    /// arguments: domain_separator_string (constant string), starting_index (constant)
+    /// result: array of elliptic curve points (Grumpkin) containing the generators.
+    /// The type of the result gives the number of generators to compute.
     DerivePedersenGenerators,
+    /// FieldLessThan - Compare the arguments: `lhs` < `rhs`
+    /// arguments: lhs, rhs. Field elements
+    /// result: true if `lhs` mod p < `rhs` mod p (p being the field characteristic), false else
     FieldLessThan,
+    /// ArrayRefCount - Gives the reference count of the array
+    /// argument: array (value id)
+    /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
+    /// in constrained context, it will be 0.
     ArrayRefCount,
-    SliceRefCount,
+    /// VectorRefCount - Gives the reference count of the vector
+    /// arguments: vector length, vector contents (value id)
+    /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
+    /// in constrained context, it will be 0.
+    VectorRefCount,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -70,15 +142,15 @@ impl std::fmt::Display for Intrinsic {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
-            Intrinsic::AsSlice => write!(f, "as_slice"),
+            Intrinsic::AsVector => write!(f, "as_vector"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
-            Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
-            Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
-            Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
-            Intrinsic::SlicePopFront => write!(f, "slice_pop_front"),
-            Intrinsic::SliceInsert => write!(f, "slice_insert"),
-            Intrinsic::SliceRemove => write!(f, "slice_remove"),
+            Intrinsic::VectorPushBack => write!(f, "vector_push_back"),
+            Intrinsic::VectorPushFront => write!(f, "vector_push_front"),
+            Intrinsic::VectorPopBack => write!(f, "vector_pop_back"),
+            Intrinsic::VectorPopFront => write!(f, "vector_pop_front"),
+            Intrinsic::VectorInsert => write!(f, "vector_insert"),
+            Intrinsic::VectorRemove => write!(f, "vector_remove"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
@@ -92,7 +164,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
             Intrinsic::FieldLessThan => write!(f, "field_less_than"),
             Intrinsic::ArrayRefCount => write!(f, "array_refcount"),
-            Intrinsic::SliceRefCount => write!(f, "slice_refcount"),
+            Intrinsic::VectorRefCount => write!(f, "vector_refcount"),
         }
     }
 }
@@ -109,24 +181,23 @@ impl Intrinsic {
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            // Array & slice ref counts are treated as having side effects since they operate
+            // Array & vector ref counts are treated as having side effects since they operate
             // on hidden variables on otherwise identical array values.
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount
+            | Intrinsic::VectorRefCount
             | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
-            // These imply a check that the slice is non-empty and should fail otherwise.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+            // These imply a check that the vector is non-empty and should fail otherwise.
+            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsSlice
-            | Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
-            | Intrinsic::SliceInsert
+            | Intrinsic::AsVector
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -152,10 +223,12 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => Purity::PureWithPredicate,
             Intrinsic::BlackBox(func) if func.has_side_effects() => Purity::PureWithPredicate,
 
-            // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                Purity::PureWithPredicate
-            }
+            // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
+            // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorRemove
+            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -173,16 +246,16 @@ impl Intrinsic {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
             "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
-            "as_slice" => Some(Intrinsic::AsSlice),
+            "as_vector" => Some(Intrinsic::AsVector),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
-            "slice_push_back" => Some(Intrinsic::SlicePushBack),
-            "slice_push_front" => Some(Intrinsic::SlicePushFront),
-            "slice_pop_back" => Some(Intrinsic::SlicePopBack),
-            "slice_pop_front" => Some(Intrinsic::SlicePopFront),
-            "slice_insert" => Some(Intrinsic::SliceInsert),
-            "slice_remove" => Some(Intrinsic::SliceRemove),
+            "vector_push_back" => Some(Intrinsic::VectorPushBack),
+            "vector_push_front" => Some(Intrinsic::VectorPushFront),
+            "vector_pop_back" => Some(Intrinsic::VectorPopBack),
+            "vector_pop_front" => Some(Intrinsic::VectorPopFront),
+            "vector_insert" => Some(Intrinsic::VectorInsert),
+            "vector_remove" => Some(Intrinsic::VectorRemove),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
@@ -194,7 +267,7 @@ impl Intrinsic {
             "field_less_than" => Some(Intrinsic::FieldLessThan),
             "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
             "array_refcount" => Some(Intrinsic::ArrayRefCount),
-            "slice_refcount" => Some(Intrinsic::SliceRefCount),
+            "vector_refcount" => Some(Intrinsic::VectorRefCount),
 
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
@@ -283,14 +356,12 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been shifted by some offset.
-    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
+    ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    /// `offset` determines whether the index has been shifted by some offset.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -322,9 +393,9 @@ pub enum Instruction {
         else_value: ValueId,
     },
 
-    /// Creates a new array or slice.
+    /// Creates a new array or vector.
     ///
-    /// `typ` should be an array or slice type with an element type
+    /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
     MakeArray { elements: im::Vector<ValueId>, typ: Type },
 
@@ -381,26 +452,41 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+                // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+                // it is expected that OOB checks are inserted separately. However, it would
+                // not be safe to separate the `ArrayGet` from the OOB constraints that precede it,
+                // because while it could read an array index, the returned data could be invalid,
+                // and fail at runtime if we tried using it in the wrong context.
                 !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
-                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
-                    // which uses the side effects predicate.
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    match intrinsic {
+                        // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                        // which uses the side effects predicate.
+                        Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
+                        // Technically these don't use the side effects predicate, but they fail on empty vectors,
+                        // and by pretending that they require the predicate, we can preserve any current side
+                        // effect variable in the SSA and use it to optimize out memory operations that we know
+                        // would fail, but they shouldn't because they might be disabled.
+                        Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
+                        _ => false,
+                    }
                 }
                 _ => false,
             },
             Instruction::Cast(_, _)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
-            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate
@@ -450,7 +536,35 @@ impl Instruction {
                     !matches!(typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
-                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                    // If we don't know rhs at compile time, it might be zero or -1
+                    let Some(rhs) = dfg.get_numeric_constant(binary.rhs) else {
+                        return true;
+                    };
+
+                    // Div or mod by zero is a side effect (failure)
+                    if rhs.is_zero() {
+                        return true;
+                    }
+
+                    // For signed types, division or modulo by -1 can overflow.
+                    let typ = dfg.type_of_value(binary.rhs).unwrap_numeric();
+                    let NumericType::Signed { bit_size } = typ else {
+                        return false;
+                    };
+
+                    let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                    if IntegerConstant::from_numeric_constant(rhs, typ) == Some(minus_one) {
+                        return true;
+                    }
+
+                    false
+                }
+                BinaryOp::Shl | BinaryOp::Shr => {
+                    // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| {
+                        let typ = dfg.type_of_value(binary.lhs);
+                        c >= typ.bit_size().into()
+                    })
                 }
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
@@ -459,16 +573,22 @@ impl Instruction {
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
-                | BinaryOp::Xor
-                | BinaryOp::Shl
-                | BinaryOp::Shr => false,
+                | BinaryOp::Xor => false,
             },
 
             // These don't have side effects
             Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
 
             // `ArrayGet`s which read from "known good" indices from an array have no side effects
-            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+            // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+            // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+            // it is expected that OOB checks are inserted separately. However, it would not
+            // be safe to separate the `ArrayGet` from its corresponding OOB constraints in Brillig,
+            // as a value read from an array at an invalid index could cause failures when subsequently
+            // used in the wrong context. Since we use this information to decide whether to hoist
+            // instructions during deduplication, we consider unsafe values as potentially having
+            // indirect side effects.
+            ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
 
             // ArraySet has side effects
             ArraySet { .. } => true,
@@ -543,18 +663,15 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index, offset } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
-                Instruction::ArraySet {
-                    array: f(*array),
-                    index: f(*index),
-                    value: f(*value),
-                    mutable: *mutable,
-                    offset: *offset,
-                }
-            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -572,10 +689,11 @@ impl Instruction {
                     else_value: f(*else_value),
                 }
             }
-            Instruction::MakeArray { elements, typ } => Instruction::MakeArray {
-                elements: elements.iter().copied().map(f).collect(),
-                typ: typ.clone(),
-            },
+            Instruction::MakeArray { elements, typ } => {
+                let mut elements = elements.clone();
+                im_vec_map_values_mut(&mut elements, f);
+                Instruction::MakeArray { elements, typ: typ.clone() }
+            }
             Instruction::Noop => Instruction::Noop,
         }
     }
@@ -617,11 +735,11 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 *condition = f(*condition);
             }
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 *array = f(*array);
                 *index = f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
@@ -640,9 +758,7 @@ impl Instruction {
                 *else_value = f(*else_value);
             }
             Instruction::MakeArray { elements, typ: _ } => {
-                for element in elements.iter_mut() {
-                    *element = f(*element);
-                }
+                im_vec_map_values_mut(elements, f);
             }
             Instruction::Noop => (),
         }
@@ -683,11 +799,11 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate => (),
-            Instruction::ArrayGet { array, index, offset: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -723,7 +839,7 @@ impl Instruction {
 pub enum ArrayOffset {
     None,
     Array,
-    Slice,
+    Vector,
 }
 
 impl ArrayOffset {
@@ -731,7 +847,7 @@ impl ArrayOffset {
         match value {
             0 => Some(Self::None),
             1 => Some(Self::Array),
-            3 => Some(Self::Slice),
+            3 => Some(Self::Vector),
             _ => None,
         }
     }
@@ -741,8 +857,8 @@ impl ArrayOffset {
             Self::None => 0,
             // Arrays in brillig are represented as [RC, ...items]
             Self::Array => 1,
-            // Slices in brillig are represented as [RC, Size, Capacity, ...items]
-            Self::Slice => 3,
+            // Vectors in brillig are represented as [RC, Size, Capacity, ...items]
+            Self::Vector => 3,
         }
     }
 }
@@ -753,9 +869,22 @@ impl Binary {
             BinaryOp::Add { unchecked: false }
             | BinaryOp::Sub { unchecked: false }
             | BinaryOp::Mul { unchecked: false } => {
-                // Some binary math can overflow or underflow, but this is only the case
-                // for unsigned types (here we assume the type of binary.lhs is the same)
-                dfg.type_of_value(self.rhs).is_unsigned()
+                match dfg.type_of_value(self.rhs).unwrap_numeric() {
+                    NumericType::NativeField => false,
+                    // Some binary math can overflow or underflow for non-field types.
+                    NumericType::Unsigned { .. } => true,
+                    // However, we assume that signed types should have already been expanded using unsigned operations.
+                    NumericType::Signed { .. } => {
+                        unreachable!("signed instructions should have been already expanded")
+                    }
+                }
+            }
+            BinaryOp::Shl | BinaryOp::Shr => {
+                // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                dfg.get_numeric_constant(self.rhs).is_none_or(|c| {
+                    let typ = dfg.type_of_value(self.lhs);
+                    c >= typ.bit_size().into()
+                })
             }
             BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
@@ -765,9 +894,7 @@ impl Binary {
             | BinaryOp::Lt
             | BinaryOp::And
             | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
+            | BinaryOp::Xor => false,
         }
     }
 }
@@ -779,11 +906,24 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Hash the error type to get a unique selector for it.
     pub fn selector(&self) -> ErrorSelector {
-        let mut hasher = FxHasher64::default();
+        struct U64(pub u64);
+
+        impl FromStableHash for U64 {
+            type Hash = SipHasher128Hash;
+
+            fn from(hash: Self::Hash) -> Self {
+                Self(hash.0[0])
+            }
+        }
+
+        // We explicitly do not use `rustc-hash` here as we require hashes to be stable across 32- and 64-bit architectures.
+        let mut hasher =
+            rustc_stable_hash::StableHasher::<rustc_stable_hash::hashers::SipHasher128>::new();
         self.hash(&mut hasher);
-        let hash = hasher.finish();
-        ErrorSelector::new(hash)
+        let hash = hasher.finish::<U64>();
+        ErrorSelector::new(hash.0)
     }
 }
 
@@ -961,5 +1101,36 @@ impl TerminatorInstruction {
             | TerminatorInstruction::Return { call_stack, .. }
             | TerminatorInstruction::Unreachable { call_stack } => *call_stack = new_call_stack,
         }
+    }
+}
+
+/// Try to avoid mutation until we know something changed, to take advantage of
+/// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
+/// the content and increases memory use by allocating more pointers on the heap.
+fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+where
+    T: Copy + PartialEq,
+    F: FnMut(T) -> T,
+{
+    // Even `xs.iter_mut()` calls `get_mut` on each element, regardless of whether there is actual mutation.
+    // If we go index-by-index, get the item, put it back only if it changed, then we can avoid
+    // allocating memory unless we need to, however we incur O(n * log(n)) complexity.
+    // Collecting changes first and then updating only those positions proved to be the
+    // fastest among some alternatives that didn't sacrifice memory for speed or vice versa.
+    let mut changes = Vec::new();
+    for (i, x) in xs.iter().enumerate() {
+        let y = f(*x);
+        if *x != y {
+            changes.push((i, y));
+        }
+    }
+    if changes.is_empty() {
+        return;
+    }
+    // Using `Focus` allows us to only make mutable what is needed,
+    // and should be faster for batches than indexing individual items.
+    let mut focus = xs.focus_mut();
+    for (i, y) in changes {
+        focus.set(i, y);
     }
 }

@@ -1,10 +1,11 @@
 use std::io::IsTerminal;
 
-use crate::{Location, Span};
+use crate::Location;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use noirc_span::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
@@ -133,7 +134,14 @@ impl CustomDiagnostic {
     }
 
     pub fn add_secondary(&mut self, message: String, location: Location) {
-        self.secondaries.push(CustomLabel::new(message, location));
+        // Avoid adding duplicate labels (can happen during recursive attribute execution)
+        let is_duplicate = self
+            .secondaries
+            .iter()
+            .any(|label| label.message == message && label.location == location);
+        if !is_duplicate {
+            self.secondaries.push(CustomLabel::new(message, location));
+        }
     }
 
     pub fn is_error(&self) -> bool {
@@ -200,7 +208,7 @@ pub fn report_all<'files>(
     diagnostics.append(&mut errors);
 
     let error_count =
-        diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
+        diagnostics.iter().map(|error| u32::from(error.report(files, deny_warnings))).sum();
 
     ReportedErrors { error_count }
 }

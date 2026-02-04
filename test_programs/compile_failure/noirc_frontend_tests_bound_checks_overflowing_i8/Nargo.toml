@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_bound_checks_overflowing_i8"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

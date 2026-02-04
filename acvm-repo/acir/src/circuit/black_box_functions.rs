@@ -36,18 +36,6 @@ pub enum BlackBoxFunc {
     RecursiveAggregation,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd]
     EmbeddedCurveAdd,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntAdd]
-    BigIntAdd,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntSub]
-    BigIntSub,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntMul]
-    BigIntMul,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntDiv]
-    BigIntDiv,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntFromLeBytes]
-    BigIntFromLeBytes,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntToLeBytes]
-    BigIntToLeBytes,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation]
     Poseidon2Permutation,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
@@ -75,12 +63,6 @@ impl BlackBoxFunc {
             BlackBoxFunc::Keccakf1600 => "keccakf1600",
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
-            BlackBoxFunc::BigIntAdd => "bigint_add",
-            BlackBoxFunc::BigIntSub => "bigint_sub",
-            BlackBoxFunc::BigIntMul => "bigint_mul",
-            BlackBoxFunc::BigIntDiv => "bigint_div",
-            BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",
-            BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
             BlackBoxFunc::Sha256Compression => "sha256_compression",
         }
@@ -100,12 +82,6 @@ impl BlackBoxFunc {
             "range" => Some(BlackBoxFunc::RANGE),
             "keccakf1600" => Some(BlackBoxFunc::Keccakf1600),
             "recursive_aggregation" => Some(BlackBoxFunc::RecursiveAggregation),
-            "bigint_add" => Some(BlackBoxFunc::BigIntAdd),
-            "bigint_sub" => Some(BlackBoxFunc::BigIntSub),
-            "bigint_mul" => Some(BlackBoxFunc::BigIntMul),
-            "bigint_div" => Some(BlackBoxFunc::BigIntDiv),
-            "bigint_from_le_bytes" => Some(BlackBoxFunc::BigIntFromLeBytes),
-            "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
             "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
             "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
             _ => None,
@@ -116,22 +92,17 @@ impl BlackBoxFunc {
         match self {
             BlackBoxFunc::RecursiveAggregation
             | BlackBoxFunc::MultiScalarMul
-            | BlackBoxFunc::EmbeddedCurveAdd => true,
+            | BlackBoxFunc::EmbeddedCurveAdd
+            | BlackBoxFunc::EcdsaSecp256k1
+            | BlackBoxFunc::EcdsaSecp256r1
+            | BlackBoxFunc::RANGE => true,
+
             BlackBoxFunc::AES128Encrypt
             | BlackBoxFunc::AND
             | BlackBoxFunc::XOR
-            | BlackBoxFunc::RANGE
             | BlackBoxFunc::Blake2s
             | BlackBoxFunc::Blake3
-            | BlackBoxFunc::EcdsaSecp256k1
-            | BlackBoxFunc::EcdsaSecp256r1
             | BlackBoxFunc::Keccakf1600
-            | BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes
             | BlackBoxFunc::Poseidon2Permutation
             | BlackBoxFunc::Sha256Compression => false,
         }

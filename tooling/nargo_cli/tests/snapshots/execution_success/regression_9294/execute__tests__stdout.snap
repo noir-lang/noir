@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+([Foo::Zero, Foo::One(0x0a), Foo::Two(20, 30)], 0x28)
+Hello [Foo::Zero, Foo::One(0x0a), Foo::Two(20, 30)]!

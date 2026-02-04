@@ -1,6 +1,5 @@
-use crate::check_errors;
+use crate::tests::check_errors;
 
-#[named]
 #[test]
 fn overflowing_u8() {
     let src = r#"
@@ -9,10 +8,9 @@ fn overflowing_u8() {
                         ^^^ The value `256` cannot fit into `u8` which has range `0..=255`
         }
         "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn underflowing_u8() {
     let src = r#"
@@ -21,10 +19,9 @@ fn underflowing_u8() {
                         ^^ The value `-1` cannot fit into `u8` which has range `0..=255`
         }
         "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn overflowing_i8() {
     let src = r#"
@@ -33,10 +30,9 @@ fn overflowing_i8() {
                         ^^^ The value `128` cannot fit into `i8` which has range `-128..=127`
         }
         "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn underflowing_i8() {
     let src = r#"
@@ -45,5 +41,5 @@ fn underflowing_i8() {
                         ^^^^ The value `-129` cannot fit into `i8` which has range `-128..=127`
         }
         "#;
-    check_errors!(src);
+    check_errors(src);
 }

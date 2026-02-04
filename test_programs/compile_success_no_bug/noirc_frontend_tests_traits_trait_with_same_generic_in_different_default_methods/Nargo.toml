@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_with_same_generic_in_different_default_methods"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,3 +1,11 @@
+//! This is a debugging pass which re-inserts each instruction
+//! and block in a fresh DFG context for each function so that ValueIds,
+//! BasicBlockIds, and FunctionIds are always identical for the same SSA code.
+//!
+//! During normal compilation this is often not the case since prior passes
+//! may increase the ID counter so that later passes start at different offsets,
+//! even if they contain the same SSA code.
+
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::{
@@ -10,17 +18,12 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
-    /// This is a debugging pass which re-inserts each instruction
-    /// and block in a fresh DFG context for each function so that ValueIds,
-    /// BasicBlockIds, and FunctionIds are always identical for the same SSA code.
-    ///
-    /// During normal compilation this is often not the case since prior passes
-    /// may increase the ID counter so that later passes start at different offsets,
-    /// even if they contain the same SSA code.
+    /// Re-inserts each instruction and block in a fresh DFG context for each function so that
+    /// ValueIds, BasicBlockIds, and FunctionIds are always identical for the same SSA code.
     pub fn normalize_ids(&mut self) {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
@@ -95,8 +98,7 @@ impl Context {
         let reachable_blocks = old_function.reachable_blocks();
         self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        let mut reverse_post_order = PostOrder::with_function(old_function).into_vec();
-        reverse_post_order.reverse();
+        let reverse_post_order = PostOrder::with_function(old_function).into_vec_reverse();
 
         // Map each parameter, instruction, and terminator
         for old_block_id in reverse_post_order {
@@ -180,7 +182,7 @@ impl IdMaps {
     }
 
     fn map_value(
-        &mut self,
+        &self,
         new_function: &mut Function,
         old_function: &Function,
         old_value: ValueId,

@@ -1,5 +1,6 @@
 ---
 title: Shadowing
+description: Rebind variables with the same name to derive new values, enabling ergonomic "temporary mutability" patterns in Noir.
 sidebar_position: 12
 ---
 

@@ -4,6 +4,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
+    hash::BuildHasher,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
     pin::Pin,
@@ -13,15 +14,15 @@ use std::{
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use async_lsp::lsp_types::request::{
-    CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-    PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
+    CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
+    InlayHintRequest, PrepareRenameRequest, References, Rename, SemanticTokensFullRequest,
+    SignatureHelpRequest, WorkspaceSymbolRequest,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
     router::Router,
 };
 use fm::{FileManager, codespan_files as files};
-use fxhash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -29,7 +30,6 @@ use nargo::{
 };
 use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -42,6 +42,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 use rayon::prelude::*;
+use rustc_hash::FxHashSet;
 
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
@@ -59,7 +60,7 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
-mod attribute_reference_finder;
+mod doc_comments;
 mod notifications;
 mod requests;
 mod solver;
@@ -68,6 +69,7 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
+mod visitor_reference_finder;
 mod with_file;
 
 #[cfg(test)]
@@ -78,7 +80,10 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
-    requests::{on_expand_request, on_std_source_code_request},
+    requests::{
+        on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
+        on_std_source_code_request,
+    },
     types::request::{NargoExpand, NargoStdSourceCode},
 };
 
@@ -100,9 +105,6 @@ pub struct LspState {
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
-    /// Whenever a file in a workspace is changed we'll add it to this set.
-    workspaces_to_process: HashSet<PathBuf>,
-
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -119,8 +121,6 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
-    diagnostics: Vec<CustomDiagnostic>,
-    diagnostics_just_published: bool,
 }
 
 impl LspState {
@@ -137,7 +137,6 @@ impl LspState {
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }
@@ -165,6 +164,7 @@ impl NargoLspService {
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<SemanticTokensFullRequest, _>(on_semantic_tokens_full_request)
             .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
             .request::<References, _>(on_references_request)
             .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
@@ -175,6 +175,7 @@ impl NargoLspService {
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
             .request::<CodeActionRequest, _>(on_code_action_request)
             .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
+            .request::<FoldingRangeRequest, _>(on_folding_range_request)
             .request::<NargoExpand, _>(on_expand_request)
             .request::<NargoStdSourceCode, _>(on_std_source_code_request)
             .notification::<notification::Initialized>(on_initialized)
@@ -317,7 +318,6 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         entry_path: PathBuf::from(file_path),
         name: crate_name,
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     let workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),
@@ -364,7 +364,9 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
                     Some((
                         file_id,
                         file_path.to_path_buf(),
-                        fxhash::hash(file_manager.fetch_file(file_id).expect("file must exist")),
+                        rustc_hash::FxBuildHasher
+                            .hash_one(file_manager.fetch_file(file_id).expect("file must exist"))
+                            as usize,
                     ))
                 } else {
                     None

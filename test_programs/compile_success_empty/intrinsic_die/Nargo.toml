@@ -1,5 +1,0 @@
-[package]
-name = "intrinsic_die"
-type = "bin"
-authors = [""]
-[dependencies]

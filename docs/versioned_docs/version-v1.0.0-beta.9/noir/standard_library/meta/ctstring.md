@@ -1,5 +1,6 @@
 ---
 title: CtString
+description: Compile-time, dynamically sized strings for `comptime`—build, append, and emit quoted string literals.
 ---
 
 `std::meta::ctstring` contains methods on the built-in `CtString` type which is
@@ -16,7 +17,7 @@ afterward.
 
 ### AsCtString
 
-```rust title="as-ctstring" showLineNumbers 
+```rust title="as-ctstring" showLineNumbers
 pub trait AsCtString {
     comptime fn as_ctstring(self) -> CtString;
 }
@@ -37,7 +38,7 @@ impl<let N: u32, T> AsCtString for fmtstr<N, T> { ... }
 
 ### new
 
-```rust title="new" showLineNumbers 
+```rust title="new" showLineNumbers
 pub comptime fn new() -> Self {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/ctstring.nr#L4-L6" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L4-L6</a></sub></sup>
@@ -47,7 +48,7 @@ Creates an empty `CtString`.
 
 ### append_str
 
-```rust title="append_str" showLineNumbers 
+```rust title="append_str" showLineNumbers
 pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/ctstring.nr#L12-L14" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L12-L14</a></sub></sup>
@@ -57,7 +58,7 @@ Returns a new CtString with the given str appended onto the end.
 
 ### append_fmtstr
 
-```rust title="append_fmtstr" showLineNumbers 
+```rust title="append_fmtstr" showLineNumbers
 pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/ctstring.nr#L18-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L18-L20</a></sub></sup>
@@ -67,7 +68,7 @@ Returns a new CtString with the given fmtstr appended onto the end.
 
 ### as_quoted_str
 
-```rust title="as_quoted_str" showLineNumbers 
+```rust title="as_quoted_str" showLineNumbers
 pub comptime fn as_quoted_str(self) -> Quoted {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/ctstring.nr#L27-L29" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L27-L29</a></sub></sup>
@@ -82,7 +83,7 @@ literal at this function's call site.
 
 Example:
 
-```rust title="as_quoted_str_example" showLineNumbers 
+```rust title="as_quoted_str_example" showLineNumbers
 let my_ctstring = "foo bar".as_ctstring();
             let my_str: str<7> = my_ctstring.as_quoted_str!();
 

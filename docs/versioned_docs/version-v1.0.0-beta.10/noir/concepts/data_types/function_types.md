@@ -1,5 +1,6 @@
 ---
 title: Function types
+description: Define and use function types for higher‑order functions in Noir, including syntax, examples, and notes on closures.
 sidebar_position: 10
 ---
 

@@ -23,10 +23,10 @@ use noirc_frontend::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
         IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
-        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
-        UseTreeKind, Visitor,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, Path, PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl,
+        TypePath, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UseTree, UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -45,9 +45,11 @@ use noirc_frontend::{
 use sort_text::underscore_sort_text;
 
 use crate::{
-    LspState, requests::to_lsp_location,
+    LspState,
+    requests::{completion::completion_items::variable_completion_item, to_lsp_location},
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils,
+    use_segment_positions::UseSegmentPositions,
+    utils,
 };
 
 use super::{TraitReexport, process_request};
@@ -56,6 +58,7 @@ mod auto_import;
 mod builtins;
 mod completion_items;
 mod kinds;
+mod params;
 mod sort_text;
 mod tests;
 
@@ -433,11 +436,7 @@ impl<'a> NodeFinder<'a> {
                     None
                 };
 
-                self.completion_items.push(simple_completion_item(
-                    name,
-                    CompletionItemKind::VARIABLE,
-                    description,
-                ));
+                self.completion_items.push(variable_completion_item(name, description));
             }
         }
     }
@@ -505,11 +504,14 @@ impl<'a> NodeFinder<'a> {
 
         if after_colons {
             // We are right after "::"
-            segments.push(ident.clone());
+            if !ident.is_empty() {
+                segments.push(ident.clone());
+            }
+
+            let at_root = segments.is_empty();
 
             if let Some(module_id) = self.resolve_module(segments) {
                 let prefix = "";
-                let at_root = false;
                 self.complete_in_module(
                     module_id,
                     prefix,
@@ -633,7 +635,7 @@ impl<'a> NodeFinder<'a> {
             }
             Type::FieldElement
             | Type::Array(_, _)
-            | Type::Slice(_)
+            | Type::Vector(_)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::String(_)
@@ -882,6 +884,7 @@ impl<'a> NodeFinder<'a> {
         let Some(mut module_data) = def_map.get(module_id.local_id) else {
             return;
         };
+        let mut skip_prelude_items = false;
 
         if at_root {
             match path_kind {
@@ -890,6 +893,7 @@ impl<'a> NodeFinder<'a> {
                         return;
                     };
                     module_data = root_module_data;
+                    skip_prelude_items = true;
                 }
                 PathKind::Super => {
                     let Some(parent) = module_data.parent else {
@@ -899,6 +903,7 @@ impl<'a> NodeFinder<'a> {
                         return;
                     };
                     module_data = parent_module_data;
+                    skip_prelude_items = true;
                 }
                 PathKind::Dep => (),
                 PathKind::Plain => (),
@@ -919,45 +924,30 @@ impl<'a> NodeFinder<'a> {
 
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
-                if let Some((module_def_id, visibility, _)) = per_ns.types {
-                    if item_in_module_is_visible(
-                        self.def_maps,
-                        self.module_id,
-                        module_id,
-                        visibility,
-                    ) {
-                        let completion_items = self.module_def_id_completion_items(
-                            module_def_id,
-                            name.to_string(),
-                            function_completion_kind,
-                            function_kind,
-                            requested_items,
-                        );
-                        if !completion_items.is_empty() {
-                            self.completion_items.extend(completion_items);
-                            self.suggested_module_def_ids.insert(module_def_id);
-                        }
+                for (module_def_id, visibility, is_prelude) in per_ns.iter_items() {
+                    if is_prelude && skip_prelude_items {
+                        continue;
                     }
-                }
 
-                if let Some((module_def_id, visibility, _)) = per_ns.values {
-                    if item_in_module_is_visible(
+                    if !item_in_module_is_visible(
                         self.def_maps,
                         self.module_id,
                         module_id,
                         visibility,
                     ) {
-                        let completion_items = self.module_def_id_completion_items(
-                            module_def_id,
-                            name.to_string(),
-                            function_completion_kind,
-                            function_kind,
-                            requested_items,
-                        );
-                        if !completion_items.is_empty() {
-                            self.completion_items.extend(completion_items);
-                            self.suggested_module_def_ids.insert(module_def_id);
-                        }
+                        continue;
+                    }
+
+                    let completion_items = self.module_def_id_completion_items(
+                        module_def_id,
+                        name.to_string(),
+                        function_completion_kind,
+                        function_kind,
+                        requested_items,
+                    );
+                    if !completion_items.is_empty() {
+                        self.completion_items.extend(completion_items);
+                        self.suggested_module_def_ids.insert(module_def_id);
                     }
                 }
             }
@@ -993,7 +983,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn resolve_module(&self, segments: Vec<Ident>) -> Option<ModuleId> {
-        if let Some(ModuleDefId::ModuleId(module_id)) = self.resolve_path(segments) {
+        if segments.is_empty() {
+            Some(self.module_id)
+        } else if let Some(ModuleDefId::ModuleId(module_id)) = self.resolve_path(segments) {
             Some(module_id)
         } else {
             None
@@ -1003,7 +995,7 @@ impl<'a> NodeFinder<'a> {
     fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
         let last_segment = segments.last().unwrap().clone();
 
-        // If we can't resolve a path trough lookup, let's see if the last segment is bound to a type
+        // If we can't resolve a path through lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
         if let Some(reference_id) = self.interner.find_referenced(location) {
             if let Some(id) = module_def_id_from_reference_id(reference_id) {
@@ -1248,6 +1240,14 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
+    fn visit_parsed_module(&mut self, parsed_module: &ParsedModule) -> bool {
+        if self.try_complete_function_param_in_parsed_module(parsed_module) {
+            return false;
+        }
+
+        true
+    }
+
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _span: Span) -> bool {
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
@@ -1371,6 +1371,10 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_type_impl(&mut self, type_impl: &TypeImpl, _: Span) -> bool {
+        if self.try_complete_function_param_in_type_impl(type_impl) {
+            return false;
+        }
+
         for generic in &type_impl.generics {
             generic.accept(self);
         }
@@ -1409,6 +1413,14 @@ impl Visitor for NodeFinder<'_> {
         self.type_parameters.clear();
 
         false
+    }
+
+    fn visit_noir_trait(&mut self, trait_: &NoirTrait, _: Span) -> bool {
+        if self.try_complete_function_param_in_trait(trait_) {
+            return false;
+        }
+
+        true
     }
 
     fn visit_trait_item_function(
@@ -1633,7 +1645,7 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_lvalue_index(&mut self, array: &LValue, _index: &Expression, span: Span) -> bool {
-        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/slice element type,
+        // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/vector element type,
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(array) {
@@ -1796,7 +1808,9 @@ impl Visitor for NodeFinder<'_> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (_, unresolved_type) in &lambda.parameters {
-            unresolved_type.accept(self);
+            if let Some(unresolved_type) = unresolved_type {
+                unresolved_type.accept(self);
+            }
         }
 
         let old_local_variables = self.local_variables.clone();
@@ -1946,7 +1960,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
 
 fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
-        Type::Array(_, typ) | Type::Slice(typ) => Some(*typ),
+        Type::Array(_, typ) | Type::Vector(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)

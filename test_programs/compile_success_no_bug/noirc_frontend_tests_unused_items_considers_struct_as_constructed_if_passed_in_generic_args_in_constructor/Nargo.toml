@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_passed_in_generic_args_in_constructor"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

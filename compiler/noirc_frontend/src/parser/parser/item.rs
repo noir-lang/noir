@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            if let Some(ident) = self.eat_ident() {
+            if let Some(ident) = self.eat_non_underscore_ident() {
                 return vec![self.parse_mod_or_contract(
                     ident,
                     attributes,
@@ -279,7 +279,7 @@ mod tests {
     use crate::{
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, Parser,
+            ItemKind, Parser, ParserErrorReason,
             parser::tests::{get_single_error, get_source_with_error_span},
         },
     };
@@ -341,8 +341,8 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         assert_eq!(
-            item.doc_comments,
-            vec![" One".to_string(), " Two".to_string(), " Three".to_string(),]
+            item.doc_comments.iter().map(|c| c.contents.clone()).collect::<Vec<String>>(),
+            vec!["One".to_string(), "Two".to_string(), "Three".to_string(),]
         );
         let ItemKind::Function(func) = &item.kind else {
             panic!("Expected function");
@@ -402,6 +402,19 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert_snapshot!(error.to_string(), @"Expected an identifier but found ';'");
+    }
+
+    #[test]
+    fn errors_on_mod_named_underscore() {
+        let src = "
+        mod _ {}
+            ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert!(matches!(error.reason(), Some(ParserErrorReason::ExpectedIdentifierGotUnderscore)));
     }
 
     #[test]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_does_not_warn_on_unused_global_if_it_has_an_abi_attribute"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

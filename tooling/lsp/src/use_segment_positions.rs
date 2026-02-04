@@ -160,6 +160,11 @@ impl UseSegmentPositions {
     ) {
         match &use_tree.kind {
             UseTreeKind::Path(ident, _alias) => {
+                // The identifier might be empty for cases like `use crate::` or `use super::`.
+                if ident.is_empty() {
+                    return;
+                }
+
                 self.insert_use_segment_position(
                     prefix,
                     UseSegmentPosition::BeforeSegment {

@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: The static_assert message is not constant
+  ┌─ src/main.nr:5:5
+  │
+5 │     static_assert(true, string);
+  │     ---------------------------
+  │
+  = Call stack:
+    1. src/main.nr:5:5
+
+Aborting due to 1 previous error

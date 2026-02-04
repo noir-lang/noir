@@ -1,13 +1,16 @@
 use acvm::{FieldElement, acir::circuit::Program};
 use noirc_abi::{Abi, AbiType, AbiValue};
-use noirc_driver::{CompiledContract, CompiledContractOutputs, CompiledProgram, ContractFunction};
 use serde::{Deserialize, Serialize};
 
-use noirc_driver::DebugFile;
-use noirc_errors::debug_info::ProgramDebugInfo;
 use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
+
+use crate::{
+    debug::{DebugFile, DebugInfo, ProgramDebugInfo},
+    program::CompiledProgram,
+    ssa::SsaReport,
+};
 
 use super::{deserialize_hash, serialize_hash};
 
@@ -87,9 +90,6 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-    #[serde(default)] // For backwards compatibility (it was missing).
-    pub names: Vec<String>,
-    pub brillig_names: Vec<String>,
 }
 
 impl ContractFunctionArtifact {
@@ -106,8 +106,6 @@ impl ContractFunctionArtifact {
             debug: self.debug_symbols.debug_infos,
             file_map,
             warnings: Vec::new(),
-            names: self.names,
-            brillig_names: self.brillig_names,
         }
     }
 }
@@ -121,9 +119,56 @@ impl From<ContractFunction> for ContractFunctionArtifact {
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
-            names: func.names,
-            brillig_names: func.brillig_names,
             debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompiledContractOutputs {
+    pub structs: HashMap<String, Vec<AbiType>>,
+    pub globals: HashMap<String, Vec<AbiValue>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompiledContract {
+    pub noir_version: String,
+
+    /// The name of the contract.
+    pub name: String,
+    /// Each of the contract's functions are compiled into a separate `CompiledProgram`
+    /// stored in this `Vector`.
+    pub functions: Vec<ContractFunction>,
+
+    pub outputs: CompiledContractOutputs,
+
+    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub warnings: Vec<SsaReport>,
+}
+
+/// Each function in the contract will be compiled
+/// as a separate noir program.
+///
+/// A contract function unlike a regular Noir program
+/// however can have additional properties.
+/// One of these being a function type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContractFunction {
+    pub name: String,
+
+    pub hash: u64,
+
+    pub is_unconstrained: bool,
+
+    pub custom_attributes: Vec<String>,
+
+    pub abi: Abi,
+
+    #[serde(
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
+    )]
+    pub bytecode: Program<FieldElement>,
+
+    pub debug: Vec<DebugInfo>,
 }

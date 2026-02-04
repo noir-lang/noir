@@ -38,8 +38,7 @@ fn run_snippet_proptest(
         Err(e) => panic!("failed to compile program; brillig = {force_brillig}:\n{source}\n{e:?}"),
     };
 
-    let pedantic_solving = true;
-    let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+    let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
     let foreign_call_executor = RefCell::new(DefaultForeignCallBuilder::default().build());
 
     // Generate multiple input/output
@@ -110,7 +109,7 @@ fn get_unsigned_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u8 = any::<u8>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -118,7 +117,7 @@ fn get_unsigned_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u16 = any::<u16>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -126,7 +125,7 @@ fn get_unsigned_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u32 = any::<u32>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -134,7 +133,7 @@ fn get_unsigned_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u64 = any::<u64>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -162,7 +161,7 @@ fn get_signed_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
                 x = 0;
             }
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -174,7 +173,7 @@ fn get_signed_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
                 x = 0;
             }
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -185,7 +184,7 @@ fn get_signed_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
                 x = 0;
             }
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
+                vec![("x", InputValue::Field(u128::from(x).into()))],
                 InputValue::Field(0_u128.into()),
             )
         })
@@ -197,24 +196,24 @@ fn get_truncate_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u16 = any::<u16>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
+                vec![("x", InputValue::Field(u128::from(x).into()))],
+                InputValue::Field(u128::from(x).into()),
             )
         })
         .boxed();
     let strategy_u32 = any::<u32>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
+                vec![("x", InputValue::Field(u128::from(x).into()))],
+                InputValue::Field(u128::from(x).into()),
             )
         })
         .boxed();
     let strategy_u64 = any::<u64>()
         .prop_map(|x| {
             SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
+                vec![("x", InputValue::Field(u128::from(x).into()))],
+                InputValue::Field(u128::from(x).into()),
             )
         })
         .boxed();

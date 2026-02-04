@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_trait_unconstrained_methods_typechecked_correctly"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

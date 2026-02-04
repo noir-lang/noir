@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_warns_on_unused_global"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

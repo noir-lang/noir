@@ -17,7 +17,7 @@ unconstrained fn func_5(
     if *ctx_limit == 0_u32 {
         (a.0[0_u32], *a.1)
     } else {
-        *(ctx_limit) = *ctx_limit - 1_u32;
+        *ctx_limit = *ctx_limit - 1_u32;
         func_5(if *a.1 { a } else { (a.0, &mut c.1) }, c, ctx_limit)
     }
 }

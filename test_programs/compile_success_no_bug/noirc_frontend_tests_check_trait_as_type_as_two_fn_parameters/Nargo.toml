@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

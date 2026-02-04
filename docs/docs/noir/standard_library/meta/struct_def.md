@@ -1,5 +1,6 @@
 ---
 title: TypeDefinition
+description: Inspect and transform struct/enum type definitions—fields, generics, attributes, and module context.
 ---
 
 `std::meta::type_def` contains methods on the built-in `TypeDefinition` type.
@@ -37,6 +38,13 @@ Example:
 
 Returns this type definition as a type in the source program. If this definition has
 any generics, the generics are also included as-is.
+
+### as_type_with_generics
+
+#include_code as_type_with_generics noir_stdlib/src/meta/type_def.nr rust
+
+Returns a type from this type definition using the given generic arguments. Returns `Option::none()`
+if an incorrect amount of generic arguments are given for this type.
 
 ### generics
 
@@ -127,7 +135,7 @@ Example:
 struct Foo { x: Field }
 
 comptime fn mangle_fields(s: TypeDefinition) {
-    s.set_fields(&[
+    s.set_fields(@[
         (quote { a }, quote { u32 }.as_type(), quote { pub }),
         (quote { b }, quote { i8 }.as_type(), quote {}),
     ]);

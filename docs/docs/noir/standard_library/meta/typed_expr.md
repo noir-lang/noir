@@ -1,5 +1,6 @@
 ---
 title: TypedExpr
+description: Resolved, type-checked expressions—retrieve types, access referenced function definitions, and more.
 ---
 
 `std::meta::typed_expr` contains methods on the built-in `TypedExpr` type for resolved and type-checked expressions.

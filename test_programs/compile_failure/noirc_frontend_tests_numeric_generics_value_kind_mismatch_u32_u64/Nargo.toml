@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_numeric_generics_value_kind_mismatch_u32_u64"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

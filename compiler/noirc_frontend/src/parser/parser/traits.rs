@@ -26,7 +26,7 @@ impl Parser<'_> {
     ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             let noir_trait =
                 empty_trait(attributes, visibility, self.location_since(start_location));
@@ -176,11 +176,11 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
@@ -197,23 +197,22 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type_or_error()
+            Some(self.parse_type_or_error())
         } else {
             self.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 self.previous_token_location,
             );
-            let location = self.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
+            None
         };
 
         if self.eat_assign() {
@@ -528,7 +527,7 @@ mod tests {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
-        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
         assert!(!noir_trait.is_alias);
     }
 

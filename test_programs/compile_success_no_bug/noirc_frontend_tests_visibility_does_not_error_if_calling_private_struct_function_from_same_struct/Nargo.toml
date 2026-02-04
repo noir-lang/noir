@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_does_not_error_if_calling_private_struct_function_from_same_struct"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

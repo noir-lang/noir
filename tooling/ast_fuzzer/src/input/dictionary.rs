@@ -7,7 +7,7 @@ use noirc_evaluator::ssa::ssa_gen::Ssa;
 pub(crate) fn build_dictionary_from_ssa(ssa: &Ssa) -> BTreeSet<FieldElement> {
     let mut constants = BTreeSet::new();
     for func in ssa.functions.values() {
-        for (constant, _) in func.constants() {
+        for (constant, _) in func.view().constants() {
             constants.insert(*constant);
         }
     }

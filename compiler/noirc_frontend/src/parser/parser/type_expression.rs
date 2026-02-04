@@ -1,6 +1,9 @@
 use crate::{
     BinaryTypeOperator,
-    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    ast::{
+        GenericTypeArgKind, GenericTypeArgs, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression,
+    },
     parser::{ParserError, labels::ParsingRuleLabel},
     signed_field::SignedField,
     token::Token,
@@ -207,11 +210,20 @@ impl Parser<'_> {
         // If we end up with a Variable type expression, make it a Named type (they are equivalent),
         // but for testing purposes and simplicity we default to types instead of type expressions.
         Some(
-            if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(path)) =
+            if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) =
                 typ.typ
             {
+                let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
+                let mut generic_type_args = GenericTypeArgs::default();
+                if let Some(generics) = generics {
+                    generic_type_args.ordered_args = generics;
+                    for _ in 0..generic_type_args.ordered_args.len() {
+                        generic_type_args.kinds.push(GenericTypeArgKind::Ordered);
+                    }
+                }
+
                 UnresolvedType {
-                    typ: UnresolvedTypeData::Named(path, GenericTypeArgs::default(), false),
+                    typ: UnresolvedTypeData::Named(path, generic_type_args, false),
                     location: span,
                 }
             } else {
@@ -286,7 +298,7 @@ impl Parser<'_> {
     fn parse_atom_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_location = self.current_token_location;
 
-        if let Some(path) = self.parse_path() {
+        if let Some(path) = self.parse_path_for_named_type() {
             let generics = self.parse_generic_type_args();
             let typ = UnresolvedTypeData::Named(path, generics, false);
             let location = self.location_since(start_location);
@@ -363,9 +375,7 @@ impl Parser<'_> {
         })
     }
 
-    fn expected_type_expression_after_this(
-        &mut self,
-    ) -> Result<UnresolvedTypeExpression, ParserError> {
+    fn expected_type_expression_after_this(&self) -> Result<UnresolvedTypeExpression, ParserError> {
         Err(ParserError::expected_label(
             ParsingRuleLabel::TypeExpression,
             self.token.token().clone(),
@@ -376,8 +386,12 @@ impl Parser<'_> {
 
 fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
     match typ.typ {
-        UnresolvedTypeData::Named(var, generics, _) => {
-            if generics.is_empty() {
+        UnresolvedTypeData::Named(mut var, generics, _) => {
+            // A named type with no named generic arguments can be turned into a Variable type expression
+            if generics.named_args.is_empty() {
+                if !generics.ordered_args.is_empty() {
+                    var.segments.last_mut().unwrap().generics = Some(generics.ordered_args);
+                }
                 Some(UnresolvedTypeExpression::Variable(var))
             } else {
                 None
@@ -390,7 +404,7 @@ fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
 
 fn type_is_type_expr(typ: &UnresolvedType) -> bool {
     match &typ.typ {
-        UnresolvedTypeData::Named(_, generics, _) => generics.is_empty(),
+        UnresolvedTypeData::Named(_, generics, _) => generics.named_args.is_empty(),
         UnresolvedTypeData::Expression(..) => true,
         _ => false,
     }

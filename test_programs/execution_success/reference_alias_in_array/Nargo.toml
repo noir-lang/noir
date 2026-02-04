@@ -1,0 +1,6 @@
+[package]
+name = "reference_alias_in_array"
+type = "bin"
+authors = [""]
+
+[dependencies]

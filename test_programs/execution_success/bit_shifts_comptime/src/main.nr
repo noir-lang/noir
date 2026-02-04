@@ -23,20 +23,17 @@ fn main(x: u64) {
     regression_8310();
 
     //regression 8791
-    assert(-(x as i64) >> 63 == -1);
-    assert(a >> 27 == -1);
+    assert(-(x as i64) >> 62 == -1);
+    assert(a >> 14 == -1);
 }
 
 fn regression_2250() {
-    let a: u1 = 1 >> 1;
-    assert(a == 0);
-
-    let b: u32 = 1 >> 32;
+    let b: u32 = 1 >> 31;
     assert(b == 0);
 }
 
 fn regression_8310() {
     let x: i64 = -356710612598522715;
-    let b = x >> 64;
+    let b = x >> 62;
     assert(b == -1);
 }

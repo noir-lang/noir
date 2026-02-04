@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cannot_determine_slice_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

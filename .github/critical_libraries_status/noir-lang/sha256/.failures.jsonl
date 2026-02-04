@@ -1,0 +1,8 @@
+{"suite":"sha256","name":"sha224::oracle_tests::test_sha224_1"}
+{"suite":"sha256","name":"sha224::oracle_tests::test_sha224_511"}
+{"suite":"sha256","name":"sha224::oracle_tests::test_sha224_512"}
+{"suite":"sha256","name":"sha224::oracle_tests::test_sha224_63"}
+{"suite":"sha256","name":"sha256::oracle_tests::test_sha256_1"}
+{"suite":"sha256","name":"sha256::oracle_tests::test_sha256_511"}
+{"suite":"sha256","name":"sha256::oracle_tests::test_sha256_512"}
+{"suite":"sha256","name":"sha256::oracle_tests::test_sha256_63"}

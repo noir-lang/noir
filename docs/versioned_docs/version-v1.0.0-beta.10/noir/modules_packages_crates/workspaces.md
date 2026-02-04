@@ -1,5 +1,6 @@
 ---
 title: Workspaces
+description: Manage multiple related Noir packages in a single repository with a shared workspace, including members, default-member, and command scoping.
 sidebar_position: 3
 ---
 

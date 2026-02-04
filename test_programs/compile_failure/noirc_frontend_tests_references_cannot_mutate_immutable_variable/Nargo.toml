@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_references_cannot_mutate_immutable_variable"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

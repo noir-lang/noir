@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_no_warning_on_inner_struct_when_parent_is_used"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

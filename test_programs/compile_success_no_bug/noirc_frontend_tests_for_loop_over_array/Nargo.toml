@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_for_loop_over_array"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

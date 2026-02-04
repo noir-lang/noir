@@ -12,17 +12,17 @@ global GLOBAL_THREE: Field = 3;
 
 global GLOBAL_ARRAY_PAIR: [Field; 2] = [1, 2];
 
-global GLOBAL_SLICE_PAIR: [Field] = &[1, 2];
+global GLOBAL_VECTOR_PAIR: [Field] = @[1, 2];
 
 struct Foo {
     field: Field,
     array: [Field; 3],
-    slice: [Field],
+    vector: [Field],
 }
 
 fn main(dynamic_one: Field, dynamic_two: Field) {
     let dynamic_array_pair: [Field; 2] = [dynamic_one, dynamic_two];
-    let dynamic_slice_pair: [Field] = &[dynamic_one, dynamic_two];
+    let dynamic_vector_pair: [Field] = [dynamic_one, dynamic_two].as_vector();
     assert_constant(true);
     assert_constant(false);
     assert_constant(2_Field == 2_Field);
@@ -32,18 +32,19 @@ fn main(dynamic_one: Field, dynamic_two: Field) {
     let local_two: Field = 2_Field;
     let local_three: Field = local_one + local_two;
     let local_array_pair: [Field; 2] = [local_one, local_two];
-    let local_slice_pair: [Field] = &[local_one, local_two];
+    let local_vector_pair: [Field] = [local_one, local_two].as_vector();
     assert_constant(local_one);
     assert_constant(local_three);
     assert_constant(local_array_pair);
-    assert_constant(local_slice_pair);
+    assert_constant(local_vector_pair);
     assert_constant(GLOBAL_ONE);
     assert_constant(GLOBAL_THREE);
     assert_constant(GLOBAL_ARRAY_PAIR);
-    assert_constant(GLOBAL_SLICE_PAIR);
+    assert_constant(GLOBAL_VECTOR_PAIR);
     assert_constant([1_Field, 2_Field, dynamic_one].len() == 4_u32);
     static_assert(dynamic_array_pair.len() == 2_u32, "");
-    static_assert(dynamic_slice_pair.len() == 2_u32, "");
-    let foo: Foo = Foo { field: 0_Field, array: [1_Field, 2_Field, 3_Field], slice: &[] };
+    static_assert(dynamic_vector_pair.len() == 2_u32, "");
+    let foo: Foo =
+        Foo { field: 0_Field, array: [1_Field, 2_Field, 3_Field], vector: [].as_vector() };
     assert_constant(foo);
 }

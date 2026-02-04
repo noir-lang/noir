@@ -127,7 +127,7 @@ impl FullDictionary {
                     _ => panic!("Shouldn't be used with other input value types"),
                 };
                 for character in initial_string.as_bytes().iter() {
-                    full_dictionary.insert(FieldElement::from(*character as i128));
+                    full_dictionary.insert(FieldElement::from(i128::from(*character)));
                 }
             }
             AbiType::Array { length: _, typ } => {
@@ -203,7 +203,7 @@ impl FullDictionary {
     }
 
     /// Update the dictionary with values from a vector of field elements
-    pub fn update_from_vector(&mut self, elements: &[FieldElement]) {
+    pub fn update_from_slice(&mut self, elements: &[FieldElement]) {
         let mut testcase_full_dictionary: HashSet<_> =
             self.field_dictionary.iter().copied().collect();
         testcase_full_dictionary.extend(elements.iter().copied());

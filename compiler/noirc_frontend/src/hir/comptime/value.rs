@@ -1,3 +1,5 @@
+//! Defines the [Value] type, representing a compile-time value, used by the
+//! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
 use im::Vector;
@@ -6,14 +8,15 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    Kind, QuotedType, Shared, Type, TypeBindings,
+    Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
-        UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Literal, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
+        comptime::interpreter::builtin_helpers::fragments_to_string,
         def_collector::dc_crate::CompilationError, def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
@@ -25,15 +28,17 @@ use crate::{
     parser::{Item, Parser},
     shared::Signedness,
     signed_field::SignedField,
-    token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use super::{
     display::tokens_to_string,
     errors::{IResult, InterpreterError},
 };
 
+/// A value representing the result of evaluating a Noir expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Unit,
@@ -50,12 +55,12 @@ pub enum Value {
     U64(u64),
     U128(u128),
     String(Rc<String>),
-    FormatString(Rc<String>, Type),
+    FormatString(Rc<Vec<FormatStringFragment>>, Type, u32 /* length */),
     CtString(Rc<String>),
     Function(FuncId, Type, Rc<TypeBindings>),
 
-    // Closures also store their original scope (function & module)
-    // in case they use functions such as `Quoted::as_type` which require them.
+    /// Closures also store their original scope (function & module)
+    /// in case they use functions such as `Quoted::as_type` which require them.
     Closure(Box<Closure>),
 
     /// Tuple elements are automatically shared to support projection into a tuple:
@@ -69,7 +74,7 @@ pub enum Value {
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
-    Slice(Vector<Value>, Type),
+    Vector(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
     TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
@@ -84,7 +89,13 @@ pub enum Value {
     UnresolvedType(UnresolvedTypeData),
 }
 
-pub type StructFields = HashMap<Rc<String>, Shared<Value>>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormatStringFragment {
+    String(String),
+    Value { name: String, value: Value },
+}
+
+pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -93,6 +104,10 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
+    /// The type bindings where the closure was created.
+    /// This is needed because when the closure is interpreted, those type bindings
+    /// need to be restored.
+    pub bindings: HashMap<TypeVariable, (Type, Kind)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -127,6 +142,8 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
+    /// Retrieves the type of this value. Types can always be determined from the value,
+    /// in cases where it would be ambiguous, Values store the type directly.
     pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
@@ -145,10 +162,13 @@ impl Value {
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
             }
             Value::String(value) => {
-                let length = Type::Constant(value.len().into(), Kind::u32());
-                Type::String(Box::new(length))
+                let length: u32 = value
+                    .len()
+                    .try_into()
+                    .expect("ICE: Value::get_type: value.len() is expected to fit into a u32");
+                Type::String(Box::new(length.into()))
             }
-            Value::FormatString(_, typ) => return Cow::Borrowed(typ),
+            Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
@@ -157,7 +177,7 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
-            Value::Slice(_, typ) => return Cow::Borrowed(typ),
+            Value::Vector(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
             Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element, auto_deref, mutable) => {
@@ -182,6 +202,11 @@ impl Value {
         })
     }
 
+    /// Lowers this value into a runtime expression.
+    ///
+    /// For literals this is often simple, e.g. `Value::I8(3)` translates to `3`, but not
+    /// all values are valid to lower. Lowering quoted code will simply return the quoted code (after
+    /// parsing), this is how macros are implemented.
     pub(crate) fn into_expression(
         self,
         elaborator: &mut Elaborator,
@@ -214,11 +239,11 @@ impl Value {
                 Some(IntegerTypeSuffix::U1),
             )),
             Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedField::positive(u128::from(value)),
                 Some(IntegerTypeSuffix::U8),
             )),
             Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedField::positive(u128::from(value)),
                 Some(IntegerTypeSuffix::U16),
             )),
             Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
@@ -233,20 +258,105 @@ impl Value {
                 SignedField::positive(value),
                 Some(IntegerTypeSuffix::U128),
             )),
-            Value::String(value) | Value::CtString(value) => {
-                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::CtString(value) => {
+                // Lower to `std::meta::AsCtString::as_ctstring(contents)`
+                let ident = |name: &str| Ident::new(name.to_string(), location);
+                let segment = |name: &str| PathSegment::from(ident(name));
+                let path = |segments| Path {
+                    segments,
+                    location,
+                    kind: PathKind::Plain,
+                    kind_location: location,
+                };
+                let call = |path, arguments| {
+                    ExpressionKind::Call(Box::new(CallExpression {
+                        func: Box::new(Expression {
+                            kind: ExpressionKind::Variable(path),
+                            location,
+                        }),
+                        arguments,
+                        is_macro_call: false,
+                    }))
+                };
+                let as_ctstring = path(vec![
+                    segment("std"),
+                    segment("meta"),
+                    segment("ctstring"),
+                    segment("AsCtString"),
+                    segment("as_ctstring"),
+                ]);
+                let contents = Literal::Str(unwrap_rc(value));
+                let contents = Expression { kind: ExpressionKind::Literal(contents), location };
+                call(as_ctstring, vec![contents])
             }
-            // Format strings are lowered as normal strings since they are already interpolated.
-            Value::FormatString(value, _) => {
-                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            Value::FormatString(fragments, _, length) => {
+                // When turning a format string into an expression we could either:
+                // 1. Create a single string literal with all interpolations resolved
+                // 2. Create a format string literal
+                // The problem with 1 is that the type of the value ends up being different
+                // than the type of the value itself (a `fmtstr` in this case, which is also what
+                // `get_type` returns).
+                // In order to implement 2, and to preserve the type, we need to create
+                // a format string with interpolated values. These values are referenced by
+                // name, so we end up returning a block with `let` statements with names
+                // that reference those values, with a final format string as the resulting
+                // block expression.
+                let mut statements = Vec::new();
+                let mut new_fragments = Vec::with_capacity(fragments.len());
+                let mut has_values = false;
+                let mut seen_names: HashSet<String> = HashSet::default();
+                for fragment in fragments.iter() {
+                    let new_fragment = match fragment {
+                        FormatStringFragment::String(string) => {
+                            FmtStrFragment::String(string.clone())
+                        }
+                        FormatStringFragment::Value { name, value } => {
+                            // A name might be interpolated multiple times. In that case it will always
+                            // have the same value: we just need one `let` for it.
+                            if !seen_names.insert(name.clone()) {
+                                continue;
+                            }
+
+                            has_values = true;
+
+                            let expression = value.clone().into_expression(elaborator, location)?;
+                            let let_statement = LetStatement {
+                                pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
+                                r#type: None,
+                                expression,
+                                attributes: Vec::new(),
+                                comptime: false,
+                                is_global_let: false,
+                            };
+                            let statement =
+                                Statement { kind: StatementKind::Let(let_statement), location };
+                            statements.push(statement);
+                            FmtStrFragment::Interpolation(name.clone(), location)
+                        }
+                    };
+                    new_fragments.push(new_fragment);
+                }
+                let fmtstr = ExpressionKind::Literal(Literal::FmtStr(new_fragments, length));
+                if has_values {
+                    statements.push(Statement {
+                        kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
+                        location,
+                    });
+                    ExpressionKind::Block(BlockExpression { statements })
+                } else {
+                    fmtstr
+                }
             }
             Value::Function(id, typ, bindings) => {
                 let id = elaborator.interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, None));
-                elaborator.interner.push_expr_location(expr_id, location);
-                elaborator.interner.push_expr_type(expr_id, typ);
+                let expr_id = elaborator.interner.push_expr_full(
+                    HirExpression::Ident(ident, None),
+                    location,
+                    typ,
+                );
                 elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
@@ -276,7 +386,7 @@ impl Value {
                 ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
             }
             value @ Value::Enum(..) => {
-                let hir = value.into_hir_expression(elaborator.interner, location)?;
+                let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
                 ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
@@ -284,10 +394,10 @@ impl Value {
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, _) => {
+            Value::Vector(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -308,7 +418,10 @@ impl Value {
                         Ok(expr)
                     }
                     Err(errors) => {
-                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = errors
+                            .into_iter()
+                            .find(|error| !error.is_warning())
+                            .expect("there is at least one error");
                         let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
@@ -361,13 +474,16 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
-    pub(crate) fn into_hir_expression(
+    /// Lowers this compile-time value into a HIR expression to be used at runtime.
+    /// This means that comptime-only types will panic.
+    /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
+    /// where code must already be in HIR.
+    pub(crate) fn into_runtime_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,
     ) -> IResult<ExprId> {
         let typ = self.get_type().into_owned();
-
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
@@ -387,12 +503,12 @@ impl Value {
             Value::U1(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
+            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
+                u128::from(value),
+            ))),
+            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(
+                SignedField::positive(u128::from(value)),
+            )),
             Value::U32(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
@@ -402,32 +518,45 @@ impl Value {
             Value::U128(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::String(value) | Value::CtString(value) => {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
-            }
-            // Format strings are lowered as normal strings since they are already interpolated.
-            Value::FormatString(value, _) => {
-                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::FormatString(fragments, _typ, length) => {
+                let mut captures = Vec::new();
+                let mut new_fragments = Vec::with_capacity(fragments.len());
+                for fragment in fragments.iter() {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            new_fragments.push(FmtStrFragment::String(string.clone()));
+                        }
+                        FormatStringFragment::Value { name, value } => {
+                            let expr_id =
+                                value.clone().into_runtime_hir_expression(interner, location)?;
+                            captures.push(expr_id);
+                            new_fragments
+                                .push(FmtStrFragment::Interpolation(name.clone(), location));
+                        }
+                    }
+                }
+                HirExpression::Literal(HirLiteral::FmtStr(new_fragments, captures, length))
             }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
-                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
-                interner.push_expr_location(expr_id, location);
-                interner.push_expr_type(expr_id, typ);
+                let expr_id =
+                    interner.push_expr_full(HirExpression::Ident(ident, None), location, typ);
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
             }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| {
-                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                    field.unwrap_or_clone().into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_hir_expression(interner, location)?;
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -450,7 +579,7 @@ impl Value {
                 };
 
                 let arguments =
-                    try_vecmap(args, |arg| arg.into_hir_expression(interner, location))?;
+                    try_vecmap(args, |arg| arg.into_runtime_hir_expression(interner, location))?;
 
                 HirExpression::EnumConstructor(HirEnumConstructorExpression {
                     r#type,
@@ -460,25 +589,25 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
-            Value::Slice(elements, _) => {
+            Value::Vector(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, location)
                 })?;
-                HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
+                HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
-            Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
-            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
+            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
             Value::Pointer(element, true, _) => {
-                return element.unwrap_or_clone().into_hir_expression(interner, location);
+                return element.unwrap_or_clone().into_runtime_hir_expression(interner, location);
             }
-            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
-            Value::TypedExpr(TypedExpr::StmtId(..))
+            Value::CtString(..)
+            | Value::Quoted(..)
+            | Value::TypedExpr(..)
             | Value::Expr(..)
             | Value::Pointer(..)
             | Value::TypeDefinition(_)
@@ -496,12 +625,14 @@ impl Value {
             }
         };
 
-        let id = interner.push_expr(expression);
-        interner.push_expr_location(id, location);
-        interner.push_expr_type(id, typ);
+        let id = interner.push_expr_full(expression, location, typ);
         Ok(id)
     }
 
+    /// Attempt to convert this value into a Vec of tokens representing this value if it appeared
+    /// in source code. For example, `Value::Unit` is `vec!['(', ')']`. This is used for splicing
+    /// values into quoted values when `$` is used within a `quote {  }` expression. Since `Quoted`
+    /// code is represented as tokens, we need to convert the value into tokens.
     pub(crate) fn into_tokens(
         self,
         interner: &mut NodeInterner,
@@ -540,46 +671,74 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) => vec![Token::Bool(bool)],
-            Value::U1(bool) => vec![Token::Int((bool as u128).into(), None)],
+            Value::U1(bool) => {
+                vec![Token::Int(u128::from(bool).into(), Some(IntegerTypeSuffix::U1))]
+            }
             Value::U8(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U8))]
             }
             Value::U16(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U16))]
             }
             Value::U32(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U32))]
             }
             Value::U64(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U64))]
             }
-            Value::U128(value) => vec![Token::Int(value.into(), None)],
+            Value::U128(value) => {
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U128))]
+            }
             Value::I8(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I8),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I8))]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I16),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I16))]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I32),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I32))]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(
+                            u128::from(value.unsigned_abs()).into(),
+                            Some(IntegerTypeSuffix::I64),
+                        ),
+                    ]
                 } else {
-                    vec![Token::Int((value as u128).into(), None)]
+                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I64))]
                 }
             }
             Value::Field(value) => {
@@ -589,7 +748,17 @@ impl Value {
                     vec![Token::Int(value.absolute_value(), None)]
                 }
             }
-            other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
+            Value::String(value) | Value::CtString(value) => {
+                vec![Token::Str(unwrap_rc(value))]
+            }
+            Value::FormatString(fragments, _, _) => {
+                // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
+                let string = fragments_to_string(&fragments, interner);
+                vec![Token::Str(string)]
+            }
+            other => {
+                vec![Token::UnquoteMarker(other.into_runtime_hir_expression(interner, location)?)]
+            }
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         Ok(tokens)
@@ -614,6 +783,24 @@ impl Value {
         )
     }
 
+    pub(crate) fn is_zero(&self) -> bool {
+        use Value::*;
+        match self {
+            Field(value) => value.is_zero(),
+            I8(value) => *value == 0,
+            I16(value) => *value == 0,
+            I32(value) => *value == 0,
+            I64(value) => *value == 0,
+            U1(value) => !*value,
+            U8(value) => *value == 0,
+            U16(value) => *value == 0,
+            U32(value) => *value == 0,
+            U64(value) => *value == 0,
+            U128(value) => *value == 0,
+            _ => false,
+        }
+    }
+
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
             Value::Function(..) => true,
@@ -621,7 +808,7 @@ impl Value {
             Value::Array(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Slice(values, _) => {
+            Value::Vector(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Tuple(values) => {
@@ -648,7 +835,7 @@ impl Value {
             | Value::U64(_)
             | Value::U128(_)
             | Value::String(_)
-            | Value::FormatString(_, _)
+            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)
@@ -666,25 +853,36 @@ impl Value {
     }
 
     /// Converts any integral `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s.
+    /// Returns `None` for non-integral `Value`s and negative numbers.
+    pub(crate) fn to_non_negative_signed_field(&self) -> Option<SignedField> {
+        let value = self.to_signed_field()?;
+        value.is_positive().then_some(value)
+    }
+
+    /// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s
     pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
         match self {
-            Self::Field(value) => Some(*value),
-
-            Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U1(value) => Some(if *value { SignedField::one() } else { SignedField::zero() }),
-            Self::U8(value) => Some((*value as u128).into()),
-            Self::U16(value) => Some((*value as u128).into()),
-            Self::U32(value) => Some((*value as u128).into()),
-            Self::U64(value) => Some((*value as u128).into()),
-            Self::U128(value) => Some((*value).into()),
+            Value::Field(value) => Some(value.into()),
+            Value::I8(value) => Some(value.into()),
+            Value::I16(value) => Some(value.into()),
+            Value::I32(value) => Some(value.into()),
+            Value::I64(value) => Some(value.into()),
+            Value::U1(value) => Some(value.into()),
+            Value::U8(value) => Some(value.into()),
+            Value::U16(value) => Some(value.into()),
+            Value::U32(value) => Some(value.into()),
+            Value::U64(value) => Some(value.into()),
+            Value::U128(value) => Some(value.into()),
             _ => None,
         }
     }
 
+    /// Similar to [Self::into_expression] or [Self::into_runtime_hir_expression] but for converting
+    /// into top-level item(s). Unlike those other methods, most expressions are invalid
+    /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
+    /// this method is significantly simpler because we only have to parse `Quoted` values
+    /// into top level items.
     pub(crate) fn into_top_level_items(
         self,
         location: Location,
@@ -715,6 +913,10 @@ impl Value {
 
     /// Structs and tuples store references to their fields internally which need to be manually
     /// changed when moving them.
+    ///
+    /// All references are shared by default but when we have `let mut foo = Struct { .. }` in
+    /// code, we don't want moving it: `let mut bar = foo;` to refer to the same references.
+    /// This function will copy them so that mutating the fields of `foo` will not mutate `bar`.
     pub(crate) fn move_struct(self) -> Value {
         match self {
             Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
@@ -736,6 +938,9 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
+/// Helper to parse the given tokens using the given parse function.
+///
+/// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
 fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,

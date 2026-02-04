@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(y: Field) -> pub Field {
-    let x: Field = 1_Field;
-    let closure: fn[(Field,)]() -> Field = || -> Field x;
-    closure()
-}

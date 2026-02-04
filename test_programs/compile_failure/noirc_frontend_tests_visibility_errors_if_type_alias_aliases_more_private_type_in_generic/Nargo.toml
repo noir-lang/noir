@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_errors_if_type_alias_aliases_more_private_type_in_generic"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

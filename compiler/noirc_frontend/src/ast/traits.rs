@@ -7,7 +7,6 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
-use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
 use super::{
@@ -47,7 +46,7 @@ pub enum TraitItem {
     },
     Constant {
         name: Ident,
-        typ: UnresolvedType,
+        typ: Option<UnresolvedType>,
     },
     Type {
         name: Ident,
@@ -100,7 +99,6 @@ pub struct UnresolvedTraitConstraint {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TraitBound {
     pub trait_path: Path,
-    pub trait_id: Option<TraitId>, // initially None, gets assigned during DC
     pub trait_generics: GenericTypeArgs,
 }
 
@@ -113,8 +111,8 @@ pub struct TraitImplItem {
 #[derive(Clone, Debug)]
 pub enum TraitImplItemKind {
     Function(NoirFunction),
-    Constant(Ident, UnresolvedType, Expression),
-    Type { name: Ident, alias: UnresolvedType },
+    Constant(Ident, Option<UnresolvedType>, Expression),
+    Type { name: Ident, alias: Option<UnresolvedType> },
 }
 
 impl Display for TypeImpl {
@@ -199,7 +197,7 @@ impl Display for TraitItem {
                 let visibility = if *visibility == ItemVisibility::Private {
                     "".to_string()
                 } else {
-                    visibility.to_string()
+                    format!("{visibility} ")
                 };
                 let is_comptime = if *is_comptime { "comptime " } else { "" };
 
@@ -210,7 +208,13 @@ impl Display for TraitItem {
 
                 if let Some(body) = body { write!(f, "{body}") } else { write!(f, ";") }
             }
-            TraitItem::Constant { name, typ } => write!(f, "let {name}: {typ};"),
+            TraitItem::Constant { name, typ } => {
+                if let Some(typ) = typ {
+                    write!(f, "let {name}: {typ};")
+                } else {
+                    write!(f, "let {name};")
+                }
+            }
             TraitItem::Type { name, bounds } => {
                 if bounds.is_empty() {
                     write!(f, "type {name};")
@@ -282,9 +286,19 @@ impl Display for TraitImplItemKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TraitImplItemKind::Function(function) => function.fmt(f),
-            TraitImplItemKind::Type { name, alias } => write!(f, "type {name} = {alias};"),
+            TraitImplItemKind::Type { name, alias } => {
+                if let Some(alias) = alias {
+                    write!(f, "type {name} = {alias};")
+                } else {
+                    write!(f, "type {name};")
+                }
+            }
             TraitImplItemKind::Constant(name, typ, value) => {
-                write!(f, "let {name}: {typ} = {value};")
+                if let Some(typ) = typ {
+                    write!(f, "let {name}: {typ} = {value};")
+                } else {
+                    write!(f, "let {name} = {value};")
+                }
             }
         }
     }

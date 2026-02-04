@@ -7,7 +7,6 @@
 //! crate as a dev dependency with the `test_utils` feature activated.
 #![cfg(any(test, feature = "test_utils"))]
 
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
 use crate::elaborator::FrontendOptions;
@@ -27,20 +26,58 @@ use fm::FileManager;
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
-pub fn get_monomorphized_no_emit_test(src: &str) -> Result<Program, MonomorphizationError> {
-    get_monomorphized(src, None, Expect::Success)
+#[derive(Copy, Clone, Debug)]
+pub struct GetProgramOptions<'a> {
+    pub allow_parser_errors: bool,
+    pub allow_elaborator_errors: bool,
+    /// Treats the program snippet as if it was stdlib, which allows the definition of
+    /// low-level (builtin) functions, and standard traits used by prefix/infix operators.
+    pub root_and_stdlib: bool,
+    pub frontend_options: FrontendOptions<'a>,
 }
 
-pub fn get_monomorphized(
-    src: &str,
-    test_path: Option<&str>,
-    expect: Expect,
+impl Default for GetProgramOptions<'_> {
+    fn default() -> Self {
+        Self {
+            allow_parser_errors: false,
+            allow_elaborator_errors: false,
+            root_and_stdlib: false,
+            frontend_options: FrontendOptions::test_default(),
+        }
+    }
+}
+
+/// Compile and monomorphize a program.
+pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
+    get_monomorphized_with_options(src, GetProgramOptions::default())
+}
+
+/// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
+pub fn get_monomorphized_with_stdlib(
+    user_src: &str,
+    stdlib_src: &str,
 ) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program(src, test_path, expect);
-    assert!(
-        errors.iter().all(|err| !err.is_error()),
-        "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
-    );
+    let src = format!("{stdlib_src}\n\n{user_src}");
+    get_monomorphized_with_options(
+        &src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+}
+
+/// Compile and monomorphize a program.
+pub fn get_monomorphized_with_options(
+    src: &str,
+    options: GetProgramOptions,
+) -> Result<Program, MonomorphizationError> {
+    let (_parsed_module, mut context, errors) = get_program_with_options(src, options);
+
+    let only_warnings = errors.iter().all(|err| !err.is_error());
+    let has_defs = !context.def_maps.is_empty();
+    if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
+        panic!(
+            "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
+        )
+    }
 
     let main = context
         .get_main_function(context.root_crate_id())
@@ -62,19 +99,11 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
     });
 }
 
-pub(crate) fn get_program<'a, 'b>(
-    src: &'a str,
-    test_path: Option<&'b str>,
-    expect: Expect,
-) -> (ParsedModule, Context<'a, 'b>, Vec<CompilationError>) {
-    let allow_parser_errors = false;
-    get_program_with_options(
-        src,
-        test_path,
-        expect,
-        allow_parser_errors,
-        FrontendOptions::test_default(),
-    )
+/// Compile a program.
+///
+/// The stdlib is not available for these snippets.
+pub fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
+    get_program_with_options(src, GetProgramOptions::default())
 }
 
 pub enum Expect {
@@ -85,31 +114,30 @@ pub enum Expect {
 
 /// Compile a program.
 ///
-/// The stdlib is not available for these snippets.
-///
-/// An optional test path is supplied as an argument.
-/// The existence of a test path indicates that we want to emit integration tests
-/// for the supplied program as well.
+/// The stdlib is not available for these snippets, but using the `root_and_stdlib`
+/// option allows the inclusion of trait definitions that are considered for prefix/infix
+/// operators by the compiler, as well as defining low-level builtin functions.
 pub(crate) fn get_program_with_options(
     src: &str,
-    test_path: Option<&str>,
-    expect: Expect,
-    allow_parser_errors: bool,
-    options: FrontendOptions,
+    options: GetProgramOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
-    let root = std::path::Path::new("/");
+    let root = Path::new("/");
     let mut fm = FileManager::new(root);
     let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
     let mut context = Context::new(fm, Default::default());
 
     context.def_interner.populate_dummy_operator_traits();
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    let root_crate_id = if options.root_and_stdlib {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    } else {
+        context.crate_graph.add_crate_root(root_file_id)
+    };
 
     let (program, parser_errors) = parse_program(src, root_file_id);
     let mut errors = vecmap(parser_errors, |e| e.into());
     remove_experimental_warnings(&mut errors);
 
-    if allow_parser_errors || !has_parser_error(&errors) {
+    if options.allow_parser_errors || !has_parser_error(&errors) {
         let inner_attributes: Vec<SecondaryAttribute> = program
             .items
             .iter()
@@ -124,6 +152,7 @@ pub(crate) fn get_program_with_options(
 
         let location = Location::new(Default::default(), root_file_id);
         let root_module = ModuleData::new(
+            None,
             None,
             location,
             Vec::new(),
@@ -140,161 +169,106 @@ pub(crate) fn get_program_with_options(
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            options,
+            options.frontend_options,
         ));
-    }
-
-    if let Some(test_path) = test_path {
-        emit_compile_test(test_path, src, expect);
     }
 
     (program, context, errors)
 }
 
-// if the "nextest" feature is enabled, this will panic instead of emitting a test crate
-fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
-    let package_name = test_path.replace("::", "_");
-    let skipped_tests = [
-        // skip ~2.4k name_shadowing tests
-        "name_shadowing_",
-        // TODO(https://github.com/noir-lang/noir/issues/7763)
-        "unconditional_recursion_fail_",
-        "unconditional_recursion_pass_",
-        // TODO(https://github.com/noir-lang/noir/issues/7783): array type fails to resolve when
-        // compiled
-        "traits_calls_trait_method_using_struct_name_when_multiple_impls_exist",
-        // TODO(https://github.com/noir-lang/noir/issues/7766): trait generic that passes
-        // frontend test fails to resolve with nargo
-        "turbofish_numeric_generic_nested_",
-    ];
-    if skipped_tests.iter().any(|skipped_test_name| package_name.contains(skipped_test_name)) {
-        return;
-    }
+/// These snippets can be used in conjunction with `get_program_with_stdlib`.
+pub mod stdlib_src {
+    pub const ZEROED: &str = "
+        #[builtin(zeroed)]
+        pub fn zeroed<T>() -> T {}
+    ";
 
-    // in these cases, we expect a warning when 'check_errors' or similar is used
-    let error_to_warn_cases = [
-        "cast_256_to_u8_size_checks",
-        "enums_errors_on_unspecified_unstable_enum",
-        "metaprogramming_does_not_fail_to_parse_macro_on_parser_warning",
-        "resolve_unused_var",
-        "struct_array_len",
-        "unused_items_errors_on_unused_private_import",
-        "unused_items_errors_on_unused_pub_crate_import",
-        "unused_items_errors_on_unused_struct",
-        "unused_items_errors_on_unused_trait",
-        "unused_items_errors_on_unused_type_alias",
-        "unused_items_warns_on_unused_global",
-        "warns_on_nested_unsafe",
-        "warns_on_unneeded_unsafe",
-        // TODO(https://github.com/noir-lang/noir/issues/7795): these will be hard errors
-        "indexing_array_with_non_u32_on_lvalue_produces_a_warning",
-        "indexing_array_with_non_u32_produces_a_warning",
-    ];
-    if let Expect::Error = expect {
-        if error_to_warn_cases
-            .iter()
-            .any(|error_to_warn_case| package_name.contains(error_to_warn_case))
-        {
-            expect = Expect::Success;
+    pub const EQ: &str = "
+        pub trait Eq {
+            fn eq(self, other: Self) -> bool;
         }
-    }
+    ";
 
-    let error_to_bug_cases = [
-        "cast_negative_one_to_u8_size_checks",
-        "disallows_composing_numeric_type_aliases",
-        "disallows_numeric_type_aliases_to_expression_with_alias",
-        "disallows_numeric_type_aliases_to_expression_with_alias_2",
-        "disallows_numeric_type_aliases_to_type",
-    ];
-    if let Expect::Success = expect {
-        if error_to_bug_cases
-            .iter()
-            .any(|error_to_bug_case| package_name.contains(error_to_bug_case))
-        {
-            expect = Expect::Bug;
-        }
-    }
+    pub const ORD: &str = "
+        mod cmp {
+            use super::Eq;
 
-    // "compiler/noirc_frontend"
-    let noirc_frontend_path = Path::new(std::env!("CARGO_MANIFEST_DIR"));
-    let noir_root_path = noirc_frontend_path
-        .parent()
-        .expect("expected 'noirc_frontend' to be in 'compiler'")
-        .parent()
-        .expect("expected 'compiler' to be in the noir root");
-    let test_programs_path = noir_root_path.join("test_programs");
-
-    let tests_dir_name = match expect {
-        Expect::Bug => "compile_success_with_bug",
-        Expect::Success => "compile_success_no_bug",
-        Expect::Error => "compile_failure",
-    };
-    let tests_dir = test_programs_path.join(tests_dir_name);
-    let crate_path = tests_dir.join(&package_name);
-    let nargo_toml_path = crate_path.join("Nargo.toml");
-    let src_hash_path = crate_path.join("src_hash.txt");
-    let src_path = crate_path.join("src");
-    let main_nr_path = src_path.join("main.nr");
-
-    // hash `src`
-    let mut hasher = DefaultHasher::new();
-    src.hash(&mut hasher);
-    let new_hash = hasher.finish().to_string();
-
-    if crate_path.is_dir() && src_hash_path.is_file() {
-        let current_hash =
-            std::fs::read_to_string(&src_hash_path).expect("Unable to read src_hash.txt");
-        // if out of date, update main.nr and hash file
-        if current_hash != new_hash {
-            if cfg!(feature = "nextest") {
-                panic!(
-                    "test generated from frontend unit test {test_path} is out of date: run `cargo test` to update"
-                );
+            // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
+            // that has 3 public functions for constructing the struct.
+            pub struct Ordering {
+                result: Field,
             }
-            std::fs::write(main_nr_path, src).expect("Unable to write test file");
-            std::fs::write(src_hash_path, new_hash).expect("Unable to write src_hash.txt file");
+
+            impl Ordering {
+                // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
+                // into the compiler, do not change these without also updating
+                // the compiler itself!
+                pub fn less() -> Ordering {
+                    Ordering { result: 0 }
+                }
+
+                pub fn equal() -> Ordering {
+                    Ordering { result: 1 }
+                }
+
+                pub fn greater() -> Ordering {
+                    Ordering { result: 2 }
+                }
+            }
+
+            pub trait Ord {
+                fn cmp(self, other: Self) -> Ordering;
+            }
+
+            impl Eq for Ordering {
+                fn eq(self, other: Ordering) -> bool {
+                    self.result == other.result
+                }
+            }
         }
-    } else {
-        if cfg!(feature = "nextest") {
-            panic!(
-                "new test generated from frontend unit test {test_path}: run `cargo test` to generate"
-            );
+    ";
+
+    pub const NEG: &str = "
+        pub trait Neg {
+            fn neg(self) -> Self;
         }
+    ";
 
-        // create missing dir's
-        std::fs::create_dir_all(&crate_path).unwrap_or_else(|_| {
-            panic!("expected to be able to create the directory {}", crate_path.display())
-        });
-        std::fs::create_dir_all(&src_path).unwrap_or_else(|_| {
-            panic!("expected to be able to create the directory {}", src_path.display())
-        });
+    pub const ARRAY_LEN: &str = "
+        impl<T, let N: u32> [T; N] {
+            #[builtin(array_len)]
+            pub fn len(self) -> u32 {}
+        }
+    ";
 
-        let package_type = "bin"; // nargo::package::PackageType::Binary;
-        let toml_contents = format!(
-            r#"
-            [package]
-            name = "{package_name}"
-            type = "{package_type}"
-            authors = [""]
-            
-            [dependencies]"#
-        );
+    pub const CHECKED_TRANSMUTE: &str = "
+        #[builtin(checked_transmute)]
+        pub fn checked_transmute<T, U>(value: T) -> U {}
+    ";
 
-        std::fs::write(&nargo_toml_path, toml_contents).unwrap_or_else(|_| {
-            panic!("Unable to write Nargo.toml to {}", nargo_toml_path.display())
-        });
-        std::fs::write(&main_nr_path, src)
-            .unwrap_or_else(|_| panic!("Unable to write test file to {}", main_nr_path.display()));
-        std::fs::write(&src_hash_path, new_hash).unwrap_or_else(|_| {
-            panic!("Unable to write src_hash.txt file to {}", src_hash_path.display())
-        });
-    }
-}
+    // Note that in the stdlib these are all comptime functions, which I thought meant
+    // that the comptime interpreter was used to evaluate them, however they do seem to
+    // hit the `try_evaluate_call::try_evaluate_call`.
+    // To make sure they are handled here, I removed the `comptime` for these tests.
+    pub const MODULUS: &str = "
+        #[builtin(modulus_num_bits)]
+        pub fn modulus_num_bits() -> u64 {}
 
-// NOTE: this will fail in CI when called twice within one test: test names must be unique
-#[macro_export]
-macro_rules! function_path {
-    () => {
-        std::concat!(std::module_path!(), "::", function_name!(),)
-    };
+        #[builtin(modulus_be_bits)]
+        pub fn modulus_be_bits() -> [u1] {}
+
+        #[builtin(modulus_le_bits)]
+        pub fn modulus_le_bits() -> [u1] {}
+
+        #[builtin(modulus_be_bytes)]
+        pub fn modulus_be_bytes() -> [u8] {}
+
+        #[builtin(modulus_le_bytes)]
+        pub fn modulus_le_bytes() -> [u8] {}
+    ";
+
+    pub const PRINT: &str = "
+        #[oracle(print)]
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+    ";
 }

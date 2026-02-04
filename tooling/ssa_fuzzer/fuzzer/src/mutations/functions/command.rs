@@ -1,11 +1,15 @@
 //! This file contains mechanisms for deterministically mutating a given [FuzzerFunctionCommand](crate::fuzz_lib::function_context::FuzzerFunctionCommand) value
 
 use crate::fuzz_lib::function_context::FuzzerFunctionCommand;
-use crate::mutations::basic_types::usize::mutate_usize;
-use crate::mutations::configuration::{
-    BASIC_INSERT_CYCLE_MUTATION_CONFIGURATION, BASIC_INSERT_FUNCTION_CALL_MUTATION_CONFIGURATION,
-    BASIC_INSERT_JMP_IF_BLOCK_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
-    InsertCycleMutationOptions, InsertFunctionCallMutationOptions, InsertJmpIfBlockMutationOptions,
+use crate::mutations::{
+    basic_types::usize::mutate_usize,
+    configuration::{
+        BASIC_INSERT_CYCLE_MUTATION_CONFIGURATION,
+        BASIC_INSERT_FUNCTION_CALL_MUTATION_CONFIGURATION,
+        BASIC_INSERT_JMP_IF_BLOCK_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
+        InsertCycleMutationOptions, InsertFunctionCallMutationOptions,
+        InsertJmpIfBlockMutationOptions,
+    },
 };
 use rand::Rng;
 use rand::rngs::StdRng;
@@ -38,10 +42,10 @@ pub(crate) fn mutate_fuzzer_function_command(
                     mutate_usize(block_body_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 InsertCycleMutationOptions::StartIter => {
-                    *start_iter = rng.gen_range(u8::MIN..=u8::MAX);
+                    *start_iter = rng.random_range(u8::MIN..=u8::MAX);
                 }
                 InsertCycleMutationOptions::EndIter => {
-                    *end_iter = rng.gen_range(u8::MIN..=u8::MAX);
+                    *end_iter = rng.random_range(u8::MIN..=u8::MAX);
                 }
             }
         }
@@ -51,7 +55,7 @@ pub(crate) fn mutate_fuzzer_function_command(
                     mutate_usize(function_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 InsertFunctionCallMutationOptions::Args => {
-                    let idx = rng.gen_range(0..args.len());
+                    let idx = rng.random_range(0..args.len());
                     mutate_usize(&mut args[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
             }

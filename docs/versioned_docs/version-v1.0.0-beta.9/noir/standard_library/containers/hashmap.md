@@ -1,5 +1,6 @@
 ---
 title: HashMap
+description: A bounded key–value map with fixed capacity and Poseidon-compatible hashing—APIs for insert, get, iteration, and more.
 keywords: [noir, map, hash, hashmap]
 sidebar_position: 1
 ---
@@ -29,7 +30,7 @@ let two = map.get(1).unwrap();
 
 ### default
 
-```rust title="default" showLineNumbers 
+```rust title="default" showLineNumbers
 impl<K, V, let N: u32, B> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher + Default,
@@ -56,7 +57,7 @@ repeated here for convenience since it is the recommended way to create a hashma
 
 Example:
 
-```rust title="default_example" showLineNumbers 
+```rust title="default_example" showLineNumbers
 let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     assert(hashmap.is_empty());
 ```
@@ -66,7 +67,7 @@ let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap
 Because `HashMap` has so many generic arguments that are likely to be the same throughout
 your program, it may be helpful to create a type alias:
 
-```rust title="type_alias" showLineNumbers 
+```rust title="type_alias" showLineNumbers
 type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>;
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/hashmap/src/main.nr#L202-L204" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/hashmap/src/main.nr#L202-L204</a></sub></sup>
@@ -74,7 +75,7 @@ type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>;
 
 ### with_hasher
 
-```rust title="with_hasher" showLineNumbers 
+```rust title="with_hasher" showLineNumbers
 pub fn with_hasher(_build_hasher: B) -> Self
     where
         B: BuildHasher,
@@ -88,7 +89,7 @@ hashmaps are created with the same hasher instance.
 
 Example:
 
-```rust title="with_hasher_example" showLineNumbers 
+```rust title="with_hasher_example" showLineNumbers
 let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
     let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> =
         HashMap::with_hasher(my_hasher);
@@ -99,7 +100,7 @@ let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
 
 ### get
 
-```rust title="get" showLineNumbers 
+```rust title="get" showLineNumbers
 pub fn get(self, key: K) -> Option<V>
     where
         K: Eq + Hash,
@@ -113,7 +114,7 @@ Retrieves a value from the hashmap, returning `Option::none()` if it was not fou
 
 Example:
 
-```rust title="get_example" showLineNumbers 
+```rust title="get_example" showLineNumbers
 fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     let x = map.get(12);
 
@@ -127,7 +128,7 @@ fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>
 
 ### insert
 
-```rust title="insert" showLineNumbers 
+```rust title="insert" showLineNumbers
 pub fn insert(&mut self, key: K, value: V)
     where
         K: Eq + Hash,
@@ -142,7 +143,7 @@ previous value will be overridden with the newly provided one.
 
 Example:
 
-```rust title="insert_example" showLineNumbers 
+```rust title="insert_example" showLineNumbers
 let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     map.insert(12, 42);
     assert(map.len() == 1);
@@ -152,7 +153,7 @@ let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = Has
 
 ### remove
 
-```rust title="remove" showLineNumbers 
+```rust title="remove" showLineNumbers
 pub fn remove(&mut self, key: K)
     where
         K: Eq + Hash,
@@ -167,7 +168,7 @@ in the map, this does nothing.
 
 Example:
 
-```rust title="remove_example" showLineNumbers 
+```rust title="remove_example" showLineNumbers
 map.remove(12);
     assert(map.is_empty());
 
@@ -180,7 +181,7 @@ map.remove(12);
 
 ### is_empty
 
-```rust title="is_empty" showLineNumbers 
+```rust title="is_empty" showLineNumbers
 pub fn is_empty(self) -> bool {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L166-L168" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L166-L168</a></sub></sup>
@@ -190,7 +191,7 @@ True if the length of the hash map is empty.
 
 Example:
 
-```rust title="is_empty_example" showLineNumbers 
+```rust title="is_empty_example" showLineNumbers
 assert(map.is_empty());
 
     map.insert(1, 2);
@@ -204,7 +205,7 @@ assert(map.is_empty());
 
 ### len
 
-```rust title="len" showLineNumbers 
+```rust title="len" showLineNumbers
 pub fn len(self) -> u32 {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L428-L430" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L428-L430</a></sub></sup>
@@ -214,7 +215,7 @@ Returns the current length of this hash map.
 
 Example:
 
-```rust title="len_example" showLineNumbers 
+```rust title="len_example" showLineNumbers
 // This is equivalent to checking map.is_empty()
     assert(map.len() == 0);
 
@@ -235,7 +236,7 @@ Example:
 
 ### capacity
 
-```rust title="capacity" showLineNumbers 
+```rust title="capacity" showLineNumbers
 pub fn capacity(_self: Self) -> u32 {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L450-L452" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L450-L452</a></sub></sup>
@@ -252,7 +253,7 @@ element count will be lower than the full capacity.
 
 Example:
 
-```rust title="capacity_example" showLineNumbers 
+```rust title="capacity_example" showLineNumbers
 let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> =
         HashMap::default();
     assert(empty_map.len() == 0);
@@ -263,7 +264,7 @@ let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> =
 
 ### clear
 
-```rust title="clear" showLineNumbers 
+```rust title="clear" showLineNumbers
 pub fn clear(&mut self) {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L123-L125" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L123-L125</a></sub></sup>
@@ -273,7 +274,7 @@ Clears the hashmap, removing all key-value pairs from it.
 
 Example:
 
-```rust title="clear_example" showLineNumbers 
+```rust title="clear_example" showLineNumbers
 assert(!map.is_empty());
     map.clear();
     assert(map.is_empty());
@@ -283,7 +284,7 @@ assert(!map.is_empty());
 
 ### contains_key
 
-```rust title="contains_key" showLineNumbers 
+```rust title="contains_key" showLineNumbers
 pub fn contains_key(self, key: K) -> bool
     where
         K: Hash + Eq,
@@ -298,7 +299,7 @@ the value associated with the key.
 
 Example:
 
-```rust title="contains_key_example" showLineNumbers 
+```rust title="contains_key_example" showLineNumbers
 if map.contains_key(7) {
         let value = map.get(7);
         assert(value.is_some());
@@ -311,7 +312,7 @@ if map.contains_key(7) {
 
 ### entries
 
-```rust title="entries" showLineNumbers 
+```rust title="entries" showLineNumbers
 pub fn entries(self) -> BoundedVec<(K, V), N> {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L190-L192" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L190-L192</a></sub></sup>
@@ -323,7 +324,7 @@ The length of the returned vector is always equal to the length of the hashmap.
 
 Example:
 
-```rust title="entries_example" showLineNumbers 
+```rust title="entries_example" showLineNumbers
 let entries = map.entries();
 
     // The length of a hashmap may not be compile-time known, so we
@@ -340,7 +341,7 @@ let entries = map.entries();
 
 ### keys
 
-```rust title="keys" showLineNumbers 
+```rust title="keys" showLineNumbers
 pub fn keys(self) -> BoundedVec<K, N> {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L229-L231" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L229-L231</a></sub></sup>
@@ -352,7 +353,7 @@ The length of the returned vector is always equal to the length of the hashmap.
 
 Example:
 
-```rust title="keys_example" showLineNumbers 
+```rust title="keys_example" showLineNumbers
 let keys = map.keys();
 
     for i in 0..keys.max_len() {
@@ -368,7 +369,7 @@ let keys = map.keys();
 
 ### values
 
-```rust title="values" showLineNumbers 
+```rust title="values" showLineNumbers
 pub fn values(self) -> BoundedVec<V, N> {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L266-L268" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L266-L268</a></sub></sup>
@@ -380,7 +381,7 @@ The length of the returned vector is always equal to the length of the hashmap.
 
 Example:
 
-```rust title="values_example" showLineNumbers 
+```rust title="values_example" showLineNumbers
 let values = map.values();
 
     for i in 0..values.max_len() {
@@ -395,7 +396,7 @@ let values = map.values();
 
 ### iter_mut
 
-```rust title="iter_mut" showLineNumbers 
+```rust title="iter_mut" showLineNumbers
 pub fn iter_mut(&mut self, f: fn(K, V) -> (K, V))
     where
         K: Eq + Hash,
@@ -417,7 +418,7 @@ equal, which of the two values that will be present for the key in the resulting
 
 Example:
 
-```rust title="iter_mut_example" showLineNumbers 
+```rust title="iter_mut_example" showLineNumbers
 // Add 1 to each key in the map, and double the value associated with that key.
     map.iter_mut(|k, v| (k + 1, v * 2));
 ```
@@ -426,7 +427,7 @@ Example:
 
 ### iter_keys_mut
 
-```rust title="iter_keys_mut" showLineNumbers 
+```rust title="iter_keys_mut" showLineNumbers
 pub fn iter_keys_mut(&mut self, f: fn(K) -> K)
     where
         K: Eq + Hash,
@@ -448,7 +449,7 @@ equal, which of the two values that will be present for the key in the resulting
 
 Example:
 
-```rust title="iter_keys_mut_example" showLineNumbers 
+```rust title="iter_keys_mut_example" showLineNumbers
 // Double each key, leaving the value associated with that key untouched
     map.iter_keys_mut(|k| k * 2);
 ```
@@ -457,7 +458,7 @@ Example:
 
 ### iter_values_mut
 
-```rust title="iter_values_mut" showLineNumbers 
+```rust title="iter_values_mut" showLineNumbers
 pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L371-L373" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L371-L373</a></sub></sup>
@@ -469,7 +470,7 @@ because the keys are untouched and the underlying hashmap thus does not need to 
 
 Example:
 
-```rust title="iter_values_mut_example" showLineNumbers 
+```rust title="iter_values_mut_example" showLineNumbers
 // Halve each value
     map.iter_values_mut(|v| v / 2);
 ```
@@ -478,7 +479,7 @@ Example:
 
 ### retain
 
-```rust title="retain" showLineNumbers 
+```rust title="retain" showLineNumbers
 pub fn retain(&mut self, f: fn(K, V) -> bool) {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/map.nr#L392-L394" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/map.nr#L392-L394</a></sub></sup>
@@ -489,7 +490,7 @@ Any key-value pairs for which the function returns false will be removed from th
 
 Example:
 
-```rust title="retain_example" showLineNumbers 
+```rust title="retain_example" showLineNumbers
 map.retain(|k, v| (k != 0) & (v != 0));
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/hashmap/src/main.nr#L280-L282" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/hashmap/src/main.nr#L280-L282</a></sub></sup>
@@ -499,7 +500,7 @@ map.retain(|k, v| (k != 0) & (v != 0));
 
 ### default
 
-```rust title="default" showLineNumbers 
+```rust title="default" showLineNumbers
 impl<K, V, let N: u32, B> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher + Default,
@@ -521,7 +522,7 @@ Constructs an empty HashMap.
 
 Example:
 
-```rust title="default_example" showLineNumbers 
+```rust title="default_example" showLineNumbers
 let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     assert(hashmap.is_empty());
 ```
@@ -530,7 +531,7 @@ let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap
 
 ### eq
 
-```rust title="eq" showLineNumbers 
+```rust title="eq" showLineNumbers
 impl<K, V, let N: u32, B> Eq for HashMap<K, V, N, B>
 where
     K: Eq + Hash,
@@ -562,7 +563,7 @@ Checks if two HashMaps are equal.
 
 Example:
 
-```rust title="eq_example" showLineNumbers 
+```rust title="eq_example" showLineNumbers
 let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_uses_self_type_in_trait_where_clause"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -2,11 +2,11 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Could not determine array length `-1`, encountered error: `The value `-1` cannot fit into `numeric u32` which has a minimum size of `0``
+error: Invalid array length
    ┌─ src/main.nr:12:5
    │
 12 │     pop([]);
-   │     ---
+   │     --- The value `-1` cannot fit into `u32` which has a minimum size of `0`
    │
 
 Aborting due to 1 previous error

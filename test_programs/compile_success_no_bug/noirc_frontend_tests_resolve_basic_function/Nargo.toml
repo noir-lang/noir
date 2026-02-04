@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_resolve_basic_function"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -7,40 +7,215 @@ fn main() {
     let mut xref: &mut Field = &mut x;
     increment(xref);
     assert(*xref == 101_Field);
+    let mut x_three_refs: &mut &mut &mut Field = &mut &mut &mut x;
+    increment_deeper_ref(x_three_refs);
+    assert(***x_three_refs == 102_Field);
     regression_2445();
+    regression_2445_deeper_ref();
+    struct_alias_in_array();
     single_alias_inside_loop();
+    deeper_ref_in_loop();
+    struct_alias_in_loop();
+    struct_multi_field_alias();
+    struct_multi_field_alias_in_loop();
+    struct_multi_field_different_aliases();
+    struct_multi_field_different_aliases_in_loop();
+    nested_struct_aliases();
+    nested_struct_multi_field_different_aliases_in_loop();
+    nested_struct_aliases_in_array();
     assert(5_Field == struct_field_refs_across_blocks(MyStruct { a: 5_Field, b: 10_u32 })[0_u32]);
 }
 
 fn increment(mut r: &mut Field) {
-    *(r) = *r + 1_Field;
+    *r = *r + 1_Field;
+}
+
+fn increment_deeper_ref(mut r: &mut &mut &mut Field) {
+    ***r = ***r + 1_Field;
 }
 
 fn regression_2445() {
     let mut var: Field = 0_Field;
     let ref: &mut &mut Field = &mut &mut var;
     let mut array: [&mut &mut Field; 2] = [ref, ref];
-    *(*(array[0_u32])) = 1_Field;
-    *(*(array[1_u32])) = 2_Field;
+    **array[0_u32] = 1_Field;
+    **array[1_u32] = 2_Field;
     assert(var == 2_Field);
     assert(**ref == 2_Field);
     assert(**array[0_u32] == 2_Field);
     assert(**array[1_u32] == 2_Field);
 }
 
+fn regression_2445_deeper_ref() {
+    let mut var: Field = 0_Field;
+    let ref: &mut &mut &mut Field = &mut &mut &mut var;
+    let mut array: [&mut &mut &mut Field; 2] = [ref, ref];
+    ***array[0_u32] = 1_Field;
+    ***array[1_u32] = 2_Field;
+    assert(var == 2_Field);
+    assert(***ref == 2_Field);
+    assert(***array[0_u32] == 2_Field);
+    assert(***array[1_u32] == 2_Field);
+}
+
+struct Foo {
+    inner: u32,
+}
+
+fn struct_alias_in_array() {
+    let mut var: Foo = Foo { inner: 0_u32 };
+    let ref: &mut &mut Foo = &mut &mut var;
+    let mut array: [&mut &mut Foo; 2] = [ref, ref];
+    assert((**array[0_u32]).inner == 0_u32);
+    (**array[0_u32]).inner = 1_u32;
+    (**array[1_u32]).inner = 2_u32;
+    assert(var.inner == 2_u32);
+    assert((**ref).inner == 2_u32);
+    assert((**array[0_u32]).inner == 2_u32);
+    assert((**array[1_u32]).inner == 2_u32);
+}
+
 fn single_alias_inside_loop() {
     let mut var: Field = 0_Field;
     let ref: &mut &mut Field = &mut &mut var;
     for _ in 0_u32..1_u32 {
-        *(*(ref)) = 2_Field;
+        **ref = 2_Field;
     }
     assert(var == 2_Field);
     assert(**ref == 2_Field);
 }
 
+fn deeper_ref_in_loop() {
+    let mut var: Field = 0_Field;
+    let ref: &mut &mut &mut Field = &mut &mut &mut var;
+    for _ in 0_u32..1_u32 {
+        ***ref = 2_Field;
+    }
+    assert(var == 2_Field);
+    assert(***ref == 2_Field);
+}
+
+fn struct_alias_in_loop() {
+    let mut var: Foo = Foo { inner: 0_u32 };
+    let ref: &mut &mut Foo = &mut &mut var;
+    for _ in 0_u32..1_u32 {
+        (**ref).inner = 1_u32;
+        (**ref).inner = 2_u32;
+    }
+    assert(var.inner == 2_u32);
+    assert((**ref).inner == 2_u32);
+}
+
 struct MyStruct {
     a: Field,
     b: u32,
+}
+
+fn struct_multi_field_alias() {
+    let mut var: MyStruct = MyStruct { a: 0_Field, b: 10_u32 };
+    let ref: &mut &mut MyStruct = &mut &mut var;
+    (**ref).a = 1_Field;
+    (**ref).b = 20_u32;
+    assert(var.a == 1_Field);
+    assert(var.b == 20_u32);
+    assert((**ref).a == 1_Field);
+    assert((**ref).b == 20_u32);
+}
+
+fn struct_multi_field_alias_in_loop() {
+    let mut var: MyStruct = MyStruct { a: 0_Field, b: 0_u32 };
+    let ref: &mut &mut MyStruct = &mut &mut var;
+    for _ in 0_u32..1_u32 {
+        (**ref).a = (**ref).a + 1_Field;
+        (**ref).b = (**ref).b + 2_u32;
+    }
+    assert(var.a == 1_Field);
+    assert(var.b == 2_u32);
+    assert((**ref).a == 1_Field);
+    assert((**ref).b == 2_u32);
+}
+
+fn struct_multi_field_different_aliases_in_loop() {
+    let mut var: MyStruct = MyStruct { a: 0_Field, b: 0_u32 };
+    let ref_a: &mut MyStruct = &mut var;
+    let ref_b: &mut MyStruct = &mut var;
+    for _ in 0_u32..3_u32 {
+        (*ref_a).a = (*ref_a).a + 2_Field;
+        (*ref_b).a = (*ref_b).a + 3_Field;
+        (*ref_a).b = (*ref_a).b + 1_u32;
+        (*ref_b).b = (*ref_b).b + 2_u32;
+    }
+    assert(var.a == 15_Field);
+    assert(var.b == 9_u32);
+    assert((*ref_a).a == 15_Field);
+    assert((*ref_a).b == 9_u32);
+    assert((*ref_b).a == 15_Field);
+    assert((*ref_b).b == 9_u32);
+}
+
+fn struct_multi_field_different_aliases() {
+    let mut var: MyStruct = MyStruct { a: 0_Field, b: 0_u32 };
+    let ref_a: &mut MyStruct = &mut var;
+    let ref_b: &mut MyStruct = &mut var;
+    (*ref_a).a = 10_Field;
+    (*ref_a).b = 20_u32;
+    (*ref_b).a = (*ref_b).a + 5_Field;
+    (*ref_b).b = (*ref_b).b + 5_u32;
+    assert(var.a == 15_Field);
+    assert(var.b == 25_u32);
+    assert((*ref_a).a == 15_Field);
+    assert((*ref_a).b == 25_u32);
+    assert((*ref_b).a == 15_Field);
+    assert((*ref_b).b == 25_u32);
+}
+
+struct Outer {
+    inner: MyStruct,
+}
+
+fn nested_struct_aliases() {
+    let mut var: Outer = Outer { inner: MyStruct { a: 0_Field, b: 0_u32 } };
+    let ref_outer: &mut Outer = &mut var;
+    let ref_inner: &mut MyStruct = &mut ref_outer.inner;
+    (*ref_outer).inner.a = 5_Field;
+    (*ref_inner).b = 10_u32;
+    assert(var.inner.a == 5_Field);
+    assert(var.inner.b == 10_u32);
+    assert((*ref_outer).inner.a == 5_Field);
+    assert((*ref_outer).inner.b == 10_u32);
+    assert((*ref_inner).a == 5_Field);
+    assert((*ref_inner).b == 10_u32);
+}
+
+fn nested_struct_multi_field_different_aliases_in_loop() {
+    let mut var: Outer = Outer { inner: MyStruct { a: 0_Field, b: 0_u32 } };
+    let ref_outer: &mut Outer = &mut var;
+    let ref_inner: &mut MyStruct = &mut var.inner;
+    for _ in 0_u32..3_u32 {
+        (*ref_outer).inner.a = (*ref_outer).inner.a + 2_Field;
+        (*ref_inner).a = (*ref_inner).a + 3_Field;
+        (*ref_outer).inner.b = (*ref_outer).inner.b + 1_u32;
+        (*ref_inner).b = (*ref_inner).b + 2_u32;
+    }
+    assert(var.inner.a == 15_Field);
+    assert(var.inner.b == 9_u32);
+    assert((*ref_outer).inner.a == 15_Field);
+    assert((*ref_outer).inner.b == 9_u32);
+    assert((*ref_inner).a == 15_Field);
+    assert((*ref_inner).b == 9_u32);
+}
+
+fn nested_struct_aliases_in_array() {
+    let mut var: Outer = Outer { inner: MyStruct { a: 0_Field, b: 0_u32 } };
+    let ref: &mut &mut &mut Outer = &mut &mut &mut var;
+    let mut array: [&mut &mut &mut Outer; 2] = [ref, ref];
+    (**array[0_u32]).inner.a = (**array[0_u32]).inner.a + 5_Field;
+    (**array[1_u32]).inner.a = (**array[1_u32]).inner.a + 2_Field;
+    assert(var.inner.a == 7_Field);
+    assert((***ref).inner.a == 7_Field);
+    assert((**array[0_u32]).inner.a == 7_Field);
+    assert((**array[1_u32]).inner.a == 7_Field);
+    assert(var.inner.b == 0_u32);
 }
 
 fn struct_field_refs_across_blocks(mut my_struct: MyStruct) -> [Field; 1] {

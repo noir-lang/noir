@@ -1,5 +1,6 @@
 ---
 title: Module
+description: Work with modules in `comptime`—query names, list functions/structs, detect contracts, and add new items.
 ---
 
 `std::meta::module` contains methods on the built-in `Module` type which represents a module in the source program.
@@ -12,9 +13,17 @@ declarations in the source program.
 
 #include_code add_item noir_stdlib/src/meta/module.nr rust
 
-Adds a top-level item (a function, a struct, a global, etc.) to the module. 
-Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.  
+Adds a top-level item (a function, a struct, a global, etc.) to the module.
+Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.
 Note that the items are type-checked as if they are inside the module they are being added to.
+
+### child_modules
+
+#include_code child_modules noir_stdlib/src/meta/module.nr rust
+
+Returns all the child modules of the current module.
+
+#include_code child_modules_example test_programs/compile_success_empty/comptime_module/src/main.nr rust
 
 ### functions
 
@@ -39,6 +48,15 @@ Returns true if this module has a custom attribute with the given name.
 #include_code name noir_stdlib/src/meta/module.nr rust
 
 Returns the name of the module.
+The top-level module in each crate has no name and is thus empty.
+
+### parent
+
+#include_code parent noir_stdlib/src/meta/module.nr rust
+
+Returns the parent module of the given module, if any.
+
+#include_code parent_example test_programs/compile_success_empty/comptime_module/src/main.nr rust
 
 ### structs
 

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_missing_cases_with_empty_match"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

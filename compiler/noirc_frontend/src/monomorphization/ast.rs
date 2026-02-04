@@ -1,11 +1,10 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
-use noirc_errors::{
-    Location,
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
-};
+use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
+use noirc_errors::Location;
 
+use crate::token::FmtStrFragment;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
@@ -13,7 +12,6 @@ use crate::{
     signed_field::SignedField,
     token::Attributes,
 };
-use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
@@ -57,8 +55,8 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn is_array_or_slice_literal(&self) -> bool {
-        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    pub fn is_array_or_vector_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Vector(_)))
     }
 
     /// The return type of an expression, if it has an obvious one.
@@ -71,7 +69,7 @@ impl Expression {
         match self {
             Expression::Ident(ident) => borrowed(&ident.typ),
             Expression::Literal(literal) => match literal {
-                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Array(literal) | Literal::Vector(literal) => borrowed(&literal.typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
@@ -255,6 +253,7 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+    pub inclusive: bool,
 
     pub start_range_location: Location,
     pub end_range_location: Location,
@@ -269,12 +268,16 @@ pub struct While {
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
     Str(String),
-    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
+    FmtStr(
+        Vec<FmtStrFragment>,
+        /* Number of variables in the format string. */ u64,
+        /* Tuple with variables to interpolate. */ Box<Expression>,
+    ),
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -422,6 +425,8 @@ pub enum InlineType {
     Inline,
     /// Functions marked as inline always will always be inlined, even in brillig contexts.
     InlineAlways,
+    /// Functions marked as inline never will never be inlined
+    InlineNever,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -448,6 +453,7 @@ impl From<&Attributes> for InlineType {
             FunctionAttributeKind::Fold => InlineType::Fold,
             FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
             FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
+            FunctionAttributeKind::InlineNever => InlineType::InlineNever,
             _ => InlineType::default(),
         })
     }
@@ -458,17 +464,41 @@ impl InlineType {
         match self {
             InlineType::Inline => false,
             InlineType::InlineAlways => false,
+            InlineType::InlineNever => false,
             InlineType::Fold => true,
             InlineType::NoPredicates => false,
         }
     }
+
+    /// Produce an `InlineType` which we can use with an unconstrained version of a function.
+    pub fn into_unconstrained(self) -> Self {
+        match self {
+            InlineType::Inline | InlineType::InlineAlways | InlineType::InlineNever => self,
+            InlineType::Fold => {
+                // The #[fold] attribute is about creating separate ACIR circuits for proving,
+                // not relevant in Brillig. Leaving it violates some expectations that each
+                // will become its own entry point.
+                Self::default()
+            }
+            InlineType::NoPredicates => {
+                // The #[no_predicates] are guaranteed to be inlined after flattening,
+                // which is needed for some of the programs even in Brillig, otherwise
+                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+                // We can keep these, or try inlining more aggressively, since we don't
+                // have to wait until after flattening in Brillig, but InlineAlways
+                // resulted in some Brillig bytecode size regressions.
+                self
+            }
+        }
+    }
 }
 
-impl std::fmt::Display for InlineType {
+impl Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
             InlineType::InlineAlways => write!(f, "inline_always"),
+            InlineType::InlineNever => write!(f, "inline_never"),
             InlineType::Fold => write!(f, "fold"),
             InlineType::NoPredicates => write!(f, "no_predicates"),
         }
@@ -487,7 +517,7 @@ pub struct Function {
     pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
-    pub func_sig: FunctionSignature,
+    pub is_entry_point: bool,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:
@@ -505,8 +535,9 @@ pub enum Type {
     FmtString(/*len:*/ u32, Box<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Slice(Box<Type>),
+    Vector(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -523,11 +554,36 @@ impl Type {
         }
     }
 
-    /// Returns the element type of this array or slice
+    /// Returns the element type of this array or vector
     pub fn array_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            Type::Array(_, elem) | Type::Vector(elem) => Some(elem),
             _ => None,
+        }
+    }
+
+    /// Returns the number of field elements required to represent the type once encoded
+    /// as a parameter to an entry point function.
+    ///
+    /// Panics if the type is not valid as a parameter to main.
+    pub fn entry_point_field_count(&self) -> u32 {
+        match self {
+            Type::Field | Type::Integer(..) | Type::Bool => 1,
+            Type::Array(length, typ) => {
+                let typ = typ.as_ref();
+                length.checked_mul(typ.entry_point_field_count()).expect("Array length overflow")
+            }
+            Type::String(length) => *length,
+            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
+                acc.checked_add(field_typ.entry_point_field_count()).expect("Tuple size overflow")
+            }),
+            Type::Function(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Vector(_)
+            | Type::Reference(_, _) => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
         }
     }
 }
@@ -535,8 +591,6 @@ impl Type {
 #[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
-    pub function_signatures: Vec<FunctionSignature>,
-    pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
@@ -548,8 +602,6 @@ impl Program {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
-        function_signatures: Vec<FunctionSignature>,
-        main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
@@ -558,8 +610,6 @@ impl Program {
     ) -> Program {
         Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location,
             globals,
             debug_variables,
@@ -598,6 +648,10 @@ impl Program {
     pub fn return_visibility(&self) -> Visibility {
         self.main().return_visibility
     }
+
+    pub fn main_function_parameters(&self) -> &Parameters {
+        &self.main().parameters
+    }
 }
 
 impl std::ops::Index<FuncId> for Program {
@@ -614,13 +668,13 @@ impl std::ops::IndexMut<FuncId> for Program {
     }
 }
 
-impl std::fmt::Display for Program {
+impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
-impl std::fmt::Display for Function {
+impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_function(
             self,
@@ -630,13 +684,13 @@ impl std::fmt::Display for Function {
     }
 }
 
-impl std::fmt::Display for Expression {
+impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_expr(self, f)
     }
 }
 
-impl std::fmt::Display for Type {
+impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),
@@ -671,7 +725,7 @@ impl std::fmt::Display for Type {
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Slice(element) => write!(f, "[{element}]"),
+            Type::Vector(element) => write!(f, "[{element}]"),
             Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
             Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }

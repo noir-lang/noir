@@ -52,6 +52,12 @@ impl Parser<'_> {
         )
     }
 
+    pub(super) fn parse_path_for_named_type(&mut self) -> Option<Path> {
+        let allow_turbofish = false;
+        let allow_trailing_double_colon = false;
+        self.parse_path_impl(allow_turbofish, allow_trailing_double_colon)
+    }
+
     pub(super) fn parse_path_impl(
         &mut self,
         allow_turbofish: bool,
@@ -209,7 +215,7 @@ impl Parser<'_> {
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
         self.eat_or_error(Token::DoubleColon);
-        let impl_item = if let Some(ident) = self.eat_ident() {
+        let impl_item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_trait_constraint_on_tuple_type_pub_crate"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

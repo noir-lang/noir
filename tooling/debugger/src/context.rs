@@ -14,11 +14,10 @@ use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
 use nargo::NargoError;
 use nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_error_from};
-use noirc_artifacts::debug::{DebugArtifact, StackFrame};
-use noirc_driver::{CompiledProgram, DebugFile};
+use noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
 
+use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::call_stack::CallStackId;
-use noirc_errors::debug_info::DebugInfo;
 use noirc_printable_type::{PrintableType, PrintableValue};
 use thiserror::Error;
 
@@ -286,9 +285,6 @@ pub struct DebugProject {
 #[derive(Debug, Clone)]
 
 pub struct RunParams {
-    /// Use pedantic ACVM solving
-    pub pedantic_solving: bool,
-
     /// Option for configuring the source_code_printer
     /// This option only applies for the Repl interface
     pub raw_source_printing: Option<bool>,
@@ -891,7 +887,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     ) {
         if let Some(solver) = self.brillig_solver.as_mut() {
             solver.write_memory_at(
-                ptr,
+                ptr.try_into().expect("Pointer is too large"),
                 MemoryValue::new_checked(value, bit_size)
                     .expect("Invalid value for the given bit size"),
             );
@@ -1087,11 +1083,7 @@ mod tests {
         acir::{
             AcirField,
             brillig::{HeapVector, IntegerBitSize},
-            circuit::{
-                brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-                opcodes::{AcirFunctionId, BlockId, BlockType},
-            },
-            native_types::Expression,
+            circuit::brillig::BrilligFunctionId,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
@@ -1101,11 +1093,12 @@ mod tests {
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
         let brillig_bytecode = BrilligBytecode {
+            function_name: "clear_mock".into(),
             bytecode: vec![
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(1),
@@ -1137,18 +1130,16 @@ mod tests {
                 },
             ],
         };
-        let opcodes = vec![Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![BrilligInputs::Single(Expression {
-                linear_combinations: vec![(fe_1, w_x)],
-                ..Expression::default()
-            })],
-            outputs: vec![],
-            predicate: None,
-        }];
         let brillig_functions = &[brillig_bytecode];
-        let current_witness_index = 2;
-        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let src = format!(
+            "
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}], outputs: []
+        "
+        );
+        let circuit = Circuit::from_str(&src).unwrap();
         let circuits = &[circuit];
 
         let debug_symbols = vec![];
@@ -1251,8 +1242,7 @@ mod tests {
 
     #[test]
     fn test_break_brillig_block_while_stepping_acir_opcodes() {
-        let solver = StubbedBlackBoxSolver::default();
-        let fe_0 = FieldElement::zero();
+        let solver = StubbedBlackBoxSolver;
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
         let w_y = Witness(2);
@@ -1263,6 +1253,7 @@ mod tests {
 
         // This Brillig block is equivalent to: z = x + y
         let brillig_bytecode = BrilligBytecode {
+            function_name: "add".into(),
             bytecode: vec![
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(0),
@@ -1295,32 +1286,16 @@ mod tests {
                 },
             ],
         };
-        let opcodes = vec![
-            // z = x + y
-            Opcode::BrilligCall {
-                id: BrilligFunctionId(0),
-                inputs: vec![
-                    BrilligInputs::Single(Expression {
-                        linear_combinations: vec![(fe_1, w_x)],
-                        ..Expression::default()
-                    }),
-                    BrilligInputs::Single(Expression {
-                        linear_combinations: vec![(fe_1, w_y)],
-                        ..Expression::default()
-                    }),
-                ],
-                outputs: vec![BrilligOutputs::Simple(w_z)],
-                predicate: None,
-            },
-            // x + y - z = 0
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
-                q_c: fe_0,
-            }),
-        ];
-        let current_witness_index = 3;
-        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let src = format!(
+            "
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
+        ASSERT {w_z} = {w_x} + {w_y}
+        "
+        );
+        let circuit = Circuit::from_str(&src).unwrap();
         let circuits = &[circuit];
 
         let debug_symbols = vec![];
@@ -1379,48 +1354,35 @@ mod tests {
 
     #[test]
     fn test_address_debug_location_mapping() {
-        let solver = StubbedBlackBoxSolver::default();
-        let brillig_one =
-            BrilligBytecode { bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return] };
+        let solver = StubbedBlackBoxSolver;
+        let brillig_one = BrilligBytecode {
+            function_name: "one".to_string(),
+            bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return],
+        };
         let brillig_two = BrilligBytecode {
+            function_name: "two".to_string(),
             bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return, BrilligOpcode::Return],
         };
 
-        let circuit_one = Circuit {
-            opcodes: vec![
-                Opcode::MemoryInit {
-                    block_id: BlockId(0),
-                    init: vec![],
-                    block_type: BlockType::Memory,
-                },
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(0),
-                    inputs: vec![],
-                    outputs: vec![],
-                    predicate: None,
-                },
-                Opcode::Call {
-                    id: AcirFunctionId(1),
-                    inputs: vec![],
-                    outputs: vec![],
-                    predicate: None,
-                },
-                Opcode::AssertZero(Expression::default()),
-            ],
-            ..Circuit::default()
-        };
-        let circuit_two = Circuit {
-            opcodes: vec![
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(1),
-                    inputs: vec![],
-                    outputs: vec![],
-                    predicate: None,
-                },
-                Opcode::AssertZero(Expression::default()),
-            ],
-            ..Circuit::default()
-        };
+        let src_one = "
+        private parameters: []
+        public parameters: []
+        return values: []
+        INIT b0 = []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: []
+        CALL func: 1, predicate: 1, inputs: [], outputs: []
+        ASSERT 0 = 0
+        ";
+        let circuit_one = Circuit::from_str(src_one).unwrap();
+
+        let src_two = "
+        private parameters: []
+        public parameters: []
+        return values: []
+        BRILLIG CALL func: 1, predicate: 1, inputs: [], outputs: []
+        ASSERT 0 = 0
+        ";
+        let circuit_two = Circuit::from_str(src_two).unwrap();
         let circuits = vec![circuit_one, circuit_two];
         let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
         let brillig_functions = &[brillig_one, brillig_two];

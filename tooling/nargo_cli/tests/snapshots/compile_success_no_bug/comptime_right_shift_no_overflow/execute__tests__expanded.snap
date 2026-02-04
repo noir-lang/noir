@@ -1,8 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(x: Field) -> pub Field {
-    let y: u32 = 0_u32;
-    x + (y as Field)
-}

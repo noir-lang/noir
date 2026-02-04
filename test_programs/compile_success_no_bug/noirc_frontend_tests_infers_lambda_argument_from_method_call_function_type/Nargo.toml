@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_infers_lambda_argument_from_method_call_function_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

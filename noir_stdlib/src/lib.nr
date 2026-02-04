@@ -1,7 +1,7 @@
 pub mod hash;
 pub mod aes128;
 pub mod array;
-pub mod slice;
+pub mod vector;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
 pub mod embedded_curve_ops;
@@ -23,7 +23,7 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
-use convert::AsPrimitive;
+mod primitive_docs;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
@@ -108,74 +108,5 @@ pub fn assert_constant<T>(x: T) {}
 #[builtin(static_assert)]
 pub fn static_assert<T>(predicate: bool, message: T) {}
 
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_add(y)")]
-pub fn wrapping_add<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() + y.as_())
-}
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)")]
-pub fn wrapping_sub<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
-}
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)")]
-pub fn wrapping_mul<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    AsPrimitive::as_(x.as_() * y.as_())
-}
-
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
-
-mod tests {
-    use super::ops::arith::WrappingMul;
-
-    #[test(should_fail_with = "custom message")]
-    fn test_static_assert_custom_message() {
-        super::static_assert(1 == 2, "custom message");
-    }
-
-    #[test]
-    fn test_wrapping_mul() {
-        let zero: u128 = 0;
-        let one: u128 = 1;
-        let two_pow_64: u128 = 0x10000000000000000;
-        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;
-
-        // 1*0==0
-        assert_eq(zero, zero.wrapping_mul(one));
-
-        // 0*1==0
-        assert_eq(zero, one.wrapping_mul(zero));
-
-        // 1*1==1
-        assert_eq(one, one.wrapping_mul(one));
-
-        // 0 * ( 1 << 64 ) ==  0
-        assert_eq(zero, zero.wrapping_mul(two_pow_64));
-
-        // ( 1 << 64 ) * 0 == 0
-        assert_eq(zero, two_pow_64.wrapping_mul(zero));
-
-        // 1 * ( 1 << 64 ) == 1 << 64
-        assert_eq(two_pow_64, two_pow_64.wrapping_mul(one));
-
-        // ( 1 << 64 ) * 1 == 1 << 64
-        assert_eq(two_pow_64, one.wrapping_mul(two_pow_64));
-
-        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64
-        assert_eq(zero, two_pow_64.wrapping_mul(two_pow_64));
-        // -1 * -1 == 1
-        assert_eq(one, u128_max.wrapping_mul(u128_max));
-    }
-}

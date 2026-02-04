@@ -71,11 +71,14 @@ pub(crate) struct Formatter<'a> {
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     pub(crate) max_width: usize,
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: Buffer,
+
+    /// Is the formatter inside a chunk?
+    pub(crate) in_chunk: bool,
 }
 
 impl<'a> Formatter<'a> {
@@ -94,6 +97,7 @@ impl<'a> Formatter<'a> {
             group_tag_counter: 0,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: false,
         };
         formatter.bump();
         formatter
@@ -207,13 +211,6 @@ impl<'a> Formatter<'a> {
         self.bump();
     }
 
-    /// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    pub(crate) fn write_current_token_trimming_end(&mut self) {
-        self.write(self.token.to_string().trim_end());
-    }
-
     /// Writes the current token but without turning it into a string using `to_string()`.
     /// Instead, we check the token's span and format what's in the original source there
     /// (useful when formatting integer tokens, because a token like 0xFF ends up being an
@@ -225,6 +222,13 @@ impl<'a> Formatter<'a> {
     /// Writes whatever is in the given span relative to the file's source that's being formatted.
     pub(crate) fn write_source_span(&mut self, span: Span) {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
+    }
+
+    /// Writes whatever is in the given span relative to the file's source that's being formatted
+    /// but trims the whitespaces at the end.
+    pub(crate) fn write_source_span_trimmed(&mut self, span: Span) {
+        let source = self.source[span.start() as usize..span.end() as usize].trim_end();
+        self.write(source);
     }
 
     /// Writes the current indentation to the buffer, but only if the buffer

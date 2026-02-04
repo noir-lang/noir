@@ -31,23 +31,23 @@ cargo install cargo-fuzz
 
 2. Run fuzzer:
 ```
-cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer
+cargo +nightly fuzz run acir_vs_brillig --fuzz-dir ./fuzzer
 ```
 
 or in 5 threads
 ```
-cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
+cargo +nightly fuzz run acir_vs_brillig --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
 ```
 
 3. Triage crashes:
 ```
-TRIAGE=FULL/FINAL cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer PATH_TO_CRASH
+TRIAGE=FULL/FINAL cargo +nightly fuzz run acir_vs_brillig --fuzz-dir ./fuzzer PATH_TO_CRASH
 ```
 FULL mode will show all SSA passes, FINAL mode will show only the final SSA pass (After Dead Instruction Elimination (3)).
 
 4. Minimize crashes:
 ```
-cargo +nightly fuzz tmin base_target --fuzz-dir ./fuzzer PATH_TO_CRASH -runs=1000
+cargo +nightly fuzz tmin acir_vs_brillig --fuzz-dir ./fuzzer PATH_TO_CRASH -runs=1000
 ```
 
 
@@ -98,7 +98,7 @@ This command creates two new SSA blocks.
   b1 b2
 ```
 Inserts chosen instruction blocks into b1 and b2.
-Then terminates b0 with jmp_if_else and switch context to b1. Condtion for jmp_if_else is the last defined boolean variable in the block.
+Then terminates b0 with jmp_if_else and switch context to b1. Condition for jmp_if_else is the last defined boolean variable in the block.
 ```
        b0
  then ↙  ↘  else

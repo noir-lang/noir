@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_struct_array_len"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

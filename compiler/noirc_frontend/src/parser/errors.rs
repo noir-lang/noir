@@ -115,6 +115,18 @@ pub enum ParserErrorReason {
     MissingTypeForAssociatedConstant,
     #[error("Associated trait constant default values are not supported")]
     AssociatedTraitConstantDefaultValuesAreNotSupported,
+    #[error("`mut` on a binding cannot be repeated")]
+    MutOnABindingCannotBeRepeated,
+    #[error("Maximum recursion depth exceeded while parsing expression")]
+    MaximumRecursionDepthExceeded,
+    #[error("missing condition for `if` expression")]
+    MissingIfCondition,
+    #[error("expected an identifier, found reserved identifier `_`")]
+    ExpectedIdentifierGotUnderscore,
+    #[error(
+        "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
+    )]
+    UnexpectedTypeExpressionInTypeAlias,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -258,7 +270,17 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
                     );
-                    Diagnostic::simple_error(reason.to_string(), secondary, error.location())
+                    match feature {
+                        UnstableFeature::TraitAsType => {
+                            let primary = "`impl Trait` as a type is experimental".to_string();
+                            Diagnostic::simple_warning(primary, secondary, error.location())
+                        }
+                        _ => Diagnostic::simple_error(
+                            reason.to_string(),
+                            secondary,
+                            error.location(),
+                        ),
+                    }
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())

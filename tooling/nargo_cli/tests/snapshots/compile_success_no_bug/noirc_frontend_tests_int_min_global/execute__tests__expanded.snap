@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-global MIN: i8 = -128;
-
-fn main() {
-    let _x: i8 = MIN;
-}

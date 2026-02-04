@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_monomorphization_tests_mutually_recursive_types_error"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

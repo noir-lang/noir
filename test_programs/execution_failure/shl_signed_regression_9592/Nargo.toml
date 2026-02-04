@@ -1,0 +1,6 @@
+[package]
+name = "shl_signed_regression_9592"
+type = "bin"
+authors = [""]
+
+[dependencies]

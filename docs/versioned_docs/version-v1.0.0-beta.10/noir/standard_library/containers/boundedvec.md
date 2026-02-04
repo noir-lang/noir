@@ -1,5 +1,6 @@
 ---
 title: Bounded Vectors
+description: Growable vectors with a fixed maximum length; safer and more efficient than slices, with rich methods for access and mutation.
 keywords: [noir, vector, bounded vector, slice]
 sidebar_position: 1
 ---
@@ -51,7 +52,7 @@ assert(empty_vector.len() == 0);
 Note that whenever calling `new` the maximum length of the vector should always be specified
 via a type signature:
 
-```rust title="new_example" showLineNumbers 
+```rust title="new_example" showLineNumbers
 fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is specified with a type annotation
     let v1: BoundedVec<Field, 3> = BoundedVec::new();
@@ -102,7 +103,7 @@ it is unsafe! Use at your own risk!
 
 Example:
 
-```rust title="get_unchecked_example" showLineNumbers 
+```rust title="get_unchecked_example" showLineNumbers
 fn sum_of_first_three<let N: u32>(v: BoundedVec<u32, N>) -> u32 {
     // Always ensure the length is larger than the largest
     // index passed to get_unchecked
@@ -150,7 +151,7 @@ Since this function does not perform a bounds check on length before accessing t
 
 Example:
 
-```rust title="set_unchecked_example" showLineNumbers 
+```rust title="set_unchecked_example" showLineNumbers
 fn set_unchecked_example() {
     let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
     vec.extend_from_array([1, 2]);
@@ -192,7 +193,7 @@ Panics if the new length of the vector will be greater than the max length.
 
 Example:
 
-```rust title="bounded-vec-push-example" showLineNumbers 
+```rust title="bounded-vec-push-example" showLineNumbers
 let mut v: BoundedVec<Field, 2> = BoundedVec::new();
 
     v.push(1);
@@ -217,7 +218,7 @@ Panics if the vector is empty.
 
 Example:
 
-```rust title="bounded-vec-pop-example" showLineNumbers 
+```rust title="bounded-vec-pop-example" showLineNumbers
 let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     v.push(1);
     v.push(2);
@@ -243,7 +244,7 @@ Returns the current length of this vector
 
 Example:
 
-```rust title="bounded-vec-len-example" showLineNumbers 
+```rust title="bounded-vec-len-example" showLineNumbers
 let mut v: BoundedVec<Field, 4> = BoundedVec::new();
     assert(v.len() == 0);
 
@@ -273,7 +274,7 @@ equal to the `MaxLen` parameter this vector was initialized with.
 
 Example:
 
-```rust title="bounded-vec-max-len-example" showLineNumbers 
+```rust title="bounded-vec-max-len-example" showLineNumbers
 let mut v: BoundedVec<Field, 5> = BoundedVec::new();
 
     assert(v.max_len() == 5);
@@ -297,7 +298,7 @@ Note that uninitialized elements may be zeroed out!
 
 Example:
 
-```rust title="bounded-vec-storage-example" showLineNumbers 
+```rust title="bounded-vec-storage-example" showLineNumbers
 let mut v: BoundedVec<Field, 5> = BoundedVec::new();
 
     assert(v.storage() == [0, 0, 0, 0, 0]);
@@ -321,7 +322,7 @@ to exceed the maximum length.
 
 Example:
 
-```rust title="bounded-vec-extend-from-array-example" showLineNumbers 
+```rust title="bounded-vec-extend-from-array-example" showLineNumbers
 let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
 
@@ -346,7 +347,7 @@ to exceed the maximum length.
 
 Example:
 
-```rust title="bounded-vec-extend-from-bounded-vec-example" showLineNumbers 
+```rust title="bounded-vec-extend-from-bounded-vec-example" showLineNumbers
 let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
     let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
 
@@ -365,7 +366,7 @@ let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
 pub fn from_array<Len>(array: [T; Len]) -> Self
 ```
 
-Creates a new vector, populating it with values derived from an array input. 
+Creates a new vector, populating it with values derived from an array input.
 The maximum length of the vector is determined based on the type signature.
 
 Example:
@@ -388,7 +389,7 @@ zeroed after that index, you can use `from_parts_unchecked` to remove the extra 
 
 Example:
 
-```rust title="from-parts" showLineNumbers 
+```rust title="from-parts" showLineNumbers
 let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
             assert_eq(vec.len(), 3);
 
@@ -418,7 +419,7 @@ to give incorrect results since it will check even elements past `len`.
 
 Example:
 
-```rust title="from-parts-unchecked" showLineNumbers 
+```rust title="from-parts-unchecked" showLineNumbers
 let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
             assert_eq(vec.len(), 3);
 
@@ -439,11 +440,11 @@ let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
 pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen>
 ```
 
-Creates a new vector of equal size by calling a closure on each element in this vector.  
+Creates a new vector of equal size by calling a closure on each element in this vector.
 
 Example:
 
-```rust title="bounded-vec-map-example" showLineNumbers 
+```rust title="bounded-vec-map-example" showLineNumbers
 let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
             let result = vec.map(|value| value * 2);
 ```
@@ -461,7 +462,7 @@ vector, along with its index in the vector.
 
 Example:
 
-```rust title="bounded-vec-mapi-example" showLineNumbers 
+```rust title="bounded-vec-mapi-example" showLineNumbers
 let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
             let result = vec.mapi(|i, value| i + value * 2);
 ```
@@ -478,7 +479,7 @@ Calls a closure on each element in this vector.
 
 Example:
 
-```rust title="bounded-vec-for-each-example" showLineNumbers 
+```rust title="bounded-vec-for-each-example" showLineNumbers
 let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
             vec.for_each(|value| { *acc_ref += value; });
 ```
@@ -495,7 +496,7 @@ Calls a closure on each element in this vector, along with its index in the vect
 
 Example:
 
-```rust title="bounded-vec-for-eachi-example" showLineNumbers 
+```rust title="bounded-vec-for-eachi-example" showLineNumbers
 let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
             vec.for_eachi(|i, value| { *acc_ref += i * value; });
 ```
@@ -513,7 +514,7 @@ in this vector.
 
 Example:
 
-```rust title="bounded-vec-any-example" showLineNumbers 
+```rust title="bounded-vec-any-example" showLineNumbers
 let mut v: BoundedVec<u32, 3> = BoundedVec::new();
     v.extend_from_array([2, 4, 6]);
 

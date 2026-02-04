@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_int_min_global"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

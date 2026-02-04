@@ -64,27 +64,39 @@ impl IntegerConstant {
         }
     }
 
-    /// Increment the value by 1, saturating at the maximum value.
+    /// Increment the value by 1
+    ///
+    /// # Panics
+    ///
+    /// Panics if the increment causes an overflow.
     pub(crate) fn inc(self) -> Self {
         match self {
-            Self::Signed { value, bit_size } => {
-                Self::Signed { value: value.saturating_add(1), bit_size }
-            }
-            Self::Unsigned { value, bit_size } => {
-                Self::Unsigned { value: value.saturating_add(1), bit_size }
-            }
+            Self::Signed { value, bit_size } => Self::Signed {
+                value: value.checked_add(1).expect("ICE: overflow while incrementing constant"),
+                bit_size,
+            },
+            Self::Unsigned { value, bit_size } => Self::Unsigned {
+                value: value.checked_add(1).expect("ICE: overflow while incrementing constant"),
+                bit_size,
+            },
         }
     }
 
     /// Decrement the value by 1, saturating at the minimum value.
+    ///
+    /// # panics
+    ///
+    /// Panics if the decrement causes an overflow.
     pub(crate) fn dec(self) -> Self {
         match self {
-            Self::Signed { value, bit_size } => {
-                Self::Signed { value: value.saturating_sub(1), bit_size }
-            }
-            Self::Unsigned { value, bit_size } => {
-                Self::Unsigned { value: value.saturating_sub(1), bit_size }
-            }
+            Self::Signed { value, bit_size } => Self::Signed {
+                value: value.checked_sub(1).expect("ICE: overflow while decrementing constant"),
+                bit_size,
+            },
+            Self::Unsigned { value, bit_size } => Self::Unsigned {
+                value: value.checked_sub(1).expect("ICE: overflow while decrementing constant"),
+                bit_size,
+            },
         }
     }
 
@@ -92,6 +104,13 @@ impl IntegerConstant {
         match self {
             Self::Signed { value, .. } => value.is_zero(),
             Self::Unsigned { value, .. } => value.is_zero(),
+        }
+    }
+
+    pub(crate) fn is_minus_one(&self) -> bool {
+        match self {
+            Self::Signed { value, .. } => *value == -1,
+            Self::Unsigned { .. } => false,
         }
     }
 

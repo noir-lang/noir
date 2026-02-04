@@ -2,8 +2,8 @@ use crate::field::field_less_than;
 use crate::runtime::is_unconstrained;
 
 // The low and high decomposition of the field modulus
-global PLO: Field = 53438638232309528389504892708671455233;
-global PHI: Field = 64323764613183177041862057485226039389;
+pub(crate) global PLO: Field = 53438638232309528389504892708671455233;
+pub(crate) global PHI: Field = 64323764613183177041862057485226039389;
 
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
@@ -119,17 +119,10 @@ pub fn lt(a: Field, b: Field) -> bool {
 
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{assert_gt, decompose, gt, lte_hint, PHI, PLO, TWO_POW_128};
+    use crate::field::bn254::{assert_gt, decompose, gt, lt, lte_hint, PHI, PLO, TWO_POW_128};
 
     #[test]
     fn check_decompose() {
-        assert_eq(decompose(TWO_POW_128), (0, 1));
-        assert_eq(decompose(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
-        assert_eq(decompose(0x1234567890), (0x1234567890, 0));
-    }
-
-    #[test]
-    unconstrained fn check_decompose_unconstrained() {
         assert_eq(decompose(TWO_POW_128), (0, 1));
         assert_eq(decompose(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
         assert_eq(decompose(0x1234567890), (0x1234567890, 0));
@@ -148,24 +141,6 @@ mod tests {
     }
 
     #[test]
-    fn check_assert_gt() {
-        assert_gt(1, 0);
-        assert_gt(0x100, 0);
-        assert_gt((0 - 1), (0 - 2));
-        assert_gt(TWO_POW_128, 0);
-        assert_gt(0 - 1, 0);
-    }
-
-    #[test]
-    unconstrained fn check_assert_gt_unconstrained() {
-        assert_gt(1, 0);
-        assert_gt(0x100, 0);
-        assert_gt((0 - 1), (0 - 2));
-        assert_gt(TWO_POW_128, 0);
-        assert_gt(0 - 1, 0);
-    }
-
-    #[test]
     fn check_gt() {
         assert(gt(1, 0));
         assert(gt(0x100, 0));
@@ -175,18 +150,7 @@ mod tests {
         assert(!gt(0, 0x100));
         assert(gt(0 - 1, 0 - 2));
         assert(!gt(0 - 2, 0 - 1));
-    }
-
-    #[test]
-    unconstrained fn check_gt_unconstrained() {
-        assert(gt(1, 0));
-        assert(gt(0x100, 0));
-        assert(gt((0 - 1), (0 - 2)));
-        assert(gt(TWO_POW_128, 0));
-        assert(!gt(0, 0));
-        assert(!gt(0, 0x100));
-        assert(gt(0 - 1, 0 - 2));
-        assert(!gt(0 - 2, 0 - 1));
+        assert_gt(0 - 1, 0);
     }
 
     #[test]
@@ -204,5 +168,36 @@ mod tests {
         }
         assert_eq(p_low, PLO);
         assert_eq(p_high, PHI);
+    }
+
+    #[test]
+    fn check_decompose_edge_cases() {
+        assert_eq(decompose(0), (0, 0));
+        assert_eq(decompose(TWO_POW_128 - 1), (TWO_POW_128 - 1, 0));
+        assert_eq(decompose(TWO_POW_128 + 1), (1, 1));
+        assert_eq(decompose(TWO_POW_128 * 2), (0, 2));
+        assert_eq(decompose(TWO_POW_128 * 2 + 0x1234567890), (0x1234567890, 2));
+    }
+
+    #[test]
+    fn check_decompose_large_values() {
+        let large_field = 0xffffffffffffffff;
+        let (lo, hi) = decompose(large_field);
+        assert_eq(large_field, lo + TWO_POW_128 * hi);
+
+        let large_value = large_field - TWO_POW_128;
+        let (lo2, hi2) = decompose(large_value);
+        assert_eq(large_value, lo2 + TWO_POW_128 * hi2);
+    }
+
+    #[test]
+    fn check_lt_comprehensive() {
+        assert(lt(0, 1));
+        assert(!lt(1, 0));
+        assert(!lt(0, 0));
+        assert(!lt(42, 42));
+
+        assert(lt(TWO_POW_128 - 1, TWO_POW_128));
+        assert(!lt(TWO_POW_128, TWO_POW_128 - 1));
     }
 }

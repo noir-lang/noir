@@ -1,5 +1,6 @@
 ---
 title: Quoted
+description: Token streams produced by `quote { ... }`—parse as expressions, modules, types, and inspect raw tokens.
 ---
 
 `std::meta::quoted` contains methods on the built-in `Quoted` type which represents
@@ -9,7 +10,7 @@ quoted token streams and is the result of the `quote { ... }` expression.
 
 ### as_expr
 
-```rust title="as_expr" showLineNumbers 
+```rust title="as_expr" showLineNumbers
 pub comptime fn as_expr(self) -> Option<Expr> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L6-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L6-L8</a></sub></sup>
@@ -20,7 +21,7 @@ the expression failed to parse.
 
 Example:
 
-```rust title="as_expr_example" showLineNumbers 
+```rust title="as_expr_example" showLineNumbers
 #[test]
     fn test_expr_as_function_call() {
         comptime {
@@ -36,7 +37,7 @@ Example:
 
 ### as_module
 
-```rust title="as_module" showLineNumbers 
+```rust title="as_module" showLineNumbers
 pub comptime fn as_module(self) -> Option<Module> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L11-L13" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L11-L13</a></sub></sup>
@@ -47,7 +48,7 @@ Returns `Option::none()` if the module isn't found or this token stream cannot b
 
 Example:
 
-```rust title="as_module_example" showLineNumbers 
+```rust title="as_module_example" showLineNumbers
 mod baz {
     pub mod qux {}
 }
@@ -65,7 +66,7 @@ fn as_module_test() {
 
 ### as_trait_constraint
 
-```rust title="as_trait_constraint" showLineNumbers 
+```rust title="as_trait_constraint" showLineNumbers
 pub comptime fn as_trait_constraint(self) -> TraitConstraint {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L16-L18" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L16-L18</a></sub></sup>
@@ -77,7 +78,7 @@ stream does not parse and resolve to a valid trait constraint.
 
 Example:
 
-```rust title="implements_example" showLineNumbers 
+```rust title="implements_example" showLineNumbers
 pub fn function_with_where<T>(_x: T)
 where
     T: SomeTrait<i32>,
@@ -96,7 +97,7 @@ where
 
 ### as_type
 
-```rust title="as_type" showLineNumbers 
+```rust title="as_type" showLineNumbers
 pub comptime fn as_type(self) -> Type {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L21-L23" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L21-L23</a></sub></sup>
@@ -105,7 +106,7 @@ pub comptime fn as_type(self) -> Type {}
 Interprets this token stream as a resolved type. Panics if the token
 stream doesn't parse to a type or if the type isn't a valid type in scope.
 
-```rust title="implements_example" showLineNumbers 
+```rust title="implements_example" showLineNumbers
 pub fn function_with_where<T>(_x: T)
 where
     T: SomeTrait<i32>,
@@ -124,7 +125,7 @@ where
 
 ### tokens
 
-```rust title="tokens" showLineNumbers 
+```rust title="tokens" showLineNumbers
 pub comptime fn tokens(self) -> [Quoted] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L26-L28" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L26-L28</a></sub></sup>

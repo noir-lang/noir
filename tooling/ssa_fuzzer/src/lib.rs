@@ -9,14 +9,13 @@ pub mod typed_value;
 mod tests {
     use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     use crate::runner::{CompareResults, run_and_compare};
-    use crate::typed_value::{TypedValue, ValueType};
+    use crate::typed_value::{NumericType, Type, TypedValue};
     use acvm::acir::native_types::{Witness, WitnessMap};
     use acvm::{AcirField, FieldElement};
-    use noirc_driver::{CompileOptions, CompiledProgram};
-    use rand::Rng;
-
+    use noirc_artifacts::program::CompiledProgram;
+    use noirc_driver::CompileOptions;
     use noirc_evaluator::ssa::ir::instruction::BinaryOp;
-    use noirc_evaluator::ssa::ir::types::NumericType;
+    use rand::Rng;
 
     struct TestHelper {
         acir_builder: FuzzerBuilder,
@@ -31,9 +30,10 @@ mod tests {
             Self { acir_builder, brillig_builder }
         }
 
-        fn insert_variable(&mut self, variable_type: ValueType) -> TypedValue {
-            let acir_param = self.acir_builder.insert_variable(variable_type.to_ssa_type());
-            let brillig_param = self.brillig_builder.insert_variable(variable_type.to_ssa_type());
+        fn insert_variable(&mut self, variable_type: NumericType) -> TypedValue {
+            let acir_param = self.acir_builder.insert_variable(Type::Numeric(variable_type).into());
+            let brillig_param =
+                self.brillig_builder.insert_variable(Type::Numeric(variable_type).into());
             assert_eq!(acir_param, brillig_param);
             acir_param
         }
@@ -74,8 +74,8 @@ mod tests {
     /// Instruction runs with first and second witness given
     fn run_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
-        lhs: (FieldElement, ValueType),
-        rhs: (FieldElement, ValueType),
+        lhs: (FieldElement, NumericType),
+        rhs: (FieldElement, NumericType),
     ) -> FieldElement {
         let mut test_helper = TestHelper::new();
         let lhs_val = test_helper.insert_variable(lhs.1);
@@ -100,7 +100,7 @@ mod tests {
             run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         // If not agree throw panic, it is not intended to happen in tests
         match compare_results {
-            CompareResults::Agree(result) => result.peek().unwrap().witness[return_value],
+            CompareResults::Agree(result, _) => result.peek().unwrap().witness[return_value],
             CompareResults::Disagree(acir_result, brillig_result) => {
                 let acir_result = acir_result.peek().unwrap().witness[return_value];
                 let brillig_result = brillig_result.peek().unwrap().witness[return_value];
@@ -128,16 +128,16 @@ mod tests {
 
     #[test]
     fn test_unsigned_add() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let mut lhs: u64 = rng.random();
+        let rhs: u64 = rng.random();
 
         // to prevent `attempt to add with overflow`
         lhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs + rhs, noir_res);
     }
@@ -164,25 +164,25 @@ mod tests {
 
     #[test]
     fn test_signed_add() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: i64 = rng.r#gen();
-        let rhs: i64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let mut lhs: i64 = rng.random();
+        let rhs: i64 = rng.random();
 
         // to prevent `attempt to add with overflow`
         lhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            (parse_integer_to_signed(lhs), ValueType::I64),
-            (parse_integer_to_signed(rhs), ValueType::I64),
+            (parse_integer_to_signed(lhs), NumericType::I64),
+            (parse_integer_to_signed(rhs), NumericType::I64),
         );
         compare_results(parse_integer_to_signed(lhs + rhs), noir_res);
     }
 
     #[test]
     fn test_unsigned_sub() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let mut lhs: u64 = rng.random();
+        let mut rhs: u64 = rng.random();
 
         // to prevent `attempt to subtract with overflow`
         if lhs < rhs {
@@ -190,146 +190,146 @@ mod tests {
         }
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs - rhs, noir_res);
     }
 
     #[test]
     fn test_signed_sub() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: i64 = rng.r#gen();
-        let mut rhs: i64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let mut lhs: i64 = rng.random();
+        let mut rhs: i64 = rng.random();
 
         // to prevent `attempt to subtract with overflow`
         lhs %= 12341234;
         rhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            (parse_integer_to_signed(lhs), ValueType::I64),
-            (parse_integer_to_signed(rhs), ValueType::I64),
+            (parse_integer_to_signed(lhs), NumericType::I64),
+            (parse_integer_to_signed(rhs), NumericType::I64),
         );
         compare_results(parse_integer_to_signed(lhs - rhs), noir_res);
     }
 
     #[test]
     fn test_unsigned_mul() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let mut lhs: u64 = rng.random();
+        let mut rhs: u64 = rng.random();
 
         // to prevent `attempt to multiply with overflow`
         lhs %= 12341234;
         rhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs * rhs, noir_res);
     }
 
     #[test]
     fn test_signed_mul() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let mut lhs: u64 = rng.random();
+        let mut rhs: u64 = rng.random();
 
         // to prevent `attempt to multiply with overflow`
         lhs %= 12341234;
         rhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            (parse_integer_to_signed(lhs), ValueType::I64),
-            (parse_integer_to_signed(rhs), ValueType::I64),
+            (parse_integer_to_signed(lhs), NumericType::I64),
+            (parse_integer_to_signed(rhs), NumericType::I64),
         );
         compare_results(parse_integer_to_signed(lhs * rhs), noir_res);
     }
 
     #[test]
     fn test_div() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let lhs: u64 = rng.random();
+        let mut rhs: u64 = rng.random();
 
         if rhs == 0 {
             rhs = 1;
         }
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_div_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs / rhs, noir_res);
     }
 
     #[test]
     fn test_mod() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let lhs: u64 = rng.random();
+        let rhs: u64 = rng.random();
 
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mod_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs % rhs, noir_res);
     }
 
     #[test]
     fn test_and() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let lhs: u64 = rng.random();
+        let rhs: u64 = rng.random();
 
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_and_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs & rhs, noir_res);
     }
 
     #[test]
     fn test_or() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let lhs: u64 = rng.random();
+        let rhs: u64 = rng.random();
 
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_or_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs | rhs, noir_res);
     }
 
     #[test]
     fn test_xor() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let lhs: u64 = rng.random();
+        let rhs: u64 = rng.random();
 
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_xor_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs ^ rhs, noir_res);
     }
     #[test]
     fn test_shr() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
+        let mut rng = rand::rng();
+        let lhs: u64 = rng.random();
+        let mut rhs: u64 = rng.random();
 
         rhs %= 64;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_shr_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs >> rhs, noir_res);
     }
@@ -341,7 +341,7 @@ mod tests {
         match compilation_result {
             Ok(_) => panic!("Expected an SSA validation failure"),
             Err(FuzzerBuilderError::RuntimeError(error)) => {
-                assert!(error.contains(expected_message));
+                assert!(error.contains(expected_message), "error: {error}");
             }
         }
     }
@@ -352,19 +352,18 @@ mod tests {
         let mut brillig_builder = FuzzerBuilder::new_brillig(/*simplifying_enabled=*/ true);
 
         let field_var_acir_id_1 =
-            acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
-        let u64_var_acir_id_2 = acir_builder.insert_variable(ValueType::U64.to_ssa_type()).value_id;
+            acir_builder.insert_variable(Type::Numeric(NumericType::Field).into()).value_id;
+        let u64_var_acir_id_2 =
+            acir_builder.insert_variable(Type::Numeric(NumericType::U64).into()).value_id;
         let field_var_brillig_id_1 =
-            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+            brillig_builder.insert_variable(Type::Numeric(NumericType::Field).into()).value_id;
         let u64_var_brillig_id_2 =
-            brillig_builder.insert_variable(ValueType::U64.to_ssa_type()).value_id;
+            brillig_builder.insert_variable(Type::Numeric(NumericType::U64).into()).value_id;
 
-        let casted_acir = acir_builder
-            .builder
-            .insert_cast(field_var_acir_id_1, NumericType::Unsigned { bit_size: 64 });
-        let casted_brillig = brillig_builder
-            .builder
-            .insert_cast(field_var_brillig_id_1, NumericType::Unsigned { bit_size: 64 });
+        let casted_acir =
+            acir_builder.builder.insert_cast(field_var_acir_id_1, NumericType::U64.into());
+        let casted_brillig =
+            brillig_builder.builder.insert_cast(field_var_brillig_id_1, NumericType::U64.into());
 
         let mul_acir = acir_builder.builder.insert_binary(
             casted_acir,
@@ -380,7 +379,8 @@ mod tests {
         acir_builder.builder.terminate_with_return(vec![mul_acir]);
         brillig_builder.builder.terminate_with_return(vec![mul_brillig]);
 
-        let acir_result = acir_builder.compile(CompileOptions::default());
+        let acir_result =
+            acir_builder.compile(CompileOptions { show_ssa: true, ..CompileOptions::default() });
         check_expected_validation_error(
             acir_result,
             "Invalid cast from Field, not preceded by valid truncation or known safe value",

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_alias_with_where_clause_has_equivalent_errors_2"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

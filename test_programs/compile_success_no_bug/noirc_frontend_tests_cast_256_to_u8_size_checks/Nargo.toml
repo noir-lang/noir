@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_cast_256_to_u8_size_checks"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

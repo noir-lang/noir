@@ -65,7 +65,7 @@ impl FunctionDefinition {
     // docs:end:set_return_public
 
     #[builtin(function_def_set_return_data)]
-    comptime fn set_return_data(self) {}
+    pub comptime fn set_return_data(self) {}
 
     #[builtin(function_def_set_unconstrained)]
     // docs:start:set_unconstrained
