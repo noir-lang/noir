@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["aes128_encrypt"]};
+window.SIDEBAR_ITEMS = {"fn":["aes128_encrypt"],"type":["Aes128CbcEnc"]};

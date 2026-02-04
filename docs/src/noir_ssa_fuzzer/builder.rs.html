@@ -610,8 +610,8 @@
 <a href=#610 id=610 data-nosnippet>610</a>            </span>.builder
 <a href=#611 id=611 data-nosnippet>611</a>            .import_intrinsic(<span class="string">"aes128_encrypt"</span>)
 <a href=#612 id=612 data-nosnippet>612</a>            .expect(<span class="string">"aes128_encrypt intrinsic should be available"</span>);
-<a href=#613 id=613 data-nosnippet>613</a>        <span class="comment">// With auto padding disabled in libaes, output size equals input size.
-<a href=#614 id=614 data-nosnippet>614</a>        // Input must be a multiple of 16 (pre-padded).
+<a href=#613 id=613 data-nosnippet>613</a>        <span class="comment">// The blackbox does not apply padding, so output size equals input size.
+<a href=#614 id=614 data-nosnippet>614</a>        // Callers must pad inputs in Noir; input length must be a multiple of 16.
 <a href=#615 id=615 data-nosnippet>615</a>        </span><span class="kw">let </span>return_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]), input_size);
 <a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
 <a href=#617 id=617 data-nosnippet>617</a>            intrinsic,
