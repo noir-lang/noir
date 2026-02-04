@@ -10,45 +10,11 @@ Use this skill when debugging SSA optimization bugs, particularly those found by
 
 Helper scripts are in the `scripts/` directory of this skill.
 
-## 1. Extracting Fuzzer Reproduction Cases from GitHub Actions
+## Prerequisites
 
-When a fuzzer test fails in CI, extract the reproduction case from the job logs:
+If you need to extract a reproduction case from a CI fuzzer failure, use the `extract-fuzzer-repro` skill first. This skill assumes you already have a Noir project that reproduces the issue.
 
-```bash
-# Fetch the job logs (replace JOB_ID with the actual job ID from the URL)
-gh api repos/noir-lang/noir/actions/jobs/JOB_ID/logs 2>&1 | tee fuzzer_logs.txt
-```
-
-Search for the reproduction code in the logs:
-```bash
-grep -nE "unconstrained fn main|fn main" fuzzer_logs.txt
-```
-
-The fuzzer output includes:
-- **AST**: The generated Noir source code (after "AST:" marker)
-- **ABI Inputs**: The input values (after "ABI Inputs:" marker)
-- **Seed**: The fuzzer seed for reproduction
-
-Example log structure:
-```
----
-AST:
-global G_A: i8 = -127_i8;
-unconstrained fn main(a: pub i8) -> pub i8 {
-    ...
-}
----
-ABI Inputs:
-a = "-0x5c"
----
-Seed: 0xc63ed07b00100000
-```
-
-Copy the Noir code to `src/main.nr` and create `Prover.toml` with the inputs.
-
-**Note**: If the code uses `match` expressions, you'll need the `-Zenums` flag when compiling.
-
-## 2. Compiling and Splitting SSA Passes
+## 1. Compiling and Splitting SSA Passes
 
 Compile with `--show-ssa` to output SSA after each optimization pass:
 
@@ -86,7 +52,7 @@ ssa_passes/03_expand_signed_checks_(1)_(step_2).ssa
 ...
 ```
 
-## 3. Using noir-ssa CLI to Bisect Failures
+## 2. Using noir-ssa CLI to Bisect Failures
 
 Build the SSA CLI tool (if not already built):
 ```bash
@@ -140,7 +106,7 @@ diff ssa_passes/06_*.ssa ssa_passes/07_*.ssa
 
 Or read both files and look for the specific difference that causes the failure.
 
-## 4. Creating Regression Tests
+## 3. Creating Regression Tests
 
 Once you've identified the failing pass, create a unit test to prevent regression. **Use the actual SSA from the `ssa_passes/` directory** rather than trying to manually simplify or recreate the pattern.
 
