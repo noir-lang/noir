@@ -2,7 +2,7 @@
     interner: &amp;'a <a class="struct" href="../../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
     func_id: <a class="struct" href="../../node_interner/struct.FuncId.html" title="struct noirc_frontend::node_interner::FuncId">FuncId</a>,
     func_name: impl <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>() -&gt; &amp;'a <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.str.html">str</a>,
-    func_location: <a class="struct" href="../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    func_location: Location,
     body_id: <a class="struct" href="../../node_interner/struct.ExprId.html" title="struct noirc_frontend::node_interner::ExprId">ExprId</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../hir/resolution/errors/enum.ResolverError.html" title="enum noirc_frontend::hir::resolution::errors::ResolverError">ResolverError</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Check that a recursive function <em>can</em> return without endlessly calling itself.</p>
 </div></details></section></div></main></body></html>

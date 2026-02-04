@@ -3,8 +3,8 @@
     fn <a href="#tymethod.generate_flamegraph" class="fn">generate_flamegraph</a>&lt;'files, S: <a class="trait" href="trait.Sample.html" title="trait noir_profiler::flamegraph::Sample">Sample</a>&gt;(
         &amp;self,
         samples: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;S&gt;,
-        debug_symbols: &amp;<a class="struct" href="../../noirc_artifacts/debug/struct.DebugInfo.html" title="struct noirc_artifacts::debug::DebugInfo">DebugInfo</a>,
-        files: &amp;'files impl Files&lt;'files, FileId = <a class="struct" href="../../fm/file_map/struct.FileId.html" title="struct fm::file_map::FileId">FileId</a>&gt;,
+        debug_symbols: &amp;DebugInfo,
+        files: &amp;'files impl Files&lt;'files, FileId = FileId&gt;,
         artifact_name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.str.html">str</a>,
         function_name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.str.html">str</a>,
         output_path: &amp;<a class="struct" href="https://doc.rust-lang.org/1.85.0/std/path/struct.Path.html" title="struct std::path::Path">Path</a>,
@@ -12,8 +12,8 @@
 }</code></pre><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><section id="tymethod.generate_flamegraph" class="method"><a class="src rightside" href="../../src/noir_profiler/flamegraph.rs.html#83-91">Source</a><h4 class="code-header">fn <a href="#tymethod.generate_flamegraph" class="fn">generate_flamegraph</a>&lt;'files, S: <a class="trait" href="trait.Sample.html" title="trait noir_profiler::flamegraph::Sample">Sample</a>&gt;(
     &amp;self,
     samples: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;S&gt;,
-    debug_symbols: &amp;<a class="struct" href="../../noirc_artifacts/debug/struct.DebugInfo.html" title="struct noirc_artifacts::debug::DebugInfo">DebugInfo</a>,
-    files: &amp;'files impl Files&lt;'files, FileId = <a class="struct" href="../../fm/file_map/struct.FileId.html" title="struct fm::file_map::FileId">FileId</a>&gt;,
+    debug_symbols: &amp;DebugInfo,
+    files: &amp;'files impl Files&lt;'files, FileId = FileId&gt;,
     artifact_name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.str.html">str</a>,
     function_name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.str.html">str</a>,
     output_path: &amp;<a class="struct" href="https://doc.rust-lang.org/1.85.0/std/path/struct.Path.html" title="struct std::path::Path">Path</a>,
