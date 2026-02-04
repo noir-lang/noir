@@ -54,7 +54,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(program.main_function_parameters());
 
-    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
+    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData(_));
 
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);

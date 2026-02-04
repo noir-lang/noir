@@ -274,29 +274,33 @@ impl Parser<'_> {
     ///     | 'call_data' '(' int ')'
     ///     | nothing
     fn parse_visibility(&mut self) -> Visibility {
+        let start_location = self.current_token_location;
+
         if self.eat_keyword(Keyword::Pub) {
-            return Visibility::Public;
+            return Visibility::Public(start_location);
         }
 
         if self.eat_keyword(Keyword::ReturnData) {
-            return Visibility::ReturnData;
+            return Visibility::ReturnData(start_location);
         }
 
         if self.eat_keyword(Keyword::CallData) {
             if self.eat_left_paren() {
                 if let Some((int, None)) = self.eat_int() {
                     self.eat_or_error(Token::RightParen);
-
+                    let location = self.location_since(start_location);
                     let id = int.to_u128() as u32;
-                    return Visibility::CallData(id);
+                    return Visibility::CallData(id, location);
                 } else {
                     self.expected_label(ParsingRuleLabel::Integer);
                     self.eat_right_paren();
-                    return Visibility::CallData(0);
+                    let location = self.location_since(start_location);
+                    return Visibility::CallData(0, location);
                 }
             } else {
                 self.expected_token(Token::LeftParen);
-                return Visibility::CallData(0);
+                let location = self.location_since(start_location);
+                return Visibility::CallData(0, location);
             }
         }
 
@@ -414,7 +418,7 @@ mod tests {
         let param = noir_function.def.parameters.remove(0);
         assert_eq!("x", param.pattern.to_string());
         assert_eq!("Field", param.typ.to_string());
-        assert_eq!(param.visibility, Visibility::Public);
+        assert!(matches!(param.visibility, Visibility::Public(..)));
     }
 
     #[test]
@@ -424,7 +428,7 @@ mod tests {
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
-        assert_eq!(param.visibility, Visibility::ReturnData);
+        assert!(matches!(param.visibility, Visibility::ReturnData(..)));
     }
 
     #[test]
@@ -434,7 +438,7 @@ mod tests {
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
-        assert_eq!(param.visibility, Visibility::CallData(42));
+        assert!(matches!(param.visibility, Visibility::CallData(42, _)));
     }
 
     #[test]
@@ -449,7 +453,7 @@ mod tests {
     fn parse_function_return_visibility() {
         let src = "fn foo() -> pub Field {}";
         let noir_function = parse_function_no_error(src);
-        assert_eq!(noir_function.def.return_visibility, Visibility::Public);
+        assert!(matches!(noir_function.def.return_visibility, Visibility::Public(_)));
         assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 

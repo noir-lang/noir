@@ -27,7 +27,7 @@ impl Formatter<'_> {
 
         match visibility {
             Visibility::Private => (),
-            Visibility::Public => {
+            Visibility::Public(_) => {
                 self.write_keyword(Keyword::Pub);
                 self.write_space();
             }
@@ -40,7 +40,7 @@ impl Formatter<'_> {
                 self.write_right_paren();
                 self.write_space();
             }
-            Visibility::ReturnData => {
+            Visibility::ReturnData(_) => {
                 self.write_keyword(Keyword::ReturnData);
                 self.write_space();
             }

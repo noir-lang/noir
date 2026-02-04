@@ -54,9 +54,9 @@ impl DataBusBuilder {
 
         for (_, _, _, typ, visibility) in main_parameters {
             let is_databus = match visibility {
-                Visibility::Public | Visibility::Private => DatabusVisibility::None,
-                Visibility::CallData(id) => DatabusVisibility::CallData(*id),
-                Visibility::ReturnData => DatabusVisibility::ReturnData,
+                Visibility::Public(_) | Visibility::Private => DatabusVisibility::None,
+                Visibility::CallData(id, _) => DatabusVisibility::CallData(*id),
+                Visibility::ReturnData(_) => DatabusVisibility::ReturnData,
             };
             let len = typ.entry_point_field_count() as usize;
             params_is_databus.extend(vec![is_databus; len]);

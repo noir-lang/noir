@@ -882,7 +882,7 @@ impl FunctionDefinition {
     pub fn signature(&self) -> String {
         let parameters =
             vecmap(&self.parameters, |Param { visibility, pattern, typ, location: _ }| {
-                if *visibility == Visibility::Public {
+                if matches!(visibility, Visibility::Public(_)) {
                     format!("{pattern}: {visibility} {typ}")
                 } else {
                     format!("{pattern}: {typ}")

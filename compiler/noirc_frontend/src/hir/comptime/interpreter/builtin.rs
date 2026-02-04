@@ -2866,7 +2866,8 @@ fn function_def_set_return_public(
     let public = get_bool(public)?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+    func_meta.return_visibility =
+        if public { Visibility::Public(location) } else { Visibility::Private };
 
     Ok(Value::Unit)
 }
@@ -2883,7 +2884,7 @@ fn function_def_set_return_data(
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = Visibility::ReturnData;
+    func_meta.return_visibility = Visibility::ReturnData(location);
 
     Ok(Value::Unit)
 }

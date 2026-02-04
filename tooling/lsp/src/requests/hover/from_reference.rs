@@ -485,7 +485,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             // Don't add type for `self` param
             if !is_self {
                 string.push_str(": ");
-                if matches!(visibility, Visibility::Public) {
+                if matches!(visibility, Visibility::Public(_)) {
                     string.push_str("pub ");
                 }
                 string.push_str(&format!("{typ}"));
