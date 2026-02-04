@@ -180,19 +180,40 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
     ) {
-        // Allocate a register for the iterator
         let write_pointer_register = self.brillig_context.allocate_register();
 
         self.brillig_context.mov_instruction(*write_pointer_register, pointer);
 
         for (element_idx, element_id) in data.iter().enumerate() {
-            let element_variable = self.convert_ssa_value(*element_id, dfg);
-            // Store the item in memory
-            self.brillig_context
-                .store_instruction(*write_pointer_register, element_variable.extract_register());
+            // For numeric constants, use a temporary register that auto-deallocates
+            // instead of convert_ssa_value which permanently caches the allocation.
+            // This bounds register usage to O(1) for large constant arrays.
+            //
+            // However, if the constant is already pre-allocated (live after this instruction),
+            // reuse the existing allocation to avoid emitting a redundant Const opcode.
+            if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(*element_id) {
+                if self.variables.is_allocated(element_id) {
+                    let element_variable = self.convert_ssa_value(*element_id, dfg);
+                    self.brillig_context.store_instruction(
+                        *write_pointer_register,
+                        element_variable.extract_register(),
+                    );
+                } else {
+                    let temp = self
+                        .brillig_context
+                        .make_constant_instruction(constant, typ.bit_size::<FieldElement>());
+                    self.brillig_context
+                        .store_instruction(*write_pointer_register, temp.address);
+                }
+            } else {
+                let element_variable = self.convert_ssa_value(*element_id, dfg);
+                self.brillig_context.store_instruction(
+                    *write_pointer_register,
+                    element_variable.extract_register(),
+                );
+            }
 
             if element_idx != data.len() - 1 {
-                // Increment the write_pointer_register
                 self.brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
             }
         }

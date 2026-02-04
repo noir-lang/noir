@@ -332,7 +332,35 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
-        self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+        // For MakeArray, exclude numeric constant elements whose last use is at this
+        // instruction. They are handled with temporary registers in
+        // initialize_constant_array_comptime, avoiding stack frame overflow for large
+        // constant arrays. Constants that are live after this instruction must still be
+        // pre-allocated so they remain available in subsequent blocks.
+        let dead_at_this_instruction = self.last_uses.get(&instruction_id);
+        let excluded_constants = if let Instruction::MakeArray { elements, .. } = instruction {
+            let numeric_elements: HashSet<ValueId> = elements
+                .iter()
+                .filter(|id| {
+                    dfg.get_numeric_constant(**id).is_some()
+                        && dead_at_this_instruction.map_or(false, |dead| dead.contains(id))
+                })
+                .copied()
+                .collect();
+            if numeric_elements.is_empty() {
+                self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+            } else {
+                self.initialize_constants_filtered(
+                    dfg,
+                    InstructionLocation::Instruction(instruction_id),
+                    |id| !numeric_elements.contains(&id),
+                );
+            }
+            numeric_elements
+        } else {
+            self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+            HashSet::default()
+        };
 
         match instruction {
             Instruction::Binary(binary) => {
@@ -409,7 +437,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Globals are reserved throughout the entirety of the program
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                if !is_global && !is_hoisted_global {
+                // Numeric constants excluded from pre-allocation (MakeArray elements)
+                // were handled with temporary registers and never tracked.
+                let was_excluded = excluded_constants.contains(dead_variable);
+                if !is_global && !is_hoisted_global && !was_excluded {
                     self.variables.remove_variable(
                         dead_variable,
                         self.function_context,
@@ -437,6 +468,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// It is expected that this method is called before converting an SSA instruction to Brillig
     /// and the constants to be initialized have been precomputed and stored in [FunctionContext::constant_allocation].
     fn initialize_constants(&mut self, dfg: &DataFlowGraph, location: InstructionLocation) {
+        self.initialize_constants_filtered(dfg, location, |_| true);
+    }
+
+    /// Like [initialize_constants][Self::initialize_constants], but skips constants
+    /// for which `filter` returns false.
+    fn initialize_constants_filtered(
+        &mut self,
+        dfg: &DataFlowGraph,
+        location: InstructionLocation,
+        filter: impl Fn(ValueId) -> bool,
+    ) {
         let Some(constants) = self
             .function_context
             .constant_allocation
@@ -447,7 +489,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         };
 
         for constant_id in constants {
-            self.convert_ssa_value(constant_id, dfg);
+            if filter(constant_id) {
+                self.convert_ssa_value(constant_id, dfg);
+            }
         }
     }
 
