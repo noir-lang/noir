@@ -85,7 +85,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -248,14 +248,12 @@ impl<'f> PerFunctionContext<'f> {
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
-                all_terminator_values.insert(value);
-                // Also insert all the aliases of this value as being used in the terminator,
-                // so that for example if the value is an array and contains a reference,
-                // then that reference gets to keep its last store.
-                let typ = self.inserter.function.dfg.type_of_value(value);
-                if typ.contains_reference() {
-                    all_terminator_values.extend(references.get_aliases_for_value(value).iter());
-                }
+                Self::collect_terminator_value_aliases(
+                    value,
+                    references,
+                    &self.inserter.function.dfg,
+                    &mut all_terminator_values,
+                );
             });
         }
 
@@ -331,6 +329,41 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         false
+    }
+
+    /// Collects a terminator value and all its aliases into the output set.
+    ///
+    /// When a value has unknown aliases (e.g., because it contains references from
+    /// arrays with unknown contents), we fall back to directly collecting the array
+    /// elements if it's an array constant. This ensures that stores to references
+    /// within the array are not incorrectly removed.
+    fn collect_terminator_value_aliases(
+        value: ValueId,
+        references: &Block,
+        dfg: &DataFlowGraph,
+        output: &mut HashSet<ValueId>,
+    ) {
+        output.insert(value);
+
+        let typ = dfg.type_of_value(value);
+        if !typ.contains_reference() {
+            return;
+        }
+
+        let aliases = references.get_aliases_for_value(value);
+        if aliases.is_unknown() {
+            // If aliases are unknown but this is an array constant, directly collect
+            // the elements. This handles the case where an array contains references
+            // that have unknown aliases (e.g., from array parameters), but we still
+            // need to track the elements that DO have known aliases.
+            if let Some((elements, _)) = dfg.get_array_constant(value) {
+                for element in elements.iter() {
+                    Self::collect_terminator_value_aliases(*element, references, dfg, output);
+                }
+            }
+        } else {
+            output.extend(aliases.iter());
+        }
     }
 
     /// Collect the input parameters of the function which are of reference type.
@@ -3057,6 +3090,44 @@ mod tests {
       }                                                                                                  
       "#;
 
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    // Regression test: Mem2Reg should not remove stores to references that escape
+    // via a returned array. Based on fuzzer-found bug where stores in b0 were removed
+    // even though the references were placed in an array and returned in b3.
+    #[test]
+    fn keep_store_to_reference_in_returned_array_across_branches() {
+        // Minimal reproduction of the failing pattern:
+        // - v7 and v9 are allocated and stored to in b0
+        // - Control flow branches (jmpif) to b1 or b2
+        // - Array containing v7, v9 is created and returned in b3
+        // - Mem2Reg must NOT remove the stores to v7 and v9
+        let src = r#"
+        brillig(inline) fn func_1 f0 {
+          b0(v2: [&mut u1; 3]):
+            v7 = allocate -> &mut u1
+            store u1 0 at v7
+            v9 = allocate -> &mut u1
+            store u1 0 at v9
+            v11 = array_get v2, index u32 2 -> &mut u1
+            v12 = load v11 -> u1
+            jmpif v12 then: b1, else: b2
+          b1():
+            v16 = array_get v2, index u32 1 -> &mut u1
+            jmp b3(v16)
+          b2():
+            v14 = array_get v2, index u32 0 -> &mut u1
+            jmp b3(v14)
+          b3(v6: &mut u1):
+            v17 = allocate -> &mut u1
+            store u1 1 at v17
+            v19 = make_array [v7, v9, v6, v17] : [&mut u1; 4]
+            return v19
+        }
+        "#;
+
+        // The stores to v7 and v9 must be preserved since they escape via the returned array
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
