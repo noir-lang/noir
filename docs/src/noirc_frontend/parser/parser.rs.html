@@ -612,8 +612,8 @@
 <a href=#612 id=612 data-nosnippet>612</a>        Location::new(span_at_previous_token_end, <span class="self">self</span>.previous_token_location.file)
 <a href=#613 id=613 data-nosnippet>613</a>    }
 <a href=#614 id=614 data-nosnippet>614</a>
-<a href=#615 id=615 data-nosnippet>615</a>    <span class="kw">fn </span>unknown_ident_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
-<a href=#616 id=616 data-nosnippet>616</a>        Ident::new(<span class="string">"(unknown)"</span>.to_string(), <span class="self">self</span>.location_at_previous_token_end())
+<a href=#615 id=615 data-nosnippet>615</a>    <span class="kw">fn </span>empty_ident_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
+<a href=#616 id=616 data-nosnippet>616</a>        Ident::new(<span class="string">""</span>.to_string(), <span class="self">self</span>.location_at_previous_token_end())
 <a href=#617 id=617 data-nosnippet>617</a>    }
 <a href=#618 id=618 data-nosnippet>618</a>
 <a href=#619 id=619 data-nosnippet>619</a>    <span class="kw">fn </span>expected_identifier(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {

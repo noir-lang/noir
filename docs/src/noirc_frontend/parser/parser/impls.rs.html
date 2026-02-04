@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_non_underscore_ident() <span class="kw">else </span>{
 <a href=#155 id=155 data-nosnippet>155</a>            <span class="self">self</span>.expected_identifier();
 <a href=#156 id=156 data-nosnippet>156</a>            <span class="self">self</span>.eat_semicolons();
-<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">let </span>name = <span class="self">self</span>.unknown_ident_at_previous_token_end();
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">let </span>name = <span class="self">self</span>.empty_ident_at_previous_token_end();
 <a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">let </span>alias = <span class="prelude-val">None</span>;
 <a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(TraitImplItemKind::Type { name, alias });
 <a href=#160 id=160 data-nosnippet>160</a>        };
@@ -176,7 +176,7 @@
 <a href=#176 id=176 data-nosnippet>176</a>            <span class="prelude-val">Some</span>(name) =&gt; name,
 <a href=#177 id=177 data-nosnippet>177</a>            <span class="prelude-val">None </span>=&gt; {
 <a href=#178 id=178 data-nosnippet>178</a>                <span class="self">self</span>.expected_identifier();
-<a href=#179 id=179 data-nosnippet>179</a>                <span class="self">self</span>.unknown_ident_at_previous_token_end()
+<a href=#179 id=179 data-nosnippet>179</a>                <span class="self">self</span>.empty_ident_at_previous_token_end()
 <a href=#180 id=180 data-nosnippet>180</a>            }
 <a href=#181 id=181 data-nosnippet>181</a>        };
 <a href=#182 id=182 data-nosnippet>182</a>

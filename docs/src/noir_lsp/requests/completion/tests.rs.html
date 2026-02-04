@@ -3596,4 +3596,21 @@
 <a href=#3596 id=3596 data-nosnippet>3596</a>
 <a href=#3597 id=3597 data-nosnippet>3597</a>        assert_completion(src, <span class="macro">vec!</span>[variable_completion_item(<span class="string">"hello: HelloWorld"</span>, <span class="prelude-val">None</span>)]).<span class="kw">await</span>;
 <a href=#3598 id=3598 data-nosnippet>3598</a>    }
-<a href=#3599 id=3599 data-nosnippet>3599</a>}</code></pre></div></section></main></body></html>
+<a href=#3599 id=3599 data-nosnippet>3599</a>
+<a href=#3600 id=3600 data-nosnippet>3600</a>    <span class="attr">#[test]
+<a href=#3601 id=3601 data-nosnippet>3601</a>    </span><span class="kw">async fn </span>autocompletes_use_super() {
+<a href=#3602 id=3602 data-nosnippet>3602</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#3603 id=3603 data-nosnippet>3603</a>        pub fn hello() {}
+<a href=#3604 id=3604 data-nosnippet>3604</a>
+<a href=#3605 id=3605 data-nosnippet>3605</a>        mod moo {
+<a href=#3606 id=3606 data-nosnippet>3606</a>            pub use super::&gt;|&lt;
+<a href=#3607 id=3607 data-nosnippet>3607</a>        }
+<a href=#3608 id=3608 data-nosnippet>3608</a>        "#</span>;
+<a href=#3609 id=3609 data-nosnippet>3609</a>
+<a href=#3610 id=3610 data-nosnippet>3610</a>        assert_completion(
+<a href=#3611 id=3611 data-nosnippet>3611</a>            src,
+<a href=#3612 id=3612 data-nosnippet>3612</a>            <span class="macro">vec!</span>[function_completion_item(<span class="string">"hello"</span>, <span class="string">"hello"</span>, <span class="string">"fn()"</span>), module_completion_item(<span class="string">"moo"</span>)],
+<a href=#3613 id=3613 data-nosnippet>3613</a>        )
+<a href=#3614 id=3614 data-nosnippet>3614</a>        .<span class="kw">await</span>;
+<a href=#3615 id=3615 data-nosnippet>3615</a>    }
+<a href=#3616 id=3616 data-nosnippet>3616</a>}</code></pre></div></section></main></body></html>
