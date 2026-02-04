@@ -588,7 +588,7 @@
 <a href=#588 id=588 data-nosnippet>588</a>    <span class="kw">fn </span>format_constructor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constructor: ConstructorExpression) -&gt; ChunkGroup {
 <a href=#589 id=589 data-nosnippet>589</a>        <span class="kw">let </span><span class="kw-2">mut </span>group = ChunkGroup::new();
 <a href=#590 id=590 data-nosnippet>590</a>        group.text(<span class="self">self</span>.chunk(|formatter| {
-<a href=#591 id=591 data-nosnippet>591</a>            formatter.format_type(constructor.typ);
+<a href=#591 id=591 data-nosnippet>591</a>            formatter.format_type_in_expression(constructor.typ);
 <a href=#592 id=592 data-nosnippet>592</a>            formatter.write_space();
 <a href=#593 id=593 data-nosnippet>593</a>            formatter.write_left_brace();
 <a href=#594 id=594 data-nosnippet>594</a>        }));
