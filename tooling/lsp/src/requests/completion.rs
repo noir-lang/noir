@@ -23,10 +23,10 @@ use noirc_frontend::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
         IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
-        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
-        UseTreeKind, Visitor,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, Path, PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl,
+        TypePath, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UseTree, UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -58,6 +58,7 @@ mod auto_import;
 mod builtins;
 mod completion_items;
 mod kinds;
+mod params;
 mod sort_text;
 mod tests;
 
@@ -1246,6 +1247,14 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
+    fn visit_parsed_module(&mut self, parsed_module: &ParsedModule) -> bool {
+        if self.try_complete_function_param_in_parsed_module(parsed_module) {
+            return false;
+        }
+
+        true
+    }
+
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _span: Span) -> bool {
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
@@ -1369,6 +1378,10 @@ impl Visitor for NodeFinder<'_> {
     }
 
     fn visit_type_impl(&mut self, type_impl: &TypeImpl, _: Span) -> bool {
+        if self.try_complete_function_param_in_type_impl(type_impl) {
+            return false;
+        }
+
         for generic in &type_impl.generics {
             generic.accept(self);
         }
@@ -1407,6 +1420,14 @@ impl Visitor for NodeFinder<'_> {
         self.type_parameters.clear();
 
         false
+    }
+
+    fn visit_noir_trait(&mut self, trait_: &NoirTrait, _: Span) -> bool {
+        if self.try_complete_function_param_in_trait(trait_) {
+            return false;
+        }
+
+        true
     }
 
     fn visit_trait_item_function(
