@@ -371,7 +371,6 @@ fn deny_cyclic_structs() {
         // that must be done with care.
         // Safety:
         let _ = unsafe { foo() };
-                         ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
         []
     }
     "#;
