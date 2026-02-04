@@ -1,7 +1,7 @@
 use crate::BlackBoxResolutionError;
 use aes::cipher::{BlockEncryptMut, KeyIvInit, block_padding::NoPadding};
 
-type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
+type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>; // cSpell:disable-line
 
 pub fn aes128_encrypt(
     inputs: &[u8],
