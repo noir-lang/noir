@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [[ \"$CLAUDE_FILE_PATH\" == *.rs ]]; then cargo fmt -- \"$CLAUDE_FILE_PATH\"; fi"
+            "command": "bash -c 'FILE=$(jq -r \".tool_input.file_path\"); if [[ \"$FILE\" == *.rs ]]; then cargo fmt -- \"$FILE\" 2>/dev/null; fi'"
           }
         ]
       }
