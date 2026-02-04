@@ -898,7 +898,7 @@
 <a href=#898 id=898 data-nosnippet>898</a>        expected_kind: <span class="kw-2">&amp;</span>Kind,
 <a href=#899 id=899 data-nosnippet>899</a>        location: Location,
 <a href=#900 id=900 data-nosnippet>900</a>    ) -&gt; Type {
-<a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">if </span>typ.has_cyclic_alias(<span class="kw-2">&amp;mut </span>HashSet::default()) {
+<a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">if </span>typ.has_cyclic_alias() {
 <a href=#902 id=902 data-nosnippet>902</a>            <span class="self">self</span>.push_err(TypeCheckError::CyclicType { typ, location });
 <a href=#903 id=903 data-nosnippet>903</a>            <span class="kw">return </span>Type::Error;
 <a href=#904 id=904 data-nosnippet>904</a>        }
