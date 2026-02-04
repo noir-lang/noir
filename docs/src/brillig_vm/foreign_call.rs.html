@@ -1,1045 +1,522 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/brillig_vm/src/foreign_call.rs`."><title>foreign_call.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="brillig_vm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../static.files/storage-59e33391.js"></script><script defer src="../../static.files/src-script-56102188.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">brillig_vm/</div>foreign_call.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
-<a href="#1" id="1">1</a>
-<a href="#2" id="2">2</a>
-<a href="#3" id="3">3</a>
-<a href="#4" id="4">4</a>
-<a href="#5" id="5">5</a>
-<a href="#6" id="6">6</a>
-<a href="#7" id="7">7</a>
-<a href="#8" id="8">8</a>
-<a href="#9" id="9">9</a>
-<a href="#10" id="10">10</a>
-<a href="#11" id="11">11</a>
-<a href="#12" id="12">12</a>
-<a href="#13" id="13">13</a>
-<a href="#14" id="14">14</a>
-<a href="#15" id="15">15</a>
-<a href="#16" id="16">16</a>
-<a href="#17" id="17">17</a>
-<a href="#18" id="18">18</a>
-<a href="#19" id="19">19</a>
-<a href="#20" id="20">20</a>
-<a href="#21" id="21">21</a>
-<a href="#22" id="22">22</a>
-<a href="#23" id="23">23</a>
-<a href="#24" id="24">24</a>
-<a href="#25" id="25">25</a>
-<a href="#26" id="26">26</a>
-<a href="#27" id="27">27</a>
-<a href="#28" id="28">28</a>
-<a href="#29" id="29">29</a>
-<a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a>
-<a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a>
-<a href="#35" id="35">35</a>
-<a href="#36" id="36">36</a>
-<a href="#37" id="37">37</a>
-<a href="#38" id="38">38</a>
-<a href="#39" id="39">39</a>
-<a href="#40" id="40">40</a>
-<a href="#41" id="41">41</a>
-<a href="#42" id="42">42</a>
-<a href="#43" id="43">43</a>
-<a href="#44" id="44">44</a>
-<a href="#45" id="45">45</a>
-<a href="#46" id="46">46</a>
-<a href="#47" id="47">47</a>
-<a href="#48" id="48">48</a>
-<a href="#49" id="49">49</a>
-<a href="#50" id="50">50</a>
-<a href="#51" id="51">51</a>
-<a href="#52" id="52">52</a>
-<a href="#53" id="53">53</a>
-<a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a>
-<a href="#242" id="242">242</a>
-<a href="#243" id="243">243</a>
-<a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a>
-<a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a>
-<a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a>
-<a href="#455" id="455">455</a>
-<a href="#456" id="456">456</a>
-<a href="#457" id="457">457</a>
-<a href="#458" id="458">458</a>
-<a href="#459" id="459">459</a>
-<a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a>
-<a href="#462" id="462">462</a>
-<a href="#463" id="463">463</a>
-<a href="#464" id="464">464</a>
-<a href="#465" id="465">465</a>
-<a href="#466" id="466">466</a>
-<a href="#467" id="467">467</a>
-<a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a>
-<a href="#470" id="470">470</a>
-<a href="#471" id="471">471</a>
-<a href="#472" id="472">472</a>
-<a href="#473" id="473">473</a>
-<a href="#474" id="474">474</a>
-<a href="#475" id="475">475</a>
-<a href="#476" id="476">476</a>
-<a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a>
-<a href="#484" id="484">484</a>
-<a href="#485" id="485">485</a>
-<a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a>
-<a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a>
-<a href="#501" id="501">501</a>
-<a href="#502" id="502">502</a>
-<a href="#503" id="503">503</a>
-<a href="#504" id="504">504</a>
-<a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a>
-<a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
-</span><span class="kw">use </span>acir::{
-    AcirField,
-    brillig::{
-        BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
-        MemoryAddress, ValueOrArray,
-        lengths::{
-            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
-            SemiFlattenedLength,
-        },
-    },
-};
-<span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
-
-<span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
-
-<span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
-    <span class="doccomment">/// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
-    ///
-    /// This method performs the following steps:
-    /// 1. Checks if the foreign call results are already available. If not, it resolves the input
-    ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
-    ///    For vectors, the preceding `u32` length field is used to truncate the vector input to its semantic length.
-    /// 2. If results are available, it writes them to memory, ensuring that the returned data
-    ///    matches the expected types and sizes:
-    ///     * Nested arrays are reconstructed from flat outputs when necessary.
-    ///     * Nested vectors are an unsupported return type and will trigger an error.
-    ///     * Vectors are written to the heap starting at the free memory pointer, and their address gets stored in the destination.
-    ///     * Update free memory pointer based on how much data (if any) was written to it.
-    /// 3. Increments the foreign call counter and advances the program counter.
-    ///
-    /// # Parameters
-    /// The borrowed fields of a [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
-    /// They are listed again below:
-    /// - `function`: Name of the foreign function being called.
-    /// - `destinations`: Pointers or heap structures where the return values will be written.
-    /// - `destination_value_types`: Expected type layout for each destination.
-    /// - `inputs`: Pointers or heap structures representing the inputs for the foreign call.
-    /// - `input_value_types`: Expected type layout for each input.
-    ///
-    /// # Returns
-    /// - [VMStatus] indicating the next state of the VM:
-    ///   - [VMStatus::ForeignCallWait] if the results are not yet available.
-    ///   - [VMStatus::Finished] or [VMStatus::Failure] depending on whether writing the results succeeded.
-    ///
-    /// # Panics
-    /// - If `inputs` and `input_value_types` lengths do not match.
-    /// - If `destinations` and `destination_value_types` lengths do not match.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>process_foreign_call(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        function: <span class="kw-2">&amp;</span>str,
-        destinations: <span class="kw-2">&amp;</span>[ValueOrArray],
-        destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-        inputs: <span class="kw-2">&amp;</span>[ValueOrArray],
-        input_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-    ) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
-        <span class="macro">assert_eq!</span>(inputs.len(), input_value_types.len());
-        <span class="macro">assert_eq!</span>(destinations.len(), destination_value_types.len());
-
-        <span class="kw">if </span>!<span class="self">self</span>.has_unprocessed_foreign_call_result() {
-            <span class="comment">// When this opcode is called, it is possible that the results of a foreign call are
-            // not yet known (not enough entries in `foreign_call_results`).
-            // If that is the case, just resolve the inputs and pause the VM with a status
-            // (VMStatus::ForeignCallWait) that communicates the foreign function name and
-            // resolved inputs back to the caller. Once the caller pushes to `foreign_call_results`,
-            // they can then make another call to the VM that starts at this opcode
-            // but has the necessary results to proceed with execution.
-
-            // With vectors we might have more items in the HeapVector than the semantic length
-            // indicated by the field preceding the pointer to the vector in the inputs.
-            // This happens when SSA merges vectors of different length, which can result in
-            // a vector that has room for the longer of the two, partially filled with items
-            // from the shorter. There are ways to deal with this on the receiver side,
-            // but it is cumbersome, and the cleanest solution is not to send the extra empty
-            // items at all. To do this, however, we need infer which input is the vector length.
-            </span><span class="kw">let </span><span class="kw-2">mut </span>vector_length: <span class="prelude-ty">Option</span>&lt;u32&gt; = <span class="prelude-val">None</span>;
-
-            <span class="kw">let </span>resolved_inputs = inputs
-                .iter()
-                .zip(input_value_types)
-                .map(|(input, input_type)| {
-                    <span class="kw">let </span><span class="kw-2">mut </span>input = <span class="self">self</span>.get_memory_values(<span class="kw-2">*</span>input, input_type);
-                    <span class="comment">// Truncate vectors to their semantic length, which we remember from the preceding field.
-                    </span><span class="kw">match </span>input_type {
-                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) =&gt; {
-                            <span class="comment">// If we have a single u32 we may have a vector representation, so store this input.
-                            // On the next iteration, if we have a vector then we know we have the dynamic length
-                            // for that vector.
-                            </span><span class="kw">let </span>ForeignCallParam::Single(length) = input <span class="kw">else </span>{
-                                <span class="macro">unreachable!</span>(<span class="string">"expected u32; got {input:?}"</span>);
-                            };
-                            vector_length = <span class="prelude-val">Some</span>(length.to_u128() <span class="kw">as </span>u32);
-                        }
-                        HeapValueType::Vector { value_types } =&gt; {
-                            <span class="kw">if let </span><span class="prelude-val">Some</span>(length) = vector_length {
-                                <span class="kw">let </span>flattened_length =
-                                    vector_flattened_length(value_types, SemanticLength(length));
-                                <span class="kw">let </span><span class="kw-2">mut </span>fields = input.fields();
-                                fields.truncate(assert_usize(flattened_length.<span class="number">0</span>));
-                                input = ForeignCallParam::Array(fields);
-                            }
-                            vector_length = <span class="prelude-val">None</span>;
-                        }
-                        <span class="kw">_ </span>=&gt; {
-                            <span class="comment">// Otherwise we are not dealing with a u32 followed by a vector.
-                            </span>vector_length = <span class="prelude-val">None</span>;
-                        }
-                    }
-                    input
-                })
-                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-            <span class="kw">return </span><span class="self">self</span>.wait_for_foreign_call(function.to_owned(), resolved_inputs);
-        }
-
-        <span class="kw">let </span>write_result = <span class="self">self</span>.write_foreign_call_result(
-            destinations,
-            destination_value_types,
-            <span class="self">self</span>.foreign_call_counter,
-        );
-
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = write_result {
-            <span class="kw">return </span><span class="self">self</span>.fail(e);
-        }
-
-        <span class="comment">// Mark the foreign call result as processed.
-        </span><span class="self">self</span>.foreign_call_counter += <span class="number">1</span>;
-        <span class="self">self</span>.increment_program_counter()
-    }
-
-    <span class="doccomment">/// Get input data from memory to pass to foreign calls.
-    </span><span class="kw">fn </span>get_memory_values(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        input: ValueOrArray,
-        value_type: <span class="kw-2">&amp;</span>HeapValueType,
-    ) -&gt; ForeignCallParam&lt;F&gt; {
-        <span class="kw">match </span>(input, value_type) {
-            (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(<span class="kw">_</span>)) =&gt; {
-                ForeignCallParam::Single(<span class="self">self</span>.memory.read(value_addr).to_field())
-            }
-            (
-                ValueOrArray::HeapArray(HeapArray { pointer, size }),
-                HeapValueType::Array { value_types, size: type_size },
-            ) =&gt; {
-                <span class="comment">// The array's semi-flattened size must match the expected size
-                </span><span class="kw">let </span>semi_flattened_size =
-                    <span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len()));
-                <span class="macro">assert_eq!</span>(semi_flattened_size, size);
-
-                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
-                <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
-                    .into_iter()
-                    .map(|mem_value| mem_value.to_field())
-                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-                    .into()
-            }
-            (
-                ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
-                HeapValueType::Vector { value_types },
-            ) =&gt; {
-                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
-                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_addr).to_u32();
-                <span class="kw">let </span>size = SemiFlattenedLength(size);
-                <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
-                    .into_iter()
-                    .map(|mem_value| mem_value.to_field())
-                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-                    .into()
-            }
-            <span class="kw">_ </span>=&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"Unexpected value type {value_type:?} for input {input:?}"</span>);
-            }
-        }
-    }
-
-    <span class="doccomment">/// Reads an array/vector from memory but recursively reads pointers to
-    /// nested arrays/vectors according to the sequence of value types.
-    ///
-    /// The given `size` is the total number of `HeapValueType`s to read, which must
-    /// be a multiple of the length of `value_types` (unless `value_types.len()` is 0).
-    </span><span class="kw">fn </span>read_slice_of_values_from_memory(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        start: MemoryAddress,
-        size: SemiFlattenedLength,
-        value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-    ) -&gt; Vec&lt;MemoryValue&lt;F&gt;&gt; {
-        <span class="kw">let </span>size = size.<span class="number">0</span>;
-
-        <span class="macro">assert!</span>(start.is_direct(), <span class="string">"read_slice_of_values_from_memory requires direct addresses"</span>);
-        <span class="kw">if </span>HeapValueType::all_simple(value_types) {
-            <span class="self">self</span>.memory.read_slice(start, assert_usize(size)).to_vec()
-        } <span class="kw">else </span>{
-            <span class="comment">// Check that the sequence of value types fit an integer number of
-            // times inside the given size.
-            </span><span class="macro">assert!</span>(
-                <span class="number">0 </span>== size % assert_u32(value_types.len()),
-                <span class="string">"array/vector does not contain a whole number of elements"
-            </span>);
-
-            (<span class="number">0</span>..size)
-                .zip(value_types.iter().cycle())
-                .flat_map(|(i, value_type)| {
-                    <span class="kw">let </span>value_address = start.offset(i);
-                    <span class="kw">match </span>value_type {
-                        HeapValueType::Simple(<span class="kw">_</span>) =&gt; {
-                            <span class="macro">vec!</span>[<span class="self">self</span>.memory.read(value_address)]
-                        }
-                        HeapValueType::Array { value_types, size: type_size } =&gt; {
-                            <span class="kw">let </span>array_address =
-                                ArrayAddress::from(<span class="self">self</span>.memory.read_ref(value_address));
-                            <span class="kw">let </span>semi_flattened_size =
-                                <span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len()));
-
-                            <span class="self">self</span>.read_slice_of_values_from_memory(
-                                array_address.items_start(),
-                                semi_flattened_size,
-                                value_types,
-                            )
-                        }
-                        HeapValueType::Vector { .. } =&gt; {
-                            <span class="macro">unreachable!</span>(<span class="string">"Vectors nested in arrays/vectors are not supported"</span>);
-                        }
-                    }
-                })
-                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-        }
-    }
-
-    <span class="doccomment">/// Sets the status of the VM to `ForeignCallWait`.
-    /// Indicating that the VM is now waiting for a foreign call to be resolved.
-    </span><span class="kw">fn </span>wait_for_foreign_call(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        function: String,
-        inputs: Vec&lt;ForeignCallParam&lt;F&gt;&gt;,
-    ) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
-        <span class="self">self</span>.status(VMStatus::ForeignCallWait { function, inputs })
-    }
-
-    <span class="doccomment">/// Write a foreign call's results to the VM memory.
-    ///
-    /// We match the expected types with the actual results.
-    /// However foreign call results do not support nested structures:
-    /// They are either a single integer value or a vector of integer values (field elements).
-    /// Therefore, nested arrays returned from foreign call results are flattened.
-    /// If the expected array sizes do not match the actual size, we reconstruct the nested
-    /// structure from the flat output array.
-    </span><span class="kw">fn </span>write_foreign_call_result(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        destinations: <span class="kw-2">&amp;</span>[ValueOrArray],
-        destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-        foreign_call_index: usize,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-        <span class="comment">// Take ownership of values to allow calling mutating methods on self.
-        </span><span class="kw">let </span>values = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.foreign_call_results[foreign_call_index].values);
-
-        <span class="kw">if </span>destinations.len() != values.len() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                <span class="string">"{} output values were provided as a foreign call result for {} destination slots"</span>,
-                values.len(),
-                destinations.len()
-            ));
-        }
-
-        <span class="macro">assert_eq!</span>(
-            destinations.len(),
-            destination_value_types.len(),
-            <span class="string">"Number of destinations must match number of value types"</span>,
-        );
-
-        <span class="kw">for </span>((destination, value_type), output) <span class="kw">in
-            </span>destinations.iter().zip(destination_value_types).zip(<span class="kw-2">&amp;</span>values)
-        {
-            <span class="kw">match </span>(destination, value_type) {
-                (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) =&gt; {
-                    <span class="kw">let </span>output_fields = output.fields();
-                    <span class="kw">if </span>value_type.flattened_size().is_some_and(|flattened_size| {
-                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
-                    }) {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                            <span class="string">"Foreign call return value does not match expected size. Expected {} but got {}"</span>,
-                            value_type.flattened_size().unwrap(),
-                            output_fields.len(),
-                        ));
-                    }
-
-                    <span class="kw">match </span>output {
-                        ForeignCallParam::Single(value) =&gt; {
-                            <span class="self">self</span>.write_value_to_memory(<span class="kw-2">*</span>value_addr, value, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
-                        }
-                        <span class="kw">_ </span>=&gt; {
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                                <span class="string">"Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
-                            </span>));
-                        }
-                    }
-                }
-                (
-                    ValueOrArray::HeapArray(HeapArray { pointer, size }),
-                    HeapValueType::Array { value_types, size: type_size },
-                ) =&gt; {
-                    <span class="kw">if </span><span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len())) != <span class="kw-2">*</span>size {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                            <span class="string">"Destination array size of {size} does not match the type size of {type_size}"
-                        </span>));
-                    }
-                    <span class="kw">let </span>output_fields = output.fields();
-                    <span class="kw">if </span>value_type.flattened_size().is_some_and(|flattened_size| {
-                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
-                    }) {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                            <span class="string">"Foreign call return value does not match expected size. Expected {} but got {}"</span>,
-                            value_type.flattened_size().unwrap(),
-                            output_fields.len(),
-                        ));
-                    }
-
-                    <span class="kw">if </span>HeapValueType::all_simple(value_types) {
-                        <span class="kw">let </span>ForeignCallParam::Array(values) = output <span class="kw">else </span>{
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an array type"
-                                </span>.to_string());
-                        };
-                        <span class="macro">assert_eq!</span>(
-                            values.len(),
-                            size.<span class="number">0 </span><span class="kw">as </span>usize,
-                            <span class="string">"Expected values length to be equal to heap array size"</span>,
-                        );
-                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
-                    } <span class="kw">else </span>{
-                        <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
-                        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
-                        <span class="kw">let </span><span class="kw-2">mut </span>flatten_values_idx = <span class="number">0</span>; <span class="comment">//index of values read from flatten_values
-                        </span><span class="self">self</span>.write_flattened_values_to_memory(
-                            destination,
-                            <span class="kw-2">&amp;</span>output_fields,
-                            <span class="kw-2">&amp;mut </span>flatten_values_idx,
-                            value_type,
-                        )<span class="question-mark">?</span>;
-                        <span class="macro">assert_eq!</span>(
-                            flatten_values_idx,
-                            output_fields.len(),
-                            <span class="string">"Not all values were written to memory"
-                        </span>);
-                    }
-                }
-                <span class="comment">// We didn't know the length of vectors when we allocated the destination variable, so we pointed
-                // the vector at the start of the free memory; with this technique we can only handle a single vector.
-                // Write the data where the destination points at. It is up to the follow up bytecode to initialize
-                // the meta-data, or move the data somewhere else.
-                </span>(
-                    ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
-                    HeapValueType::Vector { value_types },
-                ) =&gt; {
-                    <span class="kw">if </span>HeapValueType::all_simple(value_types) {
-                        <span class="kw">let </span>ForeignCallParam::Array(values) = output <span class="kw">else </span>{
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an vector type"
-                                </span>.to_string());
-                        };
-                        <span class="kw">if </span>values.len() % value_types.len() != <span class="number">0 </span>{
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(
-                                <span class="string">"Returned data does not match vector element size"</span>.to_string()
-                            );
-                        }
-                        <span class="comment">// Set the size in the size address.
-                        // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
-                        // instead we expect the post-call codegen will copy it to the heap.
-                        </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, assert_u32(values.len()).into());
-                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
-                    } <span class="kw">else </span>{
-                        <span class="macro">unreachable!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
-                    }
-                }
-                <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                        <span class="string">"Unexpected value type {value_type:?} for destination {destination:?}"
-                    </span>));
-                }
-            }
-        }
-
-        <span class="self">self</span>.foreign_call_results[foreign_call_index].values = values;
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// Write a single numeric value to the destination address, ensuring that the bit size matches the expectation.
-    </span><span class="kw">fn </span>write_value_to_memory(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        destination: MemoryAddress,
-        value: <span class="kw-2">&amp;</span>F,
-        value_bit_size: BitSize,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-        <span class="kw">let </span>memory_value = MemoryValue::new_checked(<span class="kw-2">*</span>value, value_bit_size);
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(memory_value) = memory_value {
-            <span class="self">self</span>.memory.write(destination, memory_value);
-        } <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                <span class="string">"Foreign call result value {value} does not fit in bit size {value_bit_size:?}"
-            </span>));
-        }
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// Write the `values` of an array or vector to an address stored under the `pointer`.
-    </span><span class="kw">fn </span>write_values_to_memory(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        pointer: MemoryAddress,
-        values: <span class="kw-2">&amp;</span>[F],
-        value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-        <span class="kw">let </span>bit_sizes_iterator = value_types
-            .iter()
-            .map(|typ| <span class="kw">match </span>typ {
-                HeapValueType::Simple(bit_size) =&gt; <span class="kw-2">*</span>bit_size,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected simple value type"</span>),
-            })
-            .cycle();
-
-        <span class="comment">// Convert the destination pointer to an address.
-        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(pointer);
-
-        <span class="comment">// Write to the destination memory.
-        </span><span class="kw">let </span>memory_values: <span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = values
-            .iter()
-            .zip(bit_sizes_iterator)
-            .map(|(value, bit_size)| MemoryValue::new_checked(<span class="kw-2">*</span>value, bit_size))
-            .collect();
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(memory_values) = memory_values {
-            <span class="self">self</span>.memory.write_slice(destination, <span class="kw-2">&amp;</span>memory_values);
-        } <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                <span class="string">"Foreign call result values {values:?} do not match expected bit sizes"</span>,
-            ));
-        }
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// Writes flattened values to memory, using the provided type.
-    ///
-    /// The method calls itself recursively in order to work with recursive types (nested arrays).
-    /// `values_idx` is the current index in the `values` vector and is incremented every time
-    /// a value is written to memory.
-    </span><span class="kw">fn </span>write_flattened_values_to_memory(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        destination: MemoryAddress,
-        values: <span class="kw-2">&amp;</span>Vec&lt;F&gt;,
-        values_idx: <span class="kw-2">&amp;mut </span>usize,
-        value_type: <span class="kw-2">&amp;</span>HeapValueType,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-        <span class="macro">assert!</span>(
-            destination.is_direct(),
-            <span class="string">"write_flattened_values_to_memory requires direct addresses"
-        </span>);
-        <span class="kw">match </span>value_type {
-            HeapValueType::Simple(bit_size) =&gt; {
-                <span class="self">self</span>.write_value_to_memory(destination, <span class="kw-2">&amp;</span>values[<span class="kw-2">*</span>values_idx], <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
-                <span class="kw-2">*</span>values_idx += <span class="number">1</span>;
-                <span class="prelude-val">Ok</span>(())
-            }
-            HeapValueType::Array { value_types, size } =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>current_pointer = destination;
-                <span class="kw">let </span>size = size.<span class="number">0</span>;
-                <span class="kw">for _ in </span><span class="number">0</span>..size {
-                    <span class="kw">for </span>typ <span class="kw">in </span>value_types {
-                        <span class="kw">match </span>typ {
-                            HeapValueType::Simple(bit_size) =&gt; {
-                                <span class="self">self</span>.write_value_to_memory(
-                                    current_pointer,
-                                    <span class="kw-2">&amp;</span>values[<span class="kw-2">*</span>values_idx],
-                                    <span class="kw-2">*</span>bit_size,
-                                )<span class="question-mark">?</span>;
-                                <span class="kw-2">*</span>values_idx += <span class="number">1</span>;
-                                current_pointer = current_pointer.offset(<span class="number">1</span>);
-                            }
-                            HeapValueType::Array { .. } =&gt; {
-                                <span class="comment">// The next memory destination is an array, somewhere else in memory where the pointer points to.
-                                </span><span class="kw">let </span>destination =
-                                    ArrayAddress::from(<span class="self">self</span>.memory.read_ref(current_pointer));
-
-                                <span class="self">self</span>.write_flattened_values_to_memory(
-                                    destination.items_start(),
-                                    values,
-                                    values_idx,
-                                    typ,
-                                )<span class="question-mark">?</span>;
-
-                                <span class="comment">// Move on to the next slot in *this* array.
-                                </span>current_pointer = current_pointer.offset(<span class="number">1</span>);
-                            }
-                            HeapValueType::Vector { .. } =&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                                    <span class="string">"Unsupported returned type in foreign calls {typ:?}"
-                                </span>));
-                            }
-                        }
-                    }
-                }
-                <span class="prelude-val">Ok</span>(())
-            }
-            HeapValueType::Vector { .. } =&gt; {
-                <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Unsupported returned type in foreign calls {value_type:?}"</span>))
-            }
-        }
-    }
-}
-
-<span class="doccomment">/// Returns the total number of field elements required to represent the elements in the vector in memory.
-///
-/// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
-</span><span class="kw">fn </span>vector_flattened_length(
-    value_types: <span class="kw-2">&amp;</span>[HeapValueType],
-    length: SemanticLength,
-) -&gt; FlattenedLength {
-    <span class="kw">let </span>elements_flattened_length: FlattenedLength = value_types
-        .iter()
-        .map(|typ| {
-            typ.flattened_size()
-                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"unexpected nested dynamic element type: {typ:?}"</span>))
-        })
-        .sum();
-    ElementsFlattenedLength::from(elements_flattened_length) * length
-}
-</code></pre></div></section></main></body></html>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/brillig_vm/src/foreign_call.rs`."><title>foreign_call.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="brillig_vm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../static.files/storage-82c7156e.js"></script><script defer src="../../static.files/src-script-63605ae7.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">brillig_vm/</div>foreign_call.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Implementation for [foreign calls][acir::brillig::Opcode::ForeignCall]
+<a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use </span>acir::{
+<a href=#3 id=3 data-nosnippet>3</a>    AcirField,
+<a href=#4 id=4 data-nosnippet>4</a>    brillig::{
+<a href=#5 id=5 data-nosnippet>5</a>        BitSize, ForeignCallParam, HeapArray, HeapValueType, HeapVector, IntegerBitSize,
+<a href=#6 id=6 data-nosnippet>6</a>        MemoryAddress, ValueOrArray,
+<a href=#7 id=7 data-nosnippet>7</a>        lengths::{
+<a href=#8 id=8 data-nosnippet>8</a>            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+<a href=#9 id=9 data-nosnippet>9</a>            SemiFlattenedLength,
+<a href=#10 id=10 data-nosnippet>10</a>        },
+<a href=#11 id=11 data-nosnippet>11</a>    },
+<a href=#12 id=12 data-nosnippet>12</a>};
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>acvm_blackbox_solver::BlackBoxFunctionSolver;
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
+<a href=#18 id=18 data-nosnippet>18</a>    <span class="doccomment">/// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+<a href=#19 id=19 data-nosnippet>19</a>    ///
+<a href=#20 id=20 data-nosnippet>20</a>    /// This method performs the following steps:
+<a href=#21 id=21 data-nosnippet>21</a>    /// 1. Checks if the foreign call results are already available. If not, it resolves the input
+<a href=#22 id=22 data-nosnippet>22</a>    ///    values from memory and pauses execution by returning `VMStatus::ForeignCallWait`.
+<a href=#23 id=23 data-nosnippet>23</a>    ///    For vectors, the preceding `u32` length field is used to truncate the vector input to its semantic length.
+<a href=#24 id=24 data-nosnippet>24</a>    /// 2. If results are available, it writes them to memory, ensuring that the returned data
+<a href=#25 id=25 data-nosnippet>25</a>    ///    matches the expected types and sizes:
+<a href=#26 id=26 data-nosnippet>26</a>    ///     * Nested arrays are reconstructed from flat outputs when necessary.
+<a href=#27 id=27 data-nosnippet>27</a>    ///     * Nested vectors are an unsupported return type and will trigger an error.
+<a href=#28 id=28 data-nosnippet>28</a>    ///     * Vectors are written to the heap starting at the free memory pointer, and their address gets stored in the destination.
+<a href=#29 id=29 data-nosnippet>29</a>    ///     * Update free memory pointer based on how much data (if any) was written to it.
+<a href=#30 id=30 data-nosnippet>30</a>    /// 3. Increments the foreign call counter and advances the program counter.
+<a href=#31 id=31 data-nosnippet>31</a>    ///
+<a href=#32 id=32 data-nosnippet>32</a>    /// # Parameters
+<a href=#33 id=33 data-nosnippet>33</a>    /// The borrowed fields of a [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+<a href=#34 id=34 data-nosnippet>34</a>    /// They are listed again below:
+<a href=#35 id=35 data-nosnippet>35</a>    /// - `function`: Name of the foreign function being called.
+<a href=#36 id=36 data-nosnippet>36</a>    /// - `destinations`: Pointers or heap structures where the return values will be written.
+<a href=#37 id=37 data-nosnippet>37</a>    /// - `destination_value_types`: Expected type layout for each destination.
+<a href=#38 id=38 data-nosnippet>38</a>    /// - `inputs`: Pointers or heap structures representing the inputs for the foreign call.
+<a href=#39 id=39 data-nosnippet>39</a>    /// - `input_value_types`: Expected type layout for each input.
+<a href=#40 id=40 data-nosnippet>40</a>    ///
+<a href=#41 id=41 data-nosnippet>41</a>    /// # Returns
+<a href=#42 id=42 data-nosnippet>42</a>    /// - [VMStatus] indicating the next state of the VM:
+<a href=#43 id=43 data-nosnippet>43</a>    ///   - [VMStatus::ForeignCallWait] if the results are not yet available.
+<a href=#44 id=44 data-nosnippet>44</a>    ///   - [VMStatus::Finished] or [VMStatus::Failure] depending on whether writing the results succeeded.
+<a href=#45 id=45 data-nosnippet>45</a>    ///
+<a href=#46 id=46 data-nosnippet>46</a>    /// # Panics
+<a href=#47 id=47 data-nosnippet>47</a>    /// - If `inputs` and `input_value_types` lengths do not match.
+<a href=#48 id=48 data-nosnippet>48</a>    /// - If `destinations` and `destination_value_types` lengths do not match.
+<a href=#49 id=49 data-nosnippet>49</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>process_foreign_call(
+<a href=#50 id=50 data-nosnippet>50</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#51 id=51 data-nosnippet>51</a>        function: <span class="kw-2">&amp;</span>str,
+<a href=#52 id=52 data-nosnippet>52</a>        destinations: <span class="kw-2">&amp;</span>[ValueOrArray],
+<a href=#53 id=53 data-nosnippet>53</a>        destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+<a href=#54 id=54 data-nosnippet>54</a>        inputs: <span class="kw-2">&amp;</span>[ValueOrArray],
+<a href=#55 id=55 data-nosnippet>55</a>        input_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+<a href=#56 id=56 data-nosnippet>56</a>    ) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
+<a href=#57 id=57 data-nosnippet>57</a>        <span class="macro">assert_eq!</span>(inputs.len(), input_value_types.len());
+<a href=#58 id=58 data-nosnippet>58</a>        <span class="macro">assert_eq!</span>(destinations.len(), destination_value_types.len());
+<a href=#59 id=59 data-nosnippet>59</a>
+<a href=#60 id=60 data-nosnippet>60</a>        <span class="kw">if </span>!<span class="self">self</span>.has_unprocessed_foreign_call_result() {
+<a href=#61 id=61 data-nosnippet>61</a>            <span class="comment">// When this opcode is called, it is possible that the results of a foreign call are
+<a href=#62 id=62 data-nosnippet>62</a>            // not yet known (not enough entries in `foreign_call_results`).
+<a href=#63 id=63 data-nosnippet>63</a>            // If that is the case, just resolve the inputs and pause the VM with a status
+<a href=#64 id=64 data-nosnippet>64</a>            // (VMStatus::ForeignCallWait) that communicates the foreign function name and
+<a href=#65 id=65 data-nosnippet>65</a>            // resolved inputs back to the caller. Once the caller pushes to `foreign_call_results`,
+<a href=#66 id=66 data-nosnippet>66</a>            // they can then make another call to the VM that starts at this opcode
+<a href=#67 id=67 data-nosnippet>67</a>            // but has the necessary results to proceed with execution.
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a>            // With vectors we might have more items in the HeapVector than the semantic length
+<a href=#70 id=70 data-nosnippet>70</a>            // indicated by the field preceding the pointer to the vector in the inputs.
+<a href=#71 id=71 data-nosnippet>71</a>            // This happens when SSA merges vectors of different length, which can result in
+<a href=#72 id=72 data-nosnippet>72</a>            // a vector that has room for the longer of the two, partially filled with items
+<a href=#73 id=73 data-nosnippet>73</a>            // from the shorter. There are ways to deal with this on the receiver side,
+<a href=#74 id=74 data-nosnippet>74</a>            // but it is cumbersome, and the cleanest solution is not to send the extra empty
+<a href=#75 id=75 data-nosnippet>75</a>            // items at all. To do this, however, we need infer which input is the vector length.
+<a href=#76 id=76 data-nosnippet>76</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>vector_length: <span class="prelude-ty">Option</span>&lt;u32&gt; = <span class="prelude-val">None</span>;
+<a href=#77 id=77 data-nosnippet>77</a>
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="kw">let </span>resolved_inputs = inputs
+<a href=#79 id=79 data-nosnippet>79</a>                .iter()
+<a href=#80 id=80 data-nosnippet>80</a>                .zip(input_value_types)
+<a href=#81 id=81 data-nosnippet>81</a>                .map(|(input, input_type)| {
+<a href=#82 id=82 data-nosnippet>82</a>                    <span class="kw">let </span><span class="kw-2">mut </span>input = <span class="self">self</span>.get_memory_values(<span class="kw-2">*</span>input, input_type);
+<a href=#83 id=83 data-nosnippet>83</a>                    <span class="comment">// Truncate vectors to their semantic length, which we remember from the preceding field.
+<a href=#84 id=84 data-nosnippet>84</a>                    </span><span class="kw">match </span>input_type {
+<a href=#85 id=85 data-nosnippet>85</a>                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) =&gt; {
+<a href=#86 id=86 data-nosnippet>86</a>                            <span class="comment">// If we have a single u32 we may have a vector representation, so store this input.
+<a href=#87 id=87 data-nosnippet>87</a>                            // On the next iteration, if we have a vector then we know we have the dynamic length
+<a href=#88 id=88 data-nosnippet>88</a>                            // for that vector.
+<a href=#89 id=89 data-nosnippet>89</a>                            </span><span class="kw">let </span>ForeignCallParam::Single(length) = input <span class="kw">else </span>{
+<a href=#90 id=90 data-nosnippet>90</a>                                <span class="macro">unreachable!</span>(<span class="string">"expected u32; got {input:?}"</span>);
+<a href=#91 id=91 data-nosnippet>91</a>                            };
+<a href=#92 id=92 data-nosnippet>92</a>                            vector_length = <span class="prelude-val">Some</span>(length.to_u128() <span class="kw">as </span>u32);
+<a href=#93 id=93 data-nosnippet>93</a>                        }
+<a href=#94 id=94 data-nosnippet>94</a>                        HeapValueType::Vector { value_types } =&gt; {
+<a href=#95 id=95 data-nosnippet>95</a>                            <span class="kw">if let </span><span class="prelude-val">Some</span>(length) = vector_length {
+<a href=#96 id=96 data-nosnippet>96</a>                                <span class="kw">let </span>flattened_length =
+<a href=#97 id=97 data-nosnippet>97</a>                                    vector_flattened_length(value_types, SemanticLength(length));
+<a href=#98 id=98 data-nosnippet>98</a>                                <span class="kw">let </span><span class="kw-2">mut </span>fields = input.fields();
+<a href=#99 id=99 data-nosnippet>99</a>                                fields.truncate(assert_usize(flattened_length.<span class="number">0</span>));
+<a href=#100 id=100 data-nosnippet>100</a>                                input = ForeignCallParam::Array(fields);
+<a href=#101 id=101 data-nosnippet>101</a>                            }
+<a href=#102 id=102 data-nosnippet>102</a>                            vector_length = <span class="prelude-val">None</span>;
+<a href=#103 id=103 data-nosnippet>103</a>                        }
+<a href=#104 id=104 data-nosnippet>104</a>                        <span class="kw">_ </span>=&gt; {
+<a href=#105 id=105 data-nosnippet>105</a>                            <span class="comment">// Otherwise we are not dealing with a u32 followed by a vector.
+<a href=#106 id=106 data-nosnippet>106</a>                            </span>vector_length = <span class="prelude-val">None</span>;
+<a href=#107 id=107 data-nosnippet>107</a>                        }
+<a href=#108 id=108 data-nosnippet>108</a>                    }
+<a href=#109 id=109 data-nosnippet>109</a>                    input
+<a href=#110 id=110 data-nosnippet>110</a>                })
+<a href=#111 id=111 data-nosnippet>111</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a>            <span class="kw">return </span><span class="self">self</span>.wait_for_foreign_call(function.to_owned(), resolved_inputs);
+<a href=#114 id=114 data-nosnippet>114</a>        }
+<a href=#115 id=115 data-nosnippet>115</a>
+<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span>write_result = <span class="self">self</span>.write_foreign_call_result(
+<a href=#117 id=117 data-nosnippet>117</a>            destinations,
+<a href=#118 id=118 data-nosnippet>118</a>            destination_value_types,
+<a href=#119 id=119 data-nosnippet>119</a>            <span class="self">self</span>.foreign_call_counter,
+<a href=#120 id=120 data-nosnippet>120</a>        );
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = write_result {
+<a href=#123 id=123 data-nosnippet>123</a>            <span class="kw">return </span><span class="self">self</span>.fail(e);
+<a href=#124 id=124 data-nosnippet>124</a>        }
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="comment">// Mark the foreign call result as processed.
+<a href=#127 id=127 data-nosnippet>127</a>        </span><span class="self">self</span>.foreign_call_counter += <span class="number">1</span>;
+<a href=#128 id=128 data-nosnippet>128</a>        <span class="self">self</span>.increment_program_counter()
+<a href=#129 id=129 data-nosnippet>129</a>    }
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="doccomment">/// Get input data from memory to pass to foreign calls.
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">fn </span>get_memory_values(
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#134 id=134 data-nosnippet>134</a>        input: ValueOrArray,
+<a href=#135 id=135 data-nosnippet>135</a>        value_type: <span class="kw-2">&amp;</span>HeapValueType,
+<a href=#136 id=136 data-nosnippet>136</a>    ) -&gt; ForeignCallParam&lt;F&gt; {
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">match </span>(input, value_type) {
+<a href=#138 id=138 data-nosnippet>138</a>            (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(<span class="kw">_</span>)) =&gt; {
+<a href=#139 id=139 data-nosnippet>139</a>                ForeignCallParam::Single(<span class="self">self</span>.memory.read(value_addr).to_field())
+<a href=#140 id=140 data-nosnippet>140</a>            }
+<a href=#141 id=141 data-nosnippet>141</a>            (
+<a href=#142 id=142 data-nosnippet>142</a>                ValueOrArray::HeapArray(HeapArray { pointer, size }),
+<a href=#143 id=143 data-nosnippet>143</a>                HeapValueType::Array { value_types, size: type_size },
+<a href=#144 id=144 data-nosnippet>144</a>            ) =&gt; {
+<a href=#145 id=145 data-nosnippet>145</a>                <span class="comment">// The array's semi-flattened size must match the expected size
+<a href=#146 id=146 data-nosnippet>146</a>                </span><span class="kw">let </span>semi_flattened_size =
+<a href=#147 id=147 data-nosnippet>147</a>                    <span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len()));
+<a href=#148 id=148 data-nosnippet>148</a>                <span class="macro">assert_eq!</span>(semi_flattened_size, size);
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
+<a href=#151 id=151 data-nosnippet>151</a>                <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
+<a href=#152 id=152 data-nosnippet>152</a>                    .into_iter()
+<a href=#153 id=153 data-nosnippet>153</a>                    .map(|mem_value| mem_value.to_field())
+<a href=#154 id=154 data-nosnippet>154</a>                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#155 id=155 data-nosnippet>155</a>                    .into()
+<a href=#156 id=156 data-nosnippet>156</a>            }
+<a href=#157 id=157 data-nosnippet>157</a>            (
+<a href=#158 id=158 data-nosnippet>158</a>                ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
+<a href=#159 id=159 data-nosnippet>159</a>                HeapValueType::Vector { value_types },
+<a href=#160 id=160 data-nosnippet>160</a>            ) =&gt; {
+<a href=#161 id=161 data-nosnippet>161</a>                <span class="kw">let </span>start = <span class="self">self</span>.memory.read_ref(pointer);
+<a href=#162 id=162 data-nosnippet>162</a>                <span class="kw">let </span>size = <span class="self">self</span>.memory.read(size_addr).to_u32();
+<a href=#163 id=163 data-nosnippet>163</a>                <span class="kw">let </span>size = SemiFlattenedLength(size);
+<a href=#164 id=164 data-nosnippet>164</a>                <span class="self">self</span>.read_slice_of_values_from_memory(start, size, value_types)
+<a href=#165 id=165 data-nosnippet>165</a>                    .into_iter()
+<a href=#166 id=166 data-nosnippet>166</a>                    .map(|mem_value| mem_value.to_field())
+<a href=#167 id=167 data-nosnippet>167</a>                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#168 id=168 data-nosnippet>168</a>                    .into()
+<a href=#169 id=169 data-nosnippet>169</a>            }
+<a href=#170 id=170 data-nosnippet>170</a>            <span class="kw">_ </span>=&gt; {
+<a href=#171 id=171 data-nosnippet>171</a>                <span class="macro">unreachable!</span>(<span class="string">"Unexpected value type {value_type:?} for input {input:?}"</span>);
+<a href=#172 id=172 data-nosnippet>172</a>            }
+<a href=#173 id=173 data-nosnippet>173</a>        }
+<a href=#174 id=174 data-nosnippet>174</a>    }
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="doccomment">/// Reads an array/vector from memory but recursively reads pointers to
+<a href=#177 id=177 data-nosnippet>177</a>    /// nested arrays/vectors according to the sequence of value types.
+<a href=#178 id=178 data-nosnippet>178</a>    ///
+<a href=#179 id=179 data-nosnippet>179</a>    /// The given `size` is the total number of `HeapValueType`s to read, which must
+<a href=#180 id=180 data-nosnippet>180</a>    /// be a multiple of the length of `value_types` (unless `value_types.len()` is 0).
+<a href=#181 id=181 data-nosnippet>181</a>    </span><span class="kw">fn </span>read_slice_of_values_from_memory(
+<a href=#182 id=182 data-nosnippet>182</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#183 id=183 data-nosnippet>183</a>        start: MemoryAddress,
+<a href=#184 id=184 data-nosnippet>184</a>        size: SemiFlattenedLength,
+<a href=#185 id=185 data-nosnippet>185</a>        value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+<a href=#186 id=186 data-nosnippet>186</a>    ) -&gt; Vec&lt;MemoryValue&lt;F&gt;&gt; {
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>size = size.<span class="number">0</span>;
+<a href=#188 id=188 data-nosnippet>188</a>
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="macro">assert!</span>(start.is_direct(), <span class="string">"read_slice_of_values_from_memory requires direct addresses"</span>);
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">if </span>HeapValueType::all_simple(value_types) {
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="self">self</span>.memory.read_slice(start, assert_usize(size)).to_vec()
+<a href=#192 id=192 data-nosnippet>192</a>        } <span class="kw">else </span>{
+<a href=#193 id=193 data-nosnippet>193</a>            <span class="comment">// Check that the sequence of value types fit an integer number of
+<a href=#194 id=194 data-nosnippet>194</a>            // times inside the given size.
+<a href=#195 id=195 data-nosnippet>195</a>            </span><span class="macro">assert!</span>(
+<a href=#196 id=196 data-nosnippet>196</a>                <span class="number">0 </span>== size % assert_u32(value_types.len()),
+<a href=#197 id=197 data-nosnippet>197</a>                <span class="string">"array/vector does not contain a whole number of elements"
+<a href=#198 id=198 data-nosnippet>198</a>            </span>);
+<a href=#199 id=199 data-nosnippet>199</a>
+<a href=#200 id=200 data-nosnippet>200</a>            (<span class="number">0</span>..size)
+<a href=#201 id=201 data-nosnippet>201</a>                .zip(value_types.iter().cycle())
+<a href=#202 id=202 data-nosnippet>202</a>                .flat_map(|(i, value_type)| {
+<a href=#203 id=203 data-nosnippet>203</a>                    <span class="kw">let </span>value_address = start.offset(i);
+<a href=#204 id=204 data-nosnippet>204</a>                    <span class="kw">match </span>value_type {
+<a href=#205 id=205 data-nosnippet>205</a>                        HeapValueType::Simple(<span class="kw">_</span>) =&gt; {
+<a href=#206 id=206 data-nosnippet>206</a>                            <span class="macro">vec!</span>[<span class="self">self</span>.memory.read(value_address)]
+<a href=#207 id=207 data-nosnippet>207</a>                        }
+<a href=#208 id=208 data-nosnippet>208</a>                        HeapValueType::Array { value_types, size: type_size } =&gt; {
+<a href=#209 id=209 data-nosnippet>209</a>                            <span class="kw">let </span>array_address =
+<a href=#210 id=210 data-nosnippet>210</a>                                ArrayAddress::from(<span class="self">self</span>.memory.read_ref(value_address));
+<a href=#211 id=211 data-nosnippet>211</a>                            <span class="kw">let </span>semi_flattened_size =
+<a href=#212 id=212 data-nosnippet>212</a>                                <span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len()));
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a>                            <span class="self">self</span>.read_slice_of_values_from_memory(
+<a href=#215 id=215 data-nosnippet>215</a>                                array_address.items_start(),
+<a href=#216 id=216 data-nosnippet>216</a>                                semi_flattened_size,
+<a href=#217 id=217 data-nosnippet>217</a>                                value_types,
+<a href=#218 id=218 data-nosnippet>218</a>                            )
+<a href=#219 id=219 data-nosnippet>219</a>                        }
+<a href=#220 id=220 data-nosnippet>220</a>                        HeapValueType::Vector { .. } =&gt; {
+<a href=#221 id=221 data-nosnippet>221</a>                            <span class="macro">unreachable!</span>(<span class="string">"Vectors nested in arrays/vectors are not supported"</span>);
+<a href=#222 id=222 data-nosnippet>222</a>                        }
+<a href=#223 id=223 data-nosnippet>223</a>                    }
+<a href=#224 id=224 data-nosnippet>224</a>                })
+<a href=#225 id=225 data-nosnippet>225</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#226 id=226 data-nosnippet>226</a>        }
+<a href=#227 id=227 data-nosnippet>227</a>    }
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="doccomment">/// Sets the status of the VM to `ForeignCallWait`.
+<a href=#230 id=230 data-nosnippet>230</a>    /// Indicating that the VM is now waiting for a foreign call to be resolved.
+<a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">fn </span>wait_for_foreign_call(
+<a href=#232 id=232 data-nosnippet>232</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#233 id=233 data-nosnippet>233</a>        function: String,
+<a href=#234 id=234 data-nosnippet>234</a>        inputs: Vec&lt;ForeignCallParam&lt;F&gt;&gt;,
+<a href=#235 id=235 data-nosnippet>235</a>    ) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
+<a href=#236 id=236 data-nosnippet>236</a>        <span class="self">self</span>.status(VMStatus::ForeignCallWait { function, inputs })
+<a href=#237 id=237 data-nosnippet>237</a>    }
+<a href=#238 id=238 data-nosnippet>238</a>
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="doccomment">/// Write a foreign call's results to the VM memory.
+<a href=#240 id=240 data-nosnippet>240</a>    ///
+<a href=#241 id=241 data-nosnippet>241</a>    /// We match the expected types with the actual results.
+<a href=#242 id=242 data-nosnippet>242</a>    /// However foreign call results do not support nested structures:
+<a href=#243 id=243 data-nosnippet>243</a>    /// They are either a single integer value or a vector of integer values (field elements).
+<a href=#244 id=244 data-nosnippet>244</a>    /// Therefore, nested arrays returned from foreign call results are flattened.
+<a href=#245 id=245 data-nosnippet>245</a>    /// If the expected array sizes do not match the actual size, we reconstruct the nested
+<a href=#246 id=246 data-nosnippet>246</a>    /// structure from the flat output array.
+<a href=#247 id=247 data-nosnippet>247</a>    </span><span class="kw">fn </span>write_foreign_call_result(
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#249 id=249 data-nosnippet>249</a>        destinations: <span class="kw-2">&amp;</span>[ValueOrArray],
+<a href=#250 id=250 data-nosnippet>250</a>        destination_value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+<a href=#251 id=251 data-nosnippet>251</a>        foreign_call_index: usize,
+<a href=#252 id=252 data-nosnippet>252</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="comment">// Take ownership of values to allow calling mutating methods on self.
+<a href=#254 id=254 data-nosnippet>254</a>        </span><span class="kw">let </span>values = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.foreign_call_results[foreign_call_index].values);
+<a href=#255 id=255 data-nosnippet>255</a>
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">if </span>destinations.len() != values.len() {
+<a href=#257 id=257 data-nosnippet>257</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#258 id=258 data-nosnippet>258</a>                <span class="string">"{} output values were provided as a foreign call result for {} destination slots"</span>,
+<a href=#259 id=259 data-nosnippet>259</a>                values.len(),
+<a href=#260 id=260 data-nosnippet>260</a>                destinations.len()
+<a href=#261 id=261 data-nosnippet>261</a>            ));
+<a href=#262 id=262 data-nosnippet>262</a>        }
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a>        <span class="macro">assert_eq!</span>(
+<a href=#265 id=265 data-nosnippet>265</a>            destinations.len(),
+<a href=#266 id=266 data-nosnippet>266</a>            destination_value_types.len(),
+<a href=#267 id=267 data-nosnippet>267</a>            <span class="string">"Number of destinations must match number of value types"</span>,
+<a href=#268 id=268 data-nosnippet>268</a>        );
+<a href=#269 id=269 data-nosnippet>269</a>
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="kw">for </span>((destination, value_type), output) <span class="kw">in
+<a href=#271 id=271 data-nosnippet>271</a>            </span>destinations.iter().zip(destination_value_types).zip(<span class="kw-2">&amp;</span>values)
+<a href=#272 id=272 data-nosnippet>272</a>        {
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="kw">match </span>(destination, value_type) {
+<a href=#274 id=274 data-nosnippet>274</a>                (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) =&gt; {
+<a href=#275 id=275 data-nosnippet>275</a>                    <span class="kw">let </span>output_fields = output.fields();
+<a href=#276 id=276 data-nosnippet>276</a>                    <span class="kw">if </span>value_type.flattened_size().is_some_and(|flattened_size| {
+<a href=#277 id=277 data-nosnippet>277</a>                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+<a href=#278 id=278 data-nosnippet>278</a>                    }) {
+<a href=#279 id=279 data-nosnippet>279</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#280 id=280 data-nosnippet>280</a>                            <span class="string">"Foreign call return value does not match expected size. Expected {} but got {}"</span>,
+<a href=#281 id=281 data-nosnippet>281</a>                            value_type.flattened_size().unwrap(),
+<a href=#282 id=282 data-nosnippet>282</a>                            output_fields.len(),
+<a href=#283 id=283 data-nosnippet>283</a>                        ));
+<a href=#284 id=284 data-nosnippet>284</a>                    }
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a>                    <span class="kw">match </span>output {
+<a href=#287 id=287 data-nosnippet>287</a>                        ForeignCallParam::Single(value) =&gt; {
+<a href=#288 id=288 data-nosnippet>288</a>                            <span class="self">self</span>.write_value_to_memory(<span class="kw-2">*</span>value_addr, value, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
+<a href=#289 id=289 data-nosnippet>289</a>                        }
+<a href=#290 id=290 data-nosnippet>290</a>                        <span class="kw">_ </span>=&gt; {
+<a href=#291 id=291 data-nosnippet>291</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#292 id=292 data-nosnippet>292</a>                                <span class="string">"Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
+<a href=#293 id=293 data-nosnippet>293</a>                            </span>));
+<a href=#294 id=294 data-nosnippet>294</a>                        }
+<a href=#295 id=295 data-nosnippet>295</a>                    }
+<a href=#296 id=296 data-nosnippet>296</a>                }
+<a href=#297 id=297 data-nosnippet>297</a>                (
+<a href=#298 id=298 data-nosnippet>298</a>                    ValueOrArray::HeapArray(HeapArray { pointer, size }),
+<a href=#299 id=299 data-nosnippet>299</a>                    HeapValueType::Array { value_types, size: type_size },
+<a href=#300 id=300 data-nosnippet>300</a>                ) =&gt; {
+<a href=#301 id=301 data-nosnippet>301</a>                    <span class="kw">if </span><span class="kw-2">*</span>type_size * ElementTypesLength(assert_u32(value_types.len())) != <span class="kw-2">*</span>size {
+<a href=#302 id=302 data-nosnippet>302</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#303 id=303 data-nosnippet>303</a>                            <span class="string">"Destination array size of {size} does not match the type size of {type_size}"
+<a href=#304 id=304 data-nosnippet>304</a>                        </span>));
+<a href=#305 id=305 data-nosnippet>305</a>                    }
+<a href=#306 id=306 data-nosnippet>306</a>                    <span class="kw">let </span>output_fields = output.fields();
+<a href=#307 id=307 data-nosnippet>307</a>                    <span class="kw">if </span>value_type.flattened_size().is_some_and(|flattened_size| {
+<a href=#308 id=308 data-nosnippet>308</a>                        FlattenedLength(assert_u32(output_fields.len())) != flattened_size
+<a href=#309 id=309 data-nosnippet>309</a>                    }) {
+<a href=#310 id=310 data-nosnippet>310</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#311 id=311 data-nosnippet>311</a>                            <span class="string">"Foreign call return value does not match expected size. Expected {} but got {}"</span>,
+<a href=#312 id=312 data-nosnippet>312</a>                            value_type.flattened_size().unwrap(),
+<a href=#313 id=313 data-nosnippet>313</a>                            output_fields.len(),
+<a href=#314 id=314 data-nosnippet>314</a>                        ));
+<a href=#315 id=315 data-nosnippet>315</a>                    }
+<a href=#316 id=316 data-nosnippet>316</a>
+<a href=#317 id=317 data-nosnippet>317</a>                    <span class="kw">if </span>HeapValueType::all_simple(value_types) {
+<a href=#318 id=318 data-nosnippet>318</a>                        <span class="kw">let </span>ForeignCallParam::Array(values) = output <span class="kw">else </span>{
+<a href=#319 id=319 data-nosnippet>319</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an array type"
+<a href=#320 id=320 data-nosnippet>320</a>                                </span>.to_string());
+<a href=#321 id=321 data-nosnippet>321</a>                        };
+<a href=#322 id=322 data-nosnippet>322</a>                        <span class="macro">assert_eq!</span>(
+<a href=#323 id=323 data-nosnippet>323</a>                            values.len(),
+<a href=#324 id=324 data-nosnippet>324</a>                            size.<span class="number">0 </span><span class="kw">as </span>usize,
+<a href=#325 id=325 data-nosnippet>325</a>                            <span class="string">"Expected values length to be equal to heap array size"</span>,
+<a href=#326 id=326 data-nosnippet>326</a>                        );
+<a href=#327 id=327 data-nosnippet>327</a>                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
+<a href=#328 id=328 data-nosnippet>328</a>                    } <span class="kw">else </span>{
+<a href=#329 id=329 data-nosnippet>329</a>                        <span class="comment">// foreign call returning flattened values into a nested type, so the sizes do not match
+<a href=#330 id=330 data-nosnippet>330</a>                        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>pointer);
+<a href=#331 id=331 data-nosnippet>331</a>                        <span class="kw">let </span><span class="kw-2">mut </span>flatten_values_idx = <span class="number">0</span>; <span class="comment">//index of values read from flatten_values
+<a href=#332 id=332 data-nosnippet>332</a>                        </span><span class="self">self</span>.write_flattened_values_to_memory(
+<a href=#333 id=333 data-nosnippet>333</a>                            destination,
+<a href=#334 id=334 data-nosnippet>334</a>                            <span class="kw-2">&amp;</span>output_fields,
+<a href=#335 id=335 data-nosnippet>335</a>                            <span class="kw-2">&amp;mut </span>flatten_values_idx,
+<a href=#336 id=336 data-nosnippet>336</a>                            value_type,
+<a href=#337 id=337 data-nosnippet>337</a>                        )<span class="question-mark">?</span>;
+<a href=#338 id=338 data-nosnippet>338</a>                        <span class="macro">assert_eq!</span>(
+<a href=#339 id=339 data-nosnippet>339</a>                            flatten_values_idx,
+<a href=#340 id=340 data-nosnippet>340</a>                            output_fields.len(),
+<a href=#341 id=341 data-nosnippet>341</a>                            <span class="string">"Not all values were written to memory"
+<a href=#342 id=342 data-nosnippet>342</a>                        </span>);
+<a href=#343 id=343 data-nosnippet>343</a>                    }
+<a href=#344 id=344 data-nosnippet>344</a>                }
+<a href=#345 id=345 data-nosnippet>345</a>                <span class="comment">// We didn't know the length of vectors when we allocated the destination variable, so we pointed
+<a href=#346 id=346 data-nosnippet>346</a>                // the vector at the start of the free memory; with this technique we can only handle a single vector.
+<a href=#347 id=347 data-nosnippet>347</a>                // Write the data where the destination points at. It is up to the follow up bytecode to initialize
+<a href=#348 id=348 data-nosnippet>348</a>                // the meta-data, or move the data somewhere else.
+<a href=#349 id=349 data-nosnippet>349</a>                </span>(
+<a href=#350 id=350 data-nosnippet>350</a>                    ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
+<a href=#351 id=351 data-nosnippet>351</a>                    HeapValueType::Vector { value_types },
+<a href=#352 id=352 data-nosnippet>352</a>                ) =&gt; {
+<a href=#353 id=353 data-nosnippet>353</a>                    <span class="kw">if </span>HeapValueType::all_simple(value_types) {
+<a href=#354 id=354 data-nosnippet>354</a>                        <span class="kw">let </span>ForeignCallParam::Array(values) = output <span class="kw">else </span>{
+<a href=#355 id=355 data-nosnippet>355</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Foreign call returned a single value for an vector type"
+<a href=#356 id=356 data-nosnippet>356</a>                                </span>.to_string());
+<a href=#357 id=357 data-nosnippet>357</a>                        };
+<a href=#358 id=358 data-nosnippet>358</a>                        <span class="kw">if </span>values.len() % value_types.len() != <span class="number">0 </span>{
+<a href=#359 id=359 data-nosnippet>359</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(
+<a href=#360 id=360 data-nosnippet>360</a>                                <span class="string">"Returned data does not match vector element size"</span>.to_string()
+<a href=#361 id=361 data-nosnippet>361</a>                            );
+<a href=#362 id=362 data-nosnippet>362</a>                        }
+<a href=#363 id=363 data-nosnippet>363</a>                        <span class="comment">// Set the size in the size address.
+<a href=#364 id=364 data-nosnippet>364</a>                        // Note that unlike `pointer`, we don't treat `size` as a pointer here, even though it is;
+<a href=#365 id=365 data-nosnippet>365</a>                        // instead we expect the post-call codegen will copy it to the heap.
+<a href=#366 id=366 data-nosnippet>366</a>                        </span><span class="self">self</span>.memory.write(<span class="kw-2">*</span>size_addr, assert_u32(values.len()).into());
+<a href=#367 id=367 data-nosnippet>367</a>                        <span class="self">self</span>.write_values_to_memory(<span class="kw-2">*</span>pointer, values, value_types)<span class="question-mark">?</span>;
+<a href=#368 id=368 data-nosnippet>368</a>                    } <span class="kw">else </span>{
+<a href=#369 id=369 data-nosnippet>369</a>                        <span class="macro">unreachable!</span>(<span class="string">"deflattening heap vectors from foreign calls"</span>);
+<a href=#370 id=370 data-nosnippet>370</a>                    }
+<a href=#371 id=371 data-nosnippet>371</a>                }
+<a href=#372 id=372 data-nosnippet>372</a>                <span class="kw">_ </span>=&gt; {
+<a href=#373 id=373 data-nosnippet>373</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#374 id=374 data-nosnippet>374</a>                        <span class="string">"Unexpected value type {value_type:?} for destination {destination:?}"
+<a href=#375 id=375 data-nosnippet>375</a>                    </span>));
+<a href=#376 id=376 data-nosnippet>376</a>                }
+<a href=#377 id=377 data-nosnippet>377</a>            }
+<a href=#378 id=378 data-nosnippet>378</a>        }
+<a href=#379 id=379 data-nosnippet>379</a>
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="self">self</span>.foreign_call_results[foreign_call_index].values = values;
+<a href=#381 id=381 data-nosnippet>381</a>
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="prelude-val">Ok</span>(())
+<a href=#383 id=383 data-nosnippet>383</a>    }
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a>    <span class="doccomment">/// Write a single numeric value to the destination address, ensuring that the bit size matches the expectation.
+<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">fn </span>write_value_to_memory(
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#388 id=388 data-nosnippet>388</a>        destination: MemoryAddress,
+<a href=#389 id=389 data-nosnippet>389</a>        value: <span class="kw-2">&amp;</span>F,
+<a href=#390 id=390 data-nosnippet>390</a>        value_bit_size: BitSize,
+<a href=#391 id=391 data-nosnippet>391</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>memory_value = MemoryValue::new_checked(<span class="kw-2">*</span>value, value_bit_size);
+<a href=#393 id=393 data-nosnippet>393</a>
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(memory_value) = memory_value {
+<a href=#395 id=395 data-nosnippet>395</a>            <span class="self">self</span>.memory.write(destination, memory_value);
+<a href=#396 id=396 data-nosnippet>396</a>        } <span class="kw">else </span>{
+<a href=#397 id=397 data-nosnippet>397</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#398 id=398 data-nosnippet>398</a>                <span class="string">"Foreign call result value {value} does not fit in bit size {value_bit_size:?}"
+<a href=#399 id=399 data-nosnippet>399</a>            </span>));
+<a href=#400 id=400 data-nosnippet>400</a>        }
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="prelude-val">Ok</span>(())
+<a href=#402 id=402 data-nosnippet>402</a>    }
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>    <span class="doccomment">/// Write the `values` of an array or vector to an address stored under the `pointer`.
+<a href=#405 id=405 data-nosnippet>405</a>    </span><span class="kw">fn </span>write_values_to_memory(
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#407 id=407 data-nosnippet>407</a>        pointer: MemoryAddress,
+<a href=#408 id=408 data-nosnippet>408</a>        values: <span class="kw-2">&amp;</span>[F],
+<a href=#409 id=409 data-nosnippet>409</a>        value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+<a href=#410 id=410 data-nosnippet>410</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#411 id=411 data-nosnippet>411</a>        <span class="kw">let </span>bit_sizes_iterator = value_types
+<a href=#412 id=412 data-nosnippet>412</a>            .iter()
+<a href=#413 id=413 data-nosnippet>413</a>            .map(|typ| <span class="kw">match </span>typ {
+<a href=#414 id=414 data-nosnippet>414</a>                HeapValueType::Simple(bit_size) =&gt; <span class="kw-2">*</span>bit_size,
+<a href=#415 id=415 data-nosnippet>415</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected simple value type"</span>),
+<a href=#416 id=416 data-nosnippet>416</a>            })
+<a href=#417 id=417 data-nosnippet>417</a>            .cycle();
+<a href=#418 id=418 data-nosnippet>418</a>
+<a href=#419 id=419 data-nosnippet>419</a>        <span class="comment">// Convert the destination pointer to an address.
+<a href=#420 id=420 data-nosnippet>420</a>        </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(pointer);
+<a href=#421 id=421 data-nosnippet>421</a>
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="comment">// Write to the destination memory.
+<a href=#423 id=423 data-nosnippet>423</a>        </span><span class="kw">let </span>memory_values: <span class="prelude-ty">Option</span>&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = values
+<a href=#424 id=424 data-nosnippet>424</a>            .iter()
+<a href=#425 id=425 data-nosnippet>425</a>            .zip(bit_sizes_iterator)
+<a href=#426 id=426 data-nosnippet>426</a>            .map(|(value, bit_size)| MemoryValue::new_checked(<span class="kw-2">*</span>value, bit_size))
+<a href=#427 id=427 data-nosnippet>427</a>            .collect();
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(memory_values) = memory_values {
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="self">self</span>.memory.write_slice(destination, <span class="kw-2">&amp;</span>memory_values);
+<a href=#430 id=430 data-nosnippet>430</a>        } <span class="kw">else </span>{
+<a href=#431 id=431 data-nosnippet>431</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#432 id=432 data-nosnippet>432</a>                <span class="string">"Foreign call result values {values:?} do not match expected bit sizes"</span>,
+<a href=#433 id=433 data-nosnippet>433</a>            ));
+<a href=#434 id=434 data-nosnippet>434</a>        }
+<a href=#435 id=435 data-nosnippet>435</a>        <span class="prelude-val">Ok</span>(())
+<a href=#436 id=436 data-nosnippet>436</a>    }
+<a href=#437 id=437 data-nosnippet>437</a>
+<a href=#438 id=438 data-nosnippet>438</a>    <span class="doccomment">/// Writes flattened values to memory, using the provided type.
+<a href=#439 id=439 data-nosnippet>439</a>    ///
+<a href=#440 id=440 data-nosnippet>440</a>    /// The method calls itself recursively in order to work with recursive types (nested arrays).
+<a href=#441 id=441 data-nosnippet>441</a>    /// `values_idx` is the current index in the `values` vector and is incremented every time
+<a href=#442 id=442 data-nosnippet>442</a>    /// a value is written to memory.
+<a href=#443 id=443 data-nosnippet>443</a>    </span><span class="kw">fn </span>write_flattened_values_to_memory(
+<a href=#444 id=444 data-nosnippet>444</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#445 id=445 data-nosnippet>445</a>        destination: MemoryAddress,
+<a href=#446 id=446 data-nosnippet>446</a>        values: <span class="kw-2">&amp;</span>Vec&lt;F&gt;,
+<a href=#447 id=447 data-nosnippet>447</a>        values_idx: <span class="kw-2">&amp;mut </span>usize,
+<a href=#448 id=448 data-nosnippet>448</a>        value_type: <span class="kw-2">&amp;</span>HeapValueType,
+<a href=#449 id=449 data-nosnippet>449</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="macro">assert!</span>(
+<a href=#451 id=451 data-nosnippet>451</a>            destination.is_direct(),
+<a href=#452 id=452 data-nosnippet>452</a>            <span class="string">"write_flattened_values_to_memory requires direct addresses"
+<a href=#453 id=453 data-nosnippet>453</a>        </span>);
+<a href=#454 id=454 data-nosnippet>454</a>        <span class="kw">match </span>value_type {
+<a href=#455 id=455 data-nosnippet>455</a>            HeapValueType::Simple(bit_size) =&gt; {
+<a href=#456 id=456 data-nosnippet>456</a>                <span class="self">self</span>.write_value_to_memory(destination, <span class="kw-2">&amp;</span>values[<span class="kw-2">*</span>values_idx], <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
+<a href=#457 id=457 data-nosnippet>457</a>                <span class="kw-2">*</span>values_idx += <span class="number">1</span>;
+<a href=#458 id=458 data-nosnippet>458</a>                <span class="prelude-val">Ok</span>(())
+<a href=#459 id=459 data-nosnippet>459</a>            }
+<a href=#460 id=460 data-nosnippet>460</a>            HeapValueType::Array { value_types, size } =&gt; {
+<a href=#461 id=461 data-nosnippet>461</a>                <span class="kw">let </span><span class="kw-2">mut </span>current_pointer = destination;
+<a href=#462 id=462 data-nosnippet>462</a>                <span class="kw">let </span>size = size.<span class="number">0</span>;
+<a href=#463 id=463 data-nosnippet>463</a>                <span class="kw">for _ in </span><span class="number">0</span>..size {
+<a href=#464 id=464 data-nosnippet>464</a>                    <span class="kw">for </span>typ <span class="kw">in </span>value_types {
+<a href=#465 id=465 data-nosnippet>465</a>                        <span class="kw">match </span>typ {
+<a href=#466 id=466 data-nosnippet>466</a>                            HeapValueType::Simple(bit_size) =&gt; {
+<a href=#467 id=467 data-nosnippet>467</a>                                <span class="self">self</span>.write_value_to_memory(
+<a href=#468 id=468 data-nosnippet>468</a>                                    current_pointer,
+<a href=#469 id=469 data-nosnippet>469</a>                                    <span class="kw-2">&amp;</span>values[<span class="kw-2">*</span>values_idx],
+<a href=#470 id=470 data-nosnippet>470</a>                                    <span class="kw-2">*</span>bit_size,
+<a href=#471 id=471 data-nosnippet>471</a>                                )<span class="question-mark">?</span>;
+<a href=#472 id=472 data-nosnippet>472</a>                                <span class="kw-2">*</span>values_idx += <span class="number">1</span>;
+<a href=#473 id=473 data-nosnippet>473</a>                                current_pointer = current_pointer.offset(<span class="number">1</span>);
+<a href=#474 id=474 data-nosnippet>474</a>                            }
+<a href=#475 id=475 data-nosnippet>475</a>                            HeapValueType::Array { .. } =&gt; {
+<a href=#476 id=476 data-nosnippet>476</a>                                <span class="comment">// The next memory destination is an array, somewhere else in memory where the pointer points to.
+<a href=#477 id=477 data-nosnippet>477</a>                                </span><span class="kw">let </span>destination =
+<a href=#478 id=478 data-nosnippet>478</a>                                    ArrayAddress::from(<span class="self">self</span>.memory.read_ref(current_pointer));
+<a href=#479 id=479 data-nosnippet>479</a>
+<a href=#480 id=480 data-nosnippet>480</a>                                <span class="self">self</span>.write_flattened_values_to_memory(
+<a href=#481 id=481 data-nosnippet>481</a>                                    destination.items_start(),
+<a href=#482 id=482 data-nosnippet>482</a>                                    values,
+<a href=#483 id=483 data-nosnippet>483</a>                                    values_idx,
+<a href=#484 id=484 data-nosnippet>484</a>                                    typ,
+<a href=#485 id=485 data-nosnippet>485</a>                                )<span class="question-mark">?</span>;
+<a href=#486 id=486 data-nosnippet>486</a>
+<a href=#487 id=487 data-nosnippet>487</a>                                <span class="comment">// Move on to the next slot in *this* array.
+<a href=#488 id=488 data-nosnippet>488</a>                                </span>current_pointer = current_pointer.offset(<span class="number">1</span>);
+<a href=#489 id=489 data-nosnippet>489</a>                            }
+<a href=#490 id=490 data-nosnippet>490</a>                            HeapValueType::Vector { .. } =&gt; {
+<a href=#491 id=491 data-nosnippet>491</a>                                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#492 id=492 data-nosnippet>492</a>                                    <span class="string">"Unsupported returned type in foreign calls {typ:?}"
+<a href=#493 id=493 data-nosnippet>493</a>                                </span>));
+<a href=#494 id=494 data-nosnippet>494</a>                            }
+<a href=#495 id=495 data-nosnippet>495</a>                        }
+<a href=#496 id=496 data-nosnippet>496</a>                    }
+<a href=#497 id=497 data-nosnippet>497</a>                }
+<a href=#498 id=498 data-nosnippet>498</a>                <span class="prelude-val">Ok</span>(())
+<a href=#499 id=499 data-nosnippet>499</a>            }
+<a href=#500 id=500 data-nosnippet>500</a>            HeapValueType::Vector { .. } =&gt; {
+<a href=#501 id=501 data-nosnippet>501</a>                <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Unsupported returned type in foreign calls {value_type:?}"</span>))
+<a href=#502 id=502 data-nosnippet>502</a>            }
+<a href=#503 id=503 data-nosnippet>503</a>        }
+<a href=#504 id=504 data-nosnippet>504</a>    }
+<a href=#505 id=505 data-nosnippet>505</a>}
+<a href=#506 id=506 data-nosnippet>506</a>
+<a href=#507 id=507 data-nosnippet>507</a><span class="doccomment">/// Returns the total number of field elements required to represent the elements in the vector in memory.
+<a href=#508 id=508 data-nosnippet>508</a>///
+<a href=#509 id=509 data-nosnippet>509</a>/// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
+<a href=#510 id=510 data-nosnippet>510</a></span><span class="kw">fn </span>vector_flattened_length(
+<a href=#511 id=511 data-nosnippet>511</a>    value_types: <span class="kw-2">&amp;</span>[HeapValueType],
+<a href=#512 id=512 data-nosnippet>512</a>    length: SemanticLength,
+<a href=#513 id=513 data-nosnippet>513</a>) -&gt; FlattenedLength {
+<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">let </span>elements_flattened_length: FlattenedLength = value_types
+<a href=#515 id=515 data-nosnippet>515</a>        .iter()
+<a href=#516 id=516 data-nosnippet>516</a>        .map(|typ| {
+<a href=#517 id=517 data-nosnippet>517</a>            typ.flattened_size()
+<a href=#518 id=518 data-nosnippet>518</a>                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"unexpected nested dynamic element type: {typ:?}"</span>))
+<a href=#519 id=519 data-nosnippet>519</a>        })
+<a href=#520 id=520 data-nosnippet>520</a>        .sum();
+<a href=#521 id=521 data-nosnippet>521</a>    ElementsFlattenedLength::from(elements_flattened_length) * length
+<a href=#522 id=522 data-nosnippet>522</a>}</code></pre></div></section></main></body></html>
