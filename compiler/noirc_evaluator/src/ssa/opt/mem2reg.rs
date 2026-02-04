@@ -3059,4 +3059,43 @@ mod tests {
 
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
+
+    // Regression test: Mem2Reg should not remove stores to references that escape
+    // via a returned array. Based on fuzzer-found bug where stores in b0 were removed
+    // even though the references were placed in an array and returned in b3.
+    #[test]
+    #[should_panic(expected = "store u1 0 at v2")]
+    fn keep_store_to_reference_in_returned_array_across_branches() {
+        // Minimal reproduction of the failing pattern:
+        // - v7 and v9 are allocated and stored to in b0
+        // - Control flow branches (jmpif) to b1 or b2
+        // - Array containing v7, v9 is created and returned in b3
+        // - Mem2Reg must NOT remove the stores to v7 and v9
+        let src = r#"
+        brillig(inline) fn func_1 f0 {
+          b0(v2: [&mut u1; 3]):
+            v7 = allocate -> &mut u1
+            store u1 0 at v7
+            v9 = allocate -> &mut u1
+            store u1 0 at v9
+            v11 = array_get v2, index u32 2 -> &mut u1
+            v12 = load v11 -> u1
+            jmpif v12 then: b1, else: b2
+          b1():
+            v16 = array_get v2, index u32 1 -> &mut u1
+            jmp b3(v16)
+          b2():
+            v14 = array_get v2, index u32 0 -> &mut u1
+            jmp b3(v14)
+          b3(v6: &mut u1):
+            v17 = allocate -> &mut u1
+            store u1 1 at v17
+            v19 = make_array [v7, v9, v6, v17] : [&mut u1; 4]
+            return v19
+        }
+        "#;
+
+        // The stores to v7 and v9 must be preserved since they escape via the returned array
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 }
