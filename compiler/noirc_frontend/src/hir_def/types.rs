@@ -323,7 +323,7 @@ impl Kind {
     pub fn has_cyclic_alias(
         &self,
         aliases: &mut im::HashSet<TypeAliasId>,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+        seen_data_types: &mut SeenDataTypes,
     ) -> bool {
         match self {
             Self::Numeric(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
@@ -1100,7 +1100,7 @@ impl TypeVariable {
     pub fn has_cyclic_alias(
         &self,
         aliases: &mut im::HashSet<TypeAliasId>,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+        seen_data_types: &mut SeenDataTypes,
     ) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
@@ -1566,7 +1566,7 @@ impl Type {
     /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self) -> bool {
         let mut aliases = im::HashSet::<TypeAliasId>::default();
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.has_cyclic_alias_helper(&mut aliases, &mut seen_data_types)
     }
 
@@ -1574,7 +1574,7 @@ impl Type {
     fn has_cyclic_alias_helper(
         &self,
         aliases: &mut im::HashSet<TypeAliasId>,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+        seen_data_types: &mut SeenDataTypes,
     ) -> bool {
         match self {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
@@ -1720,14 +1720,11 @@ impl Type {
 
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
     pub(crate) fn is_nested_vector(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.is_nested_vector_helper(&mut seen_data_types)
     }
 
-    fn is_nested_vector_helper(
-        &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> bool {
+    fn is_nested_vector_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
@@ -1797,14 +1794,11 @@ impl Type {
 
     /// Check whether this type is itself a vector, or a struct/enum/tuple/array which contains a vector.
     pub(crate) fn contains_vector(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.contains_vector_helper(&mut seen_data_types)
     }
 
-    pub(crate) fn contains_vector_helper(
-        &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> bool {
+    pub(crate) fn contains_vector_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::Vector(_) => true,
             Type::Array(_, elem) => elem.as_ref().contains_vector_helper(seen_data_types),
@@ -1876,14 +1870,11 @@ impl Type {
 
     /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
     pub(crate) fn contains_array(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.contains_array_helper(&mut seen_data_types)
     }
 
-    fn contains_array_helper(
-        &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> bool {
+    fn contains_array_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::Array(..) => true,
             Type::Vector(elem) => elem.as_ref().contains_array_helper(seen_data_types),
@@ -1948,14 +1939,11 @@ impl Type {
 
     /// Check whether this type is a vector that contains a nested array in its element type.
     pub(crate) fn is_vector_with_nested_array(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.is_vector_with_nested_array_helper(&mut seen_data_types)
     }
 
-    fn is_vector_with_nested_array_helper(
-        &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> bool {
+    fn is_vector_with_nested_array_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_array(),
             Type::Array(_, elem) => {
@@ -2025,14 +2013,11 @@ impl Type {
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.contains_reference_helper(&mut seen_data_types)
     }
 
-    fn contains_reference_helper(
-        &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> bool {
+    fn contains_reference_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::Unit
             | Type::Bool
@@ -2106,14 +2091,11 @@ impl Type {
     }
 
     pub(crate) fn contains_function(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.contains_function_helper(&mut seen_data_types)
     }
 
-    fn contains_function_helper(
-        &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> bool {
+    fn contains_function_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -3665,3 +3647,7 @@ impl PartialEq for Type {
         }
     }
 }
+
+/// Tracks seen `DataType`s (with its generics) in some type-traversing algorithms
+/// to  avoid infinite recursion.
+pub(crate) type SeenDataTypes = rustc_hash::FxHashSet<(TypeId, Vec<Type>)>;

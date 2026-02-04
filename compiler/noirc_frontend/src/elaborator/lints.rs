@@ -1,7 +1,7 @@
 //! Lint checks for function attributes, visibility, and usage restrictions.
 
 use crate::{
-    NamedGeneric, Type, TypeBinding,
+    NamedGeneric, SeenDataTypes, Type, TypeBinding,
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
@@ -14,7 +14,7 @@ use crate::{
         stmt::HirStatement,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner, TypeId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
@@ -157,10 +157,7 @@ pub(super) fn oracle_returns_multiple_vectors(
         return None;
     }
 
-    fn vector_count(
-        typ: &Type,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
-    ) -> usize {
+    fn vector_count(typ: &Type, seen_data_types: &mut SeenDataTypes) -> usize {
         match typ {
             Type::Array(_, item) => vector_count(item, seen_data_types),
             Type::Vector(typ) => 1 + vector_count(typ, seen_data_types),
@@ -213,7 +210,7 @@ pub(super) fn oracle_returns_multiple_vectors(
         }
     }
 
-    let mut seen_data_types = rustc_hash::FxHashSet::default();
+    let mut seen_data_types = SeenDataTypes::default();
 
     if vector_count(func.return_type(), &mut seen_data_types) > 1 {
         let ident = func_meta_name_ident(func, modifiers);

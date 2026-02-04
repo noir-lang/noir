@@ -1,6 +1,6 @@
 use noirc_errors::{CustomDiagnostic, Location};
 
-use crate::{NamedGeneric, Type, TypeBinding, ast::Ident, node_interner::TypeId};
+use crate::{NamedGeneric, SeenDataTypes, Type, TypeBinding, ast::Ident};
 
 /// An type incorrectly used as a program input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,7 +100,7 @@ impl Type {
         fn helper(
             this: &Type,
             allow_empty_arrays: bool,
-            seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+            seen_data_types: &mut SeenDataTypes,
         ) -> Option<InvalidType> {
             let mut recur = |typ| helper(typ, allow_empty_arrays, seen_data_types);
 
@@ -203,7 +203,7 @@ impl Type {
             }
         }
 
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         helper(self, output, &mut seen_data_types)
     }
 
@@ -220,13 +220,13 @@ impl Type {
     /// certain types which through compilation we know what their size should be.
     /// This includes types such as numeric generics.
     pub(crate) fn non_inlined_function_input_validity(&self) -> Option<InvalidType> {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.non_inlined_function_input_validity_helper(&mut seen_data_types)
     }
 
     fn non_inlined_function_input_validity_helper(
         &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+        seen_data_types: &mut SeenDataTypes,
     ) -> Option<InvalidType> {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
@@ -316,13 +316,13 @@ impl Type {
     /// Returns true if a value of this type can safely pass between constrained and
     /// unconstrained functions (and vice-versa).
     pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
-        let mut seen_data_types = rustc_hash::FxHashSet::default();
+        let mut seen_data_types = SeenDataTypes::default();
         self.is_valid_for_unconstrained_boundary_helper(&mut seen_data_types)
     }
 
     fn is_valid_for_unconstrained_boundary_helper(
         &self,
-        seen_data_types: &mut rustc_hash::FxHashSet<(TypeId, Vec<Type>)>,
+        seen_data_types: &mut SeenDataTypes,
     ) -> bool {
         match self {
             Type::FieldElement
