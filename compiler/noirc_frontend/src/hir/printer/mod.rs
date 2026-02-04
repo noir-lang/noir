@@ -599,7 +599,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             // Don't add type for `self` param
             if !is_self {
                 self.push_str(": ");
-                if matches!(visibility, Visibility::Public(_)) {
+                if matches!(visibility, Visibility::Public) {
                     self.push_str("pub ");
                 }
                 self.show_type(typ);

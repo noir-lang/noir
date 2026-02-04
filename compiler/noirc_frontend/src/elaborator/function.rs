@@ -244,6 +244,7 @@ impl Elaborator<'_> {
             parameter_idents,
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
+            return_visibility_location: func.def.return_visibility_location,
             has_body: !func.def.body.is_empty(),
             trait_constraints,
             extra_trait_constraints,
@@ -338,12 +339,26 @@ impl Elaborator<'_> {
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
-        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
+        for Param { visibility, visibility_location, pattern, typ, location: _ } in
+            func.parameters().iter().cloned()
+        {
             self.run_lint(|_| {
-                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
+                lints::unnecessary_pub_argument(
+                    func,
+                    visibility,
+                    visibility_location,
+                    is_pub_allowed,
+                )
+                .map(Into::into)
             });
             self.run_lint(|_| {
-                lints::databus_on_non_entry_point(func, visibility, is_entry_point).map(Into::into)
+                lints::databus_on_non_entry_point(
+                    func,
+                    visibility,
+                    visibility_location,
+                    is_entry_point,
+                )
+                .map(Into::into)
             });
             let type_location = typ.location;
             let typ = match typ.typ {

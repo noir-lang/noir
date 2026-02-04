@@ -111,6 +111,7 @@ pub struct FuncMeta {
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.

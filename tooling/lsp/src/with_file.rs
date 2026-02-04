@@ -389,6 +389,7 @@ fn function_definition_with_file(func: FunctionDefinition, file: FileId) -> Func
         location: location_with_file(func.location, file),
         where_clause: unresolved_trait_constraints_with_file(func.where_clause, file),
         return_type: function_return_type_with_file(func.return_type, file),
+        return_visibility_location: location_with_file(func.return_visibility_location, file),
         return_visibility: func.return_visibility,
     }
 }
@@ -400,6 +401,7 @@ fn params_with_file(params: Vec<Param>, file: FileId) -> Vec<Param> {
 fn param_with_file(param: Param, file: FileId) -> Param {
     Param {
         visibility: param.visibility,
+        visibility_location: location_with_file(param.visibility_location, file),
         pattern: pattern_with_file(param.pattern, file),
         typ: unresolved_type_with_file(param.typ, file),
         location: location_with_file(param.location, file),

@@ -326,11 +326,11 @@ pub(super) fn unnecessary_pub_return(
         return None;
     }
 
-    if let Visibility::Public(location) = &func.return_visibility {
+    if let Visibility::Public = &func.return_visibility {
         let name = modifiers.name.clone();
         Some(ResolverError::UnnecessaryPub {
             name,
-            location: *location,
+            location: func.return_visibility_location,
             position: PubPosition::ReturnType,
         })
     } else {
@@ -344,15 +344,20 @@ pub(super) fn unnecessary_pub_return(
 pub(super) fn unnecessary_pub_argument(
     func: &NoirFunction,
     arg_visibility: Visibility,
+    arg_visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
     if is_entry_point {
         return None;
     }
 
-    if let Visibility::Public(location) = arg_visibility {
+    if let Visibility::Public = arg_visibility {
         let name = func.name().to_string();
-        Some(ResolverError::UnnecessaryPub { name, location, position: PubPosition::Parameter })
+        Some(ResolverError::UnnecessaryPub {
+            name,
+            location: arg_visibility_location,
+            position: PubPosition::Parameter,
+        })
     } else {
         None
     }
@@ -362,6 +367,7 @@ pub(super) fn unnecessary_pub_argument(
 pub(super) fn databus_on_non_entry_point(
     func: &NoirFunction,
     visibility: Visibility,
+    visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
     if is_entry_point {
@@ -369,10 +375,14 @@ pub(super) fn databus_on_non_entry_point(
     }
 
     match visibility {
-        Visibility::CallData(_, location) | Visibility::ReturnData(location) => {
+        Visibility::CallData(_) | Visibility::ReturnData => {
             let name = func.name().to_string();
             let visibility = visibility.to_string();
-            Some(ResolverError::DataBusOnNonEntryPoint { name, location, visibility })
+            Some(ResolverError::DataBusOnNonEntryPoint {
+                name,
+                location: visibility_location,
+                visibility,
+            })
         }
         _ => None,
     }

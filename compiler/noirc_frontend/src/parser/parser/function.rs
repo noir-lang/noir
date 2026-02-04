@@ -29,6 +29,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) where_clause: Vec<UnresolvedTraitConstraint>,
     pub(crate) return_type: FunctionReturnType,
     pub(crate) return_visibility: Visibility,
+    pub(crate) return_visibility_location: Location,
 }
 
 impl Parser<'_> {
@@ -79,6 +80,7 @@ impl Parser<'_> {
             where_clause: func.where_clause,
             return_type: func.return_type,
             return_visibility: func.return_visibility,
+            return_visibility_location: func.return_visibility_location,
         }
     }
 
@@ -114,9 +116,10 @@ impl Parser<'_> {
             }
         };
 
-        let (return_type, return_visibility) = if self.eat(Token::Arrow) {
-            let visibility = self.parse_visibility();
-            (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
+        let (return_type, return_visibility, return_visibility_location) = if self.eat(Token::Arrow)
+        {
+            let (visibility, location) = self.parse_visibility();
+            (FunctionReturnType::Ty(self.parse_type_or_error()), visibility, location)
         } else {
             // This will return the span between `)` and `{`
             //
@@ -135,7 +138,11 @@ impl Parser<'_> {
                 );
             }
 
-            (FunctionReturnType::Default(location), Visibility::Private)
+            (
+                FunctionReturnType::Default(location),
+                Visibility::Private,
+                self.location_at_previous_token_end(),
+            )
         };
 
         let where_clause = self.parse_where_clause();
@@ -174,6 +181,7 @@ impl Parser<'_> {
             where_clause,
             return_type,
             return_visibility,
+            return_visibility_location,
         }
     }
 
@@ -224,7 +232,7 @@ impl Parser<'_> {
     }
 
     fn pattern_param(&mut self, pattern: Pattern, start_location: Location) -> Param {
-        let (visibility, typ) = if !self.eat_colon() {
+        let (visibility, visibility_location, typ) = if !self.eat_colon() {
             self.push_error(
                 ParserErrorReason::MissingTypeForFunctionParameter,
                 pattern.location().merge(self.current_token_location),
@@ -233,15 +241,23 @@ impl Parser<'_> {
             let visibility = Visibility::Private;
             let location = self.location_at_previous_token_end();
             let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
-            (visibility, typ)
+            (visibility, location, typ)
         } else {
+            let (visibility, location) = self.parse_visibility();
             (
-                self.parse_visibility(),
+                visibility,
+                location,
                 self.parse_type_or_error_with_recovery(&[Token::Comma, Token::RightParen]),
             )
         };
 
-        Param { visibility, pattern, typ, location: self.location_since(start_location) }
+        Param {
+            visibility,
+            visibility_location,
+            pattern,
+            typ,
+            location: self.location_since(start_location),
+        }
     }
 
     fn self_pattern_param(&self, self_pattern: SelfPattern) -> Param {
@@ -262,6 +278,7 @@ impl Parser<'_> {
 
         Param {
             visibility: Visibility::Private,
+            visibility_location: self.location_at_previous_token_end(),
             pattern,
             typ: self_type,
             location: self.location_since(ident_location),
@@ -273,15 +290,15 @@ impl Parser<'_> {
     ///     | 'return_data'
     ///     | 'call_data' '(' int ')'
     ///     | nothing
-    fn parse_visibility(&mut self) -> Visibility {
+    fn parse_visibility(&mut self) -> (Visibility, Location) {
         let start_location = self.current_token_location;
 
         if self.eat_keyword(Keyword::Pub) {
-            return Visibility::Public(start_location);
+            return (Visibility::Public, start_location);
         }
 
         if self.eat_keyword(Keyword::ReturnData) {
-            return Visibility::ReturnData(start_location);
+            return (Visibility::ReturnData, start_location);
         }
 
         if self.eat_keyword(Keyword::CallData) {
@@ -290,21 +307,21 @@ impl Parser<'_> {
                     self.eat_or_error(Token::RightParen);
                     let location = self.location_since(start_location);
                     let id = int.to_u128() as u32;
-                    return Visibility::CallData(id, location);
+                    return (Visibility::CallData(id), location);
                 } else {
                     self.expected_label(ParsingRuleLabel::Integer);
                     self.eat_right_paren();
                     let location = self.location_since(start_location);
-                    return Visibility::CallData(0, location);
+                    return (Visibility::CallData(0), location);
                 }
             } else {
                 self.expected_token(Token::LeftParen);
                 let location = self.location_since(start_location);
-                return Visibility::CallData(0, location);
+                return (Visibility::CallData(0), location);
             }
         }
 
-        Visibility::Private
+        (Visibility::Private, self.location_at_previous_token_end())
     }
 
     fn validate_attributes(&mut self, attributes: Vec<(Attribute, Location)>) -> Attributes {
@@ -341,6 +358,7 @@ fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
         where_clause: Vec::new(),
         return_type: FunctionReturnType::Default(location),
         return_visibility: Visibility::Private,
+        return_visibility_location: location,
     }
 }
 
@@ -418,7 +436,7 @@ mod tests {
         let param = noir_function.def.parameters.remove(0);
         assert_eq!("x", param.pattern.to_string());
         assert_eq!("Field", param.typ.to_string());
-        assert!(matches!(param.visibility, Visibility::Public(..)));
+        assert!(matches!(param.visibility, Visibility::Public));
     }
 
     #[test]
@@ -428,7 +446,7 @@ mod tests {
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
-        assert!(matches!(param.visibility, Visibility::ReturnData(..)));
+        assert!(matches!(param.visibility, Visibility::ReturnData));
     }
 
     #[test]
@@ -438,7 +456,7 @@ mod tests {
         assert_eq!(noir_function.def.parameters.len(), 1);
 
         let param = noir_function.def.parameters.remove(0);
-        assert!(matches!(param.visibility, Visibility::CallData(42, _)));
+        assert!(matches!(param.visibility, Visibility::CallData(42)));
     }
 
     #[test]
@@ -453,7 +471,7 @@ mod tests {
     fn parse_function_return_visibility() {
         let src = "fn foo() -> pub Field {}";
         let noir_function = parse_function_no_error(src);
-        assert!(matches!(noir_function.def.return_visibility, Visibility::Public(_)));
+        assert!(matches!(noir_function.def.return_visibility, Visibility::Public));
         assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 

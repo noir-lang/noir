@@ -2,7 +2,6 @@
 use std::collections::{BTreeMap, BTreeSet}; // Using BTree for deterministic enumeration, for repeatability.
 
 use func::{FunctionContext, FunctionDeclaration, can_call};
-use noirc_errors::Location;
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -68,7 +67,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
         name: "main".into(),
         params: vec![],
         return_type: decl_inner.return_type.clone(),
-        return_visibility: Visibility::Public(Location::dummy()),
+        return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: false,
     };
@@ -99,7 +98,7 @@ pub fn program_wrap_expression(expr: Expression) -> Program {
         name: "main".into(),
         params: vec![],
         return_type: expr.return_type().unwrap().into_owned(),
-        return_visibility: Visibility::Public(Location::dummy()),
+        return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: true,
     };
@@ -297,9 +296,9 @@ impl Context {
 
             let visibility = if is_main {
                 match u.choose_index(5)? {
-                    0 | 1 => Visibility::Public(Location::dummy()),
+                    0 | 1 => Visibility::Public,
                     2 | 3 => Visibility::Private,
-                    _ => Visibility::CallData(p as u32, Location::dummy()),
+                    _ => Visibility::CallData(p as u32),
                 }
             } else {
                 Visibility::Private
@@ -312,9 +311,9 @@ impl Context {
             if types::is_unit(&return_type) {
                 Visibility::Private
             } else if u.ratio(4, 5)? {
-                Visibility::Public(Location::dummy())
+                Visibility::Public
             } else {
-                Visibility::ReturnData(Location::dummy())
+                Visibility::ReturnData
             }
         } else {
             Visibility::Private
@@ -588,7 +587,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         for function in &self.0.functions {
             if function.id == Program::main_id() {
                 let mut function = function.clone();
-                function.return_visibility = Visibility::Public(Location::dummy());
+                function.return_visibility = Visibility::Public;
                 let fpo = FunctionPrintOptions { comptime_wrap_body: true, ..Default::default() };
                 printer.print_function(&function, f, fpo)?;
             } else {

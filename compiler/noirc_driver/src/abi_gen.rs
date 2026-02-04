@@ -144,9 +144,9 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
 
 fn to_abi_visibility(value: Visibility) -> AbiVisibility {
     match value {
-        Visibility::Public(_) => AbiVisibility::Public,
+        Visibility::Public => AbiVisibility::Public,
         Visibility::Private => AbiVisibility::Private,
-        Visibility::CallData(_, _) | Visibility::ReturnData(_) => AbiVisibility::DataBus,
+        Visibility::CallData(_) | Visibility::ReturnData => AbiVisibility::DataBus,
     }
 }
 

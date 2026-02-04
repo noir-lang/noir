@@ -75,9 +75,9 @@ fn to_abi_type(typ: &Type) -> AbiType {
 
 fn to_abi_visibility(vis: &Visibility) -> AbiVisibility {
     match vis {
-        Visibility::Public(_) => AbiVisibility::Public,
+        Visibility::Public => AbiVisibility::Public,
         Visibility::Private => AbiVisibility::Public,
-        Visibility::CallData(..) => AbiVisibility::DataBus,
-        Visibility::ReturnData(_) => AbiVisibility::DataBus,
+        Visibility::CallData(_) => AbiVisibility::DataBus,
+        Visibility::ReturnData => AbiVisibility::DataBus,
     }
 }
