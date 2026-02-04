@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770212676777,
+  "lastUpdate": 1770214998228,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23086,48 +23086,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6d2adb3642f864516845097b1cd0886824c655d9",
-          "message": "fix(frontend): Do not error in trait method when impl is missing associated constant declaration (#11363)",
-          "timestamp": "2026-01-28T15:03:41Z",
-          "tree_id": "01efe5fae338fb018f894873f8836190177aa130",
-          "url": "https://github.com/noir-lang/noir/commit/6d2adb3642f864516845097b1cd0886824c655d9"
-        },
-        "date": 1769614036436,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259628,
-            "range": "± 4968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229128,
-            "range": "± 3996",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2801560,
-            "range": "± 5782",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2209332,
             "range": "± 4440",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5766d1933e78a8a1b091146a4a0aa13f4fe8a6be",
+          "message": "chore: migrate AES implementation from libaes to RustCrypto (#11453)",
+          "timestamp": "2026-02-04T13:59:35Z",
+          "tree_id": "8b5f8876cb5ea529c5dd7317ead6ab8c6de80ecd",
+          "url": "https://github.com/noir-lang/noir/commit/5766d1933e78a8a1b091146a4a0aa13f4fe8a6be"
+        },
+        "date": 1770214957322,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256363,
+            "range": "± 503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224989,
+            "range": "± 2132",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2744783,
+            "range": "± 21586",
             "unit": "ns/iter"
           }
         ]
