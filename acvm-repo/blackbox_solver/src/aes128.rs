@@ -1,5 +1,5 @@
-use aes::cipher::{block_padding::NoPadding, BlockEncryptMut, KeyIvInit};
 use crate::BlackBoxResolutionError;
+use aes::cipher::{BlockEncryptMut, KeyIvInit, block_padding::NoPadding};
 
 type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
 
