@@ -3521,4 +3521,79 @@ fn main() {
         // This used to suggest `use std::meta::ctstring::Append`, which is wrong
         assert_eq!(addition_text_edit.new_text, "use std::append::Append;\n");
     }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_top_level_module() {
+        let src = r#"
+        fn one(he>|<)
+
+        fn two(hello: HelloWorld) {}
+        fn three(hello: HelloWorld) {}
+
+        mod moo {
+            fn four(help: Help) {}
+        }
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn does_not_suggest_parameter_that_exists_in_current_function() {
+        let src = r#"
+        fn one(hello: HelloWorld, he>|<)
+        "#;
+
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_submodule() {
+        let src = r#"
+        mod moo {
+            fn one(he>|<)
+
+            fn two(hello: HelloWorld) {}
+            fn three(hello: HelloWorld) {}
+        }
+
+        fn four(help: Help) {}
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_impl() {
+        let src = r#"
+        struct Foo {}
+
+        impl Foo {
+            fn one(he>|<)
+
+            fn two(hello: HelloWorld) {}
+            fn three(hello: HelloWorld) {}
+        }
+
+        fn four(help: Help) {}
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_trait() {
+        let src = r#"
+        trait Foo {
+            fn one(he>|<)
+
+            fn two(hello: HelloWorld) {}
+            fn three(hello: HelloWorld) {}
+        }
+
+        fn four(help: Help) {}
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
 }
