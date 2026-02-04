@@ -1045,9 +1045,9 @@
 <a href=#1045 id=1045 data-nosnippet>1045</a>                    block_parameters.len(),
 <a href=#1046 id=1046 data-nosnippet>1046</a>                    <span class="string">"Number of arguments in jmp must match number of block parameters"
 <a href=#1047 id=1047 data-nosnippet>1047</a>                </span>);
-<a href=#1048 id=1048 data-nosnippet>1048</a>                <span class="kw">for </span>(argument, paramete) <span class="kw">in </span>arguments.iter().zip(block_parameters) {
+<a href=#1048 id=1048 data-nosnippet>1048</a>                <span class="kw">for </span>(argument, parameter) <span class="kw">in </span>arguments.iter().zip(block_parameters) {
 <a href=#1049 id=1049 data-nosnippet>1049</a>                    <span class="kw">let </span>argument_type = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>argument);
-<a href=#1050 id=1050 data-nosnippet>1050</a>                    <span class="kw">let </span>parameter_type = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>paramete);
+<a href=#1050 id=1050 data-nosnippet>1050</a>                    <span class="kw">let </span>parameter_type = <span class="self">self</span>.function.dfg.type_of_value(<span class="kw-2">*</span>parameter);
 <a href=#1051 id=1051 data-nosnippet>1051</a>                    <span class="macro">assert_eq!</span>(
 <a href=#1052 id=1052 data-nosnippet>1052</a>                        argument_type, parameter_type,
 <a href=#1053 id=1053 data-nosnippet>1053</a>                        <span class="string">"Argument type in jmp must match block parameter type"

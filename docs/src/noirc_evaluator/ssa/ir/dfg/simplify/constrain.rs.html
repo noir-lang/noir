@@ -20,7 +20,7 @@
 <a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">let </span><span class="kw-2">mut </span>instructions = Vec::new();
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="comment">// Sometimes when decomposing a constraint we may generate further constraints to decompose.
-<a href=#23 id=23 data-nosnippet>23</a>    // A recursive version can hit stack overflow, so here we use a stack for an interative approach.
+<a href=#23 id=23 data-nosnippet>23</a>    // A recursive version can hit stack overflow, so here we use a stack for an iterative approach.
 <a href=#24 id=24 data-nosnippet>24</a>    // Each entry in the stack represents `constrain lhs == rhs`.
 <a href=#25 id=25 data-nosnippet>25</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>constrains = VecDeque::new();
 <a href=#26 id=26 data-nosnippet>26</a>    constrains.push_back((lhs, rhs));
