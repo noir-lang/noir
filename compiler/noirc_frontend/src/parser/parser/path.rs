@@ -52,6 +52,12 @@ impl Parser<'_> {
         )
     }
 
+    pub(super) fn parse_path_for_named_type(&mut self) -> Option<Path> {
+        let allow_turbofish = false;
+        let allow_trailing_double_colon = false;
+        self.parse_path_impl(allow_turbofish, allow_trailing_double_colon)
+    }
+
     pub(super) fn parse_path_impl(
         &mut self,
         allow_turbofish: bool,

@@ -172,64 +172,88 @@ impl Function {
             };
             let mut loops = Loops::find_all(self, order);
 
-            // Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
-            // so if an outer loop is unrolled, we have to restart looking for the nested ones.
+            // Blocks which were part of loops we unrolled. Nested loops are included in the
+            // outer loops, so if an outer loop is unrolled, we have to restart looking for
+            // the nested ones.
             let mut modified_blocks = HashSet::new();
-            // Indicate whether we will have to have another go looking for loops, to deal with nested ones.
             let mut needs_refresh = false;
 
             while let Some(next_loop) = loops.yet_to_unroll.pop() {
-                // Don't try to unroll the loop again if it is known to fail
-                if failed_to_unroll.contains(&next_loop.header) {
-                    continue;
-                }
-
-                // Only unroll small loops in Brillig.
-                if self.runtime().is_brillig()
-                    && !next_loop.should_unroll_in_brillig(self, &loops.cfg)
-                {
-                    continue;
-                }
-
-                // Check if we will be able to unroll this loop, before starting to modify the blocks.
-                if next_loop.has_const_back_edge_induction_value(&self.dfg) {
-                    // Don't try to unroll this.
-                    failed_to_unroll.insert(next_loop.header);
-                    // If this is Brillig, we can still evaluate this loop at runtime.
-                    if self.runtime().is_acir() {
-                        unroll_errors
-                            .push(RuntimeError::UnknownLoopBound { call_stack: CallStack::new() });
-                    }
-                    continue;
-                }
-
-                // If we've previously modified a block in this loop we need to refresh the context.
+                // If we've previously modified a block in this loop we need to refresh.
                 // This happens any time we have nested loops.
                 if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
                     needs_refresh = true;
-                    // Carry on unrolling the loops which weren't related to the ones we have already done.
                     continue;
                 }
 
-                // Try to unroll.
-                match next_loop.unroll(self, &loops.cfg) {
-                    Ok(_) => {
-                        has_unrolled = true;
-                        modified_blocks.extend(next_loop.blocks);
+                // Don't try to unroll the loop again if it is known to fail
+                let result = if failed_to_unroll.contains(&next_loop.header) {
+                    LoopUnrollResult::Skipped
+                } else {
+                    self.try_unroll_loop(next_loop, &loops)
+                };
+                match result {
+                    LoopUnrollResult::Skipped => continue,
+                    LoopUnrollResult::Failed(header, error) => {
+                        failed_to_unroll.insert(header);
+                        unroll_errors.push(error);
                     }
-                    Err(call_stack) => {
-                        failed_to_unroll.insert(next_loop.header);
-                        unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
+                    LoopUnrollResult::Unrolled(blocks) => {
+                        has_unrolled = true;
+                        modified_blocks.extend(blocks);
                     }
                 }
             }
-            // Once we have no more nested loops, we are done.
+
+            // If we didn't need to refresh, we're done
             if !needs_refresh {
                 break;
             }
         }
         (has_unrolled, unroll_errors)
     }
+
+    /// Try to unroll a single loop.
+    ///
+    /// Returns the result: whether the loop was skipped, failed, or unrolled.
+    fn try_unroll_loop(&mut self, loop_: Loop, loops: &Loops) -> LoopUnrollResult {
+        // Only unroll small loops in Brillig.
+        if self.runtime().is_brillig() && !loop_.should_unroll_in_brillig(self, &loops.cfg) {
+            return LoopUnrollResult::Skipped;
+        }
+
+        // Check if we will be able to unroll this loop, before starting to modify the blocks.
+        if loop_.has_const_back_edge_induction_value(&self.dfg) {
+            // Don't try to unroll this.
+            // If this is Brillig, we can still evaluate this loop at runtime.
+            if self.runtime().is_acir() {
+                return LoopUnrollResult::Failed(
+                    loop_.header,
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::new() },
+                );
+            }
+            return LoopUnrollResult::Skipped;
+        }
+
+        // Try to unroll.
+        match loop_.unroll(self, &loops.cfg) {
+            Ok(_) => LoopUnrollResult::Unrolled(loop_.blocks),
+            Err(call_stack) => LoopUnrollResult::Failed(
+                loop_.header,
+                RuntimeError::UnknownLoopBound { call_stack },
+            ),
+        }
+    }
+}
+
+/// Result of trying to unroll a single loop.
+enum LoopUnrollResult {
+    /// Loop was skipped (not eligible for unrolling, or deferred for later).
+    Skipped,
+    /// Loop failed to unroll.
+    Failed(BasicBlockId, RuntimeError),
+    /// Loop was successfully unrolled. Contains the blocks that were part of the loop.
+    Unrolled(BTreeSet<BasicBlockId>),
 }
 
 /// Describe the blocks that constitute up a loop.

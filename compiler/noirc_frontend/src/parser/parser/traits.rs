@@ -180,7 +180,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
@@ -201,7 +201,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
