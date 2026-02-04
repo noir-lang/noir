@@ -286,14 +286,12 @@ impl FunctionContext<'_> {
 
                 // For repeated arrays, the element is referenced multiple times.
                 // If the element contains arrays, we need to increment their reference counts
-                // for each additional copy to ensure proper reference counting in unconstrained code.
+                // We only add one inc_rc because we do not add the dec_rc, so it will be valid for all the copies.
                 if *length > 1 {
                     for value in element_value.clone().into_value_list(self) {
                         let value_type = self.builder.type_of_value(value);
                         if matches!(value_type, Type::Array(..) | Type::Vector(_)) {
-                            for _ in 1..*length {
-                                self.builder.insert_inc_rc(value);
-                            }
+                            self.builder.insert_inc_rc(value);
                         }
                     }
                 }
