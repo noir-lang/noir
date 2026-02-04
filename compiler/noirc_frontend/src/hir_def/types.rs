@@ -2630,10 +2630,11 @@ impl Type {
     ///
     /// Expected to be called on an instantiated type (with no Type::Foralls)
     pub fn follow_bindings(&self) -> Type {
-        fn helper(this: &Type, i: u32) -> Type {
+        fn helper(this: &Type, mut i: u32) -> Type {
             if i >= TYPE_RECURSION_LIMIT {
                 panic!("Type recursion limit reached - types are too large")
             }
+            i += 1;
             let recur = |typ| helper(typ, i);
 
             use Type::*;
@@ -3475,5 +3476,62 @@ impl PartialEq for Type {
             ) => lhs_var.id() == rhs_var.id(),
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Creates a tuple type nested to the specified depth.
+    /// For example, depth 3 creates: (((Field,),),)
+    fn create_nested_tuple(depth: usize) -> Type {
+        let mut typ = Type::FieldElement;
+        for _ in 0..depth {
+            typ = Type::Tuple(vec![typ]);
+        }
+        typ
+    }
+
+    #[test]
+    fn follow_bindings_on_shallow_tuple() {
+        // Depth 99 is within the limit
+        let typ = create_nested_tuple((TYPE_RECURSION_LIMIT - 1) as usize);
+        let result = typ.follow_bindings();
+        assert!(matches!(result, Type::Tuple(_)));
+    }
+
+    #[test]
+    #[should_panic(expected = "Type recursion limit reached - types are too large")]
+    fn follow_bindings_on_deeply_nested_tuple() {
+        // Depth 100 hits the limit
+        let typ = create_nested_tuple(TYPE_RECURSION_LIMIT as usize);
+        let _ = typ.follow_bindings();
+    }
+
+    /// Creates an array type nested to the specified depth.
+    /// For example, depth 3 creates: [[[Field; 1]; 1]; 1]
+    fn create_nested_array(depth: usize) -> Type {
+        let mut typ = Type::FieldElement;
+        for _ in 0..depth {
+            typ = Type::Array(Box::new(Type::Constant(1.into(), Kind::u32())), Box::new(typ));
+        }
+        typ
+    }
+
+    #[test]
+    fn follow_bindings_on_shallow_array() {
+        // Depth 99 is within the limit (siblings share depth)
+        let typ = create_nested_array((TYPE_RECURSION_LIMIT - 1) as usize);
+        let result = typ.follow_bindings();
+        assert!(matches!(result, Type::Array(_, _)));
+    }
+
+    #[test]
+    #[should_panic(expected = "Type recursion limit reached - types are too large")]
+    fn follow_bindings_on_deeply_nested_array() {
+        // Depth 100 hits the limit
+        let typ = create_nested_array(TYPE_RECURSION_LIMIT as usize);
+        let _ = typ.follow_bindings();
     }
 }
