@@ -25,7 +25,13 @@ impl Ssa {
         self = self.process_cfg_for_mem2reg_simple();
 
         for function in self.functions.values_mut() {
-            function.mem2reg_simple();
+            // This pass can work in ACIR but is currently very slow for fully inlined + unrolled
+            // programs which can be hundreds of thousands of blocks with many mutable variables.
+            // For a reasonable runtime, we currently only run this on brillig programs which tend
+            // to have more reasonable function sizes.
+            if function.runtime().is_brillig() {
+                function.mem2reg_simple();
+            }
         }
         self
     }
@@ -109,7 +115,7 @@ fn step2(
             let predecessor_count = predecessors.len();
 
             for predecessor in predecessors {
-                let exit_value = *exit_states[&predecessor].get(address).unwrap_or(entry_value);
+                let exit_value = get_exit_value(*address, predecessor, entry_states, exit_states);
                 last_value = exit_value;
 
                 if predecessor_count > 1 {
@@ -132,6 +138,7 @@ fn step2(
     }
 }
 
+/// Remove block parameters whose arguments (from predecessors' terminators) are all identical
 fn step3(
     blocks: &[BasicBlockId],
     entry_states: &BTreeMap<BasicBlockId, StateVec>,
@@ -175,22 +182,37 @@ fn add_visible_variables_as_block_arguments(
     variables
         .iter()
         .filter_map(|(var, decl_block)| {
-            // We filter out the decl block because a reference has no value at the start of its
-            // declaration block - before it is actually declared.
-            if dom_tree.dominates(*decl_block, block) && block != *decl_block {
+            if dom_tree.dominates(*decl_block, block) {
                 let typ = dfg
                     .type_of_value(*var)
                     .reference_element_type()
                     .expect("All variables should be references")
                     .clone();
 
-                let new_value = dfg.add_block_parameter(block, typ);
+                let new_value =
+                    if block == *decl_block { *var } else { dfg.add_block_parameter(block, typ) };
                 Some((*var, new_value))
             } else {
                 None
             }
         })
         .collect()
+}
+
+/// Gets the "exit value" of a variable, which is its value at the end of the given block.
+///
+/// `variable` should always be a reference.
+fn get_exit_value(
+    variable: ValueId,
+    block: BasicBlockId,
+    entry_states: &BTreeMap<BasicBlockId, StateVec>,
+    exit_states: &BTreeMap<BasicBlockId, StateVec>,
+) -> ValueId {
+    *exit_states[&block]
+        .get(&variable)
+        // To save memory, `exit_states` only contains the value if it changed within the block.
+        // So we have to check `entry_states` for the value if it went unchanged.
+        .unwrap_or_else(|| &entry_states[&block][&variable])
 }
 
 /// Return a mask indicating whether to keep or remove the corresponding parameter.
@@ -216,7 +238,10 @@ fn keep_argument_mask(
     vecmap(parameters.iter().enumerate(), |(i, parameter)| {
         let mut predecessors = cfg.predecessors(block);
         let predecessor_count = predecessors.len();
-        let parameter = inserter.resolve(*parameter);
+
+        // Do not `inserter.resolve()` this parameter! We want the original block parameter, but it
+        // may already be mapped away in the inserter.
+        let parameter = *parameter;
 
         if predecessor_count == 1 {
             // If the block has 1 predecessor, we should always remove the block parameter, but the
@@ -231,7 +256,12 @@ fn keep_argument_mask(
                 .iter()
                 .find(|(_, v)| **v == parameter)
                 .map(|(k, _)| *k)
-                .unwrap();
+                .unwrap_or_else(|| {
+                    panic!(
+                        "{}\n{block} has no parameter value {parameter}, entry_states = {:?}",
+                        inserter.function, entry_states[&block]
+                    )
+                });
 
             let argument = *exit_states[&predecessor]
                 .get(&parameter_variable)
@@ -1191,6 +1221,65 @@ acir(inline) fn main f0 {
           b3():
             return Field 0
         }
+        ");
+    }
+
+    #[test]
+    fn nested_loops() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field ; 0 1
+                store Field 0 at v0
+                jmp b1()
+              b1():
+                v2 = load v0 -> Field ; 0
+                v4 = eq v2, Field 6
+                jmpif v4 then: b2, else: b3
+              b2():
+                return
+              b3():
+                v6 = add v2, Field 1   ; 1
+                store v6 at v0
+                v7 = allocate -> &mut Field ; 0 1
+                store Field 0 at v7
+                jmp b4()
+              b4():
+                v8 = load v7 -> Field ; 0
+                v10 = eq v8, Field 7
+                jmpif v10 then: b5, else: b6
+              b5():
+                jmp b1()
+              b6():
+                v11 = add v8, Field 1 ; 1
+                store v11 at v7
+                jmp b4()
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg_simple();
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                jmp b1(Field 0)
+              b1(v0: Field):
+                v5 = eq v0, Field 6
+                jmpif v5 then: b2, else: b3
+              b2():
+                return
+              b3():
+                v7 = add v0, Field 1
+                jmp b4(v7, Field 0)
+              b4(v1: Field, v2: Field):
+                v9 = eq v2, Field 7
+                jmpif v9 then: b5, else: b6
+              b5():
+                jmp b1(v1)
+              b6():
+                v10 = add v2, Field 1
+                jmp b4(v1, v10)
+            }
         ");
     }
 }
