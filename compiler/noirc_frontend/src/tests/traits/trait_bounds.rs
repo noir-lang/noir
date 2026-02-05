@@ -491,7 +491,7 @@ fn trait_bound_on_implementing_type() {
             <Self as Foo>::foo()
         }
     }
-    
+
     fn main() {
         GenericStruct::<Field>::bar();
     }

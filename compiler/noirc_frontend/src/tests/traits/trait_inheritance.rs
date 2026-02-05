@@ -1,7 +1,10 @@
 //! Tests for trait inheritance (supertraits).
 //! Validates that supertrait bounds are correctly enforced and resolved, including with generics.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::{
+    test_utils::stdlib_src,
+    tests::{assert_no_errors, check_errors, check_errors_with_stdlib},
+};
 
 #[test]
 fn trait_inheritance() {
@@ -297,4 +300,16 @@ fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn trait_inheritance_using_eq_in_default_method() {
+    let src = "
+    pub trait Foo: Eq {
+        fn foo(self) -> bool {
+            self == self
+        }
+    }
+    ";
+    check_errors_with_stdlib(src, stdlib_src::EQ);
 }

@@ -70,6 +70,7 @@ impl NodeInterner {
             &trait_generics.ordered,
             &trait_generics.named,
         );
+
         if existing.is_ok() {
             return false;
         }

@@ -517,6 +517,7 @@ impl Elaborator<'_> {
             let constraint = the_trait.as_constraint(the_trait.name.location());
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
+
             self.add_trait_bound_to_scope(
                 location,
                 &self_type,
@@ -606,6 +607,13 @@ impl Elaborator<'_> {
                     typ,
                     location,
                 });
+            }
+        }
+
+        if let Type::TypeVariable(self_var) = object {
+            if self_var.borrow().is_unbound() && self.current_trait.is_some() {
+                // This would end up duplicating parent trait bounds we turned into where clauses on Self.
+                return;
             }
         }
 
