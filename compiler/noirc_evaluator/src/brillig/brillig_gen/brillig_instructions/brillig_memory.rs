@@ -186,10 +186,40 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.mov_instruction(*write_pointer_register, pointer);
 
         for (element_idx, element_id) in data.iter().enumerate() {
-            let element_variable = self.convert_ssa_value(*element_id, dfg);
-            // Store the item in memory
-            self.brillig_context
-                .store_instruction(*write_pointer_register, element_variable.extract_register());
+            // For numeric constants, use a temporary register that auto-deallocates
+            // instead of convert_ssa_value which permanently caches the allocation.
+            // This bounds register usage to O(1) for large constant arrays.
+            //
+            // However, if the constant is already pre-allocated (live after this instruction),
+            // reuse the existing allocation to avoid emitting a redundant Const opcode.
+            if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(*element_id) {
+                // Reuse existing allocation if the constant lives in any known location:
+                // hoisted globals, block-local variables, or SSA globals.
+                if self.get_hoisted_global(dfg, *element_id).is_some()
+                    || self.variables.is_allocated(element_id)
+                    || dfg.is_global(*element_id)
+                {
+                    let element_variable = self.convert_ssa_value(*element_id, dfg);
+                    self.brillig_context.store_instruction(
+                        *write_pointer_register,
+                        element_variable.extract_register(),
+                    );
+                } else {
+                    // Not allocated anywhere — use a temporary register.
+                    // This path is taken for large arrays where constants were
+                    // excluded from pre-allocation to avoid stack-frame overflow.
+                    let temp = self
+                        .brillig_context
+                        .make_constant_instruction(constant, typ.bit_size::<FieldElement>());
+                    self.brillig_context.store_instruction(*write_pointer_register, temp.address);
+                }
+            } else {
+                let element_variable = self.convert_ssa_value(*element_id, dfg);
+                self.brillig_context.store_instruction(
+                    *write_pointer_register,
+                    element_variable.extract_register(),
+                );
+            }
 
             if element_idx != data.len() - 1 {
                 // Increment the write_pointer_register
@@ -443,7 +473,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             result_id,
             dfg,
         );
-
         // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         match new_variable {
             BrilligVariable::BrilligArray(brillig_array) => {

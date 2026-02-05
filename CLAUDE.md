@@ -82,6 +82,16 @@ cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 
 Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs, review and accept snapshots with `cargo insta review`.
 
+### Benchmarking Brillig Bytecode
+
+To compare Brillig opcode counts between branches (e.g. before/after a codegen change), use:
+
+```bash
+nargo info --force-brillig --json          # Compile as Brillig, output JSON with opcode counts
+```
+
+Run this on representative test programs on both branches and diff the Brillig opcode counts. This is useful for detecting unintended regressions (e.g. duplicate `Const` opcodes) but regressions are not always avoidable — use judgment on whether the trade-off is acceptable.
+
 ### Testing (JavaScript/TypeScript)
 
 **Never run `yarn test` from the project root — always cd into a specific package first.**
