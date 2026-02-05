@@ -180,6 +180,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
     ) {
+        // Allocate a register for the iterator
         let write_pointer_register = self.brillig_context.allocate_register();
 
         self.brillig_context.mov_instruction(*write_pointer_register, pointer);
@@ -221,6 +222,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             }
 
             if element_idx != data.len() - 1 {
+                // Increment the write_pointer_register
                 self.brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
             }
         }

@@ -342,7 +342,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.brillig_context.set_call_stack(call_stack_new_id);
 
         let excluded_constants =
-            self.initialize_make_array_constants(instruction_id, instruction, dfg);
+            self.initialize_instruction_constants(instruction_id, instruction, dfg);
 
         match instruction {
             Instruction::Binary(binary) => {
@@ -453,7 +453,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ///
     /// For all other instructions (or small MakeArrays), initializes constants
     /// normally and returns an empty set.
-    fn initialize_make_array_constants(
+    fn initialize_instruction_constants(
         &mut self,
         instruction_id: InstructionId,
         instruction: &Instruction,
