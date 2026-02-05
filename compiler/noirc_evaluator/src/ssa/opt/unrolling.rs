@@ -144,6 +144,9 @@ impl Function {
             }
         }
 
+        #[cfg(debug_assertions)]
+        unroll_loops_post_check(self);
+
         Ok(has_unrolled)
     }
 
@@ -1274,6 +1277,29 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
     let max_size_pct = 100i32.saturating_add(max_incr_pct).max(0) as usize;
     let max_size = orig_size.saturating_mul(max_size_pct);
     new_size.saturating_mul(100) <= max_size
+}
+
+/// Post-check condition for [Function::unroll_loops_iteratively].
+///
+/// Panics if:
+///   - Any ACIR function still contains loops after unrolling.
+///
+/// Note: This check only runs for ACIR functions since Brillig functions
+/// may intentionally retain loops that are too large to unroll.
+#[cfg(debug_assertions)]
+fn unroll_loops_post_check(function: &Function) {
+    // Brillig functions may intentionally keep loops
+    if function.runtime().is_brillig() {
+        return;
+    }
+
+    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+    assert!(
+        loops.yet_to_unroll.is_empty(),
+        "ACIR function {} still contains {} loop(s) after unrolling",
+        function.name(),
+        loops.yet_to_unroll.len()
+    );
 }
 
 #[cfg(test)]

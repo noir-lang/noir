@@ -30,6 +30,9 @@ impl Ssa {
 
 impl Function {
     fn checked_to_unchecked(&mut self) {
+        #[cfg(debug_assertions)]
+        checked_to_unchecked_pre_check(self);
+
         let mut value_max_num_bits = HashMap::<ValueId, u32>::default();
 
         self.simple_optimization(|context| {
@@ -154,6 +157,17 @@ fn get_max_num_bits(
     value_max_num_bits.insert(value, bits);
 
     bits
+}
+
+/// Pre-check condition for [Function::checked_to_unchecked].
+///
+/// Panics if:
+///   - The function contains any checked signed binary operations (add, sub, mul).
+///   - These should have already been converted by the expand_signed_checks pass.
+#[cfg(debug_assertions)]
+fn checked_to_unchecked_pre_check(func: &Function) {
+    // This pass must be run after expand_signed_checks
+    super::expand_signed_checks::expand_signed_checks_post_check(func);
 }
 
 #[cfg(test)]
@@ -296,13 +310,15 @@ mod tests {
     }
 
     #[test]
-    fn no_checked_to_unchecked_when_casting_two_i16_to_i32_then_adding() {
+    fn no_change_for_signed_unchecked_add() {
+        // After expand_signed_checks, signed checked operations are converted to unchecked.
+        // This test verifies that the pass doesn't modify unchecked signed operations.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: i16, v1: i16):
             v2 = cast v0 as i32
             v3 = cast v1 as i32
-            v4 = add v2, v3
+            v4 = unchecked_add v2, v3
             v5 = truncate v4 to 32 bits, max_bit_size: 33
             return v5
         }
@@ -311,12 +327,14 @@ mod tests {
     }
 
     #[test]
-    fn no_checked_to_unchecked_when_subtracting_i32() {
+    fn no_change_for_signed_unchecked_sub() {
+        // After expand_signed_checks, signed checked operations are converted to unchecked.
+        // This test verifies that the pass doesn't modify unchecked signed operations.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: i16):
             v1 = cast v0 as i32
-            v2 = sub i32 65536, v1
+            v2 = unchecked_sub i32 65536, v1
             v3 = truncate v2 to 32 bits, max_bit_size: 33
             return v3
         }
@@ -325,12 +343,14 @@ mod tests {
     }
 
     #[test]
-    fn no_checked_to_unchecked_when_multiplying_upcasted_bool_with_i32() {
+    fn no_change_for_signed_unchecked_mul() {
+        // After expand_signed_checks, signed checked operations are converted to unchecked.
+        // This test verifies that the pass doesn't modify unchecked signed operations.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1, v1: i32):
             v2 = cast v0 as i32
-            v3 = mul v2, v1
+            v3 = unchecked_mul v2, v1
             v4 = cast v3 as u64
             v6 = truncate v4 to 32 bits, max_bit_size: 64
             return v2

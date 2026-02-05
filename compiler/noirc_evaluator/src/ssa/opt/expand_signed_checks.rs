@@ -452,7 +452,7 @@ impl Context<'_, '_, '_> {
 ///
 /// Otherwise panics.
 #[cfg(debug_assertions)]
-fn expand_signed_checks_post_check(func: &Function) {
+pub(super) fn expand_signed_checks_post_check(func: &Function) {
     for block_id in func.reachable_blocks() {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
