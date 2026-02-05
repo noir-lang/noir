@@ -143,6 +143,11 @@ impl Loops {
 
         context.map_dependent_instructions();
         context.inserter.map_data_bus_in_place();
+
+        // let new_values = context.loop_invariants.iter().map(|value| context.inserter.resolve(*value)).collect::<Vec<_>>();
+        // dbg!(new_values.clone());
+        // dbg!(context.defined_in_loop.clone());
+        // dbg!(context.loop_invariants.clone());
     }
 }
 
@@ -164,7 +169,7 @@ impl Loop {
     ///
     /// There is an example in the tests where a loop does not have an induction variable,
     /// but rather loads a reference in the header, in which case this will return `None`.
-    fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
+    pub(super) fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
         function.dfg.block_parameters(self.header).iter().next().copied()
     }
 

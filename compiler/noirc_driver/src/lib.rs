@@ -181,12 +181,11 @@ pub struct CompileOptions {
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
-    /// unrolling small loops. When left empty, any change is accepted as long
-    /// as it required fewer SSA instructions.
+    /// unrolling small loops. A value of 100 allows up to 2× growth.
     /// A higher value results in fewer jumps but a larger program.
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
-    #[arg(long, hide = true, allow_hyphen_values = true)]
-    pub max_bytecode_increase_percent: Option<i32>,
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i32::MAX)]
+    pub max_bytecode_increase_percent: i32,
 
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
@@ -245,7 +244,7 @@ impl Default for CompileOptions {
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: None,
+            max_bytecode_increase_percent: i32::MAX,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,

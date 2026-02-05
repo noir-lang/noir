@@ -24,9 +24,9 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
+            max_bytecode_increase_percent: i32::MAX,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
         };
 
