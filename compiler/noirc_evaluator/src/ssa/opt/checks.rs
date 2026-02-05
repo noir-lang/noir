@@ -131,6 +131,38 @@ pub(super) fn assert_no_signed_lt(function: &Function) {
     }
 }
 
+/// Asserts that the function contains no signed division operations.
+#[cfg(debug_assertions)]
+pub(super) fn assert_no_signed_div(function: &Function) {
+    for block_id in function.reachable_blocks() {
+        for instruction_id in function.dfg[block_id].instructions() {
+            if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
+                if function.dfg.type_of_value(binary.lhs).is_signed()
+                    && binary.operator == BinaryOp::Div
+                {
+                    panic!("Signed division found");
+                }
+            }
+        }
+    }
+}
+
+/// Asserts that the function contains no signed modulo operations.
+#[cfg(debug_assertions)]
+pub(super) fn assert_no_signed_mod(function: &Function) {
+    for block_id in function.reachable_blocks() {
+        for instruction_id in function.dfg[block_id].instructions() {
+            if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
+                if function.dfg.type_of_value(binary.lhs).is_signed()
+                    && binary.operator == BinaryOp::Mod
+                {
+                    panic!("Signed modulo found");
+                }
+            }
+        }
+    }
+}
+
 /// Asserts that IfElse instructions only operate on non-numeric types (arrays/vectors).
 ///
 /// Numeric values should have been handled during flattening.

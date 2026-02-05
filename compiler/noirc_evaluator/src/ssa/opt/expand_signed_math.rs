@@ -303,14 +303,16 @@ impl Context<'_, '_, '_> {
 
 /// Post-check condition for [Function::expand_signed_math].
 ///
-/// Succeeds if:
-///   - `func` does not contain any signed "less than" ops
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any ACIR function contains signed Lt, Div, or Mod operations.
 #[cfg(debug_assertions)]
 fn expand_signed_math_post_check(func: &Function) {
-    // All signed less-than comparisons should be expanded
-    super::checks::assert_no_signed_lt(func);
+    if func.runtime().is_acir() {
+        // All signed Lt, Div, and Mod should be expanded in ACIR functions
+        super::checks::assert_no_signed_lt(func);
+        super::checks::assert_no_signed_div(func);
+        super::checks::assert_no_signed_mod(func);
+    }
 }
 
 #[cfg(test)]
