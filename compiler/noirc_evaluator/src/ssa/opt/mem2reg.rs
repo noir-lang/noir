@@ -961,7 +961,6 @@ impl<'f> PerFunctionContext<'f> {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.
                         Type::Reference(element) if element.contains_reference() => {
-                            references.set_unknown(*argument);
                             self.mark_all_unknown(destination_parameters, references);
                             return;
                         }
