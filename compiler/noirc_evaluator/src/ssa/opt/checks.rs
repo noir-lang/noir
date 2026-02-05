@@ -11,10 +11,27 @@
 //! All functions in this module are only compiled with `#[cfg(debug_assertions)]`.
 
 use crate::ssa::ir::{
+    dfg::DataFlowGraph,
     function::Function,
     instruction::{Binary, BinaryOp, Instruction},
     types::Type,
 };
+
+/// Panics if any instruction in the function matches the given predicate.
+#[cfg(debug_assertions)]
+fn assert_no_instruction_matching(
+    function: &Function,
+    predicate: impl Fn(&Instruction, &DataFlowGraph) -> bool,
+    message: &str,
+) {
+    for block_id in function.reachable_blocks() {
+        for instruction_id in function.dfg[block_id].instructions() {
+            if predicate(&function.dfg[*instruction_id], &function.dfg) {
+                panic!("{message}");
+            }
+        }
+    }
+}
 
 /// Asserts that the function's CFG has been flattened to a single block.
 #[cfg(debug_assertions)]
@@ -61,13 +78,11 @@ pub(super) fn assert_no_checked_signed_add_sub_mul(function: &Function) {
 /// Asserts that the function contains no IfElse instructions.
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_if_else(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if matches!(function.dfg[*instruction_id], Instruction::IfElse { .. }) {
-                panic!("IfElse instruction found");
-            }
-        }
-    }
+    assert_no_instruction_matching(
+        function,
+        |instruction, _| matches!(instruction, Instruction::IfElse { .. }),
+        "IfElse instruction found",
+    );
 }
 
 /// Asserts that the function contains no Load or Store instructions.
@@ -91,75 +106,65 @@ pub(super) fn assert_no_load_store(function: &Function) {
 /// Asserts that the function contains no bit shift instructions (Shl, Shr).
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_bit_shifts(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if matches!(
-                function.dfg[*instruction_id],
+    assert_no_instruction_matching(
+        function,
+        |instruction, _| {
+            matches!(
+                instruction,
                 Instruction::Binary(Binary { operator: BinaryOp::Shl | BinaryOp::Shr, .. })
-            ) {
-                panic!("Bitshift instruction found");
-            }
-        }
-    }
+            )
+        },
+        "Bitshift instruction found",
+    );
 }
 
 /// Asserts that the function contains no ConstrainNotEqual instructions.
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_constrain_not_equal(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if matches!(function.dfg[*instruction_id], Instruction::ConstrainNotEqual(_, _, _)) {
-                panic!("ConstrainNotEqual instruction found");
-            }
-        }
-    }
+    assert_no_instruction_matching(
+        function,
+        |instruction, _| matches!(instruction, Instruction::ConstrainNotEqual(_, _, _)),
+        "ConstrainNotEqual instruction found",
+    );
 }
 
 /// Asserts that the function contains no signed less-than comparisons.
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_signed_lt(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
-                if function.dfg.type_of_value(binary.lhs).is_signed()
-                    && binary.operator == BinaryOp::Lt
-                {
-                    panic!("Signed less-than comparison found");
-                }
-            }
-        }
-    }
+    assert_no_instruction_matching(
+        function,
+        |instruction, dfg| is_signed_binary_op(instruction, dfg, BinaryOp::Lt),
+        "Signed less-than comparison found",
+    );
 }
 
 /// Asserts that the function contains no signed division operations.
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_signed_div(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
-                if function.dfg.type_of_value(binary.lhs).is_signed()
-                    && binary.operator == BinaryOp::Div
-                {
-                    panic!("Signed division found");
-                }
-            }
-        }
-    }
+    assert_no_instruction_matching(
+        function,
+        |instruction, dfg| is_signed_binary_op(instruction, dfg, BinaryOp::Div),
+        "Signed division found",
+    );
 }
 
 /// Asserts that the function contains no signed modulo operations.
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_signed_mod(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
-                if function.dfg.type_of_value(binary.lhs).is_signed()
-                    && binary.operator == BinaryOp::Mod
-                {
-                    panic!("Signed modulo found");
-                }
-            }
-        }
+    assert_no_instruction_matching(
+        function,
+        |instruction, dfg| is_signed_binary_op(instruction, dfg, BinaryOp::Mod),
+        "Signed modulo found",
+    );
+}
+
+/// Helper to check if an instruction is a binary operation with a signed lhs and the given operator.
+#[cfg(debug_assertions)]
+fn is_signed_binary_op(instruction: &Instruction, dfg: &DataFlowGraph, op: BinaryOp) -> bool {
+    if let Instruction::Binary(binary) = instruction {
+        dfg.type_of_value(binary.lhs).is_signed() && binary.operator == op
+    } else {
+        false
     }
 }
 
@@ -168,28 +173,25 @@ pub(super) fn assert_no_signed_mod(function: &Function) {
 /// Numeric values should have been handled during flattening.
 #[cfg(debug_assertions)]
 pub(super) fn assert_if_else_not_on_numeric(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if let Instruction::IfElse { then_value, .. } = &function.dfg[*instruction_id] {
-                let typ = function.dfg.type_of_value(*then_value);
-                assert!(
-                    !matches!(typ, Type::Numeric(_)),
-                    "IfElse on numeric values should have been handled during flattening"
-                );
+    assert_no_instruction_matching(
+        function,
+        |instruction, dfg| {
+            if let Instruction::IfElse { then_value, .. } = instruction {
+                matches!(dfg.type_of_value(*then_value), Type::Numeric(_))
+            } else {
+                false
             }
-        }
-    }
+        },
+        "IfElse on numeric values should have been handled during flattening",
+    );
 }
 
 /// Asserts that the function contains no mutable ArraySet instructions.
 #[cfg(debug_assertions)]
 pub(super) fn assert_no_mutable_array_set(function: &Function) {
-    for block_id in function.reachable_blocks() {
-        for instruction_id in function.dfg[block_id].instructions() {
-            if matches!(function.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. })
-            {
-                panic!("Mutable array set instruction found");
-            }
-        }
-    }
+    assert_no_instruction_matching(
+        function,
+        |instruction, _| matches!(instruction, Instruction::ArraySet { mutable: true, .. }),
+        "Mutable array set instruction found",
+    );
 }
