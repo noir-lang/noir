@@ -685,6 +685,7 @@ impl Elaborator<'_> {
                     where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
 
                     // Treat any parent traits as syntactic sugar for a `where Self: <parent>` clause.
+                    // XXX: In `nargo expand` this shows up as a duplicate in both parent and where.
                     for parent_bound in &unresolved_trait.trait_def.bounds {
                         where_clause.push(UnresolvedTraitConstraint {
                             typ: UnresolvedType::from_path(Path::from_single(
