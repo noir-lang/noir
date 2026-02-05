@@ -351,10 +351,11 @@ impl NodeInterner {
         }
 
         // If the object type isn't known, just return an error saying type annotations are needed.
-        // However, when we are looking to invoke a method on a parent trait in the trait definition itself,
-        // the self_object is just a type variable, which is bindable. We should be able to find the assumed impl.
         let object_type = object_type.substitute(type_bindings);
-        let is_bindable = object_type.is_bindable();
+
+        if object_type.is_bindable() {
+            return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
+        }
 
         let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
 
@@ -371,11 +372,7 @@ impl NodeInterner {
 
             let mut fresh_bindings = type_bindings.clone();
 
-            let is_same_bindable = is_bindable && existing_object_type == object_type;
-
-            if !is_same_bindable
-                && object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_err()
-            {
+            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_err() {
                 continue;
             }
 
@@ -480,8 +477,6 @@ impl NodeInterner {
             let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok((impl_, instantiation_bindings))
-        } else if is_bindable {
-            Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
                 Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
