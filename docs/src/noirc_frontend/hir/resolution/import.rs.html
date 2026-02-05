@@ -189,7 +189,7 @@
 <a href=#189 id=189 data-nosnippet>189</a><span class="doccomment">/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
 <a href=#190 id=190 data-nosnippet>190</a>/// and a [ModuleId] where that `TypedPath` should be resolved.
 <a href=#191 id=191 data-nosnippet>191</a>///
-<a href=#192 id=192 data-nosnippet>192</a>/// For a [PathKind::Dep] with a value such as `dep::foo::bar::baz`, the path will be turned into a
+<a href=#192 id=192 data-nosnippet>192</a>/// For a [PathKind::Absolute] with a value such as `::foo::bar::baz`, the path will be turned into a
 <a href=#193 id=193 data-nosnippet>193</a>/// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
 <a href=#194 id=194 data-nosnippet>194</a>/// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
 <a href=#195 id=195 data-nosnippet>195</a>/// up with the module where it should be looked up. If the module cannot be found, and error is
@@ -223,8 +223,8 @@
 <a href=#223 id=223 data-nosnippet>223</a>        PathKind::Crate | PathKind::Super =&gt; <span class="bool-val">true</span>,
 <a href=#224 id=224 data-nosnippet>224</a>        PathKind::Plain =&gt; importing_module == starting_module,
 <a href=#225 id=225 data-nosnippet>225</a>        PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-<a href=#226 id=226 data-nosnippet>226</a>        PathKind::Dep =&gt; {
-<a href=#227 id=227 data-nosnippet>227</a>            <span class="macro">unreachable!</span>(<span class="string">"ICE: Dep path kinds should have been turned into Plain."</span>)
+<a href=#226 id=226 data-nosnippet>226</a>        PathKind::Absolute =&gt; {
+<a href=#227 id=227 data-nosnippet>227</a>            <span class="macro">unreachable!</span>(<span class="string">"ICE: Absolute path kinds should have been turned into Plain."</span>)
 <a href=#228 id=228 data-nosnippet>228</a>        }
 <a href=#229 id=229 data-nosnippet>229</a>    }
 <a href=#230 id=230 data-nosnippet>230</a>}
@@ -241,7 +241,7 @@
 <a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">match </span>path.kind {
 <a href=#242 id=242 data-nosnippet>242</a>            PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path, <span class="self">self</span>.importing_module.krate),
 <a href=#243 id=243 data-nosnippet>243</a>            PathKind::Plain =&gt; <span class="self">self</span>.resolve_plain_path(path, <span class="self">self</span>.importing_module),
-<a href=#244 id=244 data-nosnippet>244</a>            PathKind::Dep =&gt; <span class="self">self</span>.resolve_dep_path(path),
+<a href=#244 id=244 data-nosnippet>244</a>            PathKind::Absolute =&gt; <span class="self">self</span>.resolve_absolute_path(path),
 <a href=#245 id=245 data-nosnippet>245</a>            PathKind::Super =&gt; <span class="self">self</span>.resolve_super_path(path),
 <a href=#246 id=246 data-nosnippet>246</a>            PathKind::Resolved(crate_id) =&gt; <span class="self">self</span>.resolve_crate_path(path, crate_id),
 <a href=#247 id=247 data-nosnippet>247</a>        }
@@ -262,7 +262,7 @@
 <a href=#262 id=262 data-nosnippet>262</a>
 <a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// Resolve a path such as `foo::bar`:
 <a href=#264 id=264 data-nosnippet>264</a>    /// * check if `foo` module can be found in the current importing module
-<a href=#265 id=265 data-nosnippet>265</a>    /// * if not, treat the path as if it were `dep::foo::bar` and look for a `foo` crate instead
+<a href=#265 id=265 data-nosnippet>265</a>    /// * if not, treat the path as if it were `::foo::bar` and look for a `foo` crate instead
 <a href=#266 id=266 data-nosnippet>266</a>    </span><span class="kw">fn </span>resolve_plain_path(
 <a href=#267 id=267 data-nosnippet>267</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#268 id=268 data-nosnippet>268</a>        path: TypedPath,
@@ -278,16 +278,16 @@
 <a href=#278 id=278 data-nosnippet>278</a>            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ICE: could not fetch first segment"</span>).ident;
 <a href=#279 id=279 data-nosnippet>279</a>        <span class="kw">if </span>get_module(<span class="self">self</span>.def_maps, current_module).find_name(first_segment).is_none() {
 <a href=#280 id=280 data-nosnippet>280</a>            <span class="comment">// Resolve externally when first segment is unresolved
-<a href=#281 id=281 data-nosnippet>281</a>            </span><span class="kw">return </span><span class="self">self</span>.resolve_dep_path(path);
+<a href=#281 id=281 data-nosnippet>281</a>            </span><span class="kw">return </span><span class="self">self</span>.resolve_absolute_path(path);
 <a href=#282 id=282 data-nosnippet>282</a>        }
 <a href=#283 id=283 data-nosnippet>283</a>
 <a href=#284 id=284 data-nosnippet>284</a>        <span class="prelude-val">Ok</span>((path, current_module))
 <a href=#285 id=285 data-nosnippet>285</a>    }
 <a href=#286 id=286 data-nosnippet>286</a>
-<a href=#287 id=287 data-nosnippet>287</a>    <span class="doccomment">/// Resolve a path such as `dep::foo:bar::baz`:
+<a href=#287 id=287 data-nosnippet>287</a>    <span class="doccomment">/// Resolve a path such as `::foo:bar::baz`:
 <a href=#288 id=288 data-nosnippet>288</a>    /// * find the `foo` crate among the dependencies of the current importing module
 <a href=#289 id=289 data-nosnippet>289</a>    /// * remove the crate `foo` from the path, returning a plain path `bar::baz` along with the dependency module
-<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">fn </span>resolve_dep_path(
+<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">fn </span>resolve_absolute_path(
 <a href=#291 id=291 data-nosnippet>291</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#292 id=292 data-nosnippet>292</a>        <span class="kw-2">mut </span>path: TypedPath,
 <a href=#293 id=293 data-nosnippet>293</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {

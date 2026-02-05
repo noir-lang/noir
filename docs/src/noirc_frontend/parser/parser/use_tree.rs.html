@@ -219,11 +219,11 @@
 <a href=#219 id=219 data-nosnippet>219</a>
 <a href=#220 id=220 data-nosnippet>220</a>    <span class="attr">#[test]
 <a href=#221 id=221 data-nosnippet>221</a>    </span><span class="kw">fn </span>parse_with_dep_prefix() {
-<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span>src = <span class="string">"use dep::foo;"</span>;
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span>src = <span class="string">"use ::foo;"</span>;
 <a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>(use_tree, visibility) = parse_use_tree_no_errors(src);
 <a href=#224 id=224 data-nosnippet>224</a>        <span class="macro">assert_eq!</span>(visibility, ItemVisibility::Private);
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="macro">assert_eq!</span>(use_tree.prefix.kind, PathKind::Dep);
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">assert_eq!</span>(<span class="string">"dep::foo"</span>, use_tree.to_string());
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="macro">assert_eq!</span>(use_tree.prefix.kind, PathKind::Absolute);
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">assert_eq!</span>(<span class="string">"::foo"</span>, use_tree.to_string());
 <a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>UseTreeKind::Path(ident, alias) = use_tree.kind <span class="kw">else </span>{
 <a href=#228 id=228 data-nosnippet>228</a>            <span class="macro">panic!</span>(<span class="string">"Expected path"</span>);
 <a href=#229 id=229 data-nosnippet>229</a>        };

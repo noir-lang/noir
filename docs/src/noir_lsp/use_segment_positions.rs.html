@@ -88,7 +88,7 @@
 <a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let </span>kind_string = <span class="kw">match </span>use_tree.prefix.kind {
 <a href=#89 id=89 data-nosnippet>89</a>            PathKind::Crate =&gt; <span class="prelude-val">Some</span>(<span class="string">"crate"</span>.to_string()),
 <a href=#90 id=90 data-nosnippet>90</a>            PathKind::Super =&gt; <span class="prelude-val">Some</span>(<span class="string">"super"</span>.to_string()),
-<a href=#91 id=91 data-nosnippet>91</a>            PathKind::Dep | PathKind::Plain =&gt; <span class="prelude-val">None</span>,
+<a href=#91 id=91 data-nosnippet>91</a>            PathKind::Absolute | PathKind::Plain =&gt; <span class="prelude-val">None</span>,
 <a href=#92 id=92 data-nosnippet>92</a>            PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="string">"$crate"</span>.to_string()),
 <a href=#93 id=93 data-nosnippet>93</a>        };
 <a href=#94 id=94 data-nosnippet>94</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(kind_string) = kind_string {

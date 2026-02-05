@@ -260,4 +260,11 @@
 <a href=#260 id=260 data-nosnippet>260</a>"</span>;
 <a href=#261 id=261 data-nosnippet>261</a>        assert_format(src, expected);
 <a href=#262 id=262 data-nosnippet>262</a>    }
-<a href=#263 id=263 data-nosnippet>263</a>}</code></pre></div></section></main></body></html>
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="attr">#[test]
+<a href=#265 id=265 data-nosnippet>265</a>    </span><span class="kw">fn </span>format_use_dep() {
+<a href=#266 id=266 data-nosnippet>266</a>        <span class="kw">let </span>src = <span class="string">" use dep :: foo :: bar;  "</span>;
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>expected = <span class="string">"use ::foo::bar;\n"</span>;
+<a href=#268 id=268 data-nosnippet>268</a>        assert_format(src, expected);
+<a href=#269 id=269 data-nosnippet>269</a>    }
+<a href=#270 id=270 data-nosnippet>270</a>}</code></pre></div></section></main></body></html>
