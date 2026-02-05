@@ -980,7 +980,6 @@ impl<'f> PerFunctionContext<'f> {
 
                                     // The argument reference is possibly aliased by this block parameter
                                     aliases.insert(*parameter);
-                                    // here!
 
                                     // Check if we have seen the same argument
                                     let seen_parameters = arg_set
