@@ -10,6 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::QuotedType;
+use crate::TYPE_RECURSION_LIMIT;
 use crate::ast::DocComment;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
@@ -160,7 +161,8 @@ pub struct NodeInterner {
     next_trait_implementation_id: usize,
 
     /// The associated types for each trait impl.
-    /// This is stored outside of the TraitImpl object since it is required before that object is
+    ///
+    /// This is stored outside of the `TraitImpl` object since it is required before that object is
     /// created, when resolving the type signature of each method in the impl.
     trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
 
@@ -310,6 +312,7 @@ pub struct NodeInterner {
 /// program via an `impl` block, or it is assumed to exist from a `where` clause or similar.
 #[derive(Debug, Clone)]
 pub enum TraitImplKind {
+    /// A fully resolved trait implementation.
     Normal(TraitImplId),
 
     /// Assumed impls don't have an impl id since they don't link back to any concrete part of the source code.
@@ -329,9 +332,20 @@ pub enum TraitImplKind {
         /// `x.into()` with a `X: Into<Y>` in scope would not.
         trait_generics: TraitGenerics,
     },
+
+    /// Trait impls first get prepared, to support the definition of function metas.
+    /// During this phase we already know what the associated types of the impl are
+    /// for a particular object type (which is stored in the `NodeInterner`), which
+    /// we need to be able to handle `<Foo as Bar>::Qux` types when they appear
+    /// in function signatures.
+    ///
+    /// A `Prepared` is eventually replaced by a `Normal` implementation, at which
+    /// point we can look up the final `TraitImpl` in the node interner.
+    Prepared { impl_id: TraitImplId, ordered_generics: Vec<Type> },
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
+#[derive(Debug)]
 pub enum ImplSearchErrorKind {
     TypeAnnotationsNeededOnObjectType,
     Nested(Vec<TraitConstraint>),
@@ -1400,7 +1414,6 @@ impl NodeInterner {
                 .or_default()
                 .insert(name, (definition_id, *numeric_type));
         }
-
         self.trait_impl_associated_types.insert(impl_id, associated_types);
     }
 
@@ -1463,7 +1476,9 @@ impl NodeInterner {
         results
     }
 
-    /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
+    /// Return a set of [TypeBindings] to bind types from the trait definition to those from the trait impl.
+    ///
+    /// Recursively collects associated types from parent implementations.
     pub fn trait_to_impl_bindings(
         &self,
         trait_id: TraitId,
@@ -1472,13 +1487,44 @@ impl NodeInterner {
         impl_self_type: Type,
     ) -> TypeBindings {
         let mut bindings = TypeBindings::default();
+        let mut visited = HashSet::default();
+
+        self.trait_to_impl_bindings_helper(
+            trait_id,
+            impl_id,
+            trait_impl_generics,
+            &impl_self_type,
+            TYPE_RECURSION_LIMIT,
+            &mut visited,
+            &mut bindings,
+        );
+
+        bindings
+    }
+
+    fn trait_to_impl_bindings_helper(
+        &self,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+        trait_impl_generics: &[Type],
+        impl_self_type: &Type,
+        recursion_limit: u32,
+        visited: &mut HashSet<TraitImplId>,
+        bindings: &mut TypeBindings,
+    ) {
+        // If we have a diamond pattern, we might be visiting the same ancestor multiple times.
+        if !visited.insert(impl_id) || recursion_limit == 0 {
+            return;
+        }
+        let recursion_limit = recursion_limit - 1;
+
         let the_trait = self.get_trait(trait_id);
         let trait_generics = the_trait.generics.clone();
 
         let self_type_var = the_trait.self_type_typevar.clone();
         bindings.insert(
             self_type_var.id(),
-            (self_type_var.clone(), self_type_var.kind(), impl_self_type),
+            (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
         );
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
@@ -1513,7 +1559,50 @@ impl NodeInterner {
             );
         }
 
-        bindings
+        // Now collect bindings from the associated types of every parent trait that
+        // is implemented for the object type.
+        for parent_bound in &the_trait.trait_bounds {
+            // Find the implementation, if it exists.
+            let trait_id = parent_bound.trait_id;
+            match self.lookup_trait_implementation(
+                &impl_self_type,
+                trait_id,
+                &parent_bound.trait_generics.ordered,
+                &parent_bound.trait_generics.named,
+            ) {
+                Ok((TraitImplKind::Normal(impl_id), _)) => {
+                    let trait_impl = self.get_trait_implementation(impl_id);
+                    self.trait_to_impl_bindings_helper(
+                        trait_id,
+                        impl_id,
+                        &trait_impl.borrow().trait_generics,
+                        impl_self_type,
+                        recursion_limit,
+                        visited,
+                        bindings,
+                    );
+                }
+                Ok((TraitImplKind::Prepared { impl_id, ordered_generics }, _)) => {
+                    self.trait_to_impl_bindings_helper(
+                        trait_id,
+                        impl_id,
+                        &ordered_generics,
+                        impl_self_type,
+                        recursion_limit,
+                        visited,
+                        bindings,
+                    );
+                }
+                Ok((TraitImplKind::Assumed { .. }, _)) => {
+                    // We can ignore Assumed, as it most likely doesn't contribute any bindings,
+                    // and we can expect some kind of error due to the missing parent impl.
+                }
+                Err(_) => {
+                    // If the parent trait isn't implemented, those bindings will be left unbound,
+                    // and some kind of error will be emitted during the type checking of methods.
+                }
+            }
+        }
     }
 
     pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<DocComment>) {

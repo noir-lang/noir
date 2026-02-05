@@ -394,6 +394,9 @@ impl Elaborator<'_> {
                 let typ = type_var.clone().into_implicit_named_generic(
                     &associated_type.name,
                     Some((object_name.as_str(), trait_name.as_str())),
+                    // Preserve the association from the new type var to the original.
+                    // We need it when type checking function signatures using AsTraitPath.
+                    associated_type.type_var.id(),
                 );
 
                 let name = match &typ {
@@ -864,6 +867,32 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
+
+        // There is special handling expected for parent traits. Say we have code like this:
+        //
+        //    trait Foo { type Bar; }                                      // `Bar`     becomes `Bar'1`
+        //    trait Bar: Foo { fn foo_bar() -> <Self as Foo>::Bar }        // `foo_bar` becomes `forall '7 '3. fn() -> Self::Bar'7`, and we should have '1 as the NamedGeneric::original_type_var
+        //    impl Foo for () { type Bar = u32; }                          // `Bar`     becomes `<Baz as Foo>::Bar'5 -> u32`
+        //    impl Bar for () { fn foo_bar() -> <Self as Foo>::Bar { 0 } } // `foo_bar` becomes `fn() -> <Baz as Foo>::Bar'5 -> u32`
+        //
+        // We want to verify that the two `foo_bar` methods have compatible metas without having to do any further bindings during unification,
+        // which would be rejected by `check_function_type_matches_expected_type`. To do so we must add a replacement from '7 to '5.
+        // For this to happen we expect that `bindings` will contain a '1-to-'5 replacement, which will apply to '7, because '1 is its original.
+        trait_fn_meta.typ.visit(&mut |typ| {
+            if let Type::NamedGeneric(NamedGeneric {
+                type_var,
+                original_type_var_id: Some(original_id),
+                ..
+            }) = typ
+            {
+                if !bindings.contains_key(&type_var.id()) {
+                    if let Some(replacement) = bindings.get(original_id) {
+                        bindings.insert(type_var.id(), replacement.clone());
+                    }
+                }
+            };
+            true
+        });
 
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
 

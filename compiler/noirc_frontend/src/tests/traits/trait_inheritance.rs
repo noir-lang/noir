@@ -235,7 +235,7 @@ fn trait_inheritance_with_ambiguous_associated_type() {
 }
 
 #[test]
-fn trait_impl_inheritance_with_fully_qualified_path() {
+fn trait_inheritance_assoc_via_self_as_in_impl() {
     let src = r#"
     pub trait Foo {
         type Bar;
@@ -263,7 +263,7 @@ fn trait_impl_inheritance_with_fully_qualified_path() {
 }
 
 #[test]
-fn trait_impl_inheritance_with_ambiguous_associated_type() {
+fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
     let src = r#"
     pub trait Foo {
         type Bar;

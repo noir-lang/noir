@@ -79,6 +79,38 @@ impl NodeInterner {
         true
     }
 
+    /// Adds a prepared trait implementation.
+    ///
+    /// Returns true on success, or false if there is already one prepared.
+    pub fn add_prepared_trait_implementation(
+        &mut self,
+        object_type: Type,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+        ordered_generics: Vec<Type>,
+    ) -> bool {
+        let named_generics = self.get_associated_types_for_impl(impl_id);
+
+        // Set named generics to unbound type vars, so they unify with anything.
+        let associated_types = vecmap(named_generics, |named| {
+            let typ = self.next_type_variable();
+            NamedType { name: named.name.clone(), typ }
+        });
+
+        let existing = self.try_lookup_trait_implementation(
+            &object_type,
+            trait_id,
+            &ordered_generics,
+            &associated_types,
+        );
+        if existing.is_ok() {
+            return false;
+        }
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        entries.push((object_type, TraitImplKind::Prepared { impl_id, ordered_generics }));
+        true
+    }
+
     /// Adds a trait implementation to the list of known implementations.
     pub fn add_trait_implementation(
         &mut self,
@@ -132,19 +164,28 @@ impl NodeInterner {
             NamedType { name: named.name.clone(), typ }
         });
 
-        // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
-        // It should never happen since impls are defined at global scope, but even
-        // if they were, we should never prevent defining a new impl because a 'where'
-        // clause already assumes it exists.
-        if let Ok((TraitImplKind::Normal(existing), ..)) = self.try_lookup_trait_implementation(
+        match self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,
             trait_generics,
             &associated_types,
         ) {
-            let existing_impl = self.get_trait_implementation(existing);
-            let existing_impl = existing_impl.borrow();
-            return Ok(Err(existing_impl.ident.location()));
+            Ok((TraitImplKind::Normal(existing), ..)) => {
+                let existing_impl = self.get_trait_implementation(existing);
+                let existing_impl = existing_impl.borrow();
+                return Ok(Err(existing_impl.ident.location()));
+            }
+            Ok((TraitImplKind::Prepared { impl_id, .. }, ..)) => {
+                // We will no longer need the prepared version, as we just have the normal now.
+                let entries = self.trait_implementation_map.entry(trait_id).or_default();
+                entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared { impl_id: prepared_impl_id, .. } if *prepared_impl_id == impl_id));
+            }
+            Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
+                // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
+                // It should never happen since impls are defined at global scope, but even
+                // if they were, we should never prevent defining a new impl because a 'where'
+                // clause already assumes it exists.
+            }
         }
 
         for method in &trait_impl.borrow().methods {
@@ -158,6 +199,7 @@ impl NodeInterner {
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
+
         Ok(Ok(()))
     }
 
@@ -282,6 +324,11 @@ impl NodeInterner {
                     TraitGenerics { named, ordered }
                 }
                 TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
+                TraitImplKind::Prepared { impl_id, ordered_generics } => {
+                    let named = self.get_associated_types_for_impl(*impl_id).to_vec();
+                    let ordered = ordered_generics.clone();
+                    TraitGenerics { named, ordered }
+                }
             };
 
             let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
@@ -456,31 +503,32 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
-        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, HashSet::new());
+        self.remove_assumed_trait_implementations_for_trait_and_parents(
+            trait_id,
+            &mut HashSet::new(),
+        );
     }
 
     fn remove_assumed_trait_implementations_for_trait_and_parents(
         &mut self,
         trait_id: TraitId,
-        mut visited_trait_ids: HashSet<TraitId>,
+        visited_trait_ids: &mut HashSet<TraitId>,
     ) {
+        // Avoid looping forever in case there are cycles
+        if !visited_trait_ids.insert(trait_id) {
+            return;
+        }
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
+        entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Assumed { .. }));
 
         // Also remove assumed implementations for the parent traits, if any
         if let Some(trait_bounds) =
             self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
         {
             for parent_trait_bound in trait_bounds {
-                // Avoid looping forever in case there are cycles
-                if visited_trait_ids.contains(&parent_trait_bound.trait_id) {
-                    continue;
-                }
-                visited_trait_ids.insert(parent_trait_bound.trait_id);
-
                 self.remove_assumed_trait_implementations_for_trait_and_parents(
                     parent_trait_bound.trait_id,
-                    visited_trait_ids.clone(),
+                    visited_trait_ids,
                 );
             }
         }

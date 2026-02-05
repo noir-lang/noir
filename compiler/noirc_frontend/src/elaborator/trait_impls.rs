@@ -784,7 +784,7 @@ impl Elaborator<'_> {
     pub(super) fn prepare_trait_impl_for_function_meta_definition(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
-    ) -> Vec<(TraitConstraint, Location)> {
+    ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         let (trait_id, trait_generics, path_location) =
@@ -796,8 +796,8 @@ impl Elaborator<'_> {
             self.setup_trait_impl_generics(trait_impl);
 
         // The impl ID is needed for registering associated types and later validation checks.
-        let impl_id = Some(self.interner.next_trait_impl_id());
-        trait_impl.impl_id = impl_id;
+        let impl_id = self.interner.next_trait_impl_id();
+        trait_impl.impl_id = Some(impl_id);
 
         self.resolve_trait_impl_associated_types(
             trait_impl,
@@ -815,6 +815,16 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitImplType);
         let unresolved_type = trait_impl.object_type.clone();
         let self_type = self.resolve_type(unresolved_type, wildcard_allowed);
+
+        if let Some(trait_id) = trait_id {
+            self.interner.add_prepared_trait_implementation(
+                self_type.clone(),
+                trait_id,
+                impl_id,
+                trait_impl.resolved_trait_generics.clone(), // Set by resolve_trait_impl_associated_types
+            );
+        }
+
         trait_impl.methods.self_type = Some(self_type.clone());
         trait_impl.resolved_object_type = Some(self_type);
 
@@ -832,7 +842,10 @@ impl Elaborator<'_> {
 
         self.local_module = previous_local_module;
 
-        new_generics_trait_constraints
+        let generics = self.generics.clone();
+        self.generics.clear();
+
+        (new_generics_trait_constraints, generics)
     }
 
     /// Resolves the trait path from a trait impl declaration.
@@ -945,6 +958,34 @@ impl Elaborator<'_> {
             method.def.where_clause.append(&mut trait_impl.where_clause.clone());
         }
 
+        // TODO: REMOVE
+        // // Add parent trait bounds to the extra generics, which will be added to the scope for each method,
+        // // but don't add these to the methods' where clauses, because for that we would have to un-resolve them.
+        // let trait_id = trait_impl.trait_id.expect("trait_id set before setup");
+        // let self_type = self.resolve_type(
+        //     trait_impl.object_type.clone(),
+        //     WildcardAllowed::No(WildcardDisallowedContext::TraitImplType),
+        // );
+        // let parent_bounds = self.interner.get_trait(trait_id).trait_bounds.clone();
+        // for parent_bound in parent_bounds {
+        //     let location = parent_bound.location.clone();
+        //     let parent_constraint =
+        //         TraitConstraint { typ: self_type.clone(), trait_bound: parent_bound };
+        //     new_generics_trait_constraints.push((parent_constraint, location));
+        // }
+
+        // // Add an assumed implementation for the object which implements the current trait.
+        // let the_trait = self.interner.get_trait(trait_id);
+        // let self_constraint = TraitConstraint {
+        //     typ: self_type.clone(),
+        //     trait_bound: ResolvedTraitBound {
+        //         trait_id,
+        //         trait_generics: the_trait.get_trait_generics(the_trait.location),
+        //         location: the_trait.location,
+        //     },
+        // };
+        // new_generics_trait_constraints.push((self_constraint, the_trait.location));
+
         // Return the constraints along with the new generics trait constraints
         // so they can be removed from scope later
         (constraints, new_generics_trait_constraints)
@@ -970,7 +1011,16 @@ impl Elaborator<'_> {
         let trait_name = trait_id.map(|id| self.interner.get_trait(id).name.to_string());
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
+            // TODO: REMOVE
+            // // This is normally done in `collect_trait_impl`, however if we want to use the
+            // // concrete types during function meta definition, we need to set them now.
+            // let resolved_typ = self.resolve_type_with_kind(
+            //     typ.clone(),
+            //     kind,
+            //     WildcardAllowed::No(WildcardDisallowedContext::AssociatedType),
+            // );
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
+            // type_var.bind(resolved_typ);
             let typ = type_var.clone().into_named_generic(
                 &Rc::new(name.to_string()),
                 trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),

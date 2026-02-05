@@ -638,7 +638,6 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::MissingNamedTypeArg { item, location, name });
             }
         }
-
         resolved
     }
 
@@ -957,7 +956,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
-            TraitImplKind::Normal(impl_id) => {
+            TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared { impl_id, .. } => {
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };

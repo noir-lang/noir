@@ -2943,6 +2943,9 @@ fn resolve_trait_item_impl(
 
     match trait_impl {
         TraitImplKind::Normal(impl_id) => Ok(impl_id),
+        TraitImplKind::Prepared { .. } => {
+            unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
+        }
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
@@ -2970,6 +2973,11 @@ fn resolve_trait_item_impl(
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     Err(InterpreterError::NoImpl { location })
+                }
+                Ok((TraitImplKind::Prepared { .. }, _)) => {
+                    unreachable!(
+                        "ICE: Prepared trait impl should have been replaced by a Normal one"
+                    )
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })

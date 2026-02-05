@@ -39,7 +39,7 @@ use std::path::PathBuf;
 use std::vec;
 
 /// Stores all of the unresolved functions in a particular file/mod
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
@@ -81,6 +81,7 @@ pub struct UnresolvedTrait {
     pub fns_with_default_impl: UnresolvedFunctions,
 }
 
+#[derive(Clone, Debug)]
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,

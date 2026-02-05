@@ -162,7 +162,13 @@ pub struct NamedGeneric {
     /// to disambiguate from other generics in scope.
     pub name: Rc<String>,
     /// Was this named generic implicitly added?
+    ///
+    /// We add implicit named generics for associated types which aren't specified in trait constraints.
     pub implicit: bool,
+    /// Sometimes we want to preserve the type variable of the original associated type that
+    /// this one refers to, but do so without having to bind them together, which would lead
+    /// to unwanted unification.
+    pub original_type_var_id: Option<TypeVariableId>,
 }
 
 impl NamedGeneric {
@@ -176,6 +182,7 @@ impl NamedGeneric {
         implicit: bool,
         name: &Rc<String>,
         as_trait: Option<(&str, &str)>,
+        original_type_var_id: Option<TypeVariableId>,
     ) -> Self {
         let name = match as_trait {
             // TODO(#10858): The compiler rejects `trait Foo { fn foo_bar() -> <Self as Foo>::Bar; }` (unlike Rust),
@@ -184,7 +191,7 @@ impl NamedGeneric {
             Some((object, trait_name)) => Rc::new(format!("<{object} as {trait_name}>::{name}")),
             None => name.clone(),
         };
-        Self { type_var, name, implicit }
+        Self { type_var, name, implicit, original_type_var_id }
     }
 }
 
@@ -464,7 +471,7 @@ pub struct ResolvedGeneric {
 impl ResolvedGeneric {
     /// Create a [Type::NamedGeneric] from this [ResolvedGeneric].
     pub fn into_named_generic(self, as_trait: Option<(&str, &str)>) -> Type {
-        Type::NamedGeneric(NamedGeneric::new(self.type_var, false, &self.name, as_trait))
+        Type::NamedGeneric(NamedGeneric::new(self.type_var, false, &self.name, as_trait, None))
     }
 
     pub fn kind(&self) -> Kind {
@@ -1077,7 +1084,7 @@ impl TypeVariable {
         name: &Rc<String>,
         as_trait: Option<(&str, &str)>,
     ) -> Type {
-        Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait))
+        Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait, None))
     }
 
     /// Create a implicit [Type::NamedGeneric].
@@ -1089,8 +1096,15 @@ impl TypeVariable {
         self,
         name: &Rc<String>,
         as_trait: Option<(&str, &str)>,
+        original_type_var_id: TypeVariableId,
     ) -> Type {
-        Type::NamedGeneric(NamedGeneric::new(self, true, name, as_trait))
+        Type::NamedGeneric(NamedGeneric::new(
+            self,
+            true,
+            name,
+            as_trait,
+            Some(original_type_var_id),
+        ))
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
@@ -2330,7 +2344,6 @@ impl Type {
                         (var.clone(), var.kind(), interner.next_type_variable_with_kind(var.kind()))
                     });
                 }
-
                 let instantiated = typ.force_substitute(&bindings);
                 (instantiated, bindings)
             }
@@ -2458,9 +2471,9 @@ impl Type {
             // Check the id first to allow substituting to
             // type variables that have already been bound over.
             // This is needed for monomorphizing trait impl methods.
-            match type_bindings.get(&binding.0) {
+            match type_bindings.get(&binding.id()) {
                 Some((_, _kind, replacement)) if substitute_bound_typevars => {
-                    recur_on_binding(binding.0, replacement)
+                    recur_on_binding(binding.id(), replacement)
                 }
                 _ => match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {
@@ -2474,8 +2487,7 @@ impl Type {
                                 kind,
                                 replacement.kind()
                             );
-
-                            recur_on_binding(binding.0, replacement)
+                            recur_on_binding(binding.id(), replacement)
                         }
                         None => self.clone(),
                     },
@@ -2510,8 +2522,7 @@ impl Type {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
                 substitute_binding(type_var)
             }
-
-            // Do not substitute_helper fields, it can lead to infinite recursion
+            // Do not substitute fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::DataType(fields, args) => {
                 let args = vecmap(args, |arg| {
@@ -2738,9 +2749,14 @@ impl Type {
         vecmap(generics, |var| Type::TypeVariable(var.clone()))
     }
 
-    /// Replace any `Type::NamedGeneric` in this type with a `Type::TypeVariable`
-    /// using to the same inner `TypeVariable`. This is used during monomorphization
-    /// to bind to named generics since they are unbindable during type checking.
+    /// Replace any [Type::NamedGeneric] in this type with a [Type::TypeVariable]
+    /// if it's unbound, and the type it's bound to if it's bound.
+    ///
+    /// Also replaces bound [Type::TypeVariable]s and [Type::Alias]es with
+    /// their target types.
+    ///
+    /// This is used during monomorphization to bind to named generics since
+    /// they are unbindable during type checking.
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
             Type::FieldElement
@@ -2821,6 +2837,83 @@ impl Type {
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.replace_named_generics_with_type_variables();
                 rhs.replace_named_generics_with_type_variables();
+            }
+        }
+    }
+
+    /// Visit each [Type], passing them to a function `f`.
+    /// If `f` returns `true`, visit their children, otherwise stop.
+    pub fn visit(&self, f: &mut impl FnMut(&Type) -> bool) {
+        if !f(&self) {
+            return;
+        }
+        match self {
+            Type::FieldElement
+            | Type::Constant(_, _)
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_) => (),
+
+            Type::Array(len, elem) => {
+                len.visit(f);
+                elem.visit(f);
+            }
+
+            Type::Vector(elem) => elem.visit(f),
+            Type::String(len) => len.visit(f),
+            Type::FmtString(len, captures) => {
+                len.visit(f);
+                captures.visit(f);
+            }
+            Type::Tuple(fields) => {
+                for field in fields {
+                    field.visit(f);
+                }
+            }
+            Type::DataType(_, generics) => {
+                for generic in generics {
+                    generic.visit(f);
+                }
+            }
+            Type::Alias(alias, generics) => {
+                for generic in generics {
+                    generic.visit(f);
+                }
+                alias.borrow().typ.visit(f);
+            }
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                let var = var.borrow();
+                if let TypeBinding::Bound(binding) = &*var {
+                    binding.visit(f);
+                }
+            }
+            Type::TraitAsType(_, _, generics) => {
+                for generic in &generics.ordered {
+                    generic.visit(f);
+                }
+                for generic in &generics.named {
+                    generic.typ.visit(f);
+                }
+            }
+            Type::CheckedCast { from, to } => {
+                from.visit(f);
+                to.visit(f);
+            }
+
+            Type::Function(args, ret, env, _unconstrained) => {
+                for arg in args {
+                    arg.visit(f);
+                }
+                ret.visit(f);
+                env.visit(f);
+            }
+            Type::Reference(elem, _) => elem.visit(f),
+            Type::Forall(_, typ) => typ.visit(f),
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.visit(f);
+                rhs.visit(f);
             }
         }
     }
@@ -3243,14 +3336,20 @@ impl std::fmt::Debug for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::CheckedCast { to, .. } => write!(f, "{to:?}"),
-            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
-                Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
-                    write!(f, "{name}{type_var:?}")
+            Type::NamedGeneric(NamedGeneric { type_var, name, original_type_var_id, .. }) => {
+                match type_var.kind() {
+                    Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
+                        write!(f, "{name}{type_var:?}")?;
+                    }
+                    Kind::Numeric(typ) => {
+                        write!(f, "({name} : {typ}){type_var:?}")?;
+                    }
                 }
-                Kind::Numeric(typ) => {
-                    write!(f, "({name} : {typ}){type_var:?}")
+                if let Some(original) = original_type_var_id {
+                    write!(f, " ~> {original:?}")?;
                 }
-            },
+                Ok(())
+            }
             Type::Constant(x, kind) => write!(f, "({x}: {kind})"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{var:?}"));
