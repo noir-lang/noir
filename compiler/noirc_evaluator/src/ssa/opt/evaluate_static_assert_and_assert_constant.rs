@@ -44,8 +44,8 @@ impl Ssa {
     pub(crate) fn try_evaluate_static_assert_and_assert_constant(
         self,
     ) -> Result<Ssa, RuntimeError> {
-        let skip_invalid = false;
-        self.evaluate_static_assert_and_assert_constant_helper(skip_invalid)
+        let error_on_failure = false;
+        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
     }
 
     /// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
