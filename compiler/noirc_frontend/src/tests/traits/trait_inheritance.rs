@@ -313,3 +313,17 @@ fn trait_inheritance_using_eq_in_default_method() {
     ";
     check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }
+
+#[test]
+fn trait_inheritance_with_calling_method_on_self_in_default_method() {
+    let src = r#"
+    pub trait Empty: Eq {
+        fn empty() -> Self;
+
+        fn is_empty(self) -> bool {
+            self.eq(Self::empty())
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}

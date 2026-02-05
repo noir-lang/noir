@@ -267,8 +267,6 @@ impl Elaborator<'_> {
             source_file: location.file,
         };
 
-        //dbg!(&meta);
-
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
