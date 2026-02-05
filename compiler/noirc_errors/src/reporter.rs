@@ -297,7 +297,7 @@ pub fn stack_trace<'files>(
 
         let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
         result += &format!("{}: {name}\n", i + 1);
-        result += &format!("        at {}:{}:{}\n", path, line, column);
+        result += &format!("        at {path}:{line}:{column}\n");
     }
 
     result
