@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770309557372,
+  "lastUpdate": 1770309562729,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14767,95 +14767,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "212f9095e7914bc9dca8eb59cc81d36e0b29099d",
-          "message": "fix: dedicated block_id for return_data (#11367)",
-          "timestamp": "2026-01-29T16:59:10Z",
-          "tree_id": "d5d8394790017288ba07102a8c05fc242ba68254",
-          "url": "https://github.com/noir-lang/noir/commit/212f9095e7914bc9dca8eb59cc81d36e0b29099d"
-        },
-        "date": 1769708493793,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 271.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 309.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 260.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 361.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 361.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 361.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 545.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 487.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 361.04,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.17,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.4,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19145,6 +19056,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8c399ff814b30657c016c720bb37effbeea66802"
         },
         "date": 1770306322964,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 273.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 311.57,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 262.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 352.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 351.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1760,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 352.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 540.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 481.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 350.58,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.18,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.41,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7670f960b18557296c0cc2403cc08e9a08e9daca",
+          "message": "fix: Stop mem2reg from removing stores to references which are aliased in the future (#11480)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-02-05T15:53:33Z",
+          "tree_id": "aed6a17bb51da4b315a87bbe29a3b26d5db3cf9f",
+          "url": "https://github.com/noir-lang/noir/commit/7670f960b18557296c0cc2403cc08e9a08e9daca"
+        },
+        "date": 1770309516811,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
