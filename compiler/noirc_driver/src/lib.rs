@@ -804,7 +804,7 @@ pub fn filter_relevant_files(
         let file_path = file_manager.path(file_id).expect("file should exist");
         let file_source = file_manager.fetch_file(file_id).expect("file should exist");
         let (parsed_module, _errors) = parsed_files.get(&file_id).expect("file should exist");
-        let mut function_names = function_names_in_parsed_module(parsed_module);
+        let mut function_names = function_names_in_parsed_module(parsed_module, file_id);
         let function_names = function_names
             .all_in_file(file_id)
             .map(|(name, span)| FunctionName {

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use noirc_errors::{
-    CustomDiagnostic, Span, function_names::FunctionNames, reporter::ReportedErrors,
+    CustomDiagnostic, Location, Span, function_names::FunctionNames, reporter::ReportedErrors,
 };
 
 use crate::{
@@ -61,9 +61,9 @@ pub fn function_names_for_diagnostics(
     }
 
     let mut function_name = FunctionNames::new();
-    let mut visitor = FunctionNamesCollector::new(&mut function_name);
     for file_id in file_ids {
         if let Some((parsed_file, _)) = parsed_files.get(&file_id) {
+            let mut visitor = FunctionNamesCollector::new(&mut function_name, file_id);
             parsed_file.accept(&mut visitor);
         }
     }
@@ -72,9 +72,12 @@ pub fn function_names_for_diagnostics(
 }
 
 /// Computes the set of function names that appear in the given parsed module.
-pub fn function_names_in_parsed_module(parsed_module: &ParsedModule) -> FunctionNames {
+pub fn function_names_in_parsed_module(
+    parsed_module: &ParsedModule,
+    file_id: FileId,
+) -> FunctionNames {
     let mut function_names = FunctionNames::new();
-    let mut visitor = FunctionNamesCollector::new(&mut function_names);
+    let mut visitor = FunctionNamesCollector::new(&mut function_names, file_id);
     parsed_module.accept(&mut visitor);
     function_names
 }
@@ -85,13 +88,14 @@ pub fn function_names_in_parsed_module(parsed_module: &ParsedModule) -> Function
 /// "foo" as its fully qualified name, and not "bar::foo".
 struct FunctionNamesCollector<'a> {
     function_names: &'a mut FunctionNames,
+    file_id: FileId,
     /// Path of the current item. Used to build fully qualified names.
     path: Vec<String>,
 }
 
 impl<'a> FunctionNamesCollector<'a> {
-    fn new(function_names: &'a mut FunctionNames) -> Self {
-        Self { function_names, path: Vec::new() }
+    fn new(function_names: &'a mut FunctionNames, file_id: FileId) -> Self {
+        Self { function_names, file_id, path: Vec::new() }
     }
 
     fn fully_qualified_name(&self, name: &str) -> String {
@@ -166,5 +170,22 @@ impl Visitor for FunctionNamesCollector<'_> {
         self.path.pop();
 
         false
+    }
+
+    fn visit_meta_attribute(
+        &mut self,
+        attribute: &crate::token::MetaAttribute,
+        _target: crate::ast::AttributeTarget,
+        span: Span,
+    ) -> bool {
+        let name = format!("#[{}]", attribute.name);
+        let location = Location::new(span, self.file_id);
+        self.function_names.insert(location, name.clone());
+
+        self.path.push(name);
+        attribute.accept_children(self);
+        self.path.pop();
+
+        true
     }
 }
