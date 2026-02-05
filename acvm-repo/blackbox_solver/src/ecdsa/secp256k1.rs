@@ -1,12 +1,12 @@
 use acir::BlackBoxFunc;
 
 use k256::{
-    AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
+    AffinePoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
         PrimeField,
         ops::Reduce,
         scalar::IsHigh,
-        sec1::{Coordinates, FromEncodedPoint, ToEncodedPoint},
+        sec1::{Coordinates, FromSec1Point, Sec1Point, ToSec1Point},
     },
 };
 use k256::{Scalar, ecdsa::Signature};
@@ -51,13 +51,13 @@ pub(super) fn verify_signature(
         ));
     };
 
-    let point = EncodedPoint::from_affine_coordinates(
+    let point = Sec1Point::<k256::Secp256k1>::from_affine_coordinates(
         public_key_x_bytes.into(),
         public_key_y_bytes.into(),
         false,
     );
 
-    let pubkey = PublicKey::from_encoded_point(&point);
+    let pubkey = PublicKey::from_sec1_point(&point);
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256k1 curve.
         return Err(BlackBoxResolutionError::Failed(
@@ -95,7 +95,7 @@ pub(super) fn verify_signature(
         .to_affine();
 
     // Compare R.x with signature's r component.
-    match R.to_encoded_point(false).coordinates() {
+    match R.to_sec1_point(false).coordinates() {
         Coordinates::Uncompressed { x, y: _ } => {
             // The conversion from R.x to a scalar can fail if R.x >= curve_order (a possible but rare case).
             // In this case, the signature is invalid per ECDSA specification, so we return false.
