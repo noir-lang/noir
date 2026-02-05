@@ -7,7 +7,7 @@ use noirc_errors::{
 
 use crate::{
     ParsedModule,
-    ast::{Lambda, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
+    ast::{Lambda, LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
     hir::ParsedFiles,
     parser::ParsedSubModule,
 };
@@ -62,9 +62,11 @@ pub fn function_names_for_diagnostics(
     }
 
     let mut function_name = FunctionNames::new();
+    let include_comptime_items = true;
     for file_id in file_ids {
         if let Some((parsed_file, _)) = parsed_files.get(&file_id) {
-            let mut visitor = FunctionNamesCollector::new(&mut function_name, file_id);
+            let mut visitor =
+                FunctionNamesCollector::new(&mut function_name, file_id, include_comptime_items);
             parsed_file.accept(&mut visitor);
         }
     }
@@ -76,9 +78,11 @@ pub fn function_names_for_diagnostics(
 pub fn function_names_in_parsed_module(
     parsed_module: &ParsedModule,
     file_id: FileId,
+    include_comptime_items: bool,
 ) -> FunctionNames {
     let mut function_names = FunctionNames::new();
-    let mut visitor = FunctionNamesCollector::new(&mut function_names, file_id);
+    let mut visitor =
+        FunctionNamesCollector::new(&mut function_names, file_id, include_comptime_items);
     parsed_module.accept(&mut visitor);
     function_names
 }
@@ -90,13 +94,23 @@ pub fn function_names_in_parsed_module(
 struct FunctionNamesCollector<'a> {
     function_names: &'a mut FunctionNames,
     file_id: FileId,
+    /// Whether to include comptime items such as a global's contents or meta attributes.
+    /// Tracking these names is only relevant during compilation when an error could
+    /// happen during comptime evaluation. However, these locations are not relevant
+    /// after a compilation artifact has been produced since evaluation of those items
+    /// has already succeeded.
+    include_comptime_items: bool,
     /// Path of the current item. Used to build fully qualified names.
     path: Vec<String>,
 }
 
 impl<'a> FunctionNamesCollector<'a> {
-    fn new(function_names: &'a mut FunctionNames, file_id: FileId) -> Self {
-        Self { function_names, file_id, path: Vec::new() }
+    fn new(
+        function_names: &'a mut FunctionNames,
+        file_id: FileId,
+        include_comptime_items: bool,
+    ) -> Self {
+        Self { function_names, file_id, include_comptime_items, path: Vec::new() }
     }
 
     fn fully_qualified_name(&self, name: &str) -> String {
@@ -180,14 +194,36 @@ impl Visitor for FunctionNamesCollector<'_> {
         _target: crate::ast::AttributeTarget,
         span: Span,
     ) -> bool {
+        if !self.include_comptime_items {
+            return false;
+        }
+
         let name = format!("#[{}]", attribute.name);
+        let full_name = self.fully_qualified_name(&name);
         let location = Location::new(span, self.file_id);
-        self.function_names.insert(location, name.clone());
+        self.function_names.insert(location, full_name);
 
         self.path.push(name);
         attribute.accept_children(self);
         self.path.pop();
 
         true
+    }
+
+    fn visit_global(&mut self, let_statement: &LetStatement, span: Span) -> bool {
+        if !self.include_comptime_items {
+            return false;
+        }
+
+        let name = format!("<global {}>", let_statement.pattern);
+        let full_name = self.fully_qualified_name(&name);
+        let location = Location::new(span, self.file_id);
+        self.function_names.insert(location, full_name);
+
+        self.path.push(name);
+        let_statement.accept_children(self);
+        self.path.pop();
+
+        false
     }
 }
