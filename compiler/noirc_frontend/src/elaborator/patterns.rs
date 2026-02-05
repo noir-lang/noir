@@ -778,7 +778,7 @@ impl Elaborator<'_> {
                     return Err(error);
                 }
                 Err(global_error) => match error {
-                    // If the path was "_" then we want to preseve that error as it's clearer
+                    // If the path was "_" then we want to preserve that error as it's clearer
                     // than the error of an item not being found (it will mention that "_" is
                     // not valid as an expression).
                     ResolverError::VariableNotDeclared { name, .. } if name != "_" => {

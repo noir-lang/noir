@@ -906,7 +906,7 @@ impl Elaborator<'_> {
         expected_kind: &Kind,
         location: Location,
     ) -> Type {
-        if typ.has_cyclic_alias(&mut HashSet::default()) {
+        if typ.has_cyclic_alias() {
             self.push_err(TypeCheckError::CyclicType { typ, location });
             return Type::Error;
         }

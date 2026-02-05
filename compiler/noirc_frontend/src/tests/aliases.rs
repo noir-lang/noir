@@ -95,8 +95,8 @@ fn deny_cyclic_type_aliases() {
     let src = r#"
         type A = B;
         type B = A;
-        ^^^^^^^^^^ Dependency cycle found
-        ~~~~~~~~~~ 'B' recursively depends on itself: B -> A -> B
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
     "#;
     check_errors(src);
 }

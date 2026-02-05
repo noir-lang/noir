@@ -386,7 +386,7 @@ impl NodeFinder<'_> {
             }
         };
 
-        self.auto_import_trait_if_trait_method(func_id, trait_info, &mut completion_item);
+        self.auto_import_trait_if_trait_method(trait_info, &mut completion_item);
 
         if let (Some(type_id), Some(variant_index)) =
             (func_meta.type_id, func_meta.enum_variant_index)
@@ -404,7 +404,6 @@ impl NodeFinder<'_> {
 
     fn auto_import_trait_if_trait_method(
         &self,
-        func_id: FuncId,
         trait_info: Option<(TraitId, Option<&TraitReexport>)>,
         completion_item: &mut CompletionItem,
     ) -> Option<()> {
@@ -434,7 +433,7 @@ impl NodeFinder<'_> {
             )
         } else {
             relative_module_full_path(
-                ModuleDefId::FunctionId(func_id),
+                ModuleDefId::TraitId(trait_id),
                 self.module_id,
                 current_module_parent_id,
                 self.interner,
