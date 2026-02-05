@@ -3015,78 +3015,86 @@ impl Type {
     /// Visit each [Type], passing them to a function `f`.
     /// If `f` returns `true`, visit their children, otherwise stop.
     pub fn visit(&self, f: &mut impl FnMut(&Type) -> bool) {
-        if !f(self) {
-            return;
+        fn go(typ: &Type, f: &mut impl FnMut(&Type) -> bool, mut limit: u32) {
+            if limit == 0 {
+                panic!("Type recursion limit reached - types are too large");
+            }
+            limit -= 1;
+            if !f(typ) {
+                return;
+            }
+            match typ {
+                Type::FieldElement
+                | Type::Constant(_, _)
+                | Type::Integer(_, _)
+                | Type::Bool
+                | Type::Unit
+                | Type::Error
+                | Type::Quoted(_) => (),
+
+                Type::Array(len, elem) => {
+                    go(len, f, limit);
+                    go(elem, f, limit);
+                }
+
+                Type::Vector(elem) => go(elem, f, limit),
+                Type::String(len) => go(len, f, limit),
+                Type::FmtString(len, captures) => {
+                    go(len, f, limit);
+                    go(captures, f, limit);
+                }
+                Type::Tuple(fields) => {
+                    for field in fields {
+                        go(field, f, limit);
+                    }
+                }
+                Type::DataType(_, generics) => {
+                    for generic in generics {
+                        go(generic, f, limit);
+                    }
+                }
+                Type::Alias(alias, generics) => {
+                    for generic in generics {
+                        go(generic, f, limit);
+                    }
+                    go(&alias.borrow().typ, f, limit);
+                }
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                    let var = var.borrow();
+                    if let TypeBinding::Bound(binding) = &*var {
+                        go(binding, f, limit);
+                    }
+                }
+                Type::TraitAsType(_, _, generics) => {
+                    for generic in &generics.ordered {
+                        go(generic, f, limit);
+                    }
+                    for generic in &generics.named {
+                        go(&generic.typ, f, limit);
+                    }
+                }
+                Type::CheckedCast { from, to } => {
+                    go(from, f, limit);
+                    go(to, f, limit);
+                }
+
+                Type::Function(args, ret, env, _unconstrained) => {
+                    for arg in args {
+                        go(arg, f, limit);
+                    }
+                    go(ret, f, limit);
+                    go(env, f, limit);
+                }
+                Type::Reference(elem, _) => go(elem, f, limit),
+                Type::Forall(_, typ) => go(typ, f, limit),
+                Type::InfixExpr(lhs, _op, rhs, _) => {
+                    go(lhs, f, limit);
+                    go(rhs, f, limit);
+                }
+            }
         }
-        match self {
-            Type::FieldElement
-            | Type::Constant(_, _)
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::Quoted(_) => (),
-
-            Type::Array(len, elem) => {
-                len.visit(f);
-                elem.visit(f);
-            }
-
-            Type::Vector(elem) => elem.visit(f),
-            Type::String(len) => len.visit(f),
-            Type::FmtString(len, captures) => {
-                len.visit(f);
-                captures.visit(f);
-            }
-            Type::Tuple(fields) => {
-                for field in fields {
-                    field.visit(f);
-                }
-            }
-            Type::DataType(_, generics) => {
-                for generic in generics {
-                    generic.visit(f);
-                }
-            }
-            Type::Alias(alias, generics) => {
-                for generic in generics {
-                    generic.visit(f);
-                }
-                alias.borrow().typ.visit(f);
-            }
-            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                let var = var.borrow();
-                if let TypeBinding::Bound(binding) = &*var {
-                    binding.visit(f);
-                }
-            }
-            Type::TraitAsType(_, _, generics) => {
-                for generic in &generics.ordered {
-                    generic.visit(f);
-                }
-                for generic in &generics.named {
-                    generic.typ.visit(f);
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                from.visit(f);
-                to.visit(f);
-            }
-
-            Type::Function(args, ret, env, _unconstrained) => {
-                for arg in args {
-                    arg.visit(f);
-                }
-                ret.visit(f);
-                env.visit(f);
-            }
-            Type::Reference(elem, _) => elem.visit(f),
-            Type::Forall(_, typ) => typ.visit(f),
-            Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.visit(f);
-                rhs.visit(f);
-            }
-        }
+        go(self, f, TYPE_RECURSION_LIMIT)
     }
 
     pub fn vector_element_type(&self) -> Option<&Type> {
