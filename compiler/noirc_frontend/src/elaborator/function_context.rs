@@ -227,12 +227,21 @@ impl Elaborator<'_> {
             ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
             }
-            ImplSearchErrorKind::Nested(constraints) => {
+            ImplSearchErrorKind::Nested(constraints)
+            | ImplSearchErrorKind::NoMatching(constraints) => {
                 if let Some(error) =
                     NoMatchingImplFoundError::new(self.interner, constraints, location)
                 {
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
+            }
+            ImplSearchErrorKind::RecursionLimitReached(candidate) => {
+                self.push_err(TypeCheckError::ExpectingOtherError {
+                    message: format!(
+                        "push_trait_constraint_error: recursion limit reached: {candidate:?}"
+                    ),
+                    location,
+                });
             }
             ImplSearchErrorKind::MultipleMatching(candidates) => {
                 let object_type = object_type.clone();

@@ -3068,7 +3068,10 @@ fn resolve_trait_item_impl(
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
                 }
-                Err(ImplSearchErrorKind::Nested(constraints)) => {
+                Err(
+                    ImplSearchErrorKind::Nested(constraints)
+                    | ImplSearchErrorKind::NoMatching(constraints),
+                ) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
@@ -3083,6 +3086,10 @@ fn resolve_trait_item_impl(
                         location,
                         candidates,
                     })
+                }
+                Err(ImplSearchErrorKind::RecursionLimitReached(_candidate)) => {
+                    let call_stack = im::vector![];
+                    Err(InterpreterError::StackOverflow { location, call_stack })
                 }
             }
         }

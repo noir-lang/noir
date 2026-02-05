@@ -338,10 +338,13 @@ pub enum TraitImplKind {
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
+#[derive(Debug)]
 pub enum ImplSearchErrorKind {
     TypeAnnotationsNeededOnObjectType,
     Nested(Vec<TraitConstraint>),
     MultipleMatching(Vec<String>),
+    NoMatching(Vec<TraitConstraint>),
+    RecursionLimitReached(TraitConstraint),
 }
 
 /// All the information from a function that is filled out during definition collection rather than
