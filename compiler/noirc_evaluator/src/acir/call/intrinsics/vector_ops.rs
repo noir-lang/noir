@@ -530,8 +530,21 @@ impl Context<'_> {
         let elements_to_insert = &arguments[3..];
 
         // Fetch the flattened index from the user provided index argument.
-        // With flattened arrays, we compute the flat user index directly
-        // by multiplying the insert index by the inner element size (computed below).
+        // let item_size = self.acir_context.add_constant(elements_to_insert.len());
+        // let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
+        // let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
+
+        // // Because the insert index might be at the end of the slice, the element type sizes we
+        // // index here need to have room for this extra element.
+        // let shift = ElementTypeSizesArrayShift::Increase;
+        // let flat_user_index = self.get_flattened_index(
+        //     &vector_typ,
+        //     vector_contents,
+        //     insert_index,
+        //     dfg,
+        //     is_safe_index,
+        //     shift,
+        // )?;
 
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
@@ -761,8 +774,9 @@ impl Context<'_> {
         );
 
         let item_size = vector_typ.element_size().to_usize();
-        let item_size = self.acir_context.add_constant(item_size);
-        let remove_index = self.acir_context.mul_var(remove_index, item_size)?;
+        let item_size_var = self.acir_context.add_constant(item_size);
+        let remove_index = self.acir_context.mul_var(remove_index, item_size_var)?;
+        let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index: crate::acir::AcirVar = self.get_flattened_index(
@@ -770,6 +784,7 @@ impl Context<'_> {
             vector_contents,
             remove_index,
             dfg,
+            is_safe_index,
             ElementTypeSizesArrayShift::None,
         )?;
 
@@ -854,5 +869,36 @@ impl Context<'_> {
         result.append(&mut popped_elements);
 
         Ok(result)
+    }
+
+    /// Returns true if the user-facing index is less than the vector capacity
+    fn is_index_safe(
+        index: ValueId,
+        dfg: &DataFlowGraph,
+        vector_typ: &Type,
+        vector_size: FlattenedLength,
+    ) -> bool {
+        // Compute the number of logical elements in the vector by dividing the fully flattened size (in ACIR)
+        // by the vector's elements size (in ACIR), and checking that value against the SSA index.
+        let acir_fields_per_element: usize = match vector_typ {
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().map(|typ| typ.flattened_size().to_usize()).sum()
+            }
+            _ => unreachable!("element_flattened_size: Expected array or vector"),
+        };
+
+        if let Some(index_const) = dfg.get_numeric_constant(index) {
+            let index_const = index_const.to_u128() as usize;
+            // A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
+            // As a result, every index will be out-of-bound.
+            if acir_fields_per_element == 0 {
+                false
+            } else {
+                let num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
+                index_const < num_logical_elements
+            }
+        } else {
+            false
+        }
     }
 }
