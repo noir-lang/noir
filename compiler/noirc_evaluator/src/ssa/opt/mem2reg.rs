@@ -283,8 +283,8 @@ impl<'f> PerFunctionContext<'f> {
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
-                    &all_terminator_values,
-                    &per_func_block_params,
+                    all_terminator_values,
+                    per_func_block_params,
                 );
 
                 let is_dereference = block
