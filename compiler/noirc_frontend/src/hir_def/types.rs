@@ -3094,7 +3094,7 @@ impl Type {
                 }
             }
         }
-        go(self, f, TYPE_RECURSION_LIMIT)
+        go(self, f, TYPE_RECURSION_LIMIT);
     }
 
     pub fn vector_element_type(&self) -> Option<&Type> {
