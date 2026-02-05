@@ -32,11 +32,12 @@ mod visibility;
 use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
-use crate::error_reporting::report_all;
+use crate::error_reporting::{self};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
 use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options};
 
+use noirc_errors::reporter::ReportedErrors;
 use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::hir::Context;
@@ -350,6 +351,21 @@ fn get_error_line_span_and_message(
     let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
     let error = line.trim().trim_start_matches(char).trim().to_string();
     Some((span, error))
+}
+
+fn report_all(
+    context: &Context,
+    diagnostics: &[CustomDiagnostic],
+    deny_warnings: bool,
+    silence_warnings: bool,
+) -> ReportedErrors {
+    error_reporting::report_all(
+        &context.file_manager,
+        &context.parsed_files,
+        diagnostics,
+        deny_warnings,
+        silence_warnings,
+    )
 }
 
 #[test]

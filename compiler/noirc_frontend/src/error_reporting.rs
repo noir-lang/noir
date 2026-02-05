@@ -8,19 +8,20 @@ use noirc_errors::{
 use crate::{
     ParsedModule,
     ast::{Lambda, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
-    hir::{Context, ParsedFiles},
+    hir::ParsedFiles,
     parser::ParsedSubModule,
 };
 
 pub fn report_all(
-    context: &Context,
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     diagnostics: &[CustomDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
 ) -> ReportedErrors {
-    let function_names = function_names_for_diagnostics(diagnostics, &context.parsed_files);
+    let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
     noirc_errors::reporter::report_all(
-        context.file_manager.as_file_map(),
+        file_manager.as_file_map(),
         &function_names,
         diagnostics,
         deny_warnings,
