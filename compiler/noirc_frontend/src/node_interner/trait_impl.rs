@@ -90,6 +90,11 @@ impl NodeInterner {
         impl_id: TraitImplId,
         ordered_generics: Vec<Type>,
     ) -> bool {
+        if matches!(object_type, Type::Error) {
+            // If we stored a prepared impl for Error, it would later unify with anything,
+            // leading to potentially unexpected duplications with the real prepared impl.
+            return true;
+        }
         let named_generics = self.get_associated_types_for_impl(impl_id);
 
         // Set named generics to unbound type vars, so they unify with anything.
