@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770297306071,
+  "lastUpdate": 1770297812470,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5c14b44c071c8c3fc9ea594830dc61f9234a7f6e",
-          "message": "chore: replace explicit snapshot with `assert_ssa_does_not_change` (#11373)",
-          "timestamp": "2026-01-29T09:32:34Z",
-          "tree_id": "0acace5838dc1e184e9e4e2ee3fe5beb33c0883a",
-          "url": "https://github.com/noir-lang/noir/commit/5c14b44c071c8c3fc9ea594830dc61f9234a7f6e"
-        },
-        "date": 1769680482879,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258217,
-            "range": "± 1143",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227961,
-            "range": "± 4526",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800578,
-            "range": "± 1839",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2731686,
             "range": "± 3768",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ba46430f0aa016a4967e5e82aba1fe813cbb6b28",
+          "message": "chore: emit unchecked Field operations in SSA generation (#11473)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
+          "timestamp": "2026-02-05T12:57:05Z",
+          "tree_id": "41542b7c4731c4d203bef88618fdc61d41206c3f",
+          "url": "https://github.com/noir-lang/noir/commit/ba46430f0aa016a4967e5e82aba1fe813cbb6b28"
+        },
+        "date": 1770297769829,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255026,
+            "range": "± 666",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223532,
+            "range": "± 1841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2729616,
+            "range": "± 1192",
             "unit": "ns/iter"
           }
         ]
