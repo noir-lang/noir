@@ -11,6 +11,7 @@ The predicate must be known at compile time to be evaluated.
    │     ------------------------------------------------------------
    │
    = Call stack:
-     1. src/main.nr:14:5
+     1: main
+             at src/main.nr:14:5
 
 Aborting due to 1 previous error

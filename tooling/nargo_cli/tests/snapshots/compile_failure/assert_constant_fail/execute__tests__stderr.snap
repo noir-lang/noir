@@ -9,7 +9,9 @@ error: Argument is not constant
   │     -----------------------------
   │
   = Call stack:
-    1. src/main.nr:4:5
-    2. src/main.nr:9:5
+    1: main
+            at src/main.nr:4:5
+    2: foo
+            at src/main.nr:9:5
 
 Aborting due to 1 previous error
