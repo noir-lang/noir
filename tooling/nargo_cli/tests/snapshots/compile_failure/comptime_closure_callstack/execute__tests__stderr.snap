@@ -11,9 +11,9 @@ error: Assertion failed
   = Call stack:
     1: main
             at src/main.nr:6:9
-    2: main::{{closure}}
+    2: main
             at src/main.nr:5:20
-    3: main::{{closure}}
+    3: main
             at src/main.nr:4:20
 
 Aborting due to 1 previous error
