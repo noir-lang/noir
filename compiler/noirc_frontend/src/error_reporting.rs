@@ -152,7 +152,8 @@ impl Visitor for FunctionNamesCollector<'_> {
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, _: Span) -> bool {
-        let name = format!("<{} as {}>", noir_trait_impl.object_type, noir_trait_impl.r#trait);
+        let name =
+            format!("<impl {} for {}>", noir_trait_impl.r#trait, noir_trait_impl.object_type);
 
         self.path.push(name);
         noir_trait_impl.accept_children(self);
