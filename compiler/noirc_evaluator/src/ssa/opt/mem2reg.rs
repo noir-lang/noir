@@ -3326,7 +3326,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    // Variant of [ref_block_param_in_loop] using a nested reference instead
+    /// Variant of [ref_block_param_in_loop] using a nested reference instead
     #[test]
     fn nested_reference_in_loop() {
         let src = r#"
