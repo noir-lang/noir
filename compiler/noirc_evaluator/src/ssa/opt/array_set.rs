@@ -36,14 +36,10 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            // We only want to run this pass for ACIR.
-            // Brillig uses ref-counting to decide whether to mutate an array.
-            if func.runtime().is_acir() {
-                #[cfg(debug_assertions)]
-                array_set_optimization_pre_check(func);
+            #[cfg(debug_assertions)]
+            array_set_optimization_pre_check(func);
 
-                func.array_set_optimization();
-            }
+            func.array_set_optimization();
 
             #[cfg(debug_assertions)]
             array_set_optimization_post_check(func);
@@ -54,28 +50,26 @@ impl Ssa {
 
 /// Pre-check condition for [Function::array_set_optimization].
 ///
-/// Panics if:
-///   - An ACIR function contains more than 1 block, i.e. it hasn't been flattened yet.
+/// Only applies to ACIR functions. Panics if:
+///   - The function contains more than 1 block, i.e. it hasn't been flattened yet.
 ///   - There already exists a mutable array set instruction.
 ///   - There is an `IfElse` instruction which hasn't been removed yet.
 ///   - There are any Load or Store instructions.
 #[cfg(debug_assertions)]
 fn array_set_optimization_pre_check(func: &Function) {
+    // This optimization only applies to ACIR functions
+    if !func.runtime().is_acir() {
+        return;
+    }
+
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
     // remove_if_else must have run
     super::checks::assert_no_if_else(func);
     // mem2reg must have run (no Load/Store remaining)
     super::checks::assert_no_load_store(func);
-
     // No mutable array sets should exist yet (they are created by this pass)
-    for block_id in func.reachable_blocks() {
-        for instruction_id in func.dfg[block_id].instructions() {
-            if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. }) {
-                panic!("mutable ArraySet instruction exists before `array_set_optimization` pass");
-            }
-        }
-    }
+    super::checks::assert_no_mutable_array_set(func);
 }
 
 /// Post-check condition for [Function::array_set_optimization].
