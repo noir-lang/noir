@@ -116,6 +116,8 @@ impl Function {
     pub(crate) fn mem2reg(&mut self) {
         // Analyze loops to find potential loop carried aliases
         let loop_aliases = Self::analyze_loop_aliases(self);
+        // let loop_aliases = HashSet::default();
+
         // Perform mem2reg optimization with loop carried alias information
         // Non-lop alias information will be analyzed as part of mem2reg
         let mut context = PerFunctionContext::new(self, loop_aliases);
@@ -774,11 +776,11 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
+                    // if arg.to_u32()
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
                 self.mark_all_unknown(arguments, references);
-
                 // Call results might be aliases of their arguments, if they are references
                 let results = self.inserter.function.dfg.instruction_results(instruction);
                 let results_contains_references = results.iter().any(|result| {
@@ -904,7 +906,6 @@ impl<'f> PerFunctionContext<'f> {
             // as we still need to mark those internal references as unknown.
             if typ.contains_reference() {
                 let value = *value;
-
                 // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
                 // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
                 if let Type::Reference(element) = &typ {
@@ -916,6 +917,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 references.set_unknown(value);
+                self.clear_aliases(references, value);
                 references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
@@ -3356,5 +3358,66 @@ mod tests {
             }
         "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn call_in_loop_establishes_alias() {
+        // This test checks if a call that establishes an alias AFTER the store removal
+        // decision can trigger the same bug as the jmp-based variant.
+        //
+        // Pattern:
+        // - v100 is a &mut &mut Field that initially points to v2
+        // - In the loop, we store 200 at v4, then store a loaded value at v4
+        // - AFTER those stores, we call f1 which does `store v4 at v100`
+        // - On iteration 2, v100 points to v4, so `load v100` returns v4
+        // - `load v4` should see 200 from the first store
+        //
+        // Trace:
+        // - Iter 1: v100→v2, store 200@v4, load v100→v2, load v2→100, store 100@v4, call f1 (v100→v4)
+        // - Iter 2: v100→v4, store 200@v4, load v100→v4, load v4→should be 200!
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v2 = allocate -> &mut Field
+                store Field 100 at v2
+                v4 = allocate -> &mut Field
+                store Field 200 at v4
+                v100 = allocate -> &mut &mut Field
+                store v2 at v100
+                jmp b1(Field 0)
+              b1(v1: Field):
+                v8 = eq v1, Field 2
+                jmpif v8 then: b2, else: b3
+              b2():
+                v12 = load v4 -> Field
+                return v12
+              b3():
+                v10 = add v1, Field 1
+                store Field 200 at v4
+                v13 = load v100 -> &mut Field
+                v11 = load v13 -> Field
+                store v11 at v4
+                call f1(v100, v4)
+                jmp b1(v10)
+            }
+            brillig(inline) fn helper f1 {
+              b0(v0: &mut &mut Field, v1: &mut Field):
+                store v1 at v0
+                return
+            }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Verify the expected result before mem2reg
+        let expected_result = vec![Value::field(200u128.into())];
+        let result_before = ssa.interpret(vec![]).unwrap();
+        assert_eq!(result_before, expected_result, "result before mem2reg should be 200");
+
+        let ssa = ssa.mem2reg();
+
+        // After mem2reg, the result should still be 200.
+        // If the bug exists, it will be 100 because `store Field 200 at v4` was removed.
+        let result_after = ssa.interpret(vec![]).unwrap();
+        assert_eq!(result_after, expected_result, "result after mem2reg should still be 200");
     }
 }
