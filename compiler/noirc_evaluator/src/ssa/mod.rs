@@ -160,7 +160,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
-            Ssa::evaluate_static_assert_and_assert_constant,
+            Ssa::try_evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
@@ -208,6 +208,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
+        ),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
         ),
         SsaPass::new(Ssa::make_constrain_not_equal, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
