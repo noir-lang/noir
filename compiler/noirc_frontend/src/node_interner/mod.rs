@@ -58,7 +58,7 @@ pub use globals::{GlobalId, GlobalValue};
 pub use ids::*;
 pub use methods::{ImplMethod, Methods};
 pub use reexports::Reexport;
-pub use trait_impl::TraitLookupMode;
+pub(crate) use trait_impl::TraitLookupMode;
 
 #[derive(Debug)]
 pub struct ModuleAttributes {
