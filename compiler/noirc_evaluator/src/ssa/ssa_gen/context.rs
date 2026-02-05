@@ -388,12 +388,18 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
-        let op = convert_operator(operator);
+        let mut op = convert_operator(operator);
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
         self.builder.set_location(location);
+
+        // Field operations are inherently unchecked (finite field arithmetic wraps naturally)
+        let lhs_type = self.builder.type_of_value(lhs);
+        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
+            op = op.into_unchecked();
+        }
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 

@@ -905,7 +905,7 @@ impl<'a> NodeFinder<'a> {
                     module_data = parent_module_data;
                     skip_prelude_items = true;
                 }
-                PathKind::Dep => (),
+                PathKind::Absolute => (),
                 PathKind::Plain => (),
                 PathKind::Resolved(crate_id) => {
                     let def_map = &self.def_maps[&crate_id];
