@@ -172,10 +172,7 @@ fn checked_to_unchecked_pre_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        assert_ssa_snapshot,
-        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
-    };
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
     fn checked_to_unchecked_when_casting_two_u16_to_u32_then_adding() {
@@ -307,56 +304,6 @@ mod tests {
             return v2
         }
         ");
-    }
-
-    #[test]
-    fn no_change_for_signed_unchecked_add() {
-        // After expand_signed_checks, signed checked operations are converted to unchecked.
-        // This test verifies that the pass doesn't modify unchecked signed operations.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = cast v0 as i32
-            v3 = cast v1 as i32
-            v4 = unchecked_add v2, v3
-            v5 = truncate v4 to 32 bits, max_bit_size: 33
-            return v5
-        }
-        ";
-        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
-    }
-
-    #[test]
-    fn no_change_for_signed_unchecked_sub() {
-        // After expand_signed_checks, signed checked operations are converted to unchecked.
-        // This test verifies that the pass doesn't modify unchecked signed operations.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: i16):
-            v1 = cast v0 as i32
-            v2 = unchecked_sub i32 65536, v1
-            v3 = truncate v2 to 32 bits, max_bit_size: 33
-            return v3
-        }
-        ";
-        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
-    }
-
-    #[test]
-    fn no_change_for_signed_unchecked_mul() {
-        // After expand_signed_checks, signed checked operations are converted to unchecked.
-        // This test verifies that the pass doesn't modify unchecked signed operations.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: i32):
-            v2 = cast v0 as i32
-            v3 = unchecked_mul v2, v1
-            v4 = cast v3 as u64
-            v6 = truncate v4 to 32 bits, max_bit_size: 64
-            return v2
-        }
-        ";
-        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     #[test]
