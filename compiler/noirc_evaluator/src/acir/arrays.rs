@@ -152,6 +152,15 @@ impl Context<'_> {
         })
     }
 
+    pub(crate) fn return_data_block_id(&mut self) -> BlockId {
+        self.return_data_block_id.unwrap_or_else(|| {
+            let block_id = BlockId(self.max_block_id);
+            self.max_block_id += 1;
+            self.return_data_block_id = Some(block_id);
+            block_id
+        })
+    }
+
     /// Get the next BlockId for the internal element type sizes array.
     /// This is useful for referencing information that can
     /// only be accessed dynamically, such as the type structure
@@ -170,10 +179,9 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         // Initialize return_data using provided witnesses
-        if let Some(return_data) = self.data_bus.return_data {
+        if self.data_bus.return_data.is_some() {
             assert!(!witnesses.is_empty(), "return data cannot be empty");
-
-            let block_id = self.block_id(return_data);
+            let block_id = self.return_data_block_id();
             let already_initialized = self.initialized_arrays.contains(&block_id);
             if !already_initialized {
                 // We hijack ensure_array_is_initialized() because we want the return data to use the return value witnesses,
@@ -418,7 +426,9 @@ impl Context<'_> {
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg, shift)?;
+        let is_safe_index = dfg.is_safe_index(index, array_id);
+        let index_var =
+            self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
@@ -1117,6 +1127,7 @@ impl Context<'_> {
         array_id: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
+        is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
         if let Some(step_size) = array_has_constant_element_size(array_typ) {
@@ -1126,8 +1137,11 @@ impl Context<'_> {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
-            let predicate_index =
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
+            let predicate_index = if is_safe_index {
+                var_index
+            } else {
+                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+            };
 
             self.acir_context
                 .read_from_memory(element_type_sizes, &predicate_index)
@@ -1229,14 +1243,8 @@ impl Context<'_> {
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
         let mut databus = BlockType::Memory;
-        if self.data_bus.return_data.is_some()
-            && self.block_id(self.data_bus.return_data.unwrap()) == array
-        {
-            databus = BlockType::ReturnData;
-        }
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
             if self.block_id(array_id) == array {
-                assert!(databus == BlockType::Memory);
                 databus = BlockType::CallData(call_data_id);
                 break;
             }

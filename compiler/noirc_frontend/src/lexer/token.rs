@@ -60,6 +60,8 @@ pub enum BorrowedToken<'input> {
     Star,
     /// /
     Slash,
+    /// \
+    Backslash,
     /// %
     Percent,
     /// &
@@ -243,6 +245,8 @@ pub enum Token {
     Star,
     /// /
     Slash,
+    /// \
+    Backslash,
     /// %
     Percent,
     /// &
@@ -350,6 +354,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Minus => BorrowedToken::Minus,
         Token::Star => BorrowedToken::Star,
         Token::Slash => BorrowedToken::Slash,
+        Token::Backslash => BorrowedToken::Backslash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
         Token::DeprecatedVectorStart => BorrowedToken::DeprecatedVectorStart,
@@ -589,6 +594,7 @@ impl Display for Token {
             Token::Minus => write!(f, "-"),
             Token::Star => write!(f, "*"),
             Token::Slash => write!(f, "/"),
+            Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
             Token::DeprecatedVectorStart => write!(f, "&"),

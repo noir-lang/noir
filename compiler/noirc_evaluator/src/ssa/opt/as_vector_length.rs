@@ -1,3 +1,11 @@
+//! A simple SSA pass to find any calls to `Intrinsic::AsVector` and replacing any references to the length of the
+//! resulting vector with the length of the array from which it was generated.
+//!
+//! This allows the length of a vector generated from an array to be used in locations where a constant value is
+//! necessary when the value of the array is unknown.
+//!
+//! Note that this pass must be placed before loop unrolling to be useful.
+
 use crate::ssa::{
     ir::{
         function::Function,
@@ -8,13 +16,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// A simple SSA pass to find any calls to `Intrinsic::AsVector` and replacing any references to the length of the
+    /// Finds any calls to `Intrinsic::AsVector` and replaces any references to the length of the
     /// resulting vector with the length of the array from which it was generated.
-    ///
-    /// This allows the length of a vector generated from an array to be used in locations where a constant value is
-    /// necessary when the value of the array is unknown.
-    ///
-    /// Note that this pass must be placed before loop unrolling to be useful.
     #[expect(clippy::wrong_self_convention)]
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn as_vector_optimization(mut self) -> Self {
@@ -26,6 +29,8 @@ impl Ssa {
 }
 
 impl Function {
+    /// Finds any calls to `Intrinsic::AsVector` and replaces any references to the length of the
+    /// resulting vector with the length of the array from which it was generated.
     pub(crate) fn as_vector_optimization(&mut self) {
         // If `as_vector` isn't called in this function there's nothing to do
         let Some(as_vector) = self.dfg.get_intrinsic(Intrinsic::AsVector).copied() else {

@@ -2,6 +2,7 @@
 
 use crate::{
     ast::Path,
+    hir::comptime::Interpreter,
     token::{Keyword, LocatedToken, Token, Tokens},
 };
 
@@ -25,6 +26,15 @@ impl Elaborator<'_> {
             if let Token::Quote(tokens) = token {
                 let tokens = self.find_unquoted_exprs_tokens(tokens);
                 new_tokens.push(LocatedToken::new(Token::Quote(tokens), location));
+                continue;
+            }
+
+            if Token::Backslash == token {
+                if let Err(error) =
+                    Interpreter::escape_token(&mut tokens, &mut new_tokens, location)
+                {
+                    self.push_err(error);
+                }
                 continue;
             }
 

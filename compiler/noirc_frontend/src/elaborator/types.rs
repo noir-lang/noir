@@ -42,7 +42,7 @@ use crate::{
 
 use super::{
     Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
-    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
+    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment},
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -308,6 +308,62 @@ impl Elaborator<'_> {
         None
     }
 
+    /// Resolve `T::Foo` to an associated type on a generic type parameter with trait bounds.
+    ///
+    /// For example, in `impl<T: Baz> Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
+    /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
+    fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+
+        let type_name = path.segments[0].ident.as_str();
+        let assoc_name = path.last_name();
+
+        // Check if first segment is a generic parameter
+        self.find_generic(type_name)?;
+
+        // Search trait bounds for this generic to find the associated type
+        let mut found_types = Vec::new();
+
+        for constraint in &self.trait_bounds {
+            if let Type::NamedGeneric(generic) = &constraint.typ {
+                if generic.name.as_ref() == type_name {
+                    let trait_id = constraint.trait_bound.trait_id;
+                    let the_trait = self.interner.get_trait(trait_id);
+
+                    if let Some(assoc_type) = the_trait.get_associated_type(assoc_name) {
+                        found_types.push((trait_id, assoc_type.clone()));
+                    }
+                }
+            }
+        }
+
+        match found_types.len() {
+            0 => None, // Fall through to normal resolution
+            1 => {
+                let (trait_id, assoc_type) = found_types.remove(0);
+                let the_trait = self.interner.get_trait(trait_id);
+                // Return the associated type with proper naming for display
+                Some(assoc_type.into_named_generic(Some((type_name, the_trait.name.as_str()))))
+            }
+            _ => {
+                // Multiple traits have this associated type - ambiguous
+                let location = path.location;
+                let trait_names: Vec<_> = found_types
+                    .iter()
+                    .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                    .collect();
+                let ident = Ident::new(assoc_name.to_string(), location);
+                self.push_err(PathResolutionError::MultipleTraitsInScope {
+                    ident,
+                    traits: trait_names,
+                });
+                Some(Type::Error)
+            }
+        }
+    }
+
     fn resolve_named_type(
         &mut self,
         path: TypedPath,
@@ -402,14 +458,18 @@ impl Elaborator<'_> {
                 typ
             }
             Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
-                let associated_type = self.interner.get_trait_associated_type(associated_type_id);
-                let trait_ = self.interner.get_trait(associated_type.trait_id);
-
-                self.push_err(ResolverError::AmbiguousAssociatedType {
-                    trait_name: trait_.name.to_string(),
-                    associated_type_name: associated_type.name.to_string(),
-                    location,
-                });
+                if wildcard_allowed == WildcardAllowed::No(WildcardDisallowedContext::ImplType) {
+                    self.push_err(ResolverError::TraitImplOnAssociatedType { location });
+                } else {
+                    let associated_type =
+                        self.interner.get_trait_associated_type(associated_type_id);
+                    let trait_ = self.interner.get_trait(associated_type.trait_id);
+                    self.push_err(ResolverError::AmbiguousAssociatedType {
+                        trait_name: trait_.name.to_string(),
+                        associated_type_name: associated_type.name.to_string(),
+                        location,
+                    });
+                }
 
                 Type::Error
             }
@@ -662,6 +722,15 @@ impl Elaborator<'_> {
                 }
             }
             return Some(typ);
+        } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
+            if let Some(last_segment) = path.segments.last() {
+                if last_segment.generics.is_some() {
+                    self.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
+            return Some(typ);
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
@@ -829,7 +898,7 @@ impl Elaborator<'_> {
         expected_kind: &Kind,
         location: Location,
     ) -> Type {
-        if typ.has_cyclic_alias(&mut HashSet::default()) {
+        if typ.has_cyclic_alias() {
             self.push_err(TypeCheckError::CyclicType { typ, location });
             return Type::Error;
         }
@@ -1843,12 +1912,13 @@ impl Elaborator<'_> {
         object_type: &Type,
         return_type: &Type,
         location: Location,
+        is_ord: bool,
     ) {
         let method_type = self.interner.definition_type(trait_method_id.item_id);
         let (method_type, mut bindings) = method_type.instantiate(self.interner);
 
         match method_type {
-            Type::Function(args, ret, env, _unconstrained) => {
+            Type::Function(mut args, ret, env, _unconstrained) => {
                 assert!(
                     !args.is_empty(),
                     "type_check_operator_method ICE: expected operator method to have at least one argument type"
@@ -1860,30 +1930,87 @@ impl Elaborator<'_> {
                     expr_location: location,
                 });
 
-                let mut bindings = TypeBindings::default();
-                let unifies = ret.try_unify(return_type, &mut bindings).is_ok();
-                if !unifies {
-                    // // TODO(https://github.com/noir-lang/noir/issues/10537): the following comment
-                    // // on unifying 'object_type' with 'expected_object_type' is out of date because
-                    // // attempting to unify the return type of 'method_type' with 'result_type' is
-                    // // failing sometimes, e.g. the following 'panic!' message is being reached when running
-                    // // 'cargo run check' in the 'noir_stdlib':
-                    // // type_check_operator_method: ret: Ordering, return_type: bool, args: ['6832, '6832], object_type: T'67, definition_name: "cmp"
-                    // let definition_name = &self.interner.definition(trait_method_id.item_id).name;
-                    // panic!("type_check_operator_method: ret: {ret:?}, return_type: {return_type:?}, args: {args:?}, object_type: {object_type:?}, definition_name: {definition_name:?}");
+                // Uses of `Ord` that return `bool`, e.g. `<`, `<=`, etc., are expected to have
+                // a `return_type` of `bool`, but have a `ret` of type `std::cmp::Ordering`
+                // from being based on `Ord::cmp(self, other: Self) -> Ordering`
+                if is_ord {
+                    let mut ordering_type_path_segments = vec![];
+                    let ordering_type_path_kind = if self.crate_id.is_stdlib() {
+                        PathKind::Crate
+                    } else {
+                        ordering_type_path_segments.push(TypedPathSegment::without_generics(
+                            Ident::new("std".to_string(), location),
+                            location,
+                        ));
+                        PathKind::Dep
+                    };
+                    ordering_type_path_segments.push(TypedPathSegment::without_generics(
+                        Ident::new("cmp".to_string(), location),
+                        location,
+                    ));
+                    ordering_type_path_segments.push(TypedPathSegment::without_generics(
+                        Ident::new("Ordering".to_string(), location),
+                        location,
+                    ));
+                    let ordering_type_path = TypedPath {
+                        segments: ordering_type_path_segments,
+                        kind: ordering_type_path_kind,
+                        location,
+                        kind_location: location,
+                    };
+                    let ordering_type = self.resolve_named_type(
+                        ordering_type_path,
+                        GenericTypeArgs::default(),
+                        PathResolutionMode::MarkAsReferenced,
+                        WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn),
+                    );
+
+                    self.unify(&Type::Bool, return_type, || TypeCheckError::TypeMismatch {
+                        expr_typ: ret.to_string(),
+                        expected_typ: Type::Bool.to_string(),
+                        expr_location: location,
+                    });
+                    self.unify(&ordering_type, &ret, || TypeCheckError::TypeMismatch {
+                        expr_typ: ret.to_string(),
+                        expected_typ: ordering_type.to_string(),
+                        expr_location: location,
+                    });
+                } else {
+                    self.unify(&ret, return_type, || TypeCheckError::TypeMismatch {
+                        expr_typ: ret.to_string(),
+                        expected_typ: return_type.to_string(),
+                        expr_location: location,
+                    });
+                };
+
+                let expected_object_type = args.pop().unwrap_or_else(|| {
+                    unreachable!("ICE: expected operator method on {object_type} to take arguments, but found no arguments")
+                });
+                for arg in args {
+                    self.unify(&arg, &expected_object_type, || TypeCheckError::TypeMismatch {
+                        expected_typ: expected_object_type.to_string(),
+                        expr_typ: arg.to_string(),
+                        expr_location: location,
+                    });
                 }
 
-                // We can cheat a bit and match against only the object type here since no operator
-                // overload uses other generic parameters or return types aside from the object type.
-                let expected_object_type = &args[0];
-                self.unify(object_type, expected_object_type, || TypeCheckError::TypeMismatch {
+                self.unify(object_type, &expected_object_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_object_type.to_string(),
                     expr_typ: object_type.to_string(),
                     expr_location: location,
                 });
             }
+            Type::Error => {
+                self.push_err(TypeCheckError::ExpectingOtherError {
+                    message: "type_check_operator_method: encountered method_type of type 'error'"
+                        .to_string(),
+                    location,
+                });
+            }
             other => {
-                unreachable!("Expected operator method to have a function type, but found {other}")
+                unreachable!(
+                    "Expected operator method on {object_type} to have a function type, but found {other}"
+                )
             }
         }
 

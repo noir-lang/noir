@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('$') => self.single_char_token(Token::DollarSign),
             Some('@') => self.single_char_token(Token::At),
+            Some('\\') => self.single_char_token(Token::Backslash),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),

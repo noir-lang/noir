@@ -444,3 +444,19 @@ fn impl_eq_for_enum() {
     let errors = get_program_using_features(src, &features).2;
     assert!(errors.is_empty());
 }
+
+#[test]
+fn regression_7651() {
+    let src = r#"
+    pub enum Foo {
+        Bar,
+    }
+
+    fn main(_x: Foo) { }
+                ^^^ Invalid type found in the entry point to a program
+                ~~~ Enum is not yet allowed as an entry point type. Found: Foo
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}

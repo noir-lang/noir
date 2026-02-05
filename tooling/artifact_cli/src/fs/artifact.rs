@@ -12,7 +12,9 @@ use serde::de::Error;
 impl Artifact {
     /// Try to parse an artifact as a binary program or a contract
     pub fn read_from_file(path: &Path) -> Result<Self, CliError> {
-        let json = std::fs::read(path.with_extension("json")).map_err(FilesystemError::from)?;
+        let file = path.with_extension("json");
+        let json = std::fs::read(&file)
+            .map_err(|err| FilesystemError::FailedToReadFile(file.to_path_buf(), err))?;
 
         let as_program = || serde_json::from_slice::<ProgramArtifact>(&json).map(Artifact::Program);
         let as_contract =
@@ -60,6 +62,7 @@ pub fn save_program_to_file(
 ) -> Result<PathBuf, CliError> {
     let circuit_name: String = crate_name.into();
     save_build_artifact_to_file(program_artifact, &circuit_name, output_dir)
+        .map_err(|err| CliError::FailedToSaveProgram(circuit_name, Box::new(err)))
 }
 
 pub fn save_contract_to_file(
@@ -68,6 +71,7 @@ pub fn save_contract_to_file(
     output_dir: &Path,
 ) -> Result<PathBuf, CliError> {
     save_build_artifact_to_file(compiled_contract, circuit_name, output_dir)
+        .map_err(|err| CliError::FailedToSaveContract(circuit_name.to_string(), Box::new(err)))
 }
 
 fn save_build_artifact_to_file<T: ?Sized + serde::Serialize>(
@@ -84,8 +88,10 @@ fn save_build_artifact_to_file<T: ?Sized + serde::Serialize>(
 /// Create the parent directory if needed and write the bytes to a file.
 pub fn write_to_file(bytes: &[u8], path: &Path) -> Result<(), FilesystemError> {
     if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
+        std::fs::create_dir_all(dir)
+            .map_err(|err| FilesystemError::FailedToCreateDirectory(dir.to_path_buf(), err))?;
     }
-    std::fs::write(path, bytes)?;
+    std::fs::write(path, bytes)
+        .map_err(|err| FilesystemError::FailedToWriteFile(path.to_path_buf(), err))?;
     Ok(())
 }

@@ -87,6 +87,12 @@ impl Elaborator<'_> {
 
     /// Push a type variable (its ID and type) as a required type variable: it must be
     /// bound after type-checking the current function.
+    ///
+    /// The type variable is only pushed if the elaborator is not in a comptime context.
+    /// The reason is that in a comptime context the type of a variable might change
+    /// across a loop's iterations, so a type can temporarily remain as `Type<_>` where
+    /// `_` is bound by the interpreter evaluating an expression's type being unified with
+    /// that type.
     pub(super) fn push_required_type_variable(
         &mut self,
         type_variable_id: TypeVariableId,
@@ -94,8 +100,10 @@ impl Elaborator<'_> {
         kind: BindableTypeVariableKind,
         location: Location,
     ) {
-        let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
-        self.get_function_context_mut().required_type_variables.push(var);
+        if !self.in_comptime_context() {
+            let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
+            self.get_function_context_mut().required_type_variables.push(var);
+        }
     }
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
