@@ -343,729 +343,735 @@
 <a href=#343 id=343 data-nosnippet>343</a>        <span class="kw-2">mut </span>rhs: ValueId,
 <a href=#344 id=344 data-nosnippet>344</a>        location: Location,
 <a href=#345 id=345 data-nosnippet>345</a>    ) -&gt; Values {
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span>op = convert_operator(operator);
+<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span><span class="kw-2">mut </span>op = convert_operator(operator);
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">if </span>operator_requires_swapped_operands(operator) {
 <a href=#348 id=348 data-nosnippet>348</a>            std::mem::swap(<span class="kw-2">&amp;mut </span>lhs, <span class="kw-2">&amp;mut </span>rhs);
 <a href=#349 id=349 data-nosnippet>349</a>        }
 <a href=#350 id=350 data-nosnippet>350</a>
 <a href=#351 id=351 data-nosnippet>351</a>        <span class="self">self</span>.builder.set_location(location);
 <a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.builder.insert_binary(lhs, op, rhs);
-<a href=#354 id=354 data-nosnippet>354</a>
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">if </span>operator_requires_not(operator) {
-<a href=#356 id=356 data-nosnippet>356</a>            result = <span class="self">self</span>.builder.insert_not(result);
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="comment">// Field operations are inherently unchecked (finite field arithmetic wraps naturally)
+<a href=#354 id=354 data-nosnippet>354</a>        </span><span class="kw">let </span>lhs_type = <span class="self">self</span>.builder.type_of_value(lhs);
+<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">if </span><span class="macro">matches!</span>(lhs_type, Type::Numeric(NumericType::NativeField)) {
+<a href=#356 id=356 data-nosnippet>356</a>            op = op.into_unchecked();
 <a href=#357 id=357 data-nosnippet>357</a>        }
 <a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a>        result.into()
-<a href=#360 id=360 data-nosnippet>360</a>    }
-<a href=#361 id=361 data-nosnippet>361</a>
-<a href=#362 id=362 data-nosnippet>362</a>    <span class="doccomment">/// Inserts a call instruction at the end of the current block and returns the results
-<a href=#363 id=363 data-nosnippet>363</a>    /// of the call.
-<a href=#364 id=364 data-nosnippet>364</a>    ///
-<a href=#365 id=365 data-nosnippet>365</a>    /// Compared to self.builder.insert_call, this version will reshape the returned `Vec&lt;ValueId&gt;`
-<a href=#366 id=366 data-nosnippet>366</a>    /// back into a Values tree of the proper shape.
-<a href=#367 id=367 data-nosnippet>367</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_call(
-<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#369 id=369 data-nosnippet>369</a>        function: ValueId,
-<a href=#370 id=370 data-nosnippet>370</a>        arguments: Vec&lt;ValueId&gt;,
-<a href=#371 id=371 data-nosnippet>371</a>        result_type: <span class="kw-2">&amp;</span>ast::Type,
-<a href=#372 id=372 data-nosnippet>372</a>        location: Location,
-<a href=#373 id=373 data-nosnippet>373</a>    ) -&gt; Values {
-<a href=#374 id=374 data-nosnippet>374</a>        <span class="kw">let </span>result_types = <span class="self">Self</span>::convert_type(result_type).flatten();
-<a href=#375 id=375 data-nosnippet>375</a>        <span class="kw">let </span>results =
-<a href=#376 id=376 data-nosnippet>376</a>            <span class="self">self</span>.builder.set_location(location).insert_call(function, arguments, result_types);
-<a href=#377 id=377 data-nosnippet>377</a>
-<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;
-<a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">let </span>reshaped_return_values = <span class="self">Self</span>::map_type(result_type, |<span class="kw">_</span>| {
-<a href=#380 id=380 data-nosnippet>380</a>            <span class="kw">let </span>result = results[i].into();
-<a href=#381 id=381 data-nosnippet>381</a>            i += <span class="number">1</span>;
-<a href=#382 id=382 data-nosnippet>382</a>            result
-<a href=#383 id=383 data-nosnippet>383</a>        });
-<a href=#384 id=384 data-nosnippet>384</a>        <span class="macro">assert_eq!</span>(i, results.len());
-<a href=#385 id=385 data-nosnippet>385</a>        reshaped_return_values
-<a href=#386 id=386 data-nosnippet>386</a>    }
-<a href=#387 id=387 data-nosnippet>387</a>
-<a href=#388 id=388 data-nosnippet>388</a>    <span class="doccomment">/// Inserts a cast instruction at the end of the current block and returns the results
-<a href=#389 id=389 data-nosnippet>389</a>    /// of the cast.
-<a href=#390 id=390 data-nosnippet>390</a>    ///
-<a href=#391 id=391 data-nosnippet>391</a>    /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
-<a href=#392 id=392 data-nosnippet>392</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_safe_cast(
-<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#394 id=394 data-nosnippet>394</a>        value: ValueId,
-<a href=#395 id=395 data-nosnippet>395</a>        typ: NumericType,
-<a href=#396 id=396 data-nosnippet>396</a>        location: Location,
-<a href=#397 id=397 data-nosnippet>397</a>    ) -&gt; ValueId {
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="self">self</span>.builder.set_location(location);
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">let </span>incoming_type = <span class="self">self</span>.builder.type_of_value(value);
-<a href=#400 id=400 data-nosnippet>400</a>
-<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span>result = <span class="kw">match </span>(<span class="kw-2">&amp;</span>incoming_type, typ) {
-<a href=#402 id=402 data-nosnippet>402</a>            <span class="comment">// Casting to field is safe
-<a href=#403 id=403 data-nosnippet>403</a>            </span>(<span class="kw">_</span>, NumericType::NativeField) =&gt; value,
-<a href=#404 id=404 data-nosnippet>404</a>            (
-<a href=#405 id=405 data-nosnippet>405</a>                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
-<a href=#406 id=406 data-nosnippet>406</a>                NumericType::Signed { bit_size: target_type_size },
-<a href=#407 id=407 data-nosnippet>407</a>            ) =&gt; {
-<a href=#408 id=408 data-nosnippet>408</a>                <span class="kw">match </span>target_type_size.cmp(incoming_type_size) {
-<a href=#409 id=409 data-nosnippet>409</a>                    std::cmp::Ordering::Less =&gt; {
-<a href=#410 id=410 data-nosnippet>410</a>                        <span class="comment">// If target size is smaller, we do a truncation
-<a href=#411 id=411 data-nosnippet>411</a>                        </span><span class="self">self</span>.builder.insert_truncate(value, target_type_size, <span class="kw-2">*</span>incoming_type_size)
-<a href=#412 id=412 data-nosnippet>412</a>                    }
-<a href=#413 id=413 data-nosnippet>413</a>                    std::cmp::Ordering::Equal =&gt; value,
-<a href=#414 id=414 data-nosnippet>414</a>                    std::cmp::Ordering::Greater =&gt; {
-<a href=#415 id=415 data-nosnippet>415</a>                        <span class="self">self</span>.sign_extend(value, <span class="kw-2">*</span>incoming_type_size, target_type_size, location)
-<a href=#416 id=416 data-nosnippet>416</a>                    }
-<a href=#417 id=417 data-nosnippet>417</a>                }
-<a href=#418 id=418 data-nosnippet>418</a>            }
-<a href=#419 id=419 data-nosnippet>419</a>            (
-<a href=#420 id=420 data-nosnippet>420</a>                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
-<a href=#421 id=421 data-nosnippet>421</a>                NumericType::Unsigned { bit_size: target_type_size },
-<a href=#422 id=422 data-nosnippet>422</a>            ) =&gt; {
-<a href=#423 id=423 data-nosnippet>423</a>                <span class="comment">// If target size is smaller, we do a truncation
-<a href=#424 id=424 data-nosnippet>424</a>                </span><span class="kw">if </span>target_type_size &lt; <span class="kw-2">*</span>incoming_type_size {
-<a href=#425 id=425 data-nosnippet>425</a>                    <span class="self">self</span>.builder.insert_truncate(value, target_type_size, <span class="kw-2">*</span>incoming_type_size)
-<a href=#426 id=426 data-nosnippet>426</a>                } <span class="kw">else </span>{
-<a href=#427 id=427 data-nosnippet>427</a>                    value
-<a href=#428 id=428 data-nosnippet>428</a>                }
-<a href=#429 id=429 data-nosnippet>429</a>            }
-<a href=#430 id=430 data-nosnippet>430</a>            <span class="comment">// When casting a signed value to u1 we can truncate then cast
-<a href=#431 id=431 data-nosnippet>431</a>            </span>(
-<a href=#432 id=432 data-nosnippet>432</a>                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
-<a href=#433 id=433 data-nosnippet>433</a>                NumericType::Unsigned { bit_size: <span class="number">1 </span>},
-<a href=#434 id=434 data-nosnippet>434</a>            ) =&gt; <span class="self">self</span>.builder.insert_truncate(value, <span class="number">1</span>, <span class="kw-2">*</span>incoming_type_size),
-<a href=#435 id=435 data-nosnippet>435</a>
-<a href=#436 id=436 data-nosnippet>436</a>            <span class="comment">// For mixed signed to unsigned:
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.builder.insert_binary(lhs, op, rhs);
+<a href=#360 id=360 data-nosnippet>360</a>
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">if </span>operator_requires_not(operator) {
+<a href=#362 id=362 data-nosnippet>362</a>            result = <span class="self">self</span>.builder.insert_not(result);
+<a href=#363 id=363 data-nosnippet>363</a>        }
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a>        result.into()
+<a href=#366 id=366 data-nosnippet>366</a>    }
+<a href=#367 id=367 data-nosnippet>367</a>
+<a href=#368 id=368 data-nosnippet>368</a>    <span class="doccomment">/// Inserts a call instruction at the end of the current block and returns the results
+<a href=#369 id=369 data-nosnippet>369</a>    /// of the call.
+<a href=#370 id=370 data-nosnippet>370</a>    ///
+<a href=#371 id=371 data-nosnippet>371</a>    /// Compared to self.builder.insert_call, this version will reshape the returned `Vec&lt;ValueId&gt;`
+<a href=#372 id=372 data-nosnippet>372</a>    /// back into a Values tree of the proper shape.
+<a href=#373 id=373 data-nosnippet>373</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_call(
+<a href=#374 id=374 data-nosnippet>374</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#375 id=375 data-nosnippet>375</a>        function: ValueId,
+<a href=#376 id=376 data-nosnippet>376</a>        arguments: Vec&lt;ValueId&gt;,
+<a href=#377 id=377 data-nosnippet>377</a>        result_type: <span class="kw-2">&amp;</span>ast::Type,
+<a href=#378 id=378 data-nosnippet>378</a>        location: Location,
+<a href=#379 id=379 data-nosnippet>379</a>    ) -&gt; Values {
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>result_types = <span class="self">Self</span>::convert_type(result_type).flatten();
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>results =
+<a href=#382 id=382 data-nosnippet>382</a>            <span class="self">self</span>.builder.set_location(location).insert_call(function, arguments, result_types);
+<a href=#383 id=383 data-nosnippet>383</a>
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>reshaped_return_values = <span class="self">Self</span>::map_type(result_type, |<span class="kw">_</span>| {
+<a href=#386 id=386 data-nosnippet>386</a>            <span class="kw">let </span>result = results[i].into();
+<a href=#387 id=387 data-nosnippet>387</a>            i += <span class="number">1</span>;
+<a href=#388 id=388 data-nosnippet>388</a>            result
+<a href=#389 id=389 data-nosnippet>389</a>        });
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="macro">assert_eq!</span>(i, results.len());
+<a href=#391 id=391 data-nosnippet>391</a>        reshaped_return_values
+<a href=#392 id=392 data-nosnippet>392</a>    }
+<a href=#393 id=393 data-nosnippet>393</a>
+<a href=#394 id=394 data-nosnippet>394</a>    <span class="doccomment">/// Inserts a cast instruction at the end of the current block and returns the results
+<a href=#395 id=395 data-nosnippet>395</a>    /// of the cast.
+<a href=#396 id=396 data-nosnippet>396</a>    ///
+<a href=#397 id=397 data-nosnippet>397</a>    /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
+<a href=#398 id=398 data-nosnippet>398</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_safe_cast(
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#400 id=400 data-nosnippet>400</a>        value: ValueId,
+<a href=#401 id=401 data-nosnippet>401</a>        typ: NumericType,
+<a href=#402 id=402 data-nosnippet>402</a>        location: Location,
+<a href=#403 id=403 data-nosnippet>403</a>    ) -&gt; ValueId {
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="self">self</span>.builder.set_location(location);
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="kw">let </span>incoming_type = <span class="self">self</span>.builder.type_of_value(value);
+<a href=#406 id=406 data-nosnippet>406</a>
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">let </span>result = <span class="kw">match </span>(<span class="kw-2">&amp;</span>incoming_type, typ) {
+<a href=#408 id=408 data-nosnippet>408</a>            <span class="comment">// Casting to field is safe
+<a href=#409 id=409 data-nosnippet>409</a>            </span>(<span class="kw">_</span>, NumericType::NativeField) =&gt; value,
+<a href=#410 id=410 data-nosnippet>410</a>            (
+<a href=#411 id=411 data-nosnippet>411</a>                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+<a href=#412 id=412 data-nosnippet>412</a>                NumericType::Signed { bit_size: target_type_size },
+<a href=#413 id=413 data-nosnippet>413</a>            ) =&gt; {
+<a href=#414 id=414 data-nosnippet>414</a>                <span class="kw">match </span>target_type_size.cmp(incoming_type_size) {
+<a href=#415 id=415 data-nosnippet>415</a>                    std::cmp::Ordering::Less =&gt; {
+<a href=#416 id=416 data-nosnippet>416</a>                        <span class="comment">// If target size is smaller, we do a truncation
+<a href=#417 id=417 data-nosnippet>417</a>                        </span><span class="self">self</span>.builder.insert_truncate(value, target_type_size, <span class="kw-2">*</span>incoming_type_size)
+<a href=#418 id=418 data-nosnippet>418</a>                    }
+<a href=#419 id=419 data-nosnippet>419</a>                    std::cmp::Ordering::Equal =&gt; value,
+<a href=#420 id=420 data-nosnippet>420</a>                    std::cmp::Ordering::Greater =&gt; {
+<a href=#421 id=421 data-nosnippet>421</a>                        <span class="self">self</span>.sign_extend(value, <span class="kw-2">*</span>incoming_type_size, target_type_size, location)
+<a href=#422 id=422 data-nosnippet>422</a>                    }
+<a href=#423 id=423 data-nosnippet>423</a>                }
+<a href=#424 id=424 data-nosnippet>424</a>            }
+<a href=#425 id=425 data-nosnippet>425</a>            (
+<a href=#426 id=426 data-nosnippet>426</a>                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+<a href=#427 id=427 data-nosnippet>427</a>                NumericType::Unsigned { bit_size: target_type_size },
+<a href=#428 id=428 data-nosnippet>428</a>            ) =&gt; {
+<a href=#429 id=429 data-nosnippet>429</a>                <span class="comment">// If target size is smaller, we do a truncation
+<a href=#430 id=430 data-nosnippet>430</a>                </span><span class="kw">if </span>target_type_size &lt; <span class="kw-2">*</span>incoming_type_size {
+<a href=#431 id=431 data-nosnippet>431</a>                    <span class="self">self</span>.builder.insert_truncate(value, target_type_size, <span class="kw-2">*</span>incoming_type_size)
+<a href=#432 id=432 data-nosnippet>432</a>                } <span class="kw">else </span>{
+<a href=#433 id=433 data-nosnippet>433</a>                    value
+<a href=#434 id=434 data-nosnippet>434</a>                }
+<a href=#435 id=435 data-nosnippet>435</a>            }
+<a href=#436 id=436 data-nosnippet>436</a>            <span class="comment">// When casting a signed value to u1 we can truncate then cast
 <a href=#437 id=437 data-nosnippet>437</a>            </span>(
 <a href=#438 id=438 data-nosnippet>438</a>                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
-<a href=#439 id=439 data-nosnippet>439</a>                NumericType::Unsigned { bit_size: target_type_size },
-<a href=#440 id=440 data-nosnippet>440</a>            ) =&gt; {
-<a href=#441 id=441 data-nosnippet>441</a>                <span class="comment">// when going from lower to higher bit size:
-<a href=#442 id=442 data-nosnippet>442</a>                // 1. we sign-extend to the target bits
-<a href=#443 id=443 data-nosnippet>443</a>                // 2. we are already in the target signedness
-<a href=#444 id=444 data-nosnippet>444</a>                </span><span class="kw">if </span><span class="kw-2">*</span>incoming_type_size &lt; target_type_size {
-<a href=#445 id=445 data-nosnippet>445</a>                    <span class="comment">// By not the casting to a signed type with the target bit size, we avoid potentially going
-<a href=#446 id=446 data-nosnippet>446</a>                    // through i128, which is not a type we support in the frontend, and would be strange in SSA.
-<a href=#447 id=447 data-nosnippet>447</a>                    </span><span class="self">self</span>.sign_extend(value, <span class="kw-2">*</span>incoming_type_size, target_type_size, location)
-<a href=#448 id=448 data-nosnippet>448</a>                }
-<a href=#449 id=449 data-nosnippet>449</a>                <span class="comment">// when the target bit size is not higher than the source:
-<a href=#450 id=450 data-nosnippet>450</a>                // 1. we cast to the required type using the same signedness
-<a href=#451 id=451 data-nosnippet>451</a>                // 2. then we switch the signedness
-<a href=#452 id=452 data-nosnippet>452</a>                </span><span class="kw">else if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
-<a href=#453 id=453 data-nosnippet>453</a>                    <span class="self">self</span>.insert_safe_cast(value, NumericType::signed(target_type_size), location)
-<a href=#454 id=454 data-nosnippet>454</a>                } <span class="kw">else </span>{
-<a href=#455 id=455 data-nosnippet>455</a>                    value
-<a href=#456 id=456 data-nosnippet>456</a>                }
-<a href=#457 id=457 data-nosnippet>457</a>            }
-<a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a>            <span class="comment">// For mixed unsigned to signed:
-<a href=#460 id=460 data-nosnippet>460</a>            // 1. we cast to the required type using the same signedness
-<a href=#461 id=461 data-nosnippet>461</a>            // 2. then we switch the signedness
-<a href=#462 id=462 data-nosnippet>462</a>            </span>(
-<a href=#463 id=463 data-nosnippet>463</a>                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
-<a href=#464 id=464 data-nosnippet>464</a>                NumericType::Signed { bit_size: target_type_size },
-<a href=#465 id=465 data-nosnippet>465</a>            ) =&gt; {
-<a href=#466 id=466 data-nosnippet>466</a>                <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
-<a href=#467 id=467 data-nosnippet>467</a>                    <span class="self">self</span>.insert_safe_cast(value, NumericType::unsigned(target_type_size), location)
-<a href=#468 id=468 data-nosnippet>468</a>                } <span class="kw">else </span>{
-<a href=#469 id=469 data-nosnippet>469</a>                    value
-<a href=#470 id=470 data-nosnippet>470</a>                }
-<a href=#471 id=471 data-nosnippet>471</a>            }
-<a href=#472 id=472 data-nosnippet>472</a>
-<a href=#473 id=473 data-nosnippet>473</a>            <span class="comment">// Field to signed/unsigned:
-<a href=#474 id=474 data-nosnippet>474</a>            </span>(
-<a href=#475 id=475 data-nosnippet>475</a>                Type::Numeric(NumericType::NativeField),
-<a href=#476 id=476 data-nosnippet>476</a>                NumericType::Unsigned { bit_size: target_type_size },
-<a href=#477 id=477 data-nosnippet>477</a>            )
-<a href=#478 id=478 data-nosnippet>478</a>            | (
-<a href=#479 id=479 data-nosnippet>479</a>                Type::Numeric(NumericType::NativeField),
-<a href=#480 id=480 data-nosnippet>480</a>                NumericType::Signed { bit_size: target_type_size },
-<a href=#481 id=481 data-nosnippet>481</a>            ) =&gt; {
-<a href=#482 id=482 data-nosnippet>482</a>                <span class="self">self</span>.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
-<a href=#483 id=483 data-nosnippet>483</a>            }
-<a href=#484 id=484 data-nosnippet>484</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Invalid cast from {} to {}"</span>, incoming_type, typ),
-<a href=#485 id=485 data-nosnippet>485</a>        };
-<a href=#486 id=486 data-nosnippet>486</a>        <span class="self">self</span>.builder.insert_cast(result, typ)
-<a href=#487 id=487 data-nosnippet>487</a>    }
-<a href=#488 id=488 data-nosnippet>488</a>
-<a href=#489 id=489 data-nosnippet>489</a>    <span class="doccomment">/// During casting signed values, if target size is bigger, we do a sign extension:
-<a href=#490 id=490 data-nosnippet>490</a>    ///
-<a href=#491 id=491 data-nosnippet>491</a>    /// When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value.
-<a href=#492 id=492 data-nosnippet>492</a>    /// Sign extension in this case will give `2^t-v`, where `t` is the target bit size.
-<a href=#493 id=493 data-nosnippet>493</a>    /// So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
-<a href=#494 id=494 data-nosnippet>494</a>    ///
-<a href=#495 id=495 data-nosnippet>495</a>    /// Casting s-bits signed v0 to t-bits will add the following instructions:
-<a href=#496 id=496 data-nosnippet>496</a>    /// ```ssa
-<a href=#497 id=497 data-nosnippet>497</a>    /// v1 = cast v0 to 's-bits unsigned'
-<a href=#498 id=498 data-nosnippet>498</a>    /// v2 = lt v1, 2**(s-1)
-<a href=#499 id=499 data-nosnippet>499</a>    /// v3 = not(v1)
-<a href=#500 id=500 data-nosnippet>500</a>    /// v4 = cast v3 to 't-bits unsigned'
-<a href=#501 id=501 data-nosnippet>501</a>    /// v5 = v3 * (2**t - 2**s)
-<a href=#502 id=502 data-nosnippet>502</a>    /// v6 = cast v1 to 't-bits unsigned'
-<a href=#503 id=503 data-nosnippet>503</a>    /// return v6 + v5
-<a href=#504 id=504 data-nosnippet>504</a>    /// ```
-<a href=#505 id=505 data-nosnippet>505</a>    ///
-<a href=#506 id=506 data-nosnippet>506</a>    /// Return an unsigned value that we can cast back to the signed type if we want,
-<a href=#507 id=507 data-nosnippet>507</a>    /// or keep it as it is, if we did the sign extension as part of casting e.g. `i8` to `u64`.
-<a href=#508 id=508 data-nosnippet>508</a>    </span><span class="kw">fn </span>sign_extend(
-<a href=#509 id=509 data-nosnippet>509</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#510 id=510 data-nosnippet>510</a>        value: ValueId,
-<a href=#511 id=511 data-nosnippet>511</a>        incoming_type_size: u32,
-<a href=#512 id=512 data-nosnippet>512</a>        target_type_size: u32,
-<a href=#513 id=513 data-nosnippet>513</a>        location: Location,
-<a href=#514 id=514 data-nosnippet>514</a>    ) -&gt; ValueId {
-<a href=#515 id=515 data-nosnippet>515</a>        <span class="kw">let </span>value_as_unsigned =
-<a href=#516 id=516 data-nosnippet>516</a>            <span class="self">self</span>.insert_safe_cast(value, NumericType::unsigned(incoming_type_size), location);
-<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">let </span>half_width = <span class="self">self</span>.builder.numeric_constant(
-<a href=#518 id=518 data-nosnippet>518</a>            FieldElement::from(<span class="number">2_u128</span>.pow(incoming_type_size - <span class="number">1</span>)),
-<a href=#519 id=519 data-nosnippet>519</a>            NumericType::unsigned(incoming_type_size),
-<a href=#520 id=520 data-nosnippet>520</a>        );
-<a href=#521 id=521 data-nosnippet>521</a>        <span class="comment">// value_sign is 1 if the value is positive, 0 otherwise
-<a href=#522 id=522 data-nosnippet>522</a>        </span><span class="kw">let </span>value_sign = <span class="self">self</span>.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
-<a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">let </span>max_for_incoming_type_size =
-<a href=#524 id=524 data-nosnippet>524</a>            <span class="kw">if </span>incoming_type_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2_u128</span>.pow(incoming_type_size) - <span class="number">1 </span>};
-<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">let </span>max_for_target_type_size =
-<a href=#526 id=526 data-nosnippet>526</a>            <span class="kw">if </span>target_type_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">1 </span>};
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="kw">let </span>patch = <span class="self">self</span>.builder.numeric_constant(
-<a href=#528 id=528 data-nosnippet>528</a>            FieldElement::from(max_for_target_type_size - max_for_incoming_type_size),
-<a href=#529 id=529 data-nosnippet>529</a>            NumericType::unsigned(target_type_size),
-<a href=#530 id=530 data-nosnippet>530</a>        );
-<a href=#531 id=531 data-nosnippet>531</a>        <span class="kw">let </span><span class="kw-2">mut </span>is_negative_predicate = <span class="self">self</span>.builder.insert_not(value_sign);
-<a href=#532 id=532 data-nosnippet>532</a>        is_negative_predicate = <span class="self">self</span>.insert_safe_cast(
-<a href=#533 id=533 data-nosnippet>533</a>            is_negative_predicate,
-<a href=#534 id=534 data-nosnippet>534</a>            NumericType::unsigned(target_type_size),
-<a href=#535 id=535 data-nosnippet>535</a>            location,
+<a href=#439 id=439 data-nosnippet>439</a>                NumericType::Unsigned { bit_size: <span class="number">1 </span>},
+<a href=#440 id=440 data-nosnippet>440</a>            ) =&gt; <span class="self">self</span>.builder.insert_truncate(value, <span class="number">1</span>, <span class="kw-2">*</span>incoming_type_size),
+<a href=#441 id=441 data-nosnippet>441</a>
+<a href=#442 id=442 data-nosnippet>442</a>            <span class="comment">// For mixed signed to unsigned:
+<a href=#443 id=443 data-nosnippet>443</a>            </span>(
+<a href=#444 id=444 data-nosnippet>444</a>                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+<a href=#445 id=445 data-nosnippet>445</a>                NumericType::Unsigned { bit_size: target_type_size },
+<a href=#446 id=446 data-nosnippet>446</a>            ) =&gt; {
+<a href=#447 id=447 data-nosnippet>447</a>                <span class="comment">// when going from lower to higher bit size:
+<a href=#448 id=448 data-nosnippet>448</a>                // 1. we sign-extend to the target bits
+<a href=#449 id=449 data-nosnippet>449</a>                // 2. we are already in the target signedness
+<a href=#450 id=450 data-nosnippet>450</a>                </span><span class="kw">if </span><span class="kw-2">*</span>incoming_type_size &lt; target_type_size {
+<a href=#451 id=451 data-nosnippet>451</a>                    <span class="comment">// By not the casting to a signed type with the target bit size, we avoid potentially going
+<a href=#452 id=452 data-nosnippet>452</a>                    // through i128, which is not a type we support in the frontend, and would be strange in SSA.
+<a href=#453 id=453 data-nosnippet>453</a>                    </span><span class="self">self</span>.sign_extend(value, <span class="kw-2">*</span>incoming_type_size, target_type_size, location)
+<a href=#454 id=454 data-nosnippet>454</a>                }
+<a href=#455 id=455 data-nosnippet>455</a>                <span class="comment">// when the target bit size is not higher than the source:
+<a href=#456 id=456 data-nosnippet>456</a>                // 1. we cast to the required type using the same signedness
+<a href=#457 id=457 data-nosnippet>457</a>                // 2. then we switch the signedness
+<a href=#458 id=458 data-nosnippet>458</a>                </span><span class="kw">else if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
+<a href=#459 id=459 data-nosnippet>459</a>                    <span class="self">self</span>.insert_safe_cast(value, NumericType::signed(target_type_size), location)
+<a href=#460 id=460 data-nosnippet>460</a>                } <span class="kw">else </span>{
+<a href=#461 id=461 data-nosnippet>461</a>                    value
+<a href=#462 id=462 data-nosnippet>462</a>                }
+<a href=#463 id=463 data-nosnippet>463</a>            }
+<a href=#464 id=464 data-nosnippet>464</a>
+<a href=#465 id=465 data-nosnippet>465</a>            <span class="comment">// For mixed unsigned to signed:
+<a href=#466 id=466 data-nosnippet>466</a>            // 1. we cast to the required type using the same signedness
+<a href=#467 id=467 data-nosnippet>467</a>            // 2. then we switch the signedness
+<a href=#468 id=468 data-nosnippet>468</a>            </span>(
+<a href=#469 id=469 data-nosnippet>469</a>                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+<a href=#470 id=470 data-nosnippet>470</a>                NumericType::Signed { bit_size: target_type_size },
+<a href=#471 id=471 data-nosnippet>471</a>            ) =&gt; {
+<a href=#472 id=472 data-nosnippet>472</a>                <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
+<a href=#473 id=473 data-nosnippet>473</a>                    <span class="self">self</span>.insert_safe_cast(value, NumericType::unsigned(target_type_size), location)
+<a href=#474 id=474 data-nosnippet>474</a>                } <span class="kw">else </span>{
+<a href=#475 id=475 data-nosnippet>475</a>                    value
+<a href=#476 id=476 data-nosnippet>476</a>                }
+<a href=#477 id=477 data-nosnippet>477</a>            }
+<a href=#478 id=478 data-nosnippet>478</a>
+<a href=#479 id=479 data-nosnippet>479</a>            <span class="comment">// Field to signed/unsigned:
+<a href=#480 id=480 data-nosnippet>480</a>            </span>(
+<a href=#481 id=481 data-nosnippet>481</a>                Type::Numeric(NumericType::NativeField),
+<a href=#482 id=482 data-nosnippet>482</a>                NumericType::Unsigned { bit_size: target_type_size },
+<a href=#483 id=483 data-nosnippet>483</a>            )
+<a href=#484 id=484 data-nosnippet>484</a>            | (
+<a href=#485 id=485 data-nosnippet>485</a>                Type::Numeric(NumericType::NativeField),
+<a href=#486 id=486 data-nosnippet>486</a>                NumericType::Signed { bit_size: target_type_size },
+<a href=#487 id=487 data-nosnippet>487</a>            ) =&gt; {
+<a href=#488 id=488 data-nosnippet>488</a>                <span class="self">self</span>.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
+<a href=#489 id=489 data-nosnippet>489</a>            }
+<a href=#490 id=490 data-nosnippet>490</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Invalid cast from {} to {}"</span>, incoming_type, typ),
+<a href=#491 id=491 data-nosnippet>491</a>        };
+<a href=#492 id=492 data-nosnippet>492</a>        <span class="self">self</span>.builder.insert_cast(result, typ)
+<a href=#493 id=493 data-nosnippet>493</a>    }
+<a href=#494 id=494 data-nosnippet>494</a>
+<a href=#495 id=495 data-nosnippet>495</a>    <span class="doccomment">/// During casting signed values, if target size is bigger, we do a sign extension:
+<a href=#496 id=496 data-nosnippet>496</a>    ///
+<a href=#497 id=497 data-nosnippet>497</a>    /// When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value.
+<a href=#498 id=498 data-nosnippet>498</a>    /// Sign extension in this case will give `2^t-v`, where `t` is the target bit size.
+<a href=#499 id=499 data-nosnippet>499</a>    /// So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+<a href=#500 id=500 data-nosnippet>500</a>    ///
+<a href=#501 id=501 data-nosnippet>501</a>    /// Casting s-bits signed v0 to t-bits will add the following instructions:
+<a href=#502 id=502 data-nosnippet>502</a>    /// ```ssa
+<a href=#503 id=503 data-nosnippet>503</a>    /// v1 = cast v0 to 's-bits unsigned'
+<a href=#504 id=504 data-nosnippet>504</a>    /// v2 = lt v1, 2**(s-1)
+<a href=#505 id=505 data-nosnippet>505</a>    /// v3 = not(v1)
+<a href=#506 id=506 data-nosnippet>506</a>    /// v4 = cast v3 to 't-bits unsigned'
+<a href=#507 id=507 data-nosnippet>507</a>    /// v5 = v3 * (2**t - 2**s)
+<a href=#508 id=508 data-nosnippet>508</a>    /// v6 = cast v1 to 't-bits unsigned'
+<a href=#509 id=509 data-nosnippet>509</a>    /// return v6 + v5
+<a href=#510 id=510 data-nosnippet>510</a>    /// ```
+<a href=#511 id=511 data-nosnippet>511</a>    ///
+<a href=#512 id=512 data-nosnippet>512</a>    /// Return an unsigned value that we can cast back to the signed type if we want,
+<a href=#513 id=513 data-nosnippet>513</a>    /// or keep it as it is, if we did the sign extension as part of casting e.g. `i8` to `u64`.
+<a href=#514 id=514 data-nosnippet>514</a>    </span><span class="kw">fn </span>sign_extend(
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#516 id=516 data-nosnippet>516</a>        value: ValueId,
+<a href=#517 id=517 data-nosnippet>517</a>        incoming_type_size: u32,
+<a href=#518 id=518 data-nosnippet>518</a>        target_type_size: u32,
+<a href=#519 id=519 data-nosnippet>519</a>        location: Location,
+<a href=#520 id=520 data-nosnippet>520</a>    ) -&gt; ValueId {
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">let </span>value_as_unsigned =
+<a href=#522 id=522 data-nosnippet>522</a>            <span class="self">self</span>.insert_safe_cast(value, NumericType::unsigned(incoming_type_size), location);
+<a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">let </span>half_width = <span class="self">self</span>.builder.numeric_constant(
+<a href=#524 id=524 data-nosnippet>524</a>            FieldElement::from(<span class="number">2_u128</span>.pow(incoming_type_size - <span class="number">1</span>)),
+<a href=#525 id=525 data-nosnippet>525</a>            NumericType::unsigned(incoming_type_size),
+<a href=#526 id=526 data-nosnippet>526</a>        );
+<a href=#527 id=527 data-nosnippet>527</a>        <span class="comment">// value_sign is 1 if the value is positive, 0 otherwise
+<a href=#528 id=528 data-nosnippet>528</a>        </span><span class="kw">let </span>value_sign = <span class="self">self</span>.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+<a href=#529 id=529 data-nosnippet>529</a>        <span class="kw">let </span>max_for_incoming_type_size =
+<a href=#530 id=530 data-nosnippet>530</a>            <span class="kw">if </span>incoming_type_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2_u128</span>.pow(incoming_type_size) - <span class="number">1 </span>};
+<a href=#531 id=531 data-nosnippet>531</a>        <span class="kw">let </span>max_for_target_type_size =
+<a href=#532 id=532 data-nosnippet>532</a>            <span class="kw">if </span>target_type_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">1 </span>};
+<a href=#533 id=533 data-nosnippet>533</a>        <span class="kw">let </span>patch = <span class="self">self</span>.builder.numeric_constant(
+<a href=#534 id=534 data-nosnippet>534</a>            FieldElement::from(max_for_target_type_size - max_for_incoming_type_size),
+<a href=#535 id=535 data-nosnippet>535</a>            NumericType::unsigned(target_type_size),
 <a href=#536 id=536 data-nosnippet>536</a>        );
-<a href=#537 id=537 data-nosnippet>537</a>        <span class="comment">// multiplication by a boolean cannot overflow
-<a href=#538 id=538 data-nosnippet>538</a>        </span><span class="kw">let </span>patch_with_sign_predicate = <span class="self">self</span>.builder.insert_binary(
-<a href=#539 id=539 data-nosnippet>539</a>            patch,
-<a href=#540 id=540 data-nosnippet>540</a>            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
-<a href=#541 id=541 data-nosnippet>541</a>            is_negative_predicate,
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="kw">let </span><span class="kw-2">mut </span>is_negative_predicate = <span class="self">self</span>.builder.insert_not(value_sign);
+<a href=#538 id=538 data-nosnippet>538</a>        is_negative_predicate = <span class="self">self</span>.insert_safe_cast(
+<a href=#539 id=539 data-nosnippet>539</a>            is_negative_predicate,
+<a href=#540 id=540 data-nosnippet>540</a>            NumericType::unsigned(target_type_size),
+<a href=#541 id=541 data-nosnippet>541</a>            location,
 <a href=#542 id=542 data-nosnippet>542</a>        );
-<a href=#543 id=543 data-nosnippet>543</a>        <span class="kw">let </span>value_as_unsigned =
-<a href=#544 id=544 data-nosnippet>544</a>            <span class="self">self</span>.builder.insert_cast(value_as_unsigned, NumericType::unsigned(target_type_size));
-<a href=#545 id=545 data-nosnippet>545</a>        <span class="comment">// Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
-<a href=#546 id=546 data-nosnippet>546</a>        </span><span class="self">self</span>.builder.insert_binary(
-<a href=#547 id=547 data-nosnippet>547</a>            patch_with_sign_predicate,
-<a href=#548 id=548 data-nosnippet>548</a>            BinaryOp::Add { unchecked: <span class="bool-val">true </span>},
-<a href=#549 id=549 data-nosnippet>549</a>            value_as_unsigned,
-<a href=#550 id=550 data-nosnippet>550</a>        )
-<a href=#551 id=551 data-nosnippet>551</a>    }
-<a href=#552 id=552 data-nosnippet>552</a>
-<a href=#553 id=553 data-nosnippet>553</a>    <span class="doccomment">/// Create a const offset of an address for an array load or store
-<a href=#554 id=554 data-nosnippet>554</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>make_offset(
-<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw-2">mut </span>address: ValueId,
-<a href=#557 id=557 data-nosnippet>557</a>        offset: u128,
-<a href=#558 id=558 data-nosnippet>558</a>        unchecked: bool,
-<a href=#559 id=559 data-nosnippet>559</a>    ) -&gt; ValueId {
-<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw">if </span>offset != <span class="number">0 </span>{
-<a href=#561 id=561 data-nosnippet>561</a>            <span class="kw">let </span>typ = <span class="self">self</span>.builder.type_of_value(address).unwrap_numeric();
-<a href=#562 id=562 data-nosnippet>562</a>            <span class="kw">let </span>offset = <span class="self">self</span>.builder.numeric_constant(offset, typ);
-<a href=#563 id=563 data-nosnippet>563</a>            address = <span class="self">self</span>.builder.insert_binary(address, BinaryOp::Add { unchecked }, offset);
-<a href=#564 id=564 data-nosnippet>564</a>        }
-<a href=#565 id=565 data-nosnippet>565</a>        address
-<a href=#566 id=566 data-nosnippet>566</a>    }
-<a href=#567 id=567 data-nosnippet>567</a>
-<a href=#568 id=568 data-nosnippet>568</a>    <span class="doccomment">/// Array indexes are u32. This function casts values used as indexes to u32.
-<a href=#569 id=569 data-nosnippet>569</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>make_array_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ValueId) -&gt; ValueId {
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="self">self</span>.builder.insert_cast(index, NumericType::length_type())
-<a href=#571 id=571 data-nosnippet>571</a>    }
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a>    <span class="doccomment">/// Define a local variable to be some Values that can later be retrieved
-<a href=#574 id=574 data-nosnippet>574</a>    /// by calling self.lookup(id)
-<a href=#575 id=575 data-nosnippet>575</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId, value: Values) {
-<a href=#576 id=576 data-nosnippet>576</a>        <span class="kw">let </span>existing = <span class="self">self</span>.definitions.insert(id, value);
-<a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">if </span>!<span class="self">self</span>.redefinitions_allowed &amp;&amp; existing.is_some() {
-<a href=#578 id=578 data-nosnippet>578</a>            <span class="macro">panic!</span>(<span class="string">"Variable {id:?} was defined twice in ssa-gen pass"</span>);
-<a href=#579 id=579 data-nosnippet>579</a>        }
-<a href=#580 id=580 data-nosnippet>580</a>    }
-<a href=#581 id=581 data-nosnippet>581</a>
-<a href=#582 id=582 data-nosnippet>582</a>    <span class="doccomment">/// Looks up the value of a given local variable. Expects the variable to have
-<a href=#583 id=583 data-nosnippet>583</a>    /// been previously defined or panics otherwise.
-<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup(<span class="kw-2">&amp;</span><span class="self">self</span>, id: LocalId) -&gt; Values {
-<a href=#585 id=585 data-nosnippet>585</a>        <span class="self">self</span>.definitions
-<a href=#586 id=586 data-nosnippet>586</a>            .get(<span class="kw-2">&amp;</span>id)
-<a href=#587 id=587 data-nosnippet>587</a>            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"lookup: variable {id:?} not defined"</span>))
-<a href=#588 id=588 data-nosnippet>588</a>            .clone()
-<a href=#589 id=589 data-nosnippet>589</a>    }
-<a href=#590 id=590 data-nosnippet>590</a>
-<a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_global(<span class="kw-2">&amp;</span><span class="self">self</span>, id: GlobalId) -&gt; Values {
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="self">self</span>.shared_context
-<a href=#593 id=593 data-nosnippet>593</a>            .globals
-<a href=#594 id=594 data-nosnippet>594</a>            .get(<span class="kw-2">&amp;</span>id)
-<a href=#595 id=595 data-nosnippet>595</a>            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"lookup_global: variable {id:?} not defined"</span>))
-<a href=#596 id=596 data-nosnippet>596</a>            .clone()
-<a href=#597 id=597 data-nosnippet>597</a>    }
-<a href=#598 id=598 data-nosnippet>598</a>
-<a href=#599 id=599 data-nosnippet>599</a>    <span class="doccomment">/// Extract the given field of the tuple. Panics if the given Values is not
-<a href=#600 id=600 data-nosnippet>600</a>    /// a Tree::Branch or does not have enough fields.
-<a href=#601 id=601 data-nosnippet>601</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_field(tuple: Values, field_index: usize) -&gt; Values {
-<a href=#602 id=602 data-nosnippet>602</a>        <span class="kw">match </span>tuple {
-<a href=#603 id=603 data-nosnippet>603</a>            Tree::Branch(<span class="kw-2">mut </span>trees) =&gt; trees.remove(field_index),
-<a href=#604 id=604 data-nosnippet>604</a>            Tree::Leaf(value) =&gt; {
-<a href=#605 id=605 data-nosnippet>605</a>                <span class="macro">unreachable!</span>(<span class="string">"Tried to extract tuple index {field_index} from non-tuple {value:?}"</span>)
-<a href=#606 id=606 data-nosnippet>606</a>            }
-<a href=#607 id=607 data-nosnippet>607</a>        }
-<a href=#608 id=608 data-nosnippet>608</a>    }
-<a href=#609 id=609 data-nosnippet>609</a>
-<a href=#610 id=610 data-nosnippet>610</a>    <span class="doccomment">/// Extract the given field of the tuple by reference. Panics if the given Values is not
-<a href=#611 id=611 data-nosnippet>611</a>    /// a Tree::Branch or does not have enough fields.
-<a href=#612 id=612 data-nosnippet>612</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_field_ref(tuple: <span class="kw-2">&amp;</span>Values, field_index: usize) -&gt; <span class="kw-2">&amp;</span>Values {
-<a href=#613 id=613 data-nosnippet>613</a>        <span class="kw">match </span>tuple {
-<a href=#614 id=614 data-nosnippet>614</a>            Tree::Branch(trees) =&gt; <span class="kw-2">&amp;</span>trees[field_index],
-<a href=#615 id=615 data-nosnippet>615</a>            Tree::Leaf(value) =&gt; {
-<a href=#616 id=616 data-nosnippet>616</a>                <span class="macro">unreachable!</span>(<span class="string">"Tried to extract tuple index {field_index} from non-tuple {value:?}"</span>)
-<a href=#617 id=617 data-nosnippet>617</a>            }
-<a href=#618 id=618 data-nosnippet>618</a>        }
-<a href=#619 id=619 data-nosnippet>619</a>    }
-<a href=#620 id=620 data-nosnippet>620</a>
-<a href=#621 id=621 data-nosnippet>621</a>    <span class="doccomment">/// Replace the given field of the tuple with a new one. Panics if the given Values is not
-<a href=#622 id=622 data-nosnippet>622</a>    /// a Tree::Branch or does not have enough fields.
-<a href=#623 id=623 data-nosnippet>623</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>replace_field(tuple: Values, field_index: usize, new_value: Values) -&gt; Values {
-<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">match </span>tuple {
-<a href=#625 id=625 data-nosnippet>625</a>            Tree::Branch(<span class="kw-2">mut </span>trees) =&gt; {
-<a href=#626 id=626 data-nosnippet>626</a>                trees[field_index] = new_value;
-<a href=#627 id=627 data-nosnippet>627</a>                Tree::Branch(trees)
-<a href=#628 id=628 data-nosnippet>628</a>            }
-<a href=#629 id=629 data-nosnippet>629</a>            Tree::Leaf(value) =&gt; {
-<a href=#630 id=630 data-nosnippet>630</a>                <span class="macro">unreachable!</span>(<span class="string">"Tried to extract tuple index {field_index} from non-tuple {value:?}"</span>)
-<a href=#631 id=631 data-nosnippet>631</a>            }
-<a href=#632 id=632 data-nosnippet>632</a>        }
-<a href=#633 id=633 data-nosnippet>633</a>    }
-<a href=#634 id=634 data-nosnippet>634</a>
-<a href=#635 id=635 data-nosnippet>635</a>    <span class="doccomment">/// Retrieves the given function, adding it to the function queue
-<a href=#636 id=636 data-nosnippet>636</a>    /// if it is not yet compiled.
-<a href=#637 id=637 data-nosnippet>637</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_or_queue_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId) -&gt; Values {
-<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw">let </span>function = <span class="self">self</span>.shared_context.get_or_queue_function(id);
-<a href=#639 id=639 data-nosnippet>639</a>        <span class="self">self</span>.builder.import_function(function).into()
-<a href=#640 id=640 data-nosnippet>640</a>    }
-<a href=#641 id=641 data-nosnippet>641</a>
-<a href=#642 id=642 data-nosnippet>642</a>    <span class="doccomment">/// Extracts the current value out of an LValue.
-<a href=#643 id=643 data-nosnippet>643</a>    ///
-<a href=#644 id=644 data-nosnippet>644</a>    /// Goal: Handle the case of assigning to nested expressions such as `foo.bar[i1].baz[i2] = e`
-<a href=#645 id=645 data-nosnippet>645</a>    ///       while also noting that assigning to arrays will create a new array rather than mutate
-<a href=#646 id=646 data-nosnippet>646</a>    ///       the original.
-<a href=#647 id=647 data-nosnippet>647</a>    ///
-<a href=#648 id=648 data-nosnippet>648</a>    /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
-<a href=#649 id=649 data-nosnippet>649</a>    ///         value contained:
-<a href=#650 id=650 data-nosnippet>650</a>    ///
-<a href=#651 id=651 data-nosnippet>651</a>    /// ```text
-<a href=#652 id=652 data-nosnippet>652</a>    /// v0 = foo.bar                 ; allocate instruction for bar
-<a href=#653 id=653 data-nosnippet>653</a>    /// v1 = load v0                 ; loading the bar array
-<a href=#654 id=654 data-nosnippet>654</a>    /// v2 = add i1, baz_index       ; field offset for index i1, field baz
-<a href=#655 id=655 data-nosnippet>655</a>    /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
-<a href=#656 id=656 data-nosnippet>656</a>    /// ```
-<a href=#657 id=657 data-nosnippet>657</a>    ///
-<a href=#658 id=658 data-nosnippet>658</a>    /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
-<a href=#659 id=659 data-nosnippet>659</a>    ///                  construct the larger value as needed until we can `store` to the nearest
-<a href=#660 id=660 data-nosnippet>660</a>    ///                  allocation.
-<a href=#661 id=661 data-nosnippet>661</a>    ///
-<a href=#662 id=662 data-nosnippet>662</a>    /// ```text
-<a href=#663 id=663 data-nosnippet>663</a>    /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
-<a href=#664 id=664 data-nosnippet>664</a>    /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
-<a href=#665 id=665 data-nosnippet>665</a>    /// store v5 in v0                   ; and store the result in the only mutable reference
-<a href=#666 id=666 data-nosnippet>666</a>    /// ```
+<a href=#543 id=543 data-nosnippet>543</a>        <span class="comment">// multiplication by a boolean cannot overflow
+<a href=#544 id=544 data-nosnippet>544</a>        </span><span class="kw">let </span>patch_with_sign_predicate = <span class="self">self</span>.builder.insert_binary(
+<a href=#545 id=545 data-nosnippet>545</a>            patch,
+<a href=#546 id=546 data-nosnippet>546</a>            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
+<a href=#547 id=547 data-nosnippet>547</a>            is_negative_predicate,
+<a href=#548 id=548 data-nosnippet>548</a>        );
+<a href=#549 id=549 data-nosnippet>549</a>        <span class="kw">let </span>value_as_unsigned =
+<a href=#550 id=550 data-nosnippet>550</a>            <span class="self">self</span>.builder.insert_cast(value_as_unsigned, NumericType::unsigned(target_type_size));
+<a href=#551 id=551 data-nosnippet>551</a>        <span class="comment">// Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+<a href=#552 id=552 data-nosnippet>552</a>        </span><span class="self">self</span>.builder.insert_binary(
+<a href=#553 id=553 data-nosnippet>553</a>            patch_with_sign_predicate,
+<a href=#554 id=554 data-nosnippet>554</a>            BinaryOp::Add { unchecked: <span class="bool-val">true </span>},
+<a href=#555 id=555 data-nosnippet>555</a>            value_as_unsigned,
+<a href=#556 id=556 data-nosnippet>556</a>        )
+<a href=#557 id=557 data-nosnippet>557</a>    }
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a>    <span class="doccomment">/// Create a const offset of an address for an array load or store
+<a href=#560 id=560 data-nosnippet>560</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>make_offset(
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw-2">mut </span>address: ValueId,
+<a href=#563 id=563 data-nosnippet>563</a>        offset: u128,
+<a href=#564 id=564 data-nosnippet>564</a>        unchecked: bool,
+<a href=#565 id=565 data-nosnippet>565</a>    ) -&gt; ValueId {
+<a href=#566 id=566 data-nosnippet>566</a>        <span class="kw">if </span>offset != <span class="number">0 </span>{
+<a href=#567 id=567 data-nosnippet>567</a>            <span class="kw">let </span>typ = <span class="self">self</span>.builder.type_of_value(address).unwrap_numeric();
+<a href=#568 id=568 data-nosnippet>568</a>            <span class="kw">let </span>offset = <span class="self">self</span>.builder.numeric_constant(offset, typ);
+<a href=#569 id=569 data-nosnippet>569</a>            address = <span class="self">self</span>.builder.insert_binary(address, BinaryOp::Add { unchecked }, offset);
+<a href=#570 id=570 data-nosnippet>570</a>        }
+<a href=#571 id=571 data-nosnippet>571</a>        address
+<a href=#572 id=572 data-nosnippet>572</a>    }
+<a href=#573 id=573 data-nosnippet>573</a>
+<a href=#574 id=574 data-nosnippet>574</a>    <span class="doccomment">/// Array indexes are u32. This function casts values used as indexes to u32.
+<a href=#575 id=575 data-nosnippet>575</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>make_array_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ValueId) -&gt; ValueId {
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="self">self</span>.builder.insert_cast(index, NumericType::length_type())
+<a href=#577 id=577 data-nosnippet>577</a>    }
+<a href=#578 id=578 data-nosnippet>578</a>
+<a href=#579 id=579 data-nosnippet>579</a>    <span class="doccomment">/// Define a local variable to be some Values that can later be retrieved
+<a href=#580 id=580 data-nosnippet>580</a>    /// by calling self.lookup(id)
+<a href=#581 id=581 data-nosnippet>581</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId, value: Values) {
+<a href=#582 id=582 data-nosnippet>582</a>        <span class="kw">let </span>existing = <span class="self">self</span>.definitions.insert(id, value);
+<a href=#583 id=583 data-nosnippet>583</a>        <span class="kw">if </span>!<span class="self">self</span>.redefinitions_allowed &amp;&amp; existing.is_some() {
+<a href=#584 id=584 data-nosnippet>584</a>            <span class="macro">panic!</span>(<span class="string">"Variable {id:?} was defined twice in ssa-gen pass"</span>);
+<a href=#585 id=585 data-nosnippet>585</a>        }
+<a href=#586 id=586 data-nosnippet>586</a>    }
+<a href=#587 id=587 data-nosnippet>587</a>
+<a href=#588 id=588 data-nosnippet>588</a>    <span class="doccomment">/// Looks up the value of a given local variable. Expects the variable to have
+<a href=#589 id=589 data-nosnippet>589</a>    /// been previously defined or panics otherwise.
+<a href=#590 id=590 data-nosnippet>590</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup(<span class="kw-2">&amp;</span><span class="self">self</span>, id: LocalId) -&gt; Values {
+<a href=#591 id=591 data-nosnippet>591</a>        <span class="self">self</span>.definitions
+<a href=#592 id=592 data-nosnippet>592</a>            .get(<span class="kw-2">&amp;</span>id)
+<a href=#593 id=593 data-nosnippet>593</a>            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"lookup: variable {id:?} not defined"</span>))
+<a href=#594 id=594 data-nosnippet>594</a>            .clone()
+<a href=#595 id=595 data-nosnippet>595</a>    }
+<a href=#596 id=596 data-nosnippet>596</a>
+<a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_global(<span class="kw-2">&amp;</span><span class="self">self</span>, id: GlobalId) -&gt; Values {
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="self">self</span>.shared_context
+<a href=#599 id=599 data-nosnippet>599</a>            .globals
+<a href=#600 id=600 data-nosnippet>600</a>            .get(<span class="kw-2">&amp;</span>id)
+<a href=#601 id=601 data-nosnippet>601</a>            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"lookup_global: variable {id:?} not defined"</span>))
+<a href=#602 id=602 data-nosnippet>602</a>            .clone()
+<a href=#603 id=603 data-nosnippet>603</a>    }
+<a href=#604 id=604 data-nosnippet>604</a>
+<a href=#605 id=605 data-nosnippet>605</a>    <span class="doccomment">/// Extract the given field of the tuple. Panics if the given Values is not
+<a href=#606 id=606 data-nosnippet>606</a>    /// a Tree::Branch or does not have enough fields.
+<a href=#607 id=607 data-nosnippet>607</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_field(tuple: Values, field_index: usize) -&gt; Values {
+<a href=#608 id=608 data-nosnippet>608</a>        <span class="kw">match </span>tuple {
+<a href=#609 id=609 data-nosnippet>609</a>            Tree::Branch(<span class="kw-2">mut </span>trees) =&gt; trees.remove(field_index),
+<a href=#610 id=610 data-nosnippet>610</a>            Tree::Leaf(value) =&gt; {
+<a href=#611 id=611 data-nosnippet>611</a>                <span class="macro">unreachable!</span>(<span class="string">"Tried to extract tuple index {field_index} from non-tuple {value:?}"</span>)
+<a href=#612 id=612 data-nosnippet>612</a>            }
+<a href=#613 id=613 data-nosnippet>613</a>        }
+<a href=#614 id=614 data-nosnippet>614</a>    }
+<a href=#615 id=615 data-nosnippet>615</a>
+<a href=#616 id=616 data-nosnippet>616</a>    <span class="doccomment">/// Extract the given field of the tuple by reference. Panics if the given Values is not
+<a href=#617 id=617 data-nosnippet>617</a>    /// a Tree::Branch or does not have enough fields.
+<a href=#618 id=618 data-nosnippet>618</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_field_ref(tuple: <span class="kw-2">&amp;</span>Values, field_index: usize) -&gt; <span class="kw-2">&amp;</span>Values {
+<a href=#619 id=619 data-nosnippet>619</a>        <span class="kw">match </span>tuple {
+<a href=#620 id=620 data-nosnippet>620</a>            Tree::Branch(trees) =&gt; <span class="kw-2">&amp;</span>trees[field_index],
+<a href=#621 id=621 data-nosnippet>621</a>            Tree::Leaf(value) =&gt; {
+<a href=#622 id=622 data-nosnippet>622</a>                <span class="macro">unreachable!</span>(<span class="string">"Tried to extract tuple index {field_index} from non-tuple {value:?}"</span>)
+<a href=#623 id=623 data-nosnippet>623</a>            }
+<a href=#624 id=624 data-nosnippet>624</a>        }
+<a href=#625 id=625 data-nosnippet>625</a>    }
+<a href=#626 id=626 data-nosnippet>626</a>
+<a href=#627 id=627 data-nosnippet>627</a>    <span class="doccomment">/// Replace the given field of the tuple with a new one. Panics if the given Values is not
+<a href=#628 id=628 data-nosnippet>628</a>    /// a Tree::Branch or does not have enough fields.
+<a href=#629 id=629 data-nosnippet>629</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>replace_field(tuple: Values, field_index: usize, new_value: Values) -&gt; Values {
+<a href=#630 id=630 data-nosnippet>630</a>        <span class="kw">match </span>tuple {
+<a href=#631 id=631 data-nosnippet>631</a>            Tree::Branch(<span class="kw-2">mut </span>trees) =&gt; {
+<a href=#632 id=632 data-nosnippet>632</a>                trees[field_index] = new_value;
+<a href=#633 id=633 data-nosnippet>633</a>                Tree::Branch(trees)
+<a href=#634 id=634 data-nosnippet>634</a>            }
+<a href=#635 id=635 data-nosnippet>635</a>            Tree::Leaf(value) =&gt; {
+<a href=#636 id=636 data-nosnippet>636</a>                <span class="macro">unreachable!</span>(<span class="string">"Tried to extract tuple index {field_index} from non-tuple {value:?}"</span>)
+<a href=#637 id=637 data-nosnippet>637</a>            }
+<a href=#638 id=638 data-nosnippet>638</a>        }
+<a href=#639 id=639 data-nosnippet>639</a>    }
+<a href=#640 id=640 data-nosnippet>640</a>
+<a href=#641 id=641 data-nosnippet>641</a>    <span class="doccomment">/// Retrieves the given function, adding it to the function queue
+<a href=#642 id=642 data-nosnippet>642</a>    /// if it is not yet compiled.
+<a href=#643 id=643 data-nosnippet>643</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_or_queue_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId) -&gt; Values {
+<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span>function = <span class="self">self</span>.shared_context.get_or_queue_function(id);
+<a href=#645 id=645 data-nosnippet>645</a>        <span class="self">self</span>.builder.import_function(function).into()
+<a href=#646 id=646 data-nosnippet>646</a>    }
+<a href=#647 id=647 data-nosnippet>647</a>
+<a href=#648 id=648 data-nosnippet>648</a>    <span class="doccomment">/// Extracts the current value out of an LValue.
+<a href=#649 id=649 data-nosnippet>649</a>    ///
+<a href=#650 id=650 data-nosnippet>650</a>    /// Goal: Handle the case of assigning to nested expressions such as `foo.bar[i1].baz[i2] = e`
+<a href=#651 id=651 data-nosnippet>651</a>    ///       while also noting that assigning to arrays will create a new array rather than mutate
+<a href=#652 id=652 data-nosnippet>652</a>    ///       the original.
+<a href=#653 id=653 data-nosnippet>653</a>    ///
+<a href=#654 id=654 data-nosnippet>654</a>    /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
+<a href=#655 id=655 data-nosnippet>655</a>    ///         value contained:
+<a href=#656 id=656 data-nosnippet>656</a>    ///
+<a href=#657 id=657 data-nosnippet>657</a>    /// ```text
+<a href=#658 id=658 data-nosnippet>658</a>    /// v0 = foo.bar                 ; allocate instruction for bar
+<a href=#659 id=659 data-nosnippet>659</a>    /// v1 = load v0                 ; loading the bar array
+<a href=#660 id=660 data-nosnippet>660</a>    /// v2 = add i1, baz_index       ; field offset for index i1, field baz
+<a href=#661 id=661 data-nosnippet>661</a>    /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
+<a href=#662 id=662 data-nosnippet>662</a>    /// ```
+<a href=#663 id=663 data-nosnippet>663</a>    ///
+<a href=#664 id=664 data-nosnippet>664</a>    /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
+<a href=#665 id=665 data-nosnippet>665</a>    ///                  construct the larger value as needed until we can `store` to the nearest
+<a href=#666 id=666 data-nosnippet>666</a>    ///                  allocation.
 <a href=#667 id=667 data-nosnippet>667</a>    ///
-<a href=#668 id=668 data-nosnippet>668</a>    /// The returned `LValueRef` tracks the current value at each step of the lvalue.
-<a href=#669 id=669 data-nosnippet>669</a>    /// This is later used by `assign_new_value` to construct a new updated value that
-<a href=#670 id=670 data-nosnippet>670</a>    /// can be assigned to an allocation within the LValueRef::Ident.
-<a href=#671 id=671 data-nosnippet>671</a>    ///
-<a href=#672 id=672 data-nosnippet>672</a>    /// This is operationally equivalent to extract_current_value_recursive, but splitting these
-<a href=#673 id=673 data-nosnippet>673</a>    /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
-<a href=#674 id=674 data-nosnippet>674</a>    /// version, as it is only needed for recursion.
-<a href=#675 id=675 data-nosnippet>675</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>extract_current_value(
-<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#677 id=677 data-nosnippet>677</a>        lvalue: <span class="kw-2">&amp;</span>ast::LValue,
-<a href=#678 id=678 data-nosnippet>678</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;LValue, RuntimeError&gt; {
-<a href=#679 id=679 data-nosnippet>679</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>lvalue {
-<a href=#680 id=680 data-nosnippet>680</a>            ast::LValue::Ident(ident) =&gt; {
-<a href=#681 id=681 data-nosnippet>681</a>                <span class="kw">let </span>(reference, should_auto_deref) = <span class="self">self</span>.ident_lvalue(ident);
-<a href=#682 id=682 data-nosnippet>682</a>                <span class="kw">if </span>should_auto_deref { LValue::Dereference { reference } } <span class="kw">else </span>{ LValue::Ident }
-<a href=#683 id=683 data-nosnippet>683</a>            }
-<a href=#684 id=684 data-nosnippet>684</a>            ast::LValue::Index { array, index, location, .. } =&gt; {
-<a href=#685 id=685 data-nosnippet>685</a>                <span class="self">self</span>.index_lvalue(array, index, location)<span class="question-mark">?</span>.<span class="number">2
-<a href=#686 id=686 data-nosnippet>686</a>            </span>}
-<a href=#687 id=687 data-nosnippet>687</a>            ast::LValue::MemberAccess { object, field_index } =&gt; {
-<a href=#688 id=688 data-nosnippet>688</a>                <span class="kw">let </span>(old_object, object_lvalue) = <span class="self">self</span>.extract_current_value_recursive(object)<span class="question-mark">?</span>;
-<a href=#689 id=689 data-nosnippet>689</a>                <span class="kw">let </span>object_lvalue = Box::new(object_lvalue);
-<a href=#690 id=690 data-nosnippet>690</a>                LValue::MemberAccess { old_object, object_lvalue, index: <span class="kw-2">*</span>field_index }
-<a href=#691 id=691 data-nosnippet>691</a>            }
-<a href=#692 id=692 data-nosnippet>692</a>            ast::LValue::Dereference { reference, .. } =&gt; {
-<a href=#693 id=693 data-nosnippet>693</a>                <span class="kw">let </span>(reference, <span class="kw">_</span>) = <span class="self">self</span>.extract_current_value_recursive(reference)<span class="question-mark">?</span>;
-<a href=#694 id=694 data-nosnippet>694</a>                LValue::Dereference { reference }
-<a href=#695 id=695 data-nosnippet>695</a>            }
-<a href=#696 id=696 data-nosnippet>696</a>            ast::LValue::Clone(lvalue) =&gt; <span class="self">self</span>.extract_current_value(lvalue)<span class="question-mark">?</span>,
-<a href=#697 id=697 data-nosnippet>697</a>        })
-<a href=#698 id=698 data-nosnippet>698</a>    }
-<a href=#699 id=699 data-nosnippet>699</a>
-<a href=#700 id=700 data-nosnippet>700</a>    <span class="kw">fn </span>dereference_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, values: <span class="kw-2">&amp;</span>Values, element_type: <span class="kw-2">&amp;</span>ast::Type) -&gt; Values {
-<a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">let </span>element_types = <span class="self">Self</span>::convert_type(element_type);
-<a href=#702 id=702 data-nosnippet>702</a>        values.map_both(element_types, |value, element_type| {
-<a href=#703 id=703 data-nosnippet>703</a>            <span class="kw">let </span>reference = value.eval_reference();
-<a href=#704 id=704 data-nosnippet>704</a>            <span class="self">self</span>.builder.insert_load(reference, element_type).into()
-<a href=#705 id=705 data-nosnippet>705</a>        })
-<a href=#706 id=706 data-nosnippet>706</a>    }
-<a href=#707 id=707 data-nosnippet>707</a>
-<a href=#708 id=708 data-nosnippet>708</a>    <span class="doccomment">/// Compile the given identifier as a reference - ie. avoid calling .eval().
-<a href=#709 id=709 data-nosnippet>709</a>    /// Returns the variable's value and whether the variable is mutable.
-<a href=#710 id=710 data-nosnippet>710</a>    </span><span class="kw">fn </span>ident_lvalue(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>ast::Ident) -&gt; (Values, bool) {
-<a href=#711 id=711 data-nosnippet>711</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>ident.definition {
-<a href=#712 id=712 data-nosnippet>712</a>            ast::Definition::Local(id) =&gt; (<span class="self">self</span>.lookup(<span class="kw-2">*</span>id), ident.mutable),
-<a href=#713 id=713 data-nosnippet>713</a>            other =&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected definition found for mutable value: {other}"</span>),
-<a href=#714 id=714 data-nosnippet>714</a>        }
-<a href=#715 id=715 data-nosnippet>715</a>    }
-<a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="doccomment">/// Compile the given `array[index]` expression as a reference.
-<a href=#718 id=718 data-nosnippet>718</a>    /// This will return a triple of (array, index, lvalue_ref, `Option&lt;length&gt;`) where the lvalue_ref records the
-<a href=#719 id=719 data-nosnippet>719</a>    /// structure of the lvalue expression for use by `assign_new_value`.
-<a href=#720 id=720 data-nosnippet>720</a>    /// The optional length is for indexing vectors rather than arrays since vectors
-<a href=#721 id=721 data-nosnippet>721</a>    /// are represented as a tuple in the form: (length, vector contents).
-<a href=#722 id=722 data-nosnippet>722</a>    </span><span class="kw">fn </span>index_lvalue(
-<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#724 id=724 data-nosnippet>724</a>        array: <span class="kw-2">&amp;</span>ast::LValue,
-<a href=#725 id=725 data-nosnippet>725</a>        index: <span class="kw-2">&amp;</span>ast::Expression,
-<a href=#726 id=726 data-nosnippet>726</a>        location: <span class="kw-2">&amp;</span>Location,
-<a href=#727 id=727 data-nosnippet>727</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(ValueId, ValueId, LValue, <span class="prelude-ty">Option</span>&lt;ValueId&gt;), RuntimeError&gt; {
-<a href=#728 id=728 data-nosnippet>728</a>        <span class="kw">let </span>(old_array, array_lvalue) = <span class="self">self</span>.extract_current_value_recursive(array)<span class="question-mark">?</span>;
-<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw">let </span>index = <span class="self">self</span>.codegen_non_tuple_expression(index)<span class="question-mark">?</span>;
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">let </span>array_lvalue = Box::new(array_lvalue);
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>array_values = old_array.clone().into_value_list(<span class="self">self</span>);
-<a href=#732 id=732 data-nosnippet>732</a>
-<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>location = <span class="kw-2">*</span>location;
-<a href=#734 id=734 data-nosnippet>734</a>        <span class="comment">// A vector is represented as a tuple (length, vector contents).
-<a href=#735 id=735 data-nosnippet>735</a>        // We need to fetch the second value.
-<a href=#736 id=736 data-nosnippet>736</a>        </span><span class="prelude-val">Ok</span>(<span class="kw">if </span>array_values.len() &gt; <span class="number">1 </span>{
-<a href=#737 id=737 data-nosnippet>737</a>            <span class="kw">let </span>vector_lvalue = LValue::VectorIndex {
-<a href=#738 id=738 data-nosnippet>738</a>                old_vector: old_array,
-<a href=#739 id=739 data-nosnippet>739</a>                index,
-<a href=#740 id=740 data-nosnippet>740</a>                vector_lvalue: array_lvalue,
-<a href=#741 id=741 data-nosnippet>741</a>                location,
-<a href=#742 id=742 data-nosnippet>742</a>            };
-<a href=#743 id=743 data-nosnippet>743</a>            (array_values[<span class="number">1</span>], index, vector_lvalue, <span class="prelude-val">Some</span>(array_values[<span class="number">0</span>]))
-<a href=#744 id=744 data-nosnippet>744</a>        } <span class="kw">else </span>{
-<a href=#745 id=745 data-nosnippet>745</a>            <span class="kw">let </span>array_lvalue =
-<a href=#746 id=746 data-nosnippet>746</a>                LValue::Index { old_array: array_values[<span class="number">0</span>], index, array_lvalue, location };
-<a href=#747 id=747 data-nosnippet>747</a>            (array_values[<span class="number">0</span>], index, array_lvalue, <span class="prelude-val">None</span>)
-<a href=#748 id=748 data-nosnippet>748</a>        })
-<a href=#749 id=749 data-nosnippet>749</a>    }
-<a href=#750 id=750 data-nosnippet>750</a>
-<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">fn </span>extract_current_value_recursive(
-<a href=#752 id=752 data-nosnippet>752</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#753 id=753 data-nosnippet>753</a>        lvalue: <span class="kw-2">&amp;</span>ast::LValue,
-<a href=#754 id=754 data-nosnippet>754</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Values, LValue), RuntimeError&gt; {
-<a href=#755 id=755 data-nosnippet>755</a>        <span class="kw">match </span>lvalue {
-<a href=#756 id=756 data-nosnippet>756</a>            ast::LValue::Ident(ident) =&gt; {
-<a href=#757 id=757 data-nosnippet>757</a>                <span class="kw">let </span>(variable, should_auto_deref) = <span class="self">self</span>.ident_lvalue(ident);
-<a href=#758 id=758 data-nosnippet>758</a>                <span class="kw">if </span>should_auto_deref {
-<a href=#759 id=759 data-nosnippet>759</a>                    <span class="kw">let </span>dereferenced = <span class="self">self</span>.dereference_lvalue(<span class="kw-2">&amp;</span>variable, <span class="kw-2">&amp;</span>ident.typ);
-<a href=#760 id=760 data-nosnippet>760</a>                    <span class="prelude-val">Ok</span>((dereferenced, LValue::Dereference { reference: variable }))
-<a href=#761 id=761 data-nosnippet>761</a>                } <span class="kw">else </span>{
-<a href=#762 id=762 data-nosnippet>762</a>                    <span class="prelude-val">Ok</span>((variable.clone(), LValue::Ident))
-<a href=#763 id=763 data-nosnippet>763</a>                }
-<a href=#764 id=764 data-nosnippet>764</a>            }
-<a href=#765 id=765 data-nosnippet>765</a>            ast::LValue::Index { array, index, element_type, location } =&gt; {
-<a href=#766 id=766 data-nosnippet>766</a>                <span class="kw">let </span>(old_array, index, index_lvalue, max_length) =
-<a href=#767 id=767 data-nosnippet>767</a>                    <span class="self">self</span>.index_lvalue(array, index, location)<span class="question-mark">?</span>;
-<a href=#768 id=768 data-nosnippet>768</a>                <span class="kw">let </span>element = <span class="self">self</span>.codegen_array_index(
-<a href=#769 id=769 data-nosnippet>769</a>                    old_array,
-<a href=#770 id=770 data-nosnippet>770</a>                    index,
-<a href=#771 id=771 data-nosnippet>771</a>                    element_type,
-<a href=#772 id=772 data-nosnippet>772</a>                    <span class="kw-2">*</span>location,
-<a href=#773 id=773 data-nosnippet>773</a>                    max_length,
-<a href=#774 id=774 data-nosnippet>774</a>                )<span class="question-mark">?</span>;
-<a href=#775 id=775 data-nosnippet>775</a>                <span class="prelude-val">Ok</span>((element, index_lvalue))
-<a href=#776 id=776 data-nosnippet>776</a>            }
-<a href=#777 id=777 data-nosnippet>777</a>            ast::LValue::MemberAccess { object, field_index: index } =&gt; {
-<a href=#778 id=778 data-nosnippet>778</a>                <span class="kw">let </span>(old_object, object_lvalue) = <span class="self">self</span>.extract_current_value_recursive(object)<span class="question-mark">?</span>;
-<a href=#779 id=779 data-nosnippet>779</a>                <span class="kw">let </span>object_lvalue = Box::new(object_lvalue);
-<a href=#780 id=780 data-nosnippet>780</a>                <span class="kw">let </span>element = <span class="self">Self</span>::get_field_ref(<span class="kw-2">&amp;</span>old_object, <span class="kw-2">*</span>index).clone();
-<a href=#781 id=781 data-nosnippet>781</a>                <span class="prelude-val">Ok</span>((element, LValue::MemberAccess { old_object, object_lvalue, index: <span class="kw-2">*</span>index }))
+<a href=#668 id=668 data-nosnippet>668</a>    /// ```text
+<a href=#669 id=669 data-nosnippet>669</a>    /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
+<a href=#670 id=670 data-nosnippet>670</a>    /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
+<a href=#671 id=671 data-nosnippet>671</a>    /// store v5 in v0                   ; and store the result in the only mutable reference
+<a href=#672 id=672 data-nosnippet>672</a>    /// ```
+<a href=#673 id=673 data-nosnippet>673</a>    ///
+<a href=#674 id=674 data-nosnippet>674</a>    /// The returned `LValueRef` tracks the current value at each step of the lvalue.
+<a href=#675 id=675 data-nosnippet>675</a>    /// This is later used by `assign_new_value` to construct a new updated value that
+<a href=#676 id=676 data-nosnippet>676</a>    /// can be assigned to an allocation within the LValueRef::Ident.
+<a href=#677 id=677 data-nosnippet>677</a>    ///
+<a href=#678 id=678 data-nosnippet>678</a>    /// This is operationally equivalent to extract_current_value_recursive, but splitting these
+<a href=#679 id=679 data-nosnippet>679</a>    /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
+<a href=#680 id=680 data-nosnippet>680</a>    /// version, as it is only needed for recursion.
+<a href=#681 id=681 data-nosnippet>681</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>extract_current_value(
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#683 id=683 data-nosnippet>683</a>        lvalue: <span class="kw-2">&amp;</span>ast::LValue,
+<a href=#684 id=684 data-nosnippet>684</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;LValue, RuntimeError&gt; {
+<a href=#685 id=685 data-nosnippet>685</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>lvalue {
+<a href=#686 id=686 data-nosnippet>686</a>            ast::LValue::Ident(ident) =&gt; {
+<a href=#687 id=687 data-nosnippet>687</a>                <span class="kw">let </span>(reference, should_auto_deref) = <span class="self">self</span>.ident_lvalue(ident);
+<a href=#688 id=688 data-nosnippet>688</a>                <span class="kw">if </span>should_auto_deref { LValue::Dereference { reference } } <span class="kw">else </span>{ LValue::Ident }
+<a href=#689 id=689 data-nosnippet>689</a>            }
+<a href=#690 id=690 data-nosnippet>690</a>            ast::LValue::Index { array, index, location, .. } =&gt; {
+<a href=#691 id=691 data-nosnippet>691</a>                <span class="self">self</span>.index_lvalue(array, index, location)<span class="question-mark">?</span>.<span class="number">2
+<a href=#692 id=692 data-nosnippet>692</a>            </span>}
+<a href=#693 id=693 data-nosnippet>693</a>            ast::LValue::MemberAccess { object, field_index } =&gt; {
+<a href=#694 id=694 data-nosnippet>694</a>                <span class="kw">let </span>(old_object, object_lvalue) = <span class="self">self</span>.extract_current_value_recursive(object)<span class="question-mark">?</span>;
+<a href=#695 id=695 data-nosnippet>695</a>                <span class="kw">let </span>object_lvalue = Box::new(object_lvalue);
+<a href=#696 id=696 data-nosnippet>696</a>                LValue::MemberAccess { old_object, object_lvalue, index: <span class="kw-2">*</span>field_index }
+<a href=#697 id=697 data-nosnippet>697</a>            }
+<a href=#698 id=698 data-nosnippet>698</a>            ast::LValue::Dereference { reference, .. } =&gt; {
+<a href=#699 id=699 data-nosnippet>699</a>                <span class="kw">let </span>(reference, <span class="kw">_</span>) = <span class="self">self</span>.extract_current_value_recursive(reference)<span class="question-mark">?</span>;
+<a href=#700 id=700 data-nosnippet>700</a>                LValue::Dereference { reference }
+<a href=#701 id=701 data-nosnippet>701</a>            }
+<a href=#702 id=702 data-nosnippet>702</a>            ast::LValue::Clone(lvalue) =&gt; <span class="self">self</span>.extract_current_value(lvalue)<span class="question-mark">?</span>,
+<a href=#703 id=703 data-nosnippet>703</a>        })
+<a href=#704 id=704 data-nosnippet>704</a>    }
+<a href=#705 id=705 data-nosnippet>705</a>
+<a href=#706 id=706 data-nosnippet>706</a>    <span class="kw">fn </span>dereference_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, values: <span class="kw-2">&amp;</span>Values, element_type: <span class="kw-2">&amp;</span>ast::Type) -&gt; Values {
+<a href=#707 id=707 data-nosnippet>707</a>        <span class="kw">let </span>element_types = <span class="self">Self</span>::convert_type(element_type);
+<a href=#708 id=708 data-nosnippet>708</a>        values.map_both(element_types, |value, element_type| {
+<a href=#709 id=709 data-nosnippet>709</a>            <span class="kw">let </span>reference = value.eval_reference();
+<a href=#710 id=710 data-nosnippet>710</a>            <span class="self">self</span>.builder.insert_load(reference, element_type).into()
+<a href=#711 id=711 data-nosnippet>711</a>        })
+<a href=#712 id=712 data-nosnippet>712</a>    }
+<a href=#713 id=713 data-nosnippet>713</a>
+<a href=#714 id=714 data-nosnippet>714</a>    <span class="doccomment">/// Compile the given identifier as a reference - ie. avoid calling .eval().
+<a href=#715 id=715 data-nosnippet>715</a>    /// Returns the variable's value and whether the variable is mutable.
+<a href=#716 id=716 data-nosnippet>716</a>    </span><span class="kw">fn </span>ident_lvalue(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>ast::Ident) -&gt; (Values, bool) {
+<a href=#717 id=717 data-nosnippet>717</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>ident.definition {
+<a href=#718 id=718 data-nosnippet>718</a>            ast::Definition::Local(id) =&gt; (<span class="self">self</span>.lookup(<span class="kw-2">*</span>id), ident.mutable),
+<a href=#719 id=719 data-nosnippet>719</a>            other =&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected definition found for mutable value: {other}"</span>),
+<a href=#720 id=720 data-nosnippet>720</a>        }
+<a href=#721 id=721 data-nosnippet>721</a>    }
+<a href=#722 id=722 data-nosnippet>722</a>
+<a href=#723 id=723 data-nosnippet>723</a>    <span class="doccomment">/// Compile the given `array[index]` expression as a reference.
+<a href=#724 id=724 data-nosnippet>724</a>    /// This will return a triple of (array, index, lvalue_ref, `Option&lt;length&gt;`) where the lvalue_ref records the
+<a href=#725 id=725 data-nosnippet>725</a>    /// structure of the lvalue expression for use by `assign_new_value`.
+<a href=#726 id=726 data-nosnippet>726</a>    /// The optional length is for indexing vectors rather than arrays since vectors
+<a href=#727 id=727 data-nosnippet>727</a>    /// are represented as a tuple in the form: (length, vector contents).
+<a href=#728 id=728 data-nosnippet>728</a>    </span><span class="kw">fn </span>index_lvalue(
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#730 id=730 data-nosnippet>730</a>        array: <span class="kw-2">&amp;</span>ast::LValue,
+<a href=#731 id=731 data-nosnippet>731</a>        index: <span class="kw-2">&amp;</span>ast::Expression,
+<a href=#732 id=732 data-nosnippet>732</a>        location: <span class="kw-2">&amp;</span>Location,
+<a href=#733 id=733 data-nosnippet>733</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(ValueId, ValueId, LValue, <span class="prelude-ty">Option</span>&lt;ValueId&gt;), RuntimeError&gt; {
+<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">let </span>(old_array, array_lvalue) = <span class="self">self</span>.extract_current_value_recursive(array)<span class="question-mark">?</span>;
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">let </span>index = <span class="self">self</span>.codegen_non_tuple_expression(index)<span class="question-mark">?</span>;
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">let </span>array_lvalue = Box::new(array_lvalue);
+<a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">let </span>array_values = old_array.clone().into_value_list(<span class="self">self</span>);
+<a href=#738 id=738 data-nosnippet>738</a>
+<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">let </span>location = <span class="kw-2">*</span>location;
+<a href=#740 id=740 data-nosnippet>740</a>        <span class="comment">// A vector is represented as a tuple (length, vector contents).
+<a href=#741 id=741 data-nosnippet>741</a>        // We need to fetch the second value.
+<a href=#742 id=742 data-nosnippet>742</a>        </span><span class="prelude-val">Ok</span>(<span class="kw">if </span>array_values.len() &gt; <span class="number">1 </span>{
+<a href=#743 id=743 data-nosnippet>743</a>            <span class="kw">let </span>vector_lvalue = LValue::VectorIndex {
+<a href=#744 id=744 data-nosnippet>744</a>                old_vector: old_array,
+<a href=#745 id=745 data-nosnippet>745</a>                index,
+<a href=#746 id=746 data-nosnippet>746</a>                vector_lvalue: array_lvalue,
+<a href=#747 id=747 data-nosnippet>747</a>                location,
+<a href=#748 id=748 data-nosnippet>748</a>            };
+<a href=#749 id=749 data-nosnippet>749</a>            (array_values[<span class="number">1</span>], index, vector_lvalue, <span class="prelude-val">Some</span>(array_values[<span class="number">0</span>]))
+<a href=#750 id=750 data-nosnippet>750</a>        } <span class="kw">else </span>{
+<a href=#751 id=751 data-nosnippet>751</a>            <span class="kw">let </span>array_lvalue =
+<a href=#752 id=752 data-nosnippet>752</a>                LValue::Index { old_array: array_values[<span class="number">0</span>], index, array_lvalue, location };
+<a href=#753 id=753 data-nosnippet>753</a>            (array_values[<span class="number">0</span>], index, array_lvalue, <span class="prelude-val">None</span>)
+<a href=#754 id=754 data-nosnippet>754</a>        })
+<a href=#755 id=755 data-nosnippet>755</a>    }
+<a href=#756 id=756 data-nosnippet>756</a>
+<a href=#757 id=757 data-nosnippet>757</a>    <span class="kw">fn </span>extract_current_value_recursive(
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#759 id=759 data-nosnippet>759</a>        lvalue: <span class="kw-2">&amp;</span>ast::LValue,
+<a href=#760 id=760 data-nosnippet>760</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Values, LValue), RuntimeError&gt; {
+<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">match </span>lvalue {
+<a href=#762 id=762 data-nosnippet>762</a>            ast::LValue::Ident(ident) =&gt; {
+<a href=#763 id=763 data-nosnippet>763</a>                <span class="kw">let </span>(variable, should_auto_deref) = <span class="self">self</span>.ident_lvalue(ident);
+<a href=#764 id=764 data-nosnippet>764</a>                <span class="kw">if </span>should_auto_deref {
+<a href=#765 id=765 data-nosnippet>765</a>                    <span class="kw">let </span>dereferenced = <span class="self">self</span>.dereference_lvalue(<span class="kw-2">&amp;</span>variable, <span class="kw-2">&amp;</span>ident.typ);
+<a href=#766 id=766 data-nosnippet>766</a>                    <span class="prelude-val">Ok</span>((dereferenced, LValue::Dereference { reference: variable }))
+<a href=#767 id=767 data-nosnippet>767</a>                } <span class="kw">else </span>{
+<a href=#768 id=768 data-nosnippet>768</a>                    <span class="prelude-val">Ok</span>((variable.clone(), LValue::Ident))
+<a href=#769 id=769 data-nosnippet>769</a>                }
+<a href=#770 id=770 data-nosnippet>770</a>            }
+<a href=#771 id=771 data-nosnippet>771</a>            ast::LValue::Index { array, index, element_type, location } =&gt; {
+<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">let </span>(old_array, index, index_lvalue, max_length) =
+<a href=#773 id=773 data-nosnippet>773</a>                    <span class="self">self</span>.index_lvalue(array, index, location)<span class="question-mark">?</span>;
+<a href=#774 id=774 data-nosnippet>774</a>                <span class="kw">let </span>element = <span class="self">self</span>.codegen_array_index(
+<a href=#775 id=775 data-nosnippet>775</a>                    old_array,
+<a href=#776 id=776 data-nosnippet>776</a>                    index,
+<a href=#777 id=777 data-nosnippet>777</a>                    element_type,
+<a href=#778 id=778 data-nosnippet>778</a>                    <span class="kw-2">*</span>location,
+<a href=#779 id=779 data-nosnippet>779</a>                    max_length,
+<a href=#780 id=780 data-nosnippet>780</a>                )<span class="question-mark">?</span>;
+<a href=#781 id=781 data-nosnippet>781</a>                <span class="prelude-val">Ok</span>((element, index_lvalue))
 <a href=#782 id=782 data-nosnippet>782</a>            }
-<a href=#783 id=783 data-nosnippet>783</a>            ast::LValue::Dereference { reference, element_type } =&gt; {
-<a href=#784 id=784 data-nosnippet>784</a>                <span class="kw">let </span>(reference, <span class="kw">_</span>) = <span class="self">self</span>.extract_current_value_recursive(reference)<span class="question-mark">?</span>;
-<a href=#785 id=785 data-nosnippet>785</a>                <span class="kw">let </span>dereferenced = <span class="self">self</span>.dereference_lvalue(<span class="kw-2">&amp;</span>reference, element_type);
-<a href=#786 id=786 data-nosnippet>786</a>                <span class="prelude-val">Ok</span>((dereferenced, LValue::Dereference { reference }))
-<a href=#787 id=787 data-nosnippet>787</a>            }
-<a href=#788 id=788 data-nosnippet>788</a>            ast::LValue::Clone(lvalue) =&gt; {
-<a href=#789 id=789 data-nosnippet>789</a>                <span class="kw">let </span>(values, lvalue) = <span class="self">self</span>.extract_current_value_recursive(lvalue)<span class="question-mark">?</span>;
-<a href=#790 id=790 data-nosnippet>790</a>                values.clone().for_each(|value| {
-<a href=#791 id=791 data-nosnippet>791</a>                    <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
-<a href=#792 id=792 data-nosnippet>792</a>                    <span class="self">self</span>.builder.increment_array_reference_count(value);
-<a href=#793 id=793 data-nosnippet>793</a>                });
-<a href=#794 id=794 data-nosnippet>794</a>                <span class="prelude-val">Ok</span>((values, lvalue))
-<a href=#795 id=795 data-nosnippet>795</a>            }
-<a href=#796 id=796 data-nosnippet>796</a>        }
-<a href=#797 id=797 data-nosnippet>797</a>    }
-<a href=#798 id=798 data-nosnippet>798</a>
-<a href=#799 id=799 data-nosnippet>799</a>    <span class="doccomment">/// Assigns a new value to the given LValue.
-<a href=#800 id=800 data-nosnippet>800</a>    /// The LValue can be created via a previous call to extract_current_value.
-<a href=#801 id=801 data-nosnippet>801</a>    /// This method recurs on the given LValue to create a new value to assign an allocation
-<a href=#802 id=802 data-nosnippet>802</a>    /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
-<a href=#803 id=803 data-nosnippet>803</a>    /// `extract_current_value` for more details.
-<a href=#804 id=804 data-nosnippet>804</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>assign_new_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: LValue, new_value: Values) {
-<a href=#805 id=805 data-nosnippet>805</a>        <span class="kw">match </span>lvalue {
-<a href=#806 id=806 data-nosnippet>806</a>            LValue::Ident =&gt; <span class="macro">unreachable!</span>(<span class="string">"Cannot assign to a variable without a reference"</span>),
-<a href=#807 id=807 data-nosnippet>807</a>            LValue::Index { old_array: <span class="kw-2">mut </span>array, index, array_lvalue, location } =&gt; {
-<a href=#808 id=808 data-nosnippet>808</a>                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
-<a href=#809 id=809 data-nosnippet>809</a>
-<a href=#810 id=810 data-nosnippet>810</a>                <span class="comment">// Checks for index Out-of-bounds
-<a href=#811 id=811 data-nosnippet>811</a>                </span><span class="kw">match </span>array_type {
-<a href=#812 id=812 data-nosnippet>812</a>                    Type::Array(<span class="kw">_</span>, len) =&gt; {
-<a href=#813 id=813 data-nosnippet>813</a>                        <span class="comment">// Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-<a href=#814 id=814 data-nosnippet>814</a>                        // We then only need to inject it for brillig functions.
-<a href=#815 id=815 data-nosnippet>815</a>                        </span><span class="kw">if </span><span class="self">self</span>.builder.current_function.runtime().is_brillig() {
-<a href=#816 id=816 data-nosnippet>816</a>                            <span class="kw">let </span>len = <span class="self">self
-<a href=#817 id=817 data-nosnippet>817</a>                                </span>.builder
-<a href=#818 id=818 data-nosnippet>818</a>                                .numeric_constant(u128::from(len.<span class="number">0</span>), NumericType::length_type());
-<a href=#819 id=819 data-nosnippet>819</a>                            <span class="self">self</span>.codegen_access_check(index, len);
-<a href=#820 id=820 data-nosnippet>820</a>                        }
-<a href=#821 id=821 data-nosnippet>821</a>                    }
-<a href=#822 id=822 data-nosnippet>822</a>                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
-<a href=#823 id=823 data-nosnippet>823</a>                }
-<a href=#824 id=824 data-nosnippet>824</a>
-<a href=#825 id=825 data-nosnippet>825</a>                array = <span class="self">self</span>.assign_lvalue_index(new_value, array, index, location);
-<a href=#826 id=826 data-nosnippet>826</a>                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>array_lvalue, array.into());
-<a href=#827 id=827 data-nosnippet>827</a>            }
-<a href=#828 id=828 data-nosnippet>828</a>            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } =&gt; {
-<a href=#829 id=829 data-nosnippet>829</a>                <span class="kw">let </span><span class="kw-2">mut </span>vector_values = vector.into_value_list(<span class="self">self</span>);
+<a href=#783 id=783 data-nosnippet>783</a>            ast::LValue::MemberAccess { object, field_index: index } =&gt; {
+<a href=#784 id=784 data-nosnippet>784</a>                <span class="kw">let </span>(old_object, object_lvalue) = <span class="self">self</span>.extract_current_value_recursive(object)<span class="question-mark">?</span>;
+<a href=#785 id=785 data-nosnippet>785</a>                <span class="kw">let </span>object_lvalue = Box::new(object_lvalue);
+<a href=#786 id=786 data-nosnippet>786</a>                <span class="kw">let </span>element = <span class="self">Self</span>::get_field_ref(<span class="kw-2">&amp;</span>old_object, <span class="kw-2">*</span>index).clone();
+<a href=#787 id=787 data-nosnippet>787</a>                <span class="prelude-val">Ok</span>((element, LValue::MemberAccess { old_object, object_lvalue, index: <span class="kw-2">*</span>index }))
+<a href=#788 id=788 data-nosnippet>788</a>            }
+<a href=#789 id=789 data-nosnippet>789</a>            ast::LValue::Dereference { reference, element_type } =&gt; {
+<a href=#790 id=790 data-nosnippet>790</a>                <span class="kw">let </span>(reference, <span class="kw">_</span>) = <span class="self">self</span>.extract_current_value_recursive(reference)<span class="question-mark">?</span>;
+<a href=#791 id=791 data-nosnippet>791</a>                <span class="kw">let </span>dereferenced = <span class="self">self</span>.dereference_lvalue(<span class="kw-2">&amp;</span>reference, element_type);
+<a href=#792 id=792 data-nosnippet>792</a>                <span class="prelude-val">Ok</span>((dereferenced, LValue::Dereference { reference }))
+<a href=#793 id=793 data-nosnippet>793</a>            }
+<a href=#794 id=794 data-nosnippet>794</a>            ast::LValue::Clone(lvalue) =&gt; {
+<a href=#795 id=795 data-nosnippet>795</a>                <span class="kw">let </span>(values, lvalue) = <span class="self">self</span>.extract_current_value_recursive(lvalue)<span class="question-mark">?</span>;
+<a href=#796 id=796 data-nosnippet>796</a>                values.clone().for_each(|value| {
+<a href=#797 id=797 data-nosnippet>797</a>                    <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+<a href=#798 id=798 data-nosnippet>798</a>                    <span class="self">self</span>.builder.increment_array_reference_count(value);
+<a href=#799 id=799 data-nosnippet>799</a>                });
+<a href=#800 id=800 data-nosnippet>800</a>                <span class="prelude-val">Ok</span>((values, lvalue))
+<a href=#801 id=801 data-nosnippet>801</a>            }
+<a href=#802 id=802 data-nosnippet>802</a>        }
+<a href=#803 id=803 data-nosnippet>803</a>    }
+<a href=#804 id=804 data-nosnippet>804</a>
+<a href=#805 id=805 data-nosnippet>805</a>    <span class="doccomment">/// Assigns a new value to the given LValue.
+<a href=#806 id=806 data-nosnippet>806</a>    /// The LValue can be created via a previous call to extract_current_value.
+<a href=#807 id=807 data-nosnippet>807</a>    /// This method recurs on the given LValue to create a new value to assign an allocation
+<a href=#808 id=808 data-nosnippet>808</a>    /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
+<a href=#809 id=809 data-nosnippet>809</a>    /// `extract_current_value` for more details.
+<a href=#810 id=810 data-nosnippet>810</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>assign_new_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: LValue, new_value: Values) {
+<a href=#811 id=811 data-nosnippet>811</a>        <span class="kw">match </span>lvalue {
+<a href=#812 id=812 data-nosnippet>812</a>            LValue::Ident =&gt; <span class="macro">unreachable!</span>(<span class="string">"Cannot assign to a variable without a reference"</span>),
+<a href=#813 id=813 data-nosnippet>813</a>            LValue::Index { old_array: <span class="kw-2">mut </span>array, index, array_lvalue, location } =&gt; {
+<a href=#814 id=814 data-nosnippet>814</a>                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(array);
+<a href=#815 id=815 data-nosnippet>815</a>
+<a href=#816 id=816 data-nosnippet>816</a>                <span class="comment">// Checks for index Out-of-bounds
+<a href=#817 id=817 data-nosnippet>817</a>                </span><span class="kw">match </span>array_type {
+<a href=#818 id=818 data-nosnippet>818</a>                    Type::Array(<span class="kw">_</span>, len) =&gt; {
+<a href=#819 id=819 data-nosnippet>819</a>                        <span class="comment">// Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
+<a href=#820 id=820 data-nosnippet>820</a>                        // We then only need to inject it for brillig functions.
+<a href=#821 id=821 data-nosnippet>821</a>                        </span><span class="kw">if </span><span class="self">self</span>.builder.current_function.runtime().is_brillig() {
+<a href=#822 id=822 data-nosnippet>822</a>                            <span class="kw">let </span>len = <span class="self">self
+<a href=#823 id=823 data-nosnippet>823</a>                                </span>.builder
+<a href=#824 id=824 data-nosnippet>824</a>                                .numeric_constant(u128::from(len.<span class="number">0</span>), NumericType::length_type());
+<a href=#825 id=825 data-nosnippet>825</a>                            <span class="self">self</span>.codegen_access_check(index, len);
+<a href=#826 id=826 data-nosnippet>826</a>                        }
+<a href=#827 id=827 data-nosnippet>827</a>                    }
+<a href=#828 id=828 data-nosnippet>828</a>                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
+<a href=#829 id=829 data-nosnippet>829</a>                }
 <a href=#830 id=830 data-nosnippet>830</a>
-<a href=#831 id=831 data-nosnippet>831</a>                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(vector_values[<span class="number">1</span>]);
-<a href=#832 id=832 data-nosnippet>832</a>
-<a href=#833 id=833 data-nosnippet>833</a>                <span class="comment">// Checks for index Out-of-bounds
-<a href=#834 id=834 data-nosnippet>834</a>                </span><span class="kw">match </span>array_type {
-<a href=#835 id=835 data-nosnippet>835</a>                    Type::Vector(<span class="kw">_</span>) =&gt; {
-<a href=#836 id=836 data-nosnippet>836</a>                        <span class="self">self</span>.codegen_access_check(index, vector_values[<span class="number">0</span>]);
-<a href=#837 id=837 data-nosnippet>837</a>                    }
-<a href=#838 id=838 data-nosnippet>838</a>                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
-<a href=#839 id=839 data-nosnippet>839</a>                }
-<a href=#840 id=840 data-nosnippet>840</a>
-<a href=#841 id=841 data-nosnippet>841</a>                vector_values[<span class="number">1</span>] =
-<a href=#842 id=842 data-nosnippet>842</a>                    <span class="self">self</span>.assign_lvalue_index(new_value, vector_values[<span class="number">1</span>], index, location);
-<a href=#843 id=843 data-nosnippet>843</a>
-<a href=#844 id=844 data-nosnippet>844</a>                <span class="comment">// The size of the vector does not change in a vector index assignment so we can reuse the same length value
-<a href=#845 id=845 data-nosnippet>845</a>                </span><span class="kw">let </span>new_vector =
-<a href=#846 id=846 data-nosnippet>846</a>                    Tree::Branch(<span class="macro">vec!</span>[vector_values[<span class="number">0</span>].into(), vector_values[<span class="number">1</span>].into()]);
-<a href=#847 id=847 data-nosnippet>847</a>                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>vector_lvalue, new_vector);
-<a href=#848 id=848 data-nosnippet>848</a>            }
-<a href=#849 id=849 data-nosnippet>849</a>            LValue::MemberAccess { old_object, index, object_lvalue } =&gt; {
-<a href=#850 id=850 data-nosnippet>850</a>                <span class="kw">let </span>new_object = <span class="self">Self</span>::replace_field(old_object, index, new_value);
-<a href=#851 id=851 data-nosnippet>851</a>                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>object_lvalue, new_object);
-<a href=#852 id=852 data-nosnippet>852</a>            }
-<a href=#853 id=853 data-nosnippet>853</a>            LValue::Dereference { reference } =&gt; {
-<a href=#854 id=854 data-nosnippet>854</a>                <span class="self">self</span>.assign(reference, new_value);
-<a href=#855 id=855 data-nosnippet>855</a>            }
-<a href=#856 id=856 data-nosnippet>856</a>        }
-<a href=#857 id=857 data-nosnippet>857</a>    }
-<a href=#858 id=858 data-nosnippet>858</a>
-<a href=#859 id=859 data-nosnippet>859</a>    <span class="kw">fn </span>assign_lvalue_index(
-<a href=#860 id=860 data-nosnippet>860</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#861 id=861 data-nosnippet>861</a>        new_value: Values,
-<a href=#862 id=862 data-nosnippet>862</a>        <span class="kw-2">mut </span>array: ValueId,
-<a href=#863 id=863 data-nosnippet>863</a>        index: ValueId,
-<a href=#864 id=864 data-nosnippet>864</a>        location: Location,
-<a href=#865 id=865 data-nosnippet>865</a>    ) -&gt; ValueId {
-<a href=#866 id=866 data-nosnippet>866</a>        <span class="kw">let </span>index = <span class="self">self</span>.make_array_index(index);
-<a href=#867 id=867 data-nosnippet>867</a>        <span class="kw">let </span>element_size =
-<a href=#868 id=868 data-nosnippet>868</a>            <span class="self">self</span>.builder.numeric_constant(<span class="self">self</span>.element_size(array), NumericType::length_type());
-<a href=#869 id=869 data-nosnippet>869</a>
-<a href=#870 id=870 data-nosnippet>870</a>        <span class="comment">// The actual base index is the user's index * the array element type's size
-<a href=#871 id=871 data-nosnippet>871</a>        // Unchecked mul because we are reaching for an array element: if it overflows here
-<a href=#872 id=872 data-nosnippet>872</a>        // it would have overflowed when creating the array.
-<a href=#873 id=873 data-nosnippet>873</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>index = <span class="self">self</span>.builder.set_location(location).insert_binary(
-<a href=#874 id=874 data-nosnippet>874</a>            index,
-<a href=#875 id=875 data-nosnippet>875</a>            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
-<a href=#876 id=876 data-nosnippet>876</a>            element_size,
-<a href=#877 id=877 data-nosnippet>877</a>        );
-<a href=#878 id=878 data-nosnippet>878</a>        <span class="kw">let </span>one = <span class="self">self</span>.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
-<a href=#879 id=879 data-nosnippet>879</a>
-<a href=#880 id=880 data-nosnippet>880</a>        new_value.for_each(|value| {
-<a href=#881 id=881 data-nosnippet>881</a>            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
-<a href=#882 id=882 data-nosnippet>882</a>            <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
-<a href=#883 id=883 data-nosnippet>883</a>            array = <span class="self">self</span>.builder.insert_array_set(array, index, value, mutable);
-<a href=#884 id=884 data-nosnippet>884</a>            <span class="comment">// Unchecked add because this can't overflow (it would have overflowed when creating the array)
-<a href=#885 id=885 data-nosnippet>885</a>            </span>index = <span class="self">self</span>.builder.insert_binary(index, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, one);
-<a href=#886 id=886 data-nosnippet>886</a>        });
-<a href=#887 id=887 data-nosnippet>887</a>        array
-<a href=#888 id=888 data-nosnippet>888</a>    }
-<a href=#889 id=889 data-nosnippet>889</a>
-<a href=#890 id=890 data-nosnippet>890</a>    <span class="kw">fn </span>element_size(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId) -&gt; FieldElement {
-<a href=#891 id=891 data-nosnippet>891</a>        <span class="kw">let </span>size = <span class="self">self</span>.builder.type_of_value(array).element_size();
-<a href=#892 id=892 data-nosnippet>892</a>        FieldElement::from(size.<span class="number">0</span>)
-<a href=#893 id=893 data-nosnippet>893</a>    }
-<a href=#894 id=894 data-nosnippet>894</a>
-<a href=#895 id=895 data-nosnippet>895</a>    <span class="doccomment">/// Given an lhs containing only references, create a store instruction to store each value of
-<a href=#896 id=896 data-nosnippet>896</a>    /// rhs into its corresponding value in lhs.
-<a href=#897 id=897 data-nosnippet>897</a>    </span><span class="kw">fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: Values, rhs: Values) {
-<a href=#898 id=898 data-nosnippet>898</a>        <span class="kw">match </span>(lhs, rhs) {
-<a href=#899 id=899 data-nosnippet>899</a>            (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) =&gt; {
-<a href=#900 id=900 data-nosnippet>900</a>                <span class="macro">assert_eq!</span>(lhs_branches.len(), rhs_branches.len());
-<a href=#901 id=901 data-nosnippet>901</a>
-<a href=#902 id=902 data-nosnippet>902</a>                <span class="kw">for </span>(lhs, rhs) <span class="kw">in </span>lhs_branches.into_iter().zip(rhs_branches) {
-<a href=#903 id=903 data-nosnippet>903</a>                    <span class="self">self</span>.assign(lhs, rhs);
-<a href=#904 id=904 data-nosnippet>904</a>                }
-<a href=#905 id=905 data-nosnippet>905</a>            }
-<a href=#906 id=906 data-nosnippet>906</a>            (Tree::Leaf(lhs), Tree::Leaf(rhs)) =&gt; {
-<a href=#907 id=907 data-nosnippet>907</a>                <span class="kw">let </span>(lhs, rhs) = (lhs.eval_reference(), rhs.eval(<span class="self">self</span>));
-<a href=#908 id=908 data-nosnippet>908</a>                <span class="self">self</span>.builder.insert_store(lhs, rhs);
-<a href=#909 id=909 data-nosnippet>909</a>            }
-<a href=#910 id=910 data-nosnippet>910</a>            (lhs, rhs) =&gt; {
-<a href=#911 id=911 data-nosnippet>911</a>                <span class="macro">unreachable!</span>(
-<a href=#912 id=912 data-nosnippet>912</a>                    <span class="string">"assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
-<a href=#913 id=913 data-nosnippet>913</a>                </span>)
-<a href=#914 id=914 data-nosnippet>914</a>            }
-<a href=#915 id=915 data-nosnippet>915</a>        }
-<a href=#916 id=916 data-nosnippet>916</a>    }
-<a href=#917 id=917 data-nosnippet>917</a>
-<a href=#918 id=918 data-nosnippet>918</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enter_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: Loop) {
-<a href=#919 id=919 data-nosnippet>919</a>        <span class="self">self</span>.loops.push(loop_);
-<a href=#920 id=920 data-nosnippet>920</a>    }
-<a href=#921 id=921 data-nosnippet>921</a>
-<a href=#922 id=922 data-nosnippet>922</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>exit_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#923 id=923 data-nosnippet>923</a>        <span class="self">self</span>.loops.pop();
-<a href=#924 id=924 data-nosnippet>924</a>    }
-<a href=#925 id=925 data-nosnippet>925</a>
-<a href=#926 id=926 data-nosnippet>926</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>current_loop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Loop {
-<a href=#927 id=927 data-nosnippet>927</a>        <span class="comment">// The frontend should ensure break/continue are never used outside a loop
-<a href=#928 id=928 data-nosnippet>928</a>        </span><span class="kw-2">*</span><span class="self">self</span>.loops.last().expect(<span class="string">"current_loop: not in a loop!"</span>)
-<a href=#929 id=929 data-nosnippet>929</a>    }
-<a href=#930 id=930 data-nosnippet>930</a>}
+<a href=#831 id=831 data-nosnippet>831</a>                array = <span class="self">self</span>.assign_lvalue_index(new_value, array, index, location);
+<a href=#832 id=832 data-nosnippet>832</a>                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>array_lvalue, array.into());
+<a href=#833 id=833 data-nosnippet>833</a>            }
+<a href=#834 id=834 data-nosnippet>834</a>            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } =&gt; {
+<a href=#835 id=835 data-nosnippet>835</a>                <span class="kw">let </span><span class="kw-2">mut </span>vector_values = vector.into_value_list(<span class="self">self</span>);
+<a href=#836 id=836 data-nosnippet>836</a>
+<a href=#837 id=837 data-nosnippet>837</a>                <span class="kw">let </span>array_type = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.type_of_value(vector_values[<span class="number">1</span>]);
+<a href=#838 id=838 data-nosnippet>838</a>
+<a href=#839 id=839 data-nosnippet>839</a>                <span class="comment">// Checks for index Out-of-bounds
+<a href=#840 id=840 data-nosnippet>840</a>                </span><span class="kw">match </span>array_type {
+<a href=#841 id=841 data-nosnippet>841</a>                    Type::Vector(<span class="kw">_</span>) =&gt; {
+<a href=#842 id=842 data-nosnippet>842</a>                        <span class="self">self</span>.codegen_access_check(index, vector_values[<span class="number">0</span>]);
+<a href=#843 id=843 data-nosnippet>843</a>                    }
+<a href=#844 id=844 data-nosnippet>844</a>                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or vector but got {array_type}"</span>),
+<a href=#845 id=845 data-nosnippet>845</a>                }
+<a href=#846 id=846 data-nosnippet>846</a>
+<a href=#847 id=847 data-nosnippet>847</a>                vector_values[<span class="number">1</span>] =
+<a href=#848 id=848 data-nosnippet>848</a>                    <span class="self">self</span>.assign_lvalue_index(new_value, vector_values[<span class="number">1</span>], index, location);
+<a href=#849 id=849 data-nosnippet>849</a>
+<a href=#850 id=850 data-nosnippet>850</a>                <span class="comment">// The size of the vector does not change in a vector index assignment so we can reuse the same length value
+<a href=#851 id=851 data-nosnippet>851</a>                </span><span class="kw">let </span>new_vector =
+<a href=#852 id=852 data-nosnippet>852</a>                    Tree::Branch(<span class="macro">vec!</span>[vector_values[<span class="number">0</span>].into(), vector_values[<span class="number">1</span>].into()]);
+<a href=#853 id=853 data-nosnippet>853</a>                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>vector_lvalue, new_vector);
+<a href=#854 id=854 data-nosnippet>854</a>            }
+<a href=#855 id=855 data-nosnippet>855</a>            LValue::MemberAccess { old_object, index, object_lvalue } =&gt; {
+<a href=#856 id=856 data-nosnippet>856</a>                <span class="kw">let </span>new_object = <span class="self">Self</span>::replace_field(old_object, index, new_value);
+<a href=#857 id=857 data-nosnippet>857</a>                <span class="self">self</span>.assign_new_value(<span class="kw-2">*</span>object_lvalue, new_object);
+<a href=#858 id=858 data-nosnippet>858</a>            }
+<a href=#859 id=859 data-nosnippet>859</a>            LValue::Dereference { reference } =&gt; {
+<a href=#860 id=860 data-nosnippet>860</a>                <span class="self">self</span>.assign(reference, new_value);
+<a href=#861 id=861 data-nosnippet>861</a>            }
+<a href=#862 id=862 data-nosnippet>862</a>        }
+<a href=#863 id=863 data-nosnippet>863</a>    }
+<a href=#864 id=864 data-nosnippet>864</a>
+<a href=#865 id=865 data-nosnippet>865</a>    <span class="kw">fn </span>assign_lvalue_index(
+<a href=#866 id=866 data-nosnippet>866</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#867 id=867 data-nosnippet>867</a>        new_value: Values,
+<a href=#868 id=868 data-nosnippet>868</a>        <span class="kw-2">mut </span>array: ValueId,
+<a href=#869 id=869 data-nosnippet>869</a>        index: ValueId,
+<a href=#870 id=870 data-nosnippet>870</a>        location: Location,
+<a href=#871 id=871 data-nosnippet>871</a>    ) -&gt; ValueId {
+<a href=#872 id=872 data-nosnippet>872</a>        <span class="kw">let </span>index = <span class="self">self</span>.make_array_index(index);
+<a href=#873 id=873 data-nosnippet>873</a>        <span class="kw">let </span>element_size =
+<a href=#874 id=874 data-nosnippet>874</a>            <span class="self">self</span>.builder.numeric_constant(<span class="self">self</span>.element_size(array), NumericType::length_type());
+<a href=#875 id=875 data-nosnippet>875</a>
+<a href=#876 id=876 data-nosnippet>876</a>        <span class="comment">// The actual base index is the user's index * the array element type's size
+<a href=#877 id=877 data-nosnippet>877</a>        // Unchecked mul because we are reaching for an array element: if it overflows here
+<a href=#878 id=878 data-nosnippet>878</a>        // it would have overflowed when creating the array.
+<a href=#879 id=879 data-nosnippet>879</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>index = <span class="self">self</span>.builder.set_location(location).insert_binary(
+<a href=#880 id=880 data-nosnippet>880</a>            index,
+<a href=#881 id=881 data-nosnippet>881</a>            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
+<a href=#882 id=882 data-nosnippet>882</a>            element_size,
+<a href=#883 id=883 data-nosnippet>883</a>        );
+<a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">let </span>one = <span class="self">self</span>.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
+<a href=#885 id=885 data-nosnippet>885</a>
+<a href=#886 id=886 data-nosnippet>886</a>        new_value.for_each(|value| {
+<a href=#887 id=887 data-nosnippet>887</a>            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+<a href=#888 id=888 data-nosnippet>888</a>            <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
+<a href=#889 id=889 data-nosnippet>889</a>            array = <span class="self">self</span>.builder.insert_array_set(array, index, value, mutable);
+<a href=#890 id=890 data-nosnippet>890</a>            <span class="comment">// Unchecked add because this can't overflow (it would have overflowed when creating the array)
+<a href=#891 id=891 data-nosnippet>891</a>            </span>index = <span class="self">self</span>.builder.insert_binary(index, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, one);
+<a href=#892 id=892 data-nosnippet>892</a>        });
+<a href=#893 id=893 data-nosnippet>893</a>        array
+<a href=#894 id=894 data-nosnippet>894</a>    }
+<a href=#895 id=895 data-nosnippet>895</a>
+<a href=#896 id=896 data-nosnippet>896</a>    <span class="kw">fn </span>element_size(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId) -&gt; FieldElement {
+<a href=#897 id=897 data-nosnippet>897</a>        <span class="kw">let </span>size = <span class="self">self</span>.builder.type_of_value(array).element_size();
+<a href=#898 id=898 data-nosnippet>898</a>        FieldElement::from(size.<span class="number">0</span>)
+<a href=#899 id=899 data-nosnippet>899</a>    }
+<a href=#900 id=900 data-nosnippet>900</a>
+<a href=#901 id=901 data-nosnippet>901</a>    <span class="doccomment">/// Given an lhs containing only references, create a store instruction to store each value of
+<a href=#902 id=902 data-nosnippet>902</a>    /// rhs into its corresponding value in lhs.
+<a href=#903 id=903 data-nosnippet>903</a>    </span><span class="kw">fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: Values, rhs: Values) {
+<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">match </span>(lhs, rhs) {
+<a href=#905 id=905 data-nosnippet>905</a>            (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) =&gt; {
+<a href=#906 id=906 data-nosnippet>906</a>                <span class="macro">assert_eq!</span>(lhs_branches.len(), rhs_branches.len());
+<a href=#907 id=907 data-nosnippet>907</a>
+<a href=#908 id=908 data-nosnippet>908</a>                <span class="kw">for </span>(lhs, rhs) <span class="kw">in </span>lhs_branches.into_iter().zip(rhs_branches) {
+<a href=#909 id=909 data-nosnippet>909</a>                    <span class="self">self</span>.assign(lhs, rhs);
+<a href=#910 id=910 data-nosnippet>910</a>                }
+<a href=#911 id=911 data-nosnippet>911</a>            }
+<a href=#912 id=912 data-nosnippet>912</a>            (Tree::Leaf(lhs), Tree::Leaf(rhs)) =&gt; {
+<a href=#913 id=913 data-nosnippet>913</a>                <span class="kw">let </span>(lhs, rhs) = (lhs.eval_reference(), rhs.eval(<span class="self">self</span>));
+<a href=#914 id=914 data-nosnippet>914</a>                <span class="self">self</span>.builder.insert_store(lhs, rhs);
+<a href=#915 id=915 data-nosnippet>915</a>            }
+<a href=#916 id=916 data-nosnippet>916</a>            (lhs, rhs) =&gt; {
+<a href=#917 id=917 data-nosnippet>917</a>                <span class="macro">unreachable!</span>(
+<a href=#918 id=918 data-nosnippet>918</a>                    <span class="string">"assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
+<a href=#919 id=919 data-nosnippet>919</a>                </span>)
+<a href=#920 id=920 data-nosnippet>920</a>            }
+<a href=#921 id=921 data-nosnippet>921</a>        }
+<a href=#922 id=922 data-nosnippet>922</a>    }
+<a href=#923 id=923 data-nosnippet>923</a>
+<a href=#924 id=924 data-nosnippet>924</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enter_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: Loop) {
+<a href=#925 id=925 data-nosnippet>925</a>        <span class="self">self</span>.loops.push(loop_);
+<a href=#926 id=926 data-nosnippet>926</a>    }
+<a href=#927 id=927 data-nosnippet>927</a>
+<a href=#928 id=928 data-nosnippet>928</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>exit_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="self">self</span>.loops.pop();
+<a href=#930 id=930 data-nosnippet>930</a>    }
 <a href=#931 id=931 data-nosnippet>931</a>
-<a href=#932 id=932 data-nosnippet>932</a><span class="doccomment">/// True if the given operator cannot be encoded directly and needs
-<a href=#933 id=933 data-nosnippet>933</a>/// to be represented as !(some other operator)
-<a href=#934 id=934 data-nosnippet>934</a></span><span class="kw">fn </span>operator_requires_not(op: BinaryOpKind) -&gt; bool {
-<a href=#935 id=935 data-nosnippet>935</a>    <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
-<a href=#936 id=936 data-nosnippet>936</a>    <span class="macro">matches!</span>(op, NotEqual | LessEqual | GreaterEqual)
-<a href=#937 id=937 data-nosnippet>937</a>}
-<a href=#938 id=938 data-nosnippet>938</a>
-<a href=#939 id=939 data-nosnippet>939</a><span class="doccomment">/// True if the given operator cannot be encoded directly and needs
-<a href=#940 id=940 data-nosnippet>940</a>/// to have its lhs and rhs swapped to be represented with another operator.
-<a href=#941 id=941 data-nosnippet>941</a>/// Example: (a &gt; b) needs to be represented as (b &lt; a)
-<a href=#942 id=942 data-nosnippet>942</a></span><span class="kw">fn </span>operator_requires_swapped_operands(op: BinaryOpKind) -&gt; bool {
-<a href=#943 id=943 data-nosnippet>943</a>    <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
-<a href=#944 id=944 data-nosnippet>944</a>    <span class="macro">matches!</span>(op, Greater | LessEqual)
-<a href=#945 id=945 data-nosnippet>945</a>}
-<a href=#946 id=946 data-nosnippet>946</a>
-<a href=#947 id=947 data-nosnippet>947</a><span class="doccomment">/// Converts the given operator to the appropriate BinaryOp.
-<a href=#948 id=948 data-nosnippet>948</a>/// Take care when using this to insert a binary instruction: this requires
-<a href=#949 id=949 data-nosnippet>949</a>/// checking operator_requires_not and operator_requires_swapped_operands
-<a href=#950 id=950 data-nosnippet>950</a>/// to represent the full operation correctly.
-<a href=#951 id=951 data-nosnippet>951</a></span><span class="kw">fn </span>convert_operator(op: BinaryOpKind) -&gt; BinaryOp {
-<a href=#952 id=952 data-nosnippet>952</a>    <span class="kw">match </span>op {
-<a href=#953 id=953 data-nosnippet>953</a>        BinaryOpKind::Add =&gt; BinaryOp::Add { unchecked: <span class="bool-val">false </span>},
-<a href=#954 id=954 data-nosnippet>954</a>        BinaryOpKind::Subtract =&gt; BinaryOp::Sub { unchecked: <span class="bool-val">false </span>},
-<a href=#955 id=955 data-nosnippet>955</a>        BinaryOpKind::Multiply =&gt; BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
-<a href=#956 id=956 data-nosnippet>956</a>        BinaryOpKind::Divide =&gt; BinaryOp::Div,
-<a href=#957 id=957 data-nosnippet>957</a>        BinaryOpKind::Modulo =&gt; BinaryOp::Mod,
-<a href=#958 id=958 data-nosnippet>958</a>        BinaryOpKind::Equal =&gt; BinaryOp::Eq,
-<a href=#959 id=959 data-nosnippet>959</a>        BinaryOpKind::NotEqual =&gt; BinaryOp::Eq, <span class="comment">// Requires not
-<a href=#960 id=960 data-nosnippet>960</a>        </span>BinaryOpKind::Less =&gt; BinaryOp::Lt,
-<a href=#961 id=961 data-nosnippet>961</a>        BinaryOpKind::Greater =&gt; BinaryOp::Lt, <span class="comment">// Requires operand swap
-<a href=#962 id=962 data-nosnippet>962</a>        </span>BinaryOpKind::LessEqual =&gt; BinaryOp::Lt, <span class="comment">// Requires operand swap and not
-<a href=#963 id=963 data-nosnippet>963</a>        </span>BinaryOpKind::GreaterEqual =&gt; BinaryOp::Lt, <span class="comment">// Requires not
-<a href=#964 id=964 data-nosnippet>964</a>        </span>BinaryOpKind::And =&gt; BinaryOp::And,
-<a href=#965 id=965 data-nosnippet>965</a>        BinaryOpKind::Or =&gt; BinaryOp::Or,
-<a href=#966 id=966 data-nosnippet>966</a>        BinaryOpKind::Xor =&gt; BinaryOp::Xor,
-<a href=#967 id=967 data-nosnippet>967</a>        BinaryOpKind::ShiftLeft =&gt; BinaryOp::Shl,
-<a href=#968 id=968 data-nosnippet>968</a>        BinaryOpKind::ShiftRight =&gt; BinaryOp::Shr,
-<a href=#969 id=969 data-nosnippet>969</a>    }
-<a href=#970 id=970 data-nosnippet>970</a>}
-<a href=#971 id=971 data-nosnippet>971</a>
-<a href=#972 id=972 data-nosnippet>972</a><span class="kw">impl </span>SharedContext {
-<a href=#973 id=973 data-nosnippet>973</a>    <span class="doccomment">/// Create a new SharedContext for the given monomorphized program.
-<a href=#974 id=974 data-nosnippet>974</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(program: Program) -&gt; <span class="self">Self </span>{
-<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>globals_shared_context = SharedContext::new_for_globals();
-<a href=#976 id=976 data-nosnippet>976</a>
-<a href=#977 id=977 data-nosnippet>977</a>        <span class="kw">let </span>globals_id = Program::global_space_id();
-<a href=#978 id=978 data-nosnippet>978</a>
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="comment">// Queue the function representing the globals space for compilation
-<a href=#980 id=980 data-nosnippet>980</a>        </span>globals_shared_context.get_or_queue_function(globals_id);
-<a href=#981 id=981 data-nosnippet>981</a>
-<a href=#982 id=982 data-nosnippet>982</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = FunctionContext::new(
-<a href=#983 id=983 data-nosnippet>983</a>            <span class="string">"globals"</span>.to_owned(),
-<a href=#984 id=984 data-nosnippet>984</a>            <span class="kw-2">&amp;</span><span class="macro">vec!</span>[],
-<a href=#985 id=985 data-nosnippet>985</a>            RuntimeType::Brillig(InlineType::default()),
-<a href=#986 id=986 data-nosnippet>986</a>            <span class="kw-2">&amp;</span>globals_shared_context,
-<a href=#987 id=987 data-nosnippet>987</a>            GlobalsGraph::default(),
-<a href=#988 id=988 data-nosnippet>988</a>        );
-<a href=#989 id=989 data-nosnippet>989</a>        <span class="kw">let </span><span class="kw-2">mut </span>globals = BTreeMap::default();
-<a href=#990 id=990 data-nosnippet>990</a>        <span class="kw">for </span>(id, (<span class="kw">_</span>, <span class="kw">_</span>, global)) <span class="kw">in </span>program.globals.iter() {
-<a href=#991 id=991 data-nosnippet>991</a>            <span class="kw">let </span>values = context.codegen_expression(global).unwrap();
-<a href=#992 id=992 data-nosnippet>992</a>            globals.insert(<span class="kw-2">*</span>id, values);
-<a href=#993 id=993 data-nosnippet>993</a>        }
-<a href=#994 id=994 data-nosnippet>994</a>
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="self">Self </span>{
-<a href=#996 id=996 data-nosnippet>996</a>            functions: Default::default(),
-<a href=#997 id=997 data-nosnippet>997</a>            function_queue: Default::default(),
-<a href=#998 id=998 data-nosnippet>998</a>            function_counter: Default::default(),
-<a href=#999 id=999 data-nosnippet>999</a>            program,
-<a href=#1000 id=1000 data-nosnippet>1000</a>            globals_context: context.builder.current_function,
-<a href=#1001 id=1001 data-nosnippet>1001</a>            globals,
-<a href=#1002 id=1002 data-nosnippet>1002</a>        }
-<a href=#1003 id=1003 data-nosnippet>1003</a>    }
-<a href=#1004 id=1004 data-nosnippet>1004</a>
-<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_for_globals() -&gt; <span class="self">Self </span>{
-<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">let </span>globals_context = Function::new_for_globals();
-<a href=#1007 id=1007 data-nosnippet>1007</a>
-<a href=#1008 id=1008 data-nosnippet>1008</a>        <span class="self">Self </span>{
-<a href=#1009 id=1009 data-nosnippet>1009</a>            functions: Default::default(),
-<a href=#1010 id=1010 data-nosnippet>1010</a>            function_queue: Default::default(),
-<a href=#1011 id=1011 data-nosnippet>1011</a>            function_counter: Default::default(),
-<a href=#1012 id=1012 data-nosnippet>1012</a>            program: Default::default(),
-<a href=#1013 id=1013 data-nosnippet>1013</a>            globals_context,
-<a href=#1014 id=1014 data-nosnippet>1014</a>            globals: Default::default(),
-<a href=#1015 id=1015 data-nosnippet>1015</a>        }
-<a href=#1016 id=1016 data-nosnippet>1016</a>    }
-<a href=#1017 id=1017 data-nosnippet>1017</a>
-<a href=#1018 id=1018 data-nosnippet>1018</a>    <span class="doccomment">/// Pops the next function from the shared function queue, returning None if the queue is empty.
-<a href=#1019 id=1019 data-nosnippet>1019</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>pop_next_function_in_queue(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(FuncId, IrFunctionId)&gt; {
-<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="self">self</span>.function_queue.lock().expect(<span class="string">"Failed to lock function_queue"</span>).pop()
-<a href=#1021 id=1021 data-nosnippet>1021</a>    }
-<a href=#1022 id=1022 data-nosnippet>1022</a>
-<a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="doccomment">/// Return the matching id for the given function if known. If it is not known this
-<a href=#1024 id=1024 data-nosnippet>1024</a>    /// will add the function to the queue of functions to compile, assign it a new id,
-<a href=#1025 id=1025 data-nosnippet>1025</a>    /// and return this new id.
-<a href=#1026 id=1026 data-nosnippet>1026</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_or_queue_function(<span class="kw-2">&amp;</span><span class="self">self</span>, id: FuncId) -&gt; IrFunctionId {
-<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="comment">// Start a new block to guarantee the destructor for the map lock is released
-<a href=#1028 id=1028 data-nosnippet>1028</a>        // before map needs to be acquired again in self.functions.write() below
-<a href=#1029 id=1029 data-nosnippet>1029</a>        </span>{
-<a href=#1030 id=1030 data-nosnippet>1030</a>            <span class="kw">let </span>map = <span class="self">self</span>.functions.read().expect(<span class="string">"Failed to read self.functions"</span>);
-<a href=#1031 id=1031 data-nosnippet>1031</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(existing_id) = map.get(<span class="kw-2">&amp;</span>id) {
-<a href=#1032 id=1032 data-nosnippet>1032</a>                <span class="kw">return </span><span class="kw-2">*</span>existing_id;
-<a href=#1033 id=1033 data-nosnippet>1033</a>            }
-<a href=#1034 id=1034 data-nosnippet>1034</a>        }
-<a href=#1035 id=1035 data-nosnippet>1035</a>
-<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="kw">let </span>next_id = <span class="self">self</span>.function_counter.next();
-<a href=#1037 id=1037 data-nosnippet>1037</a>
-<a href=#1038 id=1038 data-nosnippet>1038</a>        <span class="kw">let </span><span class="kw-2">mut </span>queue = <span class="self">self</span>.function_queue.lock().expect(<span class="string">"Failed to lock function queue"</span>);
-<a href=#1039 id=1039 data-nosnippet>1039</a>        queue.push((id, next_id));
-<a href=#1040 id=1040 data-nosnippet>1040</a>
-<a href=#1041 id=1041 data-nosnippet>1041</a>        <span class="self">self</span>.functions.write().expect(<span class="string">"Failed to write to self.functions"</span>).insert(id, next_id);
-<a href=#1042 id=1042 data-nosnippet>1042</a>
-<a href=#1043 id=1043 data-nosnippet>1043</a>        next_id
-<a href=#1044 id=1044 data-nosnippet>1044</a>    }
-<a href=#1045 id=1045 data-nosnippet>1045</a>}
+<a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>current_loop(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Loop {
+<a href=#933 id=933 data-nosnippet>933</a>        <span class="comment">// The frontend should ensure break/continue are never used outside a loop
+<a href=#934 id=934 data-nosnippet>934</a>        </span><span class="kw-2">*</span><span class="self">self</span>.loops.last().expect(<span class="string">"current_loop: not in a loop!"</span>)
+<a href=#935 id=935 data-nosnippet>935</a>    }
+<a href=#936 id=936 data-nosnippet>936</a>}
+<a href=#937 id=937 data-nosnippet>937</a>
+<a href=#938 id=938 data-nosnippet>938</a><span class="doccomment">/// True if the given operator cannot be encoded directly and needs
+<a href=#939 id=939 data-nosnippet>939</a>/// to be represented as !(some other operator)
+<a href=#940 id=940 data-nosnippet>940</a></span><span class="kw">fn </span>operator_requires_not(op: BinaryOpKind) -&gt; bool {
+<a href=#941 id=941 data-nosnippet>941</a>    <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="macro">matches!</span>(op, NotEqual | LessEqual | GreaterEqual)
+<a href=#943 id=943 data-nosnippet>943</a>}
+<a href=#944 id=944 data-nosnippet>944</a>
+<a href=#945 id=945 data-nosnippet>945</a><span class="doccomment">/// True if the given operator cannot be encoded directly and needs
+<a href=#946 id=946 data-nosnippet>946</a>/// to have its lhs and rhs swapped to be represented with another operator.
+<a href=#947 id=947 data-nosnippet>947</a>/// Example: (a &gt; b) needs to be represented as (b &lt; a)
+<a href=#948 id=948 data-nosnippet>948</a></span><span class="kw">fn </span>operator_requires_swapped_operands(op: BinaryOpKind) -&gt; bool {
+<a href=#949 id=949 data-nosnippet>949</a>    <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
+<a href=#950 id=950 data-nosnippet>950</a>    <span class="macro">matches!</span>(op, Greater | LessEqual)
+<a href=#951 id=951 data-nosnippet>951</a>}
+<a href=#952 id=952 data-nosnippet>952</a>
+<a href=#953 id=953 data-nosnippet>953</a><span class="doccomment">/// Converts the given operator to the appropriate BinaryOp.
+<a href=#954 id=954 data-nosnippet>954</a>/// Take care when using this to insert a binary instruction: this requires
+<a href=#955 id=955 data-nosnippet>955</a>/// checking operator_requires_not and operator_requires_swapped_operands
+<a href=#956 id=956 data-nosnippet>956</a>/// to represent the full operation correctly.
+<a href=#957 id=957 data-nosnippet>957</a></span><span class="kw">fn </span>convert_operator(op: BinaryOpKind) -&gt; BinaryOp {
+<a href=#958 id=958 data-nosnippet>958</a>    <span class="kw">match </span>op {
+<a href=#959 id=959 data-nosnippet>959</a>        BinaryOpKind::Add =&gt; BinaryOp::Add { unchecked: <span class="bool-val">false </span>},
+<a href=#960 id=960 data-nosnippet>960</a>        BinaryOpKind::Subtract =&gt; BinaryOp::Sub { unchecked: <span class="bool-val">false </span>},
+<a href=#961 id=961 data-nosnippet>961</a>        BinaryOpKind::Multiply =&gt; BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
+<a href=#962 id=962 data-nosnippet>962</a>        BinaryOpKind::Divide =&gt; BinaryOp::Div,
+<a href=#963 id=963 data-nosnippet>963</a>        BinaryOpKind::Modulo =&gt; BinaryOp::Mod,
+<a href=#964 id=964 data-nosnippet>964</a>        BinaryOpKind::Equal =&gt; BinaryOp::Eq,
+<a href=#965 id=965 data-nosnippet>965</a>        BinaryOpKind::NotEqual =&gt; BinaryOp::Eq, <span class="comment">// Requires not
+<a href=#966 id=966 data-nosnippet>966</a>        </span>BinaryOpKind::Less =&gt; BinaryOp::Lt,
+<a href=#967 id=967 data-nosnippet>967</a>        BinaryOpKind::Greater =&gt; BinaryOp::Lt, <span class="comment">// Requires operand swap
+<a href=#968 id=968 data-nosnippet>968</a>        </span>BinaryOpKind::LessEqual =&gt; BinaryOp::Lt, <span class="comment">// Requires operand swap and not
+<a href=#969 id=969 data-nosnippet>969</a>        </span>BinaryOpKind::GreaterEqual =&gt; BinaryOp::Lt, <span class="comment">// Requires not
+<a href=#970 id=970 data-nosnippet>970</a>        </span>BinaryOpKind::And =&gt; BinaryOp::And,
+<a href=#971 id=971 data-nosnippet>971</a>        BinaryOpKind::Or =&gt; BinaryOp::Or,
+<a href=#972 id=972 data-nosnippet>972</a>        BinaryOpKind::Xor =&gt; BinaryOp::Xor,
+<a href=#973 id=973 data-nosnippet>973</a>        BinaryOpKind::ShiftLeft =&gt; BinaryOp::Shl,
+<a href=#974 id=974 data-nosnippet>974</a>        BinaryOpKind::ShiftRight =&gt; BinaryOp::Shr,
+<a href=#975 id=975 data-nosnippet>975</a>    }
+<a href=#976 id=976 data-nosnippet>976</a>}
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a><span class="kw">impl </span>SharedContext {
+<a href=#979 id=979 data-nosnippet>979</a>    <span class="doccomment">/// Create a new SharedContext for the given monomorphized program.
+<a href=#980 id=980 data-nosnippet>980</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(program: Program) -&gt; <span class="self">Self </span>{
+<a href=#981 id=981 data-nosnippet>981</a>        <span class="kw">let </span>globals_shared_context = SharedContext::new_for_globals();
+<a href=#982 id=982 data-nosnippet>982</a>
+<a href=#983 id=983 data-nosnippet>983</a>        <span class="kw">let </span>globals_id = Program::global_space_id();
+<a href=#984 id=984 data-nosnippet>984</a>
+<a href=#985 id=985 data-nosnippet>985</a>        <span class="comment">// Queue the function representing the globals space for compilation
+<a href=#986 id=986 data-nosnippet>986</a>        </span>globals_shared_context.get_or_queue_function(globals_id);
+<a href=#987 id=987 data-nosnippet>987</a>
+<a href=#988 id=988 data-nosnippet>988</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = FunctionContext::new(
+<a href=#989 id=989 data-nosnippet>989</a>            <span class="string">"globals"</span>.to_owned(),
+<a href=#990 id=990 data-nosnippet>990</a>            <span class="kw-2">&amp;</span><span class="macro">vec!</span>[],
+<a href=#991 id=991 data-nosnippet>991</a>            RuntimeType::Brillig(InlineType::default()),
+<a href=#992 id=992 data-nosnippet>992</a>            <span class="kw-2">&amp;</span>globals_shared_context,
+<a href=#993 id=993 data-nosnippet>993</a>            GlobalsGraph::default(),
+<a href=#994 id=994 data-nosnippet>994</a>        );
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span><span class="kw-2">mut </span>globals = BTreeMap::default();
+<a href=#996 id=996 data-nosnippet>996</a>        <span class="kw">for </span>(id, (<span class="kw">_</span>, <span class="kw">_</span>, global)) <span class="kw">in </span>program.globals.iter() {
+<a href=#997 id=997 data-nosnippet>997</a>            <span class="kw">let </span>values = context.codegen_expression(global).unwrap();
+<a href=#998 id=998 data-nosnippet>998</a>            globals.insert(<span class="kw-2">*</span>id, values);
+<a href=#999 id=999 data-nosnippet>999</a>        }
+<a href=#1000 id=1000 data-nosnippet>1000</a>
+<a href=#1001 id=1001 data-nosnippet>1001</a>        <span class="self">Self </span>{
+<a href=#1002 id=1002 data-nosnippet>1002</a>            functions: Default::default(),
+<a href=#1003 id=1003 data-nosnippet>1003</a>            function_queue: Default::default(),
+<a href=#1004 id=1004 data-nosnippet>1004</a>            function_counter: Default::default(),
+<a href=#1005 id=1005 data-nosnippet>1005</a>            program,
+<a href=#1006 id=1006 data-nosnippet>1006</a>            globals_context: context.builder.current_function,
+<a href=#1007 id=1007 data-nosnippet>1007</a>            globals,
+<a href=#1008 id=1008 data-nosnippet>1008</a>        }
+<a href=#1009 id=1009 data-nosnippet>1009</a>    }
+<a href=#1010 id=1010 data-nosnippet>1010</a>
+<a href=#1011 id=1011 data-nosnippet>1011</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_for_globals() -&gt; <span class="self">Self </span>{
+<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">let </span>globals_context = Function::new_for_globals();
+<a href=#1013 id=1013 data-nosnippet>1013</a>
+<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="self">Self </span>{
+<a href=#1015 id=1015 data-nosnippet>1015</a>            functions: Default::default(),
+<a href=#1016 id=1016 data-nosnippet>1016</a>            function_queue: Default::default(),
+<a href=#1017 id=1017 data-nosnippet>1017</a>            function_counter: Default::default(),
+<a href=#1018 id=1018 data-nosnippet>1018</a>            program: Default::default(),
+<a href=#1019 id=1019 data-nosnippet>1019</a>            globals_context,
+<a href=#1020 id=1020 data-nosnippet>1020</a>            globals: Default::default(),
+<a href=#1021 id=1021 data-nosnippet>1021</a>        }
+<a href=#1022 id=1022 data-nosnippet>1022</a>    }
+<a href=#1023 id=1023 data-nosnippet>1023</a>
+<a href=#1024 id=1024 data-nosnippet>1024</a>    <span class="doccomment">/// Pops the next function from the shared function queue, returning None if the queue is empty.
+<a href=#1025 id=1025 data-nosnippet>1025</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>pop_next_function_in_queue(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(FuncId, IrFunctionId)&gt; {
+<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="self">self</span>.function_queue.lock().expect(<span class="string">"Failed to lock function_queue"</span>).pop()
+<a href=#1027 id=1027 data-nosnippet>1027</a>    }
+<a href=#1028 id=1028 data-nosnippet>1028</a>
+<a href=#1029 id=1029 data-nosnippet>1029</a>    <span class="doccomment">/// Return the matching id for the given function if known. If it is not known this
+<a href=#1030 id=1030 data-nosnippet>1030</a>    /// will add the function to the queue of functions to compile, assign it a new id,
+<a href=#1031 id=1031 data-nosnippet>1031</a>    /// and return this new id.
+<a href=#1032 id=1032 data-nosnippet>1032</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_or_queue_function(<span class="kw-2">&amp;</span><span class="self">self</span>, id: FuncId) -&gt; IrFunctionId {
+<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="comment">// Start a new block to guarantee the destructor for the map lock is released
+<a href=#1034 id=1034 data-nosnippet>1034</a>        // before map needs to be acquired again in self.functions.write() below
+<a href=#1035 id=1035 data-nosnippet>1035</a>        </span>{
+<a href=#1036 id=1036 data-nosnippet>1036</a>            <span class="kw">let </span>map = <span class="self">self</span>.functions.read().expect(<span class="string">"Failed to read self.functions"</span>);
+<a href=#1037 id=1037 data-nosnippet>1037</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(existing_id) = map.get(<span class="kw-2">&amp;</span>id) {
+<a href=#1038 id=1038 data-nosnippet>1038</a>                <span class="kw">return </span><span class="kw-2">*</span>existing_id;
+<a href=#1039 id=1039 data-nosnippet>1039</a>            }
+<a href=#1040 id=1040 data-nosnippet>1040</a>        }
+<a href=#1041 id=1041 data-nosnippet>1041</a>
+<a href=#1042 id=1042 data-nosnippet>1042</a>        <span class="kw">let </span>next_id = <span class="self">self</span>.function_counter.next();
+<a href=#1043 id=1043 data-nosnippet>1043</a>
+<a href=#1044 id=1044 data-nosnippet>1044</a>        <span class="kw">let </span><span class="kw-2">mut </span>queue = <span class="self">self</span>.function_queue.lock().expect(<span class="string">"Failed to lock function queue"</span>);
+<a href=#1045 id=1045 data-nosnippet>1045</a>        queue.push((id, next_id));
 <a href=#1046 id=1046 data-nosnippet>1046</a>
-<a href=#1047 id=1047 data-nosnippet>1047</a><span class="doccomment">/// Used to remember the results of each step of extracting a value from an ast::LValue
-<a href=#1048 id=1048 data-nosnippet>1048</a></span><span class="attr">#[derive(Debug)]
-<a href=#1049 id=1049 data-nosnippet>1049</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>LValue {
-<a href=#1050 id=1050 data-nosnippet>1050</a>    Ident,
-<a href=#1051 id=1051 data-nosnippet>1051</a>    Index {
-<a href=#1052 id=1052 data-nosnippet>1052</a>        old_array: ValueId,
-<a href=#1053 id=1053 data-nosnippet>1053</a>        index: ValueId,
-<a href=#1054 id=1054 data-nosnippet>1054</a>        array_lvalue: Box&lt;LValue&gt;,
-<a href=#1055 id=1055 data-nosnippet>1055</a>        location: Location,
-<a href=#1056 id=1056 data-nosnippet>1056</a>    },
-<a href=#1057 id=1057 data-nosnippet>1057</a>    VectorIndex {
-<a href=#1058 id=1058 data-nosnippet>1058</a>        old_vector: Values,
+<a href=#1047 id=1047 data-nosnippet>1047</a>        <span class="self">self</span>.functions.write().expect(<span class="string">"Failed to write to self.functions"</span>).insert(id, next_id);
+<a href=#1048 id=1048 data-nosnippet>1048</a>
+<a href=#1049 id=1049 data-nosnippet>1049</a>        next_id
+<a href=#1050 id=1050 data-nosnippet>1050</a>    }
+<a href=#1051 id=1051 data-nosnippet>1051</a>}
+<a href=#1052 id=1052 data-nosnippet>1052</a>
+<a href=#1053 id=1053 data-nosnippet>1053</a><span class="doccomment">/// Used to remember the results of each step of extracting a value from an ast::LValue
+<a href=#1054 id=1054 data-nosnippet>1054</a></span><span class="attr">#[derive(Debug)]
+<a href=#1055 id=1055 data-nosnippet>1055</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>LValue {
+<a href=#1056 id=1056 data-nosnippet>1056</a>    Ident,
+<a href=#1057 id=1057 data-nosnippet>1057</a>    Index {
+<a href=#1058 id=1058 data-nosnippet>1058</a>        old_array: ValueId,
 <a href=#1059 id=1059 data-nosnippet>1059</a>        index: ValueId,
-<a href=#1060 id=1060 data-nosnippet>1060</a>        vector_lvalue: Box&lt;LValue&gt;,
+<a href=#1060 id=1060 data-nosnippet>1060</a>        array_lvalue: Box&lt;LValue&gt;,
 <a href=#1061 id=1061 data-nosnippet>1061</a>        location: Location,
 <a href=#1062 id=1062 data-nosnippet>1062</a>    },
-<a href=#1063 id=1063 data-nosnippet>1063</a>    MemberAccess {
-<a href=#1064 id=1064 data-nosnippet>1064</a>        old_object: Values,
-<a href=#1065 id=1065 data-nosnippet>1065</a>        index: usize,
-<a href=#1066 id=1066 data-nosnippet>1066</a>        object_lvalue: Box&lt;LValue&gt;,
-<a href=#1067 id=1067 data-nosnippet>1067</a>    },
-<a href=#1068 id=1068 data-nosnippet>1068</a>    Dereference {
-<a href=#1069 id=1069 data-nosnippet>1069</a>        reference: Values,
-<a href=#1070 id=1070 data-nosnippet>1070</a>    },
-<a href=#1071 id=1071 data-nosnippet>1071</a>}</code></pre></div></section></main></body></html>
+<a href=#1063 id=1063 data-nosnippet>1063</a>    VectorIndex {
+<a href=#1064 id=1064 data-nosnippet>1064</a>        old_vector: Values,
+<a href=#1065 id=1065 data-nosnippet>1065</a>        index: ValueId,
+<a href=#1066 id=1066 data-nosnippet>1066</a>        vector_lvalue: Box&lt;LValue&gt;,
+<a href=#1067 id=1067 data-nosnippet>1067</a>        location: Location,
+<a href=#1068 id=1068 data-nosnippet>1068</a>    },
+<a href=#1069 id=1069 data-nosnippet>1069</a>    MemberAccess {
+<a href=#1070 id=1070 data-nosnippet>1070</a>        old_object: Values,
+<a href=#1071 id=1071 data-nosnippet>1071</a>        index: usize,
+<a href=#1072 id=1072 data-nosnippet>1072</a>        object_lvalue: Box&lt;LValue&gt;,
+<a href=#1073 id=1073 data-nosnippet>1073</a>    },
+<a href=#1074 id=1074 data-nosnippet>1074</a>    Dereference {
+<a href=#1075 id=1075 data-nosnippet>1075</a>        reference: Values,
+<a href=#1076 id=1076 data-nosnippet>1076</a>    },
+<a href=#1077 id=1077 data-nosnippet>1077</a>}</code></pre></div></section></main></body></html>
