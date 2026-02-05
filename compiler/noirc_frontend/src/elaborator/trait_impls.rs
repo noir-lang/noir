@@ -787,6 +787,8 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
+        self.current_item = None;
 
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);
