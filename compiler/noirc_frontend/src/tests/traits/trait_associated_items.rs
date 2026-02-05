@@ -891,7 +891,11 @@ fn associated_type_via_self_as_in_impl() {
         type Bar = u32;
         fn foo() -> <Self as Foo>::Bar { 10 }
     }
+    "#;
+    assert_no_errors(src);
+}
 
+#[test]
 fn generic_associated_type_access_direct_bound() {
     // T::Qux works when T: Baz and Baz defines Qux (direct bound syntax)
     let src = r#"
@@ -919,8 +923,11 @@ fn associated_type_via_self_in_impl() {
     impl Foo for Qux {
         type Bar = u32;
         fn foo() -> Self::Bar { 10 }
-    }
+    }"#;
+    assert_no_errors(src);
+}
 
+#[test]
 fn generic_associated_type_access_where_clause() {
     // T::Qux works when T: Baz and Baz defines Qux (where clause syntax)
     let src = r#"
