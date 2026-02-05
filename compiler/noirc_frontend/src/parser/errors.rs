@@ -28,6 +28,8 @@ pub enum ParserErrorReason {
     UnconstrainedNotFollowedByAnItem,
     #[error("`comptime` is not followed by an item")]
     ComptimeNotFollowedByAnItem,
+    #[error("`mut` is not followed by an item")]
+    MutableNotFollowedByAnItem,
     #[error("`mut` cannot be applied to this item")]
     MutableNotApplicable,
     #[error("`comptime` cannot be applied to this item")]
