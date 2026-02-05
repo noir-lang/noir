@@ -776,7 +776,6 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
-                    // if arg.to_u32()
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
