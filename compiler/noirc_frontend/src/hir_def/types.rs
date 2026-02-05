@@ -1778,9 +1778,11 @@ impl Type {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
 
-            Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).map(|typ| typ.is_nested_vector_helper(seen_data_types)).unwrap_or(false)
-            }
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .map(|typ| typ.is_nested_vector_helper(seen_data_types))
+                .unwrap_or(false),
             Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector_helper(seen_data_types),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
@@ -1851,9 +1853,11 @@ impl Type {
         match self {
             Type::Vector(_) => true,
             Type::Array(_, elem) => elem.as_ref().contains_vector_helper(seen_data_types),
-            Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).map(|typ| typ.contains_vector_helper(seen_data_types)).unwrap_or(false)
-            }
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .map(|typ| typ.contains_vector_helper(seen_data_types))
+                .unwrap_or(false),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 let key = (typ.id, generics.clone());
@@ -1927,9 +1931,11 @@ impl Type {
         match self {
             Type::Array(..) => true,
             Type::Vector(elem) => elem.as_ref().contains_array_helper(seen_data_types),
-            Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).map(|typ| typ.contains_array_helper(seen_data_types)).unwrap_or(false)
-            }
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .map(|typ| typ.contains_array_helper(seen_data_types))
+                .unwrap_or(false),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 let key = (typ.id, generics.clone());
@@ -1995,7 +2001,9 @@ impl Type {
     fn is_vector_with_nested_array_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_array(),
-            Type::Array(_, elem) => elem.as_ref().is_vector_with_nested_array_helper(seen_data_types),
+            Type::Array(_, elem) => {
+                elem.as_ref().is_vector_with_nested_array_helper(seen_data_types)
+            }
             Type::Alias(alias, generics) => alias
                 .borrow()
                 .get_type(generics)
