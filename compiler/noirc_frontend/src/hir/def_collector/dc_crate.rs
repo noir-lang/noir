@@ -329,8 +329,8 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         options: FrontendOptions,
-    ) -> Vec<CompilationError> {
-        let mut errors: Vec<CompilationError> = vec![];
+        errors: &mut Vec<CompilationError>,
+    ) {
         let crate_id = def_map.krate();
 
         // Recursively resolve the dependencies
@@ -377,15 +377,14 @@ impl DefCollector {
             def_collector,
             options,
             reuse_existing_module_declarations,
-            &mut errors,
+            errors,
         );
 
-        Self::check_unused_items(context, crate_id, &mut errors);
+        Self::check_unused_items(context, crate_id, errors);
 
         if errors.iter().any(|error| !error.is_expecting_other_error_error() && error.is_error()) {
             errors.retain(|error| !error.is_expecting_other_error_error());
         }
-        errors
     }
 
     /// This method does several things:

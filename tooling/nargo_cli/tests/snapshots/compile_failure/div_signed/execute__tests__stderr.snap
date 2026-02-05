@@ -2,18 +2,18 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-warning: Unnecessary `unsafe` block
-  ┌─ src/main.nr:4:9
-  │
-4 │         unsafe {
-  │         ------
-  │
-
 warning: Unsafe block must have a safety comment above it
   ┌─ src/main.nr:4:9
   │
 4 │         unsafe {
   │         ------ The comment must start with the "Safety: " word
+  │
+
+warning: Unnecessary `unsafe` block
+  ┌─ src/main.nr:4:9
+  │
+4 │         unsafe {
+  │         ------
   │
 
 error: Attempt to / with overflow

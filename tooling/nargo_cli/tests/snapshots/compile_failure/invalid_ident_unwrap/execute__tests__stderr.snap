@@ -9,13 +9,6 @@ warning: unused function rou
   │    --- unused function
   │
 
-error: cannot find `round` in this scope
-  ┌─ src/main.nr:4:3
-  │
-4 │   round::<3, = 2
-  │   ----- not found in this scope
-  │
-
 error: Expected an item but found ''
   ┌─ src/main.nr:3:8
   │
@@ -427,6 +420,13 @@ error: Unexpected 'end of input', expected one of 'where', '{', '->'
   │
 9 │ fn rou
   │      -
+  │
+
+error: cannot find `round` in this scope
+  ┌─ src/main.nr:4:3
+  │
+4 │   round::<3, = 2
+  │   ----- not found in this scope
   │
 
 Aborting due to 60 previous errors

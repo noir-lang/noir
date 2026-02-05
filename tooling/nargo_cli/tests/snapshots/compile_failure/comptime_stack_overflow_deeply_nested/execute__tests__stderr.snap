@@ -9,22 +9,6 @@ warning: unused variable max_depth
   │        --------- unused variable
   │
 
-error: expected type u32, found type ()
-    ┌─ src/main.nr:1:27
-    │  
-  1 │   fn foo(max_depth: u32) -> u32 {
-    │                             --- expected u32 because of return type
-    ·  
-101 │ ╭                                                                                                                                                                                                                                                                                                                                                                                                                 if max_depth
-102 │ │                                                                                                                                                                                                                                                                                                                                                                                                                     == 0 {
-103 │ │                                                                                                                                                                                                                                                                                                                                                                                                                     1
-104 │ │                                                                                                                                                                                                                                                                                                                                                                                                                 } else {
-    · │
-306 │ │             + 100
-307 │ │     )
-    │ ╰─────' () returned here
-    │  
-
 error: Maximum recursion depth exceeded while parsing expression
     ┌─ src/main.nr:101:404
     │
@@ -45,5 +29,21 @@ error: Expected a '{' but found '}'
 308 │ }
     │ -
     │
+
+error: expected type u32, found type ()
+    ┌─ src/main.nr:1:27
+    │  
+  1 │   fn foo(max_depth: u32) -> u32 {
+    │                             --- expected u32 because of return type
+    ·  
+101 │ ╭                                                                                                                                                                                                                                                                                                                                                                                                                 if max_depth
+102 │ │                                                                                                                                                                                                                                                                                                                                                                                                                     == 0 {
+103 │ │                                                                                                                                                                                                                                                                                                                                                                                                                     1
+104 │ │                                                                                                                                                                                                                                                                                                                                                                                                                 } else {
+    · │
+306 │ │             + 100
+307 │ │     )
+    │ ╰─────' () returned here
+    │  
 
 Aborting due to 4 previous errors
