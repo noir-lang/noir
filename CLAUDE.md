@@ -210,7 +210,6 @@ Special labels to control CI behavior:
 ### Workflow Reminders
 
 - ✅ Always compile before testing
-- ✅ Format/lint modified packages before committing
 - ✅ Run tests for modified code
 - ✅ Use single-package commands when possible (faster)
 - ❌ Never run `yarn test` from project root - always cd into package first

@@ -898,7 +898,7 @@ impl Elaborator<'_> {
         expected_kind: &Kind,
         location: Location,
     ) -> Type {
-        if typ.has_cyclic_alias(&mut HashSet::default()) {
+        if typ.has_cyclic_alias() {
             self.push_err(TypeCheckError::CyclicType { typ, location });
             return Type::Error;
         }
@@ -1942,7 +1942,7 @@ impl Elaborator<'_> {
                             Ident::new("std".to_string(), location),
                             location,
                         ));
-                        PathKind::Dep
+                        PathKind::Absolute
                     };
                     ordering_type_path_segments.push(TypedPathSegment::without_generics(
                         Ident::new("cmp".to_string(), location),
