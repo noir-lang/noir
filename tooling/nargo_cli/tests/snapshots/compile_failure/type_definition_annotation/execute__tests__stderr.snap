@@ -16,7 +16,7 @@ error: Assertion failed
   │            -----
   │
   = Call stack:
-    1: ?
+    1: #[fail_assert]
             at src/main.nr:1:1
 
 Aborting due to 1 previous error
