@@ -1,0 +1,6 @@
+[package]
+name = "repro_11440"
+type = "bin"
+authors = [""]
+
+[dependencies]
