@@ -88,7 +88,7 @@ impl UseSegmentPositions {
         let kind_string = match use_tree.prefix.kind {
             PathKind::Crate => Some("crate".to_string()),
             PathKind::Super => Some("super".to_string()),
-            PathKind::Dep | PathKind::Plain => None,
+            PathKind::Absolute | PathKind::Plain => None,
             PathKind::Resolved(_) => Some("$crate".to_string()),
         };
         if let Some(kind_string) = kind_string {
