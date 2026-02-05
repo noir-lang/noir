@@ -1460,7 +1460,12 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function.
+/// Return whether the expression refers to a pure builtin or low level function
+/// that does not modify its array inputs.
+///
+/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
+/// but they CAN modify their input array in Brillig due to copy-on-write optimization
+/// when the reference count is 1. We must NOT skip clones for these operations.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1472,6 +1477,13 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Some(intrinsic) = Intrinsic::lookup(name) else {
         return false;
     };
+
+    // Vector operations can modify their input array in Brillig when RC=1,
+    // so we must not skip clones for them even though they're technically "pure".
+    if intrinsic.modifies_input_array_in_brillig() {
+        return false;
+    }
+
     matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
 }
 
