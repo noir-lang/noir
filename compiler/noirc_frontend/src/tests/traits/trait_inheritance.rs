@@ -317,7 +317,7 @@ fn trait_inheritance_using_eq_in_default_method() {
 #[test]
 fn trait_inheritance_with_calling_method_on_self_in_default_method() {
     let src = r#"
-    pub trait Empty: Eq {
+    pub trait Empty where Self: Eq {
         fn empty() -> Self;
 
         fn is_empty(self) -> bool {

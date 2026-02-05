@@ -178,6 +178,7 @@ impl Elaborator<'_> {
                         bound.trait_id,
                         &bound.trait_generics.ordered,
                         &bound.trait_generics.named,
+                        false,
                     ) {
                         self.push_trait_constraint_error(
                             object_type,
@@ -669,6 +670,7 @@ impl Elaborator<'_> {
                 trait_bound.trait_id,
                 &trait_bound.trait_generics.ordered,
                 &named_generics,
+                false,
             ) {
                 Ok((_, impl_bindings, impl_instantiation_bindings)) => {
                     bindings.extend(impl_bindings);

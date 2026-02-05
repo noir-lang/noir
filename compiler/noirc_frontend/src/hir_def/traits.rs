@@ -144,12 +144,15 @@ impl TraitConstraint {
     pub fn find_impl(
         &self,
         interner: &NodeInterner,
+        current_trait_self: Option<&Type>,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        let allow_bindable = current_trait_self.is_some_and(|typ| *typ == self.typ);
         interner.lookup_trait_implementation(
             &self.typ,
             self.trait_bound.trait_id,
             &self.trait_bound.trait_generics.ordered,
             &self.trait_bound.trait_generics.named,
+            allow_bindable,
         )
     }
 }

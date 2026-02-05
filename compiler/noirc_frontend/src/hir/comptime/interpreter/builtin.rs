@@ -1285,6 +1285,7 @@ fn type_get_trait_impl(
         trait_id,
         &generics.ordered,
         &generics.named,
+        false,
     ) {
         Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
@@ -1305,7 +1306,7 @@ fn type_implements(
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
     let implements = interner
-        .lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named)
+        .lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named, false)
         .is_ok();
     Ok(Value::Bool(implements))
 }

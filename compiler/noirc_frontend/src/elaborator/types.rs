@@ -948,7 +948,13 @@ impl Elaborator<'_> {
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
 
-        match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
+        match self.interner.lookup_trait_implementation(
+            &object_type,
+            trait_id,
+            &ordered,
+            &named,
+            false,
+        ) {
             Ok((impl_kind, instantiation_bindings)) => {
                 let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
                 typ.substitute(&instantiation_bindings)
@@ -2413,6 +2419,8 @@ impl Elaborator<'_> {
                 return None;
             }
         };
+
+        // The function we are elaborating, ie. where we make the method call from.
         let func_meta = self.interner.function_meta(&func_id);
 
         // If inside a trait method, check if it's a method on `self`
@@ -2537,7 +2545,9 @@ impl Elaborator<'_> {
             matches.push(trait_method);
         }
 
-        // Search in the parent traits, if any
+        // Search in the parent traits, if any.
+        // Note that `trait_bounds` represent `Foo: Bar + Baz`,
+        // but `Foo where Self: Bar + Baz` appears in `trait_constraints` instead.
         for parent_trait_bound in &the_trait.trait_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
                 // Avoid looping forever in case there are cycles
@@ -2704,6 +2714,7 @@ impl Elaborator<'_> {
                     *trait_id,
                     &generics.ordered,
                     &generics.named,
+                    false,
                 )
                 .is_err()
             {
