@@ -165,21 +165,29 @@ impl NodeInterner {
             NamedType { name: named.name.clone(), typ }
         });
 
-        match self.try_lookup_trait_implementation(
+        // Remove any prepared implementation.
+        self.remove_prepared_trait_implementation(
             &instantiated_object_type,
             trait_id,
             trait_generics,
             &associated_types,
-        ) {
+        );
+
+        let existing = self.try_lookup_trait_implementation(
+            &instantiated_object_type,
+            trait_id,
+            trait_generics,
+            &associated_types,
+        );
+
+        match existing {
             Ok((TraitImplKind::Normal(existing), ..)) => {
                 let existing_impl = self.get_trait_implementation(existing);
                 let existing_impl = existing_impl.borrow();
                 return Ok(Err(existing_impl.ident.location()));
             }
             Ok((TraitImplKind::Prepared { impl_id, .. }, ..)) => {
-                // We will no longer need the prepared version, as we just have the normal now.
-                let entries = self.trait_implementation_map.entry(trait_id).or_default();
-                entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared { impl_id: prepared_impl_id, .. } if *prepared_impl_id == impl_id));
+                unreachable!("ICE: Prepared should have been removed; found {impl_id:?}");
             }
             Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
                 // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
@@ -250,9 +258,50 @@ impl NodeInterner {
             trait_generics,
             trait_associated_types,
             &mut bindings,
+            false,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
         Ok((impl_kind, bindings, instantiation_bindings))
+    }
+
+    /// Remove any matching [TraitImplKind::Prepared] for this object and trait.
+    ///
+    /// Returns an error if there were multiple matches, or if the object type could not be matched.
+    pub(crate) fn remove_prepared_trait_implementation(
+        &mut self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
+    ) {
+        let mut bindings = TypeBindings::default();
+        match self.lookup_trait_implementation_helper(
+            object_type,
+            trait_id,
+            trait_generics,
+            trait_associated_types,
+            &mut bindings,
+            true,
+            IMPL_SEARCH_RECURSION_LIMIT,
+        ) {
+            Ok((TraitImplKind::Prepared { impl_id, .. }, _)) => {
+                let entries = self.trait_implementation_map.entry(trait_id).or_default();
+                entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared { impl_id: prepared_impl_id, .. } if *prepared_impl_id == impl_id));
+            }
+            Ok(_) => {
+                unreachable!("only looking for TraitImplKind::Prepared");
+            }
+            Err(ImplSearchErrorKind::Nested(_)) => {
+                // Wasn't found, nothing to remove.
+            }
+            Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
+                // Can't match this object type, so we don't know if there is a prepared impl.
+            }
+            Err(ImplSearchErrorKind::MultipleMatching(m)) => {
+                // Multiple found, shouldn't happen.
+                unreachable!("ICE: Multiple Prepared traits: {m:?}")
+            }
+        }
     }
 
     /// Returns the trait implementation if found along with the instantiation bindings for
@@ -272,6 +321,7 @@ impl NodeInterner {
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
+        prepared_only: bool,
         recursion_limit: u32,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
@@ -307,6 +357,10 @@ impl NodeInterner {
         let mut where_clause_error = None;
 
         for (existing_object_type, impl_kind) in impls {
+            if prepared_only && !matches!(impl_kind, TraitImplKind::Prepared { .. }) {
+                continue;
+            }
+
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(self);
 
@@ -471,6 +525,7 @@ impl NodeInterner {
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
                 type_bindings,
+                false,
                 recursion_limit - 1,
             )
             .map_err(|error| (constraint.clone(), error))?;
