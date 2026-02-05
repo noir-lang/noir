@@ -17,7 +17,7 @@ use nargo_toml::PackageSelection;
 use noirc_abi::input_parser::{Format, json::serialize_to_json};
 use noirc_driver::{CompileOptions, check_crate};
 use noirc_frontend::{
-    error_reporting::function_names_for_diagnostics,
+    error_reporting::report_one,
     hir::{FunctionNameMatch, ParsedFiles},
 };
 use rayon::prelude::{ParallelBridge, ParallelIterator};
@@ -482,24 +482,20 @@ fn display_fuzzing_report_and_store(
                 writer.reset().expect("Failed to reset writer");
             }
             if let Some(diag) = error_diagnostic {
-                let diagnostics = std::slice::from_ref(diag);
-                let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
-                noirc_errors::reporter::report_all(
-                    file_manager.as_file_map(),
-                    &function_names,
-                    diagnostics,
+                report_one(
+                    diag,
+                    file_manager,
+                    parsed_files,
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
             }
         }
         FuzzingRunStatus::CompileError(err) => {
-            let diagnostics = std::slice::from_ref(err);
-            let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
-            noirc_errors::reporter::report_all(
-                file_manager.as_file_map(),
-                &function_names,
-                diagnostics,
+            report_one(
+                err,
+                file_manager,
+                parsed_files,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             );

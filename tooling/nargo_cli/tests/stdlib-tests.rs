@@ -4,7 +4,7 @@ use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
-use noirc_frontend::error_reporting::function_names_for_diagnostics;
+use noirc_frontend::error_reporting::report_one;
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -156,12 +156,10 @@ fn display_test_report(
                     .expect("Failed to set color");
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 if let Some(diag) = error_diagnostic {
-                    let diagnostics = std::slice::from_ref(diag);
-                    let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
-                    noirc_errors::reporter::report_all(
-                        file_manager.as_file_map(),
-                        &function_names,
-                        diagnostics,
+                    report_one(
+                        diag,
+                        file_manager,
+                        parsed_files,
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
                     );
@@ -174,12 +172,10 @@ fn display_test_report(
                 writeln!(writer, "skipped").expect("Failed to write to stderr");
             }
             TestStatus::CompileError(err) => {
-                let diagnostics = std::slice::from_ref(err);
-                let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
-                noirc_errors::reporter::report_all(
-                    file_manager.as_file_map(),
-                    &function_names,
-                    diagnostics,
+                report_one(
+                    err,
+                    file_manager,
+                    parsed_files,
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );

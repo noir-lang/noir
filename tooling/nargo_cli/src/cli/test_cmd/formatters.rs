@@ -3,7 +3,10 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 use fm::FileManager;
 use nargo::ops::TestStatus;
 use noirc_errors::{CustomDiagnostic, reporter::stack_trace};
-use noirc_frontend::{error_reporting::function_names_for_diagnostics, hir::ParsedFiles};
+use noirc_frontend::{
+    error_reporting::{function_names_for_diagnostics, report_one},
+    hir::ParsedFiles,
+};
 use serde_json::{Map, json};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
@@ -137,15 +140,7 @@ impl Formatter for PrettyFormatter {
                 show_time(&mut writer)?;
                 writeln!(writer)?;
                 if let Some(diag) = error_diagnostic {
-                    let diagnostics = std::slice::from_ref(diag);
-                    let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
-                    noirc_errors::reporter::report_all(
-                        file_manager.as_file_map(),
-                        &function_names,
-                        diagnostics,
-                        deny_warnings,
-                        silence_warnings,
-                    );
+                    report_one(diag, file_manager, parsed_files, deny_warnings, silence_warnings);
                 }
             }
             TestStatus::Skipped => {
@@ -156,12 +151,10 @@ impl Formatter for PrettyFormatter {
                 writeln!(writer)?;
             }
             TestStatus::CompileError(file_diagnostic) => {
-                let diagnostics = std::slice::from_ref(file_diagnostic);
-                let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
-                noirc_errors::reporter::report_all(
-                    file_manager.as_file_map(),
-                    &function_names,
-                    diagnostics,
+                report_one(
+                    file_diagnostic,
+                    file_manager,
+                    parsed_files,
                     deny_warnings,
                     silence_warnings,
                 );
@@ -337,26 +330,20 @@ impl Formatter for TerseFormatter {
                         writeln!(writer, "{message}")?;
                         writer.reset()?;
                         if let Some(diag) = error_diagnostic {
-                            let diagnostics = std::slice::from_ref(diag);
-                            let function_names =
-                                function_names_for_diagnostics(diagnostics, parsed_files);
-                            noirc_errors::reporter::report_all(
-                                file_manager.as_file_map(),
-                                &function_names,
-                                diagnostics,
+                            report_one(
+                                diag,
+                                file_manager,
+                                parsed_files,
                                 deny_warnings,
                                 silence_warnings,
                             );
                         }
                     }
                     TestStatus::CompileError(file_diagnostic) => {
-                        let diagnostics = std::slice::from_ref(file_diagnostic);
-                        let function_names =
-                            function_names_for_diagnostics(diagnostics, parsed_files);
-                        noirc_errors::reporter::report_all(
-                            file_manager.as_file_map(),
-                            &function_names,
-                            diagnostics,
+                        report_one(
+                            file_diagnostic,
+                            file_manager,
+                            parsed_files,
                             deny_warnings,
                             silence_warnings,
                         );
