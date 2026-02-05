@@ -340,10 +340,10 @@ impl Elaborator<'_> {
                 CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
             ) {
                 // Expecting a DefCollectorErrorKind::Duplicate error in this case
-                TypeCheckError::ExpectingOtherError {
-                    message: "define_enum_variant_function: duplicate definition".to_string(),
+                TypeCheckError::expecting_other_error(
+                    "define_enum_variant_function: duplicate definition",
                     location,
-                }
+                )
                 .into()
             } else {
                 error
@@ -430,7 +430,10 @@ impl Elaborator<'_> {
         rules: Vec<(Expression, Expression)>,
     ) -> (Vec<Row>, Type) {
         let result_type = self.interner.next_type_variable();
-        let expected_pattern_type = self.interner.definition_type(variable_to_match);
+        let expected_pattern_type = self
+            .interner
+            .definition_type(variable_to_match)
+            .expect("elaborate_match_rules: ICE: expected definition_type to be set");
 
         let rows = vecmap(rules, |(pattern, branch)| {
             self.push_scope();
@@ -561,6 +564,12 @@ impl Elaborator<'_> {
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
                     let expected = field_types.get(i).unwrap_or(&Type::Error);
+                    if expected.is_error() {
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            format!("Elaborator::expression_to_pattern: missing field_type with index {i}"),
+                            expr_location
+                        ));
+                    }
                     self.expression_to_pattern(field, expected, variables_defined)
                 });
 
@@ -775,7 +784,9 @@ impl Elaborator<'_> {
                     _ => return Pattern::Error,
                 };
 
-                let global_type = self.interner.definition_type(global.definition_id);
+                let global_type = self.interner.definition_type(global.definition_id).expect(
+                    "path_resolution_to_constructor: ICE: expected definition_type to be set",
+                );
                 let actual_type = global_type.instantiate(self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
@@ -975,7 +986,11 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
         let branch_var = self.branch_variable(&rows);
 
-        let definition_type = self.elaborator.interner.definition_type(branch_var);
+        let definition_type = self
+            .elaborator
+            .interner
+            .definition_type(branch_var)
+            .expect("compile_rows: ICE: expected definition_type to be set");
         match definition_type.follow_bindings_shallow().into_owned() {
             Type::FieldElement | Type::Integer(_, _) => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
@@ -1304,8 +1319,16 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn let_binding(&mut self, variable: DefinitionId, rhs: DefinitionId, body: ExprId) -> ExprId {
         let location = self.elaborator.interner.definition(rhs).location;
 
-        let r#type = self.elaborator.interner.definition_type(variable);
-        let rhs_type = self.elaborator.interner.definition_type(rhs);
+        let r#type = self
+            .elaborator
+            .interner
+            .definition_type(variable)
+            .expect("let_binding: ICE: expected definition_type to be set on variable");
+        let rhs_type = self
+            .elaborator
+            .interner
+            .definition_type(rhs)
+            .expect("let_binding: ICE: expected definition_type to be set on rhs");
         let variable = HirIdent::non_trait_method(variable, location);
 
         let rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), None);
@@ -1320,7 +1343,11 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             is_global_let: false,
         });
 
-        let body_type = self.elaborator.interner.id_type(body);
+        let body_type = self
+            .elaborator
+            .interner
+            .id_type(body)
+            .expect("let_binding: ICE: expected id_type to be set on body");
         let let_ = self.elaborator.interner.push_stmt_full(let_, location);
         let body =
             self.elaborator.interner.push_stmt_full(HirStatement::Expression(body), location);
@@ -1401,7 +1428,11 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 }
 
                 if let Some(else_case) = else_case {
-                    let typ = self.elaborator.interner.definition_type(*definition_id);
+                    let typ = self
+                        .elaborator
+                        .interner
+                        .definition_type(*definition_id)
+                        .expect("find_missing_values: ICE: expected definition_type to be set");
 
                     for case in self.missing_cases(cases, &typ) {
                         env.insert(*definition_id, case);

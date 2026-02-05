@@ -115,7 +115,14 @@ impl Elaborator<'_> {
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
             }
-            ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
+            ExpressionKind::Resolved(id) => {
+                return (
+                    id,
+                    self.interner
+                        .id_type(id)
+                        .expect("elaborate_expression_inner: ICE: expected id_type to be set"),
+                );
+            }
             ExpressionKind::Interned(id) => {
                 let expr_kind = self.interner.get_expression_kind(id);
                 let expr = Expression::new(expr_kind.clone(), expr.location);
@@ -124,7 +131,13 @@ impl Elaborator<'_> {
             ExpressionKind::InternedStatement(id) => {
                 return self.elaborate_interned_statement_as_expr(id, expr.location);
             }
-            ExpressionKind::Error => (HirExpression::Error, Type::Error),
+            ExpressionKind::Error => {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "Elaborator::elaborate_expression_inner: encountered ExpressionKind::Error",
+                    expr.location,
+                ));
+                (HirExpression::Error, Type::Error)
+            }
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { location: expr.location });
                 (HirExpression::Error, Type::Error)
@@ -223,7 +236,10 @@ impl Elaborator<'_> {
             let stmt = self.interner.statement(&id);
 
             if let HirStatement::Semi(expr) = stmt {
-                let inner_expr_type = self.interner.id_type(expr);
+                let inner_expr_type = self
+                    .interner
+                    .id_type(expr)
+                    .expect("elaborate_block_expression: ICE: expected id_type to be set");
                 let location = self.interner.expr_location(&expr);
 
                 self.unify(&inner_expr_type, &Type::Unit, || {
@@ -283,7 +299,12 @@ impl Elaborator<'_> {
                     }
                     MustUse::NoMustUse
                 }
-                Type::Alias(alias, generics) => helper(&alias.borrow().get_type(generics), fuel),
+                Type::Alias(alias, generics) => {
+                    let Some(alias_type) = &alias.borrow().get_type(generics) else {
+                        return MustUse::NoMustUse;
+                    };
+                    helper(alias_type, fuel)
+                }
                 Type::CheckedCast { to, .. } => helper(to.as_ref(), fuel),
                 Type::Reference(element, _) => helper(element.as_ref(), fuel),
                 _ => MustUse::NoMustUse,
@@ -579,7 +600,10 @@ impl Elaborator<'_> {
         location: Location,
     ) {
         if let Some(lambda_context) = self.lambda_stack.last() {
-            let typ = self.interner.definition_type(id);
+            let typ = self
+                .interner
+                .definition_type(id)
+                .expect("check_can_mutate_lambda_capture: ICE: expected definition_type to be set");
             if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
             {
                 self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
@@ -643,9 +667,16 @@ impl Elaborator<'_> {
 
         // Only check has_errors when we need to call the interpreter
         if is_macro_call && !self.in_comptime_context() {
-            return self
+            let result = self
                 .call_macro(hir_call.func, hir_call.arguments, location, typ)
                 .unwrap_or((HirExpression::Error, Type::Error));
+            if result.1.is_error() {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "Elaborator::elaborate_call: call_macro failed",
+                    location,
+                ));
+            }
+            return result;
         }
 
         // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
@@ -725,9 +756,16 @@ impl Elaborator<'_> {
         // Only check has_errors when we need to call the interpreter
         if is_macro_call && !self.in_comptime_context() {
             let args = function_call.arguments;
-            return self
+            let result = self
                 .call_macro(function_call.func, args, location, typ)
                 .unwrap_or((HirExpression::Error, Type::Error));
+            if result.1.is_error() {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "Elaborator::elaborate_method_call: call_macro failed",
+                    location,
+                ));
+            }
+            return result;
         }
 
         // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
@@ -770,6 +808,12 @@ impl Elaborator<'_> {
                 location,
                 is_macro_call: method_call.is_macro_call,
             };
+            self.push_err(TypeCheckError::expecting_other_error(
+                format!(
+                    "Elaborator::elaborate_method_call_inner: failed to lookup method {method_name}"
+                ),
+                location,
+            ));
             return (error_call, Type::Error);
         };
 
@@ -914,7 +958,7 @@ impl Elaborator<'_> {
                 let location = self.interner.expr_location(&msg);
                 let typ = typ.follow_bindings();
                 let mut check_msg_compat = |typ: &Type| {
-                    if typ.is_message_compatible(false) || matches!(typ, Type::Error) {
+                    if typ.is_message_compatible(false) {
                         return;
                     }
                     let error = TypeCheckError::TypeCannotBeUsed {
@@ -991,6 +1035,10 @@ impl Elaborator<'_> {
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "Elaborator::elaborate_constructor: failed to lookup type from path",
+                location,
+            ));
             return (HirExpression::Error, Type::Error);
         };
 
@@ -1110,7 +1158,12 @@ impl Elaborator<'_> {
             let expected_index_and_visibility =
                 expected_field.map(|(index, visibility, _)| (index, visibility));
             let expected_type = expected_field.map(|(_, _, typ)| typ).unwrap_or(&&Type::Error);
-
+            if expected_type.is_error() {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "Elaborator::resolve_constructor_expr_fields: missing field type {field_name}",
+                    field.location,
+                ));
+            }
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
 
@@ -1519,7 +1572,7 @@ impl Elaborator<'_> {
         });
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
-            self.interner.definition_type(capture.ident.id)
+            self.interner.definition_type(capture.ident.id).expect("elaborate_lambda_with_parameter_type_hints: ICE: expected definition_type to be set")
         });
 
         let env_type =

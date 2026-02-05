@@ -701,7 +701,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                let typ = self
+                    .elaborator
+                    .interner
+                    .id_type(id)
+                    .expect("evaluate_ident: ICE: expected id_type to be set")
+                    .follow_bindings();
                 let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
                 let bindings = Rc::new(bindings.map_or(TypeBindings::default(), Clone::clone));
                 Ok(Value::Function(*function_id, typ, bindings))
@@ -779,7 +784,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_trait_item: ICE: expected id_type to be set")
+            .follow_bindings();
         match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
@@ -841,14 +851,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        let typ = self.elaborator.interner.id_type(id);
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_format_string: ICE: expected id_type to be set");
         Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
     fn evaluate_integer(&self, value: SignedField, id: ExprId) -> IResult<Value> {
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_integer: ICE: expected id_type to be set")
+            .follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
         evaluate_integer(typ, value, location)
@@ -877,7 +896,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_constructor: ICE: expected id_type to be set")
+            .follow_bindings();
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -1074,7 +1098,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_constructor: ICE: expected id_type to be set")
+            .follow_bindings();
         Ok(Value::Struct(fields, typ))
     }
 
@@ -1085,7 +1114,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> IResult<Value> {
         let fields = try_vecmap(constructor.arguments, |arg| self.evaluate(arg))?;
-        let typ = self.elaborator.interner.id_type(id).unwrap_forall().1.follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_enum_constructor: ICE: expected id_type to be set")
+            .unwrap_forall()
+            .1
+            .follow_bindings();
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
@@ -1177,7 +1213,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         location: Location,
         result: &Value,
     ) {
-        let expected_type = self.elaborator.interner.id_type(id);
+        let expected_type =
+            self.elaborator.interner.id_type(id).expect(
+                "unify_macro_call_result_with_expected_type: ICE: expected id_type to be set",
+            );
         let actual_type = result.get_type();
 
         // Undo any bindings (if any) from the last time we unified this expression's
@@ -1266,7 +1305,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         })?;
 
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .id_type(id)
+            .expect("evaluate_lambda: ICE: expected id_type to be set")
+            .follow_bindings();
         let module_scope = self.elaborator.module_id();
         let bindings = self.bound_generics.last().cloned().unwrap_or_default();
         let closure = Closure {

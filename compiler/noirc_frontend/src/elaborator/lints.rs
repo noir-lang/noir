@@ -173,7 +173,12 @@ pub(super) fn oracle_returns_multiple_vectors(
                     0
                 }
             }
-            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args)),
+            Type::Alias(def, args) => {
+                let Some(alias_type) = &def.borrow().get_type(args) else {
+                    return 0;
+                };
+                vector_count(alias_type)
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -398,7 +403,10 @@ pub(crate) fn check_integer_literal_fits_its_type(
     expr_id: &ExprId,
 ) -> Option<TypeCheckError> {
     let expr = interner.expression(expr_id);
-    let typ = interner.id_type(expr_id).follow_bindings();
+    let typ = interner
+        .id_type(expr_id)
+        .expect("check_integer_literal_fits_its_type: ICE: expected id_type to be set")
+        .follow_bindings();
     let location = interner.expr_location(expr_id);
 
     match expr {

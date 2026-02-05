@@ -75,7 +75,10 @@ impl Monomorphizer<'_> {
 
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
-        let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
+        let var_type = self
+            .interner
+            .id_type(call.arguments[DEBUG_VALUE_ARG_SLOT])
+            .expect("Monomorphizer::patch_debug_var_assign: ICE: expected id_type to be set");
         let source_var_id = source_var_id.absolute_value().to_u128().into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);

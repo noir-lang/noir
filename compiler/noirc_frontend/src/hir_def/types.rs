@@ -226,9 +226,13 @@ impl Kind {
 
     pub(crate) fn is_error(&self) -> bool {
         match self.follow_bindings() {
-            Self::Numeric(typ) => *typ == Type::Error,
+            Self::Numeric(typ) => typ.is_error(),
             _ => false,
         }
+    }
+
+    pub(crate) fn error() -> Kind {
+        Kind::Numeric(Box::new(Type::Error))
     }
 
     pub(crate) fn u32() -> Self {
@@ -251,12 +255,12 @@ impl Kind {
         match self {
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Numeric(_typ) => {
+            Kind::Numeric(typ) => {
                 // Even though we have a type here, that type cannot be used as
                 // the default type of a numeric generic.
                 // For example, if we have `let N: u32` and we don't know
                 // what `N` is, we can't assume it's `u32`.
-                None
+                if typ.is_error() { Some(Type::Error) } else { None }
             }
             Kind::Any | Kind::Normal => None,
         }
@@ -282,6 +286,12 @@ impl Kind {
         value: SignedField,
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
+        if self.is_error() {
+            return Err(TypeCheckError::expecting_other_error(
+                "BinaryTypeOperator::function: encountered error kind",
+                location,
+            ));
+        }
         if let Some(maximum_size) = self.integral_maximum_size() {
             if value > SignedField::positive(maximum_size) {
                 return Err(TypeCheckError::OverflowingConstant {
@@ -757,7 +767,8 @@ impl std::fmt::Display for DataType {
 pub struct TypeAlias {
     pub name: Ident,
     pub id: TypeAliasId,
-    pub typ: Type,
+    // pub typ: Type,
+    pub typ: Option<Type>,
     pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
     pub location: Location,
@@ -801,7 +812,7 @@ impl TypeAlias {
         id: TypeAliasId,
         name: Ident,
         location: Location,
-        typ: Type,
+        typ: Option<Type>,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
         module_id: ModuleId,
@@ -815,8 +826,7 @@ impl TypeAlias {
         new_generics: ResolvedGenerics,
         num_expr: Option<UnresolvedTypeExpression>,
     ) {
-        assert_eq!(self.typ, Type::Error);
-        self.typ = new_typ;
+        self.typ = Some(new_typ);
         self.generics = new_generics;
         self.numeric_expr = num_expr;
     }
@@ -824,7 +834,7 @@ impl TypeAlias {
     /// Bind the generics of the aliased [Type] to the given generic arguments.
     ///
     /// Panics if the number of arguments do not meet expectations.
-    pub fn get_type(&self, generic_args: &[Type]) -> Type {
+    pub fn get_type(&self, generic_args: &[Type]) -> Option<Type> {
         assert_eq!(self.generics.len(), generic_args.len());
 
         let substitutions = self
@@ -836,10 +846,10 @@ impl TypeAlias {
             })
             .collect();
 
-        self.typ.substitute(&substitutions)
+        self.typ.as_ref().map(|typ| typ.substitute(&substitutions))
     }
 
-    pub fn instantiate(&self, interner: &NodeInterner) -> Type {
+    pub fn instantiate(&self, interner: &NodeInterner) -> Option<Type> {
         let args = vecmap(&self.generics, |_| interner.next_type_variable());
         self.get_type(&args)
     }
@@ -938,7 +948,11 @@ pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 
 impl TypeVariable {
     pub fn unbound(id: TypeVariableId, type_var_kind: Kind) -> Self {
-        TypeVariable(id, Shared::new(TypeBinding::Unbound(id, type_var_kind)))
+        if type_var_kind.is_error() {
+            TypeVariable(id, Shared::new(TypeBinding::Bound(Type::Error)))
+        } else {
+            TypeVariable(id, Shared::new(TypeBinding::Unbound(id, type_var_kind)))
+        }
     }
 
     pub fn id(&self) -> TypeVariableId {
@@ -968,6 +982,12 @@ impl TypeVariable {
         kind: &Kind,
         location: Location,
     ) -> Result<(), TypeCheckError> {
+        if binding.is_error() || kind.is_error() {
+            return Err(TypeCheckError::expecting_other_error(
+                "TypeVariable::try_bind: encountered error type",
+                location,
+            ));
+        }
         if !binding.kind().unifies(kind) {
             return Err(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.clone(),
@@ -1143,6 +1163,7 @@ impl std::fmt::Display for Type {
                         Kind::Any | Kind::Normal => write!(f, "{}", var.borrow()),
                         Kind::Integer => write!(f, "{}", Type::default_int_type()),
                         Kind::IntegerOrField => write!(f, "Field"),
+                        Kind::Numeric(typ) if typ.is_error() => write!(f, "error"),
                         Kind::Numeric(_typ) => write!(f, "_"),
                     },
                     TypeBinding::Bound(binding) => {
@@ -1295,6 +1316,9 @@ impl Type {
     }
 
     pub fn type_variable_with_kind(interner: &NodeInterner, type_var_kind: Kind) -> Type {
+        if type_var_kind.is_error() {
+            return Type::Error;
+        }
         let id = interner.next_type_variable_id();
         let var = TypeVariable::unbound(id, type_var_kind);
         Type::TypeVariable(var)
@@ -1325,7 +1349,9 @@ impl Type {
                 TypeBinding::Bound(binding) => binding.is_bindable(),
                 TypeBinding::Unbound(_, _) => true,
             },
-            Type::Alias(alias, args) => alias.borrow().get_type(args).is_bindable(),
+            Type::Alias(alias, args) => {
+                alias.borrow().get_type(args).map(|typ| typ.is_bindable()).unwrap_or(false)
+            }
             _ => false,
         }
     }
@@ -1390,9 +1416,11 @@ impl Type {
             | Type::Function(..)
             | Type::Tuple(..)
             | Type::Quoted(..) => true,
-            Type::Alias(alias_type, generics) => {
-                alias_type.borrow().get_type(&generics).is_primitive()
-            }
+            Type::Alias(alias_type, generics) => alias_type
+                .borrow()
+                .get_type(&generics)
+                .map(|typ| typ.is_primitive())
+                .unwrap_or(false),
             Type::Reference(typ, _) => typ.is_primitive(),
             Type::DataType(..)
             | Type::TypeVariable(..)
@@ -1401,15 +1429,20 @@ impl Type {
             | Type::CheckedCast { .. }
             | Type::Forall(..)
             | Type::Constant(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
+            | Type::Error
+            | Type::InfixExpr(..) => false,
         }
     }
 
     pub fn is_function(&self) -> bool {
         match self.follow_bindings_shallow().as_ref() {
             Type::Function(..) => true,
-            Type::Alias(alias_type, _) => alias_type.borrow().typ.is_function(),
+            Type::Alias(alias_type, _) => alias_type
+                .borrow()
+                .typ
+                .as_ref()
+                .expect("ICE: expected alias type to be set")
+                .is_function(),
             _ => false,
         }
     }
@@ -1445,14 +1478,17 @@ impl Type {
             }
             Type::Alias(def, args) => {
                 let alias_type = def.borrow();
-                alias_type.get_type(args).is_message_compatible(is_monomorphized)
+                alias_type
+                    .get_type(args)
+                    .map(|typ| typ.is_message_compatible(is_monomorphized))
+                    .unwrap_or(false)
             }
             Type::CheckedCast { to, .. } => to.is_message_compatible(is_monomorphized),
             Type::Tuple(fields) => {
                 fields.iter().all(|typ| typ.is_message_compatible(is_monomorphized))
             }
-            Type::Error
-            | Type::Unit
+            Type::Error => true,
+            Type::Unit
             | Type::Constant(..)
             | Type::InfixExpr(..)
             | Type::TraitAsType(..)
@@ -1469,6 +1505,10 @@ impl Type {
             // we have to delay this check to monomorphization.
             Type::NamedGeneric(..) => !is_monomorphized,
         }
+    }
+
+    pub(crate) fn is_error(&self) -> bool {
+        matches!(self, Type::Error)
     }
 
     /// Returns the number of `Forall`-quantified type variables on this type.
@@ -1492,6 +1532,9 @@ impl Type {
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings
     /// and their Kind's
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
+        if self.is_error() {
+            return Type::Error;
+        }
         let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, _kind, _))| type_var);
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
@@ -1526,7 +1569,9 @@ impl Type {
                 TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
             },
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
+            Type::Alias(def, generics) => {
+                def.borrow().get_type(generics).unwrap_or(Type::Error).kind()
+            }
             // This is a concrete FieldElement, not an IntegerOrField
             Type::FieldElement
             | Type::Integer(..)
@@ -1543,7 +1588,7 @@ impl Type {
             | Type::Reference(..)
             | Type::Forall(..)
             | Type::Quoted(..) => Kind::Normal,
-            Type::Error => Kind::Any,
+            Type::Error => Kind::error(),
         }
     }
 
@@ -1570,7 +1615,10 @@ impl Type {
                     true
                 } else {
                     aliases.insert(alias_id);
-                    def.borrow().get_type(generics).has_cyclic_alias(aliases)
+                    def.borrow()
+                        .get_type(generics)
+                        .map(|typ| typ.has_cyclic_alias(aliases))
+                        .unwrap_or(false)
                 }
             }
             Type::TraitAsType(_id, _name, generics) => {
@@ -1636,6 +1684,9 @@ impl Type {
     fn infix_kind(&self, other: &Self) -> Kind {
         let self_kind = self.kind();
         let other_kind = other.kind();
+        if self_kind.is_error() || other_kind.is_error() {
+            return Kind::error();
+        }
         if self_kind.unifies(&other_kind) { self_kind } else { Kind::numeric(Type::Error) }
     }
 
@@ -1657,7 +1708,7 @@ impl Type {
         inversion: bool,
     ) -> Type {
         // If this infix expression contains an error then it is eventually an error itself.
-        if matches!(*lhs, Type::Error) || matches!(*rhs, Type::Error) {
+        if lhs.is_error() || rhs.is_error() {
             return Type::Error;
         }
 
@@ -1692,7 +1743,9 @@ impl Type {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
 
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_vector(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).map(|typ| typ.is_nested_vector()).unwrap_or(false)
+            }
             Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector(),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
@@ -1736,8 +1789,8 @@ impl Type {
             | Type::Function(..)
             | Type::Constant(..)
             | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
+            | Type::Error
+            | Type::InfixExpr(..) => false,
         }
     }
 
@@ -1746,7 +1799,9 @@ impl Type {
         match self {
             Type::Vector(_) => true,
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_vector(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).map(|typ| typ.contains_vector()).unwrap_or(false)
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1802,7 +1857,9 @@ impl Type {
         match self {
             Type::Array(..) => true,
             Type::Vector(elem) => elem.as_ref().contains_array(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_array(),
+            Type::Alias(alias, generics) => {
+                alias.borrow().get_type(generics).map(|typ| typ.contains_array()).unwrap_or(false)
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1847,9 +1904,11 @@ impl Type {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_array(),
             Type::Array(_, elem) => elem.as_ref().is_vector_with_nested_array(),
-            Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).is_vector_with_nested_array()
-            }
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .map(|typ| typ.is_vector_with_nested_array())
+                .unwrap_or(false),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
@@ -1928,7 +1987,11 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_reference(),
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .map(|typ| typ.contains_reference())
+                .unwrap_or(false),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -1983,7 +2046,11 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).contains_function(),
+            Type::Alias(alias, generics) => alias
+                .borrow()
+                .get_type(generics)
+                .map(|typ| typ.contains_function())
+                .unwrap_or(false),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -2208,6 +2275,12 @@ impl Type {
         location: Location,
         run_simplifications: bool,
     ) -> Result<SignedField, TypeCheckError> {
+        if kind.is_error() {
+            return Err(TypeCheckError::expecting_other_error(
+                "Type::evaluate_to_signed_field_helper: encountered error kind",
+                location,
+            ));
+        }
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(binding) => {
@@ -2653,7 +2726,10 @@ impl Type {
                 Alias(def, args) => {
                     // We don't need to vecmap(args, recur) since we're recursively
                     // calling recur here already.
-                    recur(&def.borrow().get_type(args))
+                    let Some(typ) = &def.borrow().get_type(args) else {
+                        return this.clone();
+                    };
+                    recur(typ)
                 }
                 Tuple(args) => Tuple(vecmap(args, recur)),
                 CheckedCast { from, to } => {
@@ -2720,7 +2796,9 @@ impl Type {
                     };
                 }
                 Type::Alias(alias_def, generics) => {
-                    let typ = alias_def.borrow().get_type(generics);
+                    let Some(typ) = alias_def.borrow().get_type(generics) else {
+                        return this;
+                    };
                     this = Cow::Owned(typ);
                 }
                 _ => return this,
@@ -2768,7 +2846,9 @@ impl Type {
                 }
             }
             Type::Alias(alias, generics) => {
-                let mut typ = alias.borrow().get_type(generics);
+                let Some(mut typ) = alias.borrow().get_type(generics) else {
+                    return;
+                };
                 typ.replace_named_generics_with_type_variables();
                 *self = typ;
             }
@@ -2849,7 +2929,7 @@ impl Type {
                     TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 }
             }
-            Type::Alias(alias, args) => alias.borrow().get_type(args).integral_maximum_size(),
+            Type::Alias(alias, args) => alias.borrow().get_type(args)?.integral_maximum_size(),
             Type::CheckedCast { to, .. } => to.integral_maximum_size(),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => match &*type_var.borrow() {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
@@ -2913,6 +2993,9 @@ impl Type {
                 to: Box::new(to.substitute_kind_any_with_kind(kind)),
             },
             Type::Constant(value, constant_kind) => {
+                if kind.is_error() {
+                    return Type::Error;
+                }
                 let kind = if let Kind::Any = constant_kind { kind.clone() } else { constant_kind };
                 Type::Constant(value, kind)
             }
@@ -2993,6 +3076,12 @@ impl BinaryTypeOperator {
         kind: &Kind,
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
+        if kind.is_error() {
+            return Err(TypeCheckError::expecting_other_error(
+                "BinaryTypeOperator::function: encountered error kind",
+                location,
+            ));
+        }
         match kind.integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
@@ -3132,7 +3221,7 @@ impl From<&Type> for PrintableType {
                     .expect("Cannot print variable sized strings");
                 PrintableType::FmtString { length: size, typ: Box::new(typ.as_ref().into()) }
             }
-            Type::Error => unreachable!(),
+            Type::Error => unreachable!("From<&Type> for PrintableType: encountered Type::Error"),
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
             Type::DataType(def, args) => {
@@ -3150,7 +3239,7 @@ impl From<&Type> for PrintableType {
                     unreachable!()
                 }
             }
-            Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
+            Type::Alias(alias, args) => alias.borrow().get_type(args).unwrap_or(Type::Error).into(),
             Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::CheckedCast { to, .. } => to.as_ref().into(),

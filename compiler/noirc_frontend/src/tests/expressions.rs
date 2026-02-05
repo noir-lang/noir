@@ -57,7 +57,7 @@ fn resolve_fmt_strings() {
                                        ^ cannot find `i` in this scope
                                        ~ not found in this scope
             println(string);
-            ^^^^^^^^^^^^^^^ Unused expression result of type fmtstr<30, (error, Field)>
+            ^^^^^^^^^^^^^^^ Unused expression result of type fmtstr<30, (_, Field)>
 
             let new_val = 10;
             println(f"random_string{new_val}{new_val}");
@@ -93,7 +93,8 @@ fn multiple_resolution_errors() {
                        ~ not found in this scope
                ^ unused variable z
                ~ unused variable
-
+                   ^^^^^ Object type is unknown in method call
+                   ~~~~~ Type must be known by this point to know which method to call
         }
     "#;
     check_errors(src);

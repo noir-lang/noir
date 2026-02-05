@@ -188,12 +188,10 @@ impl Elaborator<'_> {
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.check_type_is_not_more_private_then_item(
-                    name,
-                    visibility,
-                    &alias_type.borrow().get_type(generics),
-                    location,
-                );
+                let Some(typ) = alias_type.borrow().get_type(generics) else {
+                    return;
+                };
+                self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
             }
             Type::CheckedCast { from, to } => {
                 self.check_type_is_not_more_private_then_item(name, visibility, from, location);

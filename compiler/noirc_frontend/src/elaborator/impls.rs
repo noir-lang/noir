@@ -84,6 +84,7 @@ use crate::{
     hir::{
         def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
         def_map::LocalModuleId,
+        type_check::TypeCheckError,
     },
     node_interner::{FuncId, TraitId},
 };
@@ -216,6 +217,11 @@ impl Elaborator<'_> {
                     is_primitive,
                 });
             }
+        } else if self_type.is_error() {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "Elaborator::declare_methods_on_data_type: encountered self_type of Type::Error",
+                location,
+            ));
         }
     }
 

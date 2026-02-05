@@ -534,7 +534,10 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let body_expr_id = self.interner.function(&f).as_expr();
-        let body_return_type = self.interner.id_type(body_expr_id);
+        let body_return_type = self
+            .interner
+            .id_type(body_expr_id)
+            .expect("Monomorphizer::function: ICE: expected id_type to be set");
         let return_type = match meta.return_type() {
             Type::TraitAsType(..) => &body_return_type,
             other => other,
@@ -554,6 +557,9 @@ impl<'interner> Monomorphizer<'interner> {
         // to check again.
         if is_fold || is_no_predicate {
             for (pattern, typ, _visibility) in &meta.parameters.0 {
+                if typ.is_error() {
+                    panic!("Monomorphizer function: encountered Type::Error")
+                }
                 if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
                     let location = pattern.location();
                     return Err(MonomorphizationError::InvalidTypeForEntryPoint {
@@ -564,6 +570,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             let output = true;
+            if return_type.is_error() {
+                panic!("Monomorphizer function: encountered Type::Error return type")
+            }
             if let Some(invalid_type) = return_type.program_validity(output) {
                 let location = meta.return_type.location();
                 return Err(MonomorphizationError::InvalidTypeForEntryPoint {
@@ -710,7 +719,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
-                let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
+                let typ = Self::convert_type(&self.interner.id_type(expr).expect("Monomorphizer::expr_with_target_type: ICE: expected id_type to be set for typ"), location)?;
                 Literal(Integer(value, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
@@ -750,7 +759,7 @@ impl<'interner> Monomorphizer<'interner> {
                 } else {
                     let operator = prefix.operator;
                     let rhs = Box::new(rhs);
-                    let result_type = Self::convert_type(&self.interner.id_type(expr), location)?;
+                    let result_type = Self::convert_type(&self.interner.id_type(expr).expect("Monomorphizer::expr_with_target_type: ICE: expected id_type to be set for result_type"), location)?;
                     ast::Expression::Unary(ast::Unary {
                         operator,
                         rhs,
@@ -804,7 +813,7 @@ impl<'interner> Monomorphizer<'interner> {
                     .2
                     .map(|assert_msg_expr| {
                         self.expr(assert_msg_expr).map(|expr| {
-                            let typ = self.interner.id_type(assert_msg_expr).follow_bindings();
+                            let typ = self.interner.id_type(assert_msg_expr).expect("Monomorphizer::expr_with_target_type: ICE: expected id_type to be set on assert_msg_expr").follow_bindings();
                             let loc = self.interner.expr_location(&assert_msg_expr);
                             (expr, typ, loc)
                         })
@@ -861,7 +870,9 @@ impl<'interner> Monomorphizer<'interner> {
                     if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
 
                 let location = self.interner.expr_location(&expr);
-                let frontend_type = self.interner.id_type(expr);
+                let frontend_type = self.interner.id_type(expr).expect(
+                    "Monomorphizer::expr_with_target_type: ICE: expected id_type to be set on expr",
+                );
                 let typ = Self::convert_type(&frontend_type, location)?;
 
                 if !self.in_unconstrained_function && frontend_type.contains_reference() {
@@ -920,7 +931,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Cow<'a, HirType> {
         match target_type {
             Some(typ) => Cow::Borrowed(typ),
-            None => Cow::Owned(self.interner.id_type(expr)),
+            None => Cow::Owned(
+                self.interner
+                    .id_type(expr)
+                    .expect("Monomorphizer::expr_or_target_type: ICE: expected id_type to be set"),
+            ),
         }
     }
 
@@ -933,7 +948,13 @@ impl<'interner> Monomorphizer<'interner> {
         is_vector: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&array);
-        let typ = Self::convert_type(&self.interner.id_type(array), location)?;
+        let typ = Self::convert_type(
+            &self
+                .interner
+                .id_type(array)
+                .expect("Monomorphizer::standard_array: ICE: expected id_type to be set"),
+            location,
+        )?;
         let contents = try_vecmap(array_elements, |id| self.expr(id))?;
         if is_vector {
             Ok(ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ })))
@@ -951,7 +972,13 @@ impl<'interner> Monomorphizer<'interner> {
         is_vector: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&array);
-        let typ = Self::convert_type(&self.interner.id_type(array), location)?;
+        let typ = Self::convert_type(
+            &self
+                .interner
+                .id_type(array)
+                .expect("Monomorphizer::repeated_array: ICE: expected id_type to be set"),
+            location,
+        )?;
 
         let length = length.evaluate_to_u32(location).map_err(|err| {
             let location = self.interner.expr_location(&array);
@@ -1003,7 +1030,13 @@ impl<'interner> Monomorphizer<'interner> {
         index: HirIndexExpression,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
-        let element_type = Self::convert_type(&self.interner.id_type(id), location)?;
+        let element_type = Self::convert_type(
+            &self
+                .interner
+                .id_type(id)
+                .expect("Monomorphizer::index: ICE: expected id_type to be set for id"),
+            location,
+        )?;
 
         let collection = Box::new(self.expr(index.collection)?);
         let index = Box::new(self.expr(index.index)?);
@@ -1023,7 +1056,9 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let block = Box::new(self.expr(for_loop.block)?);
                 let index_location = for_loop.identifier.location;
-                let index_type = self.interner.id_type(for_loop.start_range);
+                let index_type = self.interner.id_type(for_loop.start_range).expect(
+                    "Monomorphizer::index: ICE: expected id_type to be set on for_loop.start_range",
+                );
                 let index_type = Self::convert_type(&index_type, index_location)?;
 
                 Ok(ast::Expression::For(ast::For {
@@ -1065,7 +1100,10 @@ impl<'interner> Monomorphizer<'interner> {
         let_statement: HirLetStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expr = self.expr(let_statement.expression)?;
-        let expected_type = self.interner.id_type(let_statement.expression);
+        let expected_type = self
+            .interner
+            .id_type(let_statement.expression)
+            .expect("Monomorphizer::let_statement: ICE: expected id_type to be set");
         self.unpack_pattern(let_statement.pattern, expr, &expected_type)
     }
 
@@ -1313,7 +1351,10 @@ impl<'interner> Monomorphizer<'interner> {
         // inline the body directly which keeps some minimal SSA pass tests working.
         evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let typ = self.interner.id_type(expr_id);
+        let typ = self
+            .interner
+            .id_type(expr_id)
+            .expect("Monomorphizer::ident: ICE: expected id_type to be set");
 
         if let ImplKind::TraitItem(item) = ident.impl_kind {
             return self.resolve_trait_item_expr(expr_id, typ, item.id(), use_current_runtime);
@@ -1772,7 +1813,10 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                Self::convert_type_helper(&def.borrow().get_type(args), location, seen_types)?
+                let Some(typ) = &def.borrow().get_type(args) else {
+                    panic!("Monomorphizer::convert_type_helper: missing type alias")
+                };
+                Self::convert_type_helper(typ, location, seen_types)?
             }
 
             HirType::Tuple(fields) => {
@@ -1845,8 +1889,11 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Unit
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
-            | HirType::Error
             | HirType::Quoted(_) => Ok(()),
+            HirType::Error => {
+                let message = "Unexpected Type::Error found during monomorphization";
+                Err(MonomorphizationError::InternalError { message, location })
+            }
             HirType::Constant(_value, kind) => {
                 if kind.is_error() {
                     Err(MonomorphizationError::UnknownConstant { location })
@@ -2016,7 +2063,9 @@ impl<'interner> Monomorphizer<'interner> {
             TraitItem::Method(func_id) => func_id,
             TraitItem::Constant { id, expected_type, value } => {
                 let location = self.interner.definition(id).location;
-                let expr_type = self.interner.id_type(expr_id);
+                let expr_type = self.interner.id_type(expr_id).expect(
+                    "Monomorphizer::resolve_trait_item_expr: ICE: expected id_type to be set",
+                );
                 return self.numeric_generic(value, expected_type, expr_type, location);
             }
         };
@@ -2122,7 +2171,10 @@ impl<'interner> Monomorphizer<'interner> {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
         }
 
-        let func_type = self.interner.id_type(call.func);
+        let func_type = self
+            .interner
+            .id_type(call.func)
+            .expect("Monomorphizer::function_call: ICE: expected id_type to be set on call.func");
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
@@ -2156,7 +2208,9 @@ impl<'interner> Monomorphizer<'interner> {
 
         self.patch_debug_instrumentation_call(&call, &original_func, &mut arguments)?;
 
-        let return_type = self.interner.id_type(id);
+        let return_type = self.interner.id_type(id).expect(
+            "Monomorphizer::function_call: ICE: expected id_type to be set for return_type",
+        );
         let location = self.interner.expr_location(&id);
 
         if crossing_runtime_boundaries {
@@ -2187,7 +2241,7 @@ impl<'interner> Monomorphizer<'interner> {
                     // static_assert can take any type for the `message` argument.
                     // Here we append printable type info so we can know how to turn that argument
                     // into a human-readable string.
-                    let typ = self.interner.id_type(call.arguments[1]);
+                    let typ = self.interner.id_type(call.arguments[1]).expect("Monomorphizer::function_call: ICE: expected id_type to be set on call.arguments[1]");
                     append_printable_type_info_for_type(typ, &mut arguments);
                 }
             }
@@ -2214,7 +2268,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Local(local_id),
                 mutable: false,
                 name: "tmp".to_string(),
-                typ: Self::convert_type(&self.interner.id_type(call.func), location)?,
+                typ: Self::convert_type(&self.interner.id_type(call.func).expect("Monomorphizer::function_call: ICE: expected id_type to be set on call.func"), location)?,
                 id: self.next_ident_id(),
             });
 
@@ -2244,7 +2298,10 @@ impl<'interner> Monomorphizer<'interner> {
         call: &HirCallExpression,
     ) -> Result<(), MonomorphizationError> {
         for argument in &call.arguments {
-            let typ = self.interner.id_type(argument);
+            let typ = self
+                .interner
+                .id_type(argument)
+                .expect("Monomorphizer::assign: ICE: expected id_type to be set");
             if typ.contains_reference() {
                 let typ = typ.to_string();
                 let location = self.interner.id_location(argument);
@@ -2320,7 +2377,10 @@ impl<'interner> Monomorphizer<'interner> {
     ) {
         match hir_argument {
             HirExpression::Ident(ident, _) => {
-                let typ = self.interner.definition_type(ident.id);
+                let typ = self
+                    .interner
+                    .definition_type(ident.id)
+                    .expect("Monomorphizer::assign: ICE: expected definition_type to be set");
                 append_printable_type_info_for_type(typ, arguments);
             }
             _ => unreachable!("logging expr {:?} is not supported", hir_argument),
@@ -2399,7 +2459,10 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         assign: HirAssignStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let expression_type = self.interner.id_type(assign.expression);
+        let expression_type = self
+            .interner
+            .id_type(assign.expression)
+            .expect("Monomorphizer::assign: ICE: expected id_type to be set");
         let location = self.interner.expr_location(&assign.expression);
         if !self.in_unconstrained_function && expression_type.contains_reference() {
             let typ = expression_type.to_string();
@@ -2534,26 +2597,30 @@ impl<'interner> Monomorphizer<'interner> {
         // Build the shared environment - captured closures stay as (constrained, unconstrained) pairs
         let env_local_id = self.next_local_id();
         let env_name = "env";
-        let env_tuple =
-            ast::Expression::Tuple(try_vecmap(&lambda.captures, |capture| {
-                match capture.transitive_capture_index {
-                    Some(field_index) => {
-                        let lambda_ctx = self.lambda_envs_stack.last().expect(
-                            "Expected to find a parent closure environment, but found none",
-                        );
+        let env_tuple = ast::Expression::Tuple(try_vecmap(
+            &lambda.captures,
+            |capture| match capture.transitive_capture_index {
+                Some(field_index) => {
+                    let lambda_ctx = self
+                        .lambda_envs_stack
+                        .last()
+                        .expect("Expected to find a parent closure environment, but found none");
 
-                        let ident = Box::new(ast::Expression::Ident(lambda_ctx.env_ident.clone()));
-                        Ok(ast::Expression::ExtractTupleField(ident, field_index))
-                    }
-                    None => {
-                        let typ = self.interner.definition_type(capture.ident.id);
-                        let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
-                        Ok(ast::Expression::Ident(ident))
-                    }
+                    let ident = Box::new(ast::Expression::Ident(lambda_ctx.env_ident.clone()));
+                    Ok(ast::Expression::ExtractTupleField(ident, field_index))
                 }
-            })?);
+                None => {
+                    let typ = self.interner.definition_type(capture.ident.id).expect("Monomorphizer::closure_with_shared_env: ICE: expected definition_type to be set");
+                    let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
+                    Ok(ast::Expression::Ident(ident))
+                }
+            },
+        )?);
 
-        let expr_type = self.interner.id_type(expr);
+        let expr_type = self
+            .interner
+            .id_type(expr)
+            .expect("Monomorphizer::closure_with_shared_env: ICE: expected id_type to be set");
         let env_typ = if let Type::Function(_, _, function_env_type, _) = expr_type {
             Self::convert_type(&function_env_type, location)?
         } else {
@@ -2710,7 +2777,10 @@ impl<'interner> Monomorphizer<'interner> {
         match_expr: HirMatch,
         expr_id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let result_type = self.interner.id_type(expr_id);
+        let result_type = self
+            .interner
+            .id_type(expr_id)
+            .expect("Monomorphizer::match_expr: ICE: expected id_type to be set");
         let location = self.interner.expr_location(&expr_id);
 
         if !self.in_unconstrained_function && result_type.contains_reference() {
@@ -2995,8 +3065,11 @@ pub fn perform_impl_bindings(
     let mut bindings = TypeBindings::default();
 
     if let Some(trait_method) = trait_method {
-        let mut trait_method_type =
-            interner.definition_type(trait_method.item_id).as_monotype().clone();
+        let mut trait_method_type = interner
+            .definition_type(trait_method.item_id)
+            .expect("perform_impl_bindings: ICE: expected definition_type to be set")
+            .as_monotype()
+            .clone();
 
         let mut impl_method_type = interner.function_meta(&impl_method).typ.as_monotype().clone();
 

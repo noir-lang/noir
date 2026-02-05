@@ -298,7 +298,9 @@ impl DocItemBuilder<'_> {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 let name = type_alias.name.to_string();
-                let r#type = self.convert_type(&type_alias.typ);
+                let r#type = self.convert_type(
+                    type_alias.typ.as_ref().expect("ICE: expected type of type alias to be set"),
+                );
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics =
                     vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
@@ -343,7 +345,10 @@ impl DocItemBuilder<'_> {
                 );
                 let mutable = definition.mutable;
                 let name = global_info.ident.to_string();
-                let typ = self.interner.definition_type(definition_id);
+                let typ = self
+                    .interner
+                    .definition_type(definition_id)
+                    .expect("DocItemBuilder::convert_item: ICE: missing definition_type");
                 let r#type = self.convert_type(&typ);
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
                 let id = get_global_id(global_id, self.interner);

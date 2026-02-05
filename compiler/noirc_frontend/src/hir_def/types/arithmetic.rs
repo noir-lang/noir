@@ -889,7 +889,7 @@ mod proptests {
             if matches!(infix_canonicalized, Type::Constant(..)) {
                 prop_assert_eq!(infix_canonicalized, result_type);
             } else {
-                prop_assert!(matches!(result_type, Type::Error));
+                prop_assert!(result_type.is_error());
             }
         }
     }

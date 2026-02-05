@@ -94,11 +94,11 @@ impl NodeInterner {
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
-        if object_type == Type::Error {
-            return Err(TypeCheckError::ExpectingOtherError {
-                message: "collect_trait_impl: missing trait type".to_string(),
+        if object_type.is_error() {
+            return Err(TypeCheckError::expecting_other_error(
+                "collect_trait_impl: missing trait type",
                 location,
-            }
+            )
             .into());
         }
 

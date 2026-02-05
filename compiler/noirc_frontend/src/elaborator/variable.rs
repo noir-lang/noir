@@ -69,9 +69,21 @@ impl Elaborator<'_> {
             let type_alias = self.interner.get_type_alias(alias);
             if let Some(expr) = &type_alias.borrow().numeric_expr {
                 // Extract the declared numeric type from the type alias's kind.
-                let declared_type = match type_alias.borrow().typ.kind() {
+                let declared_type = match type_alias
+                    .borrow()
+                    .typ
+                    .as_ref()
+                    .expect("ICE: expected alias type to be set")
+                    .kind()
+                {
                     Kind::Numeric(declared_type) => declared_type,
-                    _ => Box::new(Type::Error),
+                    _ => {
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "Elaborator::elaborate_variable_inner: encountered Type::Error declared_type",
+                            location,
+                        ));
+                        Box::new(Type::Error)
+                    }
                 };
                 let declared_type = *declared_type;
                 let expr_location = type_alias.borrow().location;
@@ -133,7 +145,7 @@ impl Elaborator<'_> {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
-                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+                self.push_err(TypeCheckError::expecting_other_error(message, location));
             }
 
             None
@@ -224,7 +236,7 @@ impl Elaborator<'_> {
         let trait_id = trait_impl.borrow().trait_id;
         let trait_ = self.interner.get_trait(trait_id);
         if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
-            let numeric_type = self.interner.definition_type(definition_id);
+            let numeric_type = self.interner.definition_type(definition_id).expect("Elaborator::elaborate_variable_as_self_method_or_associated_constant: ICE: expected id_type to be set");
             let hir_ident = HirIdent::non_trait_method(definition_id, location);
             let hir_expr = HirExpression::Ident(hir_ident, None);
             let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
@@ -519,8 +531,19 @@ impl Elaborator<'_> {
                 // they're used in expressions. We must do this here since type_check_variable
                 // does not check definition kinds and otherwise expects parameters to
                 // already be typed.
-                if self.interner.definition_type(hir_ident.id) == Type::Error {
+                let opt_definition_type = self.interner.definition_type(hir_ident.id);
+                let opt_definition_type_is_error =
+                    opt_definition_type.as_ref().map(|definition_type| definition_type.is_error());
+                if opt_definition_type_is_error.unwrap_or(true) {
                     let type_var_kind = Kind::Numeric(numeric_typ.clone());
+
+                    if opt_definition_type_is_error.unwrap_or(false) {
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "Elaborator::handle_hir_ident: encountered Type::Error definition_type",
+                            location,
+                        ));
+                    }
+
                     let typ = self.type_variable_with_kind(type_var_kind);
                     self.interner.push_definition_type(hir_ident.id, typ);
                 }
@@ -586,7 +609,7 @@ impl Elaborator<'_> {
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
-        let t = self.type_substitute_trait_as_type(&ident);
+        let typ = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.try_definition(ident.id);
         let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
@@ -602,7 +625,7 @@ impl Elaborator<'_> {
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, location);
+            self.instantiate(typ, bindings, generics, function_generic_count, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
@@ -682,25 +705,35 @@ impl Elaborator<'_> {
     /// Returns a type error if the callee cannot be resolved on a second try,
     /// which indicates a dependency cycle.
     fn type_substitute_trait_as_type(&mut self, ident: &HirIdent) -> Type {
-        let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id) {
+        let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id, ident.location)
+        {
             Ok(typ) => return typ,
-            Err(func_id) => func_id,
+            Err(Ok(func_id)) => func_id,
+            Err(Err(error)) => {
+                self.push_err(error);
+                return Type::Error;
+            }
         };
 
         // Try to elaborate, so we get an expression for the body.
         self.elaborate_function(func_id);
 
         // Now try again. If it's still not working, give up.
-        match self.interner.id_type_substitute_trait_as_type(ident.id) {
+        match self.interner.id_type_substitute_trait_as_type(ident.id, ident.location) {
             Ok(typ) => typ,
-            Err(_) => {
-                let def = self.interner.definition(ident.id);
-                self.push_err(ResolverError::DependencyCycle {
-                    location: ident.location,
-                    item: def.name.clone(),
-                    cycle: "'impl Trait' could not be resolved to the type of the function body"
-                        .to_string(),
-                });
+            Err(error) => {
+                match error {
+                    Ok(_) => {
+                        let def = self.interner.definition(ident.id);
+                        self.push_err(ResolverError::DependencyCycle {
+                            location: ident.location,
+                            item: def.name.clone(),
+                            cycle: "'impl Trait' could not be resolved to the type of the function body"
+                                .to_string(),
+                        });
+                    }
+                    Err(error) => self.push_err(error),
+                }
                 Type::Error
             }
         }
@@ -755,7 +788,9 @@ impl Elaborator<'_> {
 ///
 /// Panics if it encounters a type other than alias or struct.
 fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
-    let typ = type_alias.get_type(generics);
+    let Some(typ) = type_alias.get_type(generics) else {
+        panic!("Expected type alias to point to struct or alias")
+    };
     match typ {
         Type::DataType(_, generics) => generics,
         Type::Alias(type_alias, generics) => {

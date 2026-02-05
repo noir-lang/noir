@@ -67,7 +67,13 @@ impl Elaborator<'_> {
                 let statement = Statement { kind: kind.clone(), location: statement.location };
                 self.elaborate_statement_value_with_target_type(statement, target_type)
             }
-            StatementKind::Error => (HirStatement::Error, Type::Error),
+            StatementKind::Error => {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "Elaborator::elaborate_statement_value_with_target_type: encountered StatementKind::Error",
+                    statement.location,
+                ));
+                (HirStatement::Error, Type::Error)
+            }
         }
     }
 
@@ -462,7 +468,7 @@ impl Elaborator<'_> {
                         }
 
                         let typ =
-                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
+                            self.interner.definition_type(ident.id).expect("Elaborator::elaborate_lvalue: ICE: expected definition_type to be set").instantiate(self.interner).0;
                         let typ = typ.follow_bindings();
 
                         self.interner.add_local_reference(ident.id, location);
@@ -508,6 +514,8 @@ impl Elaborator<'_> {
                     // we eventually reassign to it.
                     let id = DefinitionId::dummy_id();
                     let ident = HirIdent::non_trait_method(id, location);
+                    // TODO(https://github.com/noir-lang/noir/issues/11467): use `Option::None` for
+                    // this tmp_value
                     let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
@@ -529,6 +537,12 @@ impl Elaborator<'_> {
                         Some(dereference_lhs),
                     )
                     .unwrap_or((Type::Error, 0));
+                if object_type.is_error() {
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "Elaborator::elaborate_lvalue: missing result from checking field access",
+                        location,
+                    ));
+                }
 
                 let field_index = Some(field_index);
                 let typ = object_type.clone();

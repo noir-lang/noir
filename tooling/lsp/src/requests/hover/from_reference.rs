@@ -292,7 +292,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let global_info = args.interner.get_global(id);
     let definition_id = global_info.definition_id;
     let definition = args.interner.definition(definition_id);
-    let typ = args.interner.definition_type(definition_id);
+    let opt_typ = args.interner.definition_type(definition_id);
 
     let mut string = String::new();
     if format_parent_module(ModuleDefId::GlobalId(id), args, &mut string) {
@@ -314,8 +314,10 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("global ");
     string.push_str(global_info.ident.as_str());
-    string.push_str(": ");
-    string.push_str(&format!("{typ}"));
+    if let Some(ref typ) = opt_typ {
+        string.push_str(": ");
+        string.push_str(&format!("{typ}"));
+    }
 
     if let GlobalValue::Resolved(value) = &global_info.value {
         if let Some(value) = value_to_string(value) {
@@ -326,7 +328,9 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 
     append_doc_comments(ReferenceId::Global(id), &mut string, args);
 
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+    if let Some(typ) = opt_typ {
+        string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+    }
 
     string
 }
@@ -573,7 +577,11 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("type ");
     string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
-    string.push_str(&format!("{}", &type_alias.typ));
+    // string.push_str(&format!("{}", &type_alias.typ));
+    string.push_str(&format!(
+        "{}",
+        &type_alias.typ.as_ref().expect("ICE: expected type of type alias to be set")
+    ));
 
     append_doc_comments(ReferenceId::Alias(id), &mut string, args);
 
@@ -589,7 +597,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let DefinitionKind::Local(expr_id) = definition_info.kind else {
         panic!("Expected a local reference to reference a local definition")
     };
-    let typ = args.interner.definition_type(id);
+    let opt_typ = args.interner.definition_type(id);
 
     let mut string = String::new();
     string.push_str("    ");
@@ -606,12 +614,12 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str("mut ");
     }
     string.push_str(&definition_info.name);
-    if !matches!(typ, Type::Error) {
+    if let Some(typ) = opt_typ {
         string.push_str(": ");
         string.push_str(&format!("{typ}"));
-    }
 
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+        string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+    }
 
     string
 }

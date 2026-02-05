@@ -42,7 +42,7 @@ impl Elaborator<'_> {
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
-            expected_type,
+            Some(expected_type),
             definition_kind,
             None,
             &mut Vec::new(),
@@ -68,7 +68,7 @@ impl Elaborator<'_> {
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
-            expected_type,
+            Some(expected_type),
             definition_kind,
             None,
             created_ids,
@@ -89,7 +89,7 @@ impl Elaborator<'_> {
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
-        expected_type: Type,
+        expected_type: Option<Type>,
         definition: DefinitionKind,
         // Location of the `mut` keyword.
         mutable: Option<Location>,
@@ -137,7 +137,9 @@ impl Elaborator<'_> {
                         definition,
                     )
                 };
-                self.interner.push_definition_type(ident.id, expected_type);
+                if let Some(expected_type) = expected_type {
+                    self.interner.push_definition_type(ident.id, expected_type);
+                }
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
             }
@@ -166,10 +168,16 @@ impl Elaborator<'_> {
             Pattern::Tuple(fields, location) => {
                 // Returns Some for valid tuple types (where arity checking makes sense),
                 // None when we've already issued an error or have an invalid type.
-                let field_types = match expected_type.follow_bindings() {
-                    Type::Tuple(fields) => Some(fields),
-                    Type::Error => None,
-                    expected_type => {
+                let field_types = match expected_type.map(|typ| typ.follow_bindings()) {
+                    Some(Type::Tuple(fields)) => Some(fields),
+                    None | Some(Type::Error) => {
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "Elaborator::elaborate_pattern_mut: expected_type.follow_bindings() was Type::Error",
+                            location,
+                        ));
+                        None
+                    }
+                    Some(expected_type) => {
                         let tuple =
                             Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
 
@@ -196,10 +204,7 @@ impl Elaborator<'_> {
                 }
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
-                    let field_type = field_types
-                        .as_ref()
-                        .and_then(|types| types.get(i).cloned())
-                        .unwrap_or(Type::Error);
+                    let field_type = field_types.as_ref().and_then(|types| types.get(i).cloned());
                     self.elaborate_pattern_mut(
                         field,
                         field_type,
@@ -261,7 +266,7 @@ impl Elaborator<'_> {
         name: TypedPath,
         fields: Vec<(Ident, Pattern)>,
         location: Location,
-        expected_type: Type,
+        expected_type: Option<Type>,
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
@@ -306,12 +311,14 @@ impl Elaborator<'_> {
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
 
-        self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
-            expected: expected_type.clone(),
-            actual: actual_type.clone(),
-            location,
-            source: Source::Assignment,
-        });
+        if let Some(expected_type) = expected_type {
+            self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
+                expected: expected_type.clone(),
+                actual: actual_type.clone(),
+                location,
+                source: Source::Assignment,
+            });
+        }
 
         let fields = self.resolve_constructor_pattern_fields(
             fields,
@@ -362,9 +369,13 @@ impl Elaborator<'_> {
             .expect("This type should already be validated to be a struct");
 
         for (field, pattern) in fields {
-            let (field_type, visibility) = typ
-                .get_field_type_and_visibility(field.as_str())
-                .unwrap_or((Type::Error, ItemVisibility::Public));
+            let (field_type, visibility) = if let Some((field_type, visibility)) =
+                typ.get_field_type_and_visibility(field.as_str())
+            {
+                (Some(field_type), visibility)
+            } else {
+                (None, ItemVisibility::Public)
+            };
             let resolved = self.elaborate_pattern_mut(
                 pattern,
                 field_type,

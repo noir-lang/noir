@@ -20,6 +20,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
+use crate::hir::type_check::TypeCheckError;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::locations::AutoImportEntry;
@@ -614,7 +615,7 @@ impl NodeInterner {
             type_id,
             typ.type_alias_def.name.clone(),
             typ.type_alias_def.location,
-            Type::Error,
+            None,
             generics,
             typ.type_alias_def.visibility,
             ModuleId { krate: typ.crate_id, local_id: typ.module_id },
@@ -851,9 +852,9 @@ impl NodeInterner {
         self.type_aliases[id.0].clone()
     }
 
-    /// Returns the type of an item stored in the [NodeInterner], or [Type::Error] if it was not found.
-    pub fn id_type(&self, index: impl Into<Index>) -> Type {
-        self.try_id_type(index).cloned().unwrap_or(Type::Error)
+    /// Returns the type of an item stored in the [NodeInterner], or [Option::None] if it was not found.
+    pub fn id_type(&self, index: impl Into<Index>) -> Option<Type> {
+        self.try_id_type(index).cloned()
     }
 
     /// Returns the type of an item, or `None` if it was not found.
@@ -861,14 +862,9 @@ impl NodeInterner {
         self.id_to_type.get(&index.into())
     }
 
-    /// Returns the type of the definition, or [Type::Error] if it was not found.
-    pub fn definition_type(&self, id: DefinitionId) -> Type {
-        self.try_definition_type(id).cloned().unwrap_or(Type::Error)
-    }
-
-    /// Returns the type of the definition, or `None` if it was not found.
-    pub fn try_definition_type(&self, id: DefinitionId) -> Option<&Type> {
-        self.definition_to_type.get(&id)
+    /// Returns the type of the definition, or [Option::None] if it was not found.
+    pub fn definition_type(&self, id: DefinitionId) -> Option<Type> {
+        self.definition_to_type.get(&id).cloned()
     }
 
     /// Returns the type of the definition, unless it's a function returning an `impl Trait`,
@@ -879,17 +875,28 @@ impl NodeInterner {
     /// * `Ok` if it was able to substitute the type, either because it's not an `impl Trait`
     ///   or because the type of the body of the function is already known
     /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
-    pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
-        let typ = self.definition_type(def_id);
+    pub fn id_type_substitute_trait_as_type(
+        &self,
+        def_id: DefinitionId,
+        location: Location,
+    ) -> Result<Type, Result<FuncId, TypeCheckError>> {
+        let Some(typ) = self.definition_type(def_id) else {
+            return Ok(self.next_type_variable());
+        };
         if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
                     let func = self.function(&func_id);
                     let Some(func_body) = func.try_as_expr() else {
-                        return Err(func_id);
+                        return Err(Ok(func_id));
                     };
-                    let ret_type = self.id_type(func_body);
+                    let Some(ret_type) = self.id_type(func_body) else {
+                        return Err(Err(TypeCheckError::expecting_other_error(
+                            "NodeInterner::id_type_substitute_trait_as_type: expected id_type to be set",
+                            location,
+                        )));
+                    };
                     let new_type = Type::Function(
                         args.clone(),
                         Box::new(ret_type),
@@ -1009,7 +1016,17 @@ impl NodeInterner {
         trait_id: Option<TraitId>,
     ) -> Result<(), CompilationError> {
         match self_type {
-            Type::Error => Ok(()),
+            Type::Error => {
+                let function_definition_id = self.function_definition_id(method_id);
+                let location = self
+                    .try_definition(function_definition_id)
+                    .map(|definition_info| definition_info.location)
+                    .unwrap_or_else(Location::dummy);
+                Err(CompilationError::TypeError(TypeCheckError::expecting_other_error(
+                    "NodeInterner::add_method: self_type Type::Error encountered",
+                    location,
+                )))
+            }
             Type::Reference(element, _mutable) => {
                 self.add_method(element, method_name, method_id, trait_id)
             }
@@ -1352,7 +1369,9 @@ impl NodeInterner {
         operator: BinaryOpKind,
         operator_expr: ExprId,
     ) -> (Type, Type) {
-        let lhs_type = self.id_type(lhs);
+        let lhs_type = self.id_type(lhs).expect(
+            "NodeInterner::get_infix_operator_type: ICE: expected id_type to be set on lhs",
+        );
         let args = vec![lhs_type.clone(), lhs_type];
 
         // If this is a comparison operator, the result is a boolean but
@@ -1361,7 +1380,7 @@ impl NodeInterner {
         let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
             self.ordering_type()
         } else {
-            self.id_type(operator_expr)
+            self.id_type(operator_expr).expect("NodeInterner::get_infix_operator_type: ICE: expected id_type to be set on operator_expr")
         };
 
         let env = Box::new(Type::Unit);
@@ -1370,9 +1389,11 @@ impl NodeInterner {
 
     /// Returns the type of a prefix operator (which is always a function), along with its return type.
     pub fn get_prefix_operator_type(&self, operator_expr: ExprId, rhs: ExprId) -> (Type, Type) {
-        let rhs_type = self.id_type(rhs);
+        let rhs_type = self.id_type(rhs).expect(
+            "NodeInterner::get_prefix_operator_type: ICE: expected id_type to be set on rhs",
+        );
         let args = vec![rhs_type];
-        let ret = self.id_type(operator_expr);
+        let ret = self.id_type(operator_expr).expect("NodeInterner::get_prefix_operator_type: ICE: expected id_type to be set on operator_expr");
         let env = Box::new(Type::Unit);
         (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
@@ -1630,7 +1651,9 @@ pub(crate) fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::NamedGeneric(_) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::Reference(element, _) => get_type_method_key(element),
-        Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
+        Type::Alias(alias, _) => get_type_method_key(
+            alias.borrow().typ.as_ref().expect("ICE: expected alias type to be set"),
+        ),
         Type::DataType(struct_type, _) => Some(Struct(struct_type.borrow().id)),
 
         // We do not support adding methods to these types

@@ -190,6 +190,7 @@ fn disallows_composing_numeric_type_aliases() {
         let n = Double::<N>;    // To avoid the unused 'Double' error
         let mut a = [0;Quadruple::<N>];
         for i in 0..Quadruple::<N> {
+                    ^^^^^^^^^^^^^^ expected value, found type alias `Quadruple`
             a[i] = i + n;
         }
         a
@@ -214,6 +215,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
         let n = Double::<N>;    // To avoid the unused 'Double' error
         let mut a = [0;Quadruple::<N>];
         for i in 0..Quadruple::<N> {
+                    ^^^^^^^^^^^^^^ expected value, found type alias `Quadruple`
             a[i] = i + n;
         }
         a
@@ -239,6 +241,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
         let n = Double::<N>;    // To avoid the unused 'Double' error
         let mut a = [0;Quadruple::<N>];
         for i in 0..Quadruple::<N> {
+                    ^^^^^^^^^^^^^^ expected value, found type alias `Quadruple`
             a[i] = i + n;
         }
         a

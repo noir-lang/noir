@@ -31,6 +31,7 @@ use crate::{
         },
         def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
+        type_check::TypeCheckError,
     },
     hir_def::expr::{HirExpression, HirIdent},
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
@@ -385,14 +386,8 @@ impl<'context> Elaborator<'context> {
     ) -> Result<(), CompilationError> {
         self.local_module = Some(attribute_context.module);
 
-        let mut interpreter = self.setup_interpreter();
-        let mut arguments = Self::handle_attribute_arguments(
-            &mut interpreter,
-            &item,
-            function,
-            arguments,
-            location,
-        )?;
+        let (mut arguments, mut interpreter) =
+            self.handle_attribute_arguments(&item, function, arguments, location)?;
 
         arguments.insert(0, (item, location));
 
@@ -425,13 +420,15 @@ impl<'context> Elaborator<'context> {
     /// 2. Elaborates and type-checks each argument expression
     /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
     /// 4. Collects varargs into a vector if applicable
-    fn handle_attribute_arguments(
-        interpreter: &mut Interpreter,
+    fn handle_attribute_arguments<'a>(
+        &'a mut self,
         item: &Value,
         function: FuncId,
         arguments: Vec<Expression>,
         location: Location,
-    ) -> Result<Vec<(Value, Location)>, CompilationError> {
+    ) -> Result<(Vec<(Value, Location)>, Interpreter<'a, 'context>), CompilationError> {
+        let mut interpreter = self.setup_interpreter();
+
         let meta = interpreter.elaborator.interner.function_meta(&function);
 
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
@@ -482,6 +479,13 @@ impl<'context> Elaborator<'context> {
         for (i, arg) in arguments.into_iter().enumerate() {
             let arg_location = arg.location;
             let param_type = parameters.get(i).or(varargs_elem_type).unwrap_or(&Type::Error);
+            if param_type.is_error() {
+                return Err(TypeCheckError::expecting_other_error(
+                    "Elaborator::handle_attribute_arguments: missing parameter type {i}",
+                    arg_location,
+                )
+                .into());
+            }
 
             let mut push_arg = |arg| {
                 if i >= parameters.len() {
@@ -531,10 +535,17 @@ impl<'context> Elaborator<'context> {
 
         if is_varargs {
             let typ = varargs_type.unwrap_or(Type::Error);
+            if typ.is_error() {
+                return Err(TypeCheckError::expecting_other_error(
+                    "Elaborator::handle_attribute_arguments: missing varargs_type",
+                    location,
+                )
+                .into());
+            }
             new_arguments.push((Value::Vector(varargs, typ), location));
         }
 
-        Ok(new_arguments)
+        Ok((new_arguments, interpreter))
     }
 
     pub(crate) fn add_items(
