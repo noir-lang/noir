@@ -66,6 +66,12 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
+/// Maximum number of instructions (after unrolling) for Brillig loops to be
+/// force-unrolled regardless of the cost model. Loops with no function calls,
+/// constant bounds, and no breaks whose unrolled instruction count is at or
+/// below this threshold will always be unrolled.
+const BRILLIG_FORCE_UNROLL_THRESHOLD: usize = 32;
+
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
@@ -159,63 +165,95 @@ impl Function {
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
-            let mut loops = Loops::find_all(self);
-            // Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
-            // so if an outer loop is unrolled, we have to restart looking for the nested ones.
+            let order = if self.runtime().is_brillig() {
+                LoopOrder::InsideOut
+            } else {
+                LoopOrder::OutsideIn
+            };
+            let mut loops = Loops::find_all(self, order);
+
+            // Blocks which were part of loops we unrolled. Nested loops are included in the
+            // outer loops, so if an outer loop is unrolled, we have to restart looking for
+            // the nested ones.
             let mut modified_blocks = HashSet::new();
-            // Indicate whether we will have to have another go looking for loops, to deal with nested ones.
             let mut needs_refresh = false;
 
             while let Some(next_loop) = loops.yet_to_unroll.pop() {
-                // Don't try to unroll the loop again if it is known to fail
-                if failed_to_unroll.contains(&next_loop.header) {
-                    continue;
-                }
-
-                // Only unroll small loops in Brillig.
-                if self.runtime().is_brillig() && !next_loop.is_small_loop(self, &loops.cfg) {
-                    continue;
-                }
-
-                // Check if we will be able to unroll this loop, before starting to modify the blocks.
-                if next_loop.has_const_back_edge_induction_value(&self.dfg) {
-                    // Don't try to unroll this.
-                    failed_to_unroll.insert(next_loop.header);
-                    // If this is Brillig, we can still evaluate this loop at runtime.
-                    if self.runtime().is_acir() {
-                        unroll_errors
-                            .push(RuntimeError::UnknownLoopBound { call_stack: CallStack::new() });
-                    }
-                    continue;
-                }
-
-                // If we've previously modified a block in this loop we need to refresh the context.
+                // If we've previously modified a block in this loop we need to refresh.
                 // This happens any time we have nested loops.
                 if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
                     needs_refresh = true;
-                    // Carry on unrolling the loops which weren't related to the ones we have already done.
                     continue;
                 }
 
-                // Try to unroll.
-                match next_loop.unroll(self, &loops.cfg) {
-                    Ok(_) => {
-                        has_unrolled = true;
-                        modified_blocks.extend(next_loop.blocks);
+                // Don't try to unroll the loop again if it is known to fail
+                let result = if failed_to_unroll.contains(&next_loop.header) {
+                    LoopUnrollResult::Skipped
+                } else {
+                    self.try_unroll_loop(next_loop, &loops)
+                };
+                match result {
+                    LoopUnrollResult::Skipped => continue,
+                    LoopUnrollResult::Failed(header, error) => {
+                        failed_to_unroll.insert(header);
+                        unroll_errors.push(error);
                     }
-                    Err(call_stack) => {
-                        failed_to_unroll.insert(next_loop.header);
-                        unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
+                    LoopUnrollResult::Unrolled(blocks) => {
+                        has_unrolled = true;
+                        modified_blocks.extend(blocks);
                     }
                 }
             }
-            // Once we have no more nested loops, we are done.
+
+            // If we didn't need to refresh, we're done
             if !needs_refresh {
                 break;
             }
         }
         (has_unrolled, unroll_errors)
     }
+
+    /// Try to unroll a single loop.
+    ///
+    /// Returns the result: whether the loop was skipped, failed, or unrolled.
+    fn try_unroll_loop(&mut self, loop_: Loop, loops: &Loops) -> LoopUnrollResult {
+        // Only unroll small loops in Brillig.
+        if self.runtime().is_brillig() && !loop_.should_unroll_in_brillig(self, &loops.cfg) {
+            return LoopUnrollResult::Skipped;
+        }
+
+        // Check if we will be able to unroll this loop, before starting to modify the blocks.
+        if loop_.has_const_back_edge_induction_value(&self.dfg) {
+            // Don't try to unroll this.
+            // If this is Brillig, we can still evaluate this loop at runtime.
+            if self.runtime().is_acir() {
+                return LoopUnrollResult::Failed(
+                    loop_.header,
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::new() },
+                );
+            }
+            return LoopUnrollResult::Skipped;
+        }
+
+        // Try to unroll.
+        match loop_.unroll(self, &loops.cfg) {
+            Ok(_) => LoopUnrollResult::Unrolled(loop_.blocks),
+            Err(call_stack) => LoopUnrollResult::Failed(
+                loop_.header,
+                RuntimeError::UnknownLoopBound { call_stack },
+            ),
+        }
+    }
+}
+
+/// Result of trying to unroll a single loop.
+enum LoopUnrollResult {
+    /// Loop was skipped (not eligible for unrolling, or deferred for later).
+    Skipped,
+    /// Loop failed to unroll.
+    Failed(BasicBlockId, RuntimeError),
+    /// Loop was successfully unrolled. Contains the blocks that were part of the loop.
+    Unrolled(BTreeSet<BasicBlockId>),
 }
 
 /// Describe the blocks that constitute up a loop.
@@ -231,6 +269,18 @@ pub(crate) struct Loop {
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
     pub(crate) blocks: BTreeSet<BasicBlockId>,
+}
+
+/// Order in which loops should be processed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoopOrder {
+    /// Process inner (smaller) loops first, then outer loops.
+    /// Used for Brillig which can tolerate inner loops that reference outer induction variables.
+    InsideOut,
+    /// Process outer (larger) loops first, then inner loops.
+    /// Used for ACIR which cannot tolerate inner loops that reference outer induction variables,
+    /// so outer loops must be unrolled first.
+    OutsideIn,
 }
 
 /// All the unrolled loops in the SSA.
@@ -275,7 +325,7 @@ impl Loops {
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
-    pub(crate) fn find_all(function: &Function) -> Self {
+    pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -293,10 +343,22 @@ impl Loops {
             }
         }
 
-        // Sort loops by block size so that we unroll the larger, outer loops of nested loops first.
-        // This is needed because inner loops may use the induction variable from their outer loops in
-        // their loop range. We will start popping loops from the back.
-        loops.sort_by_key(|loop_| loop_.blocks.len());
+        match order {
+            LoopOrder::InsideOut => {
+                // Sort by block size descending so we pop and unroll smaller, inner loops first.
+                // This is safe for Brillig because if inner loop bounds depend on an outer
+                // induction variable, `get_const_bounds` returns None, `is_small_loop` returns
+                // false, and we skip it. After unrolling inner loops, outer loops have simpler
+                // bodies and more accurate cost estimates for the `is_small_loop` heuristic.
+                loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
+            }
+            LoopOrder::OutsideIn => {
+                // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
+                // This is needed because inner loops may use the induction variable from their
+                // outer loops in their loop range.
+                loops.sort_by_key(|loop_| loop_.blocks.len());
+            }
+        }
 
         Self { yet_to_unroll: loops, cfg, dom: dom_tree }
     }
@@ -810,12 +872,19 @@ impl Loop {
             .count()
     }
 
-    /// Decide if this loop is small enough that it can be inlined in a way that the number
-    /// of unrolled instructions times the number of iterations would result in smaller bytecode
-    /// than if we keep the loops with their overheads.
-    fn is_small_loop(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
+    /// Whether this loop should be unrolled when compiling to Brillig.
+    ///
+    /// A loop is unrolled if:
+    /// 1. It has constant bounds and no breaks (`boilerplate_stats` + `is_fully_executed`)
+    /// 2. AND either:
+    ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
+    ///    b. The total unrolled instruction count is within the force-unroll threshold
+    fn should_unroll_in_brillig(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
         self.boilerplate_stats(function, cfg)
-            .map(|s| s.is_small() && self.is_fully_executed(cfg))
+            .map(|s| {
+                let force_unroll = s.unrolled_instructions() <= BRILLIG_FORCE_UNROLL_THRESHOLD;
+                (force_unroll || s.is_small()) && self.is_fully_executed(cfg)
+            })
             .unwrap_or_default()
     }
 
@@ -1216,7 +1285,9 @@ mod tests {
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{BoilerplateStats, Loops, is_new_size_ok};
+    use super::{
+        BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, LoopOrder, Loops, is_new_size_ok,
+    };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -1331,7 +1402,7 @@ mod tests {
     fn test_get_const_bounds() {
         let ssa = brillig_unroll_test_case();
         let function = ssa.main();
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];
@@ -1363,7 +1434,7 @@ mod tests {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];
@@ -1381,7 +1452,7 @@ mod tests {
     fn test_find_pre_header_reference_values() {
         let ssa = brillig_unroll_test_case();
         let function = ssa.main();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().unwrap();
 
         let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
@@ -1533,7 +1604,6 @@ mod tests {
             jmp b1()
           b1():
             v15 = load v3 -> [u64; 6]
-            dec_rc v0
             return v15
         }
         ");
@@ -1542,11 +1612,15 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // More iterations than it can unroll
-        let parse_ssa = || brillig_unroll_test_case_6470(6);
+        // 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
+        let parse_ssa = || brillig_unroll_test_case_6470(13);
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
+        assert!(
+            stats.unrolled_instructions() > BRILLIG_FORCE_UNROLL_THRESHOLD,
+            "the loop should exceed the force-unroll threshold"
+        );
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
@@ -1720,7 +1794,6 @@ mod tests {
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
-            dec_rc v0
             return v8
         }}
         "
@@ -1731,7 +1804,7 @@ mod tests {
     // Boilerplate stats of the first loop in the SSA.
     fn loop0_stats(ssa: &Ssa) -> BoilerplateStats {
         let function = ssa.main();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         loop0.boilerplate_stats(function, &loops.cfg).expect("there should be stats")
     }
@@ -1827,7 +1900,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
@@ -1857,7 +1930,7 @@ mod tests {
         let ssa = Ssa::from_str(&ssa).unwrap();
         let function = ssa.main();
 
-        let loops = Loops::find_all(function);
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];

@@ -227,7 +227,7 @@ fn trait_inheritance_with_ambiguous_associated_type() {
 
     pub trait Qux: Foo {
         type Bar;
-        // TODO: This is rejected by Rust as ambiguous, but is accepted by Noir.
+        // This is rejected by Rust as ambiguous, but is accepted by Noir.
         fn qux() -> Self::Bar;
 
         fn quy() -> <Self as Qux>::Bar;
@@ -311,5 +311,5 @@ fn trait_inheritance_using_eq_in_default_method() {
         }
     }
     ";
-    check_errors_with_stdlib(src, stdlib_src::EQ);
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }

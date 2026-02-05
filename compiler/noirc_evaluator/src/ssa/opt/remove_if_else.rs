@@ -179,6 +179,15 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
 
+        // Early return if there is no IfElse instruction.
+        if !function.dfg[block]
+            .instructions()
+            .iter()
+            .any(|inst| matches!(function.dfg[*inst], Instruction::IfElse { .. }))
+        {
+            return Ok(());
+        }
+
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();

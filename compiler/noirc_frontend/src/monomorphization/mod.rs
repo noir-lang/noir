@@ -177,6 +177,8 @@ type Functions = HashMap<
 
 type HirType = Type;
 
+const MAX_TYPE_COMPLEXITY: usize = 100_000;
+
 /// Starting from the given `main` function, monomorphize the entire program,
 /// replacing all references to type variables and NamedGenerics with concrete
 /// types, duplicating definitions as necessary to do so.
@@ -538,20 +540,47 @@ impl<'interner> Monomorphizer<'interner> {
             other => other,
         };
 
+        let attributes = self.interner.function_attributes(&f);
+        let mut inline_type = InlineType::from(attributes);
+        let unconstrained = self.in_unconstrained_function;
+        if unconstrained {
+            inline_type = inline_type.into_unconstrained();
+        }
+        let is_fold = matches!(inline_type, InlineType::Fold);
+        let is_no_predicate = matches!(inline_type, InlineType::NoPredicates);
+
+        // We already checked the types are valid during elaboration. However, types behind
+        // generics (type variables) can't be known until monomorphization, so here we have
+        // to check again.
+        if is_fold || is_no_predicate {
+            for (pattern, typ, _visibility) in &meta.parameters.0 {
+                if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
+                    let location = pattern.location();
+                    return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                        invalid_type,
+                        location,
+                    });
+                }
+            }
+
+            let output = true;
+            if let Some(invalid_type) = return_type.program_validity(output) {
+                let location = meta.return_type.location();
+                return Err(MonomorphizationError::InvalidTypeForEntryPoint {
+                    invalid_type,
+                    location,
+                });
+            }
+        }
+
         // If `convert_type` fails here it is most likely because of generics at the
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         let return_type = Self::convert_type(return_type, location)?;
         let return_visibility = meta.return_visibility;
-        let unconstrained = self.in_unconstrained_function;
-
-        let attributes = self.interner.function_attributes(&f);
-        let mut inline_type = InlineType::from(attributes);
-        if unconstrained {
-            inline_type = inline_type.into_unconstrained();
-        }
 
         let parameters = self.parameters(&meta.parameters)?;
+
         let body = self.expr(body_expr_id)?;
         let function = Function {
             id,
@@ -1516,6 +1545,62 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(expr)
     }
 
+    /// Estimates the complexity of a type.
+    /// This is roughly the number of "nodes" in the type tree.
+    ///
+    /// To prevent stack overflow on deeply nested types, we stop recursion when
+    /// accumulated complexity exceeds MAX_TYPE_COMPLEXITY.
+    fn type_complexity(typ: &HirType) -> usize {
+        Self::type_complexity_inner(typ, 0)
+    }
+
+    fn type_complexity_inner(typ: &HirType, accumulated: usize) -> usize {
+        // Early return if accumulated complexity exceeds the limit,
+        // this avoids stack overflow due to the recursive nature of this computation
+        if accumulated > MAX_TYPE_COMPLEXITY {
+            return accumulated + 1;
+        }
+
+        let typ = typ.follow_bindings_shallow();
+        match typ.as_ref() {
+            HirType::Tuple(fields) => {
+                let mut complexity = accumulated + 1;
+                for field in fields {
+                    complexity = Self::type_complexity_inner(field, complexity);
+                }
+                complexity
+            }
+            HirType::Array(_len, elem_typ) => {
+                Self::type_complexity_inner(elem_typ, accumulated + 1)
+            }
+            HirType::DataType(_def, generics) => {
+                let mut complexity = accumulated + 1;
+                for generic in generics {
+                    complexity = Self::type_complexity_inner(generic, complexity);
+                }
+                complexity
+            }
+            HirType::Function(args, ret, env, _) => {
+                let mut complexity = accumulated + 1;
+                for arg in args {
+                    complexity = Self::type_complexity_inner(arg, complexity);
+                }
+                complexity = Self::type_complexity_inner(ret, complexity);
+                Self::type_complexity_inner(env, complexity)
+            }
+            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, accumulated + 1),
+            HirType::Alias(_, generics) => {
+                let mut complexity = accumulated + 1;
+                for generic in generics {
+                    complexity = Self::type_complexity_inner(generic, complexity);
+                }
+                complexity
+            }
+            // Simple types
+            _ => accumulated + 1,
+        }
+    }
+
     /// Convert a non-tuple/struct type to a monomorphized type
     pub fn convert_type(
         typ: &HirType,
@@ -1538,6 +1623,15 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
+        let complexity = Self::type_complexity(typ);
+        if complexity > MAX_TYPE_COMPLEXITY {
+            return Err(MonomorphizationError::ComplexType {
+                complexity,
+                max_complexity: MAX_TYPE_COMPLEXITY,
+                location,
+            });
+        }
+
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,

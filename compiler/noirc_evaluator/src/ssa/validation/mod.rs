@@ -280,6 +280,11 @@ impl<'f> Validator<'f> {
                 let condition_type = dfg.type_of_value(*condition);
                 assert_u1(&condition_type, "enable_side_effects condition");
             }
+            Instruction::DecrementRc { .. } => {
+                panic!(
+                    "DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
+                );
+            }
             _ => (),
         }
     }
@@ -1040,9 +1045,9 @@ impl<'f> Validator<'f> {
                     block_parameters.len(),
                     "Number of arguments in jmp must match number of block parameters"
                 );
-                for (argument, paramete) in arguments.iter().zip(block_parameters) {
+                for (argument, parameter) in arguments.iter().zip(block_parameters) {
                     let argument_type = self.function.dfg.type_of_value(*argument);
-                    let parameter_type = self.function.dfg.type_of_value(*paramete);
+                    let parameter_type = self.function.dfg.type_of_value(*parameter);
                     assert_eq!(
                         argument_type, parameter_type,
                         "Argument type in jmp must match block parameter type"

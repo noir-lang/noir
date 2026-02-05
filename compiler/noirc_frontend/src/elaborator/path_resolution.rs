@@ -257,7 +257,7 @@ impl TypedPath {
     /// Construct a [PathKind::Plain] from a single identifier segment.
     pub fn from_ident(name: Ident) -> TypedPath {
         let location = name.location();
-        let segment = TypedPathSegment { ident: name, generics: None, location };
+        let segment = TypedPathSegment::without_generics(name, location);
         TypedPath::plain(vec![segment], location)
     }
 
@@ -325,6 +325,10 @@ pub struct TypedPathSegment {
 }
 
 impl TypedPathSegment {
+    pub(crate) fn without_generics(ident: Ident, location: Location) -> TypedPathSegment {
+        TypedPathSegment { ident, generics: None, location }
+    }
+
     /// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir

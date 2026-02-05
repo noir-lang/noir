@@ -189,6 +189,45 @@ pub mod stdlib_src {
         }
     ";
 
+    pub const ORD: &str = "
+        mod cmp {
+            use super::Eq;
+
+            // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
+            // that has 3 public functions for constructing the struct.
+            pub struct Ordering {
+                result: Field,
+            }
+
+            impl Ordering {
+                // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
+                // into the compiler, do not change these without also updating
+                // the compiler itself!
+                pub fn less() -> Ordering {
+                    Ordering { result: 0 }
+                }
+
+                pub fn equal() -> Ordering {
+                    Ordering { result: 1 }
+                }
+
+                pub fn greater() -> Ordering {
+                    Ordering { result: 2 }
+                }
+            }
+
+            pub trait Ord {
+                fn cmp(self, other: Self) -> Ordering;
+            }
+
+            impl Eq for Ordering {
+                fn eq(self, other: Ordering) -> bool {
+                    self.result == other.result
+                }
+            }
+        }
+    ";
+
     pub const NEG: &str = "
         pub trait Neg {
             fn neg(self) -> Self;

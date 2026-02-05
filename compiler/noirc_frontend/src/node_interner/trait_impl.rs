@@ -314,6 +314,7 @@ impl NodeInterner {
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
     /// - 0 trait constraints indicating type annotations are needed to choose an impl.
+    #[allow(clippy::too_many_arguments)]
     fn lookup_trait_implementation_helper(
         &self,
         object_type: &Type,

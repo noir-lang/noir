@@ -105,7 +105,7 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::unrolling::{Loop, Loops};
+use super::unrolling::{Loop, LoopOrder, Loops};
 
 mod simplify;
 
@@ -123,7 +123,7 @@ impl Ssa {
 
 impl Function {
     pub(super) fn loop_invariant_code_motion(&mut self) {
-        Loops::find_all(self).hoist_loop_invariants(self);
+        Loops::find_all(self, LoopOrder::OutsideIn).hoist_loop_invariants(self);
     }
 }
 
@@ -907,11 +907,11 @@ mod tests {
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
-    use crate::ssa::opt::Loops;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
+    use crate::ssa::opt::{LoopOrder, Loops};
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use acvm::AcirField;
     use acvm::acir::brillig::lengths::SemanticLength;
@@ -1948,7 +1948,7 @@ mod tests {
 
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
-        let mut loops = Loops::find_all(function);
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
@@ -2461,7 +2461,8 @@ mod control_dependence {
             ir::{function::RuntimeType, types::NumericType},
             opt::{
                 assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
-                assert_ssa_does_not_change, unrolling::Loops,
+                assert_ssa_does_not_change,
+                unrolling::{LoopOrder, Loops},
             },
             ssa_gen::Ssa,
         },
@@ -3527,7 +3528,7 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut loops = Loops::find_all(ssa.main());
+        let mut loops = Loops::find_all(ssa.main(), LoopOrder::OutsideIn);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
     }
@@ -3549,7 +3550,7 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut loops = Loops::find_all(ssa.main());
+        let mut loops = Loops::find_all(ssa.main(), LoopOrder::OutsideIn);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
     }
@@ -3590,7 +3591,7 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut loops = Loops::find_all(ssa.main());
+        let mut loops = Loops::find_all(ssa.main(), LoopOrder::OutsideIn);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
     }

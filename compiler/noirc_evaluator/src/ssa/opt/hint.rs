@@ -1,3 +1,5 @@
+//! Contains tests related to the `hint` intrinsic.
+
 #[cfg(test)]
 mod tests {
 

@@ -14,7 +14,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    opt::Loops,
+    opt::{LoopOrder, Loops},
 };
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -115,7 +115,7 @@ pub(crate) struct VariableLiveness {
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
     pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
-        let loops = Loops::find_all(func);
+        let loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
         let back_edges: LoopMap = loops
             .yet_to_unroll

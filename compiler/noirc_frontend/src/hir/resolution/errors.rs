@@ -204,6 +204,8 @@ pub enum ResolverError {
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
     #[error("Ambiguous associated type")]
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
+    #[error("Cannot define a trait impl on associated types")]
+    TraitImplOnAssociatedType { location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location, context: WildcardDisallowedContext },
     #[error("References are not allowed in globals")]
@@ -296,6 +298,7 @@ impl ResolverError {
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
+            | ResolverError::TraitImplOnAssociatedType { location }
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
@@ -912,6 +915,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Ambiguous associated type".to_string(),
                     format!("If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `<Example as {trait_name}>::{associated_type_name}`"),
+                    *location,
+                )
+            }
+            ResolverError::TraitImplOnAssociatedType { location } => {
+                Diagnostic::simple_error(
+                    "Cannot define a trait impl on associated types".to_string(),
+                    String::new(),
                     *location,
                 )
             }

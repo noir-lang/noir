@@ -1,7 +1,8 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::test_utils::stdlib_src;
+use crate::tests::{assert_no_errors, check_errors, check_errors_with_stdlib};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
@@ -692,6 +693,80 @@ fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10537() {
+    let src = r#"
+    use cmp::Ord;
+
+    pub fn min<T>(v1: T, v2: T) -> T
+    where
+        T: Ord,
+    {
+        if v1 > v2 {
+            v2
+        } else {
+            v1
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ, stdlib_src::ORD]);
+}
+
+// Expecting missing `Eq` impl errors to resolve to a `NoMatchingImplFound` error
+// with a trait name of "PopulateDummyOperatorTraitsTrait" when the `Eq` trait
+// hasn't been explicitly defined, i.e. when it's only been defined by
+// `NodeInterner::populate_dummy_operator_traits`
+#[test]
+fn missing_eq_trait_error() {
+    let src = "
+    struct Foo {}
+    fn main() {
+        let x = Foo {};
+        let y = Foo {};
+        assert(x == y);
+               ^^^^^^ No matching impl found for `Foo: PopulateDummyOperatorTraitsTrait`
+               ~~~~~~ No impl for `Foo: PopulateDummyOperatorTraitsTrait`
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10219() {
+    let src = "
+    fn main() {
+        let mut x: u32 = 0;
+        let mut y: u32 = 0;
+        assert(&mut x == &mut y);
+               ^^^^^^^^^^^^^^^^ No matching impl found for `&mut u32: Eq`
+               ~~~~~~~~~~~~~~~~ No impl for `&mut u32: Eq`
+    }
+    ";
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
+#[test]
+fn regression_10766() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    pub struct Example { }
+    pub struct Baz { }
+
+    impl Foo for Example {
+        type Bar = Baz;
+    }
+
+    impl Foo::Bar { }
+         ^^^^^^^^ Cannot define a trait impl on associated types
+
+    fn main() { }
     "#;
     check_errors(src);
 }
