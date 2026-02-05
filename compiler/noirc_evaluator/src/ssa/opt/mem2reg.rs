@@ -3416,5 +3416,7 @@ mod tests {
         // If the bug exists, it will be 100 because `store Field 200 at v4` was removed.
         let result_after = ssa.interpret(vec![]).unwrap();
         assert_eq!(result_after, expected_result, "result after mem2reg should still be 200");
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
