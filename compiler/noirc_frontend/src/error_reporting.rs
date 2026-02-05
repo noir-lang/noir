@@ -7,7 +7,7 @@ use noirc_errors::{
 
 use crate::{
     ParsedModule,
-    ast::{Lambda, LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
+    ast::{LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
     hir::ParsedFiles,
     parser::ParsedSubModule,
 };
@@ -128,10 +128,6 @@ impl Visitor for FunctionNamesCollector<'_> {
         let full_name = self.fully_qualified_name(&name);
         self.function_names.insert(function.location(), full_name);
 
-        self.path.push(name);
-        function.accept_children(self);
-        self.path.pop();
-
         false
     }
 
@@ -171,18 +167,6 @@ impl Visitor for FunctionNamesCollector<'_> {
 
         self.path.push(name);
         noir_trait_impl.accept_children(self);
-        self.path.pop();
-
-        false
-    }
-
-    fn visit_lambda(&mut self, lambda: &Lambda, _span: Span) -> bool {
-        let name = "{{closure}}".to_string();
-        let full_name = self.fully_qualified_name(&name);
-        self.function_names.insert(lambda.body.location, full_name);
-
-        self.path.push(name);
-        lambda.accept_children(self);
         self.path.pop();
 
         false
