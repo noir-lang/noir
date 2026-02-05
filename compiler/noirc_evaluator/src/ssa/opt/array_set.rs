@@ -54,6 +54,7 @@ impl Ssa {
 ///   - An ACIR function contains more than 1 block, i.e. it hasn't been flattened yet.
 ///   - There already exists a mutable array set instruction.
 ///   - There is an `IfElse` instruction which hasn't been removed yet.
+///   - There are any Load or Store instructions.
 #[cfg(debug_assertions)]
 fn array_set_optimization_pre_check(func: &Function) {
     // We only want to run this pass for ACIR.
@@ -61,36 +62,18 @@ fn array_set_optimization_pre_check(func: &Function) {
         return;
     }
 
-    let reachable_blocks = func.reachable_blocks();
+    // flatten_cfg must have run
+    super::checks::assert_cfg_is_flattened(func);
+    // remove_if_else must have run
+    super::checks::assert_no_if_else(func);
+    // mem2reg must have run (no Load/Store remaining)
+    super::checks::assert_no_load_store(func);
 
-    assert_eq!(
-        reachable_blocks.len(),
-        1,
-        "Expected there to be 1 block remaining in ACIR function for array_set optimization"
-    );
-
-    for block_id in reachable_blocks {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            match func.dfg[*instruction_id] {
-                // There should be no mutable array sets.
-                Instruction::ArraySet { mutable: true, .. } => {
-                    panic!(
-                        "mutable ArraySet instruction exists before `array_set_optimization` pass"
-                    );
-                }
-                // The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
-                // so we assert that such instructions have already been removed by the `remove_if_else` pass.
-                Instruction::IfElse { .. } => {
-                    panic!("IfElse instruction exists before `array_set_optimization` pass");
-                }
-                Instruction::Load { .. } => {
-                    panic!("Load instruction exists before `array_set_optimization` pass");
-                }
-                Instruction::Store { .. } => {
-                    panic!("Store instruction exists before `array_set_optimization` pass");
-                }
-                _ => {}
+    // No mutable array sets should exist yet (they are created by this pass)
+    for block_id in func.reachable_blocks() {
+        for instruction_id in func.dfg[block_id].instructions() {
+            if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. }) {
+                panic!("mutable ArraySet instruction exists before `array_set_optimization` pass");
             }
         }
     }
@@ -102,18 +85,8 @@ fn array_set_optimization_pre_check(func: &Function) {
 ///   - Mutable array_set optimization has been applied to Brillig function.
 #[cfg(debug_assertions)]
 fn array_set_optimization_post_check(func: &Function) {
-    // Brillig functions should not have any mutable array sets.
-    if func.runtime().is_brillig() {
-        for block_id in func.reachable_blocks() {
-            let instruction_ids = func.dfg[block_id].instructions();
-            for instruction_id in instruction_ids {
-                if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. })
-                {
-                    panic!("Mutable array set instruction in Brillig function");
-                }
-            }
-        }
-    }
+    // Brillig functions should not have any mutable array sets
+    super::checks::assert_no_mutable_array_set_in_brillig(func);
 }
 
 impl Function {
@@ -416,7 +389,7 @@ mod tests {
 
     #[test_case("inline")]
     #[test_case("fold")]
-    #[should_panic = "Expected there to be 1 block remaining in ACIR function for array_set optimization"]
+    #[should_panic = "CFG contains more than 1 block"]
     fn disallows_multiple_blocks(inline_type: &str) {
         let src = format!(
             "

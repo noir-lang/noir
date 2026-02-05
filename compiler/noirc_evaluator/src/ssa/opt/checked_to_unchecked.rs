@@ -166,8 +166,8 @@ fn get_max_num_bits(
 ///   - These should have already been converted by the expand_signed_checks pass.
 #[cfg(debug_assertions)]
 fn checked_to_unchecked_pre_check(func: &Function) {
-    // This pass must be run after expand_signed_checks
-    super::expand_signed_checks::expand_signed_checks_post_check(func);
+    // expand_signed_checks must have run
+    super::checks::assert_no_checked_signed_add_sub_mul(func);
 }
 
 #[cfg(test)]

@@ -469,23 +469,8 @@ impl Context<'_, '_, '_> {
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn remove_bit_shifts_post_check(func: &Function) {
-    // Non-ACIR functions should be unaffected.
-    if !func.runtime().is_acir() {
-        return;
-    }
-
-    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if matches!(
-                func.dfg[*instruction_id],
-                Instruction::Binary(Binary { operator: BinaryOp::Shl | BinaryOp::Shr, .. })
-            ) {
-                panic!("Bitshift instruction still remains in ACIR function");
-            }
-        }
-    }
+    // All bit shifts should be removed in ACIR functions
+    super::checks::assert_no_bit_shifts(func);
 }
 
 #[cfg(test)]

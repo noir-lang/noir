@@ -1288,18 +1288,8 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 /// may intentionally retain loops that are too large to unroll.
 #[cfg(debug_assertions)]
 fn unroll_loops_post_check(function: &Function) {
-    // Brillig functions may intentionally keep loops
-    if function.runtime().is_brillig() {
-        return;
-    }
-
-    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
-    assert!(
-        loops.yet_to_unroll.is_empty(),
-        "ACIR function {} still contains {} loop(s) after unrolling",
-        function.name(),
-        loops.yet_to_unroll.len()
-    );
+    // All loops should be unrolled in ACIR functions
+    super::checks::assert_no_loops(function);
 }
 
 #[cfg(test)]

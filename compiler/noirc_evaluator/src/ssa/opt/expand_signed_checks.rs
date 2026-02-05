@@ -453,23 +453,8 @@ impl Context<'_, '_, '_> {
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 pub(super) fn expand_signed_checks_post_check(func: &Function) {
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                if func.dfg.type_of_value(binary.lhs).is_signed() {
-                    match binary.operator {
-                        BinaryOp::Add { unchecked: false }
-                        | BinaryOp::Sub { unchecked: false }
-                        | BinaryOp::Mul { unchecked: false } => {
-                            panic!("Checked signed binary operation has not been removed")
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        }
-    }
+    // All checked signed add/sub/mul should be expanded
+    super::checks::assert_no_checked_signed_add_sub_mul(func);
 }
 
 #[cfg(test)]

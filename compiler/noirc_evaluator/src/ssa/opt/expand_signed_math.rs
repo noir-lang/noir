@@ -309,17 +309,8 @@ impl Context<'_, '_, '_> {
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn expand_signed_math_post_check(func: &Function) {
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                if func.dfg.type_of_value(binary.lhs).is_signed() && binary.operator == BinaryOp::Lt
-                {
-                    panic!("Checked signed 'less than' has not been removed")
-                }
-            }
-        }
-    }
+    // All signed less-than comparisons should be expanded
+    super::checks::assert_no_signed_lt(func);
 }
 
 #[cfg(test)]

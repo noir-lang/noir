@@ -533,7 +533,8 @@ fn should_remove_store(func: &Function, flattened: bool) -> bool {
 #[cfg(debug_assertions)]
 fn die_pre_check(func: &Function, flattened: bool) {
     if flattened {
-        super::flatten_cfg::flatten_cfg_post_check(func);
+        // flatten_cfg must have run
+        super::checks::assert_cfg_is_flattened(func);
     }
 }
 
@@ -542,19 +543,8 @@ fn die_pre_check(func: &Function, flattened: bool) {
 #[cfg(debug_assertions)]
 fn die_post_check(func: &Function, flattened: bool) {
     if should_remove_store(func, flattened) {
-        for block_id in func.reachable_blocks() {
-            for (i, instruction_id) in func.dfg[block_id].instructions().iter().enumerate() {
-                let instruction = &func.dfg[*instruction_id];
-                if matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }) {
-                    panic!(
-                        "not expected to have Load or Store instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
-                        func.name(),
-                        func.id(),
-                        instruction
-                    );
-                }
-            }
-        }
+        // All Load/Store instructions should be removed
+        super::checks::assert_no_load_store(func);
     }
 }
 

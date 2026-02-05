@@ -117,8 +117,8 @@ impl Function {
 ///   - Any ACIR function contains > 1 block, i.e. the CFG hasn't been flattened yet.
 #[cfg(debug_assertions)]
 fn make_constrain_not_equal_pre_check(function: &Function) {
-    // This pass must be run after flatten_cfg for ACIR functions
-    super::flatten_cfg::flatten_cfg_post_check(function);
+    // flatten_cfg must have run
+    super::checks::assert_cfg_is_flattened(function);
 }
 
 #[cfg(test)]
