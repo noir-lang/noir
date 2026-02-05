@@ -203,8 +203,10 @@ impl Ssa {
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
-    super::checks::assert_no_loops(function);
-    super::checks::assert_no_constrain_not_equal(function);
+    if function.runtime().is_acir() {
+        super::checks::assert_no_loops(function);
+        super::checks::assert_no_constrain_not_equal(function);
+    }
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
@@ -213,7 +215,9 @@ fn flatten_cfg_pre_check(function: &Function) {
 ///   - Any ACIR function contains > 1 block
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
-    super::checks::assert_cfg_is_flattened(function);
+    if function.runtime().is_acir() {
+        super::checks::assert_cfg_is_flattened(function);
+    }
 }
 
 pub(crate) struct Context<'f> {

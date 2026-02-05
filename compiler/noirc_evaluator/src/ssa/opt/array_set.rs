@@ -36,10 +36,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            #[cfg(debug_assertions)]
-            array_set_optimization_pre_check(func);
+            // We only want to run this pass for ACIR.
+            // Brillig uses ref-counting to decide whether to mutate an array.
+            if func.runtime().is_acir() {
+                #[cfg(debug_assertions)]
+                array_set_optimization_pre_check(func);
 
-            func.array_set_optimization();
+                func.array_set_optimization();
+            }
 
             #[cfg(debug_assertions)]
             array_set_optimization_post_check(func);
@@ -57,11 +61,6 @@ impl Ssa {
 ///   - There are any Load or Store instructions.
 #[cfg(debug_assertions)]
 fn array_set_optimization_pre_check(func: &Function) {
-    // We only want to run this pass for ACIR.
-    if func.runtime().is_brillig() {
-        return;
-    }
-
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
     // remove_if_else must have run
@@ -81,12 +80,14 @@ fn array_set_optimization_pre_check(func: &Function) {
 
 /// Post-check condition for [Function::array_set_optimization].
 ///
-/// Panics if:
-///   - Mutable array_set optimization has been applied to Brillig function.
+/// Panics if a Brillig function contains mutable array set instructions.
+/// Brillig uses ref-counting to decide whether to mutate an array, not mutable flags.
 #[cfg(debug_assertions)]
 fn array_set_optimization_post_check(func: &Function) {
     // Brillig functions should not have any mutable array sets
-    super::checks::assert_no_mutable_array_set_in_brillig(func);
+    if func.runtime().is_brillig() {
+        super::checks::assert_no_mutable_array_set(func);
+    }
 }
 
 impl Function {

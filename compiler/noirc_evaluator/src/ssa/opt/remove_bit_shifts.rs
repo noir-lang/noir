@@ -462,15 +462,14 @@ impl Context<'_, '_, '_> {
 
 /// Post-check condition for [Function::remove_bit_shifts].
 ///
-/// Succeeds if:
-///   - `func` is not an ACIR function, OR
-///   - `func` does not contain any bitshift instructions.
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any ACIR function contains bitshift instructions.
 #[cfg(debug_assertions)]
 fn remove_bit_shifts_post_check(func: &Function) {
-    // All bit shifts should be removed in ACIR functions
-    super::checks::assert_no_bit_shifts(func);
+    if func.runtime().is_acir() {
+        // All bit shifts should be removed in ACIR functions
+        super::checks::assert_no_bit_shifts(func);
+    }
 }
 
 #[cfg(test)]

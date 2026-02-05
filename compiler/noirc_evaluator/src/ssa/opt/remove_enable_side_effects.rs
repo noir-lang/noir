@@ -131,8 +131,10 @@ fn should_insert_side_effects_before_instruction(
 ///   - The CFG has not been flattened for ACIR functions.
 #[cfg(debug_assertions)]
 fn remove_enable_side_effects_pre_check(function: &Function) {
-    // flatten_cfg must have run
-    super::checks::assert_cfg_is_flattened(function);
+    if function.runtime().is_acir() {
+        // flatten_cfg must have run
+        super::checks::assert_cfg_is_flattened(function);
+    }
 }
 
 #[cfg(test)]

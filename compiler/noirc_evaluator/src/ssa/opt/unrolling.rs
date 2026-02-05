@@ -1288,8 +1288,10 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 /// may intentionally retain loops that are too large to unroll.
 #[cfg(debug_assertions)]
 fn unroll_loops_post_check(function: &Function) {
-    // All loops should be unrolled in ACIR functions
-    super::checks::assert_no_loops(function);
+    if function.runtime().is_acir() {
+        // All loops should be unrolled in ACIR functions
+        super::checks::assert_no_loops(function);
+    }
 }
 
 #[cfg(test)]
