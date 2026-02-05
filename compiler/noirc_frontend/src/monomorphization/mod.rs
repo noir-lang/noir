@@ -3048,7 +3048,6 @@ fn resolve_trait_item_impl(
                 method_id.trait_id,
                 &trait_generics.ordered,
                 &trait_generics.named,
-                false,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
                     // Insert any additional instantiation bindings into this expression's instantiation bindings.

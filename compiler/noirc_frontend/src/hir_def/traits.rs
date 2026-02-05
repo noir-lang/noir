@@ -5,7 +5,9 @@ use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::node_interner::{DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind};
+use crate::node_interner::{
+    DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
+};
 use crate::{
     ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -140,20 +142,34 @@ impl TraitConstraint {
     /// Looks up a trait implementation which satisfies this constraint and returns it.
     ///
     /// Note that if successful, any type bindings from the impl search will be automatically
-    /// applied.
+    /// applied, unless `current_trait_self` is `Some` type variable matching the constraint,
+    /// representing a trait definition, in which case we don't bind it, but also don't reject
+    /// it as a missing type.
     pub fn find_impl(
         &self,
         interner: &NodeInterner,
         current_trait_self: Option<&Type>,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
-        let allow_bindable = current_trait_self.is_some_and(|typ| *typ == self.typ);
-        interner.lookup_trait_implementation(
-            &self.typ,
-            self.trait_bound.trait_id,
-            &self.trait_bound.trait_generics.ordered,
-            &self.trait_bound.trait_generics.named,
-            allow_bindable,
-        )
+        match current_trait_self {
+            Some(typ) if *typ == self.typ && typ.is_bindable() => {
+                let (impl_kind, _bindings, instantiation_bindings) = interner
+                    .try_lookup_trait_implementation(
+                        &self.typ,
+                        self.trait_bound.trait_id,
+                        &self.trait_bound.trait_generics.ordered,
+                        &self.trait_bound.trait_generics.named,
+                        TraitLookupMode::SelfAssumedOnly,
+                    )?;
+                // Do not bind it the self type.
+                Ok((impl_kind, instantiation_bindings))
+            }
+            _ => interner.lookup_trait_implementation(
+                &self.typ,
+                self.trait_bound.trait_id,
+                &self.trait_bound.trait_generics.ordered,
+                &self.trait_bound.trait_generics.named,
+            ),
+        }
     }
 }
 

@@ -58,6 +58,7 @@ pub use globals::{GlobalId, GlobalValue};
 pub use ids::*;
 pub use methods::{ImplMethod, Methods};
 pub use reexports::Reexport;
+pub use trait_impl::TraitLookupMode;
 
 #[derive(Debug)]
 pub struct ModuleAttributes {
@@ -1472,8 +1473,8 @@ impl NodeInterner {
 
             // Check if typ implements the trait
             // This handles instantiation and unification correctly for generic impls
-            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
-                self.try_lookup_trait_implementation(typ, trait_id, &[], &[], false)
+            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) = self
+                .try_lookup_trait_implementation(typ, trait_id, &[], &[], TraitLookupMode::Default)
             {
                 if found_impl_id == *impl_id {
                     results.push((*def_id, trait_id, *impl_id));
@@ -1577,7 +1578,6 @@ impl NodeInterner {
                 trait_id,
                 &parent_bound.trait_generics.ordered,
                 &parent_bound.trait_generics.named,
-                false,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), _)) => {
                     let trait_impl = self.get_trait_implementation(impl_id);

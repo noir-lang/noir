@@ -948,13 +948,7 @@ impl Elaborator<'_> {
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
 
-        match self.interner.lookup_trait_implementation(
-            &object_type,
-            trait_id,
-            &ordered,
-            &named,
-            false,
-        ) {
+        match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok((impl_kind, instantiation_bindings)) => {
                 let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
                 typ.substitute(&instantiation_bindings)
@@ -2714,7 +2708,6 @@ impl Elaborator<'_> {
                     *trait_id,
                     &generics.ordered,
                     &generics.named,
-                    false,
                 )
                 .is_err()
             {

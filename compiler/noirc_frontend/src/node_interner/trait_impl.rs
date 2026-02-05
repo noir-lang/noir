@@ -20,6 +20,17 @@ use super::NodeInterner;
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
+/// Modes that affect the behavior of [NodeInterner::try_lookup_trait_implementation].
+pub enum TraitLookupMode {
+    /// Does not look up implementations for bindable object types, but matches any [TraitImplKind].
+    Default,
+    /// Does not look up implementations for bindable object types, and matches only [TraitImplKind::Prepared].
+    PreparedOnly,
+    /// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
+    /// The returned bindings are not expected to be applied.
+    SelfAssumedOnly,
+}
+
 impl NodeInterner {
     /// Returns what the next trait impl id is expected to be.
     pub fn next_trait_impl_id(&mut self) -> TraitImplId {
@@ -69,7 +80,7 @@ impl NodeInterner {
             trait_id,
             &trait_generics.ordered,
             &trait_generics.named,
-            false,
+            TraitLookupMode::Default,
         );
 
         if existing.is_ok() {
@@ -109,7 +120,7 @@ impl NodeInterner {
             trait_id,
             &ordered_generics,
             &associated_types,
-            false,
+            TraitLookupMode::Default,
         );
         if existing.is_ok() {
             return false;
@@ -185,7 +196,7 @@ impl NodeInterner {
             trait_id,
             trait_generics,
             &associated_types,
-            false,
+            TraitLookupMode::Default,
         );
 
         match existing {
@@ -235,14 +246,13 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-        allow_bindable: bool,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let (impl_kind, bindings, instantiation_bindings) = self.try_lookup_trait_implementation(
             object_type,
             trait_id,
             trait_generics,
             trait_associated_types,
-            allow_bindable,
+            TraitLookupMode::Default,
         )?;
 
         Type::apply_type_bindings(bindings);
@@ -260,7 +270,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-        allow_bindable: bool,
+        trait_lookup_mode: TraitLookupMode,
     ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::default();
         let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
@@ -269,8 +279,7 @@ impl NodeInterner {
             trait_generics,
             trait_associated_types,
             &mut bindings,
-            false,
-            allow_bindable,
+            trait_lookup_mode,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
         Ok((impl_kind, bindings, instantiation_bindings))
@@ -293,8 +302,7 @@ impl NodeInterner {
             trait_generics,
             trait_associated_types,
             &mut bindings,
-            true,
-            false,
+            TraitLookupMode::PreparedOnly,
             IMPL_SEARCH_RECURSION_LIMIT,
         ) {
             Ok((TraitImplKind::Prepared { impl_id, .. }, _)) => {
@@ -335,8 +343,7 @@ impl NodeInterner {
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
-        prepared_only: bool,
-        allow_bindable: bool,
+        mode: TraitLookupMode,
         recursion_limit: u32,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
@@ -365,7 +372,7 @@ impl NodeInterner {
         let object_type = object_type.substitute(type_bindings);
         let is_bindable = object_type.is_bindable();
 
-        if !allow_bindable && is_bindable {
+        if is_bindable && !matches!(mode, TraitLookupMode::SelfAssumedOnly) {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
@@ -375,7 +382,16 @@ impl NodeInterner {
         let mut where_clause_error = None;
 
         for (existing_object_type, impl_kind) in impls {
-            if prepared_only && !matches!(impl_kind, TraitImplKind::Prepared { .. }) {
+            let skip = match mode {
+                TraitLookupMode::Default => false,
+                TraitLookupMode::PreparedOnly => {
+                    !matches!(impl_kind, TraitImplKind::Prepared { .. })
+                }
+                TraitLookupMode::SelfAssumedOnly => {
+                    !matches!(impl_kind, TraitImplKind::Assumed { .. })
+                }
+            };
+            if skip {
                 continue;
             }
 
@@ -545,8 +561,7 @@ impl NodeInterner {
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
                 type_bindings,
-                false,
-                false,
+                TraitLookupMode::Default,
                 recursion_limit - 1,
             )
             .map_err(|error| (constraint.clone(), error))?;
