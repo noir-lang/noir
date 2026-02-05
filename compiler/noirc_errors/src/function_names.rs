@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use fm::FileId;
+use noirc_span::Span;
 use rangemap::RangeMap;
 
 use crate::Location;
@@ -29,5 +30,14 @@ impl FunctionNames {
             .get(&location.file)
             .and_then(|range_map| range_map.get(&location.span.start()))
             .map(|str| str.as_str())
+    }
+
+    /// Returns all registered function names in the given file, along with the range they are defined in.
+    pub fn all_in_file(&mut self, file: FileId) -> impl Iterator<Item = (&str, Span)> {
+        self.files
+            .entry(file)
+            .or_default()
+            .iter()
+            .map(|(range, name)| (name.as_str(), Span::from(range.start..range.end)))
     }
 }

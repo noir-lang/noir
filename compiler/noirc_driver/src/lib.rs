@@ -9,7 +9,7 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
-use noirc_artifacts::debug::{DebugFile, DebugInfo};
+use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionName};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
@@ -22,8 +22,9 @@ use noirc_evaluator::ssa::{
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::Context;
+use noirc_frontend::error_reporting::function_names_in_parsed_module;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
+use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -704,7 +705,8 @@ fn compile_contract_inner(
     if errors.is_empty() {
         let debug_infos: Vec<_> =
             functions.iter().flat_map(|function| function.debug.clone()).collect();
-        let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
+        let file_map =
+            filter_relevant_files(&debug_infos, &context.file_manager, &context.parsed_files);
 
         let out_structs = contract
             .outputs
@@ -764,6 +766,7 @@ fn compile_contract_inner(
 pub fn filter_relevant_files(
     debug_symbols: &[DebugInfo],
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
 ) -> BTreeMap<FileId, DebugFile> {
     let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
         .iter()
@@ -800,10 +803,24 @@ pub fn filter_relevant_files(
     for file_id in files_with_debug_symbols {
         let file_path = file_manager.path(file_id).expect("file should exist");
         let file_source = file_manager.fetch_file(file_id).expect("file should exist");
+        let (parsed_module, _errors) = parsed_files.get(&file_id).expect("file should exist");
+        let mut function_names = function_names_in_parsed_module(parsed_module);
+        let function_names = function_names
+            .all_in_file(file_id)
+            .map(|(name, span)| FunctionName {
+                name: name.to_string(),
+                start: span.start(),
+                end: span.end(),
+            })
+            .collect::<BTreeSet<_>>();
 
         file_map.insert(
             file_id,
-            DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
+            DebugFile {
+                source: file_source.to_string(),
+                path: file_path.to_path_buf(),
+                function_names,
+            },
         );
     }
     file_map
@@ -883,7 +900,7 @@ pub fn compile_no_check(
     };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);
-    let file_map = filter_relevant_files(&debug, &context.file_manager);
+    let file_map = filter_relevant_files(&debug, &context.file_manager, &context.parsed_files);
 
     Ok(CompiledProgram {
         hash,

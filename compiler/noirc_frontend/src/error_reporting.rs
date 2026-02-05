@@ -6,6 +6,7 @@ use noirc_errors::{
 };
 
 use crate::{
+    ParsedModule,
     ast::{Lambda, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
     hir::{Context, ParsedFiles},
     parser::ParsedSubModule,
@@ -68,6 +69,14 @@ pub fn function_names_for_diagnostics(
     }
 
     function_name
+}
+
+/// Computes the set of function names that appear in the given parsed module.
+pub fn function_names_in_parsed_module(parsed_module: &ParsedModule) -> FunctionNames {
+    let mut function_names = FunctionNames::new();
+    let mut visitor = FunctionNamesCollector::new(&mut function_names);
+    parsed_module.accept(&mut visitor);
+    function_names
 }
 
 /// Collects function names in a given ParsedModule.

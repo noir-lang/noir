@@ -9,7 +9,6 @@ use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_artifacts::program::ProgramArtifact;
-use noirc_errors::function_names::FunctionNames;
 
 use crate::errors::{CliError, report_error};
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
@@ -99,8 +98,7 @@ fn run_with_generator(
                 &program.abi,
                 &program.debug_symbols.debug_infos,
             ) {
-                // TODO(callstack)
-                let function_names = FunctionNames::new();
+                let function_names = debug_artifact.function_names_for_diagnostic(&diagnostic);
                 diagnostic.report(&debug_artifact, &function_names, false);
             }
 

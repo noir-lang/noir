@@ -5,7 +5,6 @@ use acvm::BlackBoxFunctionSolver;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, Sign, input_parser::InputValue};
 use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
-use noirc_errors::function_names::FunctionNames;
 
 use crate::{
     errors::CliError,
@@ -70,9 +69,7 @@ pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>
             debug_symbols: circuit.debug.clone(),
             file_map: circuit.file_map.clone(),
         };
-
-        // TODO(callstack)
-        let function_names = FunctionNames::new();
+        let function_names = debug_artifact.function_names_for_diagnostic(&diagnostic);
         diagnostic.report(&debug_artifact, &function_names, false);
     }
 }
