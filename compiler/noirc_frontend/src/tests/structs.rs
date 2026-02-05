@@ -390,3 +390,34 @@ fn non_overlapping_inherent_impls() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn deny_cyclic_structs() {
+    let src = r#"
+    pub struct Foo {
+        bar: Bar,
+    }
+
+    pub struct Bar {
+               ^^^ Dependency cycle found
+               ~~~ 'Bar' recursively depends on itself: Bar -> Foo -> Bar
+        foo: Foo,
+    }
+
+    // Here we check if `Foo` contains references, and this check could
+    // cause a stack overflow unless we properly track visited data types.
+    pub unconstrained fn foo() -> [Foo; 0] {
+        []
+    }
+
+    // Here we check the input and output types
+    fn main(_: Foo) -> pub [Foo; 0] {
+        // Here we also check if the call returns a function, another check
+        // that must be done with care.
+        // Safety:
+        let _ = unsafe { foo() };
+        []
+    }
+    "#;
+    check_errors(src);
+}

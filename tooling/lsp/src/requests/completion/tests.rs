@@ -3596,4 +3596,21 @@ fn main() {
 
         assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
     }
+
+    #[test]
+    async fn autocompletes_use_super() {
+        let src = r#"
+        pub fn hello() {}
+
+        mod moo {
+            pub use super::>|<
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![function_completion_item("hello", "hello", "fn()"), module_completion_item("moo")],
+        )
+        .await;
+    }
 }

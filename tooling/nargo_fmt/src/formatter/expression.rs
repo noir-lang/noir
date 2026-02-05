@@ -588,7 +588,7 @@ impl ChunkFormatter<'_, '_> {
     fn format_constructor(&mut self, constructor: ConstructorExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_type(constructor.typ);
+            formatter.format_type_in_expression(constructor.typ);
             formatter.write_space();
             formatter.write_left_brace();
         }));

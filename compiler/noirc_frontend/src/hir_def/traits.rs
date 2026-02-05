@@ -137,7 +137,7 @@ impl TraitConstraint {
         )
     }
 
-    /// Looks up a trait implementation which satisifies this constraint and returns it.
+    /// Looks up a trait implementation which satisfies this constraint and returns it.
     ///
     /// Note that if successful, any type bindings from the impl search will be automatically
     /// applied.
