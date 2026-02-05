@@ -3355,8 +3355,6 @@ mod tests {
                 jmp b1(v10)
             }
         "#;
-        // We were previously optimizing out the `store Field 200 at v4`
-        // which changed the result of the aliasing `load v13` two lines down.
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
