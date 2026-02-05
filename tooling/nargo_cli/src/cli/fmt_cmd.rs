@@ -6,7 +6,10 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::{hir::def_map::parse_file, parser::ParserError};
+use noirc_frontend::{
+    hir::{ParsedFiles, def_map::parse_file},
+    parser::ParserError,
+};
 
 use crate::errors::CliError;
 
@@ -55,6 +58,9 @@ pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliEr
 
             let is_all_warnings = errors.iter().all(ParserError::is_warning);
             if !is_all_warnings {
+                let mut parsed_files = ParsedFiles::new();
+                parsed_files.insert(file_id, (parsed_module.clone(), errors.clone()));
+
                 let errors = errors
                     .iter()
                     .map(CustomDiagnostic::from)
@@ -63,6 +69,7 @@ pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliEr
                 let _ = report_errors::<()>(
                     Err(errors),
                     &workspace_file_manager,
+                    &parsed_files,
                     false,
                     false,
                 );

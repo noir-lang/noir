@@ -15,7 +15,10 @@ use nargo_doc::{
 use nargo_toml::{PackageConfig, PackageSelection};
 use noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::{
+    error_reporting::function_names_for_diagnostics,
+    hir::{Context, ParsedFiles},
+};
 
 use crate::errors::CliError;
 
@@ -77,8 +80,10 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     // Report broken links
     let diagnostics = vecmap(&broken_links, CustomDiagnostic::from);
     let deny_warnings = args.compile_options.deny_warnings || args.check;
+    let function_names = function_names_for_diagnostics(&diagnostics, &parsed_files);
     noirc_errors::reporter::report_all(
         workspace_file_manager.as_file_map(),
+        &function_names,
         &diagnostics,
         deny_warnings,
         args.compile_options.silence_warnings,

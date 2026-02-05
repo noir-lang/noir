@@ -3,6 +3,7 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 use fm::FileManager;
 use nargo::ops::TestStatus;
 use noirc_errors::{CustomDiagnostic, reporter::stack_trace};
+use noirc_frontend::{error_reporting::function_names_for_diagnostics, hir::ParsedFiles};
 use serde_json::{Map, json};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
@@ -36,6 +37,7 @@ pub(crate) trait Formatter: Send + Sync + RefUnwindSafe {
         &self,
         test_result: &TestResult,
         file_manager: &FileManager,
+        parsed_files: &ParsedFiles,
         show_output: bool,
         deny_warnings: bool,
         silence_warnings: bool,
@@ -48,16 +50,19 @@ pub(crate) trait Formatter: Send + Sync + RefUnwindSafe {
         current_test_count: usize,
         total_test_count: usize,
         file_manager: &FileManager,
+        parsed_files: &ParsedFiles,
         show_output: bool,
         deny_warnings: bool,
         silence_warnings: bool,
     ) -> std::io::Result<()>;
 
+    #[allow(clippy::too_many_arguments)]
     fn package_end(
         &self,
         package_name: &str,
         test_results: &[TestResult],
         file_manager: &FileManager,
+        parsed_files: &ParsedFiles,
         show_output: bool,
         deny_warnings: bool,
         silence_warnings: bool,
@@ -83,6 +88,7 @@ impl Formatter for PrettyFormatter {
         &self,
         _test_result: &TestResult,
         _file_manager: &FileManager,
+        _parsed_files: &ParsedFiles,
         _show_output: bool,
         _deny_warnings: bool,
         _silence_warnings: bool,
@@ -96,6 +102,7 @@ impl Formatter for PrettyFormatter {
         _current_test_count: usize,
         _total_test_count: usize,
         file_manager: &FileManager,
+        parsed_files: &ParsedFiles,
         show_output: bool,
         deny_warnings: bool,
         silence_warnings: bool,
@@ -130,9 +137,12 @@ impl Formatter for PrettyFormatter {
                 show_time(&mut writer)?;
                 writeln!(writer)?;
                 if let Some(diag) = error_diagnostic {
+                    let diagnostics = std::slice::from_ref(diag);
+                    let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        std::slice::from_ref(diag),
+                        &function_names,
+                        diagnostics,
                         deny_warnings,
                         silence_warnings,
                     );
@@ -146,9 +156,12 @@ impl Formatter for PrettyFormatter {
                 writeln!(writer)?;
             }
             TestStatus::CompileError(file_diagnostic) => {
+                let diagnostics = std::slice::from_ref(file_diagnostic);
+                let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    std::slice::from_ref(file_diagnostic),
+                    &function_names,
+                    diagnostics,
                     deny_warnings,
                     silence_warnings,
                 );
@@ -170,6 +183,7 @@ impl Formatter for PrettyFormatter {
         package_name: &str,
         test_results: &[TestResult],
         _file_manager: &FileManager,
+        _parsed_files: &ParsedFiles,
         _show_output: bool,
         _deny_warnings: bool,
         _silence_warnings: bool,
@@ -240,6 +254,7 @@ impl Formatter for TerseFormatter {
         &self,
         _test_result: &TestResult,
         _file_manager: &FileManager,
+        _parsed_files: &ParsedFiles,
         _show_output: bool,
         _deny_warnings: bool,
         _silence_warnings: bool,
@@ -253,6 +268,7 @@ impl Formatter for TerseFormatter {
         current_test_count: usize,
         total_test_count: usize,
         _file_manager: &FileManager,
+        _parsed_files: &ParsedFiles,
         _show_output: bool,
         _deny_warnings: bool,
         _silence_warnings: bool,
@@ -295,6 +311,7 @@ impl Formatter for TerseFormatter {
         package_name: &str,
         test_results: &[TestResult],
         file_manager: &FileManager,
+        parsed_files: &ParsedFiles,
         show_output: bool,
         deny_warnings: bool,
         silence_warnings: bool,
@@ -320,18 +337,26 @@ impl Formatter for TerseFormatter {
                         writeln!(writer, "{message}")?;
                         writer.reset()?;
                         if let Some(diag) = error_diagnostic {
+                            let diagnostics = std::slice::from_ref(diag);
+                            let function_names =
+                                function_names_for_diagnostics(diagnostics, parsed_files);
                             noirc_errors::reporter::report_all(
                                 file_manager.as_file_map(),
-                                std::slice::from_ref(diag),
+                                &function_names,
+                                diagnostics,
                                 deny_warnings,
                                 silence_warnings,
                             );
                         }
                     }
                     TestStatus::CompileError(file_diagnostic) => {
+                        let diagnostics = std::slice::from_ref(file_diagnostic);
+                        let function_names =
+                            function_names_for_diagnostics(diagnostics, parsed_files);
                         noirc_errors::reporter::report_all(
                             file_manager.as_file_map(),
-                            std::slice::from_ref(file_diagnostic),
+                            &function_names,
+                            diagnostics,
                             deny_warnings,
                             silence_warnings,
                         );
@@ -410,6 +435,7 @@ impl Formatter for JsonFormatter {
         &self,
         test_result: &TestResult,
         file_manager: &FileManager,
+        parsed_files: &ParsedFiles,
         show_output: bool,
         _deny_warnings: bool,
         silence_warnings: bool,
@@ -440,7 +466,11 @@ impl Formatter for JsonFormatter {
                 if let Some(diagnostic) = error_diagnostic {
                     if !(diagnostic.is_warning() && silence_warnings) {
                         stdout.push('\n');
-                        stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
+                        stdout.push_str(&diagnostic_to_string(
+                            diagnostic,
+                            file_manager,
+                            parsed_files,
+                        ));
                     }
                 }
             }
@@ -454,7 +484,7 @@ impl Formatter for JsonFormatter {
                     if !stdout.is_empty() {
                         stdout.push('\n');
                     }
-                    stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
+                    stdout.push_str(&diagnostic_to_string(diagnostic, file_manager, parsed_files));
                 }
             }
         }
@@ -475,6 +505,7 @@ impl Formatter for JsonFormatter {
         _current_test_count: usize,
         _total_test_count: usize,
         _file_manager: &FileManager,
+        _parsed_files: &ParsedFiles,
         _show_output: bool,
         _deny_warnings: bool,
         _silence_warnings: bool,
@@ -487,6 +518,7 @@ impl Formatter for JsonFormatter {
         _package_name: &str,
         test_results: &[TestResult],
         _file_manager: &FileManager,
+        _parsed_files: &ParsedFiles,
         _show_output: bool,
         _deny_warnings: bool,
         _silence_warnings: bool,
@@ -517,6 +549,7 @@ fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
 pub(crate) fn diagnostic_to_string(
     custom_diagnostic: &CustomDiagnostic,
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
 ) -> String {
     let file_map = file_manager.as_file_map();
 
@@ -534,8 +567,10 @@ pub(crate) fn diagnostic_to_string(
     }
 
     if !custom_diagnostic.call_stack.is_empty() {
+        let diagnostics = std::slice::from_ref(custom_diagnostic);
+        let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
         message.push('\n');
-        message.push_str(&stack_trace(file_map, &custom_diagnostic.call_stack));
+        message.push_str(&stack_trace(file_map, &function_names, &custom_diagnostic.call_stack));
     }
 
     message

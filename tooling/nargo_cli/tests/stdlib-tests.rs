@@ -4,7 +4,8 @@ use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
-use noirc_frontend::hir::FunctionNameMatch;
+use noirc_frontend::error_reporting::function_names_for_diagnostics;
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -70,7 +71,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
     let result = check_crate(&mut context, dummy_crate_id, &Default::default());
-    report_errors(result, &context.file_manager, true, false)
+    report_errors(result, &context.file_manager, &context.parsed_files, true, false)
         .expect("Error encountered while compiling standard library");
 
     // We can now search within the stdlib for any test functions to compile.
@@ -115,7 +116,13 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
         .collect();
 
     assert!(!test_report.is_empty(), "Could not find any tests within the stdlib");
-    display_test_report(&file_manager, &dummy_package, &CompileOptions::default(), &test_report);
+    display_test_report(
+        &file_manager,
+        &parsed_files,
+        &dummy_package,
+        &CompileOptions::default(),
+        &test_report,
+    );
     assert!(test_report.iter().all(|(_, status)| !status.failed()));
 }
 
@@ -123,6 +130,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
 // This should be abstracted into a proper test runner at some point.
 fn display_test_report(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     test_report: &[(String, TestStatus)],
@@ -148,9 +156,12 @@ fn display_test_report(
                     .expect("Failed to set color");
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 if let Some(diag) = error_diagnostic {
+                    let diagnostics = std::slice::from_ref(diag);
+                    let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        std::slice::from_ref(diag),
+                        &function_names,
+                        diagnostics,
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
                     );
@@ -163,9 +174,12 @@ fn display_test_report(
                 writeln!(writer, "skipped").expect("Failed to write to stderr");
             }
             TestStatus::CompileError(err) => {
+                let diagnostics = std::slice::from_ref(err);
+                let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    std::slice::from_ref(err),
+                    &function_names,
+                    diagnostics,
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );

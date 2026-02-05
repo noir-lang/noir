@@ -3,6 +3,7 @@ use noirc_artifacts::contract::CompiledContract;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{CompilationResult, CompileOptions, CrateId, check_crate, link_to_debug_crate};
 use noirc_frontend::debug::DebugInstrumenter;
+use noirc_frontend::error_reporting::function_names_for_diagnostics;
 use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CompileError;
@@ -80,20 +81,25 @@ pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResul
 pub fn report_errors<T>(
     result: CompilationResult<T>,
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     deny_warnings: bool,
     silence_warnings: bool,
 ) -> Result<T, CompileError> {
     let (t, warnings) = result.map_err(|errors| {
+        let function_names = function_names_for_diagnostics(&errors, parsed_files);
         noirc_errors::reporter::report_all(
             file_manager.as_file_map(),
+            &function_names,
             &errors,
             deny_warnings,
             silence_warnings,
         )
     })?;
 
+    let function_names = function_names_for_diagnostics(&warnings, parsed_files);
     noirc_errors::reporter::report_all(
         file_manager.as_file_map(),
+        &function_names,
         &warnings,
         deny_warnings,
         silence_warnings,
@@ -110,5 +116,11 @@ pub fn check_crate_and_report_errors(
     options: &CompileOptions,
 ) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, options);
-    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
+    report_errors(
+        result,
+        &context.file_manager,
+        &context.parsed_files,
+        options.deny_warnings,
+        options.silence_warnings,
+    )
 }
