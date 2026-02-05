@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770299193072,
+  "lastUpdate": 1770299758242,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c50f8930562a3f22bfefc60e317f08b0248d21e2",
-          "message": "chore: Early return in remove_if_else for functions without IfElse instructions (#11370)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-01-29T13:48:01Z",
-          "tree_id": "0428ea3cd6a78f8074169b84c3acd746f3e8f337",
-          "url": "https://github.com/noir-lang/noir/commit/c50f8930562a3f22bfefc60e317f08b0248d21e2"
-        },
-        "date": 1769695735752,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258624,
-            "range": "± 559",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229770,
-            "range": "± 4341",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799858,
-            "range": "± 8896",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2729616,
             "range": "± 1192",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "57cbbd2a0042770b2206b5dfeb75a1f38796cc91",
+          "message": "chore: deprecate `dep` paths (#11471)",
+          "timestamp": "2026-02-05T13:33:52Z",
+          "tree_id": "d2d09c1bd016b1ef6b6f3684e830234ee5af1f5d",
+          "url": "https://github.com/noir-lang/noir/commit/57cbbd2a0042770b2206b5dfeb75a1f38796cc91"
+        },
+        "date": 1770299716938,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256064,
+            "range": "± 367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225208,
+            "range": "± 3638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2728325,
+            "range": "± 22742",
             "unit": "ns/iter"
           }
         ]
