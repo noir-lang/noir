@@ -1,4 +1,4 @@
-use acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength, SemanticLength};
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
@@ -201,12 +201,7 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars| {
                     let get = Instruction::ArrayGet { array, index };
                     self.dfg
-                        .insert_instruction_and_results(
-                            get,
-                            self.block,
-                            typevars,
-                            self.call_stack,
-                        )
+                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                         .first()
                 };
 
@@ -222,9 +217,8 @@ impl<'a> ValueMerger<'a> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
-        let result = self
-            .dfg
-            .insert_instruction_and_results(instruction, self.block, None, self.call_stack);
+        let result =
+            self.dfg.insert_instruction_and_results(instruction, self.block, None, self.call_stack);
         Ok(result.first())
     }
 
@@ -440,39 +434,28 @@ impl<'a> ValueMerger<'a> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars, len: SemiFlattenedLength| {
-                    assert!(
-                        index_u32 < len.0,
-                        "get_element invoked with an out of bounds index"
-                    );
+                    assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
                     let get = Instruction::ArrayGet { array, index };
                     self.dfg
-                        .insert_instruction_and_results(
-                            get,
-                            self.block,
-                            typevars,
-                            self.call_stack,
-                        )
+                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                         .first()
                 };
 
                 if index_u32 >= semi_flat_then_length.0 {
-                    let else_element =
-                        get_element(else_value_id, typevars, semi_flat_else_length);
+                    let else_element = get_element(else_value_id, typevars, semi_flat_else_length);
                     merged.push_back(else_element);
                     continue;
                 }
 
                 if index_u32 >= semi_flat_else_length.0 {
-                    let then_element =
-                        get_element(then_value_id, typevars, semi_flat_then_length);
+                    let then_element = get_element(then_value_id, typevars, semi_flat_then_length);
                     merged.push_back(then_element);
                     continue;
                 }
 
                 let then_element =
                     get_element(then_value_id, typevars.clone(), semi_flat_then_length);
-                let else_element =
-                    get_element(else_value_id, typevars, semi_flat_else_length);
+                let else_element = get_element(else_value_id, typevars, semi_flat_else_length);
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -484,9 +467,8 @@ impl<'a> ValueMerger<'a> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
-        let result = self
-            .dfg
-            .insert_instruction_and_results(instruction, self.block, None, self.call_stack);
+        let result =
+            self.dfg.insert_instruction_and_results(instruction, self.block, None, self.call_stack);
         Ok(result.first())
     }
 }

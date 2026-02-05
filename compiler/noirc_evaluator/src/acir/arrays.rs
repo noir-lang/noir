@@ -454,7 +454,7 @@ impl Context<'_> {
         let index_var = self.convert_numeric_value(index, dfg)?;
         // let is_safe_index = dfg.is_safe_index(index, array_id);
         // let index_var =
-            // self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
+        // self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
