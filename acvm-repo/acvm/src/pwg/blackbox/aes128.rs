@@ -62,6 +62,7 @@ mod tests {
     #[allow(clippy::needless_range_loop)]
     fn test_aes() {
         // Test vector is coming from Barretenberg (cf. aes128.test.cpp)
+        // cspell:disable (hex literals below trigger false positives)
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
             // Key { 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c }
             (Witness(1), FieldElement::from(0x2bu128)),
@@ -166,6 +167,7 @@ mod tests {
             (Witness(95), FieldElement::from(0x37u128)),
             (Witness(96), FieldElement::from(0x10u128)),
         ]));
+        // cspell:enable
         const INPUT_LENGTH: usize = 64;
 
         let mut inputs = [FunctionInput::Witness(Witness(0)); 64];

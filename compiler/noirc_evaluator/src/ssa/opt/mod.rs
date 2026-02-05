@@ -42,7 +42,7 @@ mod unrolling;
 
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
-pub(crate) use unrolling::Loops;
+pub(crate) use unrolling::{LoopOrder, Loops};
 
 #[cfg(test)]
 use crate::ssa::{

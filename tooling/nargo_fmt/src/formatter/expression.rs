@@ -588,7 +588,7 @@ impl ChunkFormatter<'_, '_> {
     fn format_constructor(&mut self, constructor: ConstructorExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_type(constructor.typ);
+            formatter.format_type_in_expression(constructor.typ);
             formatter.write_space();
             formatter.write_left_brace();
         }));
@@ -1735,6 +1735,13 @@ global y = 1;
     fn format_call() {
         let src = "global x =  foo :: bar ( 1, 2 )  ;";
         let expected = "global x = foo::bar(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_dep_call() {
+        let src = "global x =  dep :: foo :: bar ( 1, 2 )  ;";
+        let expected = "global x = ::foo::bar(1, 2);\n";
         assert_format(src, expected);
     }
 
