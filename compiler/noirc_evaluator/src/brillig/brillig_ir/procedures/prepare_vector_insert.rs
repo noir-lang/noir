@@ -58,7 +58,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     let index = SingleAddrVariable::new_usize(index_arg);
 
     let VectorMetaData {
-        rc: source_rc,
+        rc: _source_rc,
         size: source_size,
         capacity: source_capacity,
         items_pointer: source_items_pointer,
@@ -74,14 +74,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
     );
 
     // Reallocate the target vector if necessary.
-    reallocate_vector_for_insertion(
-        brillig_context,
-        source_vector,
-        *source_rc,
-        *source_capacity,
-        target_vector,
-        *target_size,
-    );
+    reallocate_vector_for_insertion(brillig_context, *source_capacity, target_vector, *target_size);
 
     let target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);

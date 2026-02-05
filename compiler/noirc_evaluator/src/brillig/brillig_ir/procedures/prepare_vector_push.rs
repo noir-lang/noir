@@ -63,7 +63,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
     let VectorMetaData {
-        rc: source_rc,
+        rc: _source_rc,
         size: source_size,
         capacity: source_capacity,
         items_pointer: source_items_pointer,
@@ -82,14 +82,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     );
 
     // The strategy is to reallocate first and then depending if it's push back or not, copy the items or not.
-    reallocate_vector_for_insertion(
-        brillig_context,
-        source_vector,
-        *source_rc,
-        *source_capacity,
-        target_vector,
-        *target_size,
-    );
+    reallocate_vector_for_insertion(brillig_context, *source_capacity, target_vector, *target_size);
 
     // Get the pointer to the start of the items in the target vector.
     // This is adjusted below based on whether we push to the front or the back.
@@ -142,9 +135,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
 }
 
 /// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused:
-/// * if the capacity accommodates the target size:
-///   * if the RC is 1, we can increase the size of the source vector as reuse it as the destination
-///   * if the RC is not 1, we allocate a new destination vector with the source capacity and target size
+/// * if the capacity accommodates the target size, we allocate a new destination vector with the source capacity and target size
 /// * if the capacity is too small for the target size, we allocate the destination vector with a capacity that is double the target size.
 ///
 /// Does not copy the items, only reallocates the vector.
@@ -155,8 +146,6 @@ pub(crate) fn reallocate_vector_for_insertion<
     Registers: RegisterAllocator,
 >(
     brillig_context: &mut BrilligContext<F, Registers>,
-    source_vector: BrilligVector,
-    source_rc: SingleAddrVariable,
     source_capacity: SingleAddrVariable,
     target_vector: BrilligVector,
     target_size: SingleAddrVariable,
@@ -175,29 +164,16 @@ pub(crate) fn reallocate_vector_for_insertion<
         does_capacity_fit.address,
         |brillig_context, does_capacity_fit| {
             if does_capacity_fit {
-                // We can only reuse the source vector if the ref-count is 1.
-                let is_rc_one = brillig_context.codegen_usize_equals_one(source_rc);
-
-                brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-                    if is_rc_one {
-                        // We can insert in place, so we can just move the source pointer to the destination pointer and update the length
-                        brillig_context
-                            .mov_instruction(target_vector.pointer, source_vector.pointer);
-                        brillig_context.codegen_update_vector_size(target_vector, target_size);
-                    } else {
-                        // Increase our array copy counter if that flag is set
-                        if brillig_context.count_arrays_copied {
-                            brillig_context.codegen_increment_array_copy_counter();
-                        }
-                        // We could not reuse the source vector, because there are other references to it.
-                        // Allocate a new vector with the target size and source capacity.
-                        brillig_context.codegen_initialize_vector(
-                            target_vector,
-                            target_size,
-                            Some(source_capacity),
-                        );
-                    }
-                });
+                // Increase our array copy counter if that flag is set
+                if brillig_context.count_arrays_copied {
+                    brillig_context.codegen_increment_array_copy_counter();
+                }
+                // Allocate a new vector with the target size and source capacity.
+                brillig_context.codegen_initialize_vector(
+                    target_vector,
+                    target_size,
+                    Some(source_capacity),
+                );
             } else {
                 // Capacity doubling with overflow protection.
                 // Uses checked multiplication to trap if target_size * 2 > u32::MAX.

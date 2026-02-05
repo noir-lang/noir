@@ -78,36 +78,24 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let rc = brillig_context.codegen_read_vector_rc(source_vector);
-
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
-
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
 
-    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-        if is_rc_one {
-            // We can reuse the source vector, updating its length
-            brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
-            brillig_context.codegen_update_vector_size(target_vector, *target_size);
-        } else {
-            // We need to clone the source vector; allocate memory for it.
-            brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
+    // We need to clone the source vector; allocate memory for it.
+    brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
 
-            let target_vector_items_pointer =
-                brillig_context.codegen_make_vector_items_pointer(target_vector);
+    let target_vector_items_pointer =
+        brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-            // Now we copy the source vector starting at index 0 into the target vector but with the reduced length.
-            brillig_context.codegen_mem_copy(
-                *source_vector_items_pointer,
-                *target_vector_items_pointer,
-                *target_size,
-            );
+    // Now we copy the source vector starting at index 0 into the target vector but with the reduced length.
+    brillig_context.codegen_mem_copy(
+        *source_vector_items_pointer,
+        *target_vector_items_pointer,
+        *target_size,
+    );
 
-            // We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
-            // from the original (immutable) handle would bring its RC down to 1.
-        }
-    });
+    // We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
+    // from the original (immutable) handle would bring its RC down to 1.
 
     // Finally set the pointer where the popped items can be read from to the source vector.
     brillig_context.memory_op_instruction(

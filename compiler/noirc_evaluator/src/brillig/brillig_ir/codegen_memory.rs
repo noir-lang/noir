@@ -350,22 +350,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
-    /// Writes the value of new size to the size pointer of the vector.
-    pub(crate) fn codegen_update_vector_size(
-        &mut self,
-        vector: BrilligVector,
-        new_size: SingleAddrVariable,
-    ) {
-        let write_pointer = self.allocate_register();
-        self.codegen_usize_op(
-            vector.pointer,
-            *write_pointer,
-            BrilligBinaryOp::Add,
-            assert_usize(offsets::VECTOR_SIZE),
-        );
-        self.store_instruction(*write_pointer, new_size.address);
-    }
-
     /// Returns a variable holding the capacity of a given vector.
     pub(crate) fn codegen_read_vector_capacity(
         &mut self,

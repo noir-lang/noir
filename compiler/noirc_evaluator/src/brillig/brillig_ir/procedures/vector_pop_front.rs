@@ -52,15 +52,11 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
-    let VectorMetaData {
-        rc: source_rc,
-        size: source_size,
-        capacity: source_capacity,
-        items_pointer: source_items_pointer,
-    } = brillig_context.codegen_read_vector_metadata(
-        source_vector,
-        Some((source_vector_length_arg, item_pop_count_arg)),
-    );
+    let VectorMetaData { size: source_size, items_pointer: source_items_pointer, .. } =
+        brillig_context.codegen_read_vector_metadata(
+            source_vector,
+            Some((source_vector_length_arg, item_pop_count_arg)),
+        );
 
     // target_size = source_size - item_pop_count
     // Assumes constraints exist against underflow.
@@ -73,55 +69,26 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*source_rc);
+    // We can't reuse the source vector, so allocate a new one.
+    brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
 
-    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-        if is_rc_one {
-            // We reuse the source vector, moving the metadata to the right (decreasing capacity)
-            // Set the target vector pointer to be the source plus the number of popped items.
-            brillig_context.memory_op_instruction(
-                source_vector.pointer,
-                item_pop_count_arg,
-                target_vector.pointer,
-                BrilligBinaryOp::Add,
-            );
-            // Decrease the source capacity by the number of popped items.
-            // This is done at the original address; it will be copied in the next step.
-            brillig_context.memory_op_instruction(
-                source_capacity.address,
-                item_pop_count_arg,
-                source_capacity.address,
-                BrilligBinaryOp::Sub,
-            );
-            // Re-initialize the metadata at the shifted position.
-            brillig_context.codegen_initialize_vector_metadata(
-                target_vector,
-                *target_size,
-                *source_capacity,
-            );
-        } else {
-            // We can't reuse the source vector, so allocate a new one.
-            brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
+    let target_vector_items_pointer =
+        brillig_context.codegen_make_vector_items_pointer(target_vector);
 
-            let target_vector_items_pointer =
-                brillig_context.codegen_make_vector_items_pointer(target_vector);
-
-            // Set the source pointer to copy from to the source items start plus the number of popped items.
-            let source_copy_pointer = brillig_context.allocate_register();
-            brillig_context.memory_op_instruction(
-                source_items_pointer.address,
-                item_pop_count_arg,
-                *source_copy_pointer,
-                BrilligBinaryOp::Add,
-            );
-            // Now we copy the source vector into the target vector, starting at index after the popped items.
-            brillig_context.codegen_mem_copy(
-                *source_copy_pointer,
-                *target_vector_items_pointer,
-                *target_size,
-            );
-            // We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
-            // from the original (immutable) handle would bring its RC down to 1.
-        }
-    });
+    // Set the source pointer to copy from to the source items start plus the number of popped items.
+    let source_copy_pointer = brillig_context.allocate_register();
+    brillig_context.memory_op_instruction(
+        source_items_pointer.address,
+        item_pop_count_arg,
+        *source_copy_pointer,
+        BrilligBinaryOp::Add,
+    );
+    // Now we copy the source vector into the target vector, starting at index after the popped items.
+    brillig_context.codegen_mem_copy(
+        *source_copy_pointer,
+        *target_vector_items_pointer,
+        *target_size,
+    );
+    // We don't decrease the RC of the source vector, otherwise repeatedly popping the same item
+    // from the original (immutable) handle would bring its RC down to 1.
 }

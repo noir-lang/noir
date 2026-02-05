@@ -62,11 +62,6 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
         target_size.address,
         BrilligBinaryOp::Sub,
     );
-
-    let rc = brillig_context.codegen_read_vector_rc(source_vector);
-
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
-
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
 
@@ -74,32 +69,22 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     let target_vector_items_pointer = brillig_context.allocate_register();
 
     // Set up the target vector up to the index.
-    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-        if is_rc_one {
-            // We can reuse the source vector: update its length and set the items pointer to be the source.
-            brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
-            brillig_context.codegen_update_vector_size(target_vector, *target_size);
-            brillig_context
-                .codegen_vector_items_pointer(target_vector, *target_vector_items_pointer);
-        } else {
-            // We need to copy the vector; allocate a new one with the target size.
-            brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
 
-            // Get the items pointer for the new vector.
-            brillig_context
-                .codegen_vector_items_pointer(target_vector, *target_vector_items_pointer);
+    // We need to copy the vector; allocate a new one with the target size.
+    brillig_context.codegen_initialize_vector(target_vector, *target_size, None);
 
-            // Copy the elements to the left of the index.
-            brillig_context.codegen_mem_copy(
-                *source_vector_items_pointer,
-                *target_vector_items_pointer,
-                index,
-            );
+    // Get the items pointer for the new vector.
+    brillig_context.codegen_vector_items_pointer(target_vector, *target_vector_items_pointer);
 
-            // We don't modify the RC of the original, otherwise removing items repeatedly
-            // from the original (immutable) handle could bring its RC down to 1.
-        }
-    });
+    // Copy the elements to the left of the index.
+    brillig_context.codegen_mem_copy(
+        *source_vector_items_pointer,
+        *target_vector_items_pointer,
+        index,
+    );
+
+    // We don't modify the RC of the original, otherwise removing items repeatedly
+    // from the original (immutable) handle could bring its RC down to 1.
 
     // Compute the source pointer after the removed items: source_after = source + index + item_count.
     let source_pointer_after_index = brillig_context.allocate_register();
