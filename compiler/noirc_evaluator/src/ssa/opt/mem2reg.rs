@@ -116,8 +116,6 @@ impl Function {
     pub(crate) fn mem2reg(&mut self) {
         // Analyze loops to find potential loop carried aliases
         let loop_aliases = Self::analyze_loop_aliases(self);
-        // let loop_aliases = HashSet::default();
-
         // Perform mem2reg optimization with loop carried alias information
         // Non-lop alias information will be analyzed as part of mem2reg
         let mut context = PerFunctionContext::new(self, loop_aliases);
