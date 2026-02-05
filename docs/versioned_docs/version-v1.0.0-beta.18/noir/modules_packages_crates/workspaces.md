@@ -40,7 +40,7 @@ current directory where `nargo` was invoked.
 
 `default-member` indicates which package various commands process by default.
 
-Libraries can be defined in a workspace. Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
+Libraries can be defined in a workspace.
 
 Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
 
