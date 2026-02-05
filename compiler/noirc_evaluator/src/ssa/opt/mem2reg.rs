@@ -961,7 +961,6 @@ impl<'f> PerFunctionContext<'f> {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.
                         Type::Reference(element) if element.contains_reference() => {
-                            references.set_unknown(*argument);
                             self.mark_all_unknown(destination_parameters, references);
                             return;
                         }
@@ -981,7 +980,6 @@ impl<'f> PerFunctionContext<'f> {
 
                                     // The argument reference is possibly aliased by this block parameter
                                     aliases.insert(*parameter);
-                                    // here!
 
                                     // Check if we have seen the same argument
                                     let seen_parameters = arg_set
@@ -3357,8 +3355,6 @@ mod tests {
                 jmp b1(v10)
             }
         "#;
-        // We were previously optimizing out the `store Field 200 at v4`
-        // which changed the result of the aliasing `load v0` on the next line.
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
