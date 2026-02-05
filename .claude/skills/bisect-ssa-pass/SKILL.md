@@ -1,18 +1,23 @@
 ---
-name: debug-fuzzing-failure
-description: Workflow for debugging SSA optimization bugs using the noir-ssa CLI. Use when bisecting fuzzer failures to identify which SSA pass introduces a bug.
+name: bisect-ssa-pass
+description: Workflow for debugging SSA pass semantic preservation using the noir-ssa CLI. Use when a program's behavior changes incorrectly during the SSA pipeline - bisects passes to identify which one breaks semantics. The `pass_vs_prev` fuzzer finds such issues automatically.
 allowed-tools: Bash, Read, Grep, Glob, Write
 ---
 
 # Noir SSA Bisection Debugging
 
-Use this skill when debugging SSA optimization bugs, particularly those found by the AST fuzzer. This workflow helps identify which SSA pass introduces a failure.
+Use this skill when debugging SSA optimization bugs - situations where an SSA pass fails to preserve program semantics. This workflow bisects SSA passes to identify which one introduces the behavioral change.
+
+Common scenarios:
+- **Fuzzer failures**: The `pass_vs_prev` fuzzer found a program that produces different results after some SSA pass
+- **Test failures**: An existing test started failing after changes to an SSA pass
+- **Manual discovery**: A program produces incorrect results and you suspect an optimization bug
 
 Helper scripts are in the `scripts/` directory of this skill.
 
 ## Prerequisites
 
-If you need to extract a reproduction case from a CI fuzzer failure, use the `extract-fuzzer-repro` skill first. This skill assumes you already have a Noir project that reproduces the issue.
+You need a Noir project with a `Prover.toml` containing inputs that trigger the suspected issue. The program should produce incorrect results or exhibit unexpected behavior when executed.
 
 ## 1. Compiling and Splitting SSA Passes
 
