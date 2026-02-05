@@ -7,6 +7,14 @@ impl CtString {
         "".as_ctstring()
     }
 
+    /// Returns the length of this CtString.
+    ///
+    /// The length is in bytes.
+    pub comptime fn len(self) -> u32 {
+        let str: str<_> = self.as_quoted_str!();
+        str.len()
+    }
+
     // TODO(https://github.com/noir-lang/noir/issues/6980): Bug: using &mut self
     // as the object results in this method not being found
     // docs:start:append_str

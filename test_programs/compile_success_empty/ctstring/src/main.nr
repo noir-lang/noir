@@ -8,6 +8,9 @@ fn main() {
         let s1 = msg1.as_ctstring();
         let s2 = msg2.as_ctstring();
 
+        assert_eq(s1.len(), msg1.len());
+        assert_eq(s2.len(), 22);
+
         let s3 = [s1, s2, s1].as_vector().join("".as_ctstring());
         assert_eq(s3, "msg1 (msg2 contains msg1) msg1".as_ctstring());
 
