@@ -7,6 +7,7 @@ use crate::Location;
 
 /// Maps function location ranges to their names, to be used when showing call stack frames
 /// during error reporting.
+#[derive(Default)]
 pub struct FunctionNames {
     files: HashMap<FileId, RangeMap<u32, String>>,
 }
