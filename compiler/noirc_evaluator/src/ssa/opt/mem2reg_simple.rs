@@ -1,5 +1,6 @@
 //! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
 use iter_extended::vecmap;
+use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 
 use crate::ssa::{
@@ -375,6 +376,10 @@ fn collect_all_eligible_variables(
     // Map each variable to the block it was declared in
     let mut variables = BTreeMap::default();
 
+    // Workaround for https://github.com/noir-lang/noir/issues/11482
+    // We need to count stores to each variable. If there are none, it isn't eligible for mem2reg_simple.
+    let mut variables_with_stores = FxHashSet::default();
+
     for block_id in blocks.iter().copied() {
         let block = &function.dfg[block_id];
         for instruction_id in block.instructions() {
@@ -386,8 +391,9 @@ fn collect_all_eligible_variables(
                 }
                 Instruction::Load { .. } => (),
                 // Storing to an address is fine, but storing an address prevents optimizing it out.
-                Instruction::Store { address: _, value } => {
+                Instruction::Store { address, value } => {
                     variables.remove(value);
+                    variables_with_stores.insert(*address);
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
                 _ => {
@@ -399,6 +405,7 @@ fn collect_all_eligible_variables(
         block.unwrap_terminator().for_each_value(|value| variables.remove(&value));
     }
 
+    variables.retain(|address, _| variables_with_stores.contains(address));
     variables
 }
 
@@ -447,7 +454,12 @@ fn commit(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::
+            ssa_gen::Ssa
+        ,
+    };
 
     #[test]
     fn test_simple() {
@@ -1229,29 +1241,29 @@ acir(inline) fn main f0 {
         let src = "
             brillig(inline) predicate_pure fn main f0 {
               b0():
-                v0 = allocate -> &mut Field ; 0 1
+                v0 = allocate -> &mut Field
                 store Field 0 at v0
                 jmp b1()
               b1():
-                v2 = load v0 -> Field ; 0
+                v2 = load v0 -> Field
                 v4 = eq v2, Field 6
                 jmpif v4 then: b2, else: b3
               b2():
                 return
               b3():
-                v6 = add v2, Field 1   ; 1
+                v6 = add v2, Field 1
                 store v6 at v0
-                v7 = allocate -> &mut Field ; 0 1
+                v7 = allocate -> &mut Field
                 store Field 0 at v7
                 jmp b4()
               b4():
-                v8 = load v7 -> Field ; 0
+                v8 = load v7 -> Field
                 v10 = eq v8, Field 7
                 jmpif v10 then: b5, else: b6
               b5():
                 jmp b1()
               b6():
-                v11 = add v8, Field 1 ; 1
+                v11 = add v8, Field 1
                 store v11 at v7
                 jmp b4()
             }
