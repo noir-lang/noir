@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770299758242,
+  "lastUpdate": 1770300012243,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "413148b839411e9f25489f6c02ca20c4c0dccd80",
-          "message": "fix(ssa): Mark all block parameters alias sets unknown when supplied unknown arguments (#11379)",
-          "timestamp": "2026-01-29T13:53:39Z",
-          "tree_id": "5abdc0fbc85095a93618ff2898cf1d46dbc9d440",
-          "url": "https://github.com/noir-lang/noir/commit/413148b839411e9f25489f6c02ca20c4c0dccd80"
-        },
-        "date": 1769696135890,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257387,
-            "range": "± 1393",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228426,
-            "range": "± 13896",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798313,
-            "range": "± 3395",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2728325,
             "range": "± 22742",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8b91bf49ddccbbf061f03f1b773eed2de9a2578",
+          "message": "fix(parser): error if modifiers are not followed by an item (#11469)",
+          "timestamp": "2026-02-05T13:37:30Z",
+          "tree_id": "9f79d01909e97c6fbfa99a8720df21c24ae09481",
+          "url": "https://github.com/noir-lang/noir/commit/b8b91bf49ddccbbf061f03f1b773eed2de9a2578"
+        },
+        "date": 1770299970766,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255523,
+            "range": "± 4870",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224043,
+            "range": "± 4583",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2731093,
+            "range": "± 1318",
             "unit": "ns/iter"
           }
         ]
