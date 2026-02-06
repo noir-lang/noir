@@ -56,7 +56,7 @@ impl Function {
 
         let variables = collect_all_eligible_variables(inserter.function, &blocks);
 
-        step1(
+        add_block_params_and_find_exit_states(
             &blocks,
             &variables,
             &mut dom_tree,
@@ -64,14 +64,32 @@ impl Function {
             &mut entry_states,
             &mut exit_states,
         );
-        step2(&blocks, &variables, &mut inserter, &mut entry_states, &mut exit_states, &cfg);
-        step3(&blocks, &entry_states, &exit_states, &mut inserter, &cfg);
+        add_terminator_arguments(
+            &blocks,
+            &variables,
+            &mut inserter,
+            &mut entry_states,
+            &mut exit_states,
+            &cfg,
+        );
+        remove_params_with_identical_terminator_args(
+            &blocks,
+            &entry_states,
+            &exit_states,
+            &mut inserter,
+            &cfg,
+        );
         commit(&mut inserter, &variables, blocks);
     }
 }
 
-/// Find the starting & ending states of each variable in each block
-fn step1(
+/// Find the starting & ending states of each variable in each block.
+///
+/// This will add a block parameter for every variable in `variable` that
+/// is alive in each block. This parameter will always be the entry state
+/// of that variable, while the exit state will be empty (variable was not changed)
+/// or filled with the most recent Store value to the variable in the block.
+fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &mut DominatorTree,
@@ -81,7 +99,7 @@ fn step1(
 ) {
     for block in blocks.iter().copied() {
         // All variables visible at the start of the current block
-        let entry_state = add_visible_variables_as_block_arguments(
+        let entry_state = add_visible_variables_as_block_parameters(
             variables,
             dom_tree,
             block,
@@ -94,8 +112,10 @@ fn step1(
     }
 }
 
-/// Link entry & exit states by adding block parameters & terminator arguments for every variable stored to
-fn step2(
+/// Link entry & exit states by adding terminator arguments for every variable stored to.
+/// If there is only 1 predecessor we can save time by mapping the value here instead of adding the
+/// terminator argument.
+fn add_terminator_arguments(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     inserter: &mut FunctionInserter,
@@ -120,15 +140,7 @@ fn step2(
                 last_value = exit_value;
 
                 if predecessor_count > 1 {
-                    let index = add_terminator_argument(inserter.function, exit_value, predecessor);
-                    let parameter = inserter.function.dfg[block].parameters()[index];
-
-                    let expected_type = inserter.function.dfg.type_of_value(parameter);
-                    let actual_type = inserter.function.dfg.type_of_value(exit_value);
-                    assert_eq!(
-                        actual_type, expected_type,
-                        "mem2reg_simple argument type {actual_type} does not match expected type {expected_type} for block {block} and pred {predecessor}, argument {index}"
-                    );
+                    add_terminator_argument(inserter.function, exit_value, predecessor);
                 }
             }
 
@@ -139,8 +151,8 @@ fn step2(
     }
 }
 
-/// Remove block parameters whose arguments (from predecessors' terminators) are all identical
-fn step3(
+/// Removes block parameters whose arguments (from predecessors' terminators) are all identical
+fn remove_params_with_identical_terminator_args(
     blocks: &[BasicBlockId],
     entry_states: &BTreeMap<BasicBlockId, StateVec>,
     exit_states: &BTreeMap<BasicBlockId, StateVec>,
@@ -174,7 +186,7 @@ type StateVec = BTreeMap<ValueId, ValueId>;
 /// Filter `variables`, returning only those that are visible at the start of the given block.
 /// Since we do not consider variables within a block, the visible variables at the start of a block
 /// are any variables whose declaration block dominates the given block.
-fn add_visible_variables_as_block_arguments(
+fn add_visible_variables_as_block_parameters(
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &mut DominatorTree,
     block: BasicBlockId,
@@ -308,14 +320,10 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
 }
 
 /// Adds an argument to the `Jmp` terminator of the current block, panicking if the terminator is
-/// not a `Jmp`. Returns the index of the new argument.
-fn add_terminator_argument(function: &mut Function, arg: ValueId, block: BasicBlockId) -> usize {
+/// not a `Jmp`.
+fn add_terminator_argument(function: &mut Function, arg: ValueId, block: BasicBlockId) {
     match function.dfg[block].unwrap_terminator_mut() {
-        TerminatorInstruction::Jmp { arguments, .. } => {
-            let index = arguments.len();
-            arguments.push(arg);
-            index
-        }
+        TerminatorInstruction::Jmp { arguments, .. } => arguments.push(arg),
         other => {
             panic!(
                 "Unexpected terminator in block {block} when adding block argument {arg}: {other:?}"
@@ -454,12 +462,7 @@ fn commit(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        assert_ssa_snapshot,
-        ssa::
-            ssa_gen::Ssa
-        ,
-    };
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
     fn test_simple() {
