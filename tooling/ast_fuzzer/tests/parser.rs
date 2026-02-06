@@ -44,6 +44,7 @@ fn arb_ssa_roundtrip() {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: None,
             skip_passes: Default::default(),
         };
         let pipeline = primary_passes(&options);
