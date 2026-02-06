@@ -457,7 +457,6 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
-#[ignore = "path resolution fails here, even on master"]
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
