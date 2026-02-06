@@ -114,6 +114,12 @@ pub struct SsaEvaluatorOptions {
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
 
+    /// Override the threshold for force-unrolling small Brillig loops.
+    /// Loops with constant bounds and no breaks whose unrolled
+    /// instruction count is at or below this threshold will always be unrolled.
+    /// When `None`, the default threshold is used.
+    pub force_brillig_unroll_threshold: Option<usize>,
+
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
 }
@@ -166,7 +172,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
         SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            move |ssa| {
+                ssa.unroll_loops_iteratively(
+                    options.max_bytecode_increase_percent,
+                    options.force_brillig_unroll_threshold,
+                )
+            },
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
@@ -206,7 +217,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding using constraints",
         ),
         SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            move |ssa| {
+                ssa.unroll_loops_iteratively(
+                    options.max_bytecode_increase_percent,
+                    options.force_brillig_unroll_threshold,
+                )
+            },
             "Unrolling",
         ),
         SsaPass::new_try(

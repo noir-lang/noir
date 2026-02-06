@@ -649,6 +649,7 @@ mod tests {
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_brillig_unroll_threshold: None,
             skip_passes: Vec::new(),
         };
         let pipeline = primary_passes(&options);
