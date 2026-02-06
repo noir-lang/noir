@@ -3039,7 +3039,10 @@ fn resolve_trait_item_impl(
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
                 }
-                Err(ImplSearchErrorKind::Nested(constraints)) => {
+                Err(
+                    ImplSearchErrorKind::NoImplFound(constraints)
+                    | ImplSearchErrorKind::NoMatching(constraints),
+                ) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
@@ -3054,6 +3057,9 @@ fn resolve_trait_item_impl(
                         location,
                         candidates,
                     })
+                }
+                Err(ImplSearchErrorKind::RecursionLimitReached) => {
+                    Err(InterpreterError::TraitImplResolutionRecursionLimitReached { location })
                 }
             }
         }
