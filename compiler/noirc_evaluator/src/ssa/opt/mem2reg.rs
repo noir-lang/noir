@@ -379,6 +379,12 @@ impl<'f> PerFunctionContext<'f> {
                 for element in elements.iter() {
                     Self::for_each_value_alias(*element, references, dfg, callback);
                 }
+            } else {
+                // If aliases are unknown and we can't decompose the value further,
+                // conservatively include the value itself. This handles the case where
+                // alias information was cleared (e.g. by clear_aliases during Return
+                // handling) but the value is still a reference that may be stored to.
+                callback(value);
             }
         } else {
             for alias in aliases.iter() {
@@ -3269,21 +3275,23 @@ mod tests {
             brillig(inline) fn func_1 f0 {
               b0(v0: [&mut u1; 3]):
                 v2 = allocate -> &mut u1
-                v3 = allocate -> &mut u1
-                v5 = array_get v0, index u32 2 -> &mut u1
-                v6 = load v5 -> u1
-                jmpif v6 then: b1, else: b2
+                store u1 0 at v2
+                v4 = allocate -> &mut u1
+                store u1 0 at v4
+                v6 = array_get v0, index u32 2 -> &mut u1
+                v7 = load v6 -> u1
+                jmpif v7 then: b1, else: b2
               b1():
-                v10 = array_get v0, index u32 1 -> &mut u1
-                jmp b3(v10)
+                v11 = array_get v0, index u32 1 -> &mut u1
+                jmp b3(v11)
               b2():
-                v8 = array_get v0, index u32 0 -> &mut u1
-                jmp b3(v8)
+                v9 = array_get v0, index u32 0 -> &mut u1
+                jmp b3(v9)
               b3(v1: &mut u1):
-                v11 = allocate -> &mut u1
-                store u1 1 at v11
-                v15 = make_array [u32 1, v2, u32 2, v3, u32 3, v1, u32 4, v11] : [(u32, &mut u1); 4]
-                return v15
+                v12 = allocate -> &mut u1
+                store u1 1 at v12
+                v16 = make_array [u32 1, v2, u32 2, v4, u32 3, v1, u32 4, v12] : [(u32, &mut u1); 4]
+                return v16
             }
             ");
         }
@@ -3336,8 +3344,10 @@ mod tests {
               b0(v0: [&mut [u1; 2]; 3]):
                 v2 = allocate -> &mut [u1; 2]
                 v5 = make_array [u1 0, u1 1] : [u1; 2]
+                store v5 at v2
                 v6 = allocate -> &mut [u1; 2]
                 v7 = make_array [u1 1, u1 0] : [u1; 2]
+                store v7 at v6
                 v9 = array_get v0, index u32 2 -> &mut [u1; 2]
                 v10 = load v9 -> [u1; 2]
                 v12 = array_get v10, index u32 0 -> u1
@@ -3611,5 +3621,38 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn store_in_returned_array_not_removed_across_branches() {
+        // Regression test: mem2reg incorrectly removes `store u1 0 at v1` in func_1
+        // when a branch (jmpif) follows the store. The reference v1 is placed into
+        // an array that is returned. The clear_aliases call in mark_all_unknown
+        // (during Return terminator handling) destroys the alias information
+        // before the terminator value collection can find that v1 is used.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(u1 0) -> [&mut u1; 2]
+            v1 = array_get v0, index u32 0 -> &mut u1
+            v2 = load v1 -> u1
+            return v2
+        }
+        brillig(inline) fn func_1 f1 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v2 = make_array [v1, v1] : [&mut u1; 2]
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
