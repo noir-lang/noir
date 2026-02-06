@@ -895,4 +895,46 @@ pub(crate) mod tests {
         // This call should panic with "Call arguments would exceed stack frame bounds"
         context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
     }
+
+    /// Test that jmp block parameter passing handles the parallel-move problem correctly.
+    ///
+    /// When a jmp instruction passes block parameters where a source register is also a
+    /// destination for another parameter, the sequential mov loop can clobber values.
+    /// For example, `jmp b1(v8, v3, u32 10)` where b1(v3, v35, v36):
+    ///   1. mov reg(v3), reg(v8) — overwrites old v3
+    ///   2. mov reg(v35), reg(v3) — reads the NEW v3 instead of old
+    /// This test verifies the fix by running a loop where v35 should get the old v3 value.
+    #[test]
+    fn jmp_block_params_parallel_move() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 0, u32 0)
+              b1(v3: u32, v35: u32, v36: u32):
+                v5 = lt v3, u32 17
+                jmpif v5 then: b2, else: b3
+              b2():
+                v8 = unchecked_add v3, u32 1
+                jmp b1(v8, v3, u32 10)
+              b3():
+                constrain v35 == u32 16
+                constrain v36 == u32 10
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v35 should be 16 and v36 should be 10"
+        );
+    }
 }
