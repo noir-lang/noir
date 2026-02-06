@@ -265,7 +265,7 @@
 <a href=#265 id=265 data-nosnippet>265</a>            <span class="kw">for </span>(error_variable, error_param) <span class="kw">in
 <a href=#266 id=266 data-nosnippet>266</a>                </span>error_data_items.into_iter().zip(error_data_types.into_iter())
 <a href=#267 id=267 data-nosnippet>267</a>            {
-<a href=#268 id=268 data-nosnippet>268</a>                <span class="kw">let </span>flattened_size = <span class="self">Self</span>::flattened_size(<span class="kw-2">&amp;</span>error_param);
+<a href=#268 id=268 data-nosnippet>268</a>                <span class="kw">let </span>flattened_size = error_param.flattened_size();
 <a href=#269 id=269 data-nosnippet>269</a>                <span class="kw">match </span>error_param {
 <a href=#270 id=270 data-nosnippet>270</a>                    BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
 <a href=#271 id=271 data-nosnippet>271</a>                        ctx.store_instruction(
@@ -324,113 +324,101 @@
 <a href=#324 id=324 data-nosnippet>324</a>    }
 <a href=#325 id=325 data-nosnippet>325</a>
 <a href=#326 id=326 data-nosnippet>326</a>    <span class="doccomment">/// Computes the size of a parameter if it was flattened
-<a href=#327 id=327 data-nosnippet>327</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_size(param: <span class="kw-2">&amp;</span>BrilligParameter) -&gt; usize {
-<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">match </span>param {
-<a href=#329 id=329 data-nosnippet>329</a>            BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
-<a href=#330 id=330 data-nosnippet>330</a>            BrilligParameter::Array(item_types, item_count)
-<a href=#331 id=331 data-nosnippet>331</a>            | BrilligParameter::Vector(item_types, item_count) =&gt; {
-<a href=#332 id=332 data-nosnippet>332</a>                <span class="kw">let </span>item_size: usize = item_types.iter().map(<span class="self">Self</span>::flattened_size).sum();
-<a href=#333 id=333 data-nosnippet>333</a>                assert_usize(item_count.<span class="number">0</span>) * item_size
-<a href=#334 id=334 data-nosnippet>334</a>            }
-<a href=#335 id=335 data-nosnippet>335</a>        }
-<a href=#336 id=336 data-nosnippet>336</a>    }
-<a href=#337 id=337 data-nosnippet>337</a>
-<a href=#338 id=338 data-nosnippet>338</a>    <span class="doccomment">/// Computes the size of a parameter if it was flattened
-<a href=#339 id=339 data-nosnippet>339</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_tuple_size(tuple: <span class="kw-2">&amp;</span>[BrilligParameter]) -&gt; usize {
-<a href=#340 id=340 data-nosnippet>340</a>        tuple.iter().map(<span class="self">Self</span>::flattened_size).sum()
-<a href=#341 id=341 data-nosnippet>341</a>    }
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="doccomment">/// Computes the size of a parameter if it was flattened
-<a href=#344 id=344 data-nosnippet>344</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_nested_arrays(tuple: <span class="kw-2">&amp;</span>[BrilligParameter]) -&gt; bool {
-<a href=#345 id=345 data-nosnippet>345</a>        tuple.iter().any(|param| !<span class="macro">matches!</span>(param, BrilligParameter::SingleAddr(<span class="kw">_</span>)))
-<a href=#346 id=346 data-nosnippet>346</a>    }
-<a href=#347 id=347 data-nosnippet>347</a>
-<a href=#348 id=348 data-nosnippet>348</a>    <span class="comment">// Flattens an array by recursively copying nested arrays and regular items.
-<a href=#349 id=349 data-nosnippet>349</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten_array(
-<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#351 id=351 data-nosnippet>351</a>        item_type: <span class="kw-2">&amp;</span>[BrilligParameter],
-<a href=#352 id=352 data-nosnippet>352</a>        item_count: SemanticLength,
-<a href=#353 id=353 data-nosnippet>353</a>        flattened_array_pointer: MemoryAddress,
-<a href=#354 id=354 data-nosnippet>354</a>        deflattened_items_pointer: MemoryAddress,
-<a href=#355 id=355 data-nosnippet>355</a>    ) {
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">if </span><span class="self">Self</span>::has_nested_arrays(item_type) {
-<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">let </span>movement_register = <span class="self">self</span>.allocate_register();
-<a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a>            <span class="kw">let </span>source_item_size = item_type.len();
-<a href=#360 id=360 data-nosnippet>360</a>            <span class="kw">let </span>target_item_size = <span class="self">Self</span>::flattened_tuple_size(item_type);
-<a href=#361 id=361 data-nosnippet>361</a>
-<a href=#362 id=362 data-nosnippet>362</a>            <span class="kw">for </span>item_index <span class="kw">in </span><span class="number">0</span>..item_count.<span class="number">0 </span>{
-<a href=#363 id=363 data-nosnippet>363</a>                <span class="kw">let </span>source_item_base_index = assert_usize(item_index) * source_item_size;
-<a href=#364 id=364 data-nosnippet>364</a>                <span class="kw">let </span>target_item_base_index = assert_usize(item_index) * target_item_size;
-<a href=#365 id=365 data-nosnippet>365</a>
-<a href=#366 id=366 data-nosnippet>366</a>                <span class="kw">let </span><span class="kw-2">mut </span>target_offset = <span class="number">0</span>;
-<a href=#367 id=367 data-nosnippet>367</a>
-<a href=#368 id=368 data-nosnippet>368</a>                <span class="kw">for </span>(subitem_index, subitem) <span class="kw">in </span>item_type.iter().enumerate() {
-<a href=#369 id=369 data-nosnippet>369</a>                    <span class="kw">let </span>source_index = <span class="self">self</span>.make_usize_constant_instruction(
-<a href=#370 id=370 data-nosnippet>370</a>                        (source_item_base_index + subitem_index).into(),
-<a href=#371 id=371 data-nosnippet>371</a>                    );
-<a href=#372 id=372 data-nosnippet>372</a>                    <span class="kw">let </span>target_index = <span class="self">self</span>.make_usize_constant_instruction(
-<a href=#373 id=373 data-nosnippet>373</a>                        (target_item_base_index + target_offset).into(),
-<a href=#374 id=374 data-nosnippet>374</a>                    );
-<a href=#375 id=375 data-nosnippet>375</a>
-<a href=#376 id=376 data-nosnippet>376</a>                    <span class="kw">match </span>subitem {
-<a href=#377 id=377 data-nosnippet>377</a>                        BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
-<a href=#378 id=378 data-nosnippet>378</a>                            <span class="self">self</span>.codegen_load_with_offset(
-<a href=#379 id=379 data-nosnippet>379</a>                                deflattened_items_pointer,
-<a href=#380 id=380 data-nosnippet>380</a>                                <span class="kw-2">*</span>source_index,
-<a href=#381 id=381 data-nosnippet>381</a>                                <span class="kw-2">*</span>movement_register,
-<a href=#382 id=382 data-nosnippet>382</a>                            );
-<a href=#383 id=383 data-nosnippet>383</a>                            <span class="self">self</span>.codegen_store_with_offset(
-<a href=#384 id=384 data-nosnippet>384</a>                                flattened_array_pointer,
-<a href=#385 id=385 data-nosnippet>385</a>                                <span class="kw-2">*</span>target_index,
-<a href=#386 id=386 data-nosnippet>386</a>                                <span class="kw-2">*</span>movement_register,
-<a href=#387 id=387 data-nosnippet>387</a>                            );
-<a href=#388 id=388 data-nosnippet>388</a>                        }
-<a href=#389 id=389 data-nosnippet>389</a>                        BrilligParameter::Array(
-<a href=#390 id=390 data-nosnippet>390</a>                            nested_array_item_type,
-<a href=#391 id=391 data-nosnippet>391</a>                            nested_array_item_count,
-<a href=#392 id=392 data-nosnippet>392</a>                        ) =&gt; {
-<a href=#393 id=393 data-nosnippet>393</a>                            <span class="comment">// Usually we need to pass a semi-flattened length to `allocate_brillig_array`.
-<a href=#394 id=394 data-nosnippet>394</a>                            // However, since we are deflattening arrays, we need to allocate as many elements
-<a href=#395 id=395 data-nosnippet>395</a>                            // as there are in this particular nested array, which is its semantic length.
-<a href=#396 id=396 data-nosnippet>396</a>                            </span><span class="kw">let </span>deflattened_nested_array = <span class="self">self</span>.allocate_brillig_array(
-<a href=#397 id=397 data-nosnippet>397</a>                                SemiFlattenedLength(nested_array_item_count.<span class="number">0</span>),
-<a href=#398 id=398 data-nosnippet>398</a>                            );
-<a href=#399 id=399 data-nosnippet>399</a>
-<a href=#400 id=400 data-nosnippet>400</a>                            <span class="self">self</span>.codegen_load_with_offset(
-<a href=#401 id=401 data-nosnippet>401</a>                                deflattened_items_pointer,
-<a href=#402 id=402 data-nosnippet>402</a>                                <span class="kw-2">*</span>source_index,
-<a href=#403 id=403 data-nosnippet>403</a>                                deflattened_nested_array.pointer,
-<a href=#404 id=404 data-nosnippet>404</a>                            );
-<a href=#405 id=405 data-nosnippet>405</a>                            <span class="kw">let </span>deflattened_nested_array_items =
-<a href=#406 id=406 data-nosnippet>406</a>                                <span class="self">self</span>.codegen_make_array_items_pointer(<span class="kw-2">*</span>deflattened_nested_array);
-<a href=#407 id=407 data-nosnippet>407</a>
-<a href=#408 id=408 data-nosnippet>408</a>                            <span class="kw">let </span>flattened_nested_array_pointer = <span class="self">self</span>.allocate_register();
-<a href=#409 id=409 data-nosnippet>409</a>                            <span class="self">self</span>.memory_op_instruction(
-<a href=#410 id=410 data-nosnippet>410</a>                                flattened_array_pointer,
-<a href=#411 id=411 data-nosnippet>411</a>                                target_index.address,
-<a href=#412 id=412 data-nosnippet>412</a>                                <span class="kw-2">*</span>flattened_nested_array_pointer,
-<a href=#413 id=413 data-nosnippet>413</a>                                BrilligBinaryOp::Add,
-<a href=#414 id=414 data-nosnippet>414</a>                            );
-<a href=#415 id=415 data-nosnippet>415</a>
-<a href=#416 id=416 data-nosnippet>416</a>                            <span class="self">self</span>.flatten_array(
-<a href=#417 id=417 data-nosnippet>417</a>                                nested_array_item_type,
-<a href=#418 id=418 data-nosnippet>418</a>                                <span class="kw-2">*</span>nested_array_item_count,
-<a href=#419 id=419 data-nosnippet>419</a>                                <span class="kw-2">*</span>flattened_nested_array_pointer,
-<a href=#420 id=420 data-nosnippet>420</a>                                <span class="kw-2">*</span>deflattened_nested_array_items,
-<a href=#421 id=421 data-nosnippet>421</a>                            );
-<a href=#422 id=422 data-nosnippet>422</a>                        }
-<a href=#423 id=423 data-nosnippet>423</a>                        BrilligParameter::Vector(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot flatten vectors"</span>),
-<a href=#424 id=424 data-nosnippet>424</a>                    }
-<a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a>                    target_offset += <span class="self">Self</span>::flattened_size(subitem);
-<a href=#427 id=427 data-nosnippet>427</a>                }
-<a href=#428 id=428 data-nosnippet>428</a>            }
-<a href=#429 id=429 data-nosnippet>429</a>        } <span class="kw">else </span>{
-<a href=#430 id=430 data-nosnippet>430</a>            <span class="kw">let </span>size: SemiFlattenedLength =
-<a href=#431 id=431 data-nosnippet>431</a>                item_count * ElementTypesLength(assert_u32(item_type.len()));
-<a href=#432 id=432 data-nosnippet>432</a>            <span class="kw">let </span>item_count = <span class="self">self</span>.make_usize_constant_instruction(size.<span class="number">0</span>.into());
-<a href=#433 id=433 data-nosnippet>433</a>            <span class="self">self</span>.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, <span class="kw-2">*</span>item_count);
-<a href=#434 id=434 data-nosnippet>434</a>        }
-<a href=#435 id=435 data-nosnippet>435</a>    }
-<a href=#436 id=436 data-nosnippet>436</a>}</code></pre></div></section></main></body></html>
+<a href=#327 id=327 data-nosnippet>327</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_tuple_size(tuple: <span class="kw-2">&amp;</span>[BrilligParameter]) -&gt; usize {
+<a href=#328 id=328 data-nosnippet>328</a>        tuple.iter().map(|param| param.flattened_size()).sum()
+<a href=#329 id=329 data-nosnippet>329</a>    }
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a>    <span class="doccomment">/// Computes the size of a parameter if it was flattened
+<a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_nested_arrays(tuple: <span class="kw-2">&amp;</span>[BrilligParameter]) -&gt; bool {
+<a href=#333 id=333 data-nosnippet>333</a>        tuple.iter().any(|param| !<span class="macro">matches!</span>(param, BrilligParameter::SingleAddr(<span class="kw">_</span>)))
+<a href=#334 id=334 data-nosnippet>334</a>    }
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="comment">// Flattens an array by recursively copying nested arrays and regular items.
+<a href=#337 id=337 data-nosnippet>337</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten_array(
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#339 id=339 data-nosnippet>339</a>        item_type: <span class="kw-2">&amp;</span>[BrilligParameter],
+<a href=#340 id=340 data-nosnippet>340</a>        item_count: SemanticLength,
+<a href=#341 id=341 data-nosnippet>341</a>        flattened_array_pointer: MemoryAddress,
+<a href=#342 id=342 data-nosnippet>342</a>        deflattened_items_pointer: MemoryAddress,
+<a href=#343 id=343 data-nosnippet>343</a>    ) {
+<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">if </span><span class="self">Self</span>::has_nested_arrays(item_type) {
+<a href=#345 id=345 data-nosnippet>345</a>            <span class="kw">let </span>movement_register = <span class="self">self</span>.allocate_register();
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>            <span class="kw">let </span>source_item_size = item_type.len();
+<a href=#348 id=348 data-nosnippet>348</a>            <span class="kw">let </span>target_item_size = <span class="self">Self</span>::flattened_tuple_size(item_type);
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a>            <span class="kw">for </span>item_index <span class="kw">in </span><span class="number">0</span>..item_count.<span class="number">0 </span>{
+<a href=#351 id=351 data-nosnippet>351</a>                <span class="kw">let </span>source_item_base_index = assert_usize(item_index) * source_item_size;
+<a href=#352 id=352 data-nosnippet>352</a>                <span class="kw">let </span>target_item_base_index = assert_usize(item_index) * target_item_size;
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>                <span class="kw">let </span><span class="kw-2">mut </span>target_offset = <span class="number">0</span>;
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>                <span class="kw">for </span>(subitem_index, subitem) <span class="kw">in </span>item_type.iter().enumerate() {
+<a href=#357 id=357 data-nosnippet>357</a>                    <span class="kw">let </span>source_index = <span class="self">self</span>.make_usize_constant_instruction(
+<a href=#358 id=358 data-nosnippet>358</a>                        (source_item_base_index + subitem_index).into(),
+<a href=#359 id=359 data-nosnippet>359</a>                    );
+<a href=#360 id=360 data-nosnippet>360</a>                    <span class="kw">let </span>target_index = <span class="self">self</span>.make_usize_constant_instruction(
+<a href=#361 id=361 data-nosnippet>361</a>                        (target_item_base_index + target_offset).into(),
+<a href=#362 id=362 data-nosnippet>362</a>                    );
+<a href=#363 id=363 data-nosnippet>363</a>
+<a href=#364 id=364 data-nosnippet>364</a>                    <span class="kw">match </span>subitem {
+<a href=#365 id=365 data-nosnippet>365</a>                        BrilligParameter::SingleAddr(<span class="kw">_</span>) =&gt; {
+<a href=#366 id=366 data-nosnippet>366</a>                            <span class="self">self</span>.codegen_load_with_offset(
+<a href=#367 id=367 data-nosnippet>367</a>                                deflattened_items_pointer,
+<a href=#368 id=368 data-nosnippet>368</a>                                <span class="kw-2">*</span>source_index,
+<a href=#369 id=369 data-nosnippet>369</a>                                <span class="kw-2">*</span>movement_register,
+<a href=#370 id=370 data-nosnippet>370</a>                            );
+<a href=#371 id=371 data-nosnippet>371</a>                            <span class="self">self</span>.codegen_store_with_offset(
+<a href=#372 id=372 data-nosnippet>372</a>                                flattened_array_pointer,
+<a href=#373 id=373 data-nosnippet>373</a>                                <span class="kw-2">*</span>target_index,
+<a href=#374 id=374 data-nosnippet>374</a>                                <span class="kw-2">*</span>movement_register,
+<a href=#375 id=375 data-nosnippet>375</a>                            );
+<a href=#376 id=376 data-nosnippet>376</a>                        }
+<a href=#377 id=377 data-nosnippet>377</a>                        BrilligParameter::Array(
+<a href=#378 id=378 data-nosnippet>378</a>                            nested_array_item_type,
+<a href=#379 id=379 data-nosnippet>379</a>                            nested_array_item_count,
+<a href=#380 id=380 data-nosnippet>380</a>                        ) =&gt; {
+<a href=#381 id=381 data-nosnippet>381</a>                            <span class="comment">// Usually we need to pass a semi-flattened length to `allocate_brillig_array`.
+<a href=#382 id=382 data-nosnippet>382</a>                            // However, since we are deflattening arrays, we need to allocate as many elements
+<a href=#383 id=383 data-nosnippet>383</a>                            // as there are in this particular nested array, which is its semantic length.
+<a href=#384 id=384 data-nosnippet>384</a>                            </span><span class="kw">let </span>deflattened_nested_array = <span class="self">self</span>.allocate_brillig_array(
+<a href=#385 id=385 data-nosnippet>385</a>                                SemiFlattenedLength(nested_array_item_count.<span class="number">0</span>),
+<a href=#386 id=386 data-nosnippet>386</a>                            );
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>                            <span class="self">self</span>.codegen_load_with_offset(
+<a href=#389 id=389 data-nosnippet>389</a>                                deflattened_items_pointer,
+<a href=#390 id=390 data-nosnippet>390</a>                                <span class="kw-2">*</span>source_index,
+<a href=#391 id=391 data-nosnippet>391</a>                                deflattened_nested_array.pointer,
+<a href=#392 id=392 data-nosnippet>392</a>                            );
+<a href=#393 id=393 data-nosnippet>393</a>                            <span class="kw">let </span>deflattened_nested_array_items =
+<a href=#394 id=394 data-nosnippet>394</a>                                <span class="self">self</span>.codegen_make_array_items_pointer(<span class="kw-2">*</span>deflattened_nested_array);
+<a href=#395 id=395 data-nosnippet>395</a>
+<a href=#396 id=396 data-nosnippet>396</a>                            <span class="kw">let </span>flattened_nested_array_pointer = <span class="self">self</span>.allocate_register();
+<a href=#397 id=397 data-nosnippet>397</a>                            <span class="self">self</span>.memory_op_instruction(
+<a href=#398 id=398 data-nosnippet>398</a>                                flattened_array_pointer,
+<a href=#399 id=399 data-nosnippet>399</a>                                target_index.address,
+<a href=#400 id=400 data-nosnippet>400</a>                                <span class="kw-2">*</span>flattened_nested_array_pointer,
+<a href=#401 id=401 data-nosnippet>401</a>                                BrilligBinaryOp::Add,
+<a href=#402 id=402 data-nosnippet>402</a>                            );
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>                            <span class="self">self</span>.flatten_array(
+<a href=#405 id=405 data-nosnippet>405</a>                                nested_array_item_type,
+<a href=#406 id=406 data-nosnippet>406</a>                                <span class="kw-2">*</span>nested_array_item_count,
+<a href=#407 id=407 data-nosnippet>407</a>                                <span class="kw-2">*</span>flattened_nested_array_pointer,
+<a href=#408 id=408 data-nosnippet>408</a>                                <span class="kw-2">*</span>deflattened_nested_array_items,
+<a href=#409 id=409 data-nosnippet>409</a>                            );
+<a href=#410 id=410 data-nosnippet>410</a>                        }
+<a href=#411 id=411 data-nosnippet>411</a>                        BrilligParameter::Vector(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot flatten vectors"</span>),
+<a href=#412 id=412 data-nosnippet>412</a>                    }
+<a href=#413 id=413 data-nosnippet>413</a>
+<a href=#414 id=414 data-nosnippet>414</a>                    target_offset += subitem.flattened_size();
+<a href=#415 id=415 data-nosnippet>415</a>                }
+<a href=#416 id=416 data-nosnippet>416</a>            }
+<a href=#417 id=417 data-nosnippet>417</a>        } <span class="kw">else </span>{
+<a href=#418 id=418 data-nosnippet>418</a>            <span class="kw">let </span>size: SemiFlattenedLength =
+<a href=#419 id=419 data-nosnippet>419</a>                item_count * ElementTypesLength(assert_u32(item_type.len()));
+<a href=#420 id=420 data-nosnippet>420</a>            <span class="kw">let </span>item_count = <span class="self">self</span>.make_usize_constant_instruction(size.<span class="number">0</span>.into());
+<a href=#421 id=421 data-nosnippet>421</a>            <span class="self">self</span>.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, <span class="kw-2">*</span>item_count);
+<a href=#422 id=422 data-nosnippet>422</a>        }
+<a href=#423 id=423 data-nosnippet>423</a>    }
+<a href=#424 id=424 data-nosnippet>424</a>}</code></pre></div></section></main></body></html>

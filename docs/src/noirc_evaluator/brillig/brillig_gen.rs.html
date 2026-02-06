@@ -21,154 +21,165 @@
 <a href=#21 id=21 data-nosnippet>21</a>        artifact::{BrilligParameter, GeneratedBrillig},
 <a href=#22 id=22 data-nosnippet>22</a>    },
 <a href=#23 id=23 data-nosnippet>23</a>};
-<a href=#24 id=24 data-nosnippet>24</a><span class="kw">use crate</span>::{errors::InternalError, ssa::ir::function::Function};
-<a href=#25 id=25 data-nosnippet>25</a>
-<a href=#26 id=26 data-nosnippet>26</a><span class="doccomment">/// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
-<a href=#27 id=27 data-nosnippet>27</a>///
-<a href=#28 id=28 data-nosnippet>28</a>/// This function is responsible for generating a final Brillig artifact corresponding to a compiled SSA [Function].
-<a href=#29 id=29 data-nosnippet>29</a>/// It sets up the entry point context, registers input/output parameters, and recursively resolves and links
-<a href=#30 id=30 data-nosnippet>30</a>/// all transitive Brillig function dependencies.
-<a href=#31 id=31 data-nosnippet>31</a>///
-<a href=#32 id=32 data-nosnippet>32</a>/// # Parameters
-<a href=#33 id=33 data-nosnippet>33</a>/// - func: The SSA [Function] to compile as the entry point.
-<a href=#34 id=34 data-nosnippet>34</a>/// - arguments: Brillig-compatible [BrilligParameter] inputs to the function
-<a href=#35 id=35 data-nosnippet>35</a>/// - brillig: The [context structure][Brillig] of all known Brillig artifacts for dependency resolution.
-<a href=#36 id=36 data-nosnippet>36</a>/// - options: Brillig compilation options (e.g., debug trace settings).
-<a href=#37 id=37 data-nosnippet>37</a>///
-<a href=#38 id=38 data-nosnippet>38</a>/// # Returns
-<a href=#39 id=39 data-nosnippet>39</a>/// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
-<a href=#40 id=40 data-nosnippet>40</a>/// - Err([InternalError]): If linking fails to find a dependency
-<a href=#41 id=41 data-nosnippet>41</a>///
-<a href=#42 id=42 data-nosnippet>42</a>/// # Panics
-<a href=#43 id=43 data-nosnippet>43</a>/// - If the global memory size for the function has not been precomputed.
-<a href=#44 id=44 data-nosnippet>44</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>gen_brillig_for(
-<a href=#45 id=45 data-nosnippet>45</a>    func: <span class="kw-2">&amp;</span>Function,
-<a href=#46 id=46 data-nosnippet>46</a>    arguments: Vec&lt;BrilligParameter&gt;,
-<a href=#47 id=47 data-nosnippet>47</a>    brillig: <span class="kw-2">&amp;</span>Brillig,
-<a href=#48 id=48 data-nosnippet>48</a>    options: <span class="kw-2">&amp;</span>BrilligOptions,
-<a href=#49 id=49 data-nosnippet>49</a>) -&gt; <span class="prelude-ty">Result</span>&lt;GeneratedBrillig&lt;FieldElement&gt;, InternalError&gt; {
-<a href=#50 id=50 data-nosnippet>50</a>    <span class="comment">// Create the entry point artifact
-<a href=#51 id=51 data-nosnippet>51</a>    </span><span class="kw">let </span>globals_memory_size = brillig
-<a href=#52 id=52 data-nosnippet>52</a>        .globals_memory_size
-<a href=#53 id=53 data-nosnippet>53</a>        .get(<span class="kw-2">&amp;</span>func.id())
-<a href=#54 id=54 data-nosnippet>54</a>        .copied()
-<a href=#55 id=55 data-nosnippet>55</a>        .expect(<span class="string">"Should have the globals memory size specified for an entry point"</span>);
-<a href=#56 id=56 data-nosnippet>56</a>
-<a href=#57 id=57 data-nosnippet>57</a>    <span class="kw">let </span>options = BrilligOptions { enable_debug_trace: <span class="bool-val">false</span>, ..<span class="kw-2">*</span>options };
-<a href=#58 id=58 data-nosnippet>58</a>
-<a href=#59 id=59 data-nosnippet>59</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
-<a href=#60 id=60 data-nosnippet>60</a>        arguments,
-<a href=#61 id=61 data-nosnippet>61</a>        FunctionContext::return_values(func),
-<a href=#62 id=62 data-nosnippet>62</a>        func.id(),
-<a href=#63 id=63 data-nosnippet>63</a>        <span class="bool-val">true</span>,
-<a href=#64 id=64 data-nosnippet>64</a>        globals_memory_size,
-<a href=#65 id=65 data-nosnippet>65</a>        func.name(),
-<a href=#66 id=66 data-nosnippet>66</a>        <span class="kw-2">&amp;</span>options,
-<a href=#67 id=67 data-nosnippet>67</a>    );
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">use crate</span>::{
+<a href=#25 id=25 data-nosnippet>25</a>    errors::{InternalError, RuntimeError},
+<a href=#26 id=26 data-nosnippet>26</a>    ssa::ir::function::Function,
+<a href=#27 id=27 data-nosnippet>27</a>};
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="doccomment">/// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
+<a href=#30 id=30 data-nosnippet>30</a>///
+<a href=#31 id=31 data-nosnippet>31</a>/// This function is responsible for generating a final Brillig artifact corresponding to a compiled SSA [Function].
+<a href=#32 id=32 data-nosnippet>32</a>/// It sets up the entry point context, registers input/output parameters, and recursively resolves and links
+<a href=#33 id=33 data-nosnippet>33</a>/// all transitive Brillig function dependencies.
+<a href=#34 id=34 data-nosnippet>34</a>///
+<a href=#35 id=35 data-nosnippet>35</a>/// # Parameters
+<a href=#36 id=36 data-nosnippet>36</a>/// - func: The SSA [Function] to compile as the entry point.
+<a href=#37 id=37 data-nosnippet>37</a>/// - arguments: Brillig-compatible [BrilligParameter] inputs to the function
+<a href=#38 id=38 data-nosnippet>38</a>/// - brillig: The [context structure][Brillig] of all known Brillig artifacts for dependency resolution.
+<a href=#39 id=39 data-nosnippet>39</a>/// - options: Brillig compilation options (e.g., debug trace settings).
+<a href=#40 id=40 data-nosnippet>40</a>///
+<a href=#41 id=41 data-nosnippet>41</a>/// # Returns
+<a href=#42 id=42 data-nosnippet>42</a>/// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
+<a href=#43 id=43 data-nosnippet>43</a>/// - Err([RuntimeError]): If the return value exceeds the witness limit or linking fails
+<a href=#44 id=44 data-nosnippet>44</a>///
+<a href=#45 id=45 data-nosnippet>45</a>/// # Panics
+<a href=#46 id=46 data-nosnippet>46</a>/// - If the global memory size for the function has not been precomputed.
+<a href=#47 id=47 data-nosnippet>47</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>gen_brillig_for(
+<a href=#48 id=48 data-nosnippet>48</a>    func: <span class="kw-2">&amp;</span>Function,
+<a href=#49 id=49 data-nosnippet>49</a>    arguments: Vec&lt;BrilligParameter&gt;,
+<a href=#50 id=50 data-nosnippet>50</a>    brillig: <span class="kw-2">&amp;</span>Brillig,
+<a href=#51 id=51 data-nosnippet>51</a>    options: <span class="kw-2">&amp;</span>BrilligOptions,
+<a href=#52 id=52 data-nosnippet>52</a>) -&gt; <span class="prelude-ty">Result</span>&lt;GeneratedBrillig&lt;FieldElement&gt;, RuntimeError&gt; {
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="kw">let </span>return_parameters = FunctionContext::return_values(func);
+<a href=#54 id=54 data-nosnippet>54</a>
+<a href=#55 id=55 data-nosnippet>55</a>    <span class="comment">// Check if the return value size exceeds the limit before generating the entry point.
+<a href=#56 id=56 data-nosnippet>56</a>    // This is done early to avoid the expensive entry point codegen which iterates over
+<a href=#57 id=57 data-nosnippet>57</a>    // each element in the return arrays.
+<a href=#58 id=58 data-nosnippet>58</a>    </span>func.dfg.get_num_return_witnesses(func)<span class="question-mark">?</span>;
+<a href=#59 id=59 data-nosnippet>59</a>
+<a href=#60 id=60 data-nosnippet>60</a>    <span class="comment">// Create the entry point artifact
+<a href=#61 id=61 data-nosnippet>61</a>    </span><span class="kw">let </span>globals_memory_size = brillig
+<a href=#62 id=62 data-nosnippet>62</a>        .globals_memory_size
+<a href=#63 id=63 data-nosnippet>63</a>        .get(<span class="kw-2">&amp;</span>func.id())
+<a href=#64 id=64 data-nosnippet>64</a>        .copied()
+<a href=#65 id=65 data-nosnippet>65</a>        .expect(<span class="string">"Should have the globals memory size specified for an entry point"</span>);
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">let </span>options = BrilligOptions { enable_debug_trace: <span class="bool-val">false</span>, ..<span class="kw-2">*</span>options };
 <a href=#68 id=68 data-nosnippet>68</a>
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="comment">// Link the entry point with all dependencies
-<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">while let </span><span class="prelude-val">Some</span>(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-<a href=#71 id=71 data-nosnippet>71</a>        <span class="kw">let </span>artifact = <span class="kw-2">&amp;</span>brillig.find_by_label(unresolved_fn_label.clone(), <span class="kw-2">&amp;</span>options, stack_start);
-<a href=#72 id=72 data-nosnippet>72</a>        <span class="kw">let </span>artifact = <span class="kw">match </span>artifact {
-<a href=#73 id=73 data-nosnippet>73</a>            <span class="prelude-val">Some</span>(artifact) =&gt; artifact,
-<a href=#74 id=74 data-nosnippet>74</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#75 id=75 data-nosnippet>75</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
-<a href=#76 id=76 data-nosnippet>76</a>                    message: <span class="macro">format!</span>(<span class="string">"Cannot find linked fn {unresolved_fn_label}"</span>),
-<a href=#77 id=77 data-nosnippet>77</a>                    call_stack: CallStack::new(),
-<a href=#78 id=78 data-nosnippet>78</a>                });
-<a href=#79 id=79 data-nosnippet>79</a>            }
-<a href=#80 id=80 data-nosnippet>80</a>        };
-<a href=#81 id=81 data-nosnippet>81</a>        entry_point.link_with(artifact);
-<a href=#82 id=82 data-nosnippet>82</a>        <span class="comment">// Insert the range of opcode locations occupied by a procedure
-<a href=#83 id=83 data-nosnippet>83</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_id) = <span class="kw-2">&amp;</span>artifact.procedure {
-<a href=#84 id=84 data-nosnippet>84</a>            <span class="kw">let </span>num_opcodes = entry_point.byte_code.len();
-<a href=#85 id=85 data-nosnippet>85</a>            <span class="kw">let </span>previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
-<a href=#86 id=86 data-nosnippet>86</a>            <span class="comment">// We subtract one as to keep the range inclusive on both ends
-<a href=#87 id=87 data-nosnippet>87</a>            </span>entry_point
-<a href=#88 id=88 data-nosnippet>88</a>                .procedure_locations
-<a href=#89 id=89 data-nosnippet>89</a>                .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - <span class="number">1</span>));
-<a href=#90 id=90 data-nosnippet>90</a>        }
-<a href=#91 id=91 data-nosnippet>91</a>    }
-<a href=#92 id=92 data-nosnippet>92</a>    <span class="comment">// Generate the final bytecode
-<a href=#93 id=93 data-nosnippet>93</a>    </span><span class="prelude-val">Ok</span>(entry_point.finish())
-<a href=#94 id=94 data-nosnippet>94</a>}
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a><span class="attr">#[cfg(test)]
-<a href=#97 id=97 data-nosnippet>97</a></span><span class="kw">mod </span>entry_point {
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">use crate</span>::{
-<a href=#99 id=99 data-nosnippet>99</a>        assert_artifact_snapshot,
-<a href=#100 id=100 data-nosnippet>100</a>        brillig::{
-<a href=#101 id=101 data-nosnippet>101</a>            BrilligOptions, brillig_gen::gen_brillig_for, brillig_ir::artifact::BrilligParameter,
-<a href=#102 id=102 data-nosnippet>102</a>        },
-<a href=#103 id=103 data-nosnippet>103</a>        ssa::ssa_gen::Ssa,
-<a href=#104 id=104 data-nosnippet>104</a>    };
-<a href=#105 id=105 data-nosnippet>105</a>
-<a href=#106 id=106 data-nosnippet>106</a>    <span class="attr">#[test]
-<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">fn </span>entry_point_setup_basic() {
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#109 id=109 data-nosnippet>109</a>        brillig(inline) fn main f0 {
-<a href=#110 id=110 data-nosnippet>110</a>          b0(v0: u32, v1: u32):
-<a href=#111 id=111 data-nosnippet>111</a>            v2 = add v0, v1
-<a href=#112 id=112 data-nosnippet>112</a>            return v2
-<a href=#113 id=113 data-nosnippet>113</a>        }
-<a href=#114 id=114 data-nosnippet>114</a>        "</span>;
-<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span>options = BrilligOptions::default();
-<a href=#117 id=117 data-nosnippet>117</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
-<a href=#118 id=118 data-nosnippet>118</a>
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>), BrilligParameter::SingleAddr(<span class="number">32</span>)];
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>entry = gen_brillig_for(ssa.main(), args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
-<a href=#121 id=121 data-nosnippet>121</a>
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="comment">// foo is a very simple function returning the addition of its inputs, which is done at line 18.
-<a href=#123 id=123 data-nosnippet>123</a>        // The rest of the code is some overhead added to every brillig function for handling inputs, outputs, globals, ...
-<a href=#124 id=124 data-nosnippet>124</a>        //
-<a href=#125 id=125 data-nosnippet>125</a>        // Here is a breakdown of the code:
-<a href=#126 id=126 data-nosnippet>126</a>        // Line 1-9: The function starts with the handling of the inputs via the 'calldata copy'
-<a href=#127 id=127 data-nosnippet>127</a>        // The inputs are put in registers 1 and 2
-<a href=#128 id=128 data-nosnippet>128</a>        // Line 10: Calling the part that deals with brillig globals. In this simple example, there are no globals so
-<a href=#129 id=129 data-nosnippet>129</a>        // it just returns immediately.
-<a href=#130 id=130 data-nosnippet>130</a>        // Line 11: Calling the check_max_stack_depth_procedure (Lines 24-29), via the call 24. Returning from
-<a href=#131 id=131 data-nosnippet>131</a>        // this procedure is going to line 18 (right after the call 24 on line 17)
-<a href=#132 id=132 data-nosnippet>132</a>        // Line 18: the actual body of the function, which is a single add instruction.
-<a href=#133 id=133 data-nosnippet>133</a>        // Line 19-21: An overflow check on the addition, which will trap if the addition overflowed.
-<a href=#134 id=134 data-nosnippet>134</a>        // Line 22: Moving the result of the addition into the return register (register 1)
-<a href=#135 id=135 data-nosnippet>135</a>        // Line 23: Returning from the function body, which goes back to line 12
-<a href=#136 id=136 data-nosnippet>136</a>        // Line 12-15: Handling the return data, moving the return value into the right place in memory and stopping execution.
-<a href=#137 id=137 data-nosnippet>137</a>        </span><span class="macro">assert_artifact_snapshot!</span>(entry, @<span class="string">r"
-<a href=#138 id=138 data-nosnippet>138</a>        fn main
-<a href=#139 id=139 data-nosnippet>139</a>         0: @2 = const u32 1
-<a href=#140 id=140 data-nosnippet>140</a>         1: @1 = const u32 32839
-<a href=#141 id=141 data-nosnippet>141</a>         2: @0 = const u32 71
-<a href=#142 id=142 data-nosnippet>142</a>         3: call 16
-<a href=#143 id=143 data-nosnippet>143</a>         4: sp[3] = const u32 2
-<a href=#144 id=144 data-nosnippet>144</a>         5: sp[4] = const u32 0
-<a href=#145 id=145 data-nosnippet>145</a>         6: @68 = calldata copy [sp[4]; sp[3]]
-<a href=#146 id=146 data-nosnippet>146</a>         7: @68 = cast @68 to u32
-<a href=#147 id=147 data-nosnippet>147</a>         8: @69 = cast @69 to u32
-<a href=#148 id=148 data-nosnippet>148</a>         9: sp[1] = @68
-<a href=#149 id=149 data-nosnippet>149</a>        10: sp[2] = @69
-<a href=#150 id=150 data-nosnippet>150</a>        11: call 17
-<a href=#151 id=151 data-nosnippet>151</a>        12: @70 = sp[1]
-<a href=#152 id=152 data-nosnippet>152</a>        13: sp[2] = const u32 70
-<a href=#153 id=153 data-nosnippet>153</a>        14: sp[3] = const u32 1
-<a href=#154 id=154 data-nosnippet>154</a>        15: stop @[sp[2]; sp[3]]
-<a href=#155 id=155 data-nosnippet>155</a>        16: return
-<a href=#156 id=156 data-nosnippet>156</a>        17: call 24
-<a href=#157 id=157 data-nosnippet>157</a>        18: sp[3] = u32 add sp[1], sp[2]
-<a href=#158 id=158 data-nosnippet>158</a>        19: sp[4] = u32 lt_eq sp[1], sp[3]
-<a href=#159 id=159 data-nosnippet>159</a>        20: jump if sp[4] to 22
-<a href=#160 id=160 data-nosnippet>160</a>        21: call 30
-<a href=#161 id=161 data-nosnippet>161</a>        22: sp[1] = sp[3]
-<a href=#162 id=162 data-nosnippet>162</a>        23: return
-<a href=#163 id=163 data-nosnippet>163</a>        24: @4 = const u32 30791
-<a href=#164 id=164 data-nosnippet>164</a>        25: @3 = u32 lt @0, @4
-<a href=#165 id=165 data-nosnippet>165</a>        26: jump if @3 to 29
-<a href=#166 id=166 data-nosnippet>166</a>        27: @1 = indirect const u64 15764276373176857197
-<a href=#167 id=167 data-nosnippet>167</a>        28: trap @[@1; @2]
-<a href=#168 id=168 data-nosnippet>168</a>        29: return
-<a href=#169 id=169 data-nosnippet>169</a>        30: @1 = indirect const u64 14990209321349310352
-<a href=#170 id=170 data-nosnippet>170</a>        31: trap @[@1; @2]
-<a href=#171 id=171 data-nosnippet>171</a>        32: return
-<a href=#172 id=172 data-nosnippet>172</a>        "</span>);
-<a href=#173 id=173 data-nosnippet>173</a>    }
-<a href=#174 id=174 data-nosnippet>174</a>}</code></pre></div></section></main></body></html>
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
+<a href=#70 id=70 data-nosnippet>70</a>        arguments,
+<a href=#71 id=71 data-nosnippet>71</a>        return_parameters,
+<a href=#72 id=72 data-nosnippet>72</a>        func.id(),
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="bool-val">true</span>,
+<a href=#74 id=74 data-nosnippet>74</a>        globals_memory_size,
+<a href=#75 id=75 data-nosnippet>75</a>        func.name(),
+<a href=#76 id=76 data-nosnippet>76</a>        <span class="kw-2">&amp;</span>options,
+<a href=#77 id=77 data-nosnippet>77</a>    );
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a>    <span class="comment">// Link the entry point with all dependencies
+<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">while let </span><span class="prelude-val">Some</span>(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="kw">let </span>artifact = <span class="kw-2">&amp;</span>brillig.find_by_label(unresolved_fn_label.clone(), <span class="kw-2">&amp;</span>options, stack_start);
+<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>artifact = <span class="kw">match </span>artifact {
+<a href=#83 id=83 data-nosnippet>83</a>            <span class="prelude-val">Some</span>(artifact) =&gt; artifact,
+<a href=#84 id=84 data-nosnippet>84</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#85 id=85 data-nosnippet>85</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+<a href=#86 id=86 data-nosnippet>86</a>                    message: <span class="macro">format!</span>(<span class="string">"Cannot find linked fn {unresolved_fn_label}"</span>),
+<a href=#87 id=87 data-nosnippet>87</a>                    call_stack: CallStack::new(),
+<a href=#88 id=88 data-nosnippet>88</a>                }
+<a href=#89 id=89 data-nosnippet>89</a>                .into());
+<a href=#90 id=90 data-nosnippet>90</a>            }
+<a href=#91 id=91 data-nosnippet>91</a>        };
+<a href=#92 id=92 data-nosnippet>92</a>        entry_point.link_with(artifact);
+<a href=#93 id=93 data-nosnippet>93</a>        <span class="comment">// Insert the range of opcode locations occupied by a procedure
+<a href=#94 id=94 data-nosnippet>94</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_id) = <span class="kw-2">&amp;</span>artifact.procedure {
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">let </span>num_opcodes = entry_point.byte_code.len();
+<a href=#96 id=96 data-nosnippet>96</a>            <span class="kw">let </span>previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
+<a href=#97 id=97 data-nosnippet>97</a>            <span class="comment">// We subtract one as to keep the range inclusive on both ends
+<a href=#98 id=98 data-nosnippet>98</a>            </span>entry_point
+<a href=#99 id=99 data-nosnippet>99</a>                .procedure_locations
+<a href=#100 id=100 data-nosnippet>100</a>                .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - <span class="number">1</span>));
+<a href=#101 id=101 data-nosnippet>101</a>        }
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>    <span class="comment">// Generate the final bytecode
+<a href=#104 id=104 data-nosnippet>104</a>    </span><span class="prelude-val">Ok</span>(entry_point.finish())
+<a href=#105 id=105 data-nosnippet>105</a>}
+<a href=#106 id=106 data-nosnippet>106</a>
+<a href=#107 id=107 data-nosnippet>107</a><span class="attr">#[cfg(test)]
+<a href=#108 id=108 data-nosnippet>108</a></span><span class="kw">mod </span>entry_point {
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">use crate</span>::{
+<a href=#110 id=110 data-nosnippet>110</a>        assert_artifact_snapshot,
+<a href=#111 id=111 data-nosnippet>111</a>        brillig::{
+<a href=#112 id=112 data-nosnippet>112</a>            BrilligOptions, brillig_gen::gen_brillig_for, brillig_ir::artifact::BrilligParameter,
+<a href=#113 id=113 data-nosnippet>113</a>        },
+<a href=#114 id=114 data-nosnippet>114</a>        ssa::ssa_gen::Ssa,
+<a href=#115 id=115 data-nosnippet>115</a>    };
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a>    <span class="attr">#[test]
+<a href=#118 id=118 data-nosnippet>118</a>    </span><span class="kw">fn </span>entry_point_setup_basic() {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#120 id=120 data-nosnippet>120</a>        brillig(inline) fn main f0 {
+<a href=#121 id=121 data-nosnippet>121</a>          b0(v0: u32, v1: u32):
+<a href=#122 id=122 data-nosnippet>122</a>            v2 = add v0, v1
+<a href=#123 id=123 data-nosnippet>123</a>            return v2
+<a href=#124 id=124 data-nosnippet>124</a>        }
+<a href=#125 id=125 data-nosnippet>125</a>        "</span>;
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span>options = BrilligOptions::default();
+<a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>), BrilligParameter::SingleAddr(<span class="number">32</span>)];
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span>entry = gen_brillig_for(ssa.main(), args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="comment">// foo is a very simple function returning the addition of its inputs, which is done at line 18.
+<a href=#134 id=134 data-nosnippet>134</a>        // The rest of the code is some overhead added to every brillig function for handling inputs, outputs, globals, ...
+<a href=#135 id=135 data-nosnippet>135</a>        //
+<a href=#136 id=136 data-nosnippet>136</a>        // Here is a breakdown of the code:
+<a href=#137 id=137 data-nosnippet>137</a>        // Line 1-9: The function starts with the handling of the inputs via the 'calldata copy'
+<a href=#138 id=138 data-nosnippet>138</a>        // The inputs are put in registers 1 and 2
+<a href=#139 id=139 data-nosnippet>139</a>        // Line 10: Calling the part that deals with brillig globals. In this simple example, there are no globals so
+<a href=#140 id=140 data-nosnippet>140</a>        // it just returns immediately.
+<a href=#141 id=141 data-nosnippet>141</a>        // Line 11: Calling the check_max_stack_depth_procedure (Lines 24-29), via the call 24. Returning from
+<a href=#142 id=142 data-nosnippet>142</a>        // this procedure is going to line 18 (right after the call 24 on line 17)
+<a href=#143 id=143 data-nosnippet>143</a>        // Line 18: the actual body of the function, which is a single add instruction.
+<a href=#144 id=144 data-nosnippet>144</a>        // Line 19-21: An overflow check on the addition, which will trap if the addition overflowed.
+<a href=#145 id=145 data-nosnippet>145</a>        // Line 22: Moving the result of the addition into the return register (register 1)
+<a href=#146 id=146 data-nosnippet>146</a>        // Line 23: Returning from the function body, which goes back to line 12
+<a href=#147 id=147 data-nosnippet>147</a>        // Line 12-15: Handling the return data, moving the return value into the right place in memory and stopping execution.
+<a href=#148 id=148 data-nosnippet>148</a>        </span><span class="macro">assert_artifact_snapshot!</span>(entry, @<span class="string">r"
+<a href=#149 id=149 data-nosnippet>149</a>        fn main
+<a href=#150 id=150 data-nosnippet>150</a>         0: @2 = const u32 1
+<a href=#151 id=151 data-nosnippet>151</a>         1: @1 = const u32 32839
+<a href=#152 id=152 data-nosnippet>152</a>         2: @0 = const u32 71
+<a href=#153 id=153 data-nosnippet>153</a>         3: call 16
+<a href=#154 id=154 data-nosnippet>154</a>         4: sp[3] = const u32 2
+<a href=#155 id=155 data-nosnippet>155</a>         5: sp[4] = const u32 0
+<a href=#156 id=156 data-nosnippet>156</a>         6: @68 = calldata copy [sp[4]; sp[3]]
+<a href=#157 id=157 data-nosnippet>157</a>         7: @68 = cast @68 to u32
+<a href=#158 id=158 data-nosnippet>158</a>         8: @69 = cast @69 to u32
+<a href=#159 id=159 data-nosnippet>159</a>         9: sp[1] = @68
+<a href=#160 id=160 data-nosnippet>160</a>        10: sp[2] = @69
+<a href=#161 id=161 data-nosnippet>161</a>        11: call 17
+<a href=#162 id=162 data-nosnippet>162</a>        12: @70 = sp[1]
+<a href=#163 id=163 data-nosnippet>163</a>        13: sp[2] = const u32 70
+<a href=#164 id=164 data-nosnippet>164</a>        14: sp[3] = const u32 1
+<a href=#165 id=165 data-nosnippet>165</a>        15: stop @[sp[2]; sp[3]]
+<a href=#166 id=166 data-nosnippet>166</a>        16: return
+<a href=#167 id=167 data-nosnippet>167</a>        17: call 24
+<a href=#168 id=168 data-nosnippet>168</a>        18: sp[3] = u32 add sp[1], sp[2]
+<a href=#169 id=169 data-nosnippet>169</a>        19: sp[4] = u32 lt_eq sp[1], sp[3]
+<a href=#170 id=170 data-nosnippet>170</a>        20: jump if sp[4] to 22
+<a href=#171 id=171 data-nosnippet>171</a>        21: call 30
+<a href=#172 id=172 data-nosnippet>172</a>        22: sp[1] = sp[3]
+<a href=#173 id=173 data-nosnippet>173</a>        23: return
+<a href=#174 id=174 data-nosnippet>174</a>        24: @4 = const u32 30791
+<a href=#175 id=175 data-nosnippet>175</a>        25: @3 = u32 lt @0, @4
+<a href=#176 id=176 data-nosnippet>176</a>        26: jump if @3 to 29
+<a href=#177 id=177 data-nosnippet>177</a>        27: @1 = indirect const u64 15764276373176857197
+<a href=#178 id=178 data-nosnippet>178</a>        28: trap @[@1; @2]
+<a href=#179 id=179 data-nosnippet>179</a>        29: return
+<a href=#180 id=180 data-nosnippet>180</a>        30: @1 = indirect const u64 14990209321349310352
+<a href=#181 id=181 data-nosnippet>181</a>        31: trap @[@1; @2]
+<a href=#182 id=182 data-nosnippet>182</a>        32: return
+<a href=#183 id=183 data-nosnippet>183</a>        "</span>);
+<a href=#184 id=184 data-nosnippet>184</a>    }
+<a href=#185 id=185 data-nosnippet>185</a>}</code></pre></div></section></main></body></html>
