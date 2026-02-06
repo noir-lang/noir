@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770397558937,
+  "lastUpdate": 1770399084755,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "37b7eabebb7db97681687d9b942ea99c81338fa9",
-          "message": "fix: improve error message when failing to save program/contract (#11406)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-01-30T16:30:56Z",
-          "tree_id": "e128bff568be341da6bb13d5669868f4f6201fb2",
-          "url": "https://github.com/noir-lang/noir/commit/37b7eabebb7db97681687d9b942ea99c81338fa9"
-        },
-        "date": 1769791887820,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259207,
-            "range": "± 894",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228371,
-            "range": "± 1226",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800983,
-            "range": "± 28226",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2733335,
             "range": "± 7320",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "adf6db5d88c2c0029b10c0c09595207f51fce9cf",
+          "message": "fix: recurse into array elements when tracking aliased references in mem2reg (#11494)",
+          "timestamp": "2026-02-06T17:08:03Z",
+          "tree_id": "6d3ee87fa16ae4c740a90215212f8d1bb97f10ac",
+          "url": "https://github.com/noir-lang/noir/commit/adf6db5d88c2c0029b10c0c09595207f51fce9cf"
+        },
+        "date": 1770399041965,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255116,
+            "range": "± 398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224265,
+            "range": "± 2901",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730382,
+            "range": "± 2289",
             "unit": "ns/iter"
           }
         ]
