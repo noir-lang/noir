@@ -192,8 +192,8 @@ export type DebugFileMap = Record<
      * The path of the file.
      */
     path: string;
-    /** 
-     * The range each function occupies in the file. 
+    /**
+     * The range each function occupies in the file.
      */
     function_names: FunctionName[];
   }
