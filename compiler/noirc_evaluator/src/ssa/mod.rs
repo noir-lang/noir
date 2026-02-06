@@ -117,8 +117,8 @@ pub struct SsaEvaluatorOptions {
     /// Override the threshold for force-unrolling small loops.
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
-    /// When `None`, the default threshold is used.
-    pub force_unroll_threshold: Option<usize>,
+    /// Set to 0 to disable force-unrolling.
+    pub force_unroll_threshold: usize,
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,

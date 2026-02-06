@@ -16,7 +16,9 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
+use noirc_evaluator::ssa::opt::{
+    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
@@ -193,10 +195,9 @@ pub struct CompileOptions {
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
     ///
-    /// When `None`, the default threshold is used.
     /// Set to 0 to disable force-unrolling.
-    #[arg(long, hide = true)]
-    pub force_unroll_threshold: Option<usize>,
+    #[arg(long, hide = true, default_value_t = FORCE_UNROLL_THRESHOLD)]
+    pub force_unroll_threshold: usize,
 
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
@@ -256,7 +257,7 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
-            force_unroll_threshold: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
