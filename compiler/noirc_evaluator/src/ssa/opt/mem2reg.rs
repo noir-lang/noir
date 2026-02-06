@@ -914,11 +914,13 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 references.set_unknown(value);
-                self.clear_aliases(references, value);
                 references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
                 references.keep_last_load_for(value);
+
+                // Clear aliases AFTER keep_last_load_for so it can still find the aliases to preserve
+                self.clear_aliases(references, value);
             }
         }
     }
@@ -3418,5 +3420,56 @@ mod tests {
         assert_eq!(result_after, expected_result, "result after mem2reg should still be 200");
 
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// When a reference is stored inside an array that is passed to a call,
+    /// the load after the call must be preserved (the callee can modify through the nested reference).
+    #[test]
+    fn call_with_nested_reference_parameter() {
+        // Simplified version of the original test case - a reference v2 is put inside an array v3
+        // which is passed to call f1. The load from v2 after the call must be preserved.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 100 at v1
+            v2 = allocate -> &mut Field
+            store Field 200 at v2
+            v3 = make_array [v2] : [&mut Field; 1]
+            call f1(v3)
+            v5 = load v2 -> Field
+            return v5
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&mut Field; 1]):
+            v2 = array_get v0, index u32 0 -> &mut Field
+            store Field 999 at v2
+            return
+        }
+        "#;
+
+        // The critical check: after mem2reg, the load after `call f1(v3)` must still exist.
+        // v2 is aliased through the array v3, so the call could modify it.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // v5 = load v1 must be preserved after `call f1(v3)` since f1 can modify through the nested reference
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            store Field 200 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            call f1(v3)
+            v5 = load v1 -> Field
+            return v5
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&mut Field; 1]):
+            v2 = array_get v0, index u32 0 -> &mut Field
+            store Field 999 at v2
+            return
+        }
+        ");
     }
 }
