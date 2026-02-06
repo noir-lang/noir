@@ -50,7 +50,7 @@ impl Elaborator<'_> {
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
         // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function signatures.
-        let mut trait_constraints_and_generics = vecmap(trait_impls.iter_mut(), |trait_impl| {
+        let trait_constraints_and_generics = vecmap(trait_impls.iter_mut(), |trait_impl| {
             self.prepare_trait_impl_for_function_meta_definition(trait_impl)
         });
 

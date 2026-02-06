@@ -845,7 +845,7 @@ impl Elaborator<'_> {
 
         self.local_module = previous_local_module;
 
-        let generics = self.generics.take();
+        let generics = std::mem::take(&mut self.generics);
 
         (new_generics_trait_constraints, generics)
     }
