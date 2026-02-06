@@ -64,12 +64,14 @@ fn array_set_optimization_pre_check(func: &Function) {
 
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
-    // remove_if_else must have run
-    super::checks::assert_no_if_else(func);
-    // mem2reg must have run (no Load/Store remaining)
-    super::checks::assert_no_load_store(func);
-    // No mutable array sets should exist yet (they are created by this pass)
-    super::checks::assert_no_mutable_array_set(func);
+    super::checks::for_each_instruction(func, |instruction, _dfg| {
+        // remove_if_else must have run
+        super::checks::assert_not_if_else(instruction);
+        // mem2reg must have run (no Load/Store remaining)
+        super::checks::assert_not_load_or_store(instruction);
+        // No mutable array sets should exist yet (they are created by this pass)
+        super::checks::assert_not_mutable_array_set(instruction);
+    });
 }
 
 /// Post-check condition for [Function::array_set_optimization].
@@ -80,7 +82,9 @@ fn array_set_optimization_pre_check(func: &Function) {
 fn array_set_optimization_post_check(func: &Function) {
     // Brillig functions should not have any mutable array sets
     if func.runtime().is_brillig() {
-        super::checks::assert_no_mutable_array_set(func);
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_mutable_array_set(instruction);
+        });
     }
 }
 

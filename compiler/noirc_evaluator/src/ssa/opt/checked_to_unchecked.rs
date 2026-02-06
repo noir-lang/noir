@@ -167,7 +167,9 @@ fn get_max_num_bits(
 #[cfg(debug_assertions)]
 fn checked_to_unchecked_pre_check(func: &Function) {
     // expand_signed_checks must have run
-    super::checks::assert_no_checked_signed_add_sub_mul(func);
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_checked_signed_add_sub_mul(instruction, dfg);
+    });
 }
 
 #[cfg(test)]

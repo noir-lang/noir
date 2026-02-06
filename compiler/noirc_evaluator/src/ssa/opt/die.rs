@@ -544,7 +544,9 @@ fn die_pre_check(func: &Function, flattened: bool) {
 fn die_post_check(func: &Function, flattened: bool) {
     if should_remove_store(func, flattened) {
         // All Load/Store instructions should be removed
-        super::checks::assert_no_load_store(func);
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_load_or_store(instruction);
+        });
     }
 }
 

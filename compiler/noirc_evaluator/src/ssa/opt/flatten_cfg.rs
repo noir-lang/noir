@@ -205,7 +205,9 @@ impl Ssa {
 fn flatten_cfg_pre_check(function: &Function) {
     if function.runtime().is_acir() {
         super::checks::assert_no_loops(function);
-        super::checks::assert_no_constrain_not_equal(function);
+        super::checks::for_each_instruction(function, |instruction, _dfg| {
+            super::checks::assert_not_constrain_not_equal(instruction);
+        });
     }
 }
 

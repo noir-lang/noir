@@ -498,7 +498,9 @@ fn remove_if_else_pre_check(func: &Function) {
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
     // IfElse should only be on arrays/vectors, not numeric types
-    super::checks::assert_if_else_not_on_numeric(func);
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_if_else_on_numeric(instruction, dfg);
+    });
 }
 
 /// Post-check condition for [Function::remove_if_else].
@@ -511,7 +513,9 @@ fn remove_if_else_pre_check(func: &Function) {
 #[cfg(debug_assertions)]
 fn remove_if_else_post_check(func: &Function) {
     // All IfElse instructions should be removed
-    super::checks::assert_no_if_else(func);
+    super::checks::for_each_instruction(func, |instruction, _dfg| {
+        super::checks::assert_not_if_else(instruction);
+    });
 }
 
 #[cfg(test)]

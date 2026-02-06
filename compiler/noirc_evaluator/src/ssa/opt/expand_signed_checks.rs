@@ -454,7 +454,9 @@ impl Context<'_, '_, '_> {
 #[cfg(debug_assertions)]
 pub(super) fn expand_signed_checks_post_check(func: &Function) {
     // All checked signed add/sub/mul should be expanded
-    super::checks::assert_no_checked_signed_add_sub_mul(func);
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_checked_signed_add_sub_mul(instruction, dfg);
+    });
 }
 
 #[cfg(test)]

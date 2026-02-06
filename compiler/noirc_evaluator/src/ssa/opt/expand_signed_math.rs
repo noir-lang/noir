@@ -309,9 +309,11 @@ impl Context<'_, '_, '_> {
 fn expand_signed_math_post_check(func: &Function) {
     if func.runtime().is_acir() {
         // All signed Lt, Div, and Mod should be expanded in ACIR functions
-        super::checks::assert_no_signed_lt(func);
-        super::checks::assert_no_signed_div(func);
-        super::checks::assert_no_signed_mod(func);
+        super::checks::for_each_instruction(func, |instruction, dfg| {
+            super::checks::assert_not_signed_lt(instruction, dfg);
+            super::checks::assert_not_signed_div(instruction, dfg);
+            super::checks::assert_not_signed_mod(instruction, dfg);
+        });
     }
 }
 

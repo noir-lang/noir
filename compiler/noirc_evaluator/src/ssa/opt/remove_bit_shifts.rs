@@ -468,7 +468,9 @@ impl Context<'_, '_, '_> {
 fn remove_bit_shifts_post_check(func: &Function) {
     if func.runtime().is_acir() {
         // All bit shifts should be removed in ACIR functions
-        super::checks::assert_no_bit_shifts(func);
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_bit_shift(instruction);
+        });
     }
 }
 
