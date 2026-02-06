@@ -1034,7 +1034,11 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, interpreter::value::Value, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
 
     #[test]
@@ -3257,8 +3261,31 @@ mod tests {
             }
             "#;
 
+            let ssa = Ssa::from_str(src).unwrap();
+            let (ssa, _) = assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::mem2reg);
+
             // The stores to v7 and v9 must be preserved since they escape via the returned array
-            assert_ssa_does_not_change(src, Ssa::mem2reg);
+            assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [&mut u1; 3]):
+                v2 = allocate -> &mut u1
+                v3 = allocate -> &mut u1
+                v5 = array_get v0, index u32 2 -> &mut u1
+                v6 = load v5 -> u1
+                jmpif v6 then: b1, else: b2
+              b1():
+                v10 = array_get v0, index u32 1 -> &mut u1
+                jmp b3(v10)
+              b2():
+                v8 = array_get v0, index u32 0 -> &mut u1
+                jmp b3(v8)
+              b3(v1: &mut u1):
+                v11 = allocate -> &mut u1
+                store u1 1 at v11
+                v15 = make_array [u32 1, v2, u32 2, v3, u32 3, v1, u32 4, v11] : [(u32, &mut u1); 4]
+                return v15
+            }
+            ");
         }
 
         // Test that the recursive alias collection works for arrays containing
@@ -3300,8 +3327,35 @@ mod tests {
             }
             "#;
 
+            let ssa = Ssa::from_str(src).unwrap();
+            let (ssa, _) = assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::mem2reg);
+
             // The stores to v7 and v9 must be preserved since they escape via the returned array
-            assert_ssa_does_not_change(src, Ssa::mem2reg);
+            assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [&mut [u1; 2]; 3]):
+                v2 = allocate -> &mut [u1; 2]
+                v5 = make_array [u1 0, u1 1] : [u1; 2]
+                v6 = allocate -> &mut [u1; 2]
+                v7 = make_array [u1 1, u1 0] : [u1; 2]
+                v9 = array_get v0, index u32 2 -> &mut [u1; 2]
+                v10 = load v9 -> [u1; 2]
+                v12 = array_get v10, index u32 0 -> u1
+                jmpif v12 then: b1, else: b2
+              b1():
+                v15 = array_get v0, index u32 1 -> &mut [u1; 2]
+                jmp b3(v15)
+              b2():
+                v13 = array_get v0, index u32 0 -> &mut [u1; 2]
+                jmp b3(v13)
+              b3(v1: &mut [u1; 2]):
+                v16 = allocate -> &mut [u1; 2]
+                v17 = make_array [u1 0, u1 0] : [u1; 2]
+                store v17 at v16
+                v18 = make_array [v2, v6, v1, v16] : [&mut [u1; 2]; 4]
+                return v18
+            }
+            ");
         }
     }
 
