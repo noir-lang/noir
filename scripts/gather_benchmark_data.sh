@@ -25,18 +25,18 @@ setup_repo() {
 compile_project() {
     echo "Compiling program (ACIR)"
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings # 2>> /dev/null
     done
-
+    ls ./tmp
     mv ./tmp/* $OUTPUT_DIR/compilation.jsonl
 }
 
 execute_project() {
     echo "Executing program (ACIR)"
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings >> /dev/null
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings # >> /dev/null
     done
-
+    ls ./tmp
     mv ./tmp/* $OUTPUT_DIR/execution.jsonl
 }
 
@@ -48,18 +48,18 @@ save_artifact() {
 compile_brillig_project() {
     echo "Compiling program (Brillig)"
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings 2>> /dev/null
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings # 2>> /dev/null
     done
-
+    ls ./tmp
     mv ./tmp/* $OUTPUT_DIR/brillig_compilation.jsonl
 }
 
 execute_brillig_project() {
     echo "Executing program (Brillig)"
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings >> /dev/null
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings # >> /dev/null
     done
-
+    ls ./tmp
     mv ./tmp/* $OUTPUT_DIR/brillig_execution.jsonl
 }
 
