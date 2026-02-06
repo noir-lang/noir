@@ -179,10 +179,15 @@ impl DebugArtifact {
                 continue;
             };
 
-            for name in &debug_file.function_locations {
-                let span = Span::from(name.start..name.end);
+            let locations = debug_file.function_locations.iter().collect::<Vec<_>>();
+            for (index, location) in locations.iter().enumerate() {
+                let start = location.start;
+                let end =
+                    if index < locations.len() - 1 { locations[index + 1].start } else { u32::MAX };
+                let span = Span::from(start..end);
+                let name = location.name.clone();
                 let location = Location { span, file: file_id };
-                function_locations.insert(location, name.name.clone());
+                function_locations.insert(location, name);
             }
         }
         function_locations
@@ -436,12 +441,12 @@ pub struct DebugFile {
 /// A function name and where in the source code it is declared.
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FunctionLocation {
+    /// The byte index where the function starts.
+    /// For call stack purposes, the end of a function can be considered to be the start
+    /// of the next function.
+    pub start: u32,
     /// The function's name.
     pub name: String,
-    /// The byte index where the function starts.
-    pub start: u32,
-    /// The byte index where the function ends.
-    pub end: u32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]

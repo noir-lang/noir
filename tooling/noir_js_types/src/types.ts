@@ -52,12 +52,10 @@ export type DebugFileMap = Record<
 
 /** The range a function occupies in a file. */
 export type FunctionLocation = {
-  /** The name of the function. */
-  name: string;
   /** The byte where the function starts. */
   start: number;
-  /** The byte where the function ends. */
-  end: number;
+  /** The name of the function. */
+  name: string;
 };
 
 export type OpcodeLocation = string;

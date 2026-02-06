@@ -809,11 +809,7 @@ pub fn filter_relevant_files(
             function_locations_in_parsed_module(parsed_module, file_id, include_comptime_items);
         let function_locations = function_locations
             .all_in_file(file_id)
-            .map(|(name, span)| FunctionLocation {
-                name: name.to_string(),
-                start: span.start(),
-                end: span.end(),
-            })
+            .map(|(name, span)| FunctionLocation { name: name.to_string(), start: span.start() })
             .collect::<BTreeSet<_>>();
 
         file_map.insert(
