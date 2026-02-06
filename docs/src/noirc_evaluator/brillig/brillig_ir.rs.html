@@ -895,4 +895,87 @@
 <a href=#895 id=895 data-nosnippet>895</a>        <span class="comment">// This call should panic with "Call arguments would exceed stack frame bounds"
 <a href=#896 id=896 data-nosnippet>896</a>        </span>context.codegen_call(FunctionId::test_new(<span class="number">1</span>), <span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>[]);
 <a href=#897 id=897 data-nosnippet>897</a>    }
-<a href=#898 id=898 data-nosnippet>898</a>}</code></pre></div></section></main></body></html>
+<a href=#898 id=898 data-nosnippet>898</a>
+<a href=#899 id=899 data-nosnippet>899</a>    <span class="doccomment">/// Test that jmp block parameter passing handles the parallel-move problem correctly.
+<a href=#900 id=900 data-nosnippet>900</a>    ///
+<a href=#901 id=901 data-nosnippet>901</a>    /// When a jmp instruction passes block parameters where a source register is also a
+<a href=#902 id=902 data-nosnippet>902</a>    /// destination for another parameter, the sequential mov loop can overwrite values.
+<a href=#903 id=903 data-nosnippet>903</a>    /// For example, `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+<a href=#904 id=904 data-nosnippet>904</a>    ///   1. mov reg(v2), reg(v1) — overwrites old v3
+<a href=#905 id=905 data-nosnippet>905</a>    ///   2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+<a href=#906 id=906 data-nosnippet>906</a>    ///
+<a href=#907 id=907 data-nosnippet>907</a>    /// This test verifies the fix by running a loop where v3 should get the old v2 value.
+<a href=#908 id=908 data-nosnippet>908</a>    </span><span class="attr">#[test]
+<a href=#909 id=909 data-nosnippet>909</a>    </span><span class="kw">fn </span>jmp_block_params_parallel_move() {
+<a href=#910 id=910 data-nosnippet>910</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#911 id=911 data-nosnippet>911</a>            brillig(inline) impure fn main f0 {
+<a href=#912 id=912 data-nosnippet>912</a>              b0():
+<a href=#913 id=913 data-nosnippet>913</a>                jmp b1(u32 0, u32 0, u32 0)
+<a href=#914 id=914 data-nosnippet>914</a>              b1(v3: u32, v35: u32, v36: u32):
+<a href=#915 id=915 data-nosnippet>915</a>                v5 = lt v3, u32 17
+<a href=#916 id=916 data-nosnippet>916</a>                jmpif v5 then: b2, else: b3
+<a href=#917 id=917 data-nosnippet>917</a>              b2():
+<a href=#918 id=918 data-nosnippet>918</a>                v8 = unchecked_add v3, u32 1
+<a href=#919 id=919 data-nosnippet>919</a>                jmp b1(v8, v3, u32 10)
+<a href=#920 id=920 data-nosnippet>920</a>              b3():
+<a href=#921 id=921 data-nosnippet>921</a>                constrain v35 == u32 16
+<a href=#922 id=922 data-nosnippet>922</a>                constrain v36 == u32 10
+<a href=#923 id=923 data-nosnippet>923</a>                return
+<a href=#924 id=924 data-nosnippet>924</a>            }
+<a href=#925 id=925 data-nosnippet>925</a>        "#</span>;
+<a href=#926 id=926 data-nosnippet>926</a>
+<a href=#927 id=927 data-nosnippet>927</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#928 id=928 data-nosnippet>928</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span>options = BrilligOptions::default();
+<a href=#930 id=930 data-nosnippet>930</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#931 id=931 data-nosnippet>931</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#932 id=932 data-nosnippet>932</a>
+<a href=#933 id=933 data-nosnippet>933</a>        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>generated.byte_code, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
+<a href=#934 id=934 data-nosnippet>934</a>        <span class="kw">let </span>status = vm.process_opcodes();
+<a href=#935 id=935 data-nosnippet>935</a>        <span class="macro">assert_eq!</span>(
+<a href=#936 id=936 data-nosnippet>936</a>            status,
+<a href=#937 id=937 data-nosnippet>937</a>            VMStatus::Finished { return_data_offset: <span class="number">0</span>, return_data_size: <span class="number">0 </span>},
+<a href=#938 id=938 data-nosnippet>938</a>            <span class="string">"VM should finish successfully; v35 should be 16 and v36 should be 10"
+<a href=#939 id=939 data-nosnippet>939</a>        </span>);
+<a href=#940 id=940 data-nosnippet>940</a>    }
+<a href=#941 id=941 data-nosnippet>941</a>
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="doccomment">/// Test that the parallel-move fix preserves temporary registers across all moves.
+<a href=#943 id=943 data-nosnippet>943</a>    ///
+<a href=#944 id=944 data-nosnippet>944</a>    /// When two block parameters are swapped (`jmp b1(v1, v0, ...)`  where `b1(v0, v1, ...)`),
+<a href=#945 id=945 data-nosnippet>945</a>    /// both sources are also destinations, so both need temporaries. If the temporaries are
+<a href=#946 id=946 data-nosnippet>946</a>    /// freed too early, the register allocator can reuse the same address for the second
+<a href=#947 id=947 data-nosnippet>947</a>    /// temp, overwriting the first saved value.
+<a href=#948 id=948 data-nosnippet>948</a>    </span><span class="attr">#[test]
+<a href=#949 id=949 data-nosnippet>949</a>    </span><span class="kw">fn </span>jmp_block_params_parallel_move_swap() {
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#951 id=951 data-nosnippet>951</a>            brillig(inline) impure fn main f0 {
+<a href=#952 id=952 data-nosnippet>952</a>              b0():
+<a href=#953 id=953 data-nosnippet>953</a>                jmp b1(u32 0, u32 1, u32 0)
+<a href=#954 id=954 data-nosnippet>954</a>              b1(v0: u32, v1: u32, v2: u32):
+<a href=#955 id=955 data-nosnippet>955</a>                v3 = lt v2, u32 1
+<a href=#956 id=956 data-nosnippet>956</a>                jmpif v3 then: b2, else: b3
+<a href=#957 id=957 data-nosnippet>957</a>              b2():
+<a href=#958 id=958 data-nosnippet>958</a>                v4 = unchecked_add v2, u32 1
+<a href=#959 id=959 data-nosnippet>959</a>                jmp b1(v1, v0, v4)
+<a href=#960 id=960 data-nosnippet>960</a>              b3():
+<a href=#961 id=961 data-nosnippet>961</a>                constrain v0 == u32 1
+<a href=#962 id=962 data-nosnippet>962</a>                constrain v1 == u32 0
+<a href=#963 id=963 data-nosnippet>963</a>                return
+<a href=#964 id=964 data-nosnippet>964</a>            }
+<a href=#965 id=965 data-nosnippet>965</a>        "#</span>;
+<a href=#966 id=966 data-nosnippet>966</a>
+<a href=#967 id=967 data-nosnippet>967</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#968 id=968 data-nosnippet>968</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#969 id=969 data-nosnippet>969</a>        <span class="kw">let </span>options = BrilligOptions::default();
+<a href=#970 id=970 data-nosnippet>970</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#971 id=971 data-nosnippet>971</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#972 id=972 data-nosnippet>972</a>
+<a href=#973 id=973 data-nosnippet>973</a>        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>generated.byte_code, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
+<a href=#974 id=974 data-nosnippet>974</a>        <span class="kw">let </span>status = vm.process_opcodes();
+<a href=#975 id=975 data-nosnippet>975</a>        <span class="macro">assert_eq!</span>(
+<a href=#976 id=976 data-nosnippet>976</a>            status,
+<a href=#977 id=977 data-nosnippet>977</a>            VMStatus::Finished { return_data_offset: <span class="number">0</span>, return_data_size: <span class="number">0 </span>},
+<a href=#978 id=978 data-nosnippet>978</a>            <span class="string">"VM should finish successfully; v0 and v1 should be swapped after one iteration"
+<a href=#979 id=979 data-nosnippet>979</a>        </span>);
+<a href=#980 id=980 data-nosnippet>980</a>    }
+<a href=#981 id=981 data-nosnippet>981</a>}</code></pre></div></section></main></body></html>
