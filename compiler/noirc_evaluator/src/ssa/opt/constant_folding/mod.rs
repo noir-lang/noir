@@ -516,6 +516,7 @@ impl Context {
         let can_be_deduplicated = can_be_deduplicated(instruction, dfg);
 
         let use_constraint_info = self.use_constraint_info;
+        let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
 
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
@@ -532,6 +533,9 @@ impl Context {
         match can_be_deduplicated {
             CanBeDeduplicated::Always => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
+            // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
+            _ if is_make_array => cache_instruction(),
+
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }
