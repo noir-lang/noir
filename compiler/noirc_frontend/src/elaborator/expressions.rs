@@ -459,15 +459,25 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let ((hir_ident, var_scope_index), _) = self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location));
-                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
-
-                let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                let expr_id = self.intern_expr(hir_expr, *location);
-                let typ = self.type_check_variable(hir_ident, &expr_id, None);
-                let expr_id = self.intern_expr_type(expr_id, typ.clone());
-
+                let (typ, expr_id) = match self
+                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
+                {
+                    Some((hir_ident, var_scope_index, _)) => {
+                        self.handle_hir_ident(&hir_ident, var_scope_index, *location);
+                        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+                        let expr_id = self.intern_expr(hir_expr, *location);
+                        let typ = self.type_check_variable(hir_ident, &expr_id, None);
+                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+                        (typ, expr_id)
+                    }
+                    None => {
+                        let hir_expr = HirExpression::Error;
+                        let expr_id = self.intern_expr(hir_expr, *location);
+                        let typ = Type::Error;
+                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+                        (typ, expr_id)
+                    }
+                };
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }

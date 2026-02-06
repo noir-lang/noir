@@ -724,18 +724,20 @@ impl Elaborator<'_> {
 
     /// Resolve a [TypedPath] into a local or global [HirIdent].
     ///
-    /// If it cannot be found, then it pushes the error and returns an ident with a [DefinitionId::dummy_id].
+    /// If it cannot be found, then it pushes the error and returns [None].
     pub(crate) fn get_ident_from_path(
         &mut self,
         path: TypedPath,
-    ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
-        let location = Location::new(path.last_ident().span(), path.location.file);
-
-        self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
-            self.push_err(error);
-            let id = DefinitionId::dummy_id();
-            ((HirIdent::non_trait_method(id, location), 0), None)
-        })
+    ) -> Option<(HirIdent, usize, Option<PathResolutionItem>)> {
+        match self.get_ident_from_path_or_error(path) {
+            Ok(((hir_ident, index), path_resolution_item)) => {
+                Some((hir_ident, index, path_resolution_item))
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
     }
 
     /// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.

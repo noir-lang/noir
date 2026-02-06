@@ -59,8 +59,8 @@ impl Elaborator<'_> {
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
-        let (expr, item) = self.resolve_variable(variable);
-        let definition_id = expr.id;
+        let (hir_ident, item) = self.resolve_variable(variable);
+        let definition_id = hir_ident.as_ref().map(|ident| ident.id);
 
         if let Some(PathResolutionItem::TypeAlias(alias)) = item {
             // A type alias to a numeric generics is considered like a variable,
@@ -95,7 +95,7 @@ impl Elaborator<'_> {
             (Vec::new(), None)
         };
 
-        let definition = self.interner.try_definition(definition_id);
+        let definition = definition_id.map(|id| self.interner.definition(id));
         let is_comptime_local = !self.in_comptime_context()
             && definition.is_some_and(DefinitionInfo::is_comptime_local);
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
@@ -139,18 +139,28 @@ impl Elaborator<'_> {
             None
         };
 
-        let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
+        let (id, typ) = if let Some(hir_ident) = hir_ident {
+            let id = self
+                .intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        let typ = self.type_check_variable_with_bindings(
-            expr,
-            &id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        );
-        let id = self.intern_expr_type(id, typ.clone());
+            // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+            let push_required_type_variables = self.current_trait.is_none();
+            let typ = self.type_check_variable_with_bindings(
+                hir_ident,
+                &id,
+                generics,
+                bindings,
+                push_required_type_variables,
+            );
+            let id = self.intern_expr_type(id, typ.clone());
+            (id, typ)
+        } else {
+            let expr = HirExpression::Error;
+            let id = self.intern_expr(expr, location);
+            let typ = Type::Error;
+            let id = self.intern_expr_type(id, typ.clone());
+            (id, typ)
+        };
 
         (id, typ, is_comptime_local, location)
     }
@@ -242,37 +252,35 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
-    fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
+    fn resolve_variable(
+        &mut self,
+        path: TypedPath,
+    ) -> (Option<HirIdent>, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
 
             return match trait_path_resolution.method {
                 TraitPathResolutionMethod::NotATraitMethod(func_id) => (
-                    HirIdent {
+                    Some(HirIdent {
                         location: path.location,
                         id: self.interner.function_definition_id(func_id),
                         impl_kind: ImplKind::NotATraitMethod,
-                    },
+                    }),
                     trait_path_resolution.item,
                 ),
 
                 TraitPathResolutionMethod::TraitItem(item) => (
-                    HirIdent {
+                    Some(HirIdent {
                         location: path.location,
                         id: item.definition,
                         impl_kind: ImplKind::TraitItem(item),
-                    },
+                    }),
                     trait_path_resolution.item,
                 ),
 
                 TraitPathResolutionMethod::MultipleTraitsInScope => {
-                    // An error has already been pushed, return a dummy identifier
-                    let hir_ident = HirIdent {
-                        location: path.location,
-                        id: DefinitionId::dummy_id(),
-                        impl_kind: ImplKind::NotATraitMethod,
-                    };
-                    (hir_ident, trait_path_resolution.item)
+                    // An error has already been pushed, don't return an identifier
+                    (None, trait_path_resolution.item)
                 }
             };
         }
@@ -282,11 +290,14 @@ impl Elaborator<'_> {
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
         let location = path.location;
-        let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
 
-        self.handle_hir_ident(&hir_ident, var_scope_index, location);
-
-        (hir_ident, item)
+        match self.get_ident_from_path(path) {
+            Some((hir_ident, var_scope_index, item)) => {
+                self.handle_hir_ident(&hir_ident, var_scope_index, location);
+                (Some(hir_ident), item)
+            }
+            None => (None, None),
+        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
