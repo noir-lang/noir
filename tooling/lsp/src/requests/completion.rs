@@ -998,9 +998,10 @@ impl<'a> NodeFinder<'a> {
         // If we can't resolve a path through lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
         if let Some(reference_id) = self.interner.find_referenced(location)
-            && let Some(id) = module_def_id_from_reference_id(reference_id) {
-                return Some(id);
-            }
+            && let Some(id) = module_def_id_from_reference_id(reference_id)
+        {
+            return Some(id);
+        }
 
         None
     }
@@ -1474,10 +1475,11 @@ impl Visitor for NodeFinder<'_> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if let ExpressionKind::Variable(path) = &call_expression.func.kind
-            && self.includes_span(path.location.span) {
-                self.find_in_path_impl(path, RequestedItems::AnyItems, true);
-                return false;
-            }
+            && self.includes_span(path.location.span)
+        {
+            self.find_in_path_impl(path, RequestedItems::AnyItems, true);
+            return false;
+        }
 
         // Check if it's this case:
         //
@@ -1625,16 +1627,17 @@ impl Visitor for NodeFinder<'_> {
         // then suggest methods of the resulting type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(object)
-                && let Some(typ) = get_field_type(&typ, field_name.as_str()) {
-                    let prefix = "";
-                    let self_prefix = false;
-                    self.complete_type_fields_and_methods(
-                        &typ,
-                        prefix,
-                        FunctionCompletionKind::NameAndParameters,
-                        self_prefix,
-                    );
-                }
+                && let Some(typ) = get_field_type(&typ, field_name.as_str())
+            {
+                let prefix = "";
+                let self_prefix = false;
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                    self_prefix,
+                );
+            }
 
             return false;
         }
@@ -1646,16 +1649,17 @@ impl Visitor for NodeFinder<'_> {
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
             if let Some(typ) = self.get_lvalue_type(array)
-                && let Some(typ) = get_array_element_type(typ) {
-                    let prefix = "";
-                    let self_prefix = false;
-                    self.complete_type_fields_and_methods(
-                        &typ,
-                        prefix,
-                        FunctionCompletionKind::NameAndParameters,
-                        self_prefix,
-                    );
-                }
+                && let Some(typ) = get_array_element_type(typ)
+            {
+                let prefix = "";
+                let self_prefix = false;
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                    self_prefix,
+                );
+            }
             return false;
         }
         true

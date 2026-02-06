@@ -105,9 +105,10 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
                 ModuleId { krate: id.krate, local_id: parent_local_id },
                 args,
                 &mut string,
-            ) {
-                string.push('\n');
-            }
+            )
+        {
+            string.push('\n');
+        }
         string.push_str("    ");
         string.push_str("mod ");
         string.push_str(&module_attributes.name);
@@ -317,10 +318,11 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&format!("{typ}"));
 
     if let GlobalValue::Resolved(value) = &global_info.value
-        && let Some(value) = value_to_string(value) {
-            string.push_str(" = ");
-            string.push_str(&value);
-        }
+        && let Some(value) = value_to_string(value)
+    {
+        string.push_str(" = ");
+        string.push_str(&value);
+    }
 
     append_doc_comments(ReferenceId::Global(id), &mut string, args);
 

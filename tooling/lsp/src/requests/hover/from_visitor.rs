@@ -98,9 +98,10 @@ impl Visitor for HoverFinder<'_> {
 
         let location = ident.location();
         if let Some(typ) = self.interner.type_at_location(location)
-            && !typ.is_primitive() {
-                return true;
-            }
+            && !typ.is_primitive()
+        {
+            return true;
+        }
 
         let name = ident.as_str();
         let Some(markup) = primitive_type_markup_content(name, self.interner) else {

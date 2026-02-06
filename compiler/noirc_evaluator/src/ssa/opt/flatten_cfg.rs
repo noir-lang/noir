@@ -416,9 +416,10 @@ impl<'f> Context<'f> {
         instruction: &InstructionId,
     ) -> bool {
         if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction]
-            && let Value::Function(fid) = self.inserter.function.dfg[func] {
-                return no_predicates.get(&fid).copied().unwrap_or_default();
-            }
+            && let Value::Function(fid) = self.inserter.function.dfg[func]
+        {
+            return no_predicates.get(&fid).copied().unwrap_or_default();
+        }
         false
     }
 

@@ -108,9 +108,10 @@ pub fn save_witness(
 
     // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
     if let Ok(current_dir) = std::env::current_dir()
-        && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
-            witness_path = name_without_prefix.to_path_buf();
-        }
+        && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir)
+    {
+        witness_path = name_without_prefix.to_path_buf();
+    }
 
     noirc_errors::println_to_stdout!(
         "[{}] Witness saved to {}",
@@ -127,9 +128,10 @@ pub fn check_witness(
 ) -> Result<(), CliError> {
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
     if let Some(ref expected) = circuit.abi.return_type
-        && return_values.actual_return.is_none() {
-            return Err(CliError::MissingReturn { expected: expected.clone() });
-        }
+        && return_values.actual_return.is_none()
+    {
+        return Err(CliError::MissingReturn { expected: expected.clone() });
+    }
 
     // Check that if the prover file contained a `return` entry then that's what we got.
     if let Some(expected) = return_values.expected_return {

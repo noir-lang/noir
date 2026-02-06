@@ -287,12 +287,12 @@ impl BrilligTaintedIds {
     fn process_array_get(&mut self, array: ValueId, index: usize, element_results: &[ValueId]) {
         if let Some(element_indices) = self.array_elements.get(&array)
             && let Some(result_index) = element_indices.get(index)
-                && let Some(ResultStatus::Unconstrained { descendants }) =
-                    self.results.get_mut(*result_index)
-                {
-                    descendants.extend(element_results);
-                    self.root_results.extend(element_results);
-                }
+            && let Some(ResultStatus::Unconstrained { descendants }) =
+                self.results.get_mut(*result_index)
+        {
+            descendants.extend(element_results);
+            self.root_results.extend(element_results);
+        }
     }
 }
 
@@ -331,57 +331,54 @@ impl DependencyContext {
         function.dfg[block].instructions().iter().for_each(|instruction| {
             if let Instruction::Call { func, arguments } = &function.dfg[*instruction]
                 && let Value::Function(callee) = &function.dfg[*func]
-                    && all_functions[callee].runtime().is_brillig() {
-                        // Skip already visited locations (happens often in unrolled functions)
-                        let call_stack = function.dfg.get_instruction_call_stack(*instruction);
-                        let location = call_stack.last();
+                && all_functions[callee].runtime().is_brillig()
+            {
+                // Skip already visited locations (happens often in unrolled functions)
+                let call_stack = function.dfg.get_instruction_call_stack(*instruction);
+                let location = call_stack.last();
 
-                        // If there is no call stack (happens for tests), consider unvisited
-                        let visited = location
-                            .map(|loc| self.visited_locations.contains(&(*callee, *loc)))
-                            .unwrap_or_default();
+                // If there is no call stack (happens for tests), consider unvisited
+                let visited = location
+                    .map(|loc| self.visited_locations.contains(&(*callee, *loc)))
+                    .unwrap_or_default();
 
-                        if !visited {
-                            let results = function.dfg.instruction_results(*instruction);
+                if !visited {
+                    let results = function.dfg.instruction_results(*instruction);
 
-                            // Calls with no results (e.g. print) shouldn't be checked
-                            if results.is_empty() {
-                                return;
-                            }
+                    // Calls with no results (e.g. print) shouldn't be checked
+                    if results.is_empty() {
+                        return;
+                    }
 
-                            let current_tainted =
-                                BrilligTaintedIds::new(function, arguments, results);
+                    let current_tainted = BrilligTaintedIds::new(function, arguments, results);
 
-                            // Record arguments/results for each Brillig call for the check.
-                            //
-                            // Do not track Brillig calls acting as simple wrappers over
-                            // another registered Brillig call, update the tainted sets of
-                            // the wrapped call instead
-                            let mut wrapped_call_found = false;
-                            for (_, tainted_call) in self.tainted.iter_mut() {
-                                if current_tainted.is_wrapper(tainted_call) {
-                                    tainted_call.update_results_children(results);
-                                    wrapped_call_found = true;
-                                    break;
-                                }
-                            }
-
-                            if !wrapped_call_found {
-                                // Record the current call, remember the argument values involved
-                                self.tainted.insert(*instruction, current_tainted);
-                                arguments.iter().for_each(|value| {
-                                    self.call_arguments
-                                        .entry(*value)
-                                        .or_default()
-                                        .push(*instruction);
-                                });
-                            }
-
-                            if let Some(location) = location {
-                                self.visited_locations.insert((*callee, *location));
-                            }
+                    // Record arguments/results for each Brillig call for the check.
+                    //
+                    // Do not track Brillig calls acting as simple wrappers over
+                    // another registered Brillig call, update the tainted sets of
+                    // the wrapped call instead
+                    let mut wrapped_call_found = false;
+                    for (_, tainted_call) in self.tainted.iter_mut() {
+                        if current_tainted.is_wrapper(tainted_call) {
+                            tainted_call.update_results_children(results);
+                            wrapped_call_found = true;
+                            break;
                         }
                     }
+
+                    if !wrapped_call_found {
+                        // Record the current call, remember the argument values involved
+                        self.tainted.insert(*instruction, current_tainted);
+                        arguments.iter().for_each(|value| {
+                            self.call_arguments.entry(*value).or_default().push(*instruction);
+                        });
+                    }
+
+                    if let Some(location) = location {
+                        self.visited_locations.insert((*callee, *location));
+                    }
+                }
+            }
         });
 
         //Then, go over the instructions
@@ -419,10 +416,10 @@ impl DependencyContext {
                                 if matches!(
                                     &function.dfg[*instruction],
                                     Instruction::Cast(..) | Instruction::Truncate { .. }
-                                )
-                                    && let Some(tainted_ids) = self.tainted.get_mut(call) {
-                                        tainted_ids.arguments.extend(&arguments);
-                                    }
+                                ) && let Some(tainted_ids) = self.tainted.get_mut(call)
+                                {
+                                    tainted_ids.arguments.extend(&arguments);
+                                }
                             }
                         }
                     }
@@ -648,14 +645,15 @@ impl DependencyContext {
 
         // Only allow numeric constant indices
         if let Some(value) = function.dfg.get_numeric_constant(index)
-            && let Some(index) = value.try_to_u32() {
-                // Skip untracked calls
-                for call in &self.tracking {
-                    if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                        tainted_ids.process_array_get(array, index as usize, element_results);
-                    }
+            && let Some(index) = value.try_to_u32()
+        {
+            // Skip untracked calls
+            for call in &self.tracking {
+                if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                    tainted_ids.process_array_get(array, index as usize, element_results);
                 }
             }
+        }
     }
 }
 

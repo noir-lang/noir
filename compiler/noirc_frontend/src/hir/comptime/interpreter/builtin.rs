@@ -2630,9 +2630,10 @@ fn function_def_has_named_attribute(
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function()
-        && name == attribute.kind.name() {
-            return Ok(Value::Bool(true));
-        }
+        && name == attribute.kind.name()
+    {
+        return Ok(Value::Bool(true));
+    }
 
     Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
 }

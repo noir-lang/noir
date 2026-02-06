@@ -282,24 +282,26 @@ impl Kind {
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
         if let Some(maximum_size) = self.integral_maximum_size()
-            && value > SignedField::positive(maximum_size) {
-                return Err(TypeCheckError::OverflowingConstant {
-                    value,
-                    kind: self.clone(),
-                    maximum_size,
-                    location,
-                });
-            }
+            && value > SignedField::positive(maximum_size)
+        {
+            return Err(TypeCheckError::OverflowingConstant {
+                value,
+                kind: self.clone(),
+                maximum_size,
+                location,
+            });
+        }
 
         if let Some(minimum_size) = self.integral_minimum_size()
-            && value < minimum_size {
-                return Err(TypeCheckError::UnderflowingConstant {
-                    value,
-                    kind: self.clone(),
-                    minimum_size,
-                    location,
-                });
-            }
+            && value < minimum_size
+        {
+            return Err(TypeCheckError::UnderflowingConstant {
+                value,
+                kind: self.clone(),
+                minimum_size,
+                location,
+            });
+        }
 
         Ok(value)
     }
@@ -1701,15 +1703,19 @@ impl Type {
         // division in the original expression, so multiplying it back is just going back to the
         // original `y`
         if let Type::InfixExpr(rhs_lhs, rhs_op, rhs_rhs, true) = &*rhs
-            && op.approx_inverse() == Some(*rhs_op) && lhs == *rhs_rhs {
-                return *rhs_lhs.clone();
-            }
+            && op.approx_inverse() == Some(*rhs_op)
+            && lhs == *rhs_rhs
+        {
+            return *rhs_lhs.clone();
+        }
 
         // Same thing but on the other side.
         if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, true) = &*lhs
-            && op.approx_inverse() == Some(*lhs_op) && rhs == *lhs_rhs {
-                return *lhs_lhs.clone();
-            }
+            && op.approx_inverse() == Some(*lhs_op)
+            && rhs == *lhs_rhs
+        {
+            return *lhs_lhs.clone();
+        }
 
         Self::InfixExpr(lhs, op, rhs, inversion)
     }
@@ -1745,9 +1751,9 @@ impl Type {
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.is_nested_vector_helper(seen_data_types))
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
+                    }
                 }
                 false
             }
@@ -1816,9 +1822,9 @@ impl Type {
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_vector_helper(seen_data_types))
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
+                    }
                 }
                 false
             }
@@ -1891,9 +1897,9 @@ impl Type {
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_array_helper(seen_data_types))
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
+                    }
                 }
                 false
             }
@@ -1961,9 +1967,9 @@ impl Type {
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.is_vector_with_nested_array_helper(seen_data_types))
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
+                    }
                 }
                 false
             }
@@ -2049,9 +2055,9 @@ impl Type {
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_reference_helper(seen_data_types))
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
+                    }
                 }
                 false
             }
@@ -2130,9 +2136,9 @@ impl Type {
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_function_helper(seen_data_types))
-                        {
-                            return true;
-                        }
+                    {
+                        return true;
+                    }
                 }
                 false
             }

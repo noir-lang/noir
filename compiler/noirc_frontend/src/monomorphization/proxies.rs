@@ -89,14 +89,15 @@ impl ProxyContext {
             if !self.in_unconstrained
                 && let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
-                    && let Expression::Ident(ident) = func.as_mut()
-                        && matches!(ident.definition, Definition::Oracle(_)) {
-                            self.redirect_to_proxy(ident, true);
-                            for arg in arguments {
-                                self.visit_expr(arg);
-                            }
-                            return false;
-                        }
+                && let Expression::Ident(ident) = func.as_mut()
+                && matches!(ident.definition, Definition::Oracle(_))
+            {
+                self.redirect_to_proxy(ident, true);
+                for arg in arguments {
+                    self.visit_expr(arg);
+                }
+                return false;
+            }
 
             // If this is a foreign function value, we want to replace it with proxies.
             let Some(mut pair) = ForeignFunctionValue::try_from(expr) else {

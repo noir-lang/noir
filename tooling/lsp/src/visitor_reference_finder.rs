@@ -192,9 +192,10 @@ impl Visitor for VisitorReferenceFinder<'_> {
 
         let def_map = &self.args.def_maps[&self.module_id.krate];
         if let Some(module_data) = def_map.get(self.module_id.local_id)
-            && let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
-                self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
-            }
+            && let Some(child_module) = module_data.children.get(&parsed_sub_module.name)
+        {
+            self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
+        }
 
         parsed_sub_module.accept_children(self);
 

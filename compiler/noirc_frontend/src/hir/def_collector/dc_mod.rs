@@ -991,11 +991,12 @@ impl ModCollector<'_> {
         // See https://github.com/noir-lang/noir/issues/8504
         if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ
             && path.segments.len() == 1
-                && let Some(primitive_type) =
-                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-                    && let Some(typ) = primitive_type.to_integer_or_field() {
-                        return typ;
-                    }
+            && let Some(primitive_type) =
+                PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+            && let Some(typ) = primitive_type.to_integer_or_field()
+        {
+            return typ;
+        }
 
         let error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
         errors.push(error.into());
@@ -1012,9 +1013,10 @@ fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> 
 
     submodule.outer_attributes.iter().find_map(|attr| {
         if let SecondaryAttributeKind::Tag(tag) = &attr.kind
-            && let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ") {
-                return Some(primitive.to_string());
-            }
+            && let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ")
+        {
+            return Some(primitive.to_string());
+        }
         None
     })
 }
@@ -1110,9 +1112,10 @@ pub fn collect_function(
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
     if let Some(field) = function.attributes().get_field_attribute()
-        && !is_native_field(&field) {
-            return None;
-        }
+        && !is_native_field(&field)
+    {
+        return None;
+    }
 
     let is_crate_root = def_map.root() == module.local_id;
     let module_data = &mut def_map[module.local_id];
@@ -1138,13 +1141,12 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if is_entry_point_function
-        && let Some(generic) = function.def.generics.first() {
-            let name = name.to_string();
-            let location = generic.location();
-            let error = DefCollectorErrorKind::EntryPointWithGenerics { name, location };
-            errors.push(error.into());
-        }
+    if is_entry_point_function && let Some(generic) = function.def.generics.first() {
+        let name = name.to_string();
+        let location = generic.location();
+        let error = DefCollectorErrorKind::EntryPointWithGenerics { name, location };
+        errors.push(error.into());
+    }
 
     if !is_test
         && !is_fuzzing_harness
@@ -1160,17 +1162,18 @@ pub fn collect_function(
 
     if let Some((test_scope, location)) = test_attribute
         && function.def.parameters.is_empty()
-            && matches!(test_scope, TestScope::OnlyFailWith { .. })
-        {
-            let error = DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location };
-            errors.push(error.into());
-        }
+        && matches!(test_scope, TestScope::OnlyFailWith { .. })
+    {
+        let error = DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location };
+        errors.push(error.into());
+    }
 
     if let Some((_, location)) = fuzz_attribute
-        && function.def.parameters.is_empty() {
-            let error = DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location };
-            errors.push(error.into());
-        }
+        && function.def.parameters.is_empty()
+    {
+        let error = DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location };
+        errors.push(error.into());
+    }
 
     // Add function to scope/ns of the module
     let result = module_data.declare_function(name, visibility, func_id);

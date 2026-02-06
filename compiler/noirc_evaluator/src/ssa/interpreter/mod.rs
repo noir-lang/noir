@@ -381,10 +381,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         if self.options.trace
             && let Some(context) = self.call_stack.last()
-                && let Some(function_id) = context.called_function {
-                    let function = &self.functions[&function_id];
-                    println!("back in function {} ({})", function_id, function.name());
-                }
+            && let Some(function_id) = context.called_function
+        {
+            let function = &self.functions[&function_id];
+            println!("back in function {} ({})", function_id, function.name());
+        }
 
         Ok(return_values)
     }
@@ -476,9 +477,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. }))
                 && let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
                     self.lookup(value_id)
-                {
-                    return InterpreterError::IndexOutOfBounds { index, length };
-                }
+            {
+                return InterpreterError::IndexOutOfBounds { index, length };
+            }
             e
         })
     }

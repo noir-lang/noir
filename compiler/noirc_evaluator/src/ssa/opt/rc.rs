@@ -156,10 +156,11 @@ impl Context {
         for instruction in function.dfg[last_block].instructions() {
             if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction]
                 && let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs)
-                    && !inc_rc.possibly_mutated {
-                        to_remove.insert(inc_rc.id);
-                        to_remove.insert(*instruction);
-                    }
+                && !inc_rc.possibly_mutated
+            {
+                to_remove.insert(inc_rc.id);
+                to_remove.insert(*instruction);
+            }
         }
 
         to_remove

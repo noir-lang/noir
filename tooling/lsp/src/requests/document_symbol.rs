@@ -297,9 +297,10 @@ impl Visitor for DocumentSymbolCollector<'_> {
 
         // If there's a body, extend the span to include it
         if let Some(body) = body
-            && let Some(statement) = body.statements.last() {
-                span = Span::from(span.start()..statement.location.span.end());
-            }
+            && let Some(statement) = body.statements.last()
+        {
+            span = Span::from(span.start()..statement.location.span.end());
+        }
 
         let Some(location) = self.to_lsp_location(span) else {
             return false;

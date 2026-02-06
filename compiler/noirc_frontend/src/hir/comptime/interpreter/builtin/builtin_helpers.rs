@@ -602,9 +602,10 @@ pub(super) fn has_named_attribute(
 ) -> bool {
     for attribute in attributes {
         if let Some(attribute_name) = secondary_attribute_name(attribute, interner)
-            && name == attribute_name {
-                return true;
-            }
+            && name == attribute_name
+        {
+            return true;
+        }
     }
 
     false

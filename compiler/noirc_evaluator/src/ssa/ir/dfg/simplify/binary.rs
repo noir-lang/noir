@@ -118,36 +118,38 @@ pub(super) fn simplify_binary(
                 if let super::Value::Instruction { instruction, .. } = &dfg[rhs]
                     && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                         dfg[*instruction]
-                        && matches!(operator, BinaryOp::Mul { .. })
-                            && (lhs == b_lhs || lhs == b_rhs)
-                        {
-                            return SimplifyResult::SimplifiedTo(rhs);
-                        }
+                    && matches!(operator, BinaryOp::Mul { .. })
+                    && (lhs == b_lhs || lhs == b_rhs)
+                {
+                    return SimplifyResult::SimplifiedTo(rhs);
+                }
             }
             // (b*x)*b = b*x if b is boolean
             if dfg.get_value_max_num_bits(rhs) == 1
                 && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
-                    && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                        dfg[*instruction]
-                        && matches!(operator, BinaryOp::Mul { .. })
-                            && (rhs == b_lhs || rhs == b_rhs)
-                        {
-                            return SimplifyResult::SimplifiedTo(lhs);
-                        }
+                && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
+                    dfg[*instruction]
+                && matches!(operator, BinaryOp::Mul { .. })
+                && (rhs == b_lhs || rhs == b_rhs)
+            {
+                return SimplifyResult::SimplifiedTo(lhs);
+            }
         }
         BinaryOp::Div => {
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
             if let Some(rhs_value) = rhs_value
-                && lhs_type == NumericType::NativeField && !rhs_value.is_zero() {
-                    let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
-                    return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
-                        lhs,
-                        rhs,
-                        operator: BinaryOp::Mul { unchecked: false },
-                    }));
-                }
+                && lhs_type == NumericType::NativeField
+                && !rhs_value.is_zero()
+            {
+                let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                    lhs,
+                    rhs,
+                    operator: BinaryOp::Mul { unchecked: false },
+                }));
+            }
         }
         BinaryOp::Mod => {
             if rhs_is_one {

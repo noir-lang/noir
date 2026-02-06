@@ -659,13 +659,15 @@ mod helpers {
         if max_depth > 0 {
             let idx = u.choose_index(3)?;
             if idx == 0
-                && let Some(expr) = gen_unary(u, typ, max_depth)? {
-                    return Ok(expr);
-                }
+                && let Some(expr) = gen_unary(u, typ, max_depth)?
+            {
+                return Ok(expr);
+            }
             if idx == 1
-                && let Some(expr) = gen_binary(u, typ, max_depth)? {
-                    return Ok(expr);
-                }
+                && let Some(expr) = gen_binary(u, typ, max_depth)?
+            {
+                return Ok(expr);
+            }
         }
         expr::gen_literal(u, typ, &Config::default())
     }
@@ -817,9 +819,10 @@ mod helpers {
             // Update the IDs in identifiers based on the replacements we remember from above.
             &mut |ident| {
                 if let Definition::Local(id) = &mut ident.definition
-                    && let Some(replacement) = replacements.borrow().get(id) {
-                        *id = *replacement;
-                    }
+                    && let Some(replacement) = replacements.borrow().get(id)
+                {
+                    *id = *replacement;
+                }
             },
         );
     }

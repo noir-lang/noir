@@ -333,9 +333,10 @@ fn new_use_completion_item_additional_text_edits(
 
     // If the line we are inserting into is not an empty line, insert an extra line to make some room
     if let Some(line_text) = request.lines.get(line as usize)
-        && !line_text.trim().is_empty() {
-            newlines = "\n\n";
-        }
+        && !line_text.trim().is_empty()
+    {
+        newlines = "\n\n";
+    }
 
     vec![TextEdit {
         range: Range { start: Position { line, character }, end: Position { line, character } },

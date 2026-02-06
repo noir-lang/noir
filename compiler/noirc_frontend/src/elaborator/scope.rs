@@ -202,9 +202,10 @@ impl Elaborator<'_> {
         let segment = path.as_single_segment();
         if let Some(segment) = segment
             && segment.ident.is_self_type_name()
-                && let Some(typ) = &self.self_type {
-                    return Some(typ.clone());
-                }
+            && let Some(typ) = &self.self_type
+        {
+            return Some(typ.clone());
+        }
 
         let location = path.location;
         match self.use_path_or_error(path, PathResolutionTarget::Type) {

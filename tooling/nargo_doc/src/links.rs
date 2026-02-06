@@ -246,65 +246,67 @@ pub(crate) fn path_to_link_target(
     let segments: Vec<&str> = path.split("::").collect();
 
     if let Some(current_type) = current_type
-        && segments.len() <= 2 && segments[0] == "Self" {
-            let method_name = segments.get(1).copied();
-            match current_type {
-                CurrentType::Type(type_id) => {
-                    if let Some(method_name) = method_name {
-                        return type_method_or_field_link_target(type_id, method_name, interner);
-                    } else {
-                        return Some(LinkTarget::TopLevelItem(ModuleDefId::TypeId(type_id)));
-                    }
+        && segments.len() <= 2
+        && segments[0] == "Self"
+    {
+        let method_name = segments.get(1).copied();
+        match current_type {
+            CurrentType::Type(type_id) => {
+                if let Some(method_name) = method_name {
+                    return type_method_or_field_link_target(type_id, method_name, interner);
+                } else {
+                    return Some(LinkTarget::TopLevelItem(ModuleDefId::TypeId(type_id)));
                 }
-                CurrentType::Trait(trait_id) => {
-                    if let Some(method_name) = method_name {
-                        return trait_method_link_target(trait_id, method_name, interner);
-                    } else {
-                        return Some(LinkTarget::TopLevelItem(ModuleDefId::TraitId(trait_id)));
-                    }
+            }
+            CurrentType::Trait(trait_id) => {
+                if let Some(method_name) = method_name {
+                    return trait_method_link_target(trait_id, method_name, interner);
+                } else {
+                    return Some(LinkTarget::TopLevelItem(ModuleDefId::TraitId(trait_id)));
                 }
-                CurrentType::PrimitiveType(primitive_type) => {
-                    let Some(method_name) = method_name else {
-                        return Some(LinkTarget::PrimitiveType(primitive_type));
-                    };
+            }
+            CurrentType::PrimitiveType(primitive_type) => {
+                let Some(method_name) = method_name else {
+                    return Some(LinkTarget::PrimitiveType(primitive_type));
+                };
 
-                    // Array and Vector need special handling because they are composite types
-                    // that aren't named like they are in the docs.
-                    match primitive_type {
-                        PrimitiveTypeKind::Array => {
-                            let typ = noirc_frontend::Type::Array(
-                                Box::new(noirc_frontend::Type::Error),
-                                Box::new(noirc_frontend::Type::Error),
-                            );
-                            return primitive_type_method_link_target(
-                                primitive_type,
-                                &typ,
-                                method_name,
-                                interner,
-                            );
-                        }
-                        PrimitiveTypeKind::Vector => {
-                            let typ =
-                                noirc_frontend::Type::Vector(Box::new(noirc_frontend::Type::Error));
-                            return primitive_type_method_link_target(
-                                primitive_type,
-                                &typ,
-                                method_name,
-                                interner,
-                            );
-                        }
-                        _ => {
-                            let name = primitive_type.to_string();
-                            return primitive_type_or_primitive_type_method_link_target(
-                                &name,
-                                Some(method_name),
-                                interner,
-                            );
-                        }
+                // Array and Vector need special handling because they are composite types
+                // that aren't named like they are in the docs.
+                match primitive_type {
+                    PrimitiveTypeKind::Array => {
+                        let typ = noirc_frontend::Type::Array(
+                            Box::new(noirc_frontend::Type::Error),
+                            Box::new(noirc_frontend::Type::Error),
+                        );
+                        return primitive_type_method_link_target(
+                            primitive_type,
+                            &typ,
+                            method_name,
+                            interner,
+                        );
+                    }
+                    PrimitiveTypeKind::Vector => {
+                        let typ =
+                            noirc_frontend::Type::Vector(Box::new(noirc_frontend::Type::Error));
+                        return primitive_type_method_link_target(
+                            primitive_type,
+                            &typ,
+                            method_name,
+                            interner,
+                        );
+                    }
+                    _ => {
+                        let name = primitive_type.to_string();
+                        return primitive_type_or_primitive_type_method_link_target(
+                            &name,
+                            Some(method_name),
+                            interner,
+                        );
                     }
                 }
             }
         }
+    }
 
     let check_dependencies = true;
     if let Some(link) = path_to_link_target_searching_modules(
@@ -362,21 +364,22 @@ fn path_to_link_target_searching_modules(
                 crate_graph,
             );
         }
-        if check_dependencies && *first_segment == "super"
+        if check_dependencies
+            && *first_segment == "super"
             && let Some(parent_module) =
                 get_parent_module(ModuleDefId::ModuleId(module_id), interner, def_maps)
-            {
-                segments.remove(0);
-                let path = segments.join("::");
-                return path_to_link_target_searching_modules(
-                    &path,
-                    parent_module,
-                    false,
-                    interner,
-                    def_maps,
-                    crate_graph,
-                );
-            }
+        {
+            segments.remove(0);
+            let path = segments.join("::");
+            return path_to_link_target_searching_modules(
+                &path,
+                parent_module,
+                false,
+                interner,
+                def_maps,
+                crate_graph,
+            );
+        }
         if check_dependencies && *first_segment == "dep" {
             segments.remove(0);
             return path_to_link_target_searching_dependency(
@@ -488,10 +491,11 @@ fn type_method_or_field_link_target(
     let typ = noirc_frontend::Type::DataType(data_type.clone(), generic_types.clone());
     if let Some(methods) = interner.get_type_methods(&typ)
         && let Some(method) = methods.get(method_name)
-            && let Some(method) = method.direct.first() {
-                let method = method.method;
-                return Some(LinkTarget::Method(ModuleDefId::TypeId(type_id), method));
-            }
+        && let Some(method) = method.direct.first()
+    {
+        let method = method.method;
+        return Some(LinkTarget::Method(ModuleDefId::TypeId(type_id), method));
+    }
 
     if let Some((_, _, index)) = data_type.borrow().get_field(method_name, &generic_types) {
         return Some(LinkTarget::StructMember(type_id, index));

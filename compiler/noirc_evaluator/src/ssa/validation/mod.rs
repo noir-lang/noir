@@ -933,18 +933,19 @@ impl<'f> Validator<'f> {
     fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
         if self.function.runtime().is_brillig()
             && let Instruction::Call { func, .. } = &self.function.dfg[instruction]
-                && let Value::Function(func_id) = &self.function.dfg[*func] {
-                    let called_function = &self.ssa.functions[func_id];
-                    if called_function.runtime().is_acir() {
-                        panic!(
-                            "Call to ACIR function '{} {}' from unconstrained '{} {}'",
-                            called_function.name(),
-                            called_function.id(),
-                            self.function.name(),
-                            self.function.id(),
-                        );
-                    }
-                }
+            && let Value::Function(func_id) = &self.function.dfg[*func]
+        {
+            let called_function = &self.ssa.functions[func_id];
+            if called_function.runtime().is_acir() {
+                panic!(
+                    "Call to ACIR function '{} {}' from unconstrained '{} {}'",
+                    called_function.name(),
+                    called_function.id(),
+                    self.function.name(),
+                    self.function.id(),
+                );
+            }
+        }
     }
 
     /// Check the inputs and outputs of function calls going from ACIR to Brillig:

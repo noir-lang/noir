@@ -78,10 +78,10 @@ impl Type {
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
                 if let Ok(lhs_value) = lhs_evaluated
                     && let Ok(rhs_value) = rhs_evaluated
-                        && let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
-                        {
-                            return Type::Constant(result, kind);
-                        }
+                    && let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                {
+                    return Type::Constant(result, kind);
+                }
 
                 let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
@@ -89,16 +89,18 @@ impl Type {
                 // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division)
                     && let Ok(rhs_value) = rhs_evaluated
-                        && rhs_value.is_one() {
-                            return lhs;
-                        }
+                    && rhs_value.is_one()
+                {
+                    return lhs;
+                }
 
                 // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction)
                     && let Ok(rhs_value) = rhs_evaluated
-                        && rhs_value.is_zero() {
-                            return lhs;
-                        }
+                    && rhs_value.is_zero()
+                {
+                    return lhs;
+                }
 
                 if !run_simplifications {
                     return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);

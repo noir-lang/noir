@@ -83,9 +83,10 @@ impl Chunk {
     /// arguments into separate lines.
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
         if let Chunk::Group(group) = &self
-            && let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind {
-                return *first_line_width;
-            }
+            && let GroupKind::LambdaAsLastExpressionInList { first_line_width, .. } = &group.kind
+        {
+            return *first_line_width;
+        }
 
         self.width()
     }
@@ -368,9 +369,10 @@ impl ChunkGroup {
                     group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);
                 } else if let GroupKind::LambdaAsLastExpressionInList { indentation, .. } =
                     &mut group.kind
-                    && indentation.is_none() {
-                        *indentation = Some(indentation_to_set);
-                    }
+                    && indentation.is_none()
+                {
+                    *indentation = Some(indentation_to_set);
+                }
             }
         }
     }
@@ -460,9 +462,10 @@ impl ChunkGroup {
     fn has_expression_list_or_method_call_group(&self) -> bool {
         for chunk in &self.chunks {
             if let Chunk::Group(group) = chunk
-                && (group.kind.is_expression_list() || group.kind.is_method_call()) {
-                    return true;
-                }
+                && (group.kind.is_expression_list() || group.kind.is_method_call())
+            {
+                return true;
+            }
         }
 
         false
@@ -750,17 +753,17 @@ impl<'a> Formatter<'a> {
             // (rustfmt seems to do the same thing)
             if let GroupKind::ExpressionList { prefix_width, expressions_count: 1 } = group.kind
                 && let Some(inner_group) = group.first_group()
-                    && (inner_group.kind.is_expression_list() || inner_group.kind.is_method_call()) {
-                        let total_width = self.current_line_width()
-                            + prefix_width
-                            + inner_group.width_until_line().0;
-                        if total_width <= self.max_width {
-                            self.decrease_indentation();
-                            self.format_chunk_group_in_one_line(group);
-                            self.increase_indentation();
-                            return;
-                        }
-                    }
+                && (inner_group.kind.is_expression_list() || inner_group.kind.is_method_call())
+            {
+                let total_width =
+                    self.current_line_width() + prefix_width + inner_group.width_until_line().0;
+                if total_width <= self.max_width {
+                    self.decrease_indentation();
+                    self.format_chunk_group_in_one_line(group);
+                    self.increase_indentation();
+                    return;
+                }
+            }
         }
 
         if group.force_multiple_lines {

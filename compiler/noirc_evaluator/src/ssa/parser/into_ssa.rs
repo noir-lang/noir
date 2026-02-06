@@ -530,9 +530,10 @@ impl Translator {
         value_id: ValueId,
     ) -> Result<(), SsaError> {
         if let Some(vars) = self.variables.get(&self.current_function_id())
-            && vars.contains_key(&identifier.name) {
-                return Err(SsaError::VariableAlreadyDefined(identifier));
-            }
+            && vars.contains_key(&identifier.name)
+        {
+            return Err(SsaError::VariableAlreadyDefined(identifier));
+        }
 
         let entry = self.variables.entry(self.current_function_id()).or_default();
         entry.insert(identifier.name, value_id);

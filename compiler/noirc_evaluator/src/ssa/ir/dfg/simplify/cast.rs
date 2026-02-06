@@ -28,13 +28,14 @@ pub(super) fn simplify_cast(
     }
 
     if let Value::Instruction { instruction, .. } = &dfg[value]
-        && let Instruction::Cast(original_value, _) = &dfg[*instruction] {
-            let original_value = *original_value;
-            return match simplify_cast(original_value, dst_typ, dfg) {
-                None => SimplifiedToInstruction(Instruction::Cast(original_value, dst_typ)),
-                simpler => simpler,
-            };
-        }
+        && let Instruction::Cast(original_value, _) = &dfg[*instruction]
+    {
+        let original_value = *original_value;
+        return match simplify_cast(original_value, dst_typ, dfg) {
+            None => SimplifiedToInstruction(Instruction::Cast(original_value, dst_typ)),
+            simpler => simpler,
+        };
+    }
 
     if let Some(constant) = dfg.get_numeric_constant(value) {
         let src_typ = dfg.type_of_value(value).unwrap_numeric();

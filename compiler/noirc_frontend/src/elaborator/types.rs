@@ -328,14 +328,15 @@ impl Elaborator<'_> {
 
         for constraint in &self.trait_bounds {
             if let Type::NamedGeneric(generic) = &constraint.typ
-                && generic.name.as_ref() == type_name {
-                    let trait_id = constraint.trait_bound.trait_id;
-                    let the_trait = self.interner.get_trait(trait_id);
+                && generic.name.as_ref() == type_name
+            {
+                let trait_id = constraint.trait_bound.trait_id;
+                let the_trait = self.interner.get_trait(trait_id);
 
-                    if let Some(assoc_type) = the_trait.get_associated_type(assoc_name) {
-                        found_types.push((trait_id, assoc_type.clone()));
-                    }
+                if let Some(assoc_type) = the_trait.get_associated_type(assoc_name) {
+                    found_types.push((trait_id, assoc_type.clone()));
                 }
+            }
         }
 
         match found_types.len() {
@@ -371,9 +372,10 @@ impl Elaborator<'_> {
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
         if args.is_empty()
-            && let Some(typ) = self.lookup_generic_or_global_type(&path, mode) {
-                return typ;
-            }
+            && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
+        {
+            return typ;
+        }
 
         let location = path.location;
 
@@ -713,19 +715,21 @@ impl Elaborator<'_> {
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
             if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some() {
-                    self.push_err(ResolverError::GenericsOnAssociatedType {
-                        location: last_segment.turbofish_location(),
-                    });
-                }
+                && last_segment.generics.is_some()
+            {
+                self.push_err(ResolverError::GenericsOnAssociatedType {
+                    location: last_segment.turbofish_location(),
+                });
+            }
             return Some(typ);
         } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
             if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some() {
-                    self.push_err(ResolverError::GenericsOnAssociatedType {
-                        location: last_segment.turbofish_location(),
-                    });
-                }
+                && last_segment.generics.is_some()
+            {
+                self.push_err(ResolverError::GenericsOnAssociatedType {
+                    location: last_segment.turbofish_location(),
+                });
+            }
             return Some(typ);
         }
 
@@ -805,9 +809,10 @@ impl Elaborator<'_> {
                 let mut ab = GenericTypeArgs::default();
                 // Use generics from path, if they exist
                 if let Some(last_segment) = path.segments.last()
-                    && let Some(generics) = &last_segment.generics {
-                        ab.ordered_args = generics.clone();
-                    }
+                    && let Some(generics) = &last_segment.generics
+                {
+                    ab.ordered_args = generics.clone();
+                }
                 let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let mut typ = self.resolve_named_type(path, ab, mode, wildcard_allowed);
@@ -1549,15 +1554,17 @@ impl Elaborator<'_> {
         // check that it fits or throw a warning
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
-            && from_is_polymorphic && from_value > to_maximum_size {
-                let from = from.clone();
-                let to = to.clone();
-                let reason = format!(
-                    "casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it"
-                );
-                // we warn that the 'to' type is too small for the value
-                self.push_err(TypeCheckError::DownsizingCast { from, to, location, reason });
-            }
+            && from_is_polymorphic
+            && from_value > to_maximum_size
+        {
+            let from = from.clone();
+            let to = to.clone();
+            let reason = format!(
+                "casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it"
+            );
+            // we warn that the 'to' type is too small for the value
+            self.push_err(TypeCheckError::DownsizingCast { from, to, location, reason });
+        }
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
@@ -2411,36 +2418,37 @@ impl Elaborator<'_> {
 
         // If inside a trait method, check if it's a method on `self`
         if let Some(trait_id) = func_meta.trait_id
-            && Some(object_type) == self.self_type.as_ref() {
-                let the_trait = self.interner.get_trait(trait_id);
-                let constraint = the_trait.as_constraint(the_trait.name.location());
-                let mut matches = self.lookup_methods_in_trait(
-                    the_trait,
-                    method_name,
-                    &constraint.trait_bound,
-                    the_trait.id,
-                );
-                if matches.len() == 1 {
-                    let method = matches.remove(0);
-                    let assumed = true;
-                    // If it is, it's an assumed trait
-                    // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
-                    // might return a method on a parent trait.
-                    return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                        assumed,
-                        ..method
-                    }));
-                }
-                if matches.len() > 1 {
-                    return self.handle_trait_method_lookup_matches(
-                        object_type,
-                        method_name,
-                        location,
-                        object_location,
-                        matches,
-                    );
-                }
+            && Some(object_type) == self.self_type.as_ref()
+        {
+            let the_trait = self.interner.get_trait(trait_id);
+            let constraint = the_trait.as_constraint(the_trait.name.location());
+            let mut matches = self.lookup_methods_in_trait(
+                the_trait,
+                method_name,
+                &constraint.trait_bound,
+                the_trait.id,
+            );
+            if matches.len() == 1 {
+                let method = matches.remove(0);
+                let assumed = true;
+                // If it is, it's an assumed trait
+                // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
+                // might return a method on a parent trait.
+                return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
+                    assumed,
+                    ..method
+                }));
             }
+            if matches.len() > 1 {
+                return self.handle_trait_method_lookup_matches(
+                    object_type,
+                    method_name,
+                    location,
+                    object_location,
+                    matches,
+                );
+            }
+        }
 
         let mut matches = Vec::new();
 
@@ -2448,15 +2456,15 @@ impl Elaborator<'_> {
             if *object_type == constraint.typ
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
-                {
-                    let trait_matches = self.lookup_methods_in_trait(
-                        the_trait,
-                        method_name,
-                        &constraint.trait_bound,
-                        the_trait.id,
-                    );
-                    matches.extend(trait_matches);
-                }
+            {
+                let trait_matches = self.lookup_methods_in_trait(
+                    the_trait,
+                    method_name,
+                    &constraint.trait_bound,
+                    the_trait.id,
+                );
+                matches.extend(trait_matches);
+            }
         }
 
         self.handle_trait_method_lookup_matches(
@@ -2756,9 +2764,10 @@ impl Elaborator<'_> {
                 let mut location = self.interner.expr_location(&function_body_id);
 
                 if let Some(last_stmt) = last_stmt
-                    && let HirStatement::Expression(expr) = self.interner.statement(last_stmt) {
-                        location = self.interner.expr_location(&expr);
-                    }
+                    && let HirStatement::Expression(expr) = self.interner.statement(last_stmt)
+                {
+                    location = self.interner.expr_location(&expr);
+                }
 
                 (location, last_stmt.is_none())
             } else {

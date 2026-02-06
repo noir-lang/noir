@@ -659,10 +659,11 @@ impl Context<'_> {
             AcirValue::Var(acir_var, typ) => {
                 let array_typ = dfg.type_of_value(array);
                 if let Type::Numeric(numeric_type) = array_typ.first()
-                    && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
-                        // first element is compatible
-                        index_side_effect = false;
-                    }
+                    && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
+                {
+                    // first element is compatible
+                    index_side_effect = false;
+                }
 
                 if index_side_effect {
                     value = AcirValue::Var(

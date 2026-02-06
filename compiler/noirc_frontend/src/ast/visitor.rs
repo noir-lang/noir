@@ -700,9 +700,10 @@ impl TraitImplItemKind {
             }
             TraitImplItemKind::Type { name, alias } => {
                 if visitor.visit_trait_impl_item_type(name, alias.as_ref(), span)
-                    && let Some(alias) = alias {
-                        alias.accept(visitor);
-                    }
+                    && let Some(alias) = alias
+                {
+                    alias.accept(visitor);
+                }
             }
         }
     }
@@ -797,9 +798,10 @@ impl TraitItem {
             }
             TraitItem::Constant { name, typ } => {
                 if visitor.visit_trait_item_constant(name, typ.as_ref())
-                    && let Some(typ) = typ {
-                        typ.accept(visitor);
-                    }
+                    && let Some(typ) = typ
+                {
+                    typ.accept(visitor);
+                }
             }
             TraitItem::Type { name, bounds } => {
                 if visitor.visit_trait_item_type(name, bounds) {

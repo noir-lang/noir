@@ -483,9 +483,10 @@ impl<'a> AsyncReplDebugger<'a> {
         for (index, value) in memory.iter().enumerate() {
             // Zero field is the default value, we omit it when printing memory
             if let MemoryValue::Field(field) = value
-                && field == &FieldElement::zero() {
-                    continue;
-                }
+                && field == &FieldElement::zero()
+            {
+                continue;
+            }
             println!("{index} = {value}");
         }
     }

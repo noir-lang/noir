@@ -225,10 +225,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 if ctx.can_call_procedures
                     && let Some(ErrorType::String(message)) =
                         ctx.obj.error_types.get(&error_selector)
-                    {
-                        ctx.call_error_with_string_procedure(message.clone());
-                        return;
-                    }
+                {
+                    ctx.call_error_with_string_procedure(message.clone());
+                    return;
+                }
 
                 // Fast path: Just write selector to free memory pointer, no allocation needed
                 ctx.indirect_const_instruction(

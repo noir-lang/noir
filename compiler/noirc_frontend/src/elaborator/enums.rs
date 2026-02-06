@@ -896,9 +896,10 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Option<(Ident, Vec<(String, Type, ItemVisibility)>)> {
         if let Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref()
-            && let Some(fields) = typ.borrow().get_fields(generics) {
-                return Some((typ.borrow().name.clone(), fields));
-            }
+            && let Some(fields) = typ.borrow().get_fields(generics)
+        {
+            return Some((typ.borrow().name.clone(), fields));
+        }
 
         let error = ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), location };
         self.push_err(error);
@@ -1364,13 +1365,14 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn issue_missing_cases_error_for_type(&mut self, type_matched_on: &Type, location: Location) {
         let typ = type_matched_on.follow_bindings_shallow();
         if let Type::DataType(shared, generics) = typ.as_ref()
-            && let Some(variants) = shared.borrow().get_variants(generics) {
-                let cases: BTreeSet<_> = variants.into_iter().map(|(name, _)| name).collect();
-                if !cases.is_empty() {
-                    self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
-                }
-                return;
+            && let Some(variants) = shared.borrow().get_variants(generics)
+        {
+            let cases: BTreeSet<_> = variants.into_iter().map(|(name, _)| name).collect();
+            if !cases.is_empty() {
+                self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
             }
+            return;
+        }
         let typ = typ.to_string();
         self.elaborator.push_err(TypeCheckError::MissingManyCases { typ, location });
     }

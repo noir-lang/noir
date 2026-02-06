@@ -97,9 +97,9 @@ impl Function {
             if should_insert_side_effects_before_instruction(instruction, context.dfg)
                 && let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
-                {
-                    context.insert_instruction_by_id(enable_side_effects_instruction_id);
-                }
+            {
+                context.insert_instruction_by_id(enable_side_effects_instruction_id);
+            }
         });
     }
 }

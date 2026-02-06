@@ -350,12 +350,13 @@ impl DataFlowGraph {
                 };
                 if !is_simplified
                     && let Some(id) = existing_id
-                        && self[id] == instruction {
-                            // Just (re)insert into the block, no need to redefine.
-                            self.blocks[block].insert_instruction(id);
-                            let results = self.instruction_results(id);
-                            return InsertInstructionResult::Results(id, results);
-                        }
+                    && self[id] == instruction
+                {
+                    // Just (re)insert into the block, no need to redefine.
+                    self.blocks[block].insert_instruction(id);
+                    let results = self.instruction_results(id);
+                    return InsertInstructionResult::Results(id, results);
+                }
                 let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
                     !instructions.is_empty(),

@@ -591,9 +591,10 @@ impl AstPrinter {
         };
 
         if let Some(special) = special
-            && self.print_special_call(special, &call.arguments, f)? {
-                return Ok(());
-            }
+            && self.print_special_call(special, &call.arguments, f)?
+        {
+            return Ok(());
+        }
 
         if print_unsafe {
             write!(f, "unsafe {{ ")?;

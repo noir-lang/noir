@@ -458,15 +458,16 @@ impl ChunkFormatter<'_, '_> {
                     //       y * 2
                     //     })
                     if expr_index == exprs_len - 1
-                        && let ExpressionKind::Lambda(lambda) = expr.kind {
-                            let mut lambda_group = formatter.format_lambda(*lambda);
-                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
-                                first_line_width: lambda_group.first_line_width,
-                                indentation: None,
-                            };
-                            chunks.group(lambda_group.group);
-                            return;
-                        }
+                        && let ExpressionKind::Lambda(lambda) = expr.kind
+                    {
+                        let mut lambda_group = formatter.format_lambda(*lambda);
+                        lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
+                            first_line_width: lambda_group.first_line_width,
+                            indentation: None,
+                        };
+                        chunks.group(lambda_group.group);
+                        return;
+                    }
                     expr_index += 1;
 
                     let chunks_len_before_expression = chunks.chunks.len();

@@ -438,20 +438,22 @@ impl Elaborator<'_> {
         let mut module_id = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
-        if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME)
-            && let Some(Type::DataType(datatype, _)) = &self.self_type {
-                let datatype = datatype.borrow();
-                if path.segments.len() == 1 {
-                    return Ok(PathResolution {
-                        item: PathResolutionItem::Type(datatype.id),
-                        errors: Vec::new(),
-                    });
-                }
-
-                module_id = datatype.id.module_id();
-                path.segments.remove(0);
-                intermediate_item = IntermediatePathResolutionItem::SelfType;
+        if path.kind == PathKind::Plain
+            && path.first_name() == Some(SELF_TYPE_NAME)
+            && let Some(Type::DataType(datatype, _)) = &self.self_type
+        {
+            let datatype = datatype.borrow();
+            if path.segments.len() == 1 {
+                return Ok(PathResolution {
+                    item: PathResolutionItem::Type(datatype.id),
+                    errors: Vec::new(),
+                });
             }
+
+            module_id = datatype.id.module_id();
+            path.segments.remove(0);
+            intermediate_item = IntermediatePathResolutionItem::SelfType;
+        }
 
         let last_segment_turbofish_location = path
             .segments

@@ -87,11 +87,10 @@ fn fix_block_comment(comment: String) -> String {
             fixed_comment.push('\n');
         }
 
-        if all_stars
-            && let Some(line) = line.trim_start().strip_prefix("*") {
-                fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
-                continue;
-            }
+        if all_stars && let Some(line) = line.trim_start().strip_prefix("*") {
+            fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
+            continue;
+        }
 
         if let Some(line) = line.strip_prefix(' ') {
             fixed_comment.push_str(line);

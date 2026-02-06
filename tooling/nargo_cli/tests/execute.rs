@@ -481,9 +481,10 @@ mod tests {
             let path = entry.path();
 
             if entry.file_type().is_ok_and(|file_type| file_type.is_dir())
-                && let Some(prover_toml) = find_prover_toml_in_dir(&path) {
-                    return Some(prover_toml);
-                }
+                && let Some(prover_toml) = find_prover_toml_in_dir(&path)
+            {
+                return Some(prover_toml);
+            }
 
             if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;

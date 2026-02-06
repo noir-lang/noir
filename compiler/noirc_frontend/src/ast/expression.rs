@@ -140,11 +140,12 @@ impl UnresolvedGeneric {
 
         if let Named(path, _generics, _) = &typ.typ
             && path.segments.len() == 1
-                && let Some(primitive_type) =
-                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-                    && let Some(typ) = primitive_type.to_integer_or_field() {
-                        return Ok(typ);
-                    }
+            && let Some(primitive_type) =
+                PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+            && let Some(typ) = primitive_type.to_integer_or_field()
+        {
+            return Ok(typ);
+        }
 
         // Only fields and integers are supported for numeric kinds
         let name = self.ident().ident().map(|name| name.to_string());

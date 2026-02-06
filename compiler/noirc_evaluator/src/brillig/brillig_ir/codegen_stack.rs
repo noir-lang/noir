@@ -29,9 +29,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             // Check that destinations are relatives to 0,..,n-1
             assert_eq!(to_index(&destinations[i]), Some(i));
             if let Some(index) = to_index(&sources[i])
-                && index < n && index != i {
-                    num_destinations[index] += 1;
-                }
+                && index < n
+                && index != i
+            {
+                num_destinations[index] += 1;
+            }
         }
 
         // Process all sinks in the graph and follow their parents.
@@ -52,17 +54,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 self.perform_movement(node, sources[node], &mut num_destinations, &mut processed);
                 // Follow the parent
                 if let Some(index) = to_index(&sources[node])
-                    && index < n {
-                        num_destinations[index] -= 1;
-                        if num_destinations[index] > 0 {
-                            // The parent node has another child, so we cannot process it yet.
-                            tail_candidates.push((sources[node], node));
-                            break;
-                        }
-                        // process the parent node
-                        node = index;
-                        continue;
+                    && index < n
+                {
+                    num_destinations[index] -= 1;
+                    if num_destinations[index] > 0 {
+                        // The parent node has another child, so we cannot process it yet.
+                        tail_candidates.push((sources[node], node));
+                        break;
                     }
+                    // process the parent node
+                    node = index;
+                    continue;
+                }
                 // End of the path
                 break;
             }

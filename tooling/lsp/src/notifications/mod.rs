@@ -382,9 +382,9 @@ fn publish_diagnostics(
         if let Some(uri) = uri_from_path(path)
             && let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
-            {
-                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
-            }
+        {
+            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
+        }
     }
 
     let new_files_with_errors: HashSet<_> = diagnostics_per_url.keys().cloned().collect();

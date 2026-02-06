@@ -288,9 +288,10 @@ fn decode_and_save_program_witness(
 
         // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
         if let Ok(current_dir) = std::env::current_dir()
-            && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
-                witness_path = name_without_prefix.to_path_buf();
-            }
+            && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir)
+        {
+            witness_path = name_without_prefix.to_path_buf();
+        }
         println!("[{}] Witness saved to {}", package_name, witness_path.display());
     }
     Ok(())
