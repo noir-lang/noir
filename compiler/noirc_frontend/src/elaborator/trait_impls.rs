@@ -845,8 +845,7 @@ impl Elaborator<'_> {
 
         self.local_module = previous_local_module;
 
-        let generics = self.generics.clone();
-        self.generics.clear();
+        let generics = self.generics.take();
 
         (new_generics_trait_constraints, generics)
     }
