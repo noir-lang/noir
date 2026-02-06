@@ -189,8 +189,10 @@ pub struct CompileOptions {
     pub max_bytecode_increase_percent: Option<i32>,
 
     /// Override the threshold for force-unrolling small loops.
+    ///
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
+    ///
     /// When `None`, the default threshold is used.
     /// Set to 0 to disable force-unrolling.
     #[arg(long, hide = true)]
