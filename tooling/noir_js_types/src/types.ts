@@ -45,8 +45,20 @@ export type DebugFileMap = Record<
     source: string;
     /** The path of the file. */
     path: string;
+    /** The range each function occupies in the file. */
+    function_names: FunctionName[];
   }
 >;
+
+/** A function name together with the range it occupies in a file. */
+export type FunctionName = {
+  /** The name of the function. */
+  name: string;
+  /** The byte where the function starts. */
+  start: number;
+  /** The byte where the function ends. */
+  end: number;
+};
 
 export type OpcodeLocation = string;
 
