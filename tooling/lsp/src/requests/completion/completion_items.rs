@@ -170,7 +170,7 @@ impl NodeFinder<'_> {
 
     fn global_completion_item(&self, name: String, global_id: GlobalId) -> CompletionItem {
         let global = self.interner.get_global(global_id);
-        let typ = self.interner.definition_type(global.definition_id);
+        let typ = self.interner.definition_type(global.definition_id).unwrap_or(Type::Error);
         let description = typ.to_string();
         let item = simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
         self.completion_item_with_doc_comments(ReferenceId::Global(global_id), item)

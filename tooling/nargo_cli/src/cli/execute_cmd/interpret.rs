@@ -266,7 +266,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             Value::Struct(fields, typ.clone())
         }
         Type::Alias(alias, generics) => {
-            let typ = alias.borrow().get_type(generics);
+            let typ = alias.borrow().get_type(generics).expect("Missing type alias");
             input_value_to_comptime_value(input, &typ, location)
         }
         Type::Vector(_)

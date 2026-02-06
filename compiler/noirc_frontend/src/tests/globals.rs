@@ -227,6 +227,7 @@ fn global_closure_with_undefined_variable_method_call() {
         v0.bar()
         ^^ cannot find `v0` in this scope
         ~~ not found in this scope
+        ^^^^^^^^ No method named 'bar' found for type '_'
     };
     fn main() {
         let _ = foo;

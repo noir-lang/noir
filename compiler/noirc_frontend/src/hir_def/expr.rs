@@ -327,7 +327,10 @@ impl HirMethodReference {
         let function_type = interner.definition_type(definition);
 
         // Instantiate, e.g: `fn(&mut ?Self, A, B) -> C`
-        let (instantiated, _bindings) = function_type.instantiate(interner);
+        let (instantiated, _bindings) = function_type
+            .as_ref()
+            .expect("HirMethodReference::find_self_type: ICE: expected definition_type to be set")
+            .instantiate(interner);
         let instantiated = instantiated.follow_bindings_shallow();
 
         let first_parameter = match instantiated.as_ref() {

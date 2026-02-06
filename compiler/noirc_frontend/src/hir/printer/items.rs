@@ -446,13 +446,16 @@ impl<'context> ItemBuilder<'context> {
             items,
         );
         self.add_primitive_type(Type::FieldElement, items);
-        self.add_primitive_type(Type::String(Box::new(Type::Error)), items);
-        self.add_primitive_type(
-            Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
-            items,
-        );
-        self.add_primitive_type(Type::Array(Box::new(Type::Error), Box::new(Type::Error)), items);
-        self.add_primitive_type(Type::Vector(Box::new(Type::Error)), items);
+        let len = Type::type_variable_with_kind(self.interner, Kind::u32());
+        self.add_primitive_type(Type::String(Box::new(len)), items);
+        let len = Type::type_variable_with_kind(self.interner, Kind::u32());
+        let typ = Type::type_variable_with_kind(self.interner, Kind::Any);
+        self.add_primitive_type(Type::FmtString(Box::new(len), Box::new(typ)), items);
+        let len = Type::type_variable_with_kind(self.interner, Kind::u32());
+        let typ = Type::type_variable_with_kind(self.interner, Kind::Any);
+        self.add_primitive_type(Type::Array(Box::new(len), Box::new(typ)), items);
+        let typ = Type::type_variable_with_kind(self.interner, Kind::Any);
+        self.add_primitive_type(Type::Vector(Box::new(typ)), items);
         for quoted_type in QuotedType::iter() {
             self.add_primitive_type(Type::Quoted(quoted_type), items);
         }

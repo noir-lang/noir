@@ -299,7 +299,11 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(" {\n");
                 self.increase_indent();
                 for case in cases {
-                    let typ = self.interner.definition_type(variable).follow_bindings();
+                    let typ = self
+                        .interner
+                        .definition_type(variable)
+                        .expect("show_hir_match: ICE: expected definition_type to be set")
+                        .follow_bindings();
                     self.write_indent();
 
                     if !matches!(typ, Type::Tuple(..)) {
@@ -636,7 +640,10 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(&signed_field.to_string());
                 let typ = self.interner.id_type(expr_id);
                 self.push_str("_");
-                self.push_str(&typ.to_string());
+                self.push_str(
+                    &typ.expect("show_hir_literal: ICE: expected definition_type to be set")
+                        .to_string(),
+                );
             }
             HirLiteral::Str(string) => {
                 self.push_str(&format!("{string:?}"));
@@ -859,13 +866,20 @@ impl ItemPrinter<'_, '_> {
                 let typ = self.interner.definition_type(global_info.definition_id);
 
                 // Special case: the global is an enum value
-                let typ = typ.as_monotype();
+                let typ = typ
+                    .as_ref()
+                    .expect("show_hir_ident: ICE: expected definition_type to be set")
+                    .as_monotype();
                 if let Type::DataType(data_type, _generics) = typ {
                     let data_type = data_type.borrow();
                     if data_type.is_enum() {
                         // The enum expression may have unbound named generics, while the ident itself has them bound.
                         let typ = match expr_id {
-                            Some(id) => Cow::Owned(self.interner.id_type(id)),
+                            Some(id) => Cow::Owned(
+                                self.interner
+                                    .id_type(id)
+                                    .expect("show_hir_ident: ICE: expected id_type to be set"),
+                            ),
                             None => Cow::Borrowed(typ),
                         };
                         self.show_type_name_as_data_type(typ.as_ref());

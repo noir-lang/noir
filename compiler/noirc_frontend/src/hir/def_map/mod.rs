@@ -134,16 +134,17 @@ impl CrateDefMap {
         );
         let def_map = CrateDefMap::new(crate_id, root_module);
 
+        errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
+
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect_crate_and_dependencies(
+        DefCollector::collect_crate_and_dependencies(
             def_map,
             context,
             ast,
             root_file_id,
             options,
-        ));
-
-        errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
+            &mut errors,
+        );
 
         errors
     }

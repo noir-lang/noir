@@ -121,7 +121,11 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }
         }
-        Type::Alias(def, args) => abi_type_from_hir_type(context, &def.borrow().get_type(args)),
+        Type::Alias(def, args) => {
+            let typ =
+                &def.borrow().get_type(args).expect("abi_type_from_hir_type: ICE: missing alias");
+            abi_type_from_hir_type(context, typ)
+        }
         Type::CheckedCast { to, .. } => abi_type_from_hir_type(context, to),
         Type::Tuple(fields) => {
             let fields = vecmap(fields, |typ| abi_type_from_hir_type(context, typ));

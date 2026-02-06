@@ -85,11 +85,15 @@ impl<'a> InlayHintCollector<'a> {
                     ReferenceId::Global(global_id) => {
                         let global_info = self.interner.get_global(global_id);
                         let definition_id = global_info.definition_id;
-                        let typ = self.interner.definition_type(definition_id);
+                        let Some(typ) = self.interner.definition_type(definition_id) else {
+                            return;
+                        };
                         self.push_type_hint(lsp_location, &typ, editable, include_colon);
                     }
                     ReferenceId::Local(definition_id) => {
-                        let typ = self.interner.definition_type(definition_id);
+                        let Some(typ) = self.interner.definition_type(definition_id) else {
+                            return;
+                        };
                         self.push_type_hint(lsp_location, &typ, editable, include_colon);
                     }
                     ReferenceId::StructMember(struct_id, field_index) => {

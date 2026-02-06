@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    QuotedType, Type,
+    Kind, QuotedType, Type,
     ast::{GenericTypeArgs, IntegerBitSize},
     elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
     hir::{
@@ -14,6 +14,7 @@ use crate::{
             generics::{FmtstrPrimitiveType, Generic as _, StrPrimitiveType},
         },
     },
+    node_interner::NodeInterner,
     shared::Signedness,
 };
 
@@ -82,12 +83,16 @@ impl PrimitiveType {
         }
     }
 
-    pub fn to_type(self) -> Type {
+    pub fn to_type(self, interner: &NodeInterner) -> Type {
         match self {
             Self::Bool => Type::Bool,
             Self::CtString => Type::Quoted(QuotedType::CtString),
             Self::Expr => Type::Quoted(QuotedType::Expr),
-            Self::Fmtstr => Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
+            Self::Fmtstr => {
+                let len = Type::type_variable_with_kind(interner, Kind::u32());
+                let typ = Type::type_variable_with_kind(interner, Kind::Any);
+                Type::FmtString(Box::new(len), Box::new(typ))
+            }
             Self::Field => Type::FieldElement,
             Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
             Self::I8 => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
@@ -102,7 +107,10 @@ impl PrimitiveType {
             Self::U128 => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
             Self::Module => Type::Quoted(QuotedType::Module),
             Self::Quoted => Type::Quoted(QuotedType::Quoted),
-            Self::Str => Type::String(Box::new(Type::Error)),
+            Self::Str => {
+                let len = Type::type_variable_with_kind(interner, Kind::u32());
+                Type::String(Box::new(len))
+            }
             Self::TraitConstraint => Type::Quoted(QuotedType::TraitConstraint),
             Self::TraitDefinition => Type::Quoted(QuotedType::TraitDefinition),
             Self::TraitImpl => Type::Quoted(QuotedType::TraitImpl),
@@ -257,7 +265,7 @@ impl Elaborator<'_> {
             }
         }
 
-        primitive_type.to_type()
+        primitive_type.to_type(self.interner)
     }
 
     /// Instantiates a primitive type with turbofish generics.
@@ -307,7 +315,7 @@ impl Elaborator<'_> {
                         },
                     ));
                 }
-                (primitive_type.to_type(), false)
+                (primitive_type.to_type(self.interner), false)
             }
             PrimitiveType::Str => {
                 let item = StrPrimitiveType;

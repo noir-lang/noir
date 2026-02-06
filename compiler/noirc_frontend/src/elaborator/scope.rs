@@ -5,6 +5,7 @@ use crate::elaborator::path_resolution::PathResolution;
 use crate::hir::def_map::ModuleId;
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
+use crate::hir::type_check::TypeCheckError;
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
@@ -115,10 +116,13 @@ impl Elaborator<'_> {
                     // Therefore we allow this case although we cannot provide the value yet
                     return Ok((DefinitionId::dummy_id(), item));
                 }
-                if matches!(type_alias.borrow().typ, Type::Alias(_, _))
-                    || matches!(type_alias.borrow().typ, Type::Error)
+                if matches!(type_alias.borrow().typ, Some(Type::Alias(_, _)))
+                    || type_alias.borrow().typ.is_none()
                 {
-                    // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "Elaborator::lookup_item_as_value: type alias to a type alias or else Type::Error encountered",
+                        location,
+                    ));
                     return Ok((DefinitionId::dummy_id(), item));
                 }
                 Err(ResolverError::Expected {
@@ -218,7 +222,14 @@ impl Elaborator<'_> {
             Ok(PathResolutionItem::TypeAlias(alias_id)) => {
                 let alias = self.interner.get_type_alias(alias_id);
                 let alias = alias.borrow();
-                Some(alias.instantiate(self.interner))
+                let opt_typ = alias.instantiate(self.interner);
+                if opt_typ.is_none() {
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "Elaborator::lookup_type_or_error: missing alias",
+                        location,
+                    ));
+                }
+                opt_typ
             }
             Ok(other) => {
                 self.push_err(ResolverError::Expected {

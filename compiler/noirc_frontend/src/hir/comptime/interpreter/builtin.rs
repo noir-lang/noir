@@ -261,7 +261,7 @@ impl Interpreter<'_, '_> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => Ok(zeroed(return_type, location)),
+            "zeroed" => zeroed(return_type, location),
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -527,7 +527,7 @@ fn type_def_as_type_with_generics(
     let type_result =
         correct_generic_count.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
 
-    Ok(option(return_type, type_result, location))
+    option(return_type, type_result, location)
 }
 
 /// fn generics(self) -> [(Type, `Option<Type>`)]
@@ -571,10 +571,13 @@ fn type_def_generics(
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
             };
-            let numeric_type = Shared::new(option(option_typ.clone(), numeric_type, location));
-            Value::Tuple(vec![Shared::new(Value::Type(generic_as_named)), numeric_type])
+            let numeric_type = Shared::new(option(option_typ.clone(), numeric_type, location)?);
+            Ok::<Value, InterpreterError>(Value::Tuple(vec![
+                Shared::new(Value::Type(generic_as_named)),
+                numeric_type,
+            ]))
         })
-        .collect();
+        .collect::<Result<Vector<_>, InterpreterError>>()?;
 
     Ok(Value::Vector(generics, vector_item_type))
 }
@@ -909,7 +912,7 @@ fn quoted_as_expr(
             },
         );
 
-    Ok(option(return_type, value, location))
+    option(return_type, value, location)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
@@ -934,7 +937,7 @@ fn quoted_as_module(
         module.map(Value::ModuleDefinition)
     });
 
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
@@ -1255,7 +1258,7 @@ where
 
     let option_value = f(typ)?;
 
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
@@ -1290,7 +1293,7 @@ fn type_get_trait_impl(
         _ => None,
     };
 
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn implements(self, constraint: TraitConstraint) -> bool
@@ -1411,7 +1414,7 @@ fn typed_expr_as_function_definition(
     } else {
         None
     };
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn get_type(self) -> Option<Type>
@@ -1425,11 +1428,22 @@ fn typed_expr_get_type(
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let typ = interner.id_type(expr_id);
-        if typ == Type::Error { None } else { Some(Value::Type(typ)) }
+        if let Some(typ) = typ {
+            if typ.is_error() {
+                return Err(InterpreterError::expecting_other_error(
+                    "typed_expr_get_type: found self_argument Type::Error",
+                    location,
+                ));
+            } else {
+                Some(Value::Type(typ))
+            }
+        } else {
+            None
+        }
     } else {
         None
     };
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn as_mutable_reference(self) -> Option<UnresolvedType>
@@ -1542,47 +1556,47 @@ where
     let typ = get_unresolved_type(interner, value)?;
 
     let option_value = f(typ);
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn zeroed<T>() -> T
-fn zeroed(return_type: Type, location: Location) -> Value {
+fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
+        Type::FieldElement => Ok(Value::Field(SignedField::zero())),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                let element = zeroed(elem.as_ref().clone(), location);
+                let element = zeroed(elem.as_ref().clone(), location)?;
                 let array = std::iter::repeat_n(element, length as usize).collect();
-                Value::Array(array, Type::Array(length_type, elem))
+                Ok(Value::Array(array, Type::Array(length_type, elem)))
             } else {
                 // Assume we can resolve the length later
-                Value::Zeroed(Type::Array(length_type, elem))
+                Ok(Value::Zeroed(Type::Array(length_type, elem)))
             }
         }
-        Type::Vector(_) => Value::Vector(Vector::new(), return_type),
+        Type::Vector(_) => Ok(Value::Vector(Vector::new(), return_type)),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
-            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
+            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U1(false)),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(0)),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(0)),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Ok(Value::U32(0)),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Ok(Value::U64(0)),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Ok(Value::U128(0)),
             (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
-            (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Signed, IntegerBitSize::Eight) => Ok(Value::I8(0)),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Ok(Value::I16(0)),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Ok(Value::I32(0)),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Ok(Value::I64(0)),
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
                 unreachable!("invalid type: i128")
             }
         },
-        Type::Bool => Value::Bool(false),
+        Type::Bool => Ok(Value::Bool(false)),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new("\0".repeat(length as usize)))
+                Ok(Value::String(Rc::new("\0".repeat(length as usize))))
             } else {
                 // Assume we can resolve the length later
-                Value::Zeroed(Type::String(length_type))
+                Ok(Value::Zeroed(Type::String(length_type)))
             }
         }
         Type::FmtString(length_type, captures) => {
@@ -1590,15 +1604,21 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             let typ = Type::FmtString(length_type, captures);
             if let Ok(length) = length {
                 let fragments = vec![FormatStringFragment::String("\0".repeat(length as usize))];
-                Value::FormatString(Rc::new(fragments), typ, length)
+                Ok(Value::FormatString(Rc::new(fragments), typ, length))
             } else {
                 // Assume we can resolve the length later
-                Value::Zeroed(typ)
+                Ok(Value::Zeroed(typ))
             }
         }
-        Type::Unit => Value::Unit,
+        Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => {
-            Value::Tuple(vecmap(fields, |field| Shared::new(zeroed(field, location))))
+            let fields = fields
+                .into_iter()
+                .map(|field| {
+                    Ok::<Shared<_>, InterpreterError>(Shared::new(zeroed(field, location)?))
+                })
+                .collect::<Result<Vec<_>, InterpreterError>>()?;
+            Ok(Value::Tuple(fields))
         }
         Type::DataType(data_type, generics) => {
             let typ = data_type.borrow();
@@ -1607,12 +1627,12 @@ fn zeroed(return_type: Type, location: Location) -> Value {
                 let mut values = HashMap::default();
 
                 for (field_name, field_type, _) in fields {
-                    let field_value = Shared::new(zeroed(field_type, location));
+                    let field_value = Shared::new(zeroed(field_type, location)?);
                     values.insert(Rc::new(field_name), field_value);
                 }
 
                 drop(typ);
-                Value::Struct(values, Type::DataType(data_type, generics))
+                Ok(Value::Struct(values, Type::DataType(data_type, generics)))
             } else if let Some(mut variants) = typ.get_variants(&generics) {
                 // Since we're defaulting to Vec::new(), this'd allow us to construct 0 element
                 // variants... `zeroed` is often used for uninitialized values e.g. in a BoundedVec
@@ -1621,25 +1641,36 @@ fn zeroed(return_type: Type, location: Location) -> Value {
                 if !variants.is_empty() {
                     // is_empty & swap_remove let us avoid a .clone() we'd need if we did .get(0)
                     let (_name, params) = variants.swap_remove(0);
-                    args = vecmap(params, |param| zeroed(param, location));
+                    args = params
+                        .into_iter()
+                        .map(|param| zeroed(param, location))
+                        .collect::<Result<Vec<_>, InterpreterError>>()?;
                 }
 
                 drop(typ);
-                Value::Enum(0, args, Type::DataType(data_type, generics))
+                Ok(Value::Enum(0, args, Type::DataType(data_type, generics)))
             } else {
                 drop(typ);
-                Value::Zeroed(Type::DataType(data_type, generics))
+                Ok(Value::Zeroed(Type::DataType(data_type, generics)))
             }
         }
-        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), location),
+        Type::Alias(alias, generics) => {
+            let Some(typ) = alias.borrow().get_type(&generics) else {
+                return Err(InterpreterError::expecting_other_error(
+                    "zeroed: missing type alias",
+                    location,
+                ));
+            };
+            zeroed(typ, location)
+        }
         Type::CheckedCast { to, .. } => zeroed(*to, location),
         typ @ Type::Function(..) => {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
-            Value::Zeroed(typ)
+            Ok(Value::Zeroed(typ))
         }
         Type::Reference(element, mutable) => {
-            let element = zeroed(*element, location);
-            Value::Pointer(Shared::new(element), false, mutable)
+            let element = zeroed(*element, location)?;
+            Ok(Value::Pointer(Shared::new(element), false, mutable))
         }
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_)
@@ -1647,9 +1678,12 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         | Type::Constant(..)
         | Type::InfixExpr(..)
         | Type::Quoted(_)
-        | Type::Error
         | Type::TraitAsType(..)
-        | Type::NamedGeneric(_) => Value::Zeroed(return_type),
+        | Type::NamedGeneric(_) => Ok(Value::Zeroed(return_type)),
+        Type::Error => Err(InterpreterError::expecting_other_error(
+            "zeroed: encountered Type::Error",
+            location,
+        )),
     }
 }
 
@@ -1681,7 +1715,7 @@ fn expr_as_assert(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+    expr_or_err_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Constrain(mut constrain)) = expr {
             if constrain.kind == ConstrainKind::Assert
                 && !constrain.arguments.is_empty()
@@ -1702,14 +1736,14 @@ fn expr_as_assert(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|msg| Value::expression(msg.kind));
-                let message = Shared::new(option(option_type, message, location));
+                let message = Shared::new(option(option_type, message, location)?);
 
-                Some(Value::Tuple(vec![predicate, message]))
+                Ok(Some(Value::Tuple(vec![predicate, message])))
             } else {
-                None
+                Ok(None)
             }
         } else {
-            None
+            Ok(None)
         }
     })
 }
@@ -1721,7 +1755,7 @@ fn expr_as_assert_eq(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+    expr_or_err_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Constrain(mut constrain)) = expr {
             if constrain.kind == ConstrainKind::AssertEq
                 && constrain.arguments.len() >= 2
@@ -1748,14 +1782,14 @@ fn expr_as_assert_eq(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|message| Value::expression(message.kind));
-                let message = Shared::new(option(option_type, message, location));
+                let message = Shared::new(option(option_type, message, location)?);
 
-                Some(Value::Tuple(vec![lhs, rhs, message]))
+                Ok(Some(Value::Tuple(vec![lhs, rhs, message])))
             } else {
-                None
+                Ok(None)
             }
         } else {
-            None
+            Ok(None)
         }
     })
 }
@@ -1919,7 +1953,7 @@ fn expr_as_constructor(
             None
         };
 
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
 }
 
 // fn as_for(self) -> Option<(Quoted, Expr, Expr)>
@@ -2004,7 +2038,7 @@ fn expr_as_if(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+    expr_or_err_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
             let option_type = extract_option_generic_type(return_type.clone());
@@ -2018,15 +2052,15 @@ fn expr_as_if(
                 alternative_option_type,
                 if_expr.alternative.map(|e| Value::expression(e.kind)),
                 location,
-            );
+            )?;
 
-            Some(Value::Tuple(vec![
+            Ok(Some(Value::Tuple(vec![
                 Shared::new(Value::expression(if_expr.condition.kind)),
                 Shared::new(Value::expression(if_expr.consequence.kind)),
                 Shared::new(alternative),
-            ]))
+            ])))
         } else {
-            None
+            Ok(None)
         }
     })
 }
@@ -2085,7 +2119,7 @@ fn expr_as_lambda(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+    expr_or_err_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Lambda(lambda)) = expr {
             // ([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)
             let option_type = extract_option_generic_type(return_type);
@@ -2106,10 +2140,10 @@ fn expr_as_lambda(
                 .map(|(pattern, typ)| {
                     let pattern = Shared::new(Value::pattern(pattern));
                     let typ = typ.map(|typ| Value::UnresolvedType(typ.typ));
-                    let typ = Shared::new(option(option_unresolved_type.clone(), typ, location));
-                    Value::Tuple(vec![pattern, typ])
+                    let typ = Shared::new(option(option_unresolved_type.clone(), typ, location)?);
+                    Ok::<Value, InterpreterError>(Value::Tuple(vec![pattern, typ]))
                 })
-                .collect();
+                .collect::<Result<Vector<_>, InterpreterError>>()?;
             let parameters = Shared::new(Value::Vector(
                 parameters,
                 Type::Vector(Box::new(Type::Tuple(vec![
@@ -2119,13 +2153,13 @@ fn expr_as_lambda(
             ));
 
             let return_type = lambda.return_type.map(|typ| Value::UnresolvedType(typ.typ));
-            let return_type = Shared::new(option(option_unresolved_type, return_type, location));
+            let return_type = Shared::new(option(option_unresolved_type, return_type, location)?);
 
             let body = Shared::new(Value::expression(lambda.body.kind));
 
-            Some(Value::Tuple(vec![parameters, return_type, body]))
+            Ok(Some(Value::Tuple(vec![parameters, return_type, body])))
         } else {
-            None
+            Ok(None)
         }
     })
 }
@@ -2137,7 +2171,7 @@ fn expr_as_let(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+    expr_or_err_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Statement(StatementKind::Let(let_statement)) => {
             let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(mut tuple_types) = option_type else {
@@ -2148,15 +2182,15 @@ fn expr_as_let(
             let option_type = tuple_types.pop().unwrap();
 
             let typ = let_statement.r#type.map(|typ| Value::UnresolvedType(typ.typ));
-            let typ = option(option_type, typ, location);
+            let typ = option(option_type, typ, location)?;
 
-            Some(Value::Tuple(vec![
+            Ok(Some(Value::Tuple(vec![
                 Shared::new(Value::pattern(let_statement.pattern)),
                 Shared::new(typ),
                 Shared::new(Value::expression(let_statement.expression.kind)),
-            ]))
+            ])))
         }
-        _ => None,
+        _ => Ok(None),
     })
 }
 
@@ -2394,7 +2428,26 @@ where
     let expr_value = unwrap_expr_value(interner, expr_value);
 
     let option_value = f(expr_value);
-    Ok(option(return_type, option_value, location))
+    option(return_type, option_value, location)
+}
+
+// Helper function for implementing the `expr_as_...` functions.
+fn expr_or_err_as<F>(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(ExprValue) -> IResult<Option<Value>>,
+{
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
+
+    let option_value = f(expr_value)?;
+    option(return_type, option_value, location)
 }
 
 // fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr
@@ -3015,7 +3068,7 @@ fn module_parent(
         let id = ModuleId { krate: module_id.krate, local_id };
         Value::ModuleDefinition(id)
     });
-    Ok(option(return_type, value, location))
+    option(return_type, value, location)
 }
 
 // fn structs(self) -> [TypeDefinition]
@@ -3171,18 +3224,22 @@ fn trait_def_as_trait_constraint(
 
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
-pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location) -> Value {
+pub(crate) fn option(
+    option_type: Type,
+    value: Option<Value>,
+    location: Location,
+) -> IResult<Value> {
     let t = extract_option_generic_type(option_type.clone());
 
     let (is_some, value) = match value {
         Some(value) => (Value::Bool(true), value),
-        None => (Value::Bool(false), zeroed(t, location)),
+        None => (Value::Bool(false), zeroed(t, location)?),
     };
 
     let mut fields = HashMap::default();
     fields.insert(Rc::new("_is_some".to_string()), Shared::new(is_some));
     fields.insert(Rc::new("_value".to_string()), Shared::new(value));
-    Value::Struct(fields, option_type)
+    Ok(Value::Struct(fields, option_type))
 }
 
 /// Given a type, assert that it's an `Option<T>` and return the Type for T

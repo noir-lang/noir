@@ -576,10 +576,10 @@ impl<'context> Elaborator<'context> {
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.mark_type_as_used_helper(
-                    &alias_type.borrow().get_type(generics),
-                    seen_data_types,
-                );
+                let Some(typ) = alias_type.borrow().get_type(generics) else {
+                    return;
+                };
+                self.mark_type_as_used_helper(&typ, seen_data_types);
             }
             Type::CheckedCast { from, to } => {
                 self.mark_type_as_used_helper(from, seen_data_types);

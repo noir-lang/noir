@@ -47,6 +47,9 @@ impl Kind {
             (Kind::IntegerOrField, Kind::Numeric(_typ))
             | (Kind::Numeric(_typ), Kind::IntegerOrField) => true,
 
+            // Kind::error() unifies with everything
+            (Kind::Numeric(typ), _) | (_, Kind::Numeric(typ)) if typ.is_error() => true,
+
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
                 let mut bindings = TypeBindings::default();
@@ -116,7 +119,7 @@ impl Type {
             (Error, _) | (_, Error) => Ok(()),
 
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
+                let Some(alias) = alias.borrow().get_type(args) else { return Ok(()) };
                 alias.try_unify_with_flags(other, flags, bindings)
             }
 

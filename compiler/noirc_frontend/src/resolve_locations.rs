@@ -107,7 +107,7 @@ impl NodeInterner {
     }
 
     fn get_type_location_from_index(&self, index: impl Into<Index>) -> Option<Location> {
-        match self.id_type(index.into()) {
+        match self.id_type(index.into())? {
             Type::DataType(struct_type, _) => Some(struct_type.borrow().location),
             _ => None,
         }
@@ -164,7 +164,7 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let lhs_self_struct = match self.id_type(expr_lhs) {
+        let lhs_self_struct = match self.id_type(expr_lhs)? {
             Type::DataType(struct_type, _) => struct_type,
             _ => return None,
         };

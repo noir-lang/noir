@@ -376,7 +376,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(&type_alias.name.to_string());
         self.show_generics(&type_alias.generics);
         self.push_str(" = ");
-        self.show_type(&type_alias.typ);
+        self.show_type(type_alias.typ.as_ref().expect("ICE: expected alias type to be set"));
         self.push(';');
     }
 
@@ -560,7 +560,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str("global ");
         self.push_str(&global_info.ident.to_string());
         self.push_str(": ");
-        self.show_type(&typ);
+        self.show_type(&typ.expect("show_global: ICE: expected definition_type to be set"));
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
             self.show_value(value);

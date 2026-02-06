@@ -41,6 +41,7 @@ use super::{
 use crate::hir::Context;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
+use crate::hir::type_check::TypeCheckError;
 
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
@@ -657,8 +658,11 @@ impl ModCollector<'_> {
                             errors.push(error.into());
                         } else {
                             let type_variable_id = context.def_interner.next_type_variable_id();
-                            let typ =
-                                self.resolve_associated_constant_type(typ.as_ref(), &mut errors);
+                            let typ = self.resolve_associated_constant_type(
+                                typ.as_ref(),
+                                name.location(),
+                                &mut errors,
+                            );
                             let type_var =
                                 TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
@@ -980,10 +984,16 @@ impl ModCollector<'_> {
     fn resolve_associated_constant_type(
         &self,
         typ: Option<&UnresolvedType>,
+        location: Location,
         errors: &mut Vec<CompilationError>,
     ) -> Type {
         let Some(typ) = typ else {
-            // Don't report an error again as it was already reported by the parser
+            // Expecting an error to be already reported by the parser
+            let error = TypeCheckError::expecting_other_error(
+                "resolve_associated_constant_type: missing UnresolvedType",
+                location,
+            );
+            errors.push(error.into());
             return Type::Error;
         };
 

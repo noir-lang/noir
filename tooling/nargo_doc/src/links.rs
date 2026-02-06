@@ -530,7 +530,7 @@ fn primitive_type_or_primitive_type_method_link_target(
         return Some(LinkTarget::PrimitiveType(doc_primitive_type));
     };
 
-    let typ = primitive_type.to_type();
+    let typ = primitive_type.to_type(interner);
     primitive_type_method_link_target(doc_primitive_type, &typ, method_name, interner)
 }
 

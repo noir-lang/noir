@@ -126,7 +126,7 @@ impl Type {
 
                 Type::Alias(alias, generics) => {
                     let alias = alias.borrow();
-                    if let Some(invalid_type) = recur(&alias.get_type(generics)) {
+                    if let Some(invalid_type) = recur(&alias.get_type(generics)?) {
                         let alias_name = alias.name.clone();
                         Some(InvalidType::Alias {
                             alias_name,
@@ -254,7 +254,7 @@ impl Type {
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
-                if let Some(invalid_type) = alias.get_type(generics).non_inlined_function_input_validity_helper(seen_data_types) {
+                if let Some(invalid_type) = alias.get_type(generics)?.non_inlined_function_input_validity_helper(seen_data_types) {
                     let alias_name = alias.name.clone();
                     Some(InvalidType::Alias { alias_name, invalid_type: Box::new(invalid_type) })
                 } else {
@@ -356,7 +356,10 @@ impl Type {
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_unconstrained_boundary_helper(seen_data_types)
+                alias
+                    .get_type(generics)
+                    .map(|typ| typ.is_valid_for_unconstrained_boundary_helper(seen_data_types))
+                    .unwrap_or(false)
             }
 
             Type::Array(length, element) => {

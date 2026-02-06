@@ -396,6 +396,12 @@ impl Elaborator<'_> {
         output: bool,
         location: Location,
     ) -> Result<(), TypeCheckError> {
+        if typ.is_error() {
+            return Err(TypeCheckError::expecting_other_error(
+                "Elaborator::check_if_type_is_valid_for_program: encountered error type",
+                location,
+            ));
+        }
         if is_entry_point {
             if let Some(invalid_type) = typ.program_validity(output) {
                 return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });

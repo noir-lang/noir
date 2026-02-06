@@ -817,7 +817,15 @@ impl Elaborator<'_> {
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let mut typ = self.resolve_named_type(path, ab, mode, wildcard_allowed);
                 if let Type::Alias(alias, vec) = typ {
-                    typ = alias.borrow().get_type(&vec);
+                    typ = if let Some(alias_type) = alias.borrow().get_type(&vec) {
+                        alias_type
+                    } else {
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "convert_expression_type: missing alias",
+                            location,
+                        ));
+                        Type::Error
+                    };
                 }
                 self.check_type_kind(typ, expected_kind, location)
             }
@@ -831,10 +839,10 @@ impl Elaborator<'_> {
                 };
 
                 if !suffix_kind.unifies(expected_kind) {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
                         location,
-                    });
+                    ));
                 }
 
                 Type::Constant(int, suffix_kind)
@@ -1218,7 +1226,7 @@ impl Elaborator<'_> {
                     self.resolve_type_alias_id_turbofish_generics(type_alias_id, turbofish);
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
-                type_alias.get_type(&generics)
+                type_alias.get_type(&generics)?
             }
             PathResolutionItem::PrimitiveType(primitive_type) => {
                 let (typ, _) =
@@ -1615,7 +1623,12 @@ impl Elaborator<'_> {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok((Bool, false)),
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
+                let Some(alias) = alias.borrow().get_type(args) else {
+                    return Err(TypeCheckError::expecting_other_error(
+                        "Elaborator::comparator_operand_type_rules: missing alias",
+                        location,
+                    ));
+                };
                 self.comparator_operand_type_rules(&alias, other, op, location)
             }
 
@@ -1731,7 +1744,12 @@ impl Elaborator<'_> {
             // An error type on either side will always return an error
             (Error, _) | (_, Error) => Ok((Error, false)),
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
+                let Some(alias) = alias.borrow().get_type(args) else {
+                    return Err(TypeCheckError::expecting_other_error(
+                        "Elaborator::comparator_operand_type_rules: missing alias",
+                        location,
+                    ));
+                };
                 self.infix_operand_type_rules(&alias, op, other, location)
             }
 
@@ -1826,7 +1844,12 @@ impl Elaborator<'_> {
                     // An error type will always return an error
                     Error => Ok((Error, false)),
                     Alias(alias, args) => {
-                        let alias = alias.borrow().get_type(args);
+                        let Some(alias) = alias.borrow().get_type(args) else {
+                            return Err(TypeCheckError::expecting_other_error(
+                                "Elaborator::comparator_operand_type_rules: missing alias",
+                                location,
+                            ));
+                        };
                         self.prefix_operand_type_rules(op, &alias, location)
                     }
 
@@ -1914,7 +1937,15 @@ impl Elaborator<'_> {
         location: Location,
         is_ord: bool,
     ) {
-        let method_type = self.interner.definition_type(trait_method_id.item_id);
+        let method_type =
+            self.interner.definition_type(trait_method_id.item_id).unwrap_or(Type::Error);
+        if method_type.is_error() {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "type_check_operator_method: missing definition_type for trait_method_id.item_id",
+                location,
+            ));
+        }
+
         let (method_type, mut bindings) = method_type.instantiate(self.interner);
 
         match method_type {
@@ -2001,11 +2032,10 @@ impl Elaborator<'_> {
                 });
             }
             Type::Error => {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "type_check_operator_method: encountered method_type of type 'error'"
-                        .to_string(),
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "type_check_operator_method: encountered method_type of type 'error'",
                     location,
-                });
+                ));
             }
             other => {
                 unreachable!(

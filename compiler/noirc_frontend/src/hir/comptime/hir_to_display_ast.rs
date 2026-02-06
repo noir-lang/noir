@@ -30,7 +30,12 @@ impl HirStatement {
         let kind = match self {
             HirStatement::Let(let_stmt) => {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
-                let r#type = Some(interner.id_type(let_stmt.expression).to_display_ast());
+                let r#type = Some(
+                    interner
+                        .id_type(let_stmt.expression)
+                        .expect("HirStatement::to_display_ast: ICE: expected id_type to be set")
+                        .to_display_ast(),
+                );
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }

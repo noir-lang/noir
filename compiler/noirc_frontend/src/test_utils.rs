@@ -164,13 +164,14 @@ pub(crate) fn get_program_with_options(
         let def_map = CrateDefMap::new(root_crate_id, root_module);
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect_crate_and_dependencies(
+        DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
             options.frontend_options,
-        ));
+            &mut errors,
+        );
     }
 
     (program, context, errors)

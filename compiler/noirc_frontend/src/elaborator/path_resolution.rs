@@ -928,7 +928,7 @@ impl Elaborator<'_> {
         let object_name = path.segments[0].ident.as_str();
         let turbofish = path.segments[0].turbofish();
         let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
-        let typ = primitive_type.to_type();
+        let typ = primitive_type.to_type(self.interner);
         let mut errors = Vec::new();
 
         if primitive_type == PrimitiveType::StructDefinition {
@@ -1045,7 +1045,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
 fn get_type_alias_module_def_id(type_alias: &Shared<TypeAlias>) -> Option<ModuleId> {
     let type_alias = type_alias.borrow();
 
-    match &type_alias.typ {
+    match type_alias.typ.as_ref()? {
         Type::DataType(type_id, _generics) => Some(type_id.borrow().id.module_id()),
         Type::Alias(type_alias, _generics) => get_type_alias_module_def_id(type_alias),
         Type::Error => None,

@@ -326,7 +326,7 @@ impl<'a> NodeFinder<'a> {
                 let Some(primitive_type) = PrimitiveType::lookup_by_name(idents[0].as_str()) else {
                     return;
                 };
-                let typ = primitive_type.to_type();
+                let typ = primitive_type.to_type(self.interner);
                 self.complete_type_methods(
                     &typ,
                     &prefix,
@@ -364,7 +364,10 @@ impl<'a> NodeFinder<'a> {
                     let type_alias = self.interner.get_type_alias(type_alias_id);
                     let type_alias = type_alias.borrow();
                     self.complete_type_methods(
-                        &type_alias.typ,
+                        type_alias
+                            .typ
+                            .as_ref()
+                            .expect("ICE: expected type of type alias to be set"),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
@@ -430,7 +433,9 @@ impl<'a> NodeFinder<'a> {
                 let description = if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.reference_at_location(location)
                 {
-                    let typ = self.interner.definition_type(definition_id);
+                    let Some(typ) = self.interner.definition_type(definition_id) else {
+                        return;
+                    };
                     Some(typ.to_string())
                 } else {
                     None
@@ -606,7 +611,7 @@ impl<'a> NodeFinder<'a> {
             Type::Alias(type_alias, _) => {
                 let type_alias = type_alias.borrow();
                 return self.complete_type_fields_and_methods(
-                    &type_alias.typ,
+                    type_alias.typ.as_ref().expect("ICE: expected type of type alias to be set"),
                     prefix,
                     function_completion_kind,
                     self_prefix,
@@ -1108,8 +1113,10 @@ impl<'a> NodeFinder<'a> {
                     if let Some(ReferenceId::Local(definition_id)) =
                         self.interner.find_referenced(location)
                     {
-                        self.self_type =
-                            Some(self.interner.definition_type(definition_id).follow_bindings());
+                        let Some(typ) = self.interner.definition_type(definition_id) else {
+                            return;
+                        };
+                        self.self_type = Some(typ.follow_bindings());
                     }
                 }
             }
@@ -1127,7 +1134,7 @@ impl<'a> NodeFinder<'a> {
                 if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.find_referenced(location)
                 {
-                    let typ = self.interner.definition_type(definition_id);
+                    let typ = self.interner.definition_type(definition_id)?;
                     Some(typ)
                 } else {
                     None
@@ -1604,7 +1611,9 @@ impl Visitor for NodeFinder<'_> {
             let location = Location::new(path.span(), self.file);
             if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
             {
-                let typ = self.interner.definition_type(definition_id);
+                let Some(typ) = self.interner.definition_type(definition_id) else {
+                    return;
+                };
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
@@ -1947,7 +1956,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
                 None
             }
         }
-        Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
+        Type::Alias(alias_type, generics) => alias_type.borrow().get_type(generics),
         Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
             match &*var.borrow() {
                 TypeBinding::Bound(typ) => get_field_type(typ, name),
@@ -1962,7 +1971,7 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
         Type::Array(_, typ) | Type::Vector(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
-            let typ = alias_type.borrow().get_type(&generics);
+            let typ = alias_type.borrow().get_type(&generics)?;
             get_array_element_type(typ)
         }
         Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
@@ -1980,7 +1989,7 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
         Type::DataType(struct_type, _) => Some(struct_type.borrow().id),
         Type::Alias(type_alias, generics) => {
             let type_alias = type_alias.borrow();
-            let typ = type_alias.get_type(generics);
+            let typ = type_alias.get_type(generics)?;
             get_type_type_id(&typ)
         }
         _ => None,
