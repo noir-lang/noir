@@ -354,9 +354,20 @@ pub enum TraitImplKind {
 /// When searching for a trait impl, these are the types of errors we can expect
 #[derive(Debug)]
 pub enum ImplSearchErrorKind {
+    /// When the corresponding `object_type` is not bindable, according to
+    /// `Type::is_bindable`
     TypeAnnotationsNeededOnObjectType,
-    Nested(Vec<TraitConstraint>),
+    /// No impl found for the trait, i.e. when the `NodeInterner`
+    /// `trait_implementation_map` was
+    /// not found for the `trait_id`
+    NoImplFound(Vec<TraitConstraint>),
+    /// When more than one matching trait impl was found
     MultipleMatching(Vec<String>),
+    /// When no matching impl's were found
+    NoMatching(Vec<TraitConstraint>),
+    /// When the recursion limit for `NodeInterner::lookup_trait_implementation`
+    /// was reached
+    RecursionLimitReached,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
