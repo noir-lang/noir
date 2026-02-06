@@ -14,5 +14,5 @@
     "[yaml]": {
         "files.trimTrailingWhitespace": true
     },
-    // "rust-analyzer.server.extraEnv": { "RUSTUP_TOOLCHAIN": "stable" }
+    "rust-analyzer.server.extraEnv": { "RUSTUP_TOOLCHAIN": "stable" }
 }
