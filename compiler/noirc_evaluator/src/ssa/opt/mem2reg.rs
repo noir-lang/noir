@@ -3408,8 +3408,7 @@ mod tests {
             }
         "#;
 
-                assert_ssa_does_not_change(src, Ssa::mem2reg);
-
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     // Same class of bug as above but in the IfElse instruction path: when one of the
