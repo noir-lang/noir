@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770394907875,
+  "lastUpdate": 1770396116616,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1044b887882cb4b7ee8c58bc4182ec07de8c7194",
-          "message": "chore(ssa): Do not run remove_paired_rc (#11393)",
-          "timestamp": "2026-01-30T16:18:53Z",
-          "tree_id": "60d379ce0f6228d91bb49002878bd20136e00ee2",
-          "url": "https://github.com/noir-lang/noir/commit/1044b887882cb4b7ee8c58bc4182ec07de8c7194"
-        },
-        "date": 1769791835100,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257476,
-            "range": "± 789",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228449,
-            "range": "± 6124",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800800,
-            "range": "± 2113",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2731240,
             "range": "± 6380",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8b218326ce28ccb5fde7106a13c941cce7e9d11",
+          "message": "fix: discriminating on errors from `try_lookup_trait_implementation` in `add_assumed_trait_implementation` (#11488)",
+          "timestamp": "2026-02-06T16:19:22Z",
+          "tree_id": "7e95bfbc850353e3f5d161edc60d1b474c8354dc",
+          "url": "https://github.com/noir-lang/noir/commit/b8b218326ce28ccb5fde7106a13c941cce7e9d11"
+        },
+        "date": 1770396074287,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255225,
+            "range": "± 489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224063,
+            "range": "± 5036",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2733335,
+            "range": "± 7320",
             "unit": "ns/iter"
           }
         ]
