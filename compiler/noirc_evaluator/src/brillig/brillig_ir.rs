@@ -938,4 +938,44 @@ pub(crate) mod tests {
             "VM should finish successfully; v35 should be 16 and v36 should be 10"
         );
     }
+
+    /// Test that the parallel-move fix preserves temporary registers across all moves.
+    ///
+    /// When two block parameters are swapped (`jmp b1(v1, v0, ...)`  where `b1(v0, v1, ...)`),
+    /// both sources are also destinations, so both need temporaries. If the temporaries are
+    /// freed too early, the register allocator can reuse the same address for the second
+    /// temp, overwriting the first saved value.
+    #[test]
+    fn jmp_block_params_parallel_move_swap() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 1, u32 0)
+              b1(v0: u32, v1: u32, v2: u32):
+                v3 = lt v2, u32 1
+                jmpif v3 then: b2, else: b3
+              b2():
+                v4 = unchecked_add v2, u32 1
+                jmp b1(v1, v0, v4)
+              b3():
+                constrain v0 == u32 1
+                constrain v1 == u32 0
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v0 and v1 should be swapped after one iteration"
+        );
+    }
 }

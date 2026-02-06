@@ -281,6 +281,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // To prevent this, we save any source that would be overwritten into a
                 // temporary first.
                 let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
+                // `Allocated` automatically deallocates the register when dropped,
+                // so we collect the temporaries here to keep them alive until all
+                // moves have been emitted.
                 let mut temps = Vec::new();
                 for (src, _dst) in &mut moves {
                     if dest_set.contains(src) {
