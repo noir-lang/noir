@@ -85,7 +85,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -167,6 +167,16 @@ struct PerFunctionContext<'f> {
 
     inserter: FunctionInserter<'f>,
 
+    /// Store instructions which we should consider moving later.
+    /// Maps an address to the set of store instructions to that address that are eligible for
+    /// removal and the block they're in.
+    ///
+    /// We wait to remove store instructions until the end of mem2reg in case
+    /// any addresses are later discovered to have aliases. In the case of loops we may think an
+    /// instruction eligible for removal at first, only to have the address aliased only on the
+    /// next iteration of the loop.
+    store_instructions_to_remove: HashMap<ValueId, Vec<(BasicBlockId, InstructionId)>>,
+
     /// Load and Store instructions that should be removed at the end of the pass.
     ///
     /// We avoid removing individual instructions as we go since removing elements
@@ -205,6 +215,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
+            store_instructions_to_remove: Default::default(),
             instructions_analyzed: HashSet::default(),
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
@@ -248,19 +259,23 @@ impl<'f> PerFunctionContext<'f> {
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
-                all_terminator_values.insert(value);
-                // Also insert all the aliases of this value as being used in the terminator,
-                // so that for example if the value is an array and contains a reference,
-                // then that reference gets to keep its last store.
-                let typ = self.inserter.function.dfg.type_of_value(value);
-                if typ.contains_reference() {
-                    all_terminator_values.extend(references.get_aliases_for_value(value).iter());
-                }
+                Self::collect_terminator_value_aliases(
+                    value,
+                    references,
+                    &self.inserter.function.dfg,
+                    &mut all_terminator_values,
+                );
             });
         }
 
-        // Add all the aliases of values used in the terminators.
+        self.add_instructions_to_remove(&all_terminator_values, &per_func_block_params);
+    }
 
+    fn add_instructions_to_remove(
+        &mut self,
+        all_terminator_values: &HashSet<ValueId>,
+        per_func_block_params: &HashSet<ValueId>,
+    ) {
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -268,8 +283,8 @@ impl<'f> PerFunctionContext<'f> {
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
-                    &all_terminator_values,
-                    &per_func_block_params,
+                    all_terminator_values,
+                    per_func_block_params,
                 );
 
                 let is_dereference = block
@@ -280,6 +295,15 @@ impl<'f> PerFunctionContext<'f> {
                 if !self.last_loads.contains(store_address) && !store_alias_used && !is_dereference
                 {
                     self.instructions_to_remove.insert(*store_instruction);
+                }
+            }
+        }
+
+        for (address, instructions) in self.store_instructions_to_remove.drain() {
+            for (block_id, instruction) in instructions {
+                let block = &self.blocks[&block_id];
+                if block.get_aliases_for_value(address).single_alias().is_some() {
+                    self.instructions_to_remove.insert(instruction);
                 }
             }
         }
@@ -331,6 +355,41 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         false
+    }
+
+    /// Collects a terminator value and all its aliases into the output set.
+    ///
+    /// When a value has unknown aliases (e.g., because it contains references from
+    /// arrays with unknown contents), we fall back to directly collecting the array
+    /// elements if it's an array constant. This ensures that stores to references
+    /// within the array are not incorrectly removed.
+    fn collect_terminator_value_aliases(
+        value: ValueId,
+        references: &Block,
+        dfg: &DataFlowGraph,
+        output: &mut HashSet<ValueId>,
+    ) {
+        output.insert(value);
+
+        let typ = dfg.type_of_value(value);
+        if !typ.contains_reference() {
+            return;
+        }
+
+        let aliases = references.get_aliases_for_value(value);
+        if aliases.is_unknown() {
+            // If aliases are unknown but this is an array constant, directly collect
+            // the elements. This handles the case where an array contains references
+            // that have unknown aliases (e.g., from array parameters), but we still
+            // need to track the elements that DO have known aliases.
+            if let Some((elements, _)) = dfg.get_array_constant(value) {
+                for element in elements.iter() {
+                    Self::collect_terminator_value_aliases(*element, references, dfg, output);
+                }
+            }
+        } else {
+            output.extend(aliases.iter());
+        }
     }
 
     /// Collect the input parameters of the function which are of reference type.
@@ -494,7 +553,7 @@ impl<'f> PerFunctionContext<'f> {
             allow_reinsert,
         ) {
             InsertInstructionResult::Results(id, _) => {
-                self.analyze_possibly_simplified_instruction(references, id, false);
+                self.analyze_possibly_simplified_instruction(references, id, false, block_id);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
                 // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
@@ -503,7 +562,12 @@ impl<'f> PerFunctionContext<'f> {
                 }
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
-                    self.analyze_possibly_simplified_instruction(references, *instruction, true);
+                    self.analyze_possibly_simplified_instruction(
+                        references,
+                        *instruction,
+                        true,
+                        block_id,
+                    );
                 }
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
@@ -518,6 +582,7 @@ impl<'f> PerFunctionContext<'f> {
                             references,
                             *instruction,
                             true,
+                            block_id,
                         );
                     }
                 }
@@ -531,6 +596,7 @@ impl<'f> PerFunctionContext<'f> {
         references: &mut Block,
         instruction: InstructionId,
         simplified: bool,
+        block_id: BasicBlockId,
     ) {
         let ins = &self.inserter.function.dfg[instruction];
 
@@ -596,12 +662,16 @@ impl<'f> PerFunctionContext<'f> {
                 // However, we must be conservative if there are loop carried aliases, as loads
                 // through those aliases may occur in future loop iterations.
                 let has_loop_aliases = self.has_loop_carried_aliases(address);
+
                 if !self.aliased_references.contains_key(&address)
-                    && !address_aliases.is_unknown()
+                    && address_aliases.single_alias().is_some()
                     && !has_loop_aliases
                 {
                     if let Some(last_store) = references.last_stores.get(&address) {
-                        self.instructions_to_remove.insert(*last_store);
+                        self.store_instructions_to_remove
+                            .entry(address)
+                            .or_default()
+                            .push((block_id, *last_store));
                     }
                 }
 
@@ -708,7 +778,6 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
                 self.mark_all_unknown(arguments, references);
-
                 // Call results might be aliases of their arguments, if they are references
                 let results = self.inserter.function.dfg.instruction_results(instruction);
                 let results_contains_references = results.iter().any(|result| {
@@ -834,7 +903,6 @@ impl<'f> PerFunctionContext<'f> {
             // as we still need to mark those internal references as unknown.
             if typ.contains_reference() {
                 let value = *value;
-
                 // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
                 // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
                 if let Type::Reference(element) = &typ {
@@ -850,6 +918,9 @@ impl<'f> PerFunctionContext<'f> {
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
                 references.keep_last_load_for(value);
+
+                // Clear aliases AFTER keep_last_load_for so it can still find the aliases to preserve
+                self.clear_aliases(references, value);
             }
         }
     }
@@ -3058,5 +3129,347 @@ mod tests {
       "#;
 
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Tests for `collect_terminator_value_aliases` which recursively collects
+    /// aliases for values used in block terminators (return, jmp, etc.).
+    mod terminator_value_aliases {
+        use super::*;
+
+        // Regression test: Mem2Reg should not remove stores to references that escape
+        // via a returned array. Based on fuzzer-found bug where stores in b0 were removed
+        // even though the references were placed in an array and returned in b3.
+        #[test]
+        fn keep_store_to_reference_in_returned_array_across_branches() {
+            // Minimal reproduction of the failing pattern:
+            // - v7 and v9 are allocated and stored to in b0
+            // - Control flow branches (jmpif) to b1 or b2
+            // - Array containing v7, v9 is created and returned in b3
+            // - Mem2Reg must NOT remove the stores to v7 and v9
+            let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v2: [&mut u1; 3]):
+                v7 = allocate -> &mut u1
+                store u1 0 at v7
+                v9 = allocate -> &mut u1
+                store u1 0 at v9
+                v11 = array_get v2, index u32 2 -> &mut u1
+                v12 = load v11 -> u1
+                jmpif v12 then: b1, else: b2
+              b1():
+                v16 = array_get v2, index u32 1 -> &mut u1
+                jmp b3(v16)
+              b2():
+                v14 = array_get v2, index u32 0 -> &mut u1
+                jmp b3(v14)
+              b3(v6: &mut u1):
+                v17 = allocate -> &mut u1
+                store u1 1 at v17
+                v19 = make_array [v7, v9, v6, v17] : [&mut u1; 4]
+                return v19
+            }
+            "#;
+
+            // The stores to v7 and v9 must be preserved since they escape via the returned array
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
+
+        // Test that the recursive alias collection works for nested arrays.
+        // This extends keep_store_to_reference_in_returned_array_across_branches to verify
+        // that references nested within inner arrays are also properly tracked.
+        #[test]
+        fn keep_store_to_reference_in_returned_nested_array_across_branches() {
+            // Similar pattern to the non-nested test, but the references are placed in inner
+            // arrays which are then placed in an outer array that is returned.
+            // - v7 and v9 are allocated and stored to in b0
+            // - Control flow branches (jmpif) to b1 or b2
+            // - Inner arrays containing [v7] and [v9] are created
+            // - Outer array containing the inner arrays is created and returned in b3
+            // - Mem2Reg must NOT remove the stores to v7 and v9
+            let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v2: [&mut u1; 3]):
+                v7 = allocate -> &mut u1
+                store u1 0 at v7
+                v9 = allocate -> &mut u1
+                store u1 0 at v9
+                v11 = array_get v2, index u32 2 -> &mut u1
+                v12 = load v11 -> u1
+                jmpif v12 then: b1, else: b2
+              b1():
+                v16 = array_get v2, index u32 1 -> &mut u1
+                jmp b3(v16)
+              b2():
+                v14 = array_get v2, index u32 0 -> &mut u1
+                jmp b3(v14)
+              b3(v6: &mut u1):
+                v17 = allocate -> &mut u1
+                store u1 1 at v17
+                v20 = make_array [v7, v9] : [&mut u1; 2]
+                v21 = make_array [v6, v17] : [&mut u1; 2]
+                v22 = make_array [v20, v21] : [[&mut u1; 2]; 2]
+                return v22
+            }
+            "#;
+
+            // The stores to v7 and v9 must be preserved since they escape via the nested returned array
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
+
+        // Test that the recursive alias collection works for non-homogeneous arrays
+        // containing a mix of references and primitive values.
+        #[test]
+        fn keep_store_to_reference_in_returned_non_homogeneous_array_across_branches() {
+            // Similar pattern to the other tests, but the returned array contains a mix
+            // of references and primitive values (tuples with both).
+            // - v7 and v9 are allocated and stored to in b0
+            // - Control flow branches (jmpif) to b1 or b2
+            // - Array containing tuples of (u32, &mut u1) is created and returned in b3
+            // - Mem2Reg must NOT remove the stores to v7 and v9
+            let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v2: [&mut u1; 3]):
+                v7 = allocate -> &mut u1
+                store u1 0 at v7
+                v9 = allocate -> &mut u1
+                store u1 0 at v9
+                v11 = array_get v2, index u32 2 -> &mut u1
+                v12 = load v11 -> u1
+                jmpif v12 then: b1, else: b2
+              b1():
+                v16 = array_get v2, index u32 1 -> &mut u1
+                jmp b3(v16)
+              b2():
+                v14 = array_get v2, index u32 0 -> &mut u1
+                jmp b3(v14)
+              b3(v6: &mut u1):
+                v17 = allocate -> &mut u1
+                store u1 1 at v17
+                v20 = make_array [u32 1, v7, u32 2, v9, u32 3, v6, u32 4, v17] : [(u32, &mut u1); 4]
+                return v20
+            }
+            "#;
+
+            // The stores to v7 and v9 must be preserved since they escape via the returned array
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
+
+        // Test that the recursive alias collection works for arrays containing
+        // references to arrays (i.e., `[&mut [T; N]; M]`).
+        #[test]
+        fn keep_store_to_array_reference_in_returned_array_across_branches() {
+            // Similar pattern to the other tests, but the returned array contains
+            // references that point to arrays. Stores to those array references
+            // must be preserved.
+            // - v7 and v9 are allocated as references to arrays and stored to in b0
+            // - Control flow branches (jmpif) to b1 or b2
+            // - Array containing references [v7, v9, ...] is created and returned in b3
+            // - Mem2Reg must NOT remove the stores to v7 and v9
+            let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v2: [&mut [u1; 2]; 3]):
+                v7 = allocate -> &mut [u1; 2]
+                v8 = make_array [u1 0, u1 1] : [u1; 2]
+                store v8 at v7
+                v9 = allocate -> &mut [u1; 2]
+                v10 = make_array [u1 1, u1 0] : [u1; 2]
+                store v10 at v9
+                v11 = array_get v2, index u32 2 -> &mut [u1; 2]
+                v12 = load v11 -> [u1; 2]
+                v13 = array_get v12, index u32 0 -> u1
+                jmpif v13 then: b1, else: b2
+              b1():
+                v16 = array_get v2, index u32 1 -> &mut [u1; 2]
+                jmp b3(v16)
+              b2():
+                v14 = array_get v2, index u32 0 -> &mut [u1; 2]
+                jmp b3(v14)
+              b3(v6: &mut [u1; 2]):
+                v17 = allocate -> &mut [u1; 2]
+                v18 = make_array [u1 0, u1 0] : [u1; 2]
+                store v18 at v17
+                v19 = make_array [v7, v9, v6, v17] : [&mut [u1; 2]; 4]
+                return v19
+            }
+            "#;
+
+            // The stores to v7 and v9 must be preserved since they escape via the returned array
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
+    }
+
+    #[test]
+    fn ref_block_param_in_loop() {
+        let src = r#"
+            brillig(inline) predicate_pure fn foo_field f2 {
+              b0():
+                v2 = allocate -> &mut Field
+                store Field 100 at v2
+                v4 = allocate -> &mut Field
+                store Field 200 at v4
+                jmp b1(v2, Field 0)
+              b1(v0: &mut Field, v1: Field):
+                v8 = eq v1, Field 2
+                jmpif v8 then: b2, else: b3
+              b2():
+                v12 = load v4 -> Field
+                return v12
+              b3():
+                v10 = add v1, Field 1
+                store Field 200 at v4
+                v11 = load v0 -> Field
+                store v11 at v4
+                jmp b1(v4, v10)
+            }
+        "#;
+        // We were previously optimizing out the `store Field 200 at v4`
+        // which changed the result of the aliasing `load v0` on the next line.
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Variant of [ref_block_param_in_loop] using a nested reference instead
+    #[test]
+    fn nested_reference_in_loop() {
+        let src = r#"
+            brillig(inline) predicate_pure fn foo_field f2 {
+              b0():
+                v2 = allocate -> &mut Field
+                store Field 100 at v2
+                v4 = allocate -> &mut Field
+                store Field 200 at v4
+                v100 = allocate -> &mut &mut Field
+                store v2 at v100
+                jmp b1(Field 0)
+              b1(v1: Field):
+                v8 = eq v1, Field 2
+                jmpif v8 then: b2, else: b3
+              b2():
+                v12 = load v4 -> Field
+                return v12
+              b3():
+                v10 = add v1, Field 1
+                store Field 200 at v4
+                v13 = load v100 -> &mut Field
+                v11 = load v13 -> Field
+                store v11 at v4
+                store v4 at v100
+                jmp b1(v10)
+            }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn call_in_loop_establishes_alias() {
+        // This test checks if a call that establishes an alias AFTER the store removal
+        // decision can trigger the same bug as the jmp-based variant.
+        //
+        // Pattern:
+        // - v100 is a &mut &mut Field that initially points to v2
+        // - In the loop, we store 200 at v4, then store a loaded value at v4
+        // - AFTER those stores, we call f1 which does `store v4 at v100`
+        // - On iteration 2, v100 points to v4, so `load v100` returns v4
+        // - `load v4` should see 200 from the first store
+        //
+        // Trace:
+        // - Iter 1: v100→v2, store 200@v4, load v100→v2, load v2→100, store 100@v4, call f1 (v100→v4)
+        // - Iter 2: v100→v4, store 200@v4, load v100→v4, load v4→should be 200!
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v2 = allocate -> &mut Field
+                store Field 100 at v2
+                v4 = allocate -> &mut Field
+                store Field 200 at v4
+                v100 = allocate -> &mut &mut Field
+                store v2 at v100
+                jmp b1(Field 0)
+              b1(v1: Field):
+                v8 = eq v1, Field 2
+                jmpif v8 then: b2, else: b3
+              b2():
+                v12 = load v4 -> Field
+                return v12
+              b3():
+                v10 = add v1, Field 1
+                store Field 200 at v4
+                v13 = load v100 -> &mut Field
+                v11 = load v13 -> Field
+                store v11 at v4
+                call f1(v100, v4)
+                jmp b1(v10)
+            }
+            brillig(inline) fn helper f1 {
+              b0(v0: &mut &mut Field, v1: &mut Field):
+                store v1 at v0
+                return
+            }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Verify the expected result before mem2reg
+        let expected_result = vec![Value::field(200u128.into())];
+        let result_before = ssa.interpret(vec![]).unwrap();
+        assert_eq!(result_before, expected_result, "result before mem2reg should be 200");
+
+        let ssa = ssa.mem2reg();
+
+        // After mem2reg, the result should still be 200.
+        // If the bug exists, it will be 100 because `store Field 200 at v4` was removed.
+        let result_after = ssa.interpret(vec![]).unwrap();
+        assert_eq!(result_after, expected_result, "result after mem2reg should still be 200");
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// When a reference is stored inside an array that is passed to a call,
+    /// the load after the call must be preserved (the callee can modify through the nested reference).
+    #[test]
+    fn call_with_nested_reference_parameter() {
+        // Simplified version of the original test case - a reference v2 is put inside an array v3
+        // which is passed to call f1. The load from v2 after the call must be preserved.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 100 at v1
+            v2 = allocate -> &mut Field
+            store Field 200 at v2
+            v3 = make_array [v2] : [&mut Field; 1]
+            call f1(v3)
+            v5 = load v2 -> Field
+            return v5
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&mut Field; 1]):
+            v2 = array_get v0, index u32 0 -> &mut Field
+            store Field 999 at v2
+            return
+        }
+        "#;
+
+        // The critical check: after mem2reg, the load after `call f1(v3)` must still exist.
+        // v2 is aliased through the array v3, so the call could modify it.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // v5 = load v1 must be preserved after `call f1(v3)` since f1 can modify through the nested reference
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            store Field 200 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            call f1(v3)
+            v5 = load v1 -> Field
+            return v5
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&mut Field; 1]):
+            v2 = array_get v0, index u32 0 -> &mut Field
+            store Field 999 at v2
+            return
+        }
+        ");
     }
 }
