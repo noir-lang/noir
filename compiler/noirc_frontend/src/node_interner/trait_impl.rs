@@ -82,9 +82,9 @@ impl NodeInterner {
             }
             Ok(_) => Ok(false),
             Err(
-                error @ (ImplSearchErrorKind::Nested(_)
+                error @ (ImplSearchErrorKind::NoImplFound(_)
                 | ImplSearchErrorKind::MultipleMatching(_)
-                | ImplSearchErrorKind::RecursionLimitReached(_)),
+                | ImplSearchErrorKind::RecursionLimitReached),
             ) => Err(error),
         }
     }
@@ -254,11 +254,9 @@ impl NodeInterner {
             }
         };
 
-        let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
-
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
-            return Err(ImplSearchErrorKind::RecursionLimitReached(make_constraint()));
+            return Err(ImplSearchErrorKind::RecursionLimitReached);
         }
 
         let object_type = object_type.substitute(type_bindings);
@@ -268,7 +266,10 @@ impl NodeInterner {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
-        let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
+        let impls = self
+            .trait_implementation_map
+            .get(&trait_id)
+            .ok_or_else(|| ImplSearchErrorKind::NoImplFound(vec![make_constraint()]))?;
 
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
@@ -363,7 +364,7 @@ impl NodeInterner {
             Ok((impl_, instantiation_bindings))
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
-                Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
+                Some((_, ImplSearchErrorKind::NoImplFound(errors))) => errors,
                 Some((constraint, _other)) => vec![constraint],
                 None => vec![],
             };

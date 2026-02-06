@@ -181,6 +181,7 @@ use crate::{
         path_resolution::PathResolutionItem, types::WildcardAllowed,
     },
     hir::{
+        comptime::InterpreterError,
         def_collector::dc_crate::UnresolvedTrait,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
@@ -613,10 +614,8 @@ impl Elaborator<'_> {
                     });
                 }
             }
-            Err(ImplSearchErrorKind::RecursionLimitReached(_)) => {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "Elaborator::add_trait_bound_to_scope: recursion limit reached"
-                        .to_string(),
+            Err(ImplSearchErrorKind::RecursionLimitReached) => {
+                self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
                     location,
                 });
                 return;

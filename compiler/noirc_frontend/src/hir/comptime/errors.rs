@@ -304,6 +304,9 @@ pub enum InterpreterError {
         token: Option<Token>,
         location: Location,
     },
+    TraitImplResolutionRecursionLimitReached {
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -403,6 +406,7 @@ impl InterpreterError {
             | InterpreterError::EvaluationDepthOverflow { location, .. }
             | InterpreterError::CheckedTransmuteFailed { location, .. }
             | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
+            | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -859,6 +863,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 let secondary = "Only `$` may be escaped in `quote` expressions".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::TraitImplResolutionRecursionLimitReached { location } => {
+                let primary = "Trait impl resolution recursion limit reached".to_string();
+                let secondary = String::new();
+                CustomDiagnostic::simple_warning(primary, secondary, *location)
             }
         }
     }
