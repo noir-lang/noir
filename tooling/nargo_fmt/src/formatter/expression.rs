@@ -1739,6 +1739,13 @@ global y = 1;
     }
 
     #[test]
+    fn format_dep_call() {
+        let src = "global x =  dep :: foo :: bar ( 1, 2 )  ;";
+        let expected = "global x = ::foo::bar(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_call_with_turbofish() {
         let src = "global x =  foo :: bar :: < Field, i32 > ( 1, 2 )  ;";
         let expected = "global x = foo::bar::<Field, i32>(1, 2);\n";
