@@ -299,14 +299,15 @@ impl FunctionContext<'_> {
                 let elements: Vec<_> =
                     std::iter::repeat(element_value).take(*length as usize).collect();
 
-                let converted_typ = Self::convert_type(typ).flatten();
+                let mut converted_typ = Self::convert_type(typ).flatten().into_iter();
+                let typ_0 = converted_typ.next().unwrap();
                 if *is_vector {
                     let vector_length = self.builder.length_constant(u128::from(*length));
                     let vector_contents =
-                        self.codegen_array_checked(elements, converted_typ[1].clone())?;
+                        self.codegen_array_checked(elements, converted_typ.next().unwrap())?;
                     Ok(Tree::Branch(vec![vector_length.into(), vector_contents]))
                 } else {
-                    self.codegen_array_checked(elements, converted_typ[0].clone())
+                    self.codegen_array_checked(elements, typ_0)
                 }
             }
             ast::Literal::Integer(value, typ, location) => {

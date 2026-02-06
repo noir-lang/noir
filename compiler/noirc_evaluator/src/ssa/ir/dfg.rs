@@ -863,8 +863,9 @@ impl DataFlowGraph {
         results.contains(&return_data)
     }
 
-    /// Computes the number of flattened values returned by the SSA terminator
-    /// Error if it exceeds MAX_ELEMENTS
+    /// Computes the number of flattened values returned by the SSA terminator.
+    ///
+    /// Returns [RuntimeError::ReturnLimitExceeded] if it exceeds [MAX_ELEMENTS].
     pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
         if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
             func.return_instruction()
