@@ -167,6 +167,16 @@ struct PerFunctionContext<'f> {
 
     inserter: FunctionInserter<'f>,
 
+    /// Store instructions which we should consider moving later.
+    /// Maps an address to the set of store instructions to that address that are eligible for
+    /// removal and the block they're in.
+    ///
+    /// We wait to remove store instructions until the end of mem2reg in case
+    /// any addresses are later discovered to have aliases. In the case of loops we may think an
+    /// instruction eligible for removal at first, only to have the address aliased only on the
+    /// next iteration of the loop.
+    store_instructions_to_remove: HashMap<ValueId, Vec<(BasicBlockId, InstructionId)>>,
+
     /// Load and Store instructions that should be removed at the end of the pass.
     ///
     /// We avoid removing individual instructions as we go since removing elements
@@ -205,6 +215,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
+            store_instructions_to_remove: Default::default(),
             instructions_analyzed: HashSet::default(),
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
@@ -257,8 +268,14 @@ impl<'f> PerFunctionContext<'f> {
             });
         }
 
-        // Add all the aliases of values used in the terminators.
+        self.add_instructions_to_remove(&all_terminator_values, &per_func_block_params);
+    }
 
+    fn add_instructions_to_remove(
+        &mut self,
+        all_terminator_values: &HashSet<ValueId>,
+        per_func_block_params: &HashSet<ValueId>,
+    ) {
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -266,8 +283,8 @@ impl<'f> PerFunctionContext<'f> {
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
-                    &all_terminator_values,
-                    &per_func_block_params,
+                    all_terminator_values,
+                    per_func_block_params,
                 );
 
                 let is_dereference = block
@@ -278,6 +295,15 @@ impl<'f> PerFunctionContext<'f> {
                 if !self.last_loads.contains(store_address) && !store_alias_used && !is_dereference
                 {
                     self.instructions_to_remove.insert(*store_instruction);
+                }
+            }
+        }
+
+        for (address, instructions) in self.store_instructions_to_remove.drain() {
+            for (block_id, instruction) in instructions {
+                let block = &self.blocks[&block_id];
+                if block.get_aliases_for_value(address).single_alias().is_some() {
+                    self.instructions_to_remove.insert(instruction);
                 }
             }
         }
@@ -527,7 +553,7 @@ impl<'f> PerFunctionContext<'f> {
             allow_reinsert,
         ) {
             InsertInstructionResult::Results(id, _) => {
-                self.analyze_possibly_simplified_instruction(references, id, false);
+                self.analyze_possibly_simplified_instruction(references, id, false, block_id);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
                 // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
@@ -536,7 +562,12 @@ impl<'f> PerFunctionContext<'f> {
                 }
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
-                    self.analyze_possibly_simplified_instruction(references, *instruction, true);
+                    self.analyze_possibly_simplified_instruction(
+                        references,
+                        *instruction,
+                        true,
+                        block_id,
+                    );
                 }
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
@@ -551,6 +582,7 @@ impl<'f> PerFunctionContext<'f> {
                             references,
                             *instruction,
                             true,
+                            block_id,
                         );
                     }
                 }
@@ -564,6 +596,7 @@ impl<'f> PerFunctionContext<'f> {
         references: &mut Block,
         instruction: InstructionId,
         simplified: bool,
+        block_id: BasicBlockId,
     ) {
         let ins = &self.inserter.function.dfg[instruction];
 
@@ -629,12 +662,16 @@ impl<'f> PerFunctionContext<'f> {
                 // However, we must be conservative if there are loop carried aliases, as loads
                 // through those aliases may occur in future loop iterations.
                 let has_loop_aliases = self.has_loop_carried_aliases(address);
+
                 if !self.aliased_references.contains_key(&address)
-                    && !address_aliases.is_unknown()
+                    && address_aliases.single_alias().is_some()
                     && !has_loop_aliases
                 {
                     if let Some(last_store) = references.last_stores.get(&address) {
-                        self.instructions_to_remove.insert(*last_store);
+                        self.store_instructions_to_remove
+                            .entry(address)
+                            .or_default()
+                            .push((block_id, *last_store));
                     }
                 }
 
@@ -3258,5 +3295,66 @@ mod tests {
             // The stores to v7 and v9 must be preserved since they escape via the returned array
             assert_ssa_does_not_change(src, Ssa::mem2reg);
         }
+    }
+
+    #[test]
+    fn ref_block_param_in_loop() {
+        let src = r#"
+            brillig(inline) predicate_pure fn foo_field f2 {
+              b0():
+                v2 = allocate -> &mut Field
+                store Field 100 at v2
+                v4 = allocate -> &mut Field
+                store Field 200 at v4
+                jmp b1(v2, Field 0)
+              b1(v0: &mut Field, v1: Field):
+                v8 = eq v1, Field 2
+                jmpif v8 then: b2, else: b3
+              b2():
+                v12 = load v4 -> Field
+                return v12
+              b3():
+                v10 = add v1, Field 1
+                store Field 200 at v4
+                v11 = load v0 -> Field
+                store v11 at v4
+                jmp b1(v4, v10)
+            }
+        "#;
+        // We were previously optimizing out the `store Field 200 at v4`
+        // which changed the result of the aliasing `load v0` on the next line.
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Variant of [ref_block_param_in_loop] using a nested reference instead
+    #[test]
+    fn nested_reference_in_loop() {
+        let src = r#"
+            brillig(inline) predicate_pure fn foo_field f2 {
+              b0():
+                v2 = allocate -> &mut Field
+                store Field 100 at v2
+                v4 = allocate -> &mut Field
+                store Field 200 at v4
+                v100 = allocate -> &mut &mut Field
+                store v2 at v100
+                jmp b1(Field 0)
+              b1(v1: Field):
+                v8 = eq v1, Field 2
+                jmpif v8 then: b2, else: b3
+              b2():
+                v12 = load v4 -> Field
+                return v12
+              b3():
+                v10 = add v1, Field 1
+                store Field 200 at v4
+                v13 = load v100 -> &mut Field
+                v11 = load v13 -> Field
+                store v11 at v4
+                store v4 at v100
+                jmp b1(v10)
+            }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }

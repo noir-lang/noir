@@ -80,6 +80,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let mut scalars: [EmbeddedCurveScalar; N + 1] = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N + 1];
     let mut generators: [EmbeddedCurvePoint; N + 1] =
         [EmbeddedCurvePoint::point_at_infinity(); N + 1];
+    crate::assert_constant(separator);
     let domain_generators: [EmbeddedCurvePoint; N] =
         derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
 
@@ -102,7 +103,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
     starting_index: u32,
 ) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
-    // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
+    crate::assert_constant(starting_index);
     __derive_generators(domain_separator_bytes, starting_index)
 }
 
