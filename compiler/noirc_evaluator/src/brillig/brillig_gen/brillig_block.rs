@@ -271,8 +271,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     moves.push((arg_reg, param_reg));
                 }
 
-                // Block parameter assignments at a jmp must happen "simultaneously" (like
-                // phi nodes). A naive sequential loop can lose values when a source register
+                // Block parameter assignments at a jmp must happen "simultaneously".
+                // A naive sequential loop can lose values when a source register
                 // is overwritten by an earlier move in the same batch. For example, with:
                 //   `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
                 // Sequential execution would:

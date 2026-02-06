@@ -899,11 +899,12 @@ pub(crate) mod tests {
     /// Test that jmp block parameter passing handles the parallel-move problem correctly.
     ///
     /// When a jmp instruction passes block parameters where a source register is also a
-    /// destination for another parameter, the sequential mov loop can clobber values.
-    /// For example, `jmp b1(v8, v3, u32 10)` where b1(v3, v35, v36):
-    ///   1. mov reg(v3), reg(v8) — overwrites old v3
-    ///   2. mov reg(v35), reg(v3) — reads the NEW v3 instead of old
-    /// This test verifies the fix by running a loop where v35 should get the old v3 value.
+    /// destination for another parameter, the sequential mov loop can overwrite values.
+    /// For example, `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+    ///   1. mov reg(v2), reg(v1) — overwrites old v3
+    ///   2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+    ///
+    /// This test verifies the fix by running a loop where v3 should get the old v2 value.
     #[test]
     fn jmp_block_params_parallel_move() {
         let src = r#"
