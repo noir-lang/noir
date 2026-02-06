@@ -9,7 +9,7 @@ mod tests {
         errors::RuntimeError,
         ssa::{
             Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
-            opt::{constant_folding, inlining},
+            opt::{constant_folding, inlining, unrolling},
             primary_passes,
         },
     };
@@ -25,6 +25,7 @@ mod tests {
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: i32::MAX,
+            max_unroll_iterations: unrolling::MAX_UNROLL_ITERATIONS,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
             skip_passes: Default::default(),

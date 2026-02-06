@@ -6,6 +6,7 @@ use crate::ssa::{
 };
 
 use super::inlining::{self, InlineInfo};
+use super::unrolling::MAX_UNROLL_ITERATIONS;
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
@@ -55,7 +56,7 @@ impl Ssa {
             // Prepare for unrolling
             function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively();
+            let _ = function.unroll_loops_iteratively(MAX_UNROLL_ITERATIONS);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 

@@ -16,7 +16,9 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
+use noirc_evaluator::ssa::opt::{
+    CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS, MAX_UNROLL_ITERATIONS,
+};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
@@ -187,6 +189,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i32::MAX)]
     pub max_bytecode_increase_percent: i32,
 
+    /// Maximum iterations for Brillig loop unrolling. Loops exceeding this
+    /// will not be unrolled even if they pass the instruction threshold.
+    #[arg(long, hide = true, default_value_t = MAX_UNROLL_ITERATIONS)]
+    pub max_unroll_iterations: usize,
+
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
     ///
@@ -245,6 +252,7 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: i32::MAX,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
@@ -281,6 +289,7 @@ impl CompileOptions {
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            max_unroll_iterations: self.max_unroll_iterations,
             skip_passes: self.skip_ssa_pass.clone(),
         }
     }
