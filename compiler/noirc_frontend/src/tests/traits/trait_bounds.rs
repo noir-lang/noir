@@ -574,12 +574,16 @@ fn errors_on_mutually_recursive_impls() {
     pub struct Baz {}
 
     impl Foo for Bar where Baz: Foo {
+                                ^^^ Constraint for `Baz: Foo` is not needed, another matching impl is already in scope
+                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Baz {}).foo()
         }
     }
 
     impl Foo for Baz where Bar: Foo {
+                                ^^^ Constraint for `Bar: Foo` is not needed, another matching impl is already in scope
+                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Bar {}).foo()
         }
