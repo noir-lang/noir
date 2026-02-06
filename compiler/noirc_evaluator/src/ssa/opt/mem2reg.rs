@@ -195,6 +195,11 @@ struct PerFunctionContext<'f> {
     /// This is needed to determine whether we can remove a store.
     instruction_input_references: HashSet<ValueId>,
 
+    /// Set to true when an ArrayGet with unknown array aliases produces a reference result.
+    /// In this case we cannot enumerate which references may be read, so
+    /// `remove_stores_that_do_not_alias_parameters_or_returns` must be skipped entirely.
+    has_unknown_input_references: bool,
+
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
     /// If that store has been set for removal, we can also remove this instruction.
@@ -220,6 +225,7 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
+            has_unknown_input_references: false,
             loop_aliases,
         }
     }
@@ -507,6 +513,10 @@ impl<'f> PerFunctionContext<'f> {
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
     fn remove_stores_that_do_not_alias_parameters_or_returns(&mut self, references: &Block) {
+        if self.has_unknown_input_references {
+            return;
+        }
+
         let reference_parameters = self.reference_parameters();
 
         for (allocation, instruction) in &references.last_stores {
@@ -703,8 +713,14 @@ impl<'f> PerFunctionContext<'f> {
 
                 if self.inserter.function.dfg.type_of_value(result).contains_reference() {
                     let array = *array;
-                    self.instruction_input_references
-                        .extend(references.get_aliases_for_value(array).iter());
+                    let array_aliases = references.get_aliases_for_value(array);
+                    if array_aliases.is_unknown() {
+                        // The array has unknown aliases so we cannot enumerate which
+                        // references it contains. Any store could potentially be read
+                        // through the result of this array_get.
+                        self.has_unknown_input_references = true;
+                    }
+                    self.instruction_input_references.extend(array_aliases.iter());
                     references.mark_value_used(array, self.inserter.function);
 
                     // An expression for the value might already exist, so try to fetch it first
@@ -3651,6 +3667,51 @@ mod tests {
           b3():
             return v2
         }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn array_get_unknown_aliases_loses_instruction_input_references() {
+        // The ArrayGet handler populates instruction_input_references via
+        // get_aliases_for_value(array).iter(). When the array has unknown aliases,
+        // .iter() yields nothing, so references inside the array are not tracked.
+        // In a single-block function, remove_stores_that_do_not_alias_parameters_or_returns
+        // then incorrectly removes the store because it only checks
+        // reference_parameters and instruction_input_references (not aliased_references).
+        //
+        // Setup:
+        // - v1 = allocate, store Field 200 at v1, make_array [v1] → v2
+        // - call f1() → v3 (unknown aliases — call result)
+        // - if_else combines v2 (known) and v3 (unknown) → v5 is unknown
+        // - array_get v5 → v6, load v6 → v7, return v7
+        //
+        // The if_else result is NOT a make_array constant, so mark_value_used
+        // cannot recurse into it. And the IfElse handler's aliased_references
+        // tracking does NOT protect the store in the single-block removal path.
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 200 at v1
+                v2 = make_array [v1] : [&mut Field; 1]
+                v3 = call f1() -> [&mut Field; 1]
+                v4 = not v0
+                v5 = if v0 then v2 else (if v4) v3
+                v6 = array_get v5, index u32 0 -> &mut Field
+                v7 = load v6 -> Field
+                return v7
+            }
+            brillig(inline) fn dummy f1 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 0 at v0
+                v1 = make_array [v0] : [&mut Field; 1]
+                jmp b1()
+              b1():
+                return v1
+            }
         "#;
 
         assert_ssa_does_not_change(src, Ssa::mem2reg);
