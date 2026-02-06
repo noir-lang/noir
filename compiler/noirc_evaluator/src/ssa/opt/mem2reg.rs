@@ -677,9 +677,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                for alias in references.get_aliases_for_value(value).iter() {
-                    self.aliased_references.entry(alias).or_default().insert(instruction);
-                }
+                self.collect_value_aliases_for_aliased_references(value, references, instruction);
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -852,6 +850,38 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             _ => (),
+        }
+    }
+
+    /// Collects aliases of a stored value and records them in `aliased_references`.
+    ///
+    /// When a value has known aliases, this simply iterates them. When aliases are
+    /// unknown (e.g., because the value is a MakeArray containing a block parameter
+    /// with unknown aliases), we fall back to recursively collecting aliases from
+    /// the array's elements. This mirrors the approach in `collect_terminator_value_aliases`
+    /// and prevents stores to references within arrays from being incorrectly removed
+    /// when the outer array has unknown combined aliases.
+    fn collect_value_aliases_for_aliased_references(
+        &mut self,
+        value: ValueId,
+        references: &Block,
+        instruction: InstructionId,
+    ) {
+        let aliases = references.get_aliases_for_value(value);
+        if aliases.is_unknown() {
+            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
+                for element in elements.iter() {
+                    self.collect_value_aliases_for_aliased_references(
+                        *element,
+                        references,
+                        instruction,
+                    );
+                }
+            }
+        } else {
+            for alias in aliases.iter() {
+                self.aliased_references.entry(alias).or_default().insert(instruction);
+            }
         }
     }
 
@@ -3356,5 +3386,64 @@ mod tests {
             }
         "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    // Regression test: when a Store instruction stores an array value that has unknown
+    // combined aliases (because it contains a block parameter with unknown aliases alongside
+    // allocated references with known aliases), mem2reg must still track the individual
+    // element aliases in `aliased_references`. Otherwise, stores to those allocated
+    // references may be incorrectly removed by `is_store_alias_used`.
+    //
+    // The pattern: v6 is allocated and stored to in b3 (after a join point), wrapped in
+    // array v7, then combined with v5 (a block parameter from b1/b2 with unknown aliases)
+    // into a nested array [v7, v5] stored at v9. A loop (b4->b6->b4) loads the nested
+    // array from v9, extracts v6 via array_get, and loads v6's value. The loop prevents
+    // mem2reg from propagating known values across the back edge.
+    //
+    // Without `collect_value_aliases_for_aliased_references`, the store of the nested
+    // array at v9 would not record v6 in `aliased_references` (because the array has
+    // unknown combined aliases from v5), causing `store u1 1 at v6` to be incorrectly
+    // removed.
+    #[test]
+    fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
+        use crate::ssa::opt::assert_pass_does_not_affect_execution;
+
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmpif u1 0 then: b1, else: b2
+              b1():
+                v1 = allocate -> &mut u1
+                store u1 0 at v1
+                v2 = make_array [v1] : [&mut u1; 1]
+                jmp b3(v2)
+              b2():
+                v3 = allocate -> &mut u1
+                store u1 0 at v3
+                v4 = make_array [v3] : [&mut u1; 1]
+                jmp b3(v4)
+              b3(v5: [&mut u1; 1]):
+                v6 = allocate -> &mut u1
+                store u1 1 at v6
+                v7 = make_array [v6] : [&mut u1; 1]
+                v8 = make_array [v7, v5] : [[&mut u1; 1]; 2]
+                v9 = allocate -> &mut [[&mut u1; 1]; 2]
+                store v8 at v9
+                jmp b4(u1 0)
+              b4(v10: u1):
+                v11 = load v9 -> [[&mut u1; 1]; 2]
+                v12 = array_get v11, index u32 0 -> [&mut u1; 1]
+                v13 = array_get v12, index u32 0 -> &mut u1
+                v14 = load v13 -> u1
+                jmpif v10 then: b5, else: b6
+              b5():
+                return v14
+              b6():
+                jmp b4(u1 1)
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
     }
 }
