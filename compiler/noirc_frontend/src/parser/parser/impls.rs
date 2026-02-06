@@ -154,7 +154,7 @@ impl Parser<'_> {
         let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
-            let name = self.unknown_ident_at_previous_token_end();
+            let name = self.empty_ident_at_previous_token_end();
             let alias = None;
             return Some(TraitImplItemKind::Type { name, alias });
         };
@@ -176,7 +176,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 

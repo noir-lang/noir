@@ -460,6 +460,7 @@ fn multiple_trait_impls_with_different_instantiations() {
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
+    // This exercises follow_bindings_shallow which handles alias chains.
     // ```
     // type Alias2000 = u8;
     // type Alias1999 = Alias2000;
@@ -487,6 +488,31 @@ fn extreme_type_alias_chain_stack_overflow() {
             x
         }}
     "#
+    );
+
+    let _ = get_monomorphized(&src);
+}
+
+#[test]
+#[should_panic(expected = "Type recursion limit reached - types are too large")]
+fn deeply_nested_tuple_type_stack_overflow() {
+    // Generate deeply nested tuple types by wrapping values repeatedly.
+    // This exercises follow_bindings which handles nested type structures.
+    // Each wrap adds one level: Field -> (Field,) -> ((Field,),) -> ...
+    use crate::TYPE_RECURSION_LIMIT;
+    const DEPTH: usize = TYPE_RECURSION_LIMIT as usize + 10;
+
+    let mut body = String::from("let v0: Field = 1;\n");
+    for i in 1..=DEPTH {
+        body.push_str(&format!("    let v{i} = (v{},);\n", i - 1));
+    }
+
+    let src = format!(
+        r#"
+fn main() {{
+    {body}
+}}
+"#
     );
 
     let _ = get_monomorphized(&src);

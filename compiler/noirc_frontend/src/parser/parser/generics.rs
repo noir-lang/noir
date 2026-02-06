@@ -126,7 +126,7 @@ impl Parser<'_> {
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
 
-    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )
+    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )?
     ///
     /// GenericTypeArgsList = GenericTypeArg ( ',' GenericTypeArg )* ','?
     ///
@@ -139,6 +139,13 @@ impl Parser<'_> {
     /// OrderedTypeArg = TypeOrTypeExpression
     pub(super) fn parse_generic_type_args(&mut self) -> GenericTypeArgs {
         let mut generic_type_args = GenericTypeArgs::default();
+
+        // Allow `Type::<Generic>` and `Type<Generic>` as it's common to confuse them.
+        // The formatter will remove the double colon.
+        if self.at(Token::DoubleColon) && self.next_is(Token::Less) {
+            self.bump();
+        }
+
         if !self.eat_less() {
             return generic_type_args;
         }
