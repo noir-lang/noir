@@ -98,8 +98,9 @@ fn run_with_generator(
                 &program.abi,
                 &program.debug_symbols.debug_infos,
             ) {
-                let function_names = debug_artifact.function_names_for_diagnostic(&diagnostic);
-                diagnostic.report(&debug_artifact, &function_names, false);
+                let function_locations =
+                    debug_artifact.function_locations_for_diagnostic(&diagnostic);
+                diagnostic.report(&debug_artifact, &function_locations, false);
             }
 
             return Err(CliError::Generic.into());

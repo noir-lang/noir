@@ -9,7 +9,7 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
-use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionName};
+use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
@@ -22,7 +22,7 @@ use noirc_evaluator::ssa::{
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::error_reporting::function_names_in_parsed_module;
+use noirc_frontend::error_reporting::function_locations_in_parsed_module;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
@@ -805,11 +805,11 @@ pub fn filter_relevant_files(
         let file_source = file_manager.fetch_file(file_id).expect("file should exist");
         let (parsed_module, _errors) = parsed_files.get(&file_id).expect("file should exist");
         let include_comptime_items = false;
-        let mut function_names =
-            function_names_in_parsed_module(parsed_module, file_id, include_comptime_items);
-        let function_names = function_names
+        let mut function_locations =
+            function_locations_in_parsed_module(parsed_module, file_id, include_comptime_items);
+        let function_locations = function_locations
             .all_in_file(file_id)
-            .map(|(name, span)| FunctionName {
+            .map(|(name, span)| FunctionLocation {
                 name: name.to_string(),
                 start: span.start(),
                 end: span.end(),
@@ -821,7 +821,7 @@ pub fn filter_relevant_files(
             DebugFile {
                 source: file_source.to_string(),
                 path: file_path.to_path_buf(),
-                function_names,
+                function_locations,
             },
         );
     }

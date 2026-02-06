@@ -10,7 +10,7 @@ use flate2::write::DeflateEncoder;
 use noirc_errors::{
     CustomDiagnostic, Location, Span,
     call_stack::{CallStack, CallStackHelper, CallStackId},
-    function_names::FunctionNames,
+    function_locations::FunctionLocations,
 };
 use noirc_printable_type::PrintableType;
 use serde::Deserializer;
@@ -78,14 +78,14 @@ impl DebugArtifact {
         for file_id in files_with_debug_symbols {
             let file_path = file_manager.path(file_id).expect("file should exist");
             let file_source = file_manager.fetch_file(file_id).expect("file should exist");
-            let function_names = BTreeSet::default();
+            let function_locations = BTreeSet::default();
 
             file_map.insert(
                 file_id,
                 DebugFile {
                     source: file_source.to_string(),
                     path: file_path.to_path_buf(),
-                    function_names,
+                    function_locations,
                 },
             );
         }
@@ -163,26 +163,29 @@ impl DebugArtifact {
         self.line_index(location.file, source.len())
     }
 
-    /// Returns the function names relevant to the given diagnostic's call stack.
-    pub fn function_names_for_diagnostic(&self, diagnostic: &CustomDiagnostic) -> FunctionNames {
+    /// Returns the function locations relevant to the given diagnostic's call stack.
+    pub fn function_locations_for_diagnostic(
+        &self,
+        diagnostic: &CustomDiagnostic,
+    ) -> FunctionLocations {
         let mut file_ids = HashSet::new();
         for location in &diagnostic.call_stack {
             file_ids.insert(location.file);
         }
 
-        let mut function_names = FunctionNames::new();
+        let mut function_locations = FunctionLocations::new();
         for file_id in file_ids {
             let Some(debug_file) = self.file_map.get(&file_id) else {
                 continue;
             };
 
-            for name in &debug_file.function_names {
+            for name in &debug_file.function_locations {
                 let span = Span::from(name.start..name.end);
                 let location = Location { span, file: file_id };
-                function_names.insert(location, name.name.clone());
+                function_locations.insert(location, name.name.clone());
             }
         }
-        function_names
+        function_locations
     }
 }
 
@@ -427,12 +430,12 @@ impl From<&CallStackHelper> for LocationTree {
 pub struct DebugFile {
     pub source: String,
     pub path: PathBuf,
-    pub function_names: BTreeSet<FunctionName>,
+    pub function_locations: BTreeSet<FunctionLocation>,
 }
 
 /// A function name and where in the source code it is declared.
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FunctionName {
+pub struct FunctionLocation {
     /// The function's name.
     pub name: String,
     /// The byte index where the function starts.

@@ -4,7 +4,7 @@ use fm::FileManager;
 use nargo::ops::TestStatus;
 use noirc_errors::{CustomDiagnostic, reporter::stack_trace};
 use noirc_frontend::{
-    error_reporting::{function_names_for_diagnostics, report_one},
+    error_reporting::{function_locations_for_diagnostics, report_one},
     hir::ParsedFiles,
 };
 use serde_json::{Map, json};
@@ -555,9 +555,13 @@ pub(crate) fn diagnostic_to_string(
 
     if !custom_diagnostic.call_stack.is_empty() {
         let diagnostics = std::slice::from_ref(custom_diagnostic);
-        let function_names = function_names_for_diagnostics(diagnostics, parsed_files);
+        let function_locations = function_locations_for_diagnostics(diagnostics, parsed_files);
         message.push('\n');
-        message.push_str(&stack_trace(file_map, &function_names, &custom_diagnostic.call_stack));
+        message.push_str(&stack_trace(
+            file_map,
+            &function_locations,
+            &custom_diagnostic.call_stack,
+        ));
     }
 
     message

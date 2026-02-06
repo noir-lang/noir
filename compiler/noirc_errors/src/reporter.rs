@@ -1,7 +1,7 @@
 use std::io::IsTerminal;
 
 use crate::Location;
-use crate::function_names::FunctionNames;
+use crate::function_locations::FunctionLocations;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
@@ -194,7 +194,7 @@ impl CustomLabel {
 /// of diagnostics that were errors.
 pub fn report_all<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
-    function_names: &FunctionNames,
+    function_locations: &FunctionLocations,
     diagnostics: &[CustomDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
@@ -211,7 +211,7 @@ pub fn report_all<'files>(
 
     let error_count = diagnostics
         .iter()
-        .map(|error| u32::from(error.report(files, function_names, deny_warnings)))
+        .map(|error| u32::from(error.report(files, function_locations, deny_warnings)))
         .sum();
 
     ReportedErrors { error_count }
@@ -222,17 +222,17 @@ impl CustomDiagnostic {
     pub fn report<'files>(
         &self,
         files: &'files impl Files<'files, FileId = fm::FileId>,
-        function_names: &FunctionNames,
+        function_locations: &FunctionLocations,
         deny_warnings: bool,
     ) -> bool {
-        report(files, function_names, self, deny_warnings)
+        report(files, function_locations, self, deny_warnings)
     }
 }
 
 /// Report the given diagnostic, and return true if it was an error
 pub fn report<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
-    function_names: &FunctionNames,
+    function_locations: &FunctionLocations,
     custom_diagnostic: &CustomDiagnostic,
     deny_warnings: bool,
 ) -> bool {
@@ -241,7 +241,7 @@ pub fn report<'files>(
     let writer = StandardStream::stderr(color_choice);
     let config = term::Config::default();
 
-    let stack_trace = stack_trace(files, function_names, &custom_diagnostic.call_stack);
+    let stack_trace = stack_trace(files, function_locations, &custom_diagnostic.call_stack);
     let diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
     term::emit(&mut writer.lock(), &config, files, &diagnostic).unwrap();
 
@@ -281,7 +281,7 @@ fn convert_diagnostic(
 
 pub fn stack_trace<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
-    function_names: &FunctionNames,
+    function_locations: &FunctionLocations,
     call_stack: &[Location],
 ) -> String {
     if call_stack.is_empty() {
@@ -291,7 +291,7 @@ pub fn stack_trace<'files>(
     let mut result = "Call stack:\n".to_string();
 
     for (i, call_item) in call_stack.iter().enumerate() {
-        let name = function_names.lookup(*call_item).unwrap_or("?");
+        let name = function_locations.lookup(*call_item).unwrap_or("?");
         let path = files.name(call_item.file).expect("should get file path");
         let source = files.source(call_item.file).expect("should get file source");
 

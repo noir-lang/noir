@@ -9,11 +9,11 @@ use crate::Location;
 /// Maps function location ranges to their names, to be used when showing call stack frames
 /// during error reporting.
 #[derive(Default)]
-pub struct FunctionNames {
+pub struct FunctionLocations {
     files: HashMap<FileId, RangeMap<u32, String>>,
 }
 
-impl FunctionNames {
+impl FunctionLocations {
     pub fn new() -> Self {
         Self { files: HashMap::new() }
     }

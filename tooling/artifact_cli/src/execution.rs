@@ -69,8 +69,8 @@ pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>
             debug_symbols: circuit.debug.clone(),
             file_map: circuit.file_map.clone(),
         };
-        let function_names = debug_artifact.function_names_for_diagnostic(&diagnostic);
-        diagnostic.report(&debug_artifact, &function_names, false);
+        let function_locations = debug_artifact.function_locations_for_diagnostic(&diagnostic);
+        diagnostic.report(&debug_artifact, &function_locations, false);
     }
 }
 
