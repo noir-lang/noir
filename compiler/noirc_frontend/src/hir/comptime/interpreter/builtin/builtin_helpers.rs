@@ -601,10 +601,10 @@ pub(super) fn has_named_attribute(
     interner: &NodeInterner,
 ) -> bool {
     for attribute in attributes {
-        if let Some(attribute_name) = secondary_attribute_name(attribute, interner) {
-            if name == attribute_name {
-                return true;
-            }
+        if let Some(attribute_name) = secondary_attribute_name(attribute, interner)
+            && name == attribute_name
+        {
+            return true;
         }
     }
 

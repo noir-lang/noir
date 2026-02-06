@@ -45,18 +45,18 @@ impl Function {
                 }
                 // If this is a truncate instruction, check if there's a range check for that same value
                 Instruction::Truncate { value, bit_size, .. } => {
-                    if let Some(range_check_bit_size) = range_checks.get(value) {
-                        if range_check_bit_size <= bit_size {
-                            // We need to replace the truncated value with the original one. That is, in:
-                            //
-                            // range_check v0 to 32 bits
-                            // v1 = truncate v0 to 32 bits, max_bit_size: 254
-                            //
-                            // we need to remove the `truncate` and all references to `v1` should now be `v0`.
-                            let [result] = context.dfg.instruction_result(instruction_id);
-                            context.replace_value(result, *value);
-                            context.remove_current_instruction();
-                        }
+                    if let Some(range_check_bit_size) = range_checks.get(value)
+                        && range_check_bit_size <= bit_size
+                    {
+                        // We need to replace the truncated value with the original one. That is, in:
+                        //
+                        // range_check v0 to 32 bits
+                        // v1 = truncate v0 to 32 bits, max_bit_size: 254
+                        //
+                        // we need to remove the `truncate` and all references to `v1` should now be `v0`.
+                        let [result] = context.dfg.instruction_result(instruction_id);
+                        context.replace_value(result, *value);
+                        context.remove_current_instruction();
                     }
                 }
                 _ => (),

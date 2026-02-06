@@ -647,16 +647,15 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        if let Some(definition) = self.interner.try_definition(ident.id) {
-            if let DefinitionKind::Function(function) = definition.kind {
-                let function = self.interner.function_meta(&function);
-                for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>()
-                {
-                    constraint.apply_bindings(&bindings);
+        if let Some(definition) = self.interner.try_definition(ident.id)
+            && let DefinitionKind::Function(function) = definition.kind
+        {
+            let function = self.interner.function_meta(&function);
+            for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
+                constraint.apply_bindings(&bindings);
 
-                    // This constraint shouldn't lead to choosing a trait impl method
-                    self.push_trait_constraint(constraint, **expr_id, false);
-                }
+                // This constraint shouldn't lead to choosing a trait impl method
+                self.push_trait_constraint(constraint, **expr_id, false);
             }
         }
 

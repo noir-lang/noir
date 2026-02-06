@@ -576,10 +576,10 @@ pub fn compile_contract(
     } else {
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
-                if let Some(ref name) = options.show_contract_fn {
-                    if name != &contract_function.name {
-                        continue;
-                    }
+                if let Some(ref name) = options.show_contract_fn
+                    && name != &contract_function.name
+                {
+                    continue;
                 }
                 println!(
                     "Compiled ACIR for {}::{} (non-transformed):",
@@ -875,11 +875,12 @@ pub fn compile_no_check(
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = rustc_hash::FxBuildHasher.hash_one(&program);
 
-    if let Some(cached_program) = cached_program {
-        if !force_compile && cached_program.hash == hash {
-            info!("Program matches existing artifact, returning early");
-            return Ok(cached_program);
-        }
+    if let Some(cached_program) = cached_program
+        && !force_compile
+        && cached_program.hash == hash
+    {
+        info!("Program matches existing artifact, returning early");
+        return Ok(cached_program);
     }
 
     let return_visibility = program.return_visibility();

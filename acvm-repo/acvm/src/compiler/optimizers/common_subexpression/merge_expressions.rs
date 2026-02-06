@@ -117,29 +117,27 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                 Some(Opcode::AssertZero(expr_use)),
                                 Some(Opcode::AssertZero(expr_define)),
                             ) = (target_opcode, source_opcode)
-                            {
-                                if let Some(expr) =
+                                && let Some(expr) =
                                     Self::merge_expression(&expr_use, &expr_define, w)
-                                {
-                                    self.modified_gates.insert(target, Opcode::AssertZero(expr));
-                                    self.deleted_gates.insert(source);
-                                    // Update the 'used_witnesses' map to account for the merge.
-                                    let witness_list = CircuitSimulator::expr_witness(&expr_use);
-                                    let witness_list = witness_list
-                                        .chain(CircuitSimulator::expr_witness(&expr_define));
+                            {
+                                self.modified_gates.insert(target, Opcode::AssertZero(expr));
+                                self.deleted_gates.insert(source);
+                                // Update the 'used_witnesses' map to account for the merge.
+                                let witness_list = CircuitSimulator::expr_witness(&expr_use);
+                                let witness_list = witness_list
+                                    .chain(CircuitSimulator::expr_witness(&expr_define));
 
-                                    for w2 in witness_list {
-                                        if !circuit_io.contains(&w2) {
-                                            used_witnesses.entry(w2).and_modify(|v| {
-                                                v.insert(target);
-                                                v.remove(&source);
-                                            });
-                                        }
+                                for w2 in witness_list {
+                                    if !circuit_io.contains(&w2) {
+                                        used_witnesses.entry(w2).and_modify(|v| {
+                                            v.insert(target);
+                                            v.remove(&source);
+                                        });
                                     }
-                                    // We need to stop here and continue with the next opcode
-                                    // because the merge invalidates the current opcode.
-                                    break;
                                 }
+                                // We need to stop here and continue with the next opcode
+                                // because the merge invalidates the current opcode.
+                                break;
                             }
                         }
                     }
