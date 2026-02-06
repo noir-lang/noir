@@ -8,7 +8,8 @@ use acvm::{
 use std::collections::BTreeSet;
 
 use noirc_evaluator::ssa::{
-    SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
+    SsaEvaluatorOptions, ir::map::Id, opt::FORCE_UNROLL_THRESHOLD, optimize_ssa_builder_into_acir,
+    primary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
 use noirc_evaluator::ssa::{
@@ -245,7 +246,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
         small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: None,
-        force_unroll_threshold: None,
+        force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
