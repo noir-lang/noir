@@ -56,13 +56,13 @@ impl NodeInterner {
     /// can resolve them. They are then later verified when the function is called, and linked
     /// properly after being monomorphized to the correct variant.
     ///
-    /// Returns true on success, or false if there is already an overlapping impl in scope.
+    /// Returns Ok(true) on success, or Ok(false) if there is already an overlapping impl in scope.
     pub fn add_assumed_trait_implementation(
         &mut self,
         object_type: Type,
         trait_id: TraitId,
         trait_generics: TraitGenerics,
-    ) -> bool {
+    ) -> Result<bool, ImplSearchErrorKind> {
         // Make sure there are no overlapping impls
         let existing = self.try_lookup_trait_implementation(
             &object_type,
@@ -70,13 +70,23 @@ impl NodeInterner {
             &trait_generics.ordered,
             &trait_generics.named,
         );
-        if existing.is_ok() {
-            return false;
+        match existing {
+            Err(ImplSearchErrorKind::NoMatching(_))
+            | Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
+                let entries = self.trait_implementation_map.entry(trait_id).or_default();
+                entries.push((
+                    object_type.clone(),
+                    TraitImplKind::Assumed { object_type, trait_generics },
+                ));
+                Ok(true)
+            }
+            Ok(_) => Ok(false),
+            Err(
+                error @ (ImplSearchErrorKind::NoImplFound(_)
+                | ImplSearchErrorKind::MultipleMatching(_)
+                | ImplSearchErrorKind::RecursionLimitReached),
+            ) => Err(error),
         }
-
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type.clone(), TraitImplKind::Assumed { object_type, trait_generics }));
-        true
     }
 
     /// Adds a trait implementation to the list of known implementations.
@@ -244,11 +254,9 @@ impl NodeInterner {
             }
         };
 
-        let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
-
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
-            return Err(nested_error());
+            return Err(ImplSearchErrorKind::RecursionLimitReached);
         }
 
         let object_type = object_type.substitute(type_bindings);
@@ -258,7 +266,10 @@ impl NodeInterner {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
-        let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
+        let impls = self
+            .trait_implementation_map
+            .get(&trait_id)
+            .ok_or_else(|| ImplSearchErrorKind::NoImplFound(vec![make_constraint()]))?;
 
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
@@ -353,12 +364,12 @@ impl NodeInterner {
             Ok((impl_, instantiation_bindings))
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
-                Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
+                Some((_, ImplSearchErrorKind::NoImplFound(errors))) => errors,
                 Some((constraint, _other)) => vec![constraint],
                 None => vec![],
             };
             errors.push(make_constraint());
-            Err(ImplSearchErrorKind::Nested(errors))
+            Err(ImplSearchErrorKind::NoMatching(errors))
         } else {
             let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
                 let name = &self.get_trait(constraint.trait_bound.trait_id).name;

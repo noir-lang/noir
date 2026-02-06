@@ -6,17 +6,18 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::ast::UnresolvedGenerics;
+use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::UnresolvedGlobal;
 use crate::hir::def_map::DefMaps;
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
-use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, TypeVariable};
+use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
@@ -287,6 +288,16 @@ impl Context<'_, '_> {
             let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();
             let location = ident.location();
+
+            if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
+                let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
+                if !matches!(typ, Type::NamedGeneric(..)) {
+                    errors.push(
+                        ResolverError::MacroResultInGenericsListNotAGeneric { location, typ }
+                            .into(),
+                    );
+                }
+            }
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.to_string());

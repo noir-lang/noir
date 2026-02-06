@@ -11,7 +11,7 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+        opt::{CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS},
         primary_passes,
         ssa_gen::{self, Ssa},
     },
@@ -44,6 +44,7 @@ fn arb_ssa_roundtrip() {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
         };
         let pipeline = primary_passes(&options);

@@ -6,7 +6,7 @@ use crate::{
     Kind, Type, TypeBindings,
     elaborator::lints::check_integer_literal_fits_its_type,
     hir::{
-        comptime::Value,
+        comptime::{InterpreterError, Value},
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
     hir_def::traits::TraitConstraint,
@@ -227,12 +227,18 @@ impl Elaborator<'_> {
             ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
             }
-            ImplSearchErrorKind::Nested(constraints) => {
+            ImplSearchErrorKind::NoImplFound(constraints)
+            | ImplSearchErrorKind::NoMatching(constraints) => {
                 if let Some(error) =
                     NoMatchingImplFoundError::new(self.interner, constraints, location)
                 {
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
+            }
+            ImplSearchErrorKind::RecursionLimitReached => {
+                self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                    location,
+                });
             }
             ImplSearchErrorKind::MultipleMatching(candidates) => {
                 let object_type = object_type.clone();

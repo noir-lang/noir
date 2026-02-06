@@ -200,12 +200,11 @@ impl Elaborator<'_> {
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();
-        if let Some(segment) = segment {
-            if segment.ident.is_self_type_name() {
-                if let Some(typ) = &self.self_type {
-                    return Some(typ.clone());
-                }
-            }
+        if let Some(segment) = segment
+            && segment.ident.is_self_type_name()
+            && let Some(typ) = &self.self_type
+        {
+            return Some(typ.clone());
         }
 
         let location = path.location;

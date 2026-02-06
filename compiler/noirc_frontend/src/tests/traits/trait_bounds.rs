@@ -559,3 +559,41 @@ fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
     "#;
     assert_no_errors(src);
 }
+
+// TODO(https://github.com/noir-lang/noir/issues/11499): Fail with an error that mentions some type of "overflow" error
+#[test]
+fn errors_on_mutually_recursive_impls() {
+    let src = r#"
+    trait Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    pub struct Bar {}
+    pub struct Baz {}
+
+    impl Foo for Bar where Baz: Foo {
+        fn foo(self) {
+            (Baz {}).foo()
+        }
+    }
+
+    impl Foo for Baz where Bar: Foo {
+        fn foo(self) {
+            (Bar {}).foo()
+        }
+    }
+
+    fn main() {
+        (Bar {}).foo();
+        ^^^^^^^^^^^^ No matching impl found for `Bar: Foo`
+        ~~~~~~~~~~~~ No impl for `Bar: Foo`
+
+        (Baz {}).foo();
+        ^^^^^^^^^^^^ No matching impl found for `Baz: Foo`
+        ~~~~~~~~~~~~ No impl for `Baz: Foo`
+    }
+    "#;
+    check_errors(src);
+}

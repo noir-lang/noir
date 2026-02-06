@@ -126,28 +126,27 @@ fn check_for_constant_jmpif(
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
+        && let Some(constant) = function.dfg.get_numeric_constant(*condition)
     {
-        if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
-            let (destination, unchosen_destination) = if constant.is_zero() {
-                (*else_destination, *then_destination)
-            } else {
-                (*then_destination, *else_destination)
-            };
+        let (destination, unchosen_destination) = if constant.is_zero() {
+            (*else_destination, *then_destination)
+        } else {
+            (*then_destination, *else_destination)
+        };
 
-            let arguments = Vec::new();
-            let call_stack = *call_stack;
-            let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
-            function.dfg[block].set_terminator(jmp);
-            cfg.recompute_block(function, block);
+        let arguments = Vec::new();
+        let call_stack = *call_stack;
+        let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+        function.dfg[block].set_terminator(jmp);
+        cfg.recompute_block(function, block);
 
-            // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
-            // we can then invalidate it successors as it's an invalid predecessor.
-            if cfg.predecessors(unchosen_destination).len() == 0 {
-                cfg.invalidate_block_successors(unchosen_destination);
-            }
-
-            return true;
+        // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
+        // we can then invalidate it successors as it's an invalid predecessor.
+        if cfg.predecessors(unchosen_destination).len() == 0 {
+            cfg.invalidate_block_successors(unchosen_destination);
         }
+
+        return true;
     }
     false
 }
@@ -258,21 +257,19 @@ fn check_for_negated_jmpif_condition(
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
+        && let Value::Instruction { instruction, .. } = function.dfg[*condition]
+        && let Instruction::Not(negated_condition) = function.dfg[instruction]
     {
-        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
-            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
-                let call_stack = *call_stack;
-                let jmpif = TerminatorInstruction::JmpIf {
-                    condition: negated_condition,
-                    then_destination: *else_destination,
-                    else_destination: *then_destination,
-                    call_stack,
-                };
-                function.dfg[block].set_terminator(jmpif);
-                cfg.recompute_block(function, block);
-                return true;
-            }
-        }
+        let call_stack = *call_stack;
+        let jmpif = TerminatorInstruction::JmpIf {
+            condition: negated_condition,
+            then_destination: *else_destination,
+            else_destination: *then_destination,
+            call_stack,
+        };
+        function.dfg[block].set_terminator(jmpif);
+        cfg.recompute_block(function, block);
+        return true;
     }
     false
 }

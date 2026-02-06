@@ -125,10 +125,10 @@ impl Methods {
                         }
 
                         // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                        if let Type::Reference(object, _mutable) = object {
-                            if object.unify(typ).is_ok() {
-                                return true;
-                            }
+                        if let Type::Reference(object, _mutable) = object
+                            && object.unify(typ).is_ok()
+                        {
+                            return true;
                         }
                     }
                 } else {
@@ -141,10 +141,10 @@ impl Methods {
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type {
-                        if Self::types_can_unify(method_type, typ) {
-                            return true;
-                        }
+                    if let Type::Reference(method_type, _mutable) = method_type
+                        && Self::types_can_unify(method_type, typ)
+                    {
+                        return true;
                     }
                 }
             }

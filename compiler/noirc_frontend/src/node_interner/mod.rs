@@ -338,10 +338,22 @@ pub enum TraitImplKind {
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
+#[derive(Debug)]
 pub enum ImplSearchErrorKind {
+    /// When the corresponding `object_type` is not bindable, according to
+    /// `Type::is_bindable`
     TypeAnnotationsNeededOnObjectType,
-    Nested(Vec<TraitConstraint>),
+    /// No impl found for the trait, i.e. when the `NodeInterner`
+    /// `trait_implementation_map` was
+    /// not found for the `trait_id`
+    NoImplFound(Vec<TraitConstraint>),
+    /// When more than one matching trait impl was found
     MultipleMatching(Vec<String>),
+    /// When no matching impl's were found
+    NoMatching(Vec<TraitConstraint>),
+    /// When the recursion limit for `NodeInterner::lookup_trait_implementation`
+    /// was reached
+    RecursionLimitReached,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -883,21 +895,17 @@ impl NodeInterner {
         let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
-            if let Type::TraitAsType(..) = ret.as_ref() {
-                if let DefinitionKind::Function(func_id) = def.kind {
-                    let func = self.function(&func_id);
-                    let Some(func_body) = func.try_as_expr() else {
-                        return Err(func_id);
-                    };
-                    let ret_type = self.id_type(func_body);
-                    let new_type = Type::Function(
-                        args.clone(),
-                        Box::new(ret_type),
-                        env.clone(),
-                        *unconstrained,
-                    );
-                    return Ok(new_type);
-                }
+            if let Type::TraitAsType(..) = ret.as_ref()
+                && let DefinitionKind::Function(func_id) = def.kind
+            {
+                let func = self.function(&func_id);
+                let Some(func_body) = func.try_as_expr() else {
+                    return Err(func_id);
+                };
+                let ret_type = self.id_type(func_body);
+                let new_type =
+                    Type::Function(args.clone(), Box::new(ret_type), env.clone(), *unconstrained);
+                return Ok(new_type);
             }
         }
         Ok(typ)
@@ -1461,10 +1469,9 @@ impl NodeInterner {
             // This handles instantiation and unification correctly for generic impls
             if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
                 self.try_lookup_trait_implementation(typ, trait_id, &[], &[])
+                && found_impl_id == *impl_id
             {
-                if found_impl_id == *impl_id {
-                    results.push((*def_id, trait_id, *impl_id));
-                }
+                results.push((*def_id, trait_id, *impl_id));
             }
         }
         results
