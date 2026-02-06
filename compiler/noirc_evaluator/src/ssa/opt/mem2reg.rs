@@ -830,11 +830,18 @@ impl<'f> PerFunctionContext<'f> {
                     // Mark references in both branches as being used by this IfElse instruction.
                     // This ensures that stores to those references are kept even in loops where
                     // alias information may not propagate correctly through the back edge.
-                    for alias in then_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
-                    for alias in else_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    for value in [*then_value, *else_value] {
+                        Self::for_each_value_alias(
+                            value,
+                            references,
+                            &self.inserter.function.dfg,
+                            &mut |alias| {
+                                self.aliased_references
+                                    .entry(alias)
+                                    .or_default()
+                                    .insert(instruction);
+                            },
+                        );
                     }
 
                     // `then_value` and `else_value` are now aliased by `result`
@@ -3358,22 +3365,11 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    // Regression test: when a Store instruction stores an array value that has unknown
-    // combined aliases (because it contains a block parameter with unknown aliases alongside
-    // allocated references with known aliases), mem2reg must still track the individual
-    // element aliases in `aliased_references`. Otherwise, stores to those allocated
-    // references may be incorrectly removed by `is_store_alias_used`.
-    //
-    // The pattern: v6 is allocated and stored to in b3 (after a join point), wrapped in
-    // array v7, then combined with v5 (a block parameter from b1/b2 with unknown aliases)
-    // into a nested array [v7, v5] stored at v9. A loop (b4->b6->b4) loads the nested
-    // array from v9, extracts v6 via array_get, and loads v6's value. The loop prevents
-    // mem2reg from propagating known values across the back edge.
-    //
-    // Without `for_each_value_alias` recursing into the array elements, the store of the nested
-    // array at v9 would not record v6 in `aliased_references` (because the array has
-    // unknown combined aliases from v5), causing `store u1 1 at v6` to be incorrectly
-    // removed.
+    // When an array has unknown combined aliases (e.g. mixing a block parameter with local
+    // allocations), `get_aliases_for_value().iter()` yields nothing, so references with
+    // known aliases inside the array are not recorded in `aliased_references`.
+    // This test checks the Store instruction path: storing such an array must still track
+    // its individual element aliases.
     #[test]
     fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
         use crate::ssa::opt::assert_pass_does_not_affect_execution;
@@ -3410,6 +3406,43 @@ mod tests {
                 return v14
               b6():
                 jmp b4(u1 1)
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+    }
+
+    // Same class of bug as above but in the IfElse instruction path: when one of the
+    // IfElse operands is an array with unknown combined aliases, its known element aliases
+    // are not recorded in `aliased_references`.
+    #[test]
+    fn keep_store_when_if_else_operand_has_unknown_aliases_from_block_param() {
+        use crate::ssa::opt::assert_pass_does_not_affect_execution;
+
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut u1
+                store u1 1 at v0
+                v1 = make_array [v0] : [&mut u1; 1]
+                jmp b1(v1)
+              b1(v2: [&mut u1; 1]):
+                v3 = array_get v2, index u32 0 -> &mut u1
+                v4 = load v3 -> u1
+                v5 = not v4
+                v6 = allocate -> &mut u1
+                store u1 1 at v6
+                v7 = make_array [v6, v3] : [&mut u1; 2]
+                v8 = allocate -> &mut u1
+                store u1 0 at v8
+                v9 = allocate -> &mut u1
+                store u1 0 at v9
+                v10 = make_array [v8, v9] : [&mut u1; 2]
+                v11 = if v4 then v7 else (if v5) v10
+                v12 = array_get v11, index u32 0 -> &mut u1
+                v13 = load v12 -> u1
+                return v13
             }
         "#;
 
