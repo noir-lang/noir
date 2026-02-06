@@ -70,7 +70,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// force-unrolled regardless of the cost model. Loops with no function calls,
 /// constant bounds, and no breaks whose unrolled instruction count is at or
 /// below this threshold will always be unrolled.
-const BRILLIG_FORCE_UNROLL_THRESHOLD: usize = 32;
+pub const FORCE_UNROLL_THRESHOLD: usize = 32;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -80,10 +80,14 @@ impl Ssa {
     /// after unrolling small loops to some percentage of the original loop. For example a value of 150 would
     /// mean the new loop can be 150% (ie. 2.5 times) larger than the original loop. It will still contain
     /// fewer SSA instructions, but that can still result in more Brillig opcodes.
+    ///
+    /// The `force_unroll_threshold` overrides the default threshold for force-unrolling
+    /// small Brillig loops. Set to 0 to disable force-unrolling.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops_iteratively(
         mut self,
         max_bytecode_increase_percent: Option<i32>,
+        force_unroll_threshold: usize,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
@@ -93,7 +97,7 @@ impl Ssa {
                 (max_bytecode_increase_percent.is_some() && is_brillig).then(|| function.clone());
 
             // We must be able to unroll ACIR loops at this point, so exit on failure to unroll.
-            let has_unrolled = function.unroll_loops_iteratively()?;
+            let has_unrolled = function.unroll_loops_iteratively(force_unroll_threshold)?;
 
             // Check if the size increase is acceptable
             // This is here now instead of in `Function::unroll_loops_iteratively` because we'd need
@@ -122,9 +126,15 @@ impl Function {
     /// but it should still leave the function in a partially unrolled, but valid state.
     ///
     /// If successful, returns a flag indicating whether any loops have been unrolled.
-    pub(super) fn unroll_loops_iteratively(&mut self) -> Result<bool, RuntimeError> {
+    ///
+    /// The `force_unroll_threshold` overrides the default threshold for
+    /// force-unrolling small Brillig loops.
+    pub(super) fn unroll_loops_iteratively(
+        &mut self,
+        force_unroll_threshold: usize,
+    ) -> Result<bool, RuntimeError> {
         // Try to unroll loops first:
-        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops();
+        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(force_unroll_threshold);
 
         // Keep unrolling until no more errors are found
         while !unroll_errors.is_empty() {
@@ -134,7 +144,7 @@ impl Function {
             simplify_between_unrolls(self);
 
             // Unroll again
-            let (new_unrolled, new_errors) = self.try_unroll_loops();
+            let (new_unrolled, new_errors) = self.try_unroll_loops(force_unroll_threshold);
             unroll_errors = new_errors;
             has_unrolled |= new_unrolled;
 
@@ -155,7 +165,7 @@ impl Function {
     /// This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
     /// Brillig also generally prefers smaller code rather than faster code,
     /// so we only attempt to unroll small loops, which we decide on a case-by-case basis.
-    fn try_unroll_loops(&mut self) -> (bool, Vec<RuntimeError>) {
+    fn try_unroll_loops(&mut self, force_unroll_threshold: usize) -> (bool, Vec<RuntimeError>) {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
@@ -190,7 +200,7 @@ impl Function {
                 let result = if failed_to_unroll.contains(&next_loop.header) {
                     LoopUnrollResult::Skipped
                 } else {
-                    self.try_unroll_loop(next_loop, &loops)
+                    self.try_unroll_loop(next_loop, &loops, force_unroll_threshold)
                 };
                 match result {
                     LoopUnrollResult::Skipped => continue,
@@ -216,9 +226,16 @@ impl Function {
     /// Try to unroll a single loop.
     ///
     /// Returns the result: whether the loop was skipped, failed, or unrolled.
-    fn try_unroll_loop(&mut self, loop_: Loop, loops: &Loops) -> LoopUnrollResult {
+    fn try_unroll_loop(
+        &mut self,
+        loop_: Loop,
+        loops: &Loops,
+        force_unroll_threshold: usize,
+    ) -> LoopUnrollResult {
         // Only unroll small loops in Brillig.
-        if self.runtime().is_brillig() && !loop_.should_unroll_in_brillig(self, &loops.cfg) {
+        if self.runtime().is_brillig()
+            && !loop_.should_unroll_in_brillig(self, &loops.cfg, force_unroll_threshold)
+        {
             return LoopUnrollResult::Skipped;
         }
 
@@ -879,10 +896,16 @@ impl Loop {
     /// 2. AND either:
     ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
     ///    b. The total unrolled instruction count is within the force-unroll threshold
-    fn should_unroll_in_brillig(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
+    fn should_unroll_in_brillig(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+        force_unroll_threshold: usize,
+    ) -> bool {
+        let threshold = force_unroll_threshold;
         self.boilerplate_stats(function, cfg)
             .map(|s| {
-                let force_unroll = s.unrolled_instructions() <= BRILLIG_FORCE_UNROLL_THRESHOLD;
+                let force_unroll = s.unrolled_instructions() <= threshold;
                 (force_unroll || s.is_small()) && self.is_fully_executed(cfg)
             })
             .unwrap_or_default()
@@ -1285,9 +1308,7 @@ mod tests {
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{
-        BRILLIG_FORCE_UNROLL_THRESHOLD, BoilerplateStats, LoopOrder, Loops, is_new_size_ok,
-    };
+    use super::{BoilerplateStats, FORCE_UNROLL_THRESHOLD, LoopOrder, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -1296,7 +1317,7 @@ mod tests {
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
-            errors.extend(function.try_unroll_loops().1);
+            errors.extend(function.try_unroll_loops(FORCE_UNROLL_THRESHOLD).1);
         }
         (ssa, errors)
     }
@@ -1612,13 +1633,13 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 13 iterations × 4 useful instructions = 52, above BRILLIG_FORCE_UNROLL_THRESHOLD (32)
+        // 13 iterations × 4 useful instructions = 52, above FORCE_UNROLL_THRESHOLD (32)
         let parse_ssa = || brillig_unroll_test_case_6470(13);
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
         assert!(
-            stats.unrolled_instructions() > BRILLIG_FORCE_UNROLL_THRESHOLD,
+            stats.unrolled_instructions() > FORCE_UNROLL_THRESHOLD,
             "the loop should exceed the force-unroll threshold"
         );
 
@@ -1631,7 +1652,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_respects_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(Some(-90), FORCE_UNROLL_THRESHOLD).unwrap();
         // Check that it's still the original
         let expected = brillig_unroll_test_case();
         assert_normalized_ssa_equals(ssa, &expected.print_without_locations().to_string());
@@ -1640,9 +1661,36 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_with_large_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(50)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(Some(50), FORCE_UNROLL_THRESHOLD).unwrap();
         // Check that it did the unroll
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
+    }
+
+    /// Test that setting force_unroll_threshold to 0 disables force-unrolling.
+    ///
+    /// This uses a loop with 6 iterations where:
+    /// - is_small() = false (unrolled cost exceeds baseline)
+    /// - unrolled_instructions = 24 (within default threshold of 32)
+    ///
+    /// With the default threshold, this loop would be force-unrolled.
+    /// With threshold=0, it should NOT be unrolled.
+    #[test]
+    fn test_brillig_force_unroll_threshold_zero_disables_unrolling() {
+        let parse_ssa = || brillig_unroll_test_case_6470(6);
+        let ssa = parse_ssa();
+
+        // Verify the loop's properties match our expectations
+        let stats = loop0_stats(&ssa);
+        assert!(!stats.is_small(), "loop should not be small according to cost model");
+        assert!(
+            stats.unrolled_instructions() <= FORCE_UNROLL_THRESHOLD,
+            "loop should be within default force-unroll threshold"
+        );
+
+        // With threshold=0, the loop should NOT be unrolled
+        let ssa = ssa.unroll_loops_iteratively(None, 0).unwrap();
+        // Check that it's still the original (not unrolled)
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
