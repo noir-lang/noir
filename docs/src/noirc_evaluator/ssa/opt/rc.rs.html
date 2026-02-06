@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/opt/rc.rs`."><title>rc.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../../../static.files/storage-82c7156e.js"></script><script defer src="../../../../static.files/src-script-63605ae7.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/opt/</div>rc.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! This pass removes `inc_rc` and `dec_rc` instructions
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/opt/rc.rs`."><title>rc.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/opt/</div>rc.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! This pass removes `inc_rc` and `dec_rc` instructions
 <a href=#2 id=2 data-nosnippet>2</a>//! as long as there are no `array_set` instructions to an array
 <a href=#3 id=3 data-nosnippet>3</a>//! of the same type in between.
 <a href=#4 id=4 data-nosnippet>4</a>//!
@@ -154,409 +154,408 @@
 <a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">let </span><span class="kw-2">mut </span>to_remove = HashSet::default();
 <a href=#155 id=155 data-nosnippet>155</a>
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">for </span>instruction <span class="kw">in </span>function.dfg[last_block].instructions() {
-<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">if let </span>Instruction::DecrementRc { value, .. } = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction] {
-<a href=#158 id=158 data-nosnippet>158</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(inc_rc) = pop_rc_for(<span class="kw-2">*</span>value, function, <span class="kw-2">&amp;mut </span><span class="self">self</span>.inc_rcs) {
-<a href=#159 id=159 data-nosnippet>159</a>                    <span class="kw">if </span>!inc_rc.possibly_mutated {
-<a href=#160 id=160 data-nosnippet>160</a>                        to_remove.insert(inc_rc.id);
-<a href=#161 id=161 data-nosnippet>161</a>                        to_remove.insert(<span class="kw-2">*</span>instruction);
-<a href=#162 id=162 data-nosnippet>162</a>                    }
-<a href=#163 id=163 data-nosnippet>163</a>                }
-<a href=#164 id=164 data-nosnippet>164</a>            }
-<a href=#165 id=165 data-nosnippet>165</a>        }
-<a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a>        to_remove
-<a href=#168 id=168 data-nosnippet>168</a>    }
-<a href=#169 id=169 data-nosnippet>169</a>}
-<a href=#170 id=170 data-nosnippet>170</a>
-<a href=#171 id=171 data-nosnippet>171</a><span class="doccomment">/// Finds and pops the IncRc for the given array value if possible.
-<a href=#172 id=172 data-nosnippet>172</a></span><span class="kw">fn </span>pop_rc_for(
-<a href=#173 id=173 data-nosnippet>173</a>    value: ValueId,
-<a href=#174 id=174 data-nosnippet>174</a>    function: <span class="kw-2">&amp;</span>Function,
-<a href=#175 id=175 data-nosnippet>175</a>    inc_rcs: <span class="kw-2">&amp;mut </span>HashMap&lt;Type, Vec&lt;RcInstruction&gt;&gt;,
-<a href=#176 id=176 data-nosnippet>176</a>) -&gt; <span class="prelude-ty">Option</span>&lt;RcInstruction&gt; {
-<a href=#177 id=177 data-nosnippet>177</a>    <span class="kw">let </span>typ = function.dfg.type_of_value(value);
-<a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a>    <span class="kw">let </span>rcs = inc_rcs.get_mut(<span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
-<a href=#180 id=180 data-nosnippet>180</a>    <span class="kw">let </span>position = rcs.iter().position(|inc_rc| inc_rc.array == value)<span class="question-mark">?</span>;
-<a href=#181 id=181 data-nosnippet>181</a>
-<a href=#182 id=182 data-nosnippet>182</a>    <span class="prelude-val">Some</span>(rcs.remove(position))
-<a href=#183 id=183 data-nosnippet>183</a>}
-<a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a><span class="kw">fn </span>remove_instructions(to_remove: HashSet&lt;InstructionId&gt;, function: <span class="kw-2">&amp;mut </span>Function) {
-<a href=#186 id=186 data-nosnippet>186</a>    <span class="kw">if </span>!to_remove.is_empty() {
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">for </span>block <span class="kw">in </span>function.reachable_blocks() {
-<a href=#188 id=188 data-nosnippet>188</a>            function.dfg[block]
-<a href=#189 id=189 data-nosnippet>189</a>                .instructions_mut()
-<a href=#190 id=190 data-nosnippet>190</a>                .retain(|instruction| !to_remove.contains(instruction));
-<a href=#191 id=191 data-nosnippet>191</a>        }
-<a href=#192 id=192 data-nosnippet>192</a>    }
-<a href=#193 id=193 data-nosnippet>193</a>}
-<a href=#194 id=194 data-nosnippet>194</a>
-<a href=#195 id=195 data-nosnippet>195</a><span class="attr">#[cfg(test)]
-<a href=#196 id=196 data-nosnippet>196</a></span><span class="kw">mod </span>tests {
-<a href=#197 id=197 data-nosnippet>197</a>
-<a href=#198 id=198 data-nosnippet>198</a>    <span class="kw">use crate</span>::{
-<a href=#199 id=199 data-nosnippet>199</a>        assert_ssa_snapshot,
-<a href=#200 id=200 data-nosnippet>200</a>        ssa::{
-<a href=#201 id=201 data-nosnippet>201</a>            ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
-<a href=#202 id=202 data-nosnippet>202</a>            opt::assert_ssa_does_not_change,
-<a href=#203 id=203 data-nosnippet>203</a>            ssa_gen::Ssa,
-<a href=#204 id=204 data-nosnippet>204</a>        },
-<a href=#205 id=205 data-nosnippet>205</a>    };
-<a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">fn </span>count_inc_rcs(block: BasicBlockId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
-<a href=#208 id=208 data-nosnippet>208</a>        dfg[block]
-<a href=#209 id=209 data-nosnippet>209</a>            .instructions()
-<a href=#210 id=210 data-nosnippet>210</a>            .iter()
-<a href=#211 id=211 data-nosnippet>211</a>            .filter(|instruction_id| {
-<a href=#212 id=212 data-nosnippet>212</a>                <span class="macro">matches!</span>(dfg[<span class="kw-2">**</span>instruction_id], Instruction::IncrementRc { .. })
-<a href=#213 id=213 data-nosnippet>213</a>            })
-<a href=#214 id=214 data-nosnippet>214</a>            .count()
-<a href=#215 id=215 data-nosnippet>215</a>    }
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>    <span class="kw">fn </span>count_dec_rcs(block: BasicBlockId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
-<a href=#218 id=218 data-nosnippet>218</a>        dfg[block]
-<a href=#219 id=219 data-nosnippet>219</a>            .instructions()
-<a href=#220 id=220 data-nosnippet>220</a>            .iter()
-<a href=#221 id=221 data-nosnippet>221</a>            .filter(|instruction_id| {
-<a href=#222 id=222 data-nosnippet>222</a>                <span class="macro">matches!</span>(dfg[<span class="kw-2">**</span>instruction_id], Instruction::DecrementRc { .. })
-<a href=#223 id=223 data-nosnippet>223</a>            })
-<a href=#224 id=224 data-nosnippet>224</a>            .count()
-<a href=#225 id=225 data-nosnippet>225</a>    }
-<a href=#226 id=226 data-nosnippet>226</a>
-<a href=#227 id=227 data-nosnippet>227</a>    <span class="attr">#[test]
-<a href=#228 id=228 data-nosnippet>228</a>    #[ignore]
-<a href=#229 id=229 data-nosnippet>229</a>    </span><span class="kw">fn </span>single_block_fn_return_array() {
-<a href=#230 id=230 data-nosnippet>230</a>        <span class="comment">// This is the output for the program with a function:
-<a href=#231 id=231 data-nosnippet>231</a>        // unconstrained fn foo(x: [Field; 2]) -&gt; [[Field; 2]; 1] {
-<a href=#232 id=232 data-nosnippet>232</a>        //     [array]
-<a href=#233 id=233 data-nosnippet>233</a>        // }
-<a href=#234 id=234 data-nosnippet>234</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#235 id=235 data-nosnippet>235</a>        brillig(inline) fn foo f0 {
-<a href=#236 id=236 data-nosnippet>236</a>          b0(v0: [Field; 2]):
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">if let </span>Instruction::DecrementRc { value, .. } = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction]
+<a href=#158 id=158 data-nosnippet>158</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(inc_rc) = pop_rc_for(<span class="kw-2">*</span>value, function, <span class="kw-2">&amp;mut </span><span class="self">self</span>.inc_rcs)
+<a href=#159 id=159 data-nosnippet>159</a>                &amp;&amp; !inc_rc.possibly_mutated
+<a href=#160 id=160 data-nosnippet>160</a>            {
+<a href=#161 id=161 data-nosnippet>161</a>                to_remove.insert(inc_rc.id);
+<a href=#162 id=162 data-nosnippet>162</a>                to_remove.insert(<span class="kw-2">*</span>instruction);
+<a href=#163 id=163 data-nosnippet>163</a>            }
+<a href=#164 id=164 data-nosnippet>164</a>        }
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>        to_remove
+<a href=#167 id=167 data-nosnippet>167</a>    }
+<a href=#168 id=168 data-nosnippet>168</a>}
+<a href=#169 id=169 data-nosnippet>169</a>
+<a href=#170 id=170 data-nosnippet>170</a><span class="doccomment">/// Finds and pops the IncRc for the given array value if possible.
+<a href=#171 id=171 data-nosnippet>171</a></span><span class="kw">fn </span>pop_rc_for(
+<a href=#172 id=172 data-nosnippet>172</a>    value: ValueId,
+<a href=#173 id=173 data-nosnippet>173</a>    function: <span class="kw-2">&amp;</span>Function,
+<a href=#174 id=174 data-nosnippet>174</a>    inc_rcs: <span class="kw-2">&amp;mut </span>HashMap&lt;Type, Vec&lt;RcInstruction&gt;&gt;,
+<a href=#175 id=175 data-nosnippet>175</a>) -&gt; <span class="prelude-ty">Option</span>&lt;RcInstruction&gt; {
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">let </span>typ = function.dfg.type_of_value(value);
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">let </span>rcs = inc_rcs.get_mut(<span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
+<a href=#179 id=179 data-nosnippet>179</a>    <span class="kw">let </span>position = rcs.iter().position(|inc_rc| inc_rc.array == value)<span class="question-mark">?</span>;
+<a href=#180 id=180 data-nosnippet>180</a>
+<a href=#181 id=181 data-nosnippet>181</a>    <span class="prelude-val">Some</span>(rcs.remove(position))
+<a href=#182 id=182 data-nosnippet>182</a>}
+<a href=#183 id=183 data-nosnippet>183</a>
+<a href=#184 id=184 data-nosnippet>184</a><span class="kw">fn </span>remove_instructions(to_remove: HashSet&lt;InstructionId&gt;, function: <span class="kw-2">&amp;mut </span>Function) {
+<a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">if </span>!to_remove.is_empty() {
+<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">for </span>block <span class="kw">in </span>function.reachable_blocks() {
+<a href=#187 id=187 data-nosnippet>187</a>            function.dfg[block]
+<a href=#188 id=188 data-nosnippet>188</a>                .instructions_mut()
+<a href=#189 id=189 data-nosnippet>189</a>                .retain(|instruction| !to_remove.contains(instruction));
+<a href=#190 id=190 data-nosnippet>190</a>        }
+<a href=#191 id=191 data-nosnippet>191</a>    }
+<a href=#192 id=192 data-nosnippet>192</a>}
+<a href=#193 id=193 data-nosnippet>193</a>
+<a href=#194 id=194 data-nosnippet>194</a><span class="attr">#[cfg(test)]
+<a href=#195 id=195 data-nosnippet>195</a></span><span class="kw">mod </span>tests {
+<a href=#196 id=196 data-nosnippet>196</a>
+<a href=#197 id=197 data-nosnippet>197</a>    <span class="kw">use crate</span>::{
+<a href=#198 id=198 data-nosnippet>198</a>        assert_ssa_snapshot,
+<a href=#199 id=199 data-nosnippet>199</a>        ssa::{
+<a href=#200 id=200 data-nosnippet>200</a>            ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
+<a href=#201 id=201 data-nosnippet>201</a>            opt::assert_ssa_does_not_change,
+<a href=#202 id=202 data-nosnippet>202</a>            ssa_gen::Ssa,
+<a href=#203 id=203 data-nosnippet>203</a>        },
+<a href=#204 id=204 data-nosnippet>204</a>    };
+<a href=#205 id=205 data-nosnippet>205</a>
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="kw">fn </span>count_inc_rcs(block: BasicBlockId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
+<a href=#207 id=207 data-nosnippet>207</a>        dfg[block]
+<a href=#208 id=208 data-nosnippet>208</a>            .instructions()
+<a href=#209 id=209 data-nosnippet>209</a>            .iter()
+<a href=#210 id=210 data-nosnippet>210</a>            .filter(|instruction_id| {
+<a href=#211 id=211 data-nosnippet>211</a>                <span class="macro">matches!</span>(dfg[<span class="kw-2">**</span>instruction_id], Instruction::IncrementRc { .. })
+<a href=#212 id=212 data-nosnippet>212</a>            })
+<a href=#213 id=213 data-nosnippet>213</a>            .count()
+<a href=#214 id=214 data-nosnippet>214</a>    }
+<a href=#215 id=215 data-nosnippet>215</a>
+<a href=#216 id=216 data-nosnippet>216</a>    <span class="kw">fn </span>count_dec_rcs(block: BasicBlockId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
+<a href=#217 id=217 data-nosnippet>217</a>        dfg[block]
+<a href=#218 id=218 data-nosnippet>218</a>            .instructions()
+<a href=#219 id=219 data-nosnippet>219</a>            .iter()
+<a href=#220 id=220 data-nosnippet>220</a>            .filter(|instruction_id| {
+<a href=#221 id=221 data-nosnippet>221</a>                <span class="macro">matches!</span>(dfg[<span class="kw-2">**</span>instruction_id], Instruction::DecrementRc { .. })
+<a href=#222 id=222 data-nosnippet>222</a>            })
+<a href=#223 id=223 data-nosnippet>223</a>            .count()
+<a href=#224 id=224 data-nosnippet>224</a>    }
+<a href=#225 id=225 data-nosnippet>225</a>
+<a href=#226 id=226 data-nosnippet>226</a>    <span class="attr">#[test]
+<a href=#227 id=227 data-nosnippet>227</a>    #[ignore]
+<a href=#228 id=228 data-nosnippet>228</a>    </span><span class="kw">fn </span>single_block_fn_return_array() {
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="comment">// This is the output for the program with a function:
+<a href=#230 id=230 data-nosnippet>230</a>        // unconstrained fn foo(x: [Field; 2]) -&gt; [[Field; 2]; 1] {
+<a href=#231 id=231 data-nosnippet>231</a>        //     [array]
+<a href=#232 id=232 data-nosnippet>232</a>        // }
+<a href=#233 id=233 data-nosnippet>233</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#234 id=234 data-nosnippet>234</a>        brillig(inline) fn foo f0 {
+<a href=#235 id=235 data-nosnippet>235</a>          b0(v0: [Field; 2]):
+<a href=#236 id=236 data-nosnippet>236</a>            inc_rc v0
 <a href=#237 id=237 data-nosnippet>237</a>            inc_rc v0
-<a href=#238 id=238 data-nosnippet>238</a>            inc_rc v0
-<a href=#239 id=239 data-nosnippet>239</a>            dec_rc v0
-<a href=#240 id=240 data-nosnippet>240</a>            v1 = make_array [v0] : [[Field; 2]; 1]
-<a href=#241 id=241 data-nosnippet>241</a>            return v1
-<a href=#242 id=242 data-nosnippet>242</a>        }
-<a href=#243 id=243 data-nosnippet>243</a>        "</span>;
-<a href=#244 id=244 data-nosnippet>244</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="kw">let </span>main = ssa.main();
-<a href=#247 id=247 data-nosnippet>247</a>        <span class="kw">let </span>entry = main.entry_block();
-<a href=#248 id=248 data-nosnippet>248</a>
-<a href=#249 id=249 data-nosnippet>249</a>        <span class="macro">assert_eq!</span>(count_inc_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
-<a href=#250 id=250 data-nosnippet>250</a>        <span class="macro">assert_eq!</span>(count_dec_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">0</span>);
-<a href=#251 id=251 data-nosnippet>251</a>    }
-<a href=#252 id=252 data-nosnippet>252</a>
-<a href=#253 id=253 data-nosnippet>253</a>    <span class="attr">#[test]
-<a href=#254 id=254 data-nosnippet>254</a>    #[ignore]
-<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">fn </span>single_block_mutation() {
-<a href=#256 id=256 data-nosnippet>256</a>        <span class="comment">// fn mutator(mut array: [Field; 2]) {
-<a href=#257 id=257 data-nosnippet>257</a>        //     array[0] = 5;
-<a href=#258 id=258 data-nosnippet>258</a>        // }
-<a href=#259 id=259 data-nosnippet>259</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#260 id=260 data-nosnippet>260</a>        brillig(inline) fn mutator f0 {
-<a href=#261 id=261 data-nosnippet>261</a>          b0(v0: [Field; 2]):
-<a href=#262 id=262 data-nosnippet>262</a>            v1 = allocate -&gt; &amp;mut [Field; 2]
-<a href=#263 id=263 data-nosnippet>263</a>            store v0 at v1
-<a href=#264 id=264 data-nosnippet>264</a>            inc_rc v0
-<a href=#265 id=265 data-nosnippet>265</a>            v2 = load v1 -&gt; [Field; 2]
-<a href=#266 id=266 data-nosnippet>266</a>            v5 = array_set v2, index u32 0, value Field 5
-<a href=#267 id=267 data-nosnippet>267</a>            store v5 at v1
-<a href=#268 id=268 data-nosnippet>268</a>            dec_rc v0
-<a href=#269 id=269 data-nosnippet>269</a>            return
-<a href=#270 id=270 data-nosnippet>270</a>        }
-<a href=#271 id=271 data-nosnippet>271</a>        "</span>;
-<a href=#272 id=272 data-nosnippet>272</a>
-<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
-<a href=#275 id=275 data-nosnippet>275</a>        <span class="kw">let </span>main = ssa.main();
-<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">let </span>entry = main.entry_block();
-<a href=#277 id=277 data-nosnippet>277</a>
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="comment">// No changes, the array is possibly mutated
-<a href=#279 id=279 data-nosnippet>279</a>        </span><span class="macro">assert_eq!</span>(count_inc_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
-<a href=#280 id=280 data-nosnippet>280</a>        <span class="macro">assert_eq!</span>(count_dec_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
-<a href=#281 id=281 data-nosnippet>281</a>    }
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="comment">// Similar to single_block_mutation but for a function which
-<a href=#284 id=284 data-nosnippet>284</a>    // uses a mutable reference parameter.
-<a href=#285 id=285 data-nosnippet>285</a>    </span><span class="attr">#[test]
-<a href=#286 id=286 data-nosnippet>286</a>    #[ignore]
-<a href=#287 id=287 data-nosnippet>287</a>    </span><span class="kw">fn </span>single_block_mutation_through_reference() {
-<a href=#288 id=288 data-nosnippet>288</a>        <span class="comment">// fn mutator2(array: &amp;mut [Field; 2]) {
-<a href=#289 id=289 data-nosnippet>289</a>        //     array[0] = 5;
-<a href=#290 id=290 data-nosnippet>290</a>        // }
-<a href=#291 id=291 data-nosnippet>291</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#292 id=292 data-nosnippet>292</a>        brillig(inline) fn mutator2 f0 {
-<a href=#293 id=293 data-nosnippet>293</a>          b0(v0: &amp;mut [Field; 2]):
-<a href=#294 id=294 data-nosnippet>294</a>            v1 = load v0 -&gt; [Field; 2]
-<a href=#295 id=295 data-nosnippet>295</a>            inc_rc v1
-<a href=#296 id=296 data-nosnippet>296</a>            store v1 at v0
-<a href=#297 id=297 data-nosnippet>297</a>            v2 = load v1 -&gt; [Field; 2]
-<a href=#298 id=298 data-nosnippet>298</a>            v5 = array_set v2, index u32 0, value Field 5
-<a href=#299 id=299 data-nosnippet>299</a>            store v5 at v0
-<a href=#300 id=300 data-nosnippet>300</a>            v6 = load v0 -&gt; [Field; 2]
-<a href=#301 id=301 data-nosnippet>301</a>            dec_rc v1
-<a href=#302 id=302 data-nosnippet>302</a>            store v6 at v0
-<a href=#303 id=303 data-nosnippet>303</a>            return
-<a href=#304 id=304 data-nosnippet>304</a>        }
-<a href=#305 id=305 data-nosnippet>305</a>        "</span>;
-<a href=#306 id=306 data-nosnippet>306</a>
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
-<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">let </span>main = ssa.main();
-<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span>entry = main.entry_block();
-<a href=#311 id=311 data-nosnippet>311</a>
-<a href=#312 id=312 data-nosnippet>312</a>        <span class="comment">// No changes, the array is possibly mutated
-<a href=#313 id=313 data-nosnippet>313</a>        </span><span class="macro">assert_eq!</span>(count_inc_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
-<a href=#314 id=314 data-nosnippet>314</a>        <span class="macro">assert_eq!</span>(count_dec_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
-<a href=#315 id=315 data-nosnippet>315</a>    }
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a>    <span class="attr">#[test]
-<a href=#318 id=318 data-nosnippet>318</a>    #[ignore]
-<a href=#319 id=319 data-nosnippet>319</a>    </span><span class="kw">fn </span>lone_inc_rc() {
-<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#321 id=321 data-nosnippet>321</a>        brillig(inline) fn foo f0 {
-<a href=#322 id=322 data-nosnippet>322</a>          b0(v0: [Field; 2]):
-<a href=#323 id=323 data-nosnippet>323</a>            inc_rc v0
-<a href=#324 id=324 data-nosnippet>324</a>            return v0
-<a href=#325 id=325 data-nosnippet>325</a>        }
-<a href=#326 id=326 data-nosnippet>326</a>        "</span>;
-<a href=#327 id=327 data-nosnippet>327</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#328 id=328 data-nosnippet>328</a>    }
-<a href=#329 id=329 data-nosnippet>329</a>
-<a href=#330 id=330 data-nosnippet>330</a>    <span class="attr">#[test]
-<a href=#331 id=331 data-nosnippet>331</a>    #[ignore]
-<a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">fn </span>lone_dec_rc() {
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#334 id=334 data-nosnippet>334</a>        brillig(inline) fn foo f0 {
-<a href=#335 id=335 data-nosnippet>335</a>          b0(v0: [Field; 2]):
-<a href=#336 id=336 data-nosnippet>336</a>            dec_rc v0
-<a href=#337 id=337 data-nosnippet>337</a>            return v0
-<a href=#338 id=338 data-nosnippet>338</a>        }
-<a href=#339 id=339 data-nosnippet>339</a>        "</span>;
-<a href=#340 id=340 data-nosnippet>340</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#341 id=341 data-nosnippet>341</a>    }
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="attr">#[test]
-<a href=#344 id=344 data-nosnippet>344</a>    #[ignore]
-<a href=#345 id=345 data-nosnippet>345</a>    </span><span class="kw">fn </span>multiple_rc_pairs_mutation_on_different_types() {
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#347 id=347 data-nosnippet>347</a>        brillig(inline) fn mutator f0 {
-<a href=#348 id=348 data-nosnippet>348</a>          b0(v0: [Field; 3], v1: [Field; 5]):
-<a href=#349 id=349 data-nosnippet>349</a>            inc_rc v0
-<a href=#350 id=350 data-nosnippet>350</a>            inc_rc v1
-<a href=#351 id=351 data-nosnippet>351</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
-<a href=#352 id=352 data-nosnippet>352</a>            store v0 at v2
-<a href=#353 id=353 data-nosnippet>353</a>            v3 = load v2 -&gt; [Field; 3]
-<a href=#354 id=354 data-nosnippet>354</a>            v6 = array_set v3, index u32 0, value Field 5
-<a href=#355 id=355 data-nosnippet>355</a>            store v6 at v2
-<a href=#356 id=356 data-nosnippet>356</a>            v8 = array_get v1, index u32 1 -&gt; Field
-<a href=#357 id=357 data-nosnippet>357</a>            dec_rc v0
-<a href=#358 id=358 data-nosnippet>358</a>            dec_rc v1
-<a href=#359 id=359 data-nosnippet>359</a>            return
-<a href=#360 id=360 data-nosnippet>360</a>        }
-<a href=#361 id=361 data-nosnippet>361</a>        "</span>;
-<a href=#362 id=362 data-nosnippet>362</a>
-<a href=#363 id=363 data-nosnippet>363</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
-<a href=#365 id=365 data-nosnippet>365</a>        <span class="comment">// We expect the paired RC on v0 to remain, but we expect the paired RC on v1 to be removed
-<a href=#366 id=366 data-nosnippet>366</a>        // as they operate over different types ([Field; 2] and [Field; 5]) respectively.
-<a href=#367 id=367 data-nosnippet>367</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#368 id=368 data-nosnippet>368</a>        brillig(inline) fn mutator f0 {
-<a href=#369 id=369 data-nosnippet>369</a>          b0(v0: [Field; 3], v1: [Field; 5]):
-<a href=#370 id=370 data-nosnippet>370</a>            inc_rc v0
-<a href=#371 id=371 data-nosnippet>371</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
-<a href=#372 id=372 data-nosnippet>372</a>            store v0 at v2
-<a href=#373 id=373 data-nosnippet>373</a>            v3 = load v2 -&gt; [Field; 3]
-<a href=#374 id=374 data-nosnippet>374</a>            v6 = array_set v3, index u32 0, value Field 5
-<a href=#375 id=375 data-nosnippet>375</a>            store v6 at v2
-<a href=#376 id=376 data-nosnippet>376</a>            v8 = array_get v1, index u32 1 -&gt; Field
-<a href=#377 id=377 data-nosnippet>377</a>            dec_rc v0
-<a href=#378 id=378 data-nosnippet>378</a>            return
-<a href=#379 id=379 data-nosnippet>379</a>        }
-<a href=#380 id=380 data-nosnippet>380</a>        "</span>);
-<a href=#381 id=381 data-nosnippet>381</a>    }
-<a href=#382 id=382 data-nosnippet>382</a>
-<a href=#383 id=383 data-nosnippet>383</a>    <span class="attr">#[test]
-<a href=#384 id=384 data-nosnippet>384</a>    #[ignore]
-<a href=#385 id=385 data-nosnippet>385</a>    </span><span class="kw">fn </span>multiple_rc_pairs_mutation_on_matching_types() {
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#387 id=387 data-nosnippet>387</a>        brillig(inline) fn mutator f0 {
-<a href=#388 id=388 data-nosnippet>388</a>          b0(v0: [Field; 5], v1: [Field; 5]):
-<a href=#389 id=389 data-nosnippet>389</a>            inc_rc v0
-<a href=#390 id=390 data-nosnippet>390</a>            inc_rc v1
-<a href=#391 id=391 data-nosnippet>391</a>            v2 = allocate -&gt; &amp;mut [Field; 5]
-<a href=#392 id=392 data-nosnippet>392</a>            store v0 at v2
-<a href=#393 id=393 data-nosnippet>393</a>            v3 = load v2 -&gt; [Field; 5]
-<a href=#394 id=394 data-nosnippet>394</a>            v6 = array_set v3, index u32 0, value Field 5
-<a href=#395 id=395 data-nosnippet>395</a>            store v6 at v2
-<a href=#396 id=396 data-nosnippet>396</a>            v8 = array_get v1, index u32 1 -&gt; Field
-<a href=#397 id=397 data-nosnippet>397</a>            dec_rc v0
-<a href=#398 id=398 data-nosnippet>398</a>            dec_rc v1
-<a href=#399 id=399 data-nosnippet>399</a>            return
-<a href=#400 id=400 data-nosnippet>400</a>        }
-<a href=#401 id=401 data-nosnippet>401</a>        "</span>;
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a>        <span class="comment">// We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
-<a href=#404 id=404 data-nosnippet>404</a>        </span>assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#405 id=405 data-nosnippet>405</a>    }
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>    <span class="attr">#[test]
-<a href=#408 id=408 data-nosnippet>408</a>    #[ignore]
-<a href=#409 id=409 data-nosnippet>409</a>    </span><span class="kw">fn </span>rc_pair_with_same_type_but_different_values() {
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#411 id=411 data-nosnippet>411</a>        brillig(inline) fn foo f0 {
-<a href=#412 id=412 data-nosnippet>412</a>          b0(v0: [Field; 2], v1: [Field; 2]):
-<a href=#413 id=413 data-nosnippet>413</a>            inc_rc v0
-<a href=#414 id=414 data-nosnippet>414</a>            dec_rc v1
-<a href=#415 id=415 data-nosnippet>415</a>            v2 = make_array [v0] : [[Field; 2]; 1]
-<a href=#416 id=416 data-nosnippet>416</a>            return v2
-<a href=#417 id=417 data-nosnippet>417</a>        }
-<a href=#418 id=418 data-nosnippet>418</a>        "</span>;
-<a href=#419 id=419 data-nosnippet>419</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#420 id=420 data-nosnippet>420</a>    }
-<a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>    <span class="attr">#[test]
-<a href=#423 id=423 data-nosnippet>423</a>    #[ignore]
-<a href=#424 id=424 data-nosnippet>424</a>    </span><span class="kw">fn </span>do_not_remove_pairs_across_blocks() {
-<a href=#425 id=425 data-nosnippet>425</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#426 id=426 data-nosnippet>426</a>        brillig(inline) fn foo f0 {
-<a href=#427 id=427 data-nosnippet>427</a>          b0(v0: [Field; 2]):
-<a href=#428 id=428 data-nosnippet>428</a>            inc_rc v0
-<a href=#429 id=429 data-nosnippet>429</a>            jmp b1()
-<a href=#430 id=430 data-nosnippet>430</a>          b1():
-<a href=#431 id=431 data-nosnippet>431</a>            dec_rc v0
-<a href=#432 id=432 data-nosnippet>432</a>            jmp b2()
-<a href=#433 id=433 data-nosnippet>433</a>          b2():
-<a href=#434 id=434 data-nosnippet>434</a>            v1 = make_array [v0] : [[Field; 2]; 1]
-<a href=#435 id=435 data-nosnippet>435</a>            return v1  
-<a href=#436 id=436 data-nosnippet>436</a>        }
-<a href=#437 id=437 data-nosnippet>437</a>        "</span>;
-<a href=#438 id=438 data-nosnippet>438</a>        <span class="comment">// This pass is very conservative and only looks for inc_rc's in the entry block and dec_rc's in the exit block
-<a href=#439 id=439 data-nosnippet>439</a>        // The dec_rc is not in the return block so we do not expect the rc pair to be removed.
-<a href=#440 id=440 data-nosnippet>440</a>        </span>assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#441 id=441 data-nosnippet>441</a>    }
-<a href=#442 id=442 data-nosnippet>442</a>
-<a href=#443 id=443 data-nosnippet>443</a>    <span class="attr">#[test]
-<a href=#444 id=444 data-nosnippet>444</a>    #[ignore]
-<a href=#445 id=445 data-nosnippet>445</a>    </span><span class="kw">fn </span>remove_pair_across_blocks() {
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#447 id=447 data-nosnippet>447</a>        brillig(inline) fn foo f0 {
-<a href=#448 id=448 data-nosnippet>448</a>          b0(v0: [Field; 2]):
-<a href=#449 id=449 data-nosnippet>449</a>            inc_rc v0
-<a href=#450 id=450 data-nosnippet>450</a>            jmp b1()
-<a href=#451 id=451 data-nosnippet>451</a>          b1():
-<a href=#452 id=452 data-nosnippet>452</a>            jmp b2()
-<a href=#453 id=453 data-nosnippet>453</a>          b2():
-<a href=#454 id=454 data-nosnippet>454</a>            dec_rc v0
-<a href=#455 id=455 data-nosnippet>455</a>            v1 = make_array [v0] : [[Field; 2]; 1]
-<a href=#456 id=456 data-nosnippet>456</a>            return v1  
-<a href=#457 id=457 data-nosnippet>457</a>        }
-<a href=#458 id=458 data-nosnippet>458</a>        "</span>;
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#460 id=460 data-nosnippet>460</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
-<a href=#461 id=461 data-nosnippet>461</a>        <span class="comment">// As the program has an RC pair where the increment is in the entry block and
-<a href=#462 id=462 data-nosnippet>462</a>        // the decrement is in the return block this pair is safe to remove.
-<a href=#463 id=463 data-nosnippet>463</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#464 id=464 data-nosnippet>464</a>        brillig(inline) fn foo f0 {
-<a href=#465 id=465 data-nosnippet>465</a>          b0(v0: [Field; 2]):
-<a href=#466 id=466 data-nosnippet>466</a>            jmp b1()
-<a href=#467 id=467 data-nosnippet>467</a>          b1():
-<a href=#468 id=468 data-nosnippet>468</a>            jmp b2()
-<a href=#469 id=469 data-nosnippet>469</a>          b2():
-<a href=#470 id=470 data-nosnippet>470</a>            v1 = make_array [v0] : [[Field; 2]; 1]
-<a href=#471 id=471 data-nosnippet>471</a>            return v1
-<a href=#472 id=472 data-nosnippet>472</a>        }
-<a href=#473 id=473 data-nosnippet>473</a>        "</span>);
-<a href=#474 id=474 data-nosnippet>474</a>    }
-<a href=#475 id=475 data-nosnippet>475</a>
-<a href=#476 id=476 data-nosnippet>476</a>    <span class="attr">#[test]
-<a href=#477 id=477 data-nosnippet>477</a>    #[ignore]
-<a href=#478 id=478 data-nosnippet>478</a>    </span><span class="kw">fn </span>mutation_through_call_with_mutable_reference() {
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="comment">// We expect `inc_rc v0` to remain.
-<a href=#480 id=480 data-nosnippet>480</a>        // If you accessed v0 directly after the call (not through the reference):
-<a href=#481 id=481 data-nosnippet>481</a>        // - With inc_rc: v0 is protected, COW happens, v0 retains old value
-<a href=#482 id=482 data-nosnippet>482</a>        // - Without inc_rc: v0 is mutated in place
-<a href=#483 id=483 data-nosnippet>483</a>        </span><span class="kw">let </span>src = <span class="string">"                                                                                    
-<a href=#484 id=484 data-nosnippet>484</a>        brillig(inline) fn main f0 {                                                                   
-<a href=#485 id=485 data-nosnippet>485</a>            b0(v0: [Field; 2]):                                                                          
-<a href=#486 id=486 data-nosnippet>486</a>            inc_rc v0                                                                                  
-<a href=#487 id=487 data-nosnippet>487</a>            v1 = allocate -&gt; &amp;mut [Field; 2]                                                           
-<a href=#488 id=488 data-nosnippet>488</a>            store v0 at v1                                                                             
-<a href=#489 id=489 data-nosnippet>489</a>            call f1(v1)                                                                                
-<a href=#490 id=490 data-nosnippet>490</a>            v3 = load v1 -&gt; [Field; 2]                                                                 
-<a href=#491 id=491 data-nosnippet>491</a>            v5 = array_get v3, index u32 0 -&gt; Field                                                    
-<a href=#492 id=492 data-nosnippet>492</a>            constrain v5 == Field 5                                                                    
-<a href=#493 id=493 data-nosnippet>493</a>            dec_rc v0                                                                                  
-<a href=#494 id=494 data-nosnippet>494</a>            return                                                                                     
-<a href=#495 id=495 data-nosnippet>495</a>        }                                                                                           
-<a href=#496 id=496 data-nosnippet>496</a>        brillig(inline) fn mutator f1 {                                                                
-<a href=#497 id=497 data-nosnippet>497</a>            b0(v0: &amp;mut [Field; 2]):                                                                     
-<a href=#498 id=498 data-nosnippet>498</a>            v1 = load v0 -&gt; [Field; 2]                                                                 
-<a href=#499 id=499 data-nosnippet>499</a>            v2 = array_set v1, index u32 0, value Field 5                                              
-<a href=#500 id=500 data-nosnippet>500</a>            store v2 at v0                                                                             
-<a href=#501 id=501 data-nosnippet>501</a>            return                                                                                     
-<a href=#502 id=502 data-nosnippet>502</a>        }                                                                                              
-<a href=#503 id=503 data-nosnippet>503</a>        "</span>;
-<a href=#504 id=504 data-nosnippet>504</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#505 id=505 data-nosnippet>505</a>    }
-<a href=#506 id=506 data-nosnippet>506</a>
-<a href=#507 id=507 data-nosnippet>507</a>    <span class="doccomment">/// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&amp;mut &amp;mut [Field; 2]`)
-<a href=#508 id=508 data-nosnippet>508</a>    </span><span class="attr">#[test]
-<a href=#509 id=509 data-nosnippet>509</a>    #[ignore]
-<a href=#510 id=510 data-nosnippet>510</a>    </span><span class="kw">fn </span>mutation_through_call_with_deeply_nested_reference() {
-<a href=#511 id=511 data-nosnippet>511</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#512 id=512 data-nosnippet>512</a>        brillig(inline) fn main f0 {
-<a href=#513 id=513 data-nosnippet>513</a>          b0(v0: [Field; 2]):
-<a href=#514 id=514 data-nosnippet>514</a>            inc_rc v0
-<a href=#515 id=515 data-nosnippet>515</a>            v1 = allocate -&gt; &amp;mut [Field; 2]
-<a href=#516 id=516 data-nosnippet>516</a>            store v0 at v1
-<a href=#517 id=517 data-nosnippet>517</a>            v2 = allocate -&gt; &amp;mut &amp;mut [Field; 2]
-<a href=#518 id=518 data-nosnippet>518</a>            store v1 at v2
-<a href=#519 id=519 data-nosnippet>519</a>            call f1(v2)
-<a href=#520 id=520 data-nosnippet>520</a>            v4 = load v1 -&gt; [Field; 2]
-<a href=#521 id=521 data-nosnippet>521</a>            v6 = array_get v4, index u32 0 -&gt; Field
-<a href=#522 id=522 data-nosnippet>522</a>            constrain v6 == Field 5
-<a href=#523 id=523 data-nosnippet>523</a>            dec_rc v0
-<a href=#524 id=524 data-nosnippet>524</a>            return
-<a href=#525 id=525 data-nosnippet>525</a>        }
-<a href=#526 id=526 data-nosnippet>526</a>        brillig(inline) fn mutator f1 {
-<a href=#527 id=527 data-nosnippet>527</a>          b0(v0: &amp;mut &amp;mut [Field; 2]):
-<a href=#528 id=528 data-nosnippet>528</a>            v1 = load v0 -&gt; &amp;mut [Field; 2]
-<a href=#529 id=529 data-nosnippet>529</a>            v2 = load v1 -&gt; [Field; 2]
-<a href=#530 id=530 data-nosnippet>530</a>            v3 = array_set v2, index u32 0, value Field 5
-<a href=#531 id=531 data-nosnippet>531</a>            store v3 at v1
-<a href=#532 id=532 data-nosnippet>532</a>            return
-<a href=#533 id=533 data-nosnippet>533</a>        }
-<a href=#534 id=534 data-nosnippet>534</a>        "</span>;
-<a href=#535 id=535 data-nosnippet>535</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#536 id=536 data-nosnippet>536</a>    }
-<a href=#537 id=537 data-nosnippet>537</a>
-<a href=#538 id=538 data-nosnippet>538</a>    <span class="attr">#[test]
-<a href=#539 id=539 data-nosnippet>539</a>    #[ignore]
-<a href=#540 id=540 data-nosnippet>540</a>    </span><span class="kw">fn </span>mutation_through_call_with_array_passed_by_value() {
-<a href=#541 id=541 data-nosnippet>541</a>        <span class="comment">// We expect `inc_rc v0` to remain
-<a href=#542 id=542 data-nosnippet>542</a>        // After the call to f1 we expect v0 to be unchanged.
-<a href=#543 id=543 data-nosnippet>543</a>        // If the inc_rc were removed, f1 would mutate v0 in place.
-<a href=#544 id=544 data-nosnippet>544</a>        </span><span class="kw">let </span>src = <span class="string">"                                                                                    
-<a href=#545 id=545 data-nosnippet>545</a>        brillig(inline) fn main f0 {
-<a href=#546 id=546 data-nosnippet>546</a>          b0(v0: [Field; 2]):
-<a href=#547 id=547 data-nosnippet>547</a>            inc_rc v0
-<a href=#548 id=548 data-nosnippet>548</a>            call f1(v0)
-<a href=#549 id=549 data-nosnippet>549</a>            v3 = array_get v0, index u32 0 -&gt; Field
-<a href=#550 id=550 data-nosnippet>550</a>            constrain v3 == Field 5
-<a href=#551 id=551 data-nosnippet>551</a>            dec_rc v0
-<a href=#552 id=552 data-nosnippet>552</a>            return
-<a href=#553 id=553 data-nosnippet>553</a>        }
-<a href=#554 id=554 data-nosnippet>554</a>        brillig(inline) fn mutator f1 {
-<a href=#555 id=555 data-nosnippet>555</a>          b0(v0: [Field; 2]):
-<a href=#556 id=556 data-nosnippet>556</a>            v3 = array_set v0, index u32 0, value Field 5
-<a href=#557 id=557 data-nosnippet>557</a>            return
-<a href=#558 id=558 data-nosnippet>558</a>        }                                                                                            
-<a href=#559 id=559 data-nosnippet>559</a>        "</span>;
-<a href=#560 id=560 data-nosnippet>560</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
-<a href=#561 id=561 data-nosnippet>561</a>    }
-<a href=#562 id=562 data-nosnippet>562</a>}</code></pre></div></section></main></body></html>
+<a href=#238 id=238 data-nosnippet>238</a>            dec_rc v0
+<a href=#239 id=239 data-nosnippet>239</a>            v1 = make_array [v0] : [[Field; 2]; 1]
+<a href=#240 id=240 data-nosnippet>240</a>            return v1
+<a href=#241 id=241 data-nosnippet>241</a>        }
+<a href=#242 id=242 data-nosnippet>242</a>        "</span>;
+<a href=#243 id=243 data-nosnippet>243</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="kw">let </span>entry = main.entry_block();
+<a href=#247 id=247 data-nosnippet>247</a>
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">assert_eq!</span>(count_inc_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
+<a href=#249 id=249 data-nosnippet>249</a>        <span class="macro">assert_eq!</span>(count_dec_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">0</span>);
+<a href=#250 id=250 data-nosnippet>250</a>    }
+<a href=#251 id=251 data-nosnippet>251</a>
+<a href=#252 id=252 data-nosnippet>252</a>    <span class="attr">#[test]
+<a href=#253 id=253 data-nosnippet>253</a>    #[ignore]
+<a href=#254 id=254 data-nosnippet>254</a>    </span><span class="kw">fn </span>single_block_mutation() {
+<a href=#255 id=255 data-nosnippet>255</a>        <span class="comment">// fn mutator(mut array: [Field; 2]) {
+<a href=#256 id=256 data-nosnippet>256</a>        //     array[0] = 5;
+<a href=#257 id=257 data-nosnippet>257</a>        // }
+<a href=#258 id=258 data-nosnippet>258</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#259 id=259 data-nosnippet>259</a>        brillig(inline) fn mutator f0 {
+<a href=#260 id=260 data-nosnippet>260</a>          b0(v0: [Field; 2]):
+<a href=#261 id=261 data-nosnippet>261</a>            v1 = allocate -&gt; &amp;mut [Field; 2]
+<a href=#262 id=262 data-nosnippet>262</a>            store v0 at v1
+<a href=#263 id=263 data-nosnippet>263</a>            inc_rc v0
+<a href=#264 id=264 data-nosnippet>264</a>            v2 = load v1 -&gt; [Field; 2]
+<a href=#265 id=265 data-nosnippet>265</a>            v5 = array_set v2, index u32 0, value Field 5
+<a href=#266 id=266 data-nosnippet>266</a>            store v5 at v1
+<a href=#267 id=267 data-nosnippet>267</a>            dec_rc v0
+<a href=#268 id=268 data-nosnippet>268</a>            return
+<a href=#269 id=269 data-nosnippet>269</a>        }
+<a href=#270 id=270 data-nosnippet>270</a>        "</span>;
+<a href=#271 id=271 data-nosnippet>271</a>
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#275 id=275 data-nosnippet>275</a>        <span class="kw">let </span>entry = main.entry_block();
+<a href=#276 id=276 data-nosnippet>276</a>
+<a href=#277 id=277 data-nosnippet>277</a>        <span class="comment">// No changes, the array is possibly mutated
+<a href=#278 id=278 data-nosnippet>278</a>        </span><span class="macro">assert_eq!</span>(count_inc_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
+<a href=#279 id=279 data-nosnippet>279</a>        <span class="macro">assert_eq!</span>(count_dec_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
+<a href=#280 id=280 data-nosnippet>280</a>    }
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>    <span class="comment">// Similar to single_block_mutation but for a function which
+<a href=#283 id=283 data-nosnippet>283</a>    // uses a mutable reference parameter.
+<a href=#284 id=284 data-nosnippet>284</a>    </span><span class="attr">#[test]
+<a href=#285 id=285 data-nosnippet>285</a>    #[ignore]
+<a href=#286 id=286 data-nosnippet>286</a>    </span><span class="kw">fn </span>single_block_mutation_through_reference() {
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="comment">// fn mutator2(array: &amp;mut [Field; 2]) {
+<a href=#288 id=288 data-nosnippet>288</a>        //     array[0] = 5;
+<a href=#289 id=289 data-nosnippet>289</a>        // }
+<a href=#290 id=290 data-nosnippet>290</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#291 id=291 data-nosnippet>291</a>        brillig(inline) fn mutator2 f0 {
+<a href=#292 id=292 data-nosnippet>292</a>          b0(v0: &amp;mut [Field; 2]):
+<a href=#293 id=293 data-nosnippet>293</a>            v1 = load v0 -&gt; [Field; 2]
+<a href=#294 id=294 data-nosnippet>294</a>            inc_rc v1
+<a href=#295 id=295 data-nosnippet>295</a>            store v1 at v0
+<a href=#296 id=296 data-nosnippet>296</a>            v2 = load v1 -&gt; [Field; 2]
+<a href=#297 id=297 data-nosnippet>297</a>            v5 = array_set v2, index u32 0, value Field 5
+<a href=#298 id=298 data-nosnippet>298</a>            store v5 at v0
+<a href=#299 id=299 data-nosnippet>299</a>            v6 = load v0 -&gt; [Field; 2]
+<a href=#300 id=300 data-nosnippet>300</a>            dec_rc v1
+<a href=#301 id=301 data-nosnippet>301</a>            store v6 at v0
+<a href=#302 id=302 data-nosnippet>302</a>            return
+<a href=#303 id=303 data-nosnippet>303</a>        }
+<a href=#304 id=304 data-nosnippet>304</a>        "</span>;
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
+<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">let </span>entry = main.entry_block();
+<a href=#310 id=310 data-nosnippet>310</a>
+<a href=#311 id=311 data-nosnippet>311</a>        <span class="comment">// No changes, the array is possibly mutated
+<a href=#312 id=312 data-nosnippet>312</a>        </span><span class="macro">assert_eq!</span>(count_inc_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="macro">assert_eq!</span>(count_dec_rcs(entry, <span class="kw-2">&amp;</span>main.dfg), <span class="number">1</span>);
+<a href=#314 id=314 data-nosnippet>314</a>    }
+<a href=#315 id=315 data-nosnippet>315</a>
+<a href=#316 id=316 data-nosnippet>316</a>    <span class="attr">#[test]
+<a href=#317 id=317 data-nosnippet>317</a>    #[ignore]
+<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">fn </span>lone_inc_rc() {
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#320 id=320 data-nosnippet>320</a>        brillig(inline) fn foo f0 {
+<a href=#321 id=321 data-nosnippet>321</a>          b0(v0: [Field; 2]):
+<a href=#322 id=322 data-nosnippet>322</a>            inc_rc v0
+<a href=#323 id=323 data-nosnippet>323</a>            return v0
+<a href=#324 id=324 data-nosnippet>324</a>        }
+<a href=#325 id=325 data-nosnippet>325</a>        "</span>;
+<a href=#326 id=326 data-nosnippet>326</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#327 id=327 data-nosnippet>327</a>    }
+<a href=#328 id=328 data-nosnippet>328</a>
+<a href=#329 id=329 data-nosnippet>329</a>    <span class="attr">#[test]
+<a href=#330 id=330 data-nosnippet>330</a>    #[ignore]
+<a href=#331 id=331 data-nosnippet>331</a>    </span><span class="kw">fn </span>lone_dec_rc() {
+<a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#333 id=333 data-nosnippet>333</a>        brillig(inline) fn foo f0 {
+<a href=#334 id=334 data-nosnippet>334</a>          b0(v0: [Field; 2]):
+<a href=#335 id=335 data-nosnippet>335</a>            dec_rc v0
+<a href=#336 id=336 data-nosnippet>336</a>            return v0
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>        "</span>;
+<a href=#339 id=339 data-nosnippet>339</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#340 id=340 data-nosnippet>340</a>    }
+<a href=#341 id=341 data-nosnippet>341</a>
+<a href=#342 id=342 data-nosnippet>342</a>    <span class="attr">#[test]
+<a href=#343 id=343 data-nosnippet>343</a>    #[ignore]
+<a href=#344 id=344 data-nosnippet>344</a>    </span><span class="kw">fn </span>multiple_rc_pairs_mutation_on_different_types() {
+<a href=#345 id=345 data-nosnippet>345</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#346 id=346 data-nosnippet>346</a>        brillig(inline) fn mutator f0 {
+<a href=#347 id=347 data-nosnippet>347</a>          b0(v0: [Field; 3], v1: [Field; 5]):
+<a href=#348 id=348 data-nosnippet>348</a>            inc_rc v0
+<a href=#349 id=349 data-nosnippet>349</a>            inc_rc v1
+<a href=#350 id=350 data-nosnippet>350</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
+<a href=#351 id=351 data-nosnippet>351</a>            store v0 at v2
+<a href=#352 id=352 data-nosnippet>352</a>            v3 = load v2 -&gt; [Field; 3]
+<a href=#353 id=353 data-nosnippet>353</a>            v6 = array_set v3, index u32 0, value Field 5
+<a href=#354 id=354 data-nosnippet>354</a>            store v6 at v2
+<a href=#355 id=355 data-nosnippet>355</a>            v8 = array_get v1, index u32 1 -&gt; Field
+<a href=#356 id=356 data-nosnippet>356</a>            dec_rc v0
+<a href=#357 id=357 data-nosnippet>357</a>            dec_rc v1
+<a href=#358 id=358 data-nosnippet>358</a>            return
+<a href=#359 id=359 data-nosnippet>359</a>        }
+<a href=#360 id=360 data-nosnippet>360</a>        "</span>;
+<a href=#361 id=361 data-nosnippet>361</a>
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#363 id=363 data-nosnippet>363</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="comment">// We expect the paired RC on v0 to remain, but we expect the paired RC on v1 to be removed
+<a href=#365 id=365 data-nosnippet>365</a>        // as they operate over different types ([Field; 2] and [Field; 5]) respectively.
+<a href=#366 id=366 data-nosnippet>366</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#367 id=367 data-nosnippet>367</a>        brillig(inline) fn mutator f0 {
+<a href=#368 id=368 data-nosnippet>368</a>          b0(v0: [Field; 3], v1: [Field; 5]):
+<a href=#369 id=369 data-nosnippet>369</a>            inc_rc v0
+<a href=#370 id=370 data-nosnippet>370</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
+<a href=#371 id=371 data-nosnippet>371</a>            store v0 at v2
+<a href=#372 id=372 data-nosnippet>372</a>            v3 = load v2 -&gt; [Field; 3]
+<a href=#373 id=373 data-nosnippet>373</a>            v6 = array_set v3, index u32 0, value Field 5
+<a href=#374 id=374 data-nosnippet>374</a>            store v6 at v2
+<a href=#375 id=375 data-nosnippet>375</a>            v8 = array_get v1, index u32 1 -&gt; Field
+<a href=#376 id=376 data-nosnippet>376</a>            dec_rc v0
+<a href=#377 id=377 data-nosnippet>377</a>            return
+<a href=#378 id=378 data-nosnippet>378</a>        }
+<a href=#379 id=379 data-nosnippet>379</a>        "</span>);
+<a href=#380 id=380 data-nosnippet>380</a>    }
+<a href=#381 id=381 data-nosnippet>381</a>
+<a href=#382 id=382 data-nosnippet>382</a>    <span class="attr">#[test]
+<a href=#383 id=383 data-nosnippet>383</a>    #[ignore]
+<a href=#384 id=384 data-nosnippet>384</a>    </span><span class="kw">fn </span>multiple_rc_pairs_mutation_on_matching_types() {
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#386 id=386 data-nosnippet>386</a>        brillig(inline) fn mutator f0 {
+<a href=#387 id=387 data-nosnippet>387</a>          b0(v0: [Field; 5], v1: [Field; 5]):
+<a href=#388 id=388 data-nosnippet>388</a>            inc_rc v0
+<a href=#389 id=389 data-nosnippet>389</a>            inc_rc v1
+<a href=#390 id=390 data-nosnippet>390</a>            v2 = allocate -&gt; &amp;mut [Field; 5]
+<a href=#391 id=391 data-nosnippet>391</a>            store v0 at v2
+<a href=#392 id=392 data-nosnippet>392</a>            v3 = load v2 -&gt; [Field; 5]
+<a href=#393 id=393 data-nosnippet>393</a>            v6 = array_set v3, index u32 0, value Field 5
+<a href=#394 id=394 data-nosnippet>394</a>            store v6 at v2
+<a href=#395 id=395 data-nosnippet>395</a>            v8 = array_get v1, index u32 1 -&gt; Field
+<a href=#396 id=396 data-nosnippet>396</a>            dec_rc v0
+<a href=#397 id=397 data-nosnippet>397</a>            dec_rc v1
+<a href=#398 id=398 data-nosnippet>398</a>            return
+<a href=#399 id=399 data-nosnippet>399</a>        }
+<a href=#400 id=400 data-nosnippet>400</a>        "</span>;
+<a href=#401 id=401 data-nosnippet>401</a>
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="comment">// We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
+<a href=#403 id=403 data-nosnippet>403</a>        </span>assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#404 id=404 data-nosnippet>404</a>    }
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a>    <span class="attr">#[test]
+<a href=#407 id=407 data-nosnippet>407</a>    #[ignore]
+<a href=#408 id=408 data-nosnippet>408</a>    </span><span class="kw">fn </span>rc_pair_with_same_type_but_different_values() {
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#410 id=410 data-nosnippet>410</a>        brillig(inline) fn foo f0 {
+<a href=#411 id=411 data-nosnippet>411</a>          b0(v0: [Field; 2], v1: [Field; 2]):
+<a href=#412 id=412 data-nosnippet>412</a>            inc_rc v0
+<a href=#413 id=413 data-nosnippet>413</a>            dec_rc v1
+<a href=#414 id=414 data-nosnippet>414</a>            v2 = make_array [v0] : [[Field; 2]; 1]
+<a href=#415 id=415 data-nosnippet>415</a>            return v2
+<a href=#416 id=416 data-nosnippet>416</a>        }
+<a href=#417 id=417 data-nosnippet>417</a>        "</span>;
+<a href=#418 id=418 data-nosnippet>418</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#419 id=419 data-nosnippet>419</a>    }
+<a href=#420 id=420 data-nosnippet>420</a>
+<a href=#421 id=421 data-nosnippet>421</a>    <span class="attr">#[test]
+<a href=#422 id=422 data-nosnippet>422</a>    #[ignore]
+<a href=#423 id=423 data-nosnippet>423</a>    </span><span class="kw">fn </span>do_not_remove_pairs_across_blocks() {
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#425 id=425 data-nosnippet>425</a>        brillig(inline) fn foo f0 {
+<a href=#426 id=426 data-nosnippet>426</a>          b0(v0: [Field; 2]):
+<a href=#427 id=427 data-nosnippet>427</a>            inc_rc v0
+<a href=#428 id=428 data-nosnippet>428</a>            jmp b1()
+<a href=#429 id=429 data-nosnippet>429</a>          b1():
+<a href=#430 id=430 data-nosnippet>430</a>            dec_rc v0
+<a href=#431 id=431 data-nosnippet>431</a>            jmp b2()
+<a href=#432 id=432 data-nosnippet>432</a>          b2():
+<a href=#433 id=433 data-nosnippet>433</a>            v1 = make_array [v0] : [[Field; 2]; 1]
+<a href=#434 id=434 data-nosnippet>434</a>            return v1  
+<a href=#435 id=435 data-nosnippet>435</a>        }
+<a href=#436 id=436 data-nosnippet>436</a>        "</span>;
+<a href=#437 id=437 data-nosnippet>437</a>        <span class="comment">// This pass is very conservative and only looks for inc_rc's in the entry block and dec_rc's in the exit block
+<a href=#438 id=438 data-nosnippet>438</a>        // The dec_rc is not in the return block so we do not expect the rc pair to be removed.
+<a href=#439 id=439 data-nosnippet>439</a>        </span>assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#440 id=440 data-nosnippet>440</a>    }
+<a href=#441 id=441 data-nosnippet>441</a>
+<a href=#442 id=442 data-nosnippet>442</a>    <span class="attr">#[test]
+<a href=#443 id=443 data-nosnippet>443</a>    #[ignore]
+<a href=#444 id=444 data-nosnippet>444</a>    </span><span class="kw">fn </span>remove_pair_across_blocks() {
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#446 id=446 data-nosnippet>446</a>        brillig(inline) fn foo f0 {
+<a href=#447 id=447 data-nosnippet>447</a>          b0(v0: [Field; 2]):
+<a href=#448 id=448 data-nosnippet>448</a>            inc_rc v0
+<a href=#449 id=449 data-nosnippet>449</a>            jmp b1()
+<a href=#450 id=450 data-nosnippet>450</a>          b1():
+<a href=#451 id=451 data-nosnippet>451</a>            jmp b2()
+<a href=#452 id=452 data-nosnippet>452</a>          b2():
+<a href=#453 id=453 data-nosnippet>453</a>            dec_rc v0
+<a href=#454 id=454 data-nosnippet>454</a>            v1 = make_array [v0] : [[Field; 2]; 1]
+<a href=#455 id=455 data-nosnippet>455</a>            return v1  
+<a href=#456 id=456 data-nosnippet>456</a>        }
+<a href=#457 id=457 data-nosnippet>457</a>        "</span>;
+<a href=#458 id=458 data-nosnippet>458</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>ssa = ssa.remove_paired_rc();
+<a href=#460 id=460 data-nosnippet>460</a>        <span class="comment">// As the program has an RC pair where the increment is in the entry block and
+<a href=#461 id=461 data-nosnippet>461</a>        // the decrement is in the return block this pair is safe to remove.
+<a href=#462 id=462 data-nosnippet>462</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#463 id=463 data-nosnippet>463</a>        brillig(inline) fn foo f0 {
+<a href=#464 id=464 data-nosnippet>464</a>          b0(v0: [Field; 2]):
+<a href=#465 id=465 data-nosnippet>465</a>            jmp b1()
+<a href=#466 id=466 data-nosnippet>466</a>          b1():
+<a href=#467 id=467 data-nosnippet>467</a>            jmp b2()
+<a href=#468 id=468 data-nosnippet>468</a>          b2():
+<a href=#469 id=469 data-nosnippet>469</a>            v1 = make_array [v0] : [[Field; 2]; 1]
+<a href=#470 id=470 data-nosnippet>470</a>            return v1
+<a href=#471 id=471 data-nosnippet>471</a>        }
+<a href=#472 id=472 data-nosnippet>472</a>        "</span>);
+<a href=#473 id=473 data-nosnippet>473</a>    }
+<a href=#474 id=474 data-nosnippet>474</a>
+<a href=#475 id=475 data-nosnippet>475</a>    <span class="attr">#[test]
+<a href=#476 id=476 data-nosnippet>476</a>    #[ignore]
+<a href=#477 id=477 data-nosnippet>477</a>    </span><span class="kw">fn </span>mutation_through_call_with_mutable_reference() {
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="comment">// We expect `inc_rc v0` to remain.
+<a href=#479 id=479 data-nosnippet>479</a>        // If you accessed v0 directly after the call (not through the reference):
+<a href=#480 id=480 data-nosnippet>480</a>        // - With inc_rc: v0 is protected, COW happens, v0 retains old value
+<a href=#481 id=481 data-nosnippet>481</a>        // - Without inc_rc: v0 is mutated in place
+<a href=#482 id=482 data-nosnippet>482</a>        </span><span class="kw">let </span>src = <span class="string">"                                                                                    
+<a href=#483 id=483 data-nosnippet>483</a>        brillig(inline) fn main f0 {                                                                   
+<a href=#484 id=484 data-nosnippet>484</a>            b0(v0: [Field; 2]):                                                                          
+<a href=#485 id=485 data-nosnippet>485</a>            inc_rc v0                                                                                  
+<a href=#486 id=486 data-nosnippet>486</a>            v1 = allocate -&gt; &amp;mut [Field; 2]                                                           
+<a href=#487 id=487 data-nosnippet>487</a>            store v0 at v1                                                                             
+<a href=#488 id=488 data-nosnippet>488</a>            call f1(v1)                                                                                
+<a href=#489 id=489 data-nosnippet>489</a>            v3 = load v1 -&gt; [Field; 2]                                                                 
+<a href=#490 id=490 data-nosnippet>490</a>            v5 = array_get v3, index u32 0 -&gt; Field                                                    
+<a href=#491 id=491 data-nosnippet>491</a>            constrain v5 == Field 5                                                                    
+<a href=#492 id=492 data-nosnippet>492</a>            dec_rc v0                                                                                  
+<a href=#493 id=493 data-nosnippet>493</a>            return                                                                                     
+<a href=#494 id=494 data-nosnippet>494</a>        }                                                                                           
+<a href=#495 id=495 data-nosnippet>495</a>        brillig(inline) fn mutator f1 {                                                                
+<a href=#496 id=496 data-nosnippet>496</a>            b0(v0: &amp;mut [Field; 2]):                                                                     
+<a href=#497 id=497 data-nosnippet>497</a>            v1 = load v0 -&gt; [Field; 2]                                                                 
+<a href=#498 id=498 data-nosnippet>498</a>            v2 = array_set v1, index u32 0, value Field 5                                              
+<a href=#499 id=499 data-nosnippet>499</a>            store v2 at v0                                                                             
+<a href=#500 id=500 data-nosnippet>500</a>            return                                                                                     
+<a href=#501 id=501 data-nosnippet>501</a>        }                                                                                              
+<a href=#502 id=502 data-nosnippet>502</a>        "</span>;
+<a href=#503 id=503 data-nosnippet>503</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#504 id=504 data-nosnippet>504</a>    }
+<a href=#505 id=505 data-nosnippet>505</a>
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&amp;mut &amp;mut [Field; 2]`)
+<a href=#507 id=507 data-nosnippet>507</a>    </span><span class="attr">#[test]
+<a href=#508 id=508 data-nosnippet>508</a>    #[ignore]
+<a href=#509 id=509 data-nosnippet>509</a>    </span><span class="kw">fn </span>mutation_through_call_with_deeply_nested_reference() {
+<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#511 id=511 data-nosnippet>511</a>        brillig(inline) fn main f0 {
+<a href=#512 id=512 data-nosnippet>512</a>          b0(v0: [Field; 2]):
+<a href=#513 id=513 data-nosnippet>513</a>            inc_rc v0
+<a href=#514 id=514 data-nosnippet>514</a>            v1 = allocate -&gt; &amp;mut [Field; 2]
+<a href=#515 id=515 data-nosnippet>515</a>            store v0 at v1
+<a href=#516 id=516 data-nosnippet>516</a>            v2 = allocate -&gt; &amp;mut &amp;mut [Field; 2]
+<a href=#517 id=517 data-nosnippet>517</a>            store v1 at v2
+<a href=#518 id=518 data-nosnippet>518</a>            call f1(v2)
+<a href=#519 id=519 data-nosnippet>519</a>            v4 = load v1 -&gt; [Field; 2]
+<a href=#520 id=520 data-nosnippet>520</a>            v6 = array_get v4, index u32 0 -&gt; Field
+<a href=#521 id=521 data-nosnippet>521</a>            constrain v6 == Field 5
+<a href=#522 id=522 data-nosnippet>522</a>            dec_rc v0
+<a href=#523 id=523 data-nosnippet>523</a>            return
+<a href=#524 id=524 data-nosnippet>524</a>        }
+<a href=#525 id=525 data-nosnippet>525</a>        brillig(inline) fn mutator f1 {
+<a href=#526 id=526 data-nosnippet>526</a>          b0(v0: &amp;mut &amp;mut [Field; 2]):
+<a href=#527 id=527 data-nosnippet>527</a>            v1 = load v0 -&gt; &amp;mut [Field; 2]
+<a href=#528 id=528 data-nosnippet>528</a>            v2 = load v1 -&gt; [Field; 2]
+<a href=#529 id=529 data-nosnippet>529</a>            v3 = array_set v2, index u32 0, value Field 5
+<a href=#530 id=530 data-nosnippet>530</a>            store v3 at v1
+<a href=#531 id=531 data-nosnippet>531</a>            return
+<a href=#532 id=532 data-nosnippet>532</a>        }
+<a href=#533 id=533 data-nosnippet>533</a>        "</span>;
+<a href=#534 id=534 data-nosnippet>534</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#535 id=535 data-nosnippet>535</a>    }
+<a href=#536 id=536 data-nosnippet>536</a>
+<a href=#537 id=537 data-nosnippet>537</a>    <span class="attr">#[test]
+<a href=#538 id=538 data-nosnippet>538</a>    #[ignore]
+<a href=#539 id=539 data-nosnippet>539</a>    </span><span class="kw">fn </span>mutation_through_call_with_array_passed_by_value() {
+<a href=#540 id=540 data-nosnippet>540</a>        <span class="comment">// We expect `inc_rc v0` to remain
+<a href=#541 id=541 data-nosnippet>541</a>        // After the call to f1 we expect v0 to be unchanged.
+<a href=#542 id=542 data-nosnippet>542</a>        // If the inc_rc were removed, f1 would mutate v0 in place.
+<a href=#543 id=543 data-nosnippet>543</a>        </span><span class="kw">let </span>src = <span class="string">"                                                                                    
+<a href=#544 id=544 data-nosnippet>544</a>        brillig(inline) fn main f0 {
+<a href=#545 id=545 data-nosnippet>545</a>          b0(v0: [Field; 2]):
+<a href=#546 id=546 data-nosnippet>546</a>            inc_rc v0
+<a href=#547 id=547 data-nosnippet>547</a>            call f1(v0)
+<a href=#548 id=548 data-nosnippet>548</a>            v3 = array_get v0, index u32 0 -&gt; Field
+<a href=#549 id=549 data-nosnippet>549</a>            constrain v3 == Field 5
+<a href=#550 id=550 data-nosnippet>550</a>            dec_rc v0
+<a href=#551 id=551 data-nosnippet>551</a>            return
+<a href=#552 id=552 data-nosnippet>552</a>        }
+<a href=#553 id=553 data-nosnippet>553</a>        brillig(inline) fn mutator f1 {
+<a href=#554 id=554 data-nosnippet>554</a>          b0(v0: [Field; 2]):
+<a href=#555 id=555 data-nosnippet>555</a>            v3 = array_set v0, index u32 0, value Field 5
+<a href=#556 id=556 data-nosnippet>556</a>            return
+<a href=#557 id=557 data-nosnippet>557</a>        }                                                                                            
+<a href=#558 id=558 data-nosnippet>558</a>        "</span>;
+<a href=#559 id=559 data-nosnippet>559</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+<a href=#560 id=560 data-nosnippet>560</a>    }
+<a href=#561 id=561 data-nosnippet>561</a>}</code></pre></div></section></main></body></html>

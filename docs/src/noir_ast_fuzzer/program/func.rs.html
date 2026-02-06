@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/src/program/func.rs`."><title>func.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../../static.files/storage-82c7156e.js"></script><script defer src="../../../static.files/src-script-63605ae7.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer/program/</div>func.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>iter_extended::vecmap;
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/src/program/func.rs`."><title>func.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer/program/</div>func.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>iter_extended::vecmap;
 <a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>nargo::errors::Location;
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>std::{
 <a href=#4 id=4 data-nosnippet>4</a>    collections::{BTreeMap, BTreeSet, HashSet},
@@ -497,16 +497,16 @@
 <a href=#497 id=497 data-nosnippet>497</a>
 <a href=#498 id=498 data-nosnippet>498</a>        <span class="kw">let </span>allow_match = allow_if_then &amp;&amp; !<span class="self">self</span>.ctx.config.avoid_match;
 <a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"unary"</span>, allow_nested &amp;&amp; types::can_unary_return(typ)) {
-<a href=#501 id=501 data-nosnippet>501</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_unary(u, typ, max_depth)<span class="question-mark">? </span>{
-<a href=#502 id=502 data-nosnippet>502</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
-<a href=#503 id=503 data-nosnippet>503</a>            }
+<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"unary"</span>, allow_nested &amp;&amp; types::can_unary_return(typ))
+<a href=#501 id=501 data-nosnippet>501</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_unary(u, typ, max_depth)<span class="question-mark">?
+<a href=#502 id=502 data-nosnippet>502</a>        </span>{
+<a href=#503 id=503 data-nosnippet>503</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
 <a href=#504 id=504 data-nosnippet>504</a>        }
 <a href=#505 id=505 data-nosnippet>505</a>
-<a href=#506 id=506 data-nosnippet>506</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"binary"</span>, allow_nested &amp;&amp; types::can_binary_return(typ)) {
-<a href=#507 id=507 data-nosnippet>507</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_binary(u, typ, max_depth)<span class="question-mark">? </span>{
-<a href=#508 id=508 data-nosnippet>508</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
-<a href=#509 id=509 data-nosnippet>509</a>            }
+<a href=#506 id=506 data-nosnippet>506</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"binary"</span>, allow_nested &amp;&amp; types::can_binary_return(typ))
+<a href=#507 id=507 data-nosnippet>507</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_binary(u, typ, max_depth)<span class="question-mark">?
+<a href=#508 id=508 data-nosnippet>508</a>        </span>{
+<a href=#509 id=509 data-nosnippet>509</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
 <a href=#510 id=510 data-nosnippet>510</a>        }
 <a href=#511 id=511 data-nosnippet>511</a>
 <a href=#512 id=512 data-nosnippet>512</a>        <span class="comment">// if-then-else returning a value
@@ -538,10 +538,10 @@
 <a href=#538 id=538 data-nosnippet>538</a>        }
 <a href=#539 id=539 data-nosnippet>539</a>
 <a href=#540 id=540 data-nosnippet>540</a>        <span class="comment">// We can always try to just derive a value from the variables we have.
-<a href=#541 id=541 data-nosnippet>541</a>        </span><span class="kw">if </span>freq.enabled(<span class="string">"vars"</span>) {
-<a href=#542 id=542 data-nosnippet>542</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_vars(u, typ, max_depth)<span class="question-mark">? </span>{
-<a href=#543 id=543 data-nosnippet>543</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
-<a href=#544 id=544 data-nosnippet>544</a>            }
+<a href=#541 id=541 data-nosnippet>541</a>        </span><span class="kw">if </span>freq.enabled(<span class="string">"vars"</span>)
+<a href=#542 id=542 data-nosnippet>542</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_vars(u, typ, max_depth)<span class="question-mark">?
+<a href=#543 id=543 data-nosnippet>543</a>        </span>{
+<a href=#544 id=544 data-nosnippet>544</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
 <a href=#545 id=545 data-nosnippet>545</a>        }
 <a href=#546 id=546 data-nosnippet>546</a>
 <a href=#547 id=547 data-nosnippet>547</a>        <span class="comment">// If nothing else worked out we can always produce a random literal.
@@ -641,39 +641,39 @@
 <a href=#641 id=641 data-nosnippet>641</a>        <span class="comment">// If we found our type, we can return it without further ado.
 <a href=#642 id=642 data-nosnippet>642</a>        </span><span class="kw">if </span>src_type == tgt_type {
 <a href=#643 id=643 data-nosnippet>643</a>            <span class="comment">// If we want a vector, we can push onto it.
-<a href=#644 id=644 data-nosnippet>644</a>            </span><span class="kw">if let </span>Type::Vector(item_type) = src_type {
-<a href=#645 id=645 data-nosnippet>645</a>                <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-<a href=#646 id=646 data-nosnippet>646</a>                    <span class="kw">let </span>(item, item_dyn) = <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::TOP)<span class="question-mark">?</span>;
-<a href=#647 id=647 data-nosnippet>647</a>                    <span class="comment">// We can use push_back, push_front, or insert.
-<a href=#648 id=648 data-nosnippet>648</a>                    </span><span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-<a href=#649 id=649 data-nosnippet>649</a>                        <span class="kw">let </span>push_expr = <span class="self">self</span>.call_vector_push(
-<a href=#650 id=650 data-nosnippet>650</a>                            src_type.clone(),
-<a href=#651 id=651 data-nosnippet>651</a>                            item_type.as_ref().clone(),
-<a href=#652 id=652 data-nosnippet>652</a>                            src_expr,
-<a href=#653 id=653 data-nosnippet>653</a>                            bool::arbitrary(u)<span class="question-mark">?</span>,
-<a href=#654 id=654 data-nosnippet>654</a>                            item,
-<a href=#655 id=655 data-nosnippet>655</a>                        );
-<a href=#656 id=656 data-nosnippet>656</a>                        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((push_expr, src_dyn || item_dyn)));
-<a href=#657 id=657 data-nosnippet>657</a>                    } <span class="kw">else </span>{
-<a href=#658 id=658 data-nosnippet>658</a>                        <span class="comment">// Generate a random index and insert the item at it.
-<a href=#659 id=659 data-nosnippet>659</a>                        </span><span class="kw">return </span><span class="self">self</span>.gen_vector_access(
-<a href=#660 id=660 data-nosnippet>660</a>                            u,
-<a href=#661 id=661 data-nosnippet>661</a>                            (src_expr, src_dyn || item_dyn),
-<a href=#662 id=662 data-nosnippet>662</a>                            src_type,
-<a href=#663 id=663 data-nosnippet>663</a>                            src_mutable,
-<a href=#664 id=664 data-nosnippet>664</a>                            tgt_type,
-<a href=#665 id=665 data-nosnippet>665</a>                            max_depth,
-<a href=#666 id=666 data-nosnippet>666</a>                            |this, ident, idx| {
-<a href=#667 id=667 data-nosnippet>667</a>                                this.call_vector_insert(
-<a href=#668 id=668 data-nosnippet>668</a>                                    src_type.clone(),
-<a href=#669 id=669 data-nosnippet>669</a>                                    item_type.as_ref().clone(),
-<a href=#670 id=670 data-nosnippet>670</a>                                    Expression::Ident(ident),
-<a href=#671 id=671 data-nosnippet>671</a>                                    idx,
-<a href=#672 id=672 data-nosnippet>672</a>                                    item,
-<a href=#673 id=673 data-nosnippet>673</a>                                )
-<a href=#674 id=674 data-nosnippet>674</a>                            },
-<a href=#675 id=675 data-nosnippet>675</a>                        );
-<a href=#676 id=676 data-nosnippet>676</a>                    }
+<a href=#644 id=644 data-nosnippet>644</a>            </span><span class="kw">if let </span>Type::Vector(item_type) = src_type
+<a href=#645 id=645 data-nosnippet>645</a>                &amp;&amp; bool::arbitrary(u)<span class="question-mark">?
+<a href=#646 id=646 data-nosnippet>646</a>            </span>{
+<a href=#647 id=647 data-nosnippet>647</a>                <span class="kw">let </span>(item, item_dyn) = <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+<a href=#648 id=648 data-nosnippet>648</a>                <span class="comment">// We can use push_back, push_front, or insert.
+<a href=#649 id=649 data-nosnippet>649</a>                </span><span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
+<a href=#650 id=650 data-nosnippet>650</a>                    <span class="kw">let </span>push_expr = <span class="self">self</span>.call_vector_push(
+<a href=#651 id=651 data-nosnippet>651</a>                        src_type.clone(),
+<a href=#652 id=652 data-nosnippet>652</a>                        item_type.as_ref().clone(),
+<a href=#653 id=653 data-nosnippet>653</a>                        src_expr,
+<a href=#654 id=654 data-nosnippet>654</a>                        bool::arbitrary(u)<span class="question-mark">?</span>,
+<a href=#655 id=655 data-nosnippet>655</a>                        item,
+<a href=#656 id=656 data-nosnippet>656</a>                    );
+<a href=#657 id=657 data-nosnippet>657</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((push_expr, src_dyn || item_dyn)));
+<a href=#658 id=658 data-nosnippet>658</a>                } <span class="kw">else </span>{
+<a href=#659 id=659 data-nosnippet>659</a>                    <span class="comment">// Generate a random index and insert the item at it.
+<a href=#660 id=660 data-nosnippet>660</a>                    </span><span class="kw">return </span><span class="self">self</span>.gen_vector_access(
+<a href=#661 id=661 data-nosnippet>661</a>                        u,
+<a href=#662 id=662 data-nosnippet>662</a>                        (src_expr, src_dyn || item_dyn),
+<a href=#663 id=663 data-nosnippet>663</a>                        src_type,
+<a href=#664 id=664 data-nosnippet>664</a>                        src_mutable,
+<a href=#665 id=665 data-nosnippet>665</a>                        tgt_type,
+<a href=#666 id=666 data-nosnippet>666</a>                        max_depth,
+<a href=#667 id=667 data-nosnippet>667</a>                        |this, ident, idx| {
+<a href=#668 id=668 data-nosnippet>668</a>                            this.call_vector_insert(
+<a href=#669 id=669 data-nosnippet>669</a>                                src_type.clone(),
+<a href=#670 id=670 data-nosnippet>670</a>                                item_type.as_ref().clone(),
+<a href=#671 id=671 data-nosnippet>671</a>                                Expression::Ident(ident),
+<a href=#672 id=672 data-nosnippet>672</a>                                idx,
+<a href=#673 id=673 data-nosnippet>673</a>                                item,
+<a href=#674 id=674 data-nosnippet>674</a>                            )
+<a href=#675 id=675 data-nosnippet>675</a>                        },
+<a href=#676 id=676 data-nosnippet>676</a>                    );
 <a href=#677 id=677 data-nosnippet>677</a>                }
 <a href=#678 id=678 data-nosnippet>678</a>            }
 <a href=#679 id=679 data-nosnippet>679</a>            <span class="comment">// Otherwise just return as-is.
@@ -1161,10 +1161,10 @@
 <a href=#1161 id=1161 data-nosnippet>1161</a>        <span class="comment">// TODO(#7926): Match
 <a href=#1162 id=1162 data-nosnippet>1162</a>
 <a href=#1163 id=1163 data-nosnippet>1163</a>        // We don't want constraints to get too frequent, as it could dominate all outcome.
-<a href=#1164 id=1164 data-nosnippet>1164</a>        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"constrain"</span>, !<span class="self">self</span>.config().avoid_constrain) {
-<a href=#1165 id=1165 data-nosnippet>1165</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_constrain(u)<span class="question-mark">? </span>{
-<a href=#1166 id=1166 data-nosnippet>1166</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
-<a href=#1167 id=1167 data-nosnippet>1167</a>            }
+<a href=#1164 id=1164 data-nosnippet>1164</a>        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"constrain"</span>, !<span class="self">self</span>.config().avoid_constrain)
+<a href=#1165 id=1165 data-nosnippet>1165</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_constrain(u)<span class="question-mark">?
+<a href=#1166 id=1166 data-nosnippet>1166</a>        </span>{
+<a href=#1167 id=1167 data-nosnippet>1167</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
 <a href=#1168 id=1168 data-nosnippet>1168</a>        }
 <a href=#1169 id=1169 data-nosnippet>1169</a>
 <a href=#1170 id=1170 data-nosnippet>1170</a>        <span class="comment">// Require a positive budget, so that we have some for the block itself and its contents.
@@ -1172,20 +1172,20 @@
 <a href=#1172 id=1172 data-nosnippet>1172</a>            <span class="kw">return </span><span class="self">self</span>.gen_if(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth(), Flags::TOP).map(|(e, <span class="kw">_</span>)| e);
 <a href=#1173 id=1173 data-nosnippet>1173</a>        }
 <a href=#1174 id=1174 data-nosnippet>1174</a>
-<a href=#1175 id=1175 data-nosnippet>1175</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"match"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; !<span class="self">self</span>.ctx.config.avoid_match) {
-<a href=#1176 id=1176 data-nosnippet>1176</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((e, <span class="kw">_</span>)) = <span class="self">self</span>.gen_match(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
-<a href=#1177 id=1177 data-nosnippet>1177</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
-<a href=#1178 id=1178 data-nosnippet>1178</a>            }
+<a href=#1175 id=1175 data-nosnippet>1175</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"match"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; !<span class="self">self</span>.ctx.config.avoid_match)
+<a href=#1176 id=1176 data-nosnippet>1176</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>((e, <span class="kw">_</span>)) = <span class="self">self</span>.gen_match(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">?
+<a href=#1177 id=1177 data-nosnippet>1177</a>        </span>{
+<a href=#1178 id=1178 data-nosnippet>1178</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
 <a href=#1179 id=1179 data-nosnippet>1179</a>        }
 <a href=#1180 id=1180 data-nosnippet>1180</a>
 <a href=#1181 id=1181 data-nosnippet>1181</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"for"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
 <a href=#1182 id=1182 data-nosnippet>1182</a>            <span class="kw">return </span><span class="self">self</span>.gen_for(u);
 <a href=#1183 id=1183 data-nosnippet>1183</a>        }
 <a href=#1184 id=1184 data-nosnippet>1184</a>
-<a href=#1185 id=1185 data-nosnippet>1185</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
-<a href=#1186 id=1186 data-nosnippet>1186</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((e, <span class="kw">_</span>)) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
-<a href=#1187 id=1187 data-nosnippet>1187</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
-<a href=#1188 id=1188 data-nosnippet>1188</a>            }
+<a href=#1185 id=1185 data-nosnippet>1185</a>        <span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>)
+<a href=#1186 id=1186 data-nosnippet>1186</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>((e, <span class="kw">_</span>)) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">?
+<a href=#1187 id=1187 data-nosnippet>1187</a>        </span>{
+<a href=#1188 id=1188 data-nosnippet>1188</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
 <a href=#1189 id=1189 data-nosnippet>1189</a>        }
 <a href=#1190 id=1190 data-nosnippet>1190</a>
 <a href=#1191 id=1191 data-nosnippet>1191</a>        <span class="kw">if </span><span class="self">self</span>.unconstrained() {
@@ -1207,17 +1207,17 @@
 <a href=#1207 id=1207 data-nosnippet>1207</a>            }
 <a href=#1208 id=1208 data-nosnippet>1208</a>
 <a href=#1209 id=1209 data-nosnippet>1209</a>            <span class="comment">// For now only try prints in unconstrained code, were we don't need to create a proxy.
-<a href=#1210 id=1210 data-nosnippet>1210</a>            </span><span class="kw">if </span>freq.enabled_when(<span class="string">"print"</span>, !<span class="self">self</span>.config().avoid_print) {
-<a href=#1211 id=1211 data-nosnippet>1211</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_print(u)<span class="question-mark">? </span>{
-<a href=#1212 id=1212 data-nosnippet>1212</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
-<a href=#1213 id=1213 data-nosnippet>1213</a>                }
+<a href=#1210 id=1210 data-nosnippet>1210</a>            </span><span class="kw">if </span>freq.enabled_when(<span class="string">"print"</span>, !<span class="self">self</span>.config().avoid_print)
+<a href=#1211 id=1211 data-nosnippet>1211</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_print(u)<span class="question-mark">?
+<a href=#1212 id=1212 data-nosnippet>1212</a>            </span>{
+<a href=#1213 id=1213 data-nosnippet>1213</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
 <a href=#1214 id=1214 data-nosnippet>1214</a>            }
 <a href=#1215 id=1215 data-nosnippet>1215</a>        }
 <a href=#1216 id=1216 data-nosnippet>1216</a>
-<a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw">if </span>freq.enabled(<span class="string">"assign"</span>) {
-<a href=#1218 id=1218 data-nosnippet>1218</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_assign(u)<span class="question-mark">? </span>{
-<a href=#1219 id=1219 data-nosnippet>1219</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
-<a href=#1220 id=1220 data-nosnippet>1220</a>            }
+<a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw">if </span>freq.enabled(<span class="string">"assign"</span>)
+<a href=#1218 id=1218 data-nosnippet>1218</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_assign(u)<span class="question-mark">?
+<a href=#1219 id=1219 data-nosnippet>1219</a>        </span>{
+<a href=#1220 id=1220 data-nosnippet>1220</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
 <a href=#1221 id=1221 data-nosnippet>1221</a>        }
 <a href=#1222 id=1222 data-nosnippet>1222</a>
 <a href=#1223 id=1223 data-nosnippet>1223</a>        <span class="self">self</span>.gen_let(u)
@@ -1231,17 +1231,17 @@
 <a href=#1231 id=1231 data-nosnippet>1231</a>        <span class="kw">let </span><span class="kw-2">mut </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>, comptime_friendly, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
 <a href=#1232 id=1232 data-nosnippet>1232</a>
 <a href=#1233 id=1233 data-nosnippet>1233</a>        <span class="comment">// If we picked the target type to be a vector, we can consider popping from it.
-<a href=#1234 id=1234 data-nosnippet>1234</a>        </span><span class="kw">if let </span>Type::Vector(<span class="kw-2">ref </span>item_type) = typ {
-<a href=#1235 id=1235 data-nosnippet>1235</a>            <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-<a href=#1236 id=1236 data-nosnippet>1236</a>                <span class="kw">let </span>fields = <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-<a href=#1237 id=1237 data-nosnippet>1237</a>                    <span class="comment">// ([T], T) &lt;- pop_back or remove
-<a href=#1238 id=1238 data-nosnippet>1238</a>                    </span><span class="macro">vec!</span>[typ.clone(), item_type.as_ref().clone()]
-<a href=#1239 id=1239 data-nosnippet>1239</a>                } <span class="kw">else </span>{
-<a href=#1240 id=1240 data-nosnippet>1240</a>                    <span class="comment">// (T, [T]) &lt;- pop_front
-<a href=#1241 id=1241 data-nosnippet>1241</a>                    </span><span class="macro">vec!</span>[item_type.as_ref().clone(), typ.clone()]
-<a href=#1242 id=1242 data-nosnippet>1242</a>                };
-<a href=#1243 id=1243 data-nosnippet>1243</a>                typ = Type::Tuple(fields);
-<a href=#1244 id=1244 data-nosnippet>1244</a>            }
+<a href=#1234 id=1234 data-nosnippet>1234</a>        </span><span class="kw">if let </span>Type::Vector(<span class="kw-2">ref </span>item_type) = typ
+<a href=#1235 id=1235 data-nosnippet>1235</a>            &amp;&amp; bool::arbitrary(u)<span class="question-mark">?
+<a href=#1236 id=1236 data-nosnippet>1236</a>        </span>{
+<a href=#1237 id=1237 data-nosnippet>1237</a>            <span class="kw">let </span>fields = <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
+<a href=#1238 id=1238 data-nosnippet>1238</a>                <span class="comment">// ([T], T) &lt;- pop_back or remove
+<a href=#1239 id=1239 data-nosnippet>1239</a>                </span><span class="macro">vec!</span>[typ.clone(), item_type.as_ref().clone()]
+<a href=#1240 id=1240 data-nosnippet>1240</a>            } <span class="kw">else </span>{
+<a href=#1241 id=1241 data-nosnippet>1241</a>                <span class="comment">// (T, [T]) &lt;- pop_front
+<a href=#1242 id=1242 data-nosnippet>1242</a>                </span><span class="macro">vec!</span>[item_type.as_ref().clone(), typ.clone()]
+<a href=#1243 id=1243 data-nosnippet>1243</a>            };
+<a href=#1244 id=1244 data-nosnippet>1244</a>            typ = Type::Tuple(fields);
 <a href=#1245 id=1245 data-nosnippet>1245</a>        }
 <a href=#1246 id=1246 data-nosnippet>1246</a>
 <a href=#1247 id=1247 data-nosnippet>1247</a>        <span class="kw">let </span>(expr, is_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/monomorphization/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../../static.files/storage-82c7156e.js"></script><script defer src="../../../static.files/src-script-63605ae7.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/monomorphization/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/monomorphization/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/monomorphization/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Coming after elaboration, monomorphization is the last pass in Noir's frontend.
 <a href=#2 id=2 data-nosnippet>2</a>//! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 <a href=#3 id=3 data-nosnippet>3</a>//! This file implements the pass itself, while the AST is defined in the ast module.
 <a href=#4 id=4 data-nosnippet>4</a>//!
@@ -2145,22 +2145,22 @@
 <a href=#2145 id=2145 data-nosnippet>2145</a>        <span class="kw">let </span>is_closure = <span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>func_type);
 <a href=#2146 id=2146 data-nosnippet>2146</a>
 <a href=#2147 id=2147 data-nosnippet>2147</a>        <span class="kw">if let </span>ast::Expression::Ident(ident) = original_func.as_ref() {
-<a href=#2148 id=2148 data-nosnippet>2148</a>            <span class="kw">if let </span>Definition::Oracle(name) = <span class="kw-2">&amp;</span>ident.definition {
-<a href=#2149 id=2149 data-nosnippet>2149</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(ForeignCall::Print) = ForeignCall::lookup(name) {
-<a href=#2150 id=2150 data-nosnippet>2150</a>                    <span class="comment">// Oracle calls are required to be wrapped in an unconstrained function
-<a href=#2151 id=2151 data-nosnippet>2151</a>                    // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
-<a href=#2152 id=2152 data-nosnippet>2152</a>                    // The second argument is expected to always be an ident
-<a href=#2153 id=2153 data-nosnippet>2153</a>                    </span><span class="self">self</span>.append_printable_type_info(<span class="kw-2">&amp;</span>hir_arguments[<span class="number">1</span>], <span class="kw-2">&amp;mut </span>arguments);
-<a href=#2154 id=2154 data-nosnippet>2154</a>                }
+<a href=#2148 id=2148 data-nosnippet>2148</a>            <span class="kw">if let </span>Definition::Oracle(name) = <span class="kw-2">&amp;</span>ident.definition
+<a href=#2149 id=2149 data-nosnippet>2149</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(ForeignCall::Print) = ForeignCall::lookup(name)
+<a href=#2150 id=2150 data-nosnippet>2150</a>            {
+<a href=#2151 id=2151 data-nosnippet>2151</a>                <span class="comment">// Oracle calls are required to be wrapped in an unconstrained function
+<a href=#2152 id=2152 data-nosnippet>2152</a>                // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
+<a href=#2153 id=2153 data-nosnippet>2153</a>                // The second argument is expected to always be an ident
+<a href=#2154 id=2154 data-nosnippet>2154</a>                </span><span class="self">self</span>.append_printable_type_info(<span class="kw-2">&amp;</span>hir_arguments[<span class="number">1</span>], <span class="kw-2">&amp;mut </span>arguments);
 <a href=#2155 id=2155 data-nosnippet>2155</a>            }
-<a href=#2156 id=2156 data-nosnippet>2156</a>            <span class="kw">if let </span>Definition::Builtin(name) = <span class="kw-2">&amp;</span>ident.definition {
-<a href=#2157 id=2157 data-nosnippet>2157</a>                <span class="kw">if </span>name.as_str() == <span class="string">"static_assert" </span>{
-<a href=#2158 id=2158 data-nosnippet>2158</a>                    <span class="comment">// static_assert can take any type for the `message` argument.
-<a href=#2159 id=2159 data-nosnippet>2159</a>                    // Here we append printable type info so we can know how to turn that argument
-<a href=#2160 id=2160 data-nosnippet>2160</a>                    // into a human-readable string.
-<a href=#2161 id=2161 data-nosnippet>2161</a>                    </span><span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(call.arguments[<span class="number">1</span>]);
-<a href=#2162 id=2162 data-nosnippet>2162</a>                    append_printable_type_info_for_type(typ, <span class="kw-2">&amp;mut </span>arguments);
-<a href=#2163 id=2163 data-nosnippet>2163</a>                }
+<a href=#2156 id=2156 data-nosnippet>2156</a>            <span class="kw">if let </span>Definition::Builtin(name) = <span class="kw-2">&amp;</span>ident.definition
+<a href=#2157 id=2157 data-nosnippet>2157</a>                &amp;&amp; name.as_str() == <span class="string">"static_assert"
+<a href=#2158 id=2158 data-nosnippet>2158</a>            </span>{
+<a href=#2159 id=2159 data-nosnippet>2159</a>                <span class="comment">// static_assert can take any type for the `message` argument.
+<a href=#2160 id=2160 data-nosnippet>2160</a>                // Here we append printable type info so we can know how to turn that argument
+<a href=#2161 id=2161 data-nosnippet>2161</a>                // into a human-readable string.
+<a href=#2162 id=2162 data-nosnippet>2162</a>                </span><span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(call.arguments[<span class="number">1</span>]);
+<a href=#2163 id=2163 data-nosnippet>2163</a>                append_printable_type_info_for_type(typ, <span class="kw-2">&amp;mut </span>arguments);
 <a href=#2164 id=2164 data-nosnippet>2164</a>            }
 <a href=#2165 id=2165 data-nosnippet>2165</a>        }
 <a href=#2166 id=2166 data-nosnippet>2166</a>
@@ -2869,28 +2869,28 @@
 <a href=#2869 id=2869 data-nosnippet>2869</a>    ///
 <a href=#2870 id=2870 data-nosnippet>2870</a>    /// Returns `false` for any other kind of expression.
 <a href=#2871 id=2871 data-nosnippet>2871</a>    </span><span class="kw">fn </span>function_is_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ExprId) -&gt; bool {
-<a href=#2872 id=2872 data-nosnippet>2872</a>        <span class="kw">if let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function) {
-<a href=#2873 id=2873 data-nosnippet>2873</a>            <span class="kw">if let </span>DefinitionKind::Function(func_id) = <span class="self">self</span>.interner.definition(ident.id).kind {
-<a href=#2874 id=2874 data-nosnippet>2874</a>                <span class="kw">return </span><span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).is_unconstrained;
-<a href=#2875 id=2875 data-nosnippet>2875</a>            }
+<a href=#2872 id=2872 data-nosnippet>2872</a>        <span class="kw">if let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function)
+<a href=#2873 id=2873 data-nosnippet>2873</a>            &amp;&amp; <span class="kw">let </span>DefinitionKind::Function(func_id) = <span class="self">self</span>.interner.definition(ident.id).kind
+<a href=#2874 id=2874 data-nosnippet>2874</a>        {
+<a href=#2875 id=2875 data-nosnippet>2875</a>            <span class="kw">return </span><span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).is_unconstrained;
 <a href=#2876 id=2876 data-nosnippet>2876</a>        }
 <a href=#2877 id=2877 data-nosnippet>2877</a>
 <a href=#2878 id=2878 data-nosnippet>2878</a>        <span class="bool-val">false
 <a href=#2879 id=2879 data-nosnippet>2879</a>    </span>}
 <a href=#2880 id=2880 data-nosnippet>2880</a>
 <a href=#2881 id=2881 data-nosnippet>2881</a>    <span class="kw">fn </span>function_is_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ExprId) -&gt; bool {
-<a href=#2882 id=2882 data-nosnippet>2882</a>        <span class="kw">if let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function) {
-<a href=#2883 id=2883 data-nosnippet>2883</a>            <span class="kw">if let </span>DefinitionKind::Function(func_id) = <span class="self">self</span>.interner.definition(ident.id).kind {
-<a href=#2884 id=2884 data-nosnippet>2884</a>                <span class="kw">return </span><span class="self">self
-<a href=#2885 id=2885 data-nosnippet>2885</a>                    </span>.interner
-<a href=#2886 id=2886 data-nosnippet>2886</a>                    .function_modifiers(<span class="kw-2">&amp;</span>func_id)
-<a href=#2887 id=2887 data-nosnippet>2887</a>                    .attributes
-<a href=#2888 id=2888 data-nosnippet>2888</a>                    .function
-<a href=#2889 id=2889 data-nosnippet>2889</a>                    .as_ref()
-<a href=#2890 id=2890 data-nosnippet>2890</a>                    .is_some_and(|(attribute, <span class="kw">_</span>)| {
-<a href=#2891 id=2891 data-nosnippet>2891</a>                        <span class="macro">matches!</span>(attribute.kind, FunctionAttributeKind::Oracle(..))
-<a href=#2892 id=2892 data-nosnippet>2892</a>                    });
-<a href=#2893 id=2893 data-nosnippet>2893</a>            }
+<a href=#2882 id=2882 data-nosnippet>2882</a>        <span class="kw">if let </span>HirExpression::Ident(ident, <span class="kw">_</span>) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function)
+<a href=#2883 id=2883 data-nosnippet>2883</a>            &amp;&amp; <span class="kw">let </span>DefinitionKind::Function(func_id) = <span class="self">self</span>.interner.definition(ident.id).kind
+<a href=#2884 id=2884 data-nosnippet>2884</a>        {
+<a href=#2885 id=2885 data-nosnippet>2885</a>            <span class="kw">return </span><span class="self">self
+<a href=#2886 id=2886 data-nosnippet>2886</a>                </span>.interner
+<a href=#2887 id=2887 data-nosnippet>2887</a>                .function_modifiers(<span class="kw-2">&amp;</span>func_id)
+<a href=#2888 id=2888 data-nosnippet>2888</a>                .attributes
+<a href=#2889 id=2889 data-nosnippet>2889</a>                .function
+<a href=#2890 id=2890 data-nosnippet>2890</a>                .as_ref()
+<a href=#2891 id=2891 data-nosnippet>2891</a>                .is_some_and(|(attribute, <span class="kw">_</span>)| {
+<a href=#2892 id=2892 data-nosnippet>2892</a>                    <span class="macro">matches!</span>(attribute.kind, FunctionAttributeKind::Oracle(..))
+<a href=#2893 id=2893 data-nosnippet>2893</a>                });
 <a href=#2894 id=2894 data-nosnippet>2894</a>        }
 <a href=#2895 id=2895 data-nosnippet>2895</a>        <span class="bool-val">false
 <a href=#2896 id=2896 data-nosnippet>2896</a>    </span>}

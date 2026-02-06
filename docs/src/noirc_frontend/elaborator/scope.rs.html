@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/elaborator/scope.rs`."><title>scope.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../../static.files/storage-82c7156e.js"></script><script defer src="../../../static.files/src-script-63605ae7.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/elaborator/</div>scope.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/elaborator/scope.rs`."><title>scope.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/elaborator/</div>scope.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Lexical scoping, variable lookup, and closure capture tracking.
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident};
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span><span class="kw">crate</span>::elaborator::path_resolution::PathResolution;
@@ -200,52 +200,51 @@
 <a href=#200 id=200 data-nosnippet>200</a>    /// This will also instantiate any struct types found.
 <a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_type_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
 <a href=#202 id=202 data-nosnippet>202</a>        <span class="kw">let </span>segment = path.as_single_segment();
-<a href=#203 id=203 data-nosnippet>203</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(segment) = segment {
-<a href=#204 id=204 data-nosnippet>204</a>            <span class="kw">if </span>segment.ident.is_self_type_name() {
-<a href=#205 id=205 data-nosnippet>205</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
-<a href=#206 id=206 data-nosnippet>206</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(typ.clone());
-<a href=#207 id=207 data-nosnippet>207</a>                }
-<a href=#208 id=208 data-nosnippet>208</a>            }
-<a href=#209 id=209 data-nosnippet>209</a>        }
-<a href=#210 id=210 data-nosnippet>210</a>
-<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">let </span>location = path.location;
-<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">match </span><span class="self">self</span>.use_path_or_error(path, PathResolutionTarget::Type) {
-<a href=#213 id=213 data-nosnippet>213</a>            <span class="prelude-val">Ok</span>(PathResolutionItem::Type(struct_id)) =&gt; {
-<a href=#214 id=214 data-nosnippet>214</a>                <span class="kw">let </span>struct_type = <span class="self">self</span>.get_type(struct_id);
-<a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">let </span>generics = struct_type.borrow().instantiate(<span class="self">self</span>.interner);
-<a href=#216 id=216 data-nosnippet>216</a>                <span class="prelude-val">Some</span>(Type::DataType(struct_type, generics))
-<a href=#217 id=217 data-nosnippet>217</a>            }
-<a href=#218 id=218 data-nosnippet>218</a>            <span class="prelude-val">Ok</span>(PathResolutionItem::TypeAlias(alias_id)) =&gt; {
-<a href=#219 id=219 data-nosnippet>219</a>                <span class="kw">let </span>alias = <span class="self">self</span>.interner.get_type_alias(alias_id);
-<a href=#220 id=220 data-nosnippet>220</a>                <span class="kw">let </span>alias = alias.borrow();
-<a href=#221 id=221 data-nosnippet>221</a>                <span class="prelude-val">Some</span>(alias.instantiate(<span class="self">self</span>.interner))
-<a href=#222 id=222 data-nosnippet>222</a>            }
-<a href=#223 id=223 data-nosnippet>223</a>            <span class="prelude-val">Ok</span>(other) =&gt; {
-<a href=#224 id=224 data-nosnippet>224</a>                <span class="self">self</span>.push_err(ResolverError::Expected {
-<a href=#225 id=225 data-nosnippet>225</a>                    expected: <span class="string">"type"</span>,
-<a href=#226 id=226 data-nosnippet>226</a>                    found: other.description(<span class="self">self</span>.interner),
-<a href=#227 id=227 data-nosnippet>227</a>                    location,
-<a href=#228 id=228 data-nosnippet>228</a>                });
-<a href=#229 id=229 data-nosnippet>229</a>                <span class="prelude-val">None
-<a href=#230 id=230 data-nosnippet>230</a>            </span>}
-<a href=#231 id=231 data-nosnippet>231</a>            <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#232 id=232 data-nosnippet>232</a>                <span class="self">self</span>.push_err(error);
-<a href=#233 id=233 data-nosnippet>233</a>                <span class="prelude-val">None
-<a href=#234 id=234 data-nosnippet>234</a>            </span>}
-<a href=#235 id=235 data-nosnippet>235</a>        }
-<a href=#236 id=236 data-nosnippet>236</a>    }
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_type_alias(
-<a href=#239 id=239 data-nosnippet>239</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#240 id=240 data-nosnippet>240</a>        path: TypedPath,
-<a href=#241 id=241 data-nosnippet>241</a>        mode: PathResolutionMode,
-<a href=#242 id=242 data-nosnippet>242</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;TypeAlias&gt;&gt; {
-<a href=#243 id=243 data-nosnippet>243</a>        <span class="kw">match </span><span class="self">self</span>.resolve_path_inner(path, PathResolutionTarget::Type, mode) {
-<a href=#244 id=244 data-nosnippet>244</a>            <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::TypeAlias(type_alias_id), errors }) =&gt; {
-<a href=#245 id=245 data-nosnippet>245</a>                <span class="self">self</span>.push_errors(errors);
-<a href=#246 id=246 data-nosnippet>246</a>                <span class="prelude-val">Some</span>(<span class="self">self</span>.interner.get_type_alias(type_alias_id))
-<a href=#247 id=247 data-nosnippet>247</a>            }
-<a href=#248 id=248 data-nosnippet>248</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#249 id=249 data-nosnippet>249</a>        }
-<a href=#250 id=250 data-nosnippet>250</a>    }
-<a href=#251 id=251 data-nosnippet>251</a>}</code></pre></div></section></main></body></html>
+<a href=#203 id=203 data-nosnippet>203</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(segment) = segment
+<a href=#204 id=204 data-nosnippet>204</a>            &amp;&amp; segment.ident.is_self_type_name()
+<a href=#205 id=205 data-nosnippet>205</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(typ) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type
+<a href=#206 id=206 data-nosnippet>206</a>        {
+<a href=#207 id=207 data-nosnippet>207</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(typ.clone());
+<a href=#208 id=208 data-nosnippet>208</a>        }
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a>        <span class="kw">let </span>location = path.location;
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">match </span><span class="self">self</span>.use_path_or_error(path, PathResolutionTarget::Type) {
+<a href=#212 id=212 data-nosnippet>212</a>            <span class="prelude-val">Ok</span>(PathResolutionItem::Type(struct_id)) =&gt; {
+<a href=#213 id=213 data-nosnippet>213</a>                <span class="kw">let </span>struct_type = <span class="self">self</span>.get_type(struct_id);
+<a href=#214 id=214 data-nosnippet>214</a>                <span class="kw">let </span>generics = struct_type.borrow().instantiate(<span class="self">self</span>.interner);
+<a href=#215 id=215 data-nosnippet>215</a>                <span class="prelude-val">Some</span>(Type::DataType(struct_type, generics))
+<a href=#216 id=216 data-nosnippet>216</a>            }
+<a href=#217 id=217 data-nosnippet>217</a>            <span class="prelude-val">Ok</span>(PathResolutionItem::TypeAlias(alias_id)) =&gt; {
+<a href=#218 id=218 data-nosnippet>218</a>                <span class="kw">let </span>alias = <span class="self">self</span>.interner.get_type_alias(alias_id);
+<a href=#219 id=219 data-nosnippet>219</a>                <span class="kw">let </span>alias = alias.borrow();
+<a href=#220 id=220 data-nosnippet>220</a>                <span class="prelude-val">Some</span>(alias.instantiate(<span class="self">self</span>.interner))
+<a href=#221 id=221 data-nosnippet>221</a>            }
+<a href=#222 id=222 data-nosnippet>222</a>            <span class="prelude-val">Ok</span>(other) =&gt; {
+<a href=#223 id=223 data-nosnippet>223</a>                <span class="self">self</span>.push_err(ResolverError::Expected {
+<a href=#224 id=224 data-nosnippet>224</a>                    expected: <span class="string">"type"</span>,
+<a href=#225 id=225 data-nosnippet>225</a>                    found: other.description(<span class="self">self</span>.interner),
+<a href=#226 id=226 data-nosnippet>226</a>                    location,
+<a href=#227 id=227 data-nosnippet>227</a>                });
+<a href=#228 id=228 data-nosnippet>228</a>                <span class="prelude-val">None
+<a href=#229 id=229 data-nosnippet>229</a>            </span>}
+<a href=#230 id=230 data-nosnippet>230</a>            <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#231 id=231 data-nosnippet>231</a>                <span class="self">self</span>.push_err(error);
+<a href=#232 id=232 data-nosnippet>232</a>                <span class="prelude-val">None
+<a href=#233 id=233 data-nosnippet>233</a>            </span>}
+<a href=#234 id=234 data-nosnippet>234</a>        }
+<a href=#235 id=235 data-nosnippet>235</a>    }
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_type_alias(
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#239 id=239 data-nosnippet>239</a>        path: TypedPath,
+<a href=#240 id=240 data-nosnippet>240</a>        mode: PathResolutionMode,
+<a href=#241 id=241 data-nosnippet>241</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Shared&lt;TypeAlias&gt;&gt; {
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">match </span><span class="self">self</span>.resolve_path_inner(path, PathResolutionTarget::Type, mode) {
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::TypeAlias(type_alias_id), errors }) =&gt; {
+<a href=#244 id=244 data-nosnippet>244</a>                <span class="self">self</span>.push_errors(errors);
+<a href=#245 id=245 data-nosnippet>245</a>                <span class="prelude-val">Some</span>(<span class="self">self</span>.interner.get_type_alias(type_alias_id))
+<a href=#246 id=246 data-nosnippet>246</a>            }
+<a href=#247 id=247 data-nosnippet>247</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#248 id=248 data-nosnippet>248</a>        }
+<a href=#249 id=249 data-nosnippet>249</a>    }
+<a href=#250 id=250 data-nosnippet>250</a>}</code></pre></div></section></main></body></html>

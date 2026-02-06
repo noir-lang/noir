@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_driver/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noirc_driver" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../static.files/storage-82c7156e.js"></script><script defer src="../../static.files/src-script-63605ae7.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_driver/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="attr">#![forbid(unsafe_code)]
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_driver/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="noirc_driver" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_driver/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="attr">#![forbid(unsafe_code)]
 <a href=#2 id=2 data-nosnippet>2</a>#![warn(unused_crate_dependencies, unused_extern_crates)]
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a></span><span class="kw">use </span>std::hash::BuildHasher;
@@ -576,10 +576,10 @@
 <a href=#576 id=576 data-nosnippet>576</a>    } <span class="kw">else </span>{
 <a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">if </span>options.print_acir {
 <a href=#578 id=578 data-nosnippet>578</a>            <span class="kw">for </span>contract_function <span class="kw">in </span><span class="kw-2">&amp;</span>compiled_contract.functions {
-<a href=#579 id=579 data-nosnippet>579</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name) = options.show_contract_fn {
-<a href=#580 id=580 data-nosnippet>580</a>                    <span class="kw">if </span>name != <span class="kw-2">&amp;</span>contract_function.name {
-<a href=#581 id=581 data-nosnippet>581</a>                        <span class="kw">continue</span>;
-<a href=#582 id=582 data-nosnippet>582</a>                    }
+<a href=#579 id=579 data-nosnippet>579</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name) = options.show_contract_fn
+<a href=#580 id=580 data-nosnippet>580</a>                    &amp;&amp; name != <span class="kw-2">&amp;</span>contract_function.name
+<a href=#581 id=581 data-nosnippet>581</a>                {
+<a href=#582 id=582 data-nosnippet>582</a>                    <span class="kw">continue</span>;
 <a href=#583 id=583 data-nosnippet>583</a>                }
 <a href=#584 id=584 data-nosnippet>584</a>                <span class="macro">println!</span>(
 <a href=#585 id=585 data-nosnippet>585</a>                    <span class="string">"Compiled ACIR for {}::{} (non-transformed):"</span>,
@@ -875,101 +875,102 @@
 <a href=#875 id=875 data-nosnippet>875</a>    <span class="comment">// Hash the AST program, which is going to be used to fingerprint the compilation artifact.
 <a href=#876 id=876 data-nosnippet>876</a>    </span><span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program);
 <a href=#877 id=877 data-nosnippet>877</a>
-<a href=#878 id=878 data-nosnippet>878</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(cached_program) = cached_program {
-<a href=#879 id=879 data-nosnippet>879</a>        <span class="kw">if </span>!force_compile &amp;&amp; cached_program.hash == hash {
-<a href=#880 id=880 data-nosnippet>880</a>            <span class="macro">info!</span>(<span class="string">"Program matches existing artifact, returning early"</span>);
-<a href=#881 id=881 data-nosnippet>881</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(cached_program);
-<a href=#882 id=882 data-nosnippet>882</a>        }
-<a href=#883 id=883 data-nosnippet>883</a>    }
-<a href=#884 id=884 data-nosnippet>884</a>
-<a href=#885 id=885 data-nosnippet>885</a>    <span class="kw">let </span>return_visibility = program.return_visibility();
-<a href=#886 id=886 data-nosnippet>886</a>    <span class="kw">let </span>ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
-<a href=#887 id=887 data-nosnippet>887</a>
-<a href=#888 id=888 data-nosnippet>888</a>    <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, error_types, .. } = <span class="kw">if </span>options.minimal_ssa {
-<a href=#889 id=889 data-nosnippet>889</a>        create_program_with_minimal_passes(program, <span class="kw-2">&amp;</span>ssa_evaluator_options, <span class="kw-2">&amp;</span>context.file_manager)<span class="question-mark">?
-<a href=#890 id=890 data-nosnippet>890</a>    </span>} <span class="kw">else </span>{
-<a href=#891 id=891 data-nosnippet>891</a>        create_program(
-<a href=#892 id=892 data-nosnippet>892</a>            program,
-<a href=#893 id=893 data-nosnippet>893</a>            <span class="kw-2">&amp;</span>ssa_evaluator_options,
-<a href=#894 id=894 data-nosnippet>894</a>            <span class="kw">if </span>options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
-<a href=#895 id=895 data-nosnippet>895</a>        )<span class="question-mark">?
-<a href=#896 id=896 data-nosnippet>896</a>    </span>};
-<a href=#897 id=897 data-nosnippet>897</a>
-<a href=#898 id=898 data-nosnippet>898</a>    <span class="kw">let </span>abi = gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);
-<a href=#899 id=899 data-nosnippet>899</a>    <span class="kw">let </span>file_map = filter_relevant_files(<span class="kw-2">&amp;</span>debug, <span class="kw-2">&amp;</span>context.file_manager);
-<a href=#900 id=900 data-nosnippet>900</a>
-<a href=#901 id=901 data-nosnippet>901</a>    <span class="prelude-val">Ok</span>(CompiledProgram {
-<a href=#902 id=902 data-nosnippet>902</a>        hash,
-<a href=#903 id=903 data-nosnippet>903</a>        program,
-<a href=#904 id=904 data-nosnippet>904</a>        debug,
-<a href=#905 id=905 data-nosnippet>905</a>        abi,
-<a href=#906 id=906 data-nosnippet>906</a>        file_map,
-<a href=#907 id=907 data-nosnippet>907</a>        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-<a href=#908 id=908 data-nosnippet>908</a>        warnings,
-<a href=#909 id=909 data-nosnippet>909</a>    })
-<a href=#910 id=910 data-nosnippet>910</a>}
-<a href=#911 id=911 data-nosnippet>911</a>
-<a href=#912 id=912 data-nosnippet>912</a><span class="doccomment">/// Specifies a contract function and extra metadata that
-<a href=#913 id=913 data-nosnippet>913</a>/// one can use when processing a contract function.
-<a href=#914 id=914 data-nosnippet>914</a>///
-<a href=#915 id=915 data-nosnippet>915</a>/// One of these is whether the contract function is an entry point.
-<a href=#916 id=916 data-nosnippet>916</a>/// The caller should only type-check these functions and not attempt
-<a href=#917 id=917 data-nosnippet>917</a>/// to create a circuit for them.
-<a href=#918 id=918 data-nosnippet>918</a></span><span class="kw">struct </span>ContractFunctionMeta {
-<a href=#919 id=919 data-nosnippet>919</a>    function_id: FuncId,
-<a href=#920 id=920 data-nosnippet>920</a>    <span class="doccomment">/// Indicates whether the function is an entry point
-<a href=#921 id=921 data-nosnippet>921</a>    </span>is_entry_point: bool,
-<a href=#922 id=922 data-nosnippet>922</a>}
-<a href=#923 id=923 data-nosnippet>923</a>
-<a href=#924 id=924 data-nosnippet>924</a><span class="kw">struct </span>ContractOutputs {
-<a href=#925 id=925 data-nosnippet>925</a>    structs: HashMap&lt;String, Vec&lt;TypeId&gt;&gt;,
-<a href=#926 id=926 data-nosnippet>926</a>    globals: HashMap&lt;String, Vec&lt;GlobalId&gt;&gt;,
-<a href=#927 id=927 data-nosnippet>927</a>}
-<a href=#928 id=928 data-nosnippet>928</a>
-<a href=#929 id=929 data-nosnippet>929</a><span class="doccomment">/// A 'contract' in Noir source code with a given name, functions and events.
-<a href=#930 id=930 data-nosnippet>930</a>/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-<a href=#931 id=931 data-nosnippet>931</a></span><span class="kw">struct </span>Contract {
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-<a href=#933 id=933 data-nosnippet>933</a>    </span>name: String,
-<a href=#934 id=934 data-nosnippet>934</a>    functions: Vec&lt;ContractFunctionMeta&gt;,
-<a href=#935 id=935 data-nosnippet>935</a>    outputs: ContractOutputs,
-<a href=#936 id=936 data-nosnippet>936</a>}
-<a href=#937 id=937 data-nosnippet>937</a>
-<a href=#938 id=938 data-nosnippet>938</a><span class="kw">fn </span>ssa_report_to_custom_diagnostic(error: SsaReport) -&gt; CustomDiagnostic {
-<a href=#939 id=939 data-nosnippet>939</a>    <span class="kw">match </span>error {
-<a href=#940 id=940 data-nosnippet>940</a>        SsaReport::Warning(warning) =&gt; {
-<a href=#941 id=941 data-nosnippet>941</a>            <span class="kw">let </span>message = warning.to_string();
-<a href=#942 id=942 data-nosnippet>942</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>warning {
-<a href=#943 id=943 data-nosnippet>943</a>                    InternalWarning::ReturnConstant { call_stack } =&gt; {
-<a href=#944 id=944 data-nosnippet>944</a>                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
-<a href=#945 id=945 data-nosnippet>945</a>                    },
-<a href=#946 id=946 data-nosnippet>946</a>                };
-<a href=#947 id=947 data-nosnippet>947</a>            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
-<a href=#948 id=948 data-nosnippet>948</a>            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
-<a href=#949 id=949 data-nosnippet>949</a>            <span class="kw">let </span>diagnostic =
-<a href=#950 id=950 data-nosnippet>950</a>                CustomDiagnostic::simple_warning(message, secondary_message, <span class="kw-2">*</span>location);
-<a href=#951 id=951 data-nosnippet>951</a>            diagnostic.with_call_stack(call_stack)
-<a href=#952 id=952 data-nosnippet>952</a>        }
-<a href=#953 id=953 data-nosnippet>953</a>        SsaReport::Bug(bug) =&gt; {
-<a href=#954 id=954 data-nosnippet>954</a>            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
-<a href=#955 id=955 data-nosnippet>955</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
-<a href=#956 id=956 data-nosnippet>956</a>                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
-<a href=#957 id=957 data-nosnippet>957</a>                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
-<a href=#958 id=958 data-nosnippet>958</a>                    }
-<a href=#959 id=959 data-nosnippet>959</a>                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
-<a href=#960 id=960 data-nosnippet>960</a>                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
-<a href=#961 id=961 data-nosnippet>961</a>                    }
-<a href=#962 id=962 data-nosnippet>962</a>                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
-<a href=#963 id=963 data-nosnippet>963</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
-<a href=#964 id=964 data-nosnippet>964</a>                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
-<a href=#965 id=965 data-nosnippet>965</a>                        }
-<a href=#966 id=966 data-nosnippet>966</a>                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
-<a href=#967 id=967 data-nosnippet>967</a>                    }
-<a href=#968 id=968 data-nosnippet>968</a>                };
-<a href=#969 id=969 data-nosnippet>969</a>            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
-<a href=#970 id=970 data-nosnippet>970</a>            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
-<a href=#971 id=971 data-nosnippet>971</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, <span class="kw-2">*</span>location);
-<a href=#972 id=972 data-nosnippet>972</a>            diagnostic.with_call_stack(call_stack)
-<a href=#973 id=973 data-nosnippet>973</a>        }
-<a href=#974 id=974 data-nosnippet>974</a>    }
-<a href=#975 id=975 data-nosnippet>975</a>}</code></pre></div></section></main></body></html>
+<a href=#878 id=878 data-nosnippet>878</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(cached_program) = cached_program
+<a href=#879 id=879 data-nosnippet>879</a>        &amp;&amp; !force_compile
+<a href=#880 id=880 data-nosnippet>880</a>        &amp;&amp; cached_program.hash == hash
+<a href=#881 id=881 data-nosnippet>881</a>    {
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="macro">info!</span>(<span class="string">"Program matches existing artifact, returning early"</span>);
+<a href=#883 id=883 data-nosnippet>883</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(cached_program);
+<a href=#884 id=884 data-nosnippet>884</a>    }
+<a href=#885 id=885 data-nosnippet>885</a>
+<a href=#886 id=886 data-nosnippet>886</a>    <span class="kw">let </span>return_visibility = program.return_visibility();
+<a href=#887 id=887 data-nosnippet>887</a>    <span class="kw">let </span>ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+<a href=#888 id=888 data-nosnippet>888</a>
+<a href=#889 id=889 data-nosnippet>889</a>    <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, error_types, .. } = <span class="kw">if </span>options.minimal_ssa {
+<a href=#890 id=890 data-nosnippet>890</a>        create_program_with_minimal_passes(program, <span class="kw-2">&amp;</span>ssa_evaluator_options, <span class="kw-2">&amp;</span>context.file_manager)<span class="question-mark">?
+<a href=#891 id=891 data-nosnippet>891</a>    </span>} <span class="kw">else </span>{
+<a href=#892 id=892 data-nosnippet>892</a>        create_program(
+<a href=#893 id=893 data-nosnippet>893</a>            program,
+<a href=#894 id=894 data-nosnippet>894</a>            <span class="kw-2">&amp;</span>ssa_evaluator_options,
+<a href=#895 id=895 data-nosnippet>895</a>            <span class="kw">if </span>options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
+<a href=#896 id=896 data-nosnippet>896</a>        )<span class="question-mark">?
+<a href=#897 id=897 data-nosnippet>897</a>    </span>};
+<a href=#898 id=898 data-nosnippet>898</a>
+<a href=#899 id=899 data-nosnippet>899</a>    <span class="kw">let </span>abi = gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);
+<a href=#900 id=900 data-nosnippet>900</a>    <span class="kw">let </span>file_map = filter_relevant_files(<span class="kw-2">&amp;</span>debug, <span class="kw-2">&amp;</span>context.file_manager);
+<a href=#901 id=901 data-nosnippet>901</a>
+<a href=#902 id=902 data-nosnippet>902</a>    <span class="prelude-val">Ok</span>(CompiledProgram {
+<a href=#903 id=903 data-nosnippet>903</a>        hash,
+<a href=#904 id=904 data-nosnippet>904</a>        program,
+<a href=#905 id=905 data-nosnippet>905</a>        debug,
+<a href=#906 id=906 data-nosnippet>906</a>        abi,
+<a href=#907 id=907 data-nosnippet>907</a>        file_map,
+<a href=#908 id=908 data-nosnippet>908</a>        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+<a href=#909 id=909 data-nosnippet>909</a>        warnings,
+<a href=#910 id=910 data-nosnippet>910</a>    })
+<a href=#911 id=911 data-nosnippet>911</a>}
+<a href=#912 id=912 data-nosnippet>912</a>
+<a href=#913 id=913 data-nosnippet>913</a><span class="doccomment">/// Specifies a contract function and extra metadata that
+<a href=#914 id=914 data-nosnippet>914</a>/// one can use when processing a contract function.
+<a href=#915 id=915 data-nosnippet>915</a>///
+<a href=#916 id=916 data-nosnippet>916</a>/// One of these is whether the contract function is an entry point.
+<a href=#917 id=917 data-nosnippet>917</a>/// The caller should only type-check these functions and not attempt
+<a href=#918 id=918 data-nosnippet>918</a>/// to create a circuit for them.
+<a href=#919 id=919 data-nosnippet>919</a></span><span class="kw">struct </span>ContractFunctionMeta {
+<a href=#920 id=920 data-nosnippet>920</a>    function_id: FuncId,
+<a href=#921 id=921 data-nosnippet>921</a>    <span class="doccomment">/// Indicates whether the function is an entry point
+<a href=#922 id=922 data-nosnippet>922</a>    </span>is_entry_point: bool,
+<a href=#923 id=923 data-nosnippet>923</a>}
+<a href=#924 id=924 data-nosnippet>924</a>
+<a href=#925 id=925 data-nosnippet>925</a><span class="kw">struct </span>ContractOutputs {
+<a href=#926 id=926 data-nosnippet>926</a>    structs: HashMap&lt;String, Vec&lt;TypeId&gt;&gt;,
+<a href=#927 id=927 data-nosnippet>927</a>    globals: HashMap&lt;String, Vec&lt;GlobalId&gt;&gt;,
+<a href=#928 id=928 data-nosnippet>928</a>}
+<a href=#929 id=929 data-nosnippet>929</a>
+<a href=#930 id=930 data-nosnippet>930</a><span class="doccomment">/// A 'contract' in Noir source code with a given name, functions and events.
+<a href=#931 id=931 data-nosnippet>931</a>/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+<a href=#932 id=932 data-nosnippet>932</a></span><span class="kw">struct </span>Contract {
+<a href=#933 id=933 data-nosnippet>933</a>    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+<a href=#934 id=934 data-nosnippet>934</a>    </span>name: String,
+<a href=#935 id=935 data-nosnippet>935</a>    functions: Vec&lt;ContractFunctionMeta&gt;,
+<a href=#936 id=936 data-nosnippet>936</a>    outputs: ContractOutputs,
+<a href=#937 id=937 data-nosnippet>937</a>}
+<a href=#938 id=938 data-nosnippet>938</a>
+<a href=#939 id=939 data-nosnippet>939</a><span class="kw">fn </span>ssa_report_to_custom_diagnostic(error: SsaReport) -&gt; CustomDiagnostic {
+<a href=#940 id=940 data-nosnippet>940</a>    <span class="kw">match </span>error {
+<a href=#941 id=941 data-nosnippet>941</a>        SsaReport::Warning(warning) =&gt; {
+<a href=#942 id=942 data-nosnippet>942</a>            <span class="kw">let </span>message = warning.to_string();
+<a href=#943 id=943 data-nosnippet>943</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>warning {
+<a href=#944 id=944 data-nosnippet>944</a>                    InternalWarning::ReturnConstant { call_stack } =&gt; {
+<a href=#945 id=945 data-nosnippet>945</a>                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
+<a href=#946 id=946 data-nosnippet>946</a>                    },
+<a href=#947 id=947 data-nosnippet>947</a>                };
+<a href=#948 id=948 data-nosnippet>948</a>            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
+<a href=#949 id=949 data-nosnippet>949</a>            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
+<a href=#950 id=950 data-nosnippet>950</a>            <span class="kw">let </span>diagnostic =
+<a href=#951 id=951 data-nosnippet>951</a>                CustomDiagnostic::simple_warning(message, secondary_message, <span class="kw-2">*</span>location);
+<a href=#952 id=952 data-nosnippet>952</a>            diagnostic.with_call_stack(call_stack)
+<a href=#953 id=953 data-nosnippet>953</a>        }
+<a href=#954 id=954 data-nosnippet>954</a>        SsaReport::Bug(bug) =&gt; {
+<a href=#955 id=955 data-nosnippet>955</a>            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
+<a href=#956 id=956 data-nosnippet>956</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
+<a href=#957 id=957 data-nosnippet>957</a>                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
+<a href=#958 id=958 data-nosnippet>958</a>                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
+<a href=#959 id=959 data-nosnippet>959</a>                    }
+<a href=#960 id=960 data-nosnippet>960</a>                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
+<a href=#961 id=961 data-nosnippet>961</a>                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
+<a href=#962 id=962 data-nosnippet>962</a>                    }
+<a href=#963 id=963 data-nosnippet>963</a>                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
+<a href=#964 id=964 data-nosnippet>964</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
+<a href=#965 id=965 data-nosnippet>965</a>                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
+<a href=#966 id=966 data-nosnippet>966</a>                        }
+<a href=#967 id=967 data-nosnippet>967</a>                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
+<a href=#968 id=968 data-nosnippet>968</a>                    }
+<a href=#969 id=969 data-nosnippet>969</a>                };
+<a href=#970 id=970 data-nosnippet>970</a>            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
+<a href=#971 id=971 data-nosnippet>971</a>            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
+<a href=#972 id=972 data-nosnippet>972</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, <span class="kw-2">*</span>location);
+<a href=#973 id=973 data-nosnippet>973</a>            diagnostic.with_call_stack(call_stack)
+<a href=#974 id=974 data-nosnippet>974</a>        }
+<a href=#975 id=975 data-nosnippet>975</a>    }
+<a href=#976 id=976 data-nosnippet>976</a>}</code></pre></div></section></main></body></html>
