@@ -689,8 +689,8 @@ impl FunctionContext<'_> {
         // If this is an inclusive for loop, check if the end index is not the maximum value for its type.
         // In that case we can generate an exclusive for loop up to `end + 1`, which is simpler than
         // the code of an inclusive loop.
-        if inclusive {
-            if let Some(end_constant) =
+        if inclusive
+            && let Some(end_constant) =
                 self.builder.current_function.dfg.get_integer_constant(end_index)
             {
                 let index_type = index_type.unwrap_numeric();
@@ -710,7 +710,6 @@ impl FunctionContext<'_> {
                     inclusive = false;
                 }
             }
-        }
 
         // For inclusive ranges we could generate a loop like:
         //

@@ -285,16 +285,14 @@ impl BrilligTaintedIds {
     /// When an ArrayGet instruction occurs, place the resulting ValueId into
     /// the corresponding sets of the call's array element result values
     fn process_array_get(&mut self, array: ValueId, index: usize, element_results: &[ValueId]) {
-        if let Some(element_indices) = self.array_elements.get(&array) {
-            if let Some(result_index) = element_indices.get(index) {
-                if let Some(ResultStatus::Unconstrained { descendants }) =
+        if let Some(element_indices) = self.array_elements.get(&array)
+            && let Some(result_index) = element_indices.get(index)
+                && let Some(ResultStatus::Unconstrained { descendants }) =
                     self.results.get_mut(*result_index)
                 {
                     descendants.extend(element_results);
                     self.root_results.extend(element_results);
                 }
-            }
-        }
     }
 }
 
@@ -331,9 +329,9 @@ impl DependencyContext {
         // to be able to follow their arguments first appearing in the
         // flow graph before the calls themselves
         function.dfg[block].instructions().iter().for_each(|instruction| {
-            if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
-                if let Value::Function(callee) = &function.dfg[*func] {
-                    if all_functions[callee].runtime().is_brillig() {
+            if let Instruction::Call { func, arguments } = &function.dfg[*instruction]
+                && let Value::Function(callee) = &function.dfg[*func]
+                    && all_functions[callee].runtime().is_brillig() {
                         // Skip already visited locations (happens often in unrolled functions)
                         let call_stack = function.dfg.get_instruction_call_stack(*instruction);
                         let location = call_stack.last();
@@ -384,8 +382,6 @@ impl DependencyContext {
                             }
                         }
                     }
-                }
-            }
         });
 
         //Then, go over the instructions
@@ -423,11 +419,10 @@ impl DependencyContext {
                                 if matches!(
                                     &function.dfg[*instruction],
                                     Instruction::Cast(..) | Instruction::Truncate { .. }
-                                ) {
-                                    if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                                )
+                                    && let Some(tainted_ids) = self.tainted.get_mut(call) {
                                         tainted_ids.arguments.extend(&arguments);
                                     }
-                                }
                             }
                         }
                     }
@@ -652,8 +647,8 @@ impl DependencyContext {
         use acvm::acir::AcirField;
 
         // Only allow numeric constant indices
-        if let Some(value) = function.dfg.get_numeric_constant(index) {
-            if let Some(index) = value.try_to_u32() {
+        if let Some(value) = function.dfg.get_numeric_constant(index)
+            && let Some(index) = value.try_to_u32() {
                 // Skip untracked calls
                 for call in &self.tracking {
                     if let Some(tainted_ids) = self.tainted.get_mut(call) {
@@ -661,7 +656,6 @@ impl DependencyContext {
                     }
                 }
             }
-        }
     }
 }
 

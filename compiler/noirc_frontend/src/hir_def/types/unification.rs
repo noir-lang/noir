@@ -370,8 +370,7 @@ impl Type {
             // Check if it's `A + rhs = other` or `A - rhs = other`
             if let (Some(op_a_inverse), Type::TypeVariable(lhs_lhs_var)) =
                 (lhs_op_inverse, lhs_lhs.as_ref())
-            {
-                if lhs_lhs_var.1.borrow().is_unbound() {
+                && lhs_lhs_var.1.borrow().is_unbound() {
                     // We can say that `A = other - rhs` or `A = other + rhs` respectively
                     let new_rhs =
                         Type::infix_expr(Box::new(other.clone()), op_a_inverse, lhs_rhs.clone());
@@ -382,13 +381,11 @@ impl Type {
                         return Ok(());
                     }
                 }
-            }
 
             // Check if it's `lhs + B = other`
             if let (BinaryTypeOperator::Addition, Type::TypeVariable(lhs_rhs_var)) =
                 (lhs_op, lhs_rhs.as_ref())
-            {
-                if lhs_rhs_var.1.borrow().is_unbound() {
+                && lhs_rhs_var.1.borrow().is_unbound() {
                     // We can say that `B = other - lhs`
                     let new_rhs = Type::inverted_infix_expr(
                         Box::new(other.clone()),
@@ -402,13 +399,11 @@ impl Type {
                         return Ok(());
                     }
                 }
-            }
 
             // Check if it's `lhs - B = other`
             if let (BinaryTypeOperator::Subtraction, Type::TypeVariable(lhs_rhs_var)) =
                 (lhs_op, lhs_rhs.as_ref())
-            {
-                if lhs_rhs_var.1.borrow().is_unbound() {
+                && lhs_rhs_var.1.borrow().is_unbound() {
                     // We can say that `B = lhs - other`
                     let new_rhs = Type::inverted_infix_expr(
                         lhs_lhs.clone(),
@@ -422,7 +417,6 @@ impl Type {
                         return Ok(());
                     }
                 }
-            }
         }
 
         Err(UnificationError)
@@ -462,8 +456,8 @@ impl Type {
         other: &Type,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
-            if let Some(lhs_op_inverse) = lhs_op.approx_inverse() {
+        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self
+            && let Some(lhs_op_inverse) = lhs_op.approx_inverse() {
                 let kind = lhs_lhs.infix_kind(lhs_rhs);
                 let dummy_location = Location::dummy();
                 let lhs_rhs = lhs_rhs.substitute(bindings);
@@ -483,7 +477,6 @@ impl Type {
                     }
                 }
             }
-        }
 
         Err(UnificationError)
     }

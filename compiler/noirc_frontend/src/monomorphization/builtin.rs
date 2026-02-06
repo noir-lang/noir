@@ -269,8 +269,8 @@ impl Monomorphizer<'_> {
         argument_values: &[ast::Expression],
         result_type: &ast::Type,
     ) -> Result<Option<ast::Expression>, MonomorphizationError> {
-        if let ast::Expression::Ident(ident) = func {
-            if let Definition::Builtin(opcode) = &ident.definition {
+        if let ast::Expression::Ident(ident) = func
+            && let Definition::Builtin(opcode) = &ident.definition {
                 let location = self.interner.expr_location(expr_id);
 
                 return Ok(Some(match HandledOpcode::parse(opcode) {
@@ -290,7 +290,6 @@ impl Monomorphizer<'_> {
                     None => return Ok(None),
                 }));
             }
-        }
         Ok(None)
     }
 

@@ -187,13 +187,12 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the struct type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&struct_type.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TypeId(struct_type.id) {
+                if let Some((module_def_id, _, _)) = per_ns.types
+                    && module_def_id == ModuleDefId::TypeId(struct_type.id) {
                         self.string.push_str(struct_type.name.as_str());
                         self.append_generics(generics);
                         return;
                     }
-                }
 
                 let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
                 let current_module_parent_id = current_module_data
@@ -222,13 +221,12 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the alias type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&type_alias.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
+                if let Some((module_def_id, _, _)) = per_ns.types
+                    && module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
                         self.string.push_str(type_alias.name.as_str());
                         self.append_generics(generics);
                         return;
                     }
-                }
 
                 let parent_module_id = get_parent_module(
                     ModuleDefId::TypeAliasId(type_alias.id),

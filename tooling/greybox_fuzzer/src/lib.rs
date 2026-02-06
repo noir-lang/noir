@@ -804,12 +804,11 @@ impl<
                     }
                 };
                 // If we ran ACIR and managed to produce an ACIR witness
-                if acir_round {
-                    if let Some(ref witness) = witness {
+                if acir_round
+                    && let Some(ref witness) = witness {
                         accumulated_coverage
                             .update_non_bool_witness_list_with_witness_stack(witness);
                     }
-                }
 
                 // Form the coverage object to accumulate
                 let new_coverage = SingleTestCaseCoverage::new(

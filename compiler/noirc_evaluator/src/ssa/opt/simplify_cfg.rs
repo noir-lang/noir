@@ -126,8 +126,7 @@ fn check_for_constant_jmpif(
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
-    {
-        if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
+        && let Some(constant) = function.dfg.get_numeric_constant(*condition) {
             let (destination, unchosen_destination) = if constant.is_zero() {
                 (*else_destination, *then_destination)
             } else {
@@ -148,7 +147,6 @@ fn check_for_constant_jmpif(
 
             return true;
         }
-    }
     false
 }
 
@@ -258,9 +256,8 @@ fn check_for_negated_jmpif_condition(
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
-    {
-        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
-            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
+        && let Value::Instruction { instruction, .. } = function.dfg[*condition]
+            && let Instruction::Not(negated_condition) = function.dfg[instruction] {
                 let call_stack = *call_stack;
                 let jmpif = TerminatorInstruction::JmpIf {
                     condition: negated_condition,
@@ -272,8 +269,6 @@ fn check_for_negated_jmpif_condition(
                 cfg.recompute_block(function, block);
                 return true;
             }
-        }
-    }
     false
 }
 

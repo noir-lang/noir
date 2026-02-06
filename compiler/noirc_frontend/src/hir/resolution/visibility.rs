@@ -167,8 +167,8 @@ pub fn method_call_is_visible(
 
             // A private method defined on `Foo<i32>` should be visible when calling
             // it from an impl on `Foo<i64>`, even though the generics are different.
-            if let Some(self_type) = self_type {
-                if is_same_type_regardless_generics(self_type, object_type) {
+            if let Some(self_type) = self_type
+                && is_same_type_regardless_generics(self_type, object_type) {
                     if modifiers.visibility.is_private() {
                         // Only allow accessing private methods of a type if we are under the same
                         // module where the type was defined. OTOH if we are in an `impl Foo<i32>`
@@ -189,7 +189,6 @@ pub fn method_call_is_visible(
                         return true;
                     }
                 }
-            }
 
             if let Some(struct_id) = func_meta.type_id {
                 return struct_member_is_visible(

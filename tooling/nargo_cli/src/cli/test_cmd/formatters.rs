@@ -437,12 +437,11 @@ impl Formatter for JsonFormatter {
                 }
                 stdout.push_str(message.trim());
 
-                if let Some(diagnostic) = error_diagnostic {
-                    if !(diagnostic.is_warning() && silence_warnings) {
+                if let Some(diagnostic) = error_diagnostic
+                    && !(diagnostic.is_warning() && silence_warnings) {
                         stdout.push('\n');
                         stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
                     }
-                }
             }
             TestStatus::Skipped => {
                 json.insert("event".to_string(), json!("ignored"));

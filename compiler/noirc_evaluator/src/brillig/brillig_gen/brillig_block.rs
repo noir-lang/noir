@@ -68,11 +68,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
-            if let Value::NumericConstant { constant, typ } = dfg[*value] {
-                if hoisted_global_constants.contains_key(&(constant, typ)) {
+            if let Value::NumericConstant { constant, typ } = dfg[*value]
+                && hoisted_global_constants.contains_key(&(constant, typ)) {
                     continue;
                 }
-            }
             if !dfg.is_global(*value) {
                 live_in_no_globals.insert(*value);
             }
@@ -581,11 +580,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         dfg: &DataFlowGraph,
         value_id: ValueId,
     ) -> Option<BrilligVariable> {
-        if let Value::NumericConstant { constant, typ } = &dfg[value_id] {
-            if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
+        if let Value::NumericConstant { constant, typ } = &dfg[value_id]
+            && let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
                 return Some(*variable);
             }
-        }
         None
     }
 

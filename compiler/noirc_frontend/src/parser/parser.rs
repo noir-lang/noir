@@ -295,12 +295,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_self(&mut self) -> bool {
-        if let Token::Ident(ident) = self.token.token() {
-            if ident == "self" {
+        if let Token::Ident(ident) = self.token.token()
+            && ident == "self" {
                 self.bump();
                 return true;
             }
-        }
 
         false
     }

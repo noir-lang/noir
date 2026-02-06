@@ -78,8 +78,8 @@ impl<'a> InlayHintCollector<'a> {
 
         let span = ident.span();
         let location = Location::new(ident.span(), self.file_id);
-        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
-            if let Some(referenced) = self.interner.find_referenced(location) {
+        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span)
+            && let Some(referenced) = self.interner.find_referenced(location) {
                 let include_colon = true;
                 match referenced {
                     ReferenceId::Global(global_id) => {
@@ -114,7 +114,6 @@ impl<'a> InlayHintCollector<'a> {
                     | ReferenceId::Reference(..) => (),
                 }
             }
-        }
     }
 
     fn push_type_hint(
@@ -180,12 +179,11 @@ impl<'a> InlayHintCollector<'a> {
             let mut parameters_count = func_meta.parameters.len();
 
             // Skip `self` parameter
-            if let Some((pattern, _, _)) = parameters.peek() {
-                if self.is_self_parameter(pattern) {
+            if let Some((pattern, _, _)) = parameters.peek()
+                && self.is_self_parameter(pattern) {
                     parameters.next();
                     parameters_count -= 1;
                 }
-            }
 
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
@@ -210,20 +208,18 @@ impl<'a> InlayHintCollector<'a> {
                         continue;
                     }
 
-                    if let Some(function_name) = &function_name {
-                        if function_name.ends_with(&parameter_name) {
+                    if let Some(function_name) = &function_name
+                        && function_name.ends_with(&parameter_name) {
                             continue;
                         }
-                    }
                 }
 
-                if let Some(call_argument_name) = get_expression_name(call_argument) {
-                    if parameter_name == call_argument_name
-                        || call_argument_name.ends_with(&parameter_name)
+                if let Some(call_argument_name) = get_expression_name(call_argument)
+                    && (parameter_name == call_argument_name
+                        || call_argument_name.ends_with(&parameter_name))
                     {
                         continue;
                     }
-                }
 
                 self.push_parameter_hint(lsp_location.range.start, &parameter_name);
             }
@@ -307,14 +303,13 @@ impl<'a> InlayHintCollector<'a> {
     where
         F: FnOnce() -> String,
     {
-        if self.options.closing_brace_hints.enabled {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
+        if self.options.closing_brace_hints.enabled
+            && let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
                 let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
                 if lines >= self.options.closing_brace_hints.min_lines {
                     self.push_text_hint(lsp_location.range.end, f());
                 }
             }
-        }
     }
 }
 

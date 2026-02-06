@@ -398,8 +398,8 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
 
         if !ignore_unused {
             if let Some(read_at) = self.reads.get(addr) {
-                if let Some(write_at) = self.writes.get(addr) {
-                    if write_at < read_at {
+                if let Some(write_at) = self.writes.get(addr)
+                    && write_at < read_at {
                         self.add_advisory(
                             location,
                             OpcodeAdvisory::OverwrittenBeforeRead {
@@ -409,7 +409,6 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                             },
                         );
                     }
-                }
             } else if !self.reads_in_descendants.contains(addr) {
                 self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });
             }

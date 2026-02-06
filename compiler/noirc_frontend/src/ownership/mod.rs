@@ -173,11 +173,10 @@ impl Context {
         // so we check here to move the clone to the outermost extract expression instead.
         // E.g. we want to change `a.clone().b.c` to `a.b.c.clone()`.
         if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
-            if let Some(elements) = unwrap_tuple_type(tuple_type) {
-                if should_clone && contains_array_or_str_type(&elements[*index]) {
+            if let Some(elements) = unwrap_tuple_type(tuple_type)
+                && should_clone && contains_array_or_str_type(&elements[*index]) {
                     clone_expr(expr);
                 }
-            }
         } else {
             self.handle_expression(tuple);
         }

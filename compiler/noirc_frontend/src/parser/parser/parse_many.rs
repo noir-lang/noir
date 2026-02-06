@@ -60,11 +60,10 @@ impl<'a> Parser<'a> {
         let mut elements: Vec<T> = Vec::new();
         let mut trailing_separator = false;
         loop {
-            if let Some(end) = &separated_by.until {
-                if self.eat(end.clone()) {
+            if let Some(end) = &separated_by.until
+                && self.eat(end.clone()) {
                     break;
                 }
-            }
 
             let start_location = self.current_token_location;
             let mut new_elements = f(self);
@@ -75,11 +74,10 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if let Some(separator) = &separated_by.token {
-                if !trailing_separator && !elements.is_empty() {
+            if let Some(separator) = &separated_by.token
+                && !trailing_separator && !elements.is_empty() {
                     self.expected_token_separating_items(separator.clone(), items, start_location);
                 }
-            }
 
             elements.append(&mut new_elements);
 

@@ -1224,12 +1224,11 @@ impl HTMLCreator {
     }
 
     fn render_type(&mut self, typ: &Type) {
-        if let Some(self_type) = &self.self_type {
-            if self_type == typ {
+        if let Some(self_type) = &self.self_type
+            && self_type == typ {
                 self.output.push_str("Self");
                 return;
             }
-        }
 
         match typ {
             Type::Unit => self.output.push_str("()"),
@@ -1441,8 +1440,8 @@ impl HTMLCreator {
                 })
                 .unwrap_or_default();
             let mut line = lines[link.line].to_string();
-            if let Some(id) = id {
-                if let Some(ItemInfo {
+            if let Some(id) = id
+                && let Some(ItemInfo {
                     path: _,
                     uri,
                     class: _,
@@ -1453,7 +1452,6 @@ impl HTMLCreator {
                     let replacement = format!("[{name}]({nesting}{uri}{anchor})");
                     line.replace_range(link.start..link.end, &replacement);
                 }
-            }
             if let Some(primitive_type) = target.primitive_type() {
                 let nesting = "../".repeat(self.current_path.len());
                 let uri = primitive_type.uri();
@@ -1610,11 +1608,10 @@ fn get_reexports(items: &[(ItemVisibility, Item)]) -> Vec<&Reexport> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Reexport(reexport) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::Reexport(reexport) = item {
                     return Some(reexport);
                 }
-            }
             None
         })
         .collect()
@@ -1624,13 +1621,11 @@ fn get_modules(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Module(module) = item {
-                    if !module.is_contract && module.has_public_items() {
+            if visibility == &ItemVisibility::Public
+                && let Item::Module(module) = item
+                    && !module.is_contract && module.has_public_items() {
                         return Some(module);
                     }
-                }
-            }
             None
         })
         .collect()
@@ -1640,13 +1635,11 @@ fn get_contracts(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Module(module) = item {
-                    if module.is_contract && module.has_public_items() {
+            if visibility == &ItemVisibility::Public
+                && let Item::Module(module) = item
+                    && module.is_contract && module.has_public_items() {
                         return Some(module);
                     }
-                }
-            }
             None
         })
         .collect()
@@ -1656,11 +1649,10 @@ fn get_structs(items: &[(ItemVisibility, Item)]) -> Vec<&Struct> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Struct(struct_) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::Struct(struct_) = item {
                     return Some(struct_);
                 }
-            }
             None
         })
         .collect()
@@ -1670,11 +1662,10 @@ fn get_traits(items: &[(ItemVisibility, Item)]) -> Vec<&Trait> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Trait(trait_) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::Trait(trait_) = item {
                     return Some(trait_);
                 }
-            }
             None
         })
         .collect()
@@ -1684,11 +1675,10 @@ fn get_type_aliases(items: &[(ItemVisibility, Item)]) -> Vec<&TypeAlias> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::TypeAlias(alias) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::TypeAlias(alias) = item {
                     return Some(alias);
                 }
-            }
             None
         })
         .collect()
@@ -1698,11 +1688,10 @@ fn get_primitive_types(items: &[(ItemVisibility, Item)]) -> Vec<&PrimitiveType> 
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::PrimitiveType(primitive_type) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::PrimitiveType(primitive_type) = item {
                     return Some(primitive_type);
                 }
-            }
             None
         })
         .collect()
@@ -1712,11 +1701,10 @@ fn get_globals(items: &[(ItemVisibility, Item)]) -> Vec<&Global> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Global(global) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::Global(global) = item {
                     return Some(global);
                 }
-            }
             None
         })
         .collect()
@@ -1726,11 +1714,10 @@ fn get_functions(items: &[(ItemVisibility, Item)]) -> Vec<&Function> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Function(function) = item {
+            if visibility == &ItemVisibility::Public
+                && let Item::Function(function) = item {
                     return Some(function);
                 }
-            }
             None
         })
         .collect()
@@ -1817,11 +1804,10 @@ fn generics_to_string(generics: &[Generic]) -> String {
 }
 
 fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
-    if let Some(self_type) = self_type {
-        if self_type == typ {
+    if let Some(self_type) = self_type
+        && self_type == typ {
             return "Self".to_string();
         }
-    }
 
     match typ {
         Type::Unit => "()".to_string(),

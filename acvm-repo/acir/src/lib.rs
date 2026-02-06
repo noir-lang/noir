@@ -177,12 +177,11 @@ mod reflection {
         MsgPackCodeGenerator::add_helpers(&mut source, namespace);
         MsgPackCodeGenerator::replace_array_with_shared_ptr(&mut source);
 
-        if !should_overwrite() {
-            if let Some(old_hash) = old_hash {
+        if !should_overwrite()
+            && let Some(old_hash) = old_hash {
                 let new_hash = rustc_hash::FxBuildHasher.hash_one(&source);
                 assert_eq!(new_hash, old_hash, "Serialization format has changed",);
             }
-        }
 
         write_to_file(source.as_bytes(), path);
     }

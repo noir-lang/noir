@@ -2145,23 +2145,21 @@ impl<'interner> Monomorphizer<'interner> {
         let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
-            if let Definition::Oracle(name) = &ident.definition {
-                if let Some(ForeignCall::Print) = ForeignCall::lookup(name) {
+            if let Definition::Oracle(name) = &ident.definition
+                && let Some(ForeignCall::Print) = ForeignCall::lookup(name) {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
                     // The second argument is expected to always be an ident
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
                 }
-            }
-            if let Definition::Builtin(name) = &ident.definition {
-                if name.as_str() == "static_assert" {
+            if let Definition::Builtin(name) = &ident.definition
+                && name.as_str() == "static_assert" {
                     // static_assert can take any type for the `message` argument.
                     // Here we append printable type info so we can know how to turn that argument
                     // into a human-readable string.
                     let typ = self.interner.id_type(call.arguments[1]);
                     append_printable_type_info_for_type(typ, &mut arguments);
                 }
-            }
         }
 
         let mut block_expressions = vec![];
@@ -2869,18 +2867,17 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// Returns `false` for any other kind of expression.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
-            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
+            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
                 return self.interner.function_modifiers(&func_id).is_unconstrained;
             }
-        }
 
         false
     }
 
     fn function_is_oracle(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
-            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
+            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
                 return self
                     .interner
                     .function_modifiers(&func_id)
@@ -2891,7 +2888,6 @@ impl<'interner> Monomorphizer<'interner> {
                         matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
                     });
             }
-        }
         false
     }
 }

@@ -327,8 +327,8 @@ impl Elaborator<'_> {
         let mut found_types = Vec::new();
 
         for constraint in &self.trait_bounds {
-            if let Type::NamedGeneric(generic) = &constraint.typ {
-                if generic.name.as_ref() == type_name {
+            if let Type::NamedGeneric(generic) = &constraint.typ
+                && generic.name.as_ref() == type_name {
                     let trait_id = constraint.trait_bound.trait_id;
                     let the_trait = self.interner.get_trait(trait_id);
 
@@ -336,7 +336,6 @@ impl Elaborator<'_> {
                         found_types.push((trait_id, assoc_type.clone()));
                     }
                 }
-            }
         }
 
         match found_types.len() {
@@ -371,11 +370,10 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        if args.is_empty() {
-            if let Some(typ) = self.lookup_generic_or_global_type(&path, mode) {
+        if args.is_empty()
+            && let Some(typ) = self.lookup_generic_or_global_type(&path, mode) {
                 return typ;
             }
-        }
 
         let location = path.location;
 
@@ -714,22 +712,20 @@ impl Elaborator<'_> {
                 return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
-            if let Some(last_segment) = path.segments.last() {
-                if last_segment.generics.is_some() {
+            if let Some(last_segment) = path.segments.last()
+                && last_segment.generics.is_some() {
                     self.push_err(ResolverError::GenericsOnAssociatedType {
                         location: last_segment.turbofish_location(),
                     });
                 }
-            }
             return Some(typ);
         } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
-            if let Some(last_segment) = path.segments.last() {
-                if last_segment.generics.is_some() {
+            if let Some(last_segment) = path.segments.last()
+                && last_segment.generics.is_some() {
                     self.push_err(ResolverError::GenericsOnAssociatedType {
                         location: last_segment.turbofish_location(),
                     });
                 }
-            }
             return Some(typ);
         }
 
@@ -808,11 +804,10 @@ impl Elaborator<'_> {
             UnresolvedTypeExpression::Variable(path) => {
                 let mut ab = GenericTypeArgs::default();
                 // Use generics from path, if they exist
-                if let Some(last_segment) = path.segments.last() {
-                    if let Some(generics) = &last_segment.generics {
+                if let Some(last_segment) = path.segments.last()
+                    && let Some(generics) = &last_segment.generics {
                         ab.ordered_args = generics.clone();
                     }
-                }
                 let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let mut typ = self.resolve_named_type(path, ab, mode, wildcard_allowed);
@@ -1554,8 +1549,7 @@ impl Elaborator<'_> {
         // check that it fits or throw a warning
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
-        {
-            if from_is_polymorphic && from_value > to_maximum_size {
+            && from_is_polymorphic && from_value > to_maximum_size {
                 let from = from.clone();
                 let to = to.clone();
                 let reason = format!(
@@ -1564,7 +1558,6 @@ impl Elaborator<'_> {
                 // we warn that the 'to' type is too small for the value
                 self.push_err(TypeCheckError::DownsizingCast { from, to, location, reason });
             }
-        }
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
@@ -2417,8 +2410,8 @@ impl Elaborator<'_> {
         let func_meta = self.interner.function_meta(&func_id);
 
         // If inside a trait method, check if it's a method on `self`
-        if let Some(trait_id) = func_meta.trait_id {
-            if Some(object_type) == self.self_type.as_ref() {
+        if let Some(trait_id) = func_meta.trait_id
+            && Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
                 let mut matches = self.lookup_methods_in_trait(
@@ -2448,13 +2441,12 @@ impl Elaborator<'_> {
                     );
                 }
             }
-        }
 
         let mut matches = Vec::new();
 
         for constraint in func_meta.all_trait_constraints() {
-            if *object_type == constraint.typ {
-                if let Some(the_trait) =
+            if *object_type == constraint.typ
+                && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
                 {
                     let trait_matches = self.lookup_methods_in_trait(
@@ -2465,7 +2457,6 @@ impl Elaborator<'_> {
                     );
                     matches.extend(trait_matches);
                 }
-            }
         }
 
         self.handle_trait_method_lookup_matches(
@@ -2764,11 +2755,10 @@ impl Elaborator<'_> {
                 let last_stmt = block.statements().last();
                 let mut location = self.interner.expr_location(&function_body_id);
 
-                if let Some(last_stmt) = last_stmt {
-                    if let HirStatement::Expression(expr) = self.interner.statement(last_stmt) {
+                if let Some(last_stmt) = last_stmt
+                    && let HirStatement::Expression(expr) = self.interner.statement(last_stmt) {
                         location = self.interner.expr_location(&expr);
                     }
-                }
 
                 (location, last_stmt.is_none())
             } else {

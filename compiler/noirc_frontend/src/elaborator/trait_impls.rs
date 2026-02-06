@@ -546,8 +546,8 @@ impl Elaborator<'_> {
         &mut self,
         impl_id: Option<TraitImplId>,
     ) {
-        if let Some(impl_id) = impl_id {
-            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+        if let Some(impl_id) = impl_id
+            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
             {
                 for trait_constrain in &trait_implementation.borrow().where_clause {
                     let trait_bound = &trait_constrain.trait_bound;
@@ -559,15 +559,14 @@ impl Elaborator<'_> {
                     );
                 }
             }
-        }
     }
 
     pub(super) fn remove_trait_impl_assumed_trait_implementations(
         &mut self,
         impl_id: Option<TraitImplId>,
     ) {
-        if let Some(impl_id) = impl_id {
-            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+        if let Some(impl_id) = impl_id
+            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
             {
                 for trait_constrain in &trait_implementation.borrow().where_clause {
                     self.interner.remove_assumed_trait_implementations_for_trait(
@@ -575,7 +574,6 @@ impl Elaborator<'_> {
                     );
                 }
             }
-        }
     }
 
     pub(super) fn check_trait_impl_where_clause_matches_trait_where_clause(
@@ -849,8 +847,8 @@ impl Elaborator<'_> {
                 let trait_id = self.resolve_trait_by_path(trait_path);
 
                 // Check and remove and any generic that is specifying an associated item
-                if !trait_generics.named_args.is_empty() {
-                    if let Some(trait_id) = trait_id {
+                if !trait_generics.named_args.is_empty()
+                    && let Some(trait_id) = trait_id {
                         let associated_types =
                             self.interner.get_trait(trait_id).associated_types.clone();
                         trait_generics.named_args.retain(|(name, typ)| {
@@ -870,7 +868,6 @@ impl Elaborator<'_> {
                             }
                         });
                     }
-                }
 
                 (trait_id, trait_generics.clone(), location)
             }

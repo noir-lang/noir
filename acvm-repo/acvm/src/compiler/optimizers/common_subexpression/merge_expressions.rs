@@ -117,8 +117,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                 Some(Opcode::AssertZero(expr_use)),
                                 Some(Opcode::AssertZero(expr_define)),
                             ) = (target_opcode, source_opcode)
-                            {
-                                if let Some(expr) =
+                                && let Some(expr) =
                                     Self::merge_expression(&expr_use, &expr_define, w)
                                 {
                                     self.modified_gates.insert(target, Opcode::AssertZero(expr));
@@ -140,7 +139,6 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                     // because the merge invalidates the current opcode.
                                     break;
                                 }
-                            }
                         }
                     }
                 }

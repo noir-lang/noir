@@ -216,11 +216,10 @@ impl Function {
 
             // If the function returns a reference it is impure
             let terminator = self.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                if return_values.iter().any(&contains_reference) {
+            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator
+                && return_values.iter().any(&contains_reference) {
                     return Purity::Impure;
                 }
-            }
         }
 
         result

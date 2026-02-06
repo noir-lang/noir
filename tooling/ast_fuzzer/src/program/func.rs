@@ -497,17 +497,15 @@ impl<'a> FunctionContext<'a> {
 
         let allow_match = allow_if_then && !self.ctx.config.avoid_match;
 
-        if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
-            if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
+        if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ))
+            && let Some(expr) = self.gen_unary(u, typ, max_depth)? {
                 return Ok(expr);
             }
-        }
 
-        if freq.enabled_when("binary", allow_nested && types::can_binary_return(typ)) {
-            if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
+        if freq.enabled_when("binary", allow_nested && types::can_binary_return(typ))
+            && let Some(expr) = self.gen_binary(u, typ, max_depth)? {
                 return Ok(expr);
             }
-        }
 
         // if-then-else returning a value
         // Unlike blocks/loops it can appear in nested expressions.
@@ -538,11 +536,10 @@ impl<'a> FunctionContext<'a> {
         }
 
         // We can always try to just derive a value from the variables we have.
-        if freq.enabled("vars") {
-            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
+        if freq.enabled("vars")
+            && let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
                 return Ok(expr);
             }
-        }
 
         // If nothing else worked out we can always produce a random literal.
         self.gen_literal(u, typ).map(|expr| (expr, false))
@@ -641,8 +638,8 @@ impl<'a> FunctionContext<'a> {
         // If we found our type, we can return it without further ado.
         if src_type == tgt_type {
             // If we want a vector, we can push onto it.
-            if let Type::Vector(item_type) = src_type {
-                if bool::arbitrary(u)? {
+            if let Type::Vector(item_type) = src_type
+                && bool::arbitrary(u)? {
                     let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
                     // We can use push_back, push_front, or insert.
                     if bool::arbitrary(u)? {
@@ -675,7 +672,6 @@ impl<'a> FunctionContext<'a> {
                         );
                     }
                 }
-            }
             // Otherwise just return as-is.
             return Ok(Some((src_expr, src_dyn)));
         }
@@ -1161,32 +1157,29 @@ impl<'a> FunctionContext<'a> {
         // TODO(#7926): Match
 
         // We don't want constraints to get too frequent, as it could dominate all outcome.
-        if freq.enabled_when("constrain", !self.config().avoid_constrain) {
-            if let Some(e) = self.gen_constrain(u)? {
+        if freq.enabled_when("constrain", !self.config().avoid_constrain)
+            && let Some(e) = self.gen_constrain(u)? {
                 return Ok(e);
             }
-        }
 
         // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
         }
 
-        if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match) {
-            if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
+        if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match)
+            && let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
             }
-        }
 
         if freq.enabled_when("for", self.budget > 1) {
             return self.gen_for(u);
         }
 
-        if freq.enabled_when("call", self.budget > 0) {
-            if let Some((e, _)) = self.gen_call(u, &Type::Unit, self.max_depth())? {
+        if freq.enabled_when("call", self.budget > 0)
+            && let Some((e, _)) = self.gen_call(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
             }
-        }
 
         if self.unconstrained() {
             // Get loop out of the way quick, as it's always disabled for ACIR.
@@ -1207,18 +1200,16 @@ impl<'a> FunctionContext<'a> {
             }
 
             // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled_when("print", !self.config().avoid_print) {
-                if let Some(e) = self.gen_print(u)? {
+            if freq.enabled_when("print", !self.config().avoid_print)
+                && let Some(e) = self.gen_print(u)? {
                     return Ok(e);
                 }
-            }
         }
 
-        if freq.enabled("assign") {
-            if let Some(e) = self.gen_assign(u)? {
+        if freq.enabled("assign")
+            && let Some(e) = self.gen_assign(u)? {
                 return Ok(e);
             }
-        }
 
         self.gen_let(u)
     }
@@ -1231,8 +1222,8 @@ impl<'a> FunctionContext<'a> {
         let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
 
         // If we picked the target type to be a vector, we can consider popping from it.
-        if let Type::Vector(ref item_type) = typ {
-            if bool::arbitrary(u)? {
+        if let Type::Vector(ref item_type) = typ
+            && bool::arbitrary(u)? {
                 let fields = if bool::arbitrary(u)? {
                     // ([T], T) <- pop_back or remove
                     vec![typ.clone(), item_type.as_ref().clone()]
@@ -1242,7 +1233,6 @@ impl<'a> FunctionContext<'a> {
                 };
                 typ = Type::Tuple(fields);
             }
-        }
 
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;

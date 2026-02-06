@@ -378,15 +378,14 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             .par_iter()
             .filter_map(|(file_id, file_path, current_hash)| {
                 let cached_version = state.cached_parsed_files.get(file_path);
-                if let Some((hash, (parsed_module, errors))) = cached_version {
-                    if hash == current_hash {
+                if let Some((hash, (parsed_module, errors))) = cached_version
+                    && hash == current_hash {
                         // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
                         // so we must replace all of those FileIDs with the one here.
                         let parsed_module =
                             parsed_module_with_file(parsed_module.clone(), *file_id);
                         return Some((*file_id, (parsed_module, errors.clone())));
                     }
-                }
                 None
             })
             .collect::<Vec<_>>();

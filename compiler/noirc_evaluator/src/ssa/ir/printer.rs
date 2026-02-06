@@ -289,8 +289,8 @@ fn write_location_information(
     use std::io::Write;
     let call_stack = dfg.get_instruction_call_stack(instruction);
 
-    if let Some(location) = call_stack.last() {
-        if let Ok(name) = fm.as_file_map().get_name(location.file) {
+    if let Some(location) = call_stack.last()
+        && let Ok(name) = fm.as_file_map().get_name(location.file) {
             let files = fm.as_file_map();
             let start_index = location.span.start() as usize;
 
@@ -315,7 +315,6 @@ fn write_location_information(
             };
             write!(buffer, ":{column_number}")?;
         }
-    }
     Ok(())
 }
 
@@ -424,15 +423,13 @@ fn display_instruction_inner(
             };
             if element_types.len() == 1
                 && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
-            {
-                if let Some(string) = try_byte_array_to_string(elements, dfg) {
+                && let Some(string) = try_byte_array_to_string(elements, dfg) {
                     if is_vector {
                         return write!(f, "make_array &b{string:?}");
                     } else {
                         return write!(f, "make_array b{string:?}");
                     }
                 }
-            }
 
             write!(f, "make_array [")?;
 

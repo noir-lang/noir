@@ -281,8 +281,8 @@ impl Kind {
         value: SignedField,
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
-        if let Some(maximum_size) = self.integral_maximum_size() {
-            if value > SignedField::positive(maximum_size) {
+        if let Some(maximum_size) = self.integral_maximum_size()
+            && value > SignedField::positive(maximum_size) {
                 return Err(TypeCheckError::OverflowingConstant {
                     value,
                     kind: self.clone(),
@@ -290,10 +290,9 @@ impl Kind {
                     location,
                 });
             }
-        }
 
-        if let Some(minimum_size) = self.integral_minimum_size() {
-            if value < minimum_size {
+        if let Some(minimum_size) = self.integral_minimum_size()
+            && value < minimum_size {
                 return Err(TypeCheckError::UnderflowingConstant {
                     value,
                     kind: self.clone(),
@@ -301,7 +300,6 @@ impl Kind {
                     location,
                 });
             }
-        }
 
         Ok(value)
     }
@@ -1702,18 +1700,16 @@ impl Type {
         // `y` is `rhs` here) then we can simplify this to just `b` because there wasn't an actual
         // division in the original expression, so multiplying it back is just going back to the
         // original `y`
-        if let Type::InfixExpr(rhs_lhs, rhs_op, rhs_rhs, true) = &*rhs {
-            if op.approx_inverse() == Some(*rhs_op) && lhs == *rhs_rhs {
+        if let Type::InfixExpr(rhs_lhs, rhs_op, rhs_rhs, true) = &*rhs
+            && op.approx_inverse() == Some(*rhs_op) && lhs == *rhs_rhs {
                 return *rhs_lhs.clone();
             }
-        }
 
         // Same thing but on the other side.
-        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, true) = &*lhs {
-            if op.approx_inverse() == Some(*lhs_op) && rhs == *lhs_rhs {
+        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, true) = &*lhs
+            && op.approx_inverse() == Some(*lhs_op) && rhs == *lhs_rhs {
                 return *lhs_lhs.clone();
             }
-        }
 
         Self::InfixExpr(lhs, op, rhs, inversion)
     }
@@ -1744,15 +1740,14 @@ impl Type {
                         {
                             return true;
                         }
-                    } else if let Some(variants) = typ.get_variants(generics) {
-                        if variants
+                    } else if let Some(variants) = typ.get_variants(generics)
+                        && variants
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.is_nested_vector_helper(seen_data_types))
                         {
                             return true;
                         }
-                    }
                 }
                 false
             }
@@ -1816,15 +1811,14 @@ impl Type {
                         {
                             return true;
                         }
-                    } else if let Some(variants) = typ.get_variants(generics) {
-                        if variants
+                    } else if let Some(variants) = typ.get_variants(generics)
+                        && variants
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_vector_helper(seen_data_types))
                         {
                             return true;
                         }
-                    }
                 }
                 false
             }
@@ -1892,15 +1886,14 @@ impl Type {
                         {
                             return true;
                         }
-                    } else if let Some(variants) = typ.get_variants(generics) {
-                        if variants
+                    } else if let Some(variants) = typ.get_variants(generics)
+                        && variants
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_array_helper(seen_data_types))
                         {
                             return true;
                         }
-                    }
                 }
                 false
             }
@@ -1963,15 +1956,14 @@ impl Type {
                         }) {
                             return true;
                         }
-                    } else if let Some(variants) = typ.get_variants(generics) {
-                        if variants
+                    } else if let Some(variants) = typ.get_variants(generics)
+                        && variants
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.is_vector_with_nested_array_helper(seen_data_types))
                         {
                             return true;
                         }
-                    }
                 }
                 false
             }
@@ -2052,15 +2044,14 @@ impl Type {
                         {
                             return true;
                         }
-                    } else if let Some(variants) = typ.get_variants(generics) {
-                        if variants
+                    } else if let Some(variants) = typ.get_variants(generics)
+                        && variants
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_reference_helper(seen_data_types))
                         {
                             return true;
                         }
-                    }
                 }
                 false
             }
@@ -2134,15 +2125,14 @@ impl Type {
                         {
                             return true;
                         }
-                    } else if let Some(variants) = typ.get_variants(generics) {
-                        if variants
+                    } else if let Some(variants) = typ.get_variants(generics)
+                        && variants
                             .iter()
                             .flat_map(|(_, args)| args)
                             .any(|typ| typ.contains_function_helper(seen_data_types))
                         {
                             return true;
                         }
-                    }
                 }
                 false
             }

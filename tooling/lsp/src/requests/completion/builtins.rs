@@ -19,8 +19,8 @@ impl NodeFinder<'_> {
         function_completion_kind: FunctionCompletionKind,
     ) {
         for keyword in Keyword::iter() {
-            if let Some(func) = keyword_builtin_function(&keyword) {
-                if name_matches(func.name, prefix) {
+            if let Some(func) = keyword_builtin_function(&keyword)
+                && name_matches(func.name, prefix) {
                     let description = Some(func.description.to_string());
                     let label;
                     let insert_text;
@@ -46,7 +46,6 @@ impl NodeFinder<'_> {
                         ),
                     );
                 }
-            }
         }
     }
 

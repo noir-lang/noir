@@ -99,8 +99,8 @@ impl Ssa {
             // This is here now instead of in `Function::unroll_loops_iteratively` because we'd need
             // more finessing to convince the borrow checker that it's okay to share a read-only reference
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
-            if has_unrolled && is_brillig {
-                if let Some(max_incr_pct) = max_bytecode_increase_percent {
+            if has_unrolled && is_brillig
+                && let Some(max_incr_pct) = max_bytecode_increase_percent {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
                     let orig_size = orig_function.num_instructions();
@@ -108,7 +108,6 @@ impl Ssa {
                         *function = orig_function;
                     }
                 }
-            }
         }
         Ok(self)
     }

@@ -111,11 +111,10 @@ impl Block {
 
         for (expression, new_aliases) in &other.aliases {
             // If nothing would change, then don't call `.entry(...).and_modify(...)` as it involves creating more `Arc`s.
-            if let Some(aliases) = self.aliases.get(expression) {
-                if !aliases.should_unify(new_aliases) {
+            if let Some(aliases) = self.aliases.get(expression)
+                && !aliases.should_unify(new_aliases) {
                     continue;
                 }
-            }
             self.aliases
                 .entry(*expression)
                 .and_modify(|aliases| aliases.unify(new_aliases))
@@ -125,22 +124,20 @@ impl Block {
         // Keep only the references present in both maps.
         let mut intersection = im::OrdMap::new();
         for (value_id, reference) in &other.references {
-            if let Some(existing) = self.references.get(value_id) {
-                if reference == existing {
+            if let Some(existing) = self.references.get(value_id)
+                && reference == existing {
                     intersection.insert(*value_id, *reference);
                 }
-            }
         }
         self.references = intersection;
 
         // Keep only the last loads present in both maps, if they map to the same InstructionId
         let mut intersection = im::OrdMap::new();
         for (value_id, instruction) in &other.last_loads {
-            if let Some(existing) = self.last_loads.get(value_id) {
-                if existing == instruction {
+            if let Some(existing) = self.last_loads.get(value_id)
+                && existing == instruction {
                     intersection.insert(*value_id, *instruction);
                 }
-            }
         }
         self.last_loads = intersection;
 
@@ -228,11 +225,10 @@ impl Block {
     }
 
     pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
-        if let Some(expression) = self.expressions.get(&value) {
-            if let Some(aliases) = self.aliases.get(expression) {
+        if let Some(expression) = self.expressions.get(&value)
+            && let Some(aliases) = self.aliases.get(expression) {
                 return Cow::Borrowed(aliases);
             }
-        }
 
         Cow::Owned(AliasSet::unknown())
     }
@@ -247,12 +243,11 @@ impl Block {
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
 
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr) {
+        if let Some(expr) = self.expressions.get(&address)
+            && let Some(aliases) = self.aliases.get(expr) {
                 for alias in aliases.iter() {
                     self.last_loads.remove(&alias);
                 }
             }
-        }
     }
 }

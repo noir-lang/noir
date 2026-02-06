@@ -41,8 +41,8 @@ impl Elaborator<'_> {
             let is_unquote = matches!(token, Token::DollarSign);
             new_tokens.push(LocatedToken::new(token, location));
 
-            if is_unquote {
-                if let Some(next) = tokens.next() {
+            if is_unquote
+                && let Some(next) = tokens.next() {
                     let location = next.location();
 
                     match next.into_token() {
@@ -69,7 +69,6 @@ impl Elaborator<'_> {
                         other_next => new_tokens.push(LocatedToken::new(other_next, location)),
                     }
                 }
-            }
         }
 
         Tokens(new_tokens)

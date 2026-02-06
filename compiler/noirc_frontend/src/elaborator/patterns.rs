@@ -185,15 +185,14 @@ impl Elaborator<'_> {
 
                 // Only check tuple arity if the expected type was actually a tuple.
                 // If it wasn't, we've already issued a type mismatch error above.
-                if let Some(field_types) = &field_types {
-                    if fields.len() != field_types.len() {
+                if let Some(field_types) = &field_types
+                    && fields.len() != field_types.len() {
                         self.push_err(TypeCheckError::TupleMismatch {
                             tuple_types: field_types.clone(),
                             actual_count: fields.len(),
                             location,
                         });
                     }
-                }
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
                     let field_type = field_types
@@ -459,15 +458,14 @@ impl Elaborator<'_> {
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
-        if !allow_shadowing {
-            if let Some(old_value) = old_value {
+        if !allow_shadowing
+            && let Some(old_value) = old_value {
                 self.push_err(ResolverError::DuplicateDefinition {
                     name,
                     first_location: old_value.ident.location,
                     second_location,
                 });
             }
-        }
     }
 
     /// Lookup and use the specified local variable.
@@ -646,15 +644,14 @@ impl Elaborator<'_> {
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
         let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
 
-        if let Some(first_segment) = segments.first_mut() {
-            if first_segment.generics.is_some() && first_segment.ident.is_self_type_name() {
+        if let Some(first_segment) = segments.first_mut()
+            && first_segment.generics.is_some() && first_segment.ident.is_self_type_name() {
                 self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
                     item: "self type".to_string(),
                     location: first_segment.turbofish_location(),
                 });
                 first_segment.generics = None;
             }
-        }
 
         TypedPath {
             segments,

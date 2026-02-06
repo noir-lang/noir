@@ -207,12 +207,11 @@ impl<'a> Files<'a> for DebugArtifact {
         let name: Self::Name = name.map(|file| file.path.clone().into())?;
 
         // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-        if let Ok(current_dir) = std::env::current_dir() {
-            if let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
+        if let Ok(current_dir) = std::env::current_dir()
+            && let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
             {
                 return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
             }
-        }
 
         Ok(name)
     }

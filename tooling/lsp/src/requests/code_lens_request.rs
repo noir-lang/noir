@@ -139,8 +139,7 @@ impl Visitor for CodeLensVisitor<'_> {
 
         // Check if it's a test function
         if let Some(ReferenceId::Function(func_id)) = self.interner.reference_at_location(location)
-        {
-            if self.interner.function_modifiers(&func_id).attributes.is_test_function() {
+            && self.interner.function_modifiers(&func_id).attributes.is_test_function() {
                 let func_meta = self.interner.function_meta(&func_id);
                 let local_module_id = func_meta.source_module;
                 let crate_id = func_meta.source_crate;
@@ -161,8 +160,7 @@ impl Visitor for CodeLensVisitor<'_> {
                     .unwrap_or_default();
                 self.lenses.push(test_lens(self.workspace, self.package, &func_name, range));
                 self.lenses.push(debug_test_lens(self.workspace, self.package, func_name, range));
-            }
-        };
+            };
 
         false
     }

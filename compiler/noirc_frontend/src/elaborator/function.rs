@@ -396,17 +396,15 @@ impl Elaborator<'_> {
         output: bool,
         location: Location,
     ) -> Result<(), TypeCheckError> {
-        if is_entry_point {
-            if let Some(invalid_type) = typ.program_validity(output) {
+        if is_entry_point
+            && let Some(invalid_type) = typ.program_validity(output) {
                 return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
-        }
 
-        if has_inline_attribute && !output {
-            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
+        if has_inline_attribute && !output
+            && let Some(invalid_type) = typ.non_inlined_function_input_validity() {
                 return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
             }
-        }
 
         Ok(())
     }

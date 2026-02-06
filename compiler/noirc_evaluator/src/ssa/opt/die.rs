@@ -450,14 +450,13 @@ fn can_be_eliminated_if_unused(
 
                     // There's one more case: signed division that does MIN / -1
                     let typ = function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-                    if let NumericType::Signed { bit_size } = typ {
-                        if let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
+                    if let NumericType::Signed { bit_size } = typ
+                        && let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
                             let minus_one = IntegerConstant::Signed { value: -1, bit_size };
                             if rhs == minus_one {
                                 return false;
                             }
                         }
-                    }
 
                     true
                 } else {

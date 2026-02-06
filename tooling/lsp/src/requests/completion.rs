@@ -997,11 +997,10 @@ impl<'a> NodeFinder<'a> {
 
         // If we can't resolve a path through lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
-        if let Some(reference_id) = self.interner.find_referenced(location) {
-            if let Some(id) = module_def_id_from_reference_id(reference_id) {
+        if let Some(reference_id) = self.interner.find_referenced(location)
+            && let Some(id) = module_def_id_from_reference_id(reference_id) {
                 return Some(id);
             }
-        }
 
         None
     }
@@ -1474,12 +1473,11 @@ impl Visitor for NodeFinder<'_> {
         // In this case we want to suggest items in foo but if they are functions
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
-        if let ExpressionKind::Variable(path) = &call_expression.func.kind {
-            if self.includes_span(path.location.span) {
+        if let ExpressionKind::Variable(path) = &call_expression.func.kind
+            && self.includes_span(path.location.span) {
                 self.find_in_path_impl(path, RequestedItems::AnyItems, true);
                 return false;
             }
-        }
 
         // Check if it's this case:
         //
@@ -1626,8 +1624,8 @@ impl Visitor for NodeFinder<'_> {
         // If we have `foo.bar.>|<` we solve the type of `foo`, get the field `bar`,
         // then suggest methods of the resulting type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(object) {
-                if let Some(typ) = get_field_type(&typ, field_name.as_str()) {
+            if let Some(typ) = self.get_lvalue_type(object)
+                && let Some(typ) = get_field_type(&typ, field_name.as_str()) {
                     let prefix = "";
                     let self_prefix = false;
                     self.complete_type_fields_and_methods(
@@ -1637,7 +1635,6 @@ impl Visitor for NodeFinder<'_> {
                         self_prefix,
                     );
                 }
-            }
 
             return false;
         }
@@ -1648,8 +1645,8 @@ impl Visitor for NodeFinder<'_> {
         // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/vector element type,
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(array) {
-                if let Some(typ) = get_array_element_type(typ) {
+            if let Some(typ) = self.get_lvalue_type(array)
+                && let Some(typ) = get_array_element_type(typ) {
                     let prefix = "";
                     let self_prefix = false;
                     self.complete_type_fields_and_methods(
@@ -1659,7 +1656,6 @@ impl Visitor for NodeFinder<'_> {
                         self_prefix,
                     );
                 }
-            }
             return false;
         }
         true

@@ -250,11 +250,10 @@ impl NodeFinder<'_> {
                     } else if let Type::Tuple(self_tuple_types) = self_type {
                         // Tuple types of different lengths seem to also have methods defined on all of them,
                         // so here we reject methods for tuples where the length doesn't match.
-                        if let Type::Tuple(func_self_tuple_types) = func_self_type {
-                            if self_tuple_types.len() != func_self_tuple_types.len() {
+                        if let Type::Tuple(func_self_tuple_types) = func_self_type
+                            && self_tuple_types.len() != func_self_tuple_types.len() {
                                 return Vec::new();
                             }
-                        }
                     }
                 } else {
                     return Vec::new();
