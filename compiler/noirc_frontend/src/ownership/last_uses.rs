@@ -350,6 +350,8 @@ impl LastUseContext {
                     self.track_variables_in_expression(element);
                 }
             }
+
+            Literal::Repeated { element, .. } => self.track_variables_in_expression(element),
         }
     }
 

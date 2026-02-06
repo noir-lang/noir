@@ -17,7 +17,10 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+        opt::{
+            CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+            MAX_UNROLL_ITERATIONS,
+        },
     },
 };
 
@@ -48,7 +51,9 @@ fn arb_program_can_be_executed() {
             inliner_aggressiveness: 0,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: i32::MAX,
+            max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
         };
 

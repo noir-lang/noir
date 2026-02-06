@@ -110,11 +110,19 @@ pub struct SsaEvaluatorOptions {
     pub small_function_max_instruction: usize,
 
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
-    pub max_bytecode_increase_percent: i32,
+    /// When `None` the size increase check is skipped altogether and any decrease in the SSA
+    /// instruction count is accepted.
+    pub max_bytecode_increase_percent: Option<i32>,
 
     /// Maximum iterations for Brillig loop unrolling.
     /// Loops exceeding this limit will not be unrolled even if they pass the instruction threshold.
     pub max_unroll_iterations: usize,
+
+    /// Override the threshold for force-unrolling small loops.
+    /// Loops with constant bounds and no breaks whose unrolled
+    /// instruction count is at or below this threshold will always be unrolled.
+    /// Set to 0 to disable force-unrolling.
+    pub force_unroll_threshold: usize,
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
@@ -162,7 +170,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
-            Ssa::evaluate_static_assert_and_assert_constant,
+            Ssa::try_evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
@@ -172,6 +180,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
                     options.max_unroll_iterations,
+                    options.force_unroll_threshold,
                 )
             },
             "Unrolling",
@@ -217,9 +226,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
                     options.max_unroll_iterations,
+                    options.force_unroll_threshold,
                 )
             },
             "Unrolling",
+        ),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
         ),
         SsaPass::new(Ssa::make_constrain_not_equal, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),

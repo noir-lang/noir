@@ -181,6 +181,7 @@ use crate::{
         path_resolution::PathResolutionItem, types::WildcardAllowed,
     },
     hir::{
+        comptime::InterpreterError,
         def_collector::dc_crate::UnresolvedTrait,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
@@ -188,7 +189,9 @@ use crate::{
         function::FuncMeta,
         traits::{ResolvedTraitBound, TraitConstraint, TraitFunction},
     },
-    node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
+    node_interner::{
+        DependencyId, FuncId, ImplSearchErrorKind, NodeInterner, ReferenceId, TraitId,
+    },
 };
 
 use super::{Elaborator, generics::GenericsState};
@@ -598,13 +601,28 @@ impl Elaborator<'_> {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
-        if !self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
-            if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
-                let trait_name = the_trait.name.to_string();
-                let typ = object.clone();
-                self.push_err(TypeCheckError::UnneededTraitConstraint {
-                    trait_name,
-                    typ,
+        match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
+            Ok(true) => (),
+            Ok(false) => {
+                if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
+                    let trait_name = the_trait.name.to_string();
+                    let typ = object.clone();
+                    self.push_err(TypeCheckError::UnneededTraitConstraint {
+                        trait_name,
+                        typ,
+                        location,
+                    });
+                }
+            }
+            Err(ImplSearchErrorKind::RecursionLimitReached) => {
+                self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                    location,
+                });
+                return;
+            }
+            Err(error) => {
+                self.push_err(TypeCheckError::ExpectingOtherError {
+                    message: format!("Elaborator::add_trait_bound_to_scope: encountered error while running add_assumed_trait_implementation: {error:?}"),
                     location,
                 });
             }

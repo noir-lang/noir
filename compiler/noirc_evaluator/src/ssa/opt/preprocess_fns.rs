@@ -5,6 +5,7 @@ use crate::ssa::{
     ir::{call_graph::CallGraph, function::Function},
 };
 
+use super::FORCE_UNROLL_THRESHOLD;
 use super::inlining::{self, InlineInfo};
 use super::unrolling::MAX_UNROLL_ITERATIONS;
 
@@ -56,7 +57,9 @@ impl Ssa {
             // Prepare for unrolling
             function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively(MAX_UNROLL_ITERATIONS);
+            // Use default threshold for force-unrolling.
+            let _ =
+                function.unroll_loops_iteratively(MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 

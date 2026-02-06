@@ -9,7 +9,7 @@ mod tests {
         errors::RuntimeError,
         ssa::{
             Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
-            opt::{constant_folding, inlining, unrolling},
+            opt::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding, inlining},
             primary_passes,
         },
     };
@@ -24,10 +24,11 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
-            max_bytecode_increase_percent: i32::MAX,
-            max_unroll_iterations: unrolling::MAX_UNROLL_ITERATIONS,
+            max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
         };
 

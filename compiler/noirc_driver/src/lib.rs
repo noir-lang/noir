@@ -17,7 +17,8 @@ use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
-    CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS, MAX_UNROLL_ITERATIONS,
+    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    MAX_UNROLL_ITERATIONS,
 };
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
@@ -186,13 +187,22 @@ pub struct CompileOptions {
     /// unrolling small loops. A value of 100 allows up to 2× growth.
     /// A higher value results in fewer jumps but a larger program.
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i32::MAX)]
-    pub max_bytecode_increase_percent: i32,
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    pub max_bytecode_increase_percent: Option<i32>,
 
     /// Maximum iterations for Brillig loop unrolling. Loops exceeding this
     /// will not be unrolled even if they pass the instruction threshold.
     #[arg(long, hide = true, default_value_t = MAX_UNROLL_ITERATIONS)]
     pub max_unroll_iterations: usize,
+
+    /// Override the threshold for force-unrolling small loops.
+    ///
+    /// Loops with constant bounds and no breaks whose unrolled
+    /// instruction count is at or below this threshold will always be unrolled.
+    ///
+    /// Set to 0 to disable force-unrolling.
+    #[arg(long, hide = true, default_value_t = FORCE_UNROLL_THRESHOLD)]
+    pub force_unroll_threshold: usize,
 
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
@@ -251,8 +261,9 @@ impl Default for CompileOptions {
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: i32::MAX,
+            max_bytecode_increase_percent: None,
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
@@ -290,6 +301,7 @@ impl CompileOptions {
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             max_unroll_iterations: self.max_unroll_iterations,
+            force_unroll_threshold: self.force_unroll_threshold,
             skip_passes: self.skip_ssa_pass.clone(),
         }
     }

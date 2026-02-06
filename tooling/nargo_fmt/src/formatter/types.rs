@@ -7,6 +7,16 @@ use super::Formatter;
 
 impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
+        let in_expression = false;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    pub(super) fn format_type_in_expression(&mut self, typ: UnresolvedType) {
+        let in_expression = true;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    fn format_type_impl(&mut self, typ: UnresolvedType, in_expression: bool) {
         self.skip_comments_and_whitespace();
 
         match typ.typ {
@@ -40,11 +50,15 @@ impl Formatter<'_> {
                 if !generic_type_args.is_empty() {
                     self.skip_comments_and_whitespace();
 
-                    // Apparently some Named types with generics have `::` before the generics
-                    // while others don't, so we have to account for both cases.
                     if self.is_at(Token::DoubleColon) {
-                        self.write_token(Token::DoubleColon);
+                        // Inside expressions, specifying a type's generics requires a double colon.
+                        if in_expression {
+                            self.write_token(Token::DoubleColon);
+                        } else {
+                            self.bump();
+                        }
                     }
+
                     self.format_generic_type_args(generic_type_args);
                 }
             }
@@ -215,8 +229,15 @@ mod tests {
     }
 
     #[test]
-    fn format_named_type_with_generics() {
+    fn format_named_type_with_generics_without_double_colon() {
         let src = " foo :: bar < A,  B  =  Field , C = i32 , D , >";
+        let expected = "foo::bar<A, B = Field, C = i32, D>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_named_type_with_generics_with_double_colon() {
+        let src = " foo :: bar :: < A,  B  =  Field , C = i32 , D , >";
         let expected = "foo::bar<A, B = Field, C = i32, D>";
         assert_format_type(src, expected);
     }
