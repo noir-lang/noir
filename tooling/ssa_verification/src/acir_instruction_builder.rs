@@ -245,6 +245,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
         small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: None,
+        force_unroll_threshold: None,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
