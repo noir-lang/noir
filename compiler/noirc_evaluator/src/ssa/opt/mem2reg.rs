@@ -259,11 +259,14 @@ impl<'f> PerFunctionContext<'f> {
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
-                Self::collect_terminator_value_aliases(
+                all_terminator_values.insert(value);
+                Self::for_each_value_alias(
                     value,
                     references,
                     &self.inserter.function.dfg,
-                    &mut all_terminator_values,
+                    &mut |alias| {
+                        all_terminator_values.insert(alias);
+                    },
                 );
             });
         }
@@ -357,38 +360,30 @@ impl<'f> PerFunctionContext<'f> {
         false
     }
 
-    /// Collects a terminator value and all its aliases into the output set.
-    ///
-    /// When a value has unknown aliases (e.g., because it contains references from
-    /// arrays with unknown contents), we fall back to directly collecting the array
-    /// elements if it's an array constant. This ensures that stores to references
-    /// within the array are not incorrectly removed.
-    fn collect_terminator_value_aliases(
+    /// Calls `callback` for each known alias of `value`, recursing into array
+    /// elements when the combined alias set is unknown. Skips values whose type
+    /// does not contain a reference.
+    fn for_each_value_alias(
         value: ValueId,
         references: &Block,
         dfg: &DataFlowGraph,
-        output: &mut HashSet<ValueId>,
+        callback: &mut impl FnMut(ValueId),
     ) {
-        output.insert(value);
-
-        let typ = dfg.type_of_value(value);
-        if !typ.contains_reference() {
+        if !dfg.type_of_value(value).contains_reference() {
             return;
         }
 
         let aliases = references.get_aliases_for_value(value);
         if aliases.is_unknown() {
-            // If aliases are unknown but this is an array constant, directly collect
-            // the elements. This handles the case where an array contains references
-            // that have unknown aliases (e.g., from array parameters), but we still
-            // need to track the elements that DO have known aliases.
             if let Some((elements, _)) = dfg.get_array_constant(value) {
                 for element in elements.iter() {
-                    Self::collect_terminator_value_aliases(*element, references, dfg, output);
+                    Self::for_each_value_alias(*element, references, dfg, callback);
                 }
             }
         } else {
-            output.extend(aliases.iter());
+            for alias in aliases.iter() {
+                callback(alias);
+            }
         }
     }
 
@@ -677,7 +672,14 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                self.collect_value_aliases_for_aliased_references(value, references, instruction);
+                Self::for_each_value_alias(
+                    value,
+                    references,
+                    &self.inserter.function.dfg,
+                    &mut |alias| {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    },
+                );
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -850,38 +852,6 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             _ => (),
-        }
-    }
-
-    /// Collects aliases of a stored value and records them in `aliased_references`.
-    ///
-    /// When a value has known aliases, this simply iterates them. When aliases are
-    /// unknown (e.g., because the value is a MakeArray containing a block parameter
-    /// with unknown aliases), we fall back to recursively collecting aliases from
-    /// the array's elements. This mirrors the approach in `collect_terminator_value_aliases`
-    /// and prevents stores to references within arrays from being incorrectly removed
-    /// when the outer array has unknown combined aliases.
-    fn collect_value_aliases_for_aliased_references(
-        &mut self,
-        value: ValueId,
-        references: &Block,
-        instruction: InstructionId,
-    ) {
-        let aliases = references.get_aliases_for_value(value);
-        if aliases.is_unknown() {
-            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(value) {
-                for element in elements.iter() {
-                    self.collect_value_aliases_for_aliased_references(
-                        *element,
-                        references,
-                        instruction,
-                    );
-                }
-            }
-        } else {
-            for alias in aliases.iter() {
-                self.aliased_references.entry(alias).or_default().insert(instruction);
-            }
         }
     }
 
@@ -3160,8 +3130,8 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    /// Tests for `collect_terminator_value_aliases` which recursively collects
-    /// aliases for values used in block terminators (return, jmp, etc.).
+    /// Tests for `for_each_value_alias` which recursively collects aliases
+    /// for values, including those used in block terminators (return, jmp, etc.).
     mod terminator_value_aliases {
         use super::*;
 
@@ -3400,7 +3370,7 @@ mod tests {
     // array from v9, extracts v6 via array_get, and loads v6's value. The loop prevents
     // mem2reg from propagating known values across the back edge.
     //
-    // Without `collect_value_aliases_for_aliased_references`, the store of the nested
+    // Without `for_each_value_alias` recursing into the array elements, the store of the nested
     // array at v9 would not record v6 in `aliased_references` (because the array has
     // unknown combined aliases from v5), causing `store u1 1 at v6` to be incorrectly
     // removed.
