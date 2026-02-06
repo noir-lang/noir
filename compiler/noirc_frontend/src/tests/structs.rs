@@ -578,3 +578,40 @@ fn returns_trait_as_type_overlap() {
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
+
+#[test]
+fn type_alias_resolves_to_same_type_in_trait_impl() {
+    let src = r#"
+    trait Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    type Bar<T> = T;
+
+    impl<T> Foo for T { }
+    impl<T> Foo for Bar<T> { }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn non_overlapping_trait_impls_with_generic() {
+    let src = r#"
+    trait Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    pub struct Bar<T, let N: u32> {}
+
+    impl<T> Foo for Bar<T, 0> { }
+    impl<T> Foo for Bar<T, 1> { }
+    impl<T, let N: u32> Foo for Bar<T, N> { }
+    impl Foo for Bar<(), 0> { }
+    impl<let N: u32> Foo for Bar<(), N> { }
+    "#;
+    assert_no_errors(src);
+}
