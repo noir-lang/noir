@@ -17,4 +17,4 @@ fm.workspace = true
 rustc-hash.workspace = true
 noirc_span.workspace = true
 serde.workspace = true
-rangemap = "1.7.1"
+rangemap.workspace = true
