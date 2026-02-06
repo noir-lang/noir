@@ -28,8 +28,9 @@ impl BrilligParameter {
             BrilligParameter::SingleAddr(_) => 1,
             BrilligParameter::Array(item_types, item_count)
             | BrilligParameter::Vector(item_types, item_count) => {
-                let item_size: usize = item_types.iter().map(|param| param.flattened_size()).sum();
-                assert_usize(item_count.0) * item_size
+                let size_of_item: usize =
+                    item_types.iter().map(|param| param.flattened_size()).sum();
+                assert_usize(item_count.0) * size_of_item
             }
         }
     }
