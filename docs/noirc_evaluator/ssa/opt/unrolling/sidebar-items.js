@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["BRILLIG_FORCE_UNROLL_THRESHOLD"],"enum":["LoopOrder","LoopUnrollResult"],"fn":["get_induction_variable","is_new_size_ok","simplify_between_unrolls"],"struct":["BoilerplateStats","Loop","LoopIteration","Loops"]};
+window.SIDEBAR_ITEMS = {"constant":["FORCE_UNROLL_THRESHOLD"],"enum":["LoopOrder","LoopUnrollResult"],"fn":["get_induction_variable","is_new_size_ok","simplify_between_unrolls"],"struct":["BoilerplateStats","Loop","LoopIteration","Loops"]};

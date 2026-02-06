@@ -291,375 +291,379 @@
 <a href=#291 id=291 data-nosnippet>291</a>            SsaEvaluatorOptions,
 <a href=#292 id=292 data-nosnippet>292</a>            function_builder::FunctionBuilder,
 <a href=#293 id=293 data-nosnippet>293</a>            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-<a href=#294 id=294 data-nosnippet>294</a>            opt::{constant_folding, flatten_cfg::branch_analysis::find_branch_ends, inlining},
-<a href=#295 id=295 data-nosnippet>295</a>            primary_passes,
-<a href=#296 id=296 data-nosnippet>296</a>            ssa_gen::Ssa,
-<a href=#297 id=297 data-nosnippet>297</a>        },
-<a href=#298 id=298 data-nosnippet>298</a>    };
-<a href=#299 id=299 data-nosnippet>299</a>
-<a href=#300 id=300 data-nosnippet>300</a>    <span class="attr">#[test]
-<a href=#301 id=301 data-nosnippet>301</a>    </span><span class="kw">fn </span>nested_branch_analysis() {
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="comment">//         b0
-<a href=#303 id=303 data-nosnippet>303</a>        //         ↓
-<a href=#304 id=304 data-nosnippet>304</a>        //         b1
-<a href=#305 id=305 data-nosnippet>305</a>        //       ↙   ↘
-<a href=#306 id=306 data-nosnippet>306</a>        //     b2     b3
-<a href=#307 id=307 data-nosnippet>307</a>        //     ↓      |
-<a href=#308 id=308 data-nosnippet>308</a>        //     b4     |
-<a href=#309 id=309 data-nosnippet>309</a>        //   ↙  ↘     |
-<a href=#310 id=310 data-nosnippet>310</a>        // b5    b6   |
-<a href=#311 id=311 data-nosnippet>311</a>        //   ↘  ↙     ↓
-<a href=#312 id=312 data-nosnippet>312</a>        //    b7      b8
-<a href=#313 id=313 data-nosnippet>313</a>        //      ↘   ↙
-<a href=#314 id=314 data-nosnippet>314</a>        //       b9
-<a href=#315 id=315 data-nosnippet>315</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">0</span>);
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
-<a href=#317 id=317 data-nosnippet>317</a>
-<a href=#318 id=318 data-nosnippet>318</a>        <span class="kw">let </span>b1 = builder.insert_block();
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">let </span>b2 = builder.insert_block();
-<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>b3 = builder.insert_block();
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>b4 = builder.insert_block();
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>b5 = builder.insert_block();
-<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">let </span>b6 = builder.insert_block();
-<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">let </span>b7 = builder.insert_block();
-<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span>b8 = builder.insert_block();
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>b9 = builder.insert_block();
-<a href=#327 id=327 data-nosnippet>327</a>
-<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">let </span>c1 = builder.add_parameter(Type::bool());
-<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span>c4 = builder.add_parameter(Type::bool());
+<a href=#294 id=294 data-nosnippet>294</a>            opt::{
+<a href=#295 id=295 data-nosnippet>295</a>                FORCE_UNROLL_THRESHOLD, constant_folding,
+<a href=#296 id=296 data-nosnippet>296</a>                flatten_cfg::branch_analysis::find_branch_ends, inlining,
+<a href=#297 id=297 data-nosnippet>297</a>            },
+<a href=#298 id=298 data-nosnippet>298</a>            primary_passes,
+<a href=#299 id=299 data-nosnippet>299</a>            ssa_gen::Ssa,
+<a href=#300 id=300 data-nosnippet>300</a>        },
+<a href=#301 id=301 data-nosnippet>301</a>    };
+<a href=#302 id=302 data-nosnippet>302</a>
+<a href=#303 id=303 data-nosnippet>303</a>    <span class="attr">#[test]
+<a href=#304 id=304 data-nosnippet>304</a>    </span><span class="kw">fn </span>nested_branch_analysis() {
+<a href=#305 id=305 data-nosnippet>305</a>        <span class="comment">//         b0
+<a href=#306 id=306 data-nosnippet>306</a>        //         ↓
+<a href=#307 id=307 data-nosnippet>307</a>        //         b1
+<a href=#308 id=308 data-nosnippet>308</a>        //       ↙   ↘
+<a href=#309 id=309 data-nosnippet>309</a>        //     b2     b3
+<a href=#310 id=310 data-nosnippet>310</a>        //     ↓      |
+<a href=#311 id=311 data-nosnippet>311</a>        //     b4     |
+<a href=#312 id=312 data-nosnippet>312</a>        //   ↙  ↘     |
+<a href=#313 id=313 data-nosnippet>313</a>        // b5    b6   |
+<a href=#314 id=314 data-nosnippet>314</a>        //   ↘  ↙     ↓
+<a href=#315 id=315 data-nosnippet>315</a>        //    b7      b8
+<a href=#316 id=316 data-nosnippet>316</a>        //      ↘   ↙
+<a href=#317 id=317 data-nosnippet>317</a>        //       b9
+<a href=#318 id=318 data-nosnippet>318</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">0</span>);
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
+<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>b1 = builder.insert_block();
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>b2 = builder.insert_block();
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">let </span>b3 = builder.insert_block();
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">let </span>b4 = builder.insert_block();
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span>b5 = builder.insert_block();
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>b6 = builder.insert_block();
+<a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">let </span>b7 = builder.insert_block();
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">let </span>b8 = builder.insert_block();
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span>b9 = builder.insert_block();
 <a href=#330 id=330 data-nosnippet>330</a>
-<a href=#331 id=331 data-nosnippet>331</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[]);
-<a href=#332 id=332 data-nosnippet>332</a>        builder.switch_to_block(b1);
-<a href=#333 id=333 data-nosnippet>333</a>        builder.terminate_with_jmpif(c1, b2, b3);
-<a href=#334 id=334 data-nosnippet>334</a>        builder.switch_to_block(b2);
-<a href=#335 id=335 data-nosnippet>335</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[]);
-<a href=#336 id=336 data-nosnippet>336</a>        builder.switch_to_block(b3);
-<a href=#337 id=337 data-nosnippet>337</a>        builder.terminate_with_jmp(b8, <span class="macro">vec!</span>[]);
-<a href=#338 id=338 data-nosnippet>338</a>        builder.switch_to_block(b4);
-<a href=#339 id=339 data-nosnippet>339</a>        builder.terminate_with_jmpif(c4, b5, b6);
-<a href=#340 id=340 data-nosnippet>340</a>        builder.switch_to_block(b5);
-<a href=#341 id=341 data-nosnippet>341</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
-<a href=#342 id=342 data-nosnippet>342</a>        builder.switch_to_block(b6);
-<a href=#343 id=343 data-nosnippet>343</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
-<a href=#344 id=344 data-nosnippet>344</a>        builder.switch_to_block(b7);
-<a href=#345 id=345 data-nosnippet>345</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
-<a href=#346 id=346 data-nosnippet>346</a>        builder.switch_to_block(b8);
-<a href=#347 id=347 data-nosnippet>347</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
-<a href=#348 id=348 data-nosnippet>348</a>        builder.switch_to_block(b9);
-<a href=#349 id=349 data-nosnippet>349</a>        builder.terminate_with_return(<span class="macro">vec!</span>[]);
-<a href=#350 id=350 data-nosnippet>350</a>
-<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>ssa = builder.finish();
-<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>function = ssa.main();
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
-<a href=#354 id=354 data-nosnippet>354</a>        <span class="kw">let </span>branch_ends = find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="macro">assert_eq!</span>(branch_ends.len(), <span class="number">2</span>);
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="macro">assert_eq!</span>(branch_ends.get(<span class="kw-2">&amp;</span>b1), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>b9));
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="macro">assert_eq!</span>(branch_ends.get(<span class="kw-2">&amp;</span>b4), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>b7));
-<a href=#358 id=358 data-nosnippet>358</a>    }
-<a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a>    <span class="attr">#[test]
-<a href=#361 id=361 data-nosnippet>361</a>    </span><span class="kw">fn </span>more_nested_branch_analysis() {
-<a href=#362 id=362 data-nosnippet>362</a>        <span class="comment">// Taken from #1664. The success case is that the internal domination asserts all pass.
-<a href=#363 id=363 data-nosnippet>363</a>        //          b0
-<a href=#364 id=364 data-nosnippet>364</a>        //        ↙   ↘
-<a href=#365 id=365 data-nosnippet>365</a>        //      b1     b10
-<a href=#366 id=366 data-nosnippet>366</a>        //    ↙  ↓      ↓  ↘
-<a href=#367 id=367 data-nosnippet>367</a>        // b2 → b3     b12 ← b11
-<a href=#368 id=368 data-nosnippet>368</a>        //    ↙  ↓      ↓  ↘
-<a href=#369 id=369 data-nosnippet>369</a>        // b4 → b5     b14 ← b13
-<a href=#370 id=370 data-nosnippet>370</a>        //    ↙  ↓      |
-<a href=#371 id=371 data-nosnippet>371</a>        // b6 → b7      |
-<a href=#372 id=372 data-nosnippet>372</a>        //    ↙  ↓      |
-<a href=#373 id=373 data-nosnippet>373</a>        // b8 → b9      |
-<a href=#374 id=374 data-nosnippet>374</a>        //        ↘    ↙
-<a href=#375 id=375 data-nosnippet>375</a>        //          b15
-<a href=#376 id=376 data-nosnippet>376</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">0</span>);
-<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
-<a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">let </span>b1 = builder.insert_block();
-<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>b2 = builder.insert_block();
-<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>b3 = builder.insert_block();
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>b4 = builder.insert_block();
-<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">let </span>b5 = builder.insert_block();
-<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span>b6 = builder.insert_block();
-<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>b7 = builder.insert_block();
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>b8 = builder.insert_block();
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>b9 = builder.insert_block();
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>b10 = builder.insert_block();
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>b11 = builder.insert_block();
-<a href=#390 id=390 data-nosnippet>390</a>        <span class="kw">let </span>b12 = builder.insert_block();
-<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">let </span>b13 = builder.insert_block();
-<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>b14 = builder.insert_block();
-<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>b15 = builder.insert_block();
-<a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a>        <span class="kw">let </span>c0 = builder.add_parameter(Type::bool());
-<a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">let </span>c1 = builder.add_parameter(Type::bool());
-<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>c3 = builder.add_parameter(Type::bool());
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span>c5 = builder.add_parameter(Type::bool());
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">let </span>c7 = builder.add_parameter(Type::bool());
-<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span>c10 = builder.add_parameter(Type::bool());
-<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span>c12 = builder.add_parameter(Type::bool());
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a>        builder.terminate_with_jmpif(c0, b1, b10);
-<a href=#404 id=404 data-nosnippet>404</a>        builder.switch_to_block(b1);
-<a href=#405 id=405 data-nosnippet>405</a>        builder.terminate_with_jmpif(c1, b2, b3);
-<a href=#406 id=406 data-nosnippet>406</a>        builder.switch_to_block(b2);
-<a href=#407 id=407 data-nosnippet>407</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
-<a href=#408 id=408 data-nosnippet>408</a>        builder.switch_to_block(b3);
-<a href=#409 id=409 data-nosnippet>409</a>        builder.terminate_with_jmpif(c3, b4, b5);
-<a href=#410 id=410 data-nosnippet>410</a>        builder.switch_to_block(b4);
-<a href=#411 id=411 data-nosnippet>411</a>        builder.terminate_with_jmp(b5, <span class="macro">vec!</span>[]);
-<a href=#412 id=412 data-nosnippet>412</a>        builder.switch_to_block(b5);
-<a href=#413 id=413 data-nosnippet>413</a>        builder.terminate_with_jmpif(c5, b6, b7);
-<a href=#414 id=414 data-nosnippet>414</a>        builder.switch_to_block(b6);
-<a href=#415 id=415 data-nosnippet>415</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
-<a href=#416 id=416 data-nosnippet>416</a>        builder.switch_to_block(b7);
-<a href=#417 id=417 data-nosnippet>417</a>        builder.terminate_with_jmpif(c7, b8, b9);
-<a href=#418 id=418 data-nosnippet>418</a>        builder.switch_to_block(b8);
-<a href=#419 id=419 data-nosnippet>419</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
-<a href=#420 id=420 data-nosnippet>420</a>        builder.switch_to_block(b9);
-<a href=#421 id=421 data-nosnippet>421</a>        builder.terminate_with_jmp(b15, <span class="macro">vec!</span>[]);
-<a href=#422 id=422 data-nosnippet>422</a>        builder.switch_to_block(b10);
-<a href=#423 id=423 data-nosnippet>423</a>        builder.terminate_with_jmpif(c10, b11, b12);
-<a href=#424 id=424 data-nosnippet>424</a>        builder.switch_to_block(b11);
-<a href=#425 id=425 data-nosnippet>425</a>        builder.terminate_with_jmp(b12, <span class="macro">vec!</span>[]);
-<a href=#426 id=426 data-nosnippet>426</a>        builder.switch_to_block(b12);
-<a href=#427 id=427 data-nosnippet>427</a>        builder.terminate_with_jmpif(c12, b14, b13);
-<a href=#428 id=428 data-nosnippet>428</a>        builder.switch_to_block(b13);
-<a href=#429 id=429 data-nosnippet>429</a>        builder.terminate_with_jmp(b14, <span class="macro">vec!</span>[]);
-<a href=#430 id=430 data-nosnippet>430</a>        builder.switch_to_block(b14);
-<a href=#431 id=431 data-nosnippet>431</a>        builder.terminate_with_jmp(b15, <span class="macro">vec!</span>[]);
-<a href=#432 id=432 data-nosnippet>432</a>        builder.switch_to_block(b15);
-<a href=#433 id=433 data-nosnippet>433</a>        builder.terminate_with_return(<span class="macro">vec!</span>[]);
-<a href=#434 id=434 data-nosnippet>434</a>
-<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw">let </span>ssa = builder.finish();
-<a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span>function = ssa.main();
-<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
-<a href=#438 id=438 data-nosnippet>438</a>        find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
-<a href=#439 id=439 data-nosnippet>439</a>    }
-<a href=#440 id=440 data-nosnippet>440</a>
-<a href=#441 id=441 data-nosnippet>441</a>    <span class="attr">#[test]
-<a href=#442 id=442 data-nosnippet>442</a>    </span><span class="kw">fn </span>test_find_branch_ends_with_documented_example() {
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="comment">//                    b11
-<a href=#444 id=444 data-nosnippet>444</a>        //                   /   \
-<a href=#445 id=445 data-nosnippet>445</a>        //       b5        b9     b13
-<a href=#446 id=446 data-nosnippet>446</a>        //      /  \      /  \   /   \
-<a href=#447 id=447 data-nosnippet>447</a>        //    b1    b7--b8    b12     b15
-<a href=#448 id=448 data-nosnippet>448</a>        //    / \  /      \          /   \
-<a href=#449 id=449 data-nosnippet>449</a>        //  b0   b6        b10----b14    b4
-<a href=#450 id=450 data-nosnippet>450</a>        //    \                          /
-<a href=#451 id=451 data-nosnippet>451</a>        //    b2-----------------------b3
-<a href=#452 id=452 data-nosnippet>452</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#453 id=453 data-nosnippet>453</a>        acir(inline) fn main f0 {
-<a href=#454 id=454 data-nosnippet>454</a>          b0():
-<a href=#455 id=455 data-nosnippet>455</a>            jmpif u1 0 then: b1, else: b2
-<a href=#456 id=456 data-nosnippet>456</a>          b1():
-<a href=#457 id=457 data-nosnippet>457</a>            jmpif u1 0 then: b5, else: b6
-<a href=#458 id=458 data-nosnippet>458</a>          b2():
-<a href=#459 id=459 data-nosnippet>459</a>            jmp b3()
-<a href=#460 id=460 data-nosnippet>460</a>          b3():
-<a href=#461 id=461 data-nosnippet>461</a>            jmp b4()
-<a href=#462 id=462 data-nosnippet>462</a>          b4():
-<a href=#463 id=463 data-nosnippet>463</a>            return
-<a href=#464 id=464 data-nosnippet>464</a>          b5():
-<a href=#465 id=465 data-nosnippet>465</a>            jmp b7()
-<a href=#466 id=466 data-nosnippet>466</a>          b6():
-<a href=#467 id=467 data-nosnippet>467</a>            jmp b7()
-<a href=#468 id=468 data-nosnippet>468</a>          b7():
-<a href=#469 id=469 data-nosnippet>469</a>            jmp b8()
-<a href=#470 id=470 data-nosnippet>470</a>          b8():
-<a href=#471 id=471 data-nosnippet>471</a>            jmpif u1 0 then: b9, else: b10
-<a href=#472 id=472 data-nosnippet>472</a>          b9():
-<a href=#473 id=473 data-nosnippet>473</a>            jmpif u1 0 then: b11, else: b12
-<a href=#474 id=474 data-nosnippet>474</a>          b10():
-<a href=#475 id=475 data-nosnippet>475</a>            jmp b14()
-<a href=#476 id=476 data-nosnippet>476</a>          b11():
-<a href=#477 id=477 data-nosnippet>477</a>            jmp b13()
-<a href=#478 id=478 data-nosnippet>478</a>          b12():
-<a href=#479 id=479 data-nosnippet>479</a>            jmp b13()
-<a href=#480 id=480 data-nosnippet>480</a>          b13():
-<a href=#481 id=481 data-nosnippet>481</a>            jmp b15()
-<a href=#482 id=482 data-nosnippet>482</a>          b14():
-<a href=#483 id=483 data-nosnippet>483</a>            jmp b15()
-<a href=#484 id=484 data-nosnippet>484</a>          b15():
-<a href=#485 id=485 data-nosnippet>485</a>            jmp b4()
-<a href=#486 id=486 data-nosnippet>486</a>        }
-<a href=#487 id=487 data-nosnippet>487</a>        "</span>;
-<a href=#488 id=488 data-nosnippet>488</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#489 id=489 data-nosnippet>489</a>        <span class="kw">let </span>main = ssa.main();
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(main);
-<a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">let </span>ends = find_branch_ends(main, <span class="kw-2">&amp;</span>cfg);
-<a href=#492 id=492 data-nosnippet>492</a>
-<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">let </span>b = |n| BasicBlockId::new(n);
-<a href=#494 id=494 data-nosnippet>494</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">0</span>)], b(<span class="number">4</span>));
-<a href=#495 id=495 data-nosnippet>495</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">1</span>)], b(<span class="number">7</span>));
-<a href=#496 id=496 data-nosnippet>496</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">8</span>)], b(<span class="number">15</span>));
-<a href=#497 id=497 data-nosnippet>497</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">9</span>)], b(<span class="number">13</span>));
-<a href=#498 id=498 data-nosnippet>498</a>    }
-<a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a>    <span class="attr">#[test]
-<a href=#501 id=501 data-nosnippet>501</a>    </span><span class="kw">fn </span>apply_function() {
-<a href=#502 id=502 data-nosnippet>502</a>        <span class="comment">// Make sure that our dynamic dispatch function created during defunctionalization
-<a href=#503 id=503 data-nosnippet>503</a>        // passes branch analysis.
-<a href=#504 id=504 data-nosnippet>504</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#505 id=505 data-nosnippet>505</a>        acir(inline_always) fn apply f5 {
-<a href=#506 id=506 data-nosnippet>506</a>          b0(v0: Field, v1: u32):
-<a href=#507 id=507 data-nosnippet>507</a>            v4 = eq v0, Field 2
-<a href=#508 id=508 data-nosnippet>508</a>            jmpif v4 then: b3, else: b2
-<a href=#509 id=509 data-nosnippet>509</a>          b1(v2: u32):
-<a href=#510 id=510 data-nosnippet>510</a>            return v2
-<a href=#511 id=511 data-nosnippet>511</a>          b2():
-<a href=#512 id=512 data-nosnippet>512</a>            v9 = eq v0, Field 3
-<a href=#513 id=513 data-nosnippet>513</a>            jmpif v9 then: b6, else: b5
-<a href=#514 id=514 data-nosnippet>514</a>          b3():
-<a href=#515 id=515 data-nosnippet>515</a>            v6 = call f2(v1) -&gt; u32
-<a href=#516 id=516 data-nosnippet>516</a>            jmp b4(v6)
-<a href=#517 id=517 data-nosnippet>517</a>          b4(v7: u32):
-<a href=#518 id=518 data-nosnippet>518</a>            jmp b10(v7)
-<a href=#519 id=519 data-nosnippet>519</a>          b5():
-<a href=#520 id=520 data-nosnippet>520</a>            constrain v0 == Field 4
-<a href=#521 id=521 data-nosnippet>521</a>            v15 = call f4(v1) -&gt; u32
-<a href=#522 id=522 data-nosnippet>522</a>            jmp b8(v15)
-<a href=#523 id=523 data-nosnippet>523</a>          b6():
-<a href=#524 id=524 data-nosnippet>524</a>            v11 = call f3(v1) -&gt; u32
-<a href=#525 id=525 data-nosnippet>525</a>            jmp b7(v11)
-<a href=#526 id=526 data-nosnippet>526</a>          b7(v12: u32):
-<a href=#527 id=527 data-nosnippet>527</a>            jmp b9(v12)
-<a href=#528 id=528 data-nosnippet>528</a>          b8(v16: u32):
-<a href=#529 id=529 data-nosnippet>529</a>            jmp b9(v16)
-<a href=#530 id=530 data-nosnippet>530</a>          b9(v17: u32):
-<a href=#531 id=531 data-nosnippet>531</a>            jmp b10(v17)
-<a href=#532 id=532 data-nosnippet>532</a>          b10(v18: u32):
-<a href=#533 id=533 data-nosnippet>533</a>            jmp b1(v18)
-<a href=#534 id=534 data-nosnippet>534</a>        }
-<a href=#535 id=535 data-nosnippet>535</a>        acir(inline) fn lambda f2 {
-<a href=#536 id=536 data-nosnippet>536</a>          b0(v0: u32):
-<a href=#537 id=537 data-nosnippet>537</a>            return v0
-<a href=#538 id=538 data-nosnippet>538</a>        }
-<a href=#539 id=539 data-nosnippet>539</a>        acir(inline) fn lambda f3 {
-<a href=#540 id=540 data-nosnippet>540</a>          b0(v0: u32):
-<a href=#541 id=541 data-nosnippet>541</a>            v2 = add v0, u32 1
-<a href=#542 id=542 data-nosnippet>542</a>            return v2
-<a href=#543 id=543 data-nosnippet>543</a>        }
-<a href=#544 id=544 data-nosnippet>544</a>        acir(inline) fn lambda f4 {
-<a href=#545 id=545 data-nosnippet>545</a>          b0(v0: u32):
-<a href=#546 id=546 data-nosnippet>546</a>            v2 = add v0, u32 2
-<a href=#547 id=547 data-nosnippet>547</a>            return v2
-<a href=#548 id=548 data-nosnippet>548</a>        }
-<a href=#549 id=549 data-nosnippet>549</a>        "</span>;
-<a href=#550 id=550 data-nosnippet>550</a>
-<a href=#551 id=551 data-nosnippet>551</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#552 id=552 data-nosnippet>552</a>        <span class="kw">let </span>function = ssa.main();
-<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
-<a href=#554 id=554 data-nosnippet>554</a>        find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
-<a href=#555 id=555 data-nosnippet>555</a>    }
-<a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a>    <span class="attr">#[test]
-<a href=#558 id=558 data-nosnippet>558</a>    </span><span class="kw">fn </span>test_large_unroll_stack_overflow() {
-<a href=#559 id=559 data-nosnippet>559</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#560 id=560 data-nosnippet>560</a>        acir(inline) fn main f0 {
-<a href=#561 id=561 data-nosnippet>561</a>          b0(v0: u1, v1: u64, v2: i32, v3: u1, v4: Field, v5: u1, v6: u1):
-<a href=#562 id=562 data-nosnippet>562</a>            jmpif v6 then: b1, else: b2
-<a href=#563 id=563 data-nosnippet>563</a>          b1():
-<a href=#564 id=564 data-nosnippet>564</a>            jmp b14()
-<a href=#565 id=565 data-nosnippet>565</a>          b2():
-<a href=#566 id=566 data-nosnippet>566</a>            jmp b5(u32 67)
-<a href=#567 id=567 data-nosnippet>567</a>          b3():
-<a href=#568 id=568 data-nosnippet>568</a>            jmp b8(u32 198)
-<a href=#569 id=569 data-nosnippet>569</a>          b4():
-<a href=#570 id=570 data-nosnippet>570</a>            jmp b14()
-<a href=#571 id=571 data-nosnippet>571</a>          b5(v7: u32):
-<a href=#572 id=572 data-nosnippet>572</a>            v11 = lt v7, u32 232
-<a href=#573 id=573 data-nosnippet>573</a>            jmpif v11 then: b3, else: b4
-<a href=#574 id=574 data-nosnippet>574</a>          b6():
-<a href=#575 id=575 data-nosnippet>575</a>            v18 = add v7, u32 1
-<a href=#576 id=576 data-nosnippet>576</a>            v19 = truncate v18 to 32 bits, max_bit_size: 33
-<a href=#577 id=577 data-nosnippet>577</a>            v21 = call f1(v4, v4, v4, v4, v4, v0, v0) -&gt; Field
-<a href=#578 id=578 data-nosnippet>578</a>            jmp b5(v19)
-<a href=#579 id=579 data-nosnippet>579</a>          b7():
-<a href=#580 id=580 data-nosnippet>580</a>            jmpif v6 then: b10, else: b11
-<a href=#581 id=581 data-nosnippet>581</a>          b8(v8: u32):
-<a href=#582 id=582 data-nosnippet>582</a>            v14 = lt v8, u32 90
-<a href=#583 id=583 data-nosnippet>583</a>            jmpif v14 then: b7, else: b6
-<a href=#584 id=584 data-nosnippet>584</a>          b9():
-<a href=#585 id=585 data-nosnippet>585</a>            v16 = add v8, u32 1
-<a href=#586 id=586 data-nosnippet>586</a>            v17 = truncate v16 to 32 bits, max_bit_size: 33
-<a href=#587 id=587 data-nosnippet>587</a>            jmp b8(v17)
-<a href=#588 id=588 data-nosnippet>588</a>          b10():
-<a href=#589 id=589 data-nosnippet>589</a>            jmp b12()
-<a href=#590 id=590 data-nosnippet>590</a>          b11():
-<a href=#591 id=591 data-nosnippet>591</a>            jmp b12()
-<a href=#592 id=592 data-nosnippet>592</a>          b12():
-<a href=#593 id=593 data-nosnippet>593</a>            jmp b9()
-<a href=#594 id=594 data-nosnippet>594</a>          b13():
-<a href=#595 id=595 data-nosnippet>595</a>            return v0
-<a href=#596 id=596 data-nosnippet>596</a>          b14():
-<a href=#597 id=597 data-nosnippet>597</a>            jmp b13()
-<a href=#598 id=598 data-nosnippet>598</a>        }
-<a href=#599 id=599 data-nosnippet>599</a>        acir(inline) fn f1 f1 {
-<a href=#600 id=600 data-nosnippet>600</a>          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
-<a href=#601 id=601 data-nosnippet>601</a>            jmp b3(u32 54)
-<a href=#602 id=602 data-nosnippet>602</a>          b1():
-<a href=#603 id=603 data-nosnippet>603</a>            jmpif v6 then: b5, else: b6
-<a href=#604 id=604 data-nosnippet>604</a>          b2():
-<a href=#605 id=605 data-nosnippet>605</a>            jmp b8()
-<a href=#606 id=606 data-nosnippet>606</a>          b3(v7: u32):
-<a href=#607 id=607 data-nosnippet>607</a>            v10 = lt v7, u32 207
-<a href=#608 id=608 data-nosnippet>608</a>            jmpif v10 then: b1, else: b2
-<a href=#609 id=609 data-nosnippet>609</a>          b4():
-<a href=#610 id=610 data-nosnippet>610</a>            v12 = add v7, u32 1
-<a href=#611 id=611 data-nosnippet>611</a>            v13 = truncate v12 to 32 bits, max_bit_size: 33
-<a href=#612 id=612 data-nosnippet>612</a>            jmp b3(v13)
-<a href=#613 id=613 data-nosnippet>613</a>          b5():
-<a href=#614 id=614 data-nosnippet>614</a>            jmp b7()
-<a href=#615 id=615 data-nosnippet>615</a>          b6():
-<a href=#616 id=616 data-nosnippet>616</a>            jmp b7()
-<a href=#617 id=617 data-nosnippet>617</a>          b7():
-<a href=#618 id=618 data-nosnippet>618</a>            jmp b4()
-<a href=#619 id=619 data-nosnippet>619</a>          b8():
-<a href=#620 id=620 data-nosnippet>620</a>            return v4
-<a href=#621 id=621 data-nosnippet>621</a>        }
-<a href=#622 id=622 data-nosnippet>622</a>        "#</span>;
-<a href=#623 id=623 data-nosnippet>623</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#624 id=624 data-nosnippet>624</a>
-<a href=#625 id=625 data-nosnippet>625</a>        <span class="comment">// If we try to run the branch analysis now, it panics, it doesn't have the expected CFG structure.
-<a href=#626 id=626 data-nosnippet>626</a>        // Instead, run the pipeline up to just before the flattening pass.
-<a href=#627 id=627 data-nosnippet>627</a>        </span><span class="kw">let </span>ssa = run_pipeline_up_to_pass(ssa, <span class="string">"Flattening"</span>);
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>        <span class="comment">// The resulting SSA has more than 70k blocks.
-<a href=#630 id=630 data-nosnippet>630</a>        // Both functions in the SSA have blocks such as b1-&gt;[b5, b6]-&gt;b7 where
-<a href=#631 id=631 data-nosnippet>631</a>        // a branch immediately rejoins. For whatever combination, it's too much for
-<a href=#632 id=632 data-nosnippet>632</a>        // a recursive algorithm, and can cause a stack overflow.
-<a href=#633 id=633 data-nosnippet>633</a>
-<a href=#634 id=634 data-nosnippet>634</a>        </span><span class="kw">let </span>function = ssa.main();
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
-<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw">let _ </span>= find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
-<a href=#637 id=637 data-nosnippet>637</a>    }
-<a href=#638 id=638 data-nosnippet>638</a>
-<a href=#639 id=639 data-nosnippet>639</a>    <span class="kw">fn </span>run_pipeline_up_to_pass(<span class="kw-2">mut </span>ssa: Ssa, stop_before_pass: <span class="kw-2">&amp;</span>str) -&gt; Ssa {
-<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">let </span>options = SsaEvaluatorOptions {
-<a href=#641 id=641 data-nosnippet>641</a>            ssa_logging: <span class="kw">crate</span>::ssa::SsaLogging::None,
-<a href=#642 id=642 data-nosnippet>642</a>            brillig_options: BrilligOptions::default(),
-<a href=#643 id=643 data-nosnippet>643</a>            print_codegen_timings: <span class="bool-val">false</span>,
-<a href=#644 id=644 data-nosnippet>644</a>            emit_ssa: <span class="prelude-val">None</span>,
-<a href=#645 id=645 data-nosnippet>645</a>            skip_underconstrained_check: <span class="bool-val">true</span>,
-<a href=#646 id=646 data-nosnippet>646</a>            skip_brillig_constraints_check: <span class="bool-val">true</span>,
-<a href=#647 id=647 data-nosnippet>647</a>            enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
-<a href=#648 id=648 data-nosnippet>648</a>            inliner_aggressiveness: <span class="number">0</span>,
-<a href=#649 id=649 data-nosnippet>649</a>            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-<a href=#650 id=650 data-nosnippet>650</a>            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
-<a href=#651 id=651 data-nosnippet>651</a>            max_bytecode_increase_percent: <span class="prelude-val">None</span>,
-<a href=#652 id=652 data-nosnippet>652</a>            skip_passes: Vec::new(),
-<a href=#653 id=653 data-nosnippet>653</a>        };
-<a href=#654 id=654 data-nosnippet>654</a>        <span class="kw">let </span>pipeline = primary_passes(<span class="kw-2">&amp;</span>options);
-<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">for </span>pass <span class="kw">in </span>pipeline {
-<a href=#656 id=656 data-nosnippet>656</a>            <span class="kw">if </span>pass.msg() == stop_before_pass {
-<a href=#657 id=657 data-nosnippet>657</a>                <span class="kw">break</span>;
-<a href=#658 id=658 data-nosnippet>658</a>            }
-<a href=#659 id=659 data-nosnippet>659</a>            ssa = pass
-<a href=#660 id=660 data-nosnippet>660</a>                .run(ssa)
-<a href=#661 id=661 data-nosnippet>661</a>                .unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">"failed to run pass '{}': {e}"</span>, pass.msg()));
-<a href=#662 id=662 data-nosnippet>662</a>        }
-<a href=#663 id=663 data-nosnippet>663</a>        ssa
-<a href=#664 id=664 data-nosnippet>664</a>    }
-<a href=#665 id=665 data-nosnippet>665</a>}</code></pre></div></section></main></body></html>
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">let </span>c1 = builder.add_parameter(Type::bool());
+<a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">let </span>c4 = builder.add_parameter(Type::bool());
+<a href=#333 id=333 data-nosnippet>333</a>
+<a href=#334 id=334 data-nosnippet>334</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[]);
+<a href=#335 id=335 data-nosnippet>335</a>        builder.switch_to_block(b1);
+<a href=#336 id=336 data-nosnippet>336</a>        builder.terminate_with_jmpif(c1, b2, b3);
+<a href=#337 id=337 data-nosnippet>337</a>        builder.switch_to_block(b2);
+<a href=#338 id=338 data-nosnippet>338</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[]);
+<a href=#339 id=339 data-nosnippet>339</a>        builder.switch_to_block(b3);
+<a href=#340 id=340 data-nosnippet>340</a>        builder.terminate_with_jmp(b8, <span class="macro">vec!</span>[]);
+<a href=#341 id=341 data-nosnippet>341</a>        builder.switch_to_block(b4);
+<a href=#342 id=342 data-nosnippet>342</a>        builder.terminate_with_jmpif(c4, b5, b6);
+<a href=#343 id=343 data-nosnippet>343</a>        builder.switch_to_block(b5);
+<a href=#344 id=344 data-nosnippet>344</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
+<a href=#345 id=345 data-nosnippet>345</a>        builder.switch_to_block(b6);
+<a href=#346 id=346 data-nosnippet>346</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
+<a href=#347 id=347 data-nosnippet>347</a>        builder.switch_to_block(b7);
+<a href=#348 id=348 data-nosnippet>348</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
+<a href=#349 id=349 data-nosnippet>349</a>        builder.switch_to_block(b8);
+<a href=#350 id=350 data-nosnippet>350</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
+<a href=#351 id=351 data-nosnippet>351</a>        builder.switch_to_block(b9);
+<a href=#352 id=352 data-nosnippet>352</a>        builder.terminate_with_return(<span class="macro">vec!</span>[]);
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>        <span class="kw">let </span>ssa = builder.finish();
+<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span>function = ssa.main();
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">let </span>branch_ends = find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="macro">assert_eq!</span>(branch_ends.len(), <span class="number">2</span>);
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="macro">assert_eq!</span>(branch_ends.get(<span class="kw-2">&amp;</span>b1), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>b9));
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="macro">assert_eq!</span>(branch_ends.get(<span class="kw-2">&amp;</span>b4), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>b7));
+<a href=#361 id=361 data-nosnippet>361</a>    }
+<a href=#362 id=362 data-nosnippet>362</a>
+<a href=#363 id=363 data-nosnippet>363</a>    <span class="attr">#[test]
+<a href=#364 id=364 data-nosnippet>364</a>    </span><span class="kw">fn </span>more_nested_branch_analysis() {
+<a href=#365 id=365 data-nosnippet>365</a>        <span class="comment">// Taken from #1664. The success case is that the internal domination asserts all pass.
+<a href=#366 id=366 data-nosnippet>366</a>        //          b0
+<a href=#367 id=367 data-nosnippet>367</a>        //        ↙   ↘
+<a href=#368 id=368 data-nosnippet>368</a>        //      b1     b10
+<a href=#369 id=369 data-nosnippet>369</a>        //    ↙  ↓      ↓  ↘
+<a href=#370 id=370 data-nosnippet>370</a>        // b2 → b3     b12 ← b11
+<a href=#371 id=371 data-nosnippet>371</a>        //    ↙  ↓      ↓  ↘
+<a href=#372 id=372 data-nosnippet>372</a>        // b4 → b5     b14 ← b13
+<a href=#373 id=373 data-nosnippet>373</a>        //    ↙  ↓      |
+<a href=#374 id=374 data-nosnippet>374</a>        // b6 → b7      |
+<a href=#375 id=375 data-nosnippet>375</a>        //    ↙  ↓      |
+<a href=#376 id=376 data-nosnippet>376</a>        // b8 → b9      |
+<a href=#377 id=377 data-nosnippet>377</a>        //        ↘    ↙
+<a href=#378 id=378 data-nosnippet>378</a>        //          b15
+<a href=#379 id=379 data-nosnippet>379</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">0</span>);
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
+<a href=#381 id=381 data-nosnippet>381</a>
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>b1 = builder.insert_block();
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">let </span>b2 = builder.insert_block();
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span>b3 = builder.insert_block();
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>b4 = builder.insert_block();
+<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>b5 = builder.insert_block();
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>b6 = builder.insert_block();
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>b7 = builder.insert_block();
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>b8 = builder.insert_block();
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="kw">let </span>b9 = builder.insert_block();
+<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">let </span>b10 = builder.insert_block();
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>b11 = builder.insert_block();
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>b12 = builder.insert_block();
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="kw">let </span>b13 = builder.insert_block();
+<a href=#395 id=395 data-nosnippet>395</a>        <span class="kw">let </span>b14 = builder.insert_block();
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">let </span>b15 = builder.insert_block();
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span>c0 = builder.add_parameter(Type::bool());
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">let </span>c1 = builder.add_parameter(Type::bool());
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span>c3 = builder.add_parameter(Type::bool());
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span>c5 = builder.add_parameter(Type::bool());
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span>c7 = builder.add_parameter(Type::bool());
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>c10 = builder.add_parameter(Type::bool());
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="kw">let </span>c12 = builder.add_parameter(Type::bool());
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a>        builder.terminate_with_jmpif(c0, b1, b10);
+<a href=#407 id=407 data-nosnippet>407</a>        builder.switch_to_block(b1);
+<a href=#408 id=408 data-nosnippet>408</a>        builder.terminate_with_jmpif(c1, b2, b3);
+<a href=#409 id=409 data-nosnippet>409</a>        builder.switch_to_block(b2);
+<a href=#410 id=410 data-nosnippet>410</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
+<a href=#411 id=411 data-nosnippet>411</a>        builder.switch_to_block(b3);
+<a href=#412 id=412 data-nosnippet>412</a>        builder.terminate_with_jmpif(c3, b4, b5);
+<a href=#413 id=413 data-nosnippet>413</a>        builder.switch_to_block(b4);
+<a href=#414 id=414 data-nosnippet>414</a>        builder.terminate_with_jmp(b5, <span class="macro">vec!</span>[]);
+<a href=#415 id=415 data-nosnippet>415</a>        builder.switch_to_block(b5);
+<a href=#416 id=416 data-nosnippet>416</a>        builder.terminate_with_jmpif(c5, b6, b7);
+<a href=#417 id=417 data-nosnippet>417</a>        builder.switch_to_block(b6);
+<a href=#418 id=418 data-nosnippet>418</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
+<a href=#419 id=419 data-nosnippet>419</a>        builder.switch_to_block(b7);
+<a href=#420 id=420 data-nosnippet>420</a>        builder.terminate_with_jmpif(c7, b8, b9);
+<a href=#421 id=421 data-nosnippet>421</a>        builder.switch_to_block(b8);
+<a href=#422 id=422 data-nosnippet>422</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
+<a href=#423 id=423 data-nosnippet>423</a>        builder.switch_to_block(b9);
+<a href=#424 id=424 data-nosnippet>424</a>        builder.terminate_with_jmp(b15, <span class="macro">vec!</span>[]);
+<a href=#425 id=425 data-nosnippet>425</a>        builder.switch_to_block(b10);
+<a href=#426 id=426 data-nosnippet>426</a>        builder.terminate_with_jmpif(c10, b11, b12);
+<a href=#427 id=427 data-nosnippet>427</a>        builder.switch_to_block(b11);
+<a href=#428 id=428 data-nosnippet>428</a>        builder.terminate_with_jmp(b12, <span class="macro">vec!</span>[]);
+<a href=#429 id=429 data-nosnippet>429</a>        builder.switch_to_block(b12);
+<a href=#430 id=430 data-nosnippet>430</a>        builder.terminate_with_jmpif(c12, b14, b13);
+<a href=#431 id=431 data-nosnippet>431</a>        builder.switch_to_block(b13);
+<a href=#432 id=432 data-nosnippet>432</a>        builder.terminate_with_jmp(b14, <span class="macro">vec!</span>[]);
+<a href=#433 id=433 data-nosnippet>433</a>        builder.switch_to_block(b14);
+<a href=#434 id=434 data-nosnippet>434</a>        builder.terminate_with_jmp(b15, <span class="macro">vec!</span>[]);
+<a href=#435 id=435 data-nosnippet>435</a>        builder.switch_to_block(b15);
+<a href=#436 id=436 data-nosnippet>436</a>        builder.terminate_with_return(<span class="macro">vec!</span>[]);
+<a href=#437 id=437 data-nosnippet>437</a>
+<a href=#438 id=438 data-nosnippet>438</a>        <span class="kw">let </span>ssa = builder.finish();
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">let </span>function = ssa.main();
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+<a href=#441 id=441 data-nosnippet>441</a>        find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
+<a href=#442 id=442 data-nosnippet>442</a>    }
+<a href=#443 id=443 data-nosnippet>443</a>
+<a href=#444 id=444 data-nosnippet>444</a>    <span class="attr">#[test]
+<a href=#445 id=445 data-nosnippet>445</a>    </span><span class="kw">fn </span>test_find_branch_ends_with_documented_example() {
+<a href=#446 id=446 data-nosnippet>446</a>        <span class="comment">//                    b11
+<a href=#447 id=447 data-nosnippet>447</a>        //                   /   \
+<a href=#448 id=448 data-nosnippet>448</a>        //       b5        b9     b13
+<a href=#449 id=449 data-nosnippet>449</a>        //      /  \      /  \   /   \
+<a href=#450 id=450 data-nosnippet>450</a>        //    b1    b7--b8    b12     b15
+<a href=#451 id=451 data-nosnippet>451</a>        //    / \  /      \          /   \
+<a href=#452 id=452 data-nosnippet>452</a>        //  b0   b6        b10----b14    b4
+<a href=#453 id=453 data-nosnippet>453</a>        //    \                          /
+<a href=#454 id=454 data-nosnippet>454</a>        //    b2-----------------------b3
+<a href=#455 id=455 data-nosnippet>455</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#456 id=456 data-nosnippet>456</a>        acir(inline) fn main f0 {
+<a href=#457 id=457 data-nosnippet>457</a>          b0():
+<a href=#458 id=458 data-nosnippet>458</a>            jmpif u1 0 then: b1, else: b2
+<a href=#459 id=459 data-nosnippet>459</a>          b1():
+<a href=#460 id=460 data-nosnippet>460</a>            jmpif u1 0 then: b5, else: b6
+<a href=#461 id=461 data-nosnippet>461</a>          b2():
+<a href=#462 id=462 data-nosnippet>462</a>            jmp b3()
+<a href=#463 id=463 data-nosnippet>463</a>          b3():
+<a href=#464 id=464 data-nosnippet>464</a>            jmp b4()
+<a href=#465 id=465 data-nosnippet>465</a>          b4():
+<a href=#466 id=466 data-nosnippet>466</a>            return
+<a href=#467 id=467 data-nosnippet>467</a>          b5():
+<a href=#468 id=468 data-nosnippet>468</a>            jmp b7()
+<a href=#469 id=469 data-nosnippet>469</a>          b6():
+<a href=#470 id=470 data-nosnippet>470</a>            jmp b7()
+<a href=#471 id=471 data-nosnippet>471</a>          b7():
+<a href=#472 id=472 data-nosnippet>472</a>            jmp b8()
+<a href=#473 id=473 data-nosnippet>473</a>          b8():
+<a href=#474 id=474 data-nosnippet>474</a>            jmpif u1 0 then: b9, else: b10
+<a href=#475 id=475 data-nosnippet>475</a>          b9():
+<a href=#476 id=476 data-nosnippet>476</a>            jmpif u1 0 then: b11, else: b12
+<a href=#477 id=477 data-nosnippet>477</a>          b10():
+<a href=#478 id=478 data-nosnippet>478</a>            jmp b14()
+<a href=#479 id=479 data-nosnippet>479</a>          b11():
+<a href=#480 id=480 data-nosnippet>480</a>            jmp b13()
+<a href=#481 id=481 data-nosnippet>481</a>          b12():
+<a href=#482 id=482 data-nosnippet>482</a>            jmp b13()
+<a href=#483 id=483 data-nosnippet>483</a>          b13():
+<a href=#484 id=484 data-nosnippet>484</a>            jmp b15()
+<a href=#485 id=485 data-nosnippet>485</a>          b14():
+<a href=#486 id=486 data-nosnippet>486</a>            jmp b15()
+<a href=#487 id=487 data-nosnippet>487</a>          b15():
+<a href=#488 id=488 data-nosnippet>488</a>            jmp b4()
+<a href=#489 id=489 data-nosnippet>489</a>        }
+<a href=#490 id=490 data-nosnippet>490</a>        "</span>;
+<a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(main);
+<a href=#494 id=494 data-nosnippet>494</a>        <span class="kw">let </span>ends = find_branch_ends(main, <span class="kw-2">&amp;</span>cfg);
+<a href=#495 id=495 data-nosnippet>495</a>
+<a href=#496 id=496 data-nosnippet>496</a>        <span class="kw">let </span>b = |n| BasicBlockId::new(n);
+<a href=#497 id=497 data-nosnippet>497</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">0</span>)], b(<span class="number">4</span>));
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">1</span>)], b(<span class="number">7</span>));
+<a href=#499 id=499 data-nosnippet>499</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">8</span>)], b(<span class="number">15</span>));
+<a href=#500 id=500 data-nosnippet>500</a>        <span class="macro">assert_eq!</span>(ends[<span class="kw-2">&amp;</span>b(<span class="number">9</span>)], b(<span class="number">13</span>));
+<a href=#501 id=501 data-nosnippet>501</a>    }
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="attr">#[test]
+<a href=#504 id=504 data-nosnippet>504</a>    </span><span class="kw">fn </span>apply_function() {
+<a href=#505 id=505 data-nosnippet>505</a>        <span class="comment">// Make sure that our dynamic dispatch function created during defunctionalization
+<a href=#506 id=506 data-nosnippet>506</a>        // passes branch analysis.
+<a href=#507 id=507 data-nosnippet>507</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#508 id=508 data-nosnippet>508</a>        acir(inline_always) fn apply f5 {
+<a href=#509 id=509 data-nosnippet>509</a>          b0(v0: Field, v1: u32):
+<a href=#510 id=510 data-nosnippet>510</a>            v4 = eq v0, Field 2
+<a href=#511 id=511 data-nosnippet>511</a>            jmpif v4 then: b3, else: b2
+<a href=#512 id=512 data-nosnippet>512</a>          b1(v2: u32):
+<a href=#513 id=513 data-nosnippet>513</a>            return v2
+<a href=#514 id=514 data-nosnippet>514</a>          b2():
+<a href=#515 id=515 data-nosnippet>515</a>            v9 = eq v0, Field 3
+<a href=#516 id=516 data-nosnippet>516</a>            jmpif v9 then: b6, else: b5
+<a href=#517 id=517 data-nosnippet>517</a>          b3():
+<a href=#518 id=518 data-nosnippet>518</a>            v6 = call f2(v1) -&gt; u32
+<a href=#519 id=519 data-nosnippet>519</a>            jmp b4(v6)
+<a href=#520 id=520 data-nosnippet>520</a>          b4(v7: u32):
+<a href=#521 id=521 data-nosnippet>521</a>            jmp b10(v7)
+<a href=#522 id=522 data-nosnippet>522</a>          b5():
+<a href=#523 id=523 data-nosnippet>523</a>            constrain v0 == Field 4
+<a href=#524 id=524 data-nosnippet>524</a>            v15 = call f4(v1) -&gt; u32
+<a href=#525 id=525 data-nosnippet>525</a>            jmp b8(v15)
+<a href=#526 id=526 data-nosnippet>526</a>          b6():
+<a href=#527 id=527 data-nosnippet>527</a>            v11 = call f3(v1) -&gt; u32
+<a href=#528 id=528 data-nosnippet>528</a>            jmp b7(v11)
+<a href=#529 id=529 data-nosnippet>529</a>          b7(v12: u32):
+<a href=#530 id=530 data-nosnippet>530</a>            jmp b9(v12)
+<a href=#531 id=531 data-nosnippet>531</a>          b8(v16: u32):
+<a href=#532 id=532 data-nosnippet>532</a>            jmp b9(v16)
+<a href=#533 id=533 data-nosnippet>533</a>          b9(v17: u32):
+<a href=#534 id=534 data-nosnippet>534</a>            jmp b10(v17)
+<a href=#535 id=535 data-nosnippet>535</a>          b10(v18: u32):
+<a href=#536 id=536 data-nosnippet>536</a>            jmp b1(v18)
+<a href=#537 id=537 data-nosnippet>537</a>        }
+<a href=#538 id=538 data-nosnippet>538</a>        acir(inline) fn lambda f2 {
+<a href=#539 id=539 data-nosnippet>539</a>          b0(v0: u32):
+<a href=#540 id=540 data-nosnippet>540</a>            return v0
+<a href=#541 id=541 data-nosnippet>541</a>        }
+<a href=#542 id=542 data-nosnippet>542</a>        acir(inline) fn lambda f3 {
+<a href=#543 id=543 data-nosnippet>543</a>          b0(v0: u32):
+<a href=#544 id=544 data-nosnippet>544</a>            v2 = add v0, u32 1
+<a href=#545 id=545 data-nosnippet>545</a>            return v2
+<a href=#546 id=546 data-nosnippet>546</a>        }
+<a href=#547 id=547 data-nosnippet>547</a>        acir(inline) fn lambda f4 {
+<a href=#548 id=548 data-nosnippet>548</a>          b0(v0: u32):
+<a href=#549 id=549 data-nosnippet>549</a>            v2 = add v0, u32 2
+<a href=#550 id=550 data-nosnippet>550</a>            return v2
+<a href=#551 id=551 data-nosnippet>551</a>        }
+<a href=#552 id=552 data-nosnippet>552</a>        "</span>;
+<a href=#553 id=553 data-nosnippet>553</a>
+<a href=#554 id=554 data-nosnippet>554</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>function = ssa.main();
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+<a href=#557 id=557 data-nosnippet>557</a>        find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
+<a href=#558 id=558 data-nosnippet>558</a>    }
+<a href=#559 id=559 data-nosnippet>559</a>
+<a href=#560 id=560 data-nosnippet>560</a>    <span class="attr">#[test]
+<a href=#561 id=561 data-nosnippet>561</a>    </span><span class="kw">fn </span>test_large_unroll_stack_overflow() {
+<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#563 id=563 data-nosnippet>563</a>        acir(inline) fn main f0 {
+<a href=#564 id=564 data-nosnippet>564</a>          b0(v0: u1, v1: u64, v2: i32, v3: u1, v4: Field, v5: u1, v6: u1):
+<a href=#565 id=565 data-nosnippet>565</a>            jmpif v6 then: b1, else: b2
+<a href=#566 id=566 data-nosnippet>566</a>          b1():
+<a href=#567 id=567 data-nosnippet>567</a>            jmp b14()
+<a href=#568 id=568 data-nosnippet>568</a>          b2():
+<a href=#569 id=569 data-nosnippet>569</a>            jmp b5(u32 67)
+<a href=#570 id=570 data-nosnippet>570</a>          b3():
+<a href=#571 id=571 data-nosnippet>571</a>            jmp b8(u32 198)
+<a href=#572 id=572 data-nosnippet>572</a>          b4():
+<a href=#573 id=573 data-nosnippet>573</a>            jmp b14()
+<a href=#574 id=574 data-nosnippet>574</a>          b5(v7: u32):
+<a href=#575 id=575 data-nosnippet>575</a>            v11 = lt v7, u32 232
+<a href=#576 id=576 data-nosnippet>576</a>            jmpif v11 then: b3, else: b4
+<a href=#577 id=577 data-nosnippet>577</a>          b6():
+<a href=#578 id=578 data-nosnippet>578</a>            v18 = add v7, u32 1
+<a href=#579 id=579 data-nosnippet>579</a>            v19 = truncate v18 to 32 bits, max_bit_size: 33
+<a href=#580 id=580 data-nosnippet>580</a>            v21 = call f1(v4, v4, v4, v4, v4, v0, v0) -&gt; Field
+<a href=#581 id=581 data-nosnippet>581</a>            jmp b5(v19)
+<a href=#582 id=582 data-nosnippet>582</a>          b7():
+<a href=#583 id=583 data-nosnippet>583</a>            jmpif v6 then: b10, else: b11
+<a href=#584 id=584 data-nosnippet>584</a>          b8(v8: u32):
+<a href=#585 id=585 data-nosnippet>585</a>            v14 = lt v8, u32 90
+<a href=#586 id=586 data-nosnippet>586</a>            jmpif v14 then: b7, else: b6
+<a href=#587 id=587 data-nosnippet>587</a>          b9():
+<a href=#588 id=588 data-nosnippet>588</a>            v16 = add v8, u32 1
+<a href=#589 id=589 data-nosnippet>589</a>            v17 = truncate v16 to 32 bits, max_bit_size: 33
+<a href=#590 id=590 data-nosnippet>590</a>            jmp b8(v17)
+<a href=#591 id=591 data-nosnippet>591</a>          b10():
+<a href=#592 id=592 data-nosnippet>592</a>            jmp b12()
+<a href=#593 id=593 data-nosnippet>593</a>          b11():
+<a href=#594 id=594 data-nosnippet>594</a>            jmp b12()
+<a href=#595 id=595 data-nosnippet>595</a>          b12():
+<a href=#596 id=596 data-nosnippet>596</a>            jmp b9()
+<a href=#597 id=597 data-nosnippet>597</a>          b13():
+<a href=#598 id=598 data-nosnippet>598</a>            return v0
+<a href=#599 id=599 data-nosnippet>599</a>          b14():
+<a href=#600 id=600 data-nosnippet>600</a>            jmp b13()
+<a href=#601 id=601 data-nosnippet>601</a>        }
+<a href=#602 id=602 data-nosnippet>602</a>        acir(inline) fn f1 f1 {
+<a href=#603 id=603 data-nosnippet>603</a>          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+<a href=#604 id=604 data-nosnippet>604</a>            jmp b3(u32 54)
+<a href=#605 id=605 data-nosnippet>605</a>          b1():
+<a href=#606 id=606 data-nosnippet>606</a>            jmpif v6 then: b5, else: b6
+<a href=#607 id=607 data-nosnippet>607</a>          b2():
+<a href=#608 id=608 data-nosnippet>608</a>            jmp b8()
+<a href=#609 id=609 data-nosnippet>609</a>          b3(v7: u32):
+<a href=#610 id=610 data-nosnippet>610</a>            v10 = lt v7, u32 207
+<a href=#611 id=611 data-nosnippet>611</a>            jmpif v10 then: b1, else: b2
+<a href=#612 id=612 data-nosnippet>612</a>          b4():
+<a href=#613 id=613 data-nosnippet>613</a>            v12 = add v7, u32 1
+<a href=#614 id=614 data-nosnippet>614</a>            v13 = truncate v12 to 32 bits, max_bit_size: 33
+<a href=#615 id=615 data-nosnippet>615</a>            jmp b3(v13)
+<a href=#616 id=616 data-nosnippet>616</a>          b5():
+<a href=#617 id=617 data-nosnippet>617</a>            jmp b7()
+<a href=#618 id=618 data-nosnippet>618</a>          b6():
+<a href=#619 id=619 data-nosnippet>619</a>            jmp b7()
+<a href=#620 id=620 data-nosnippet>620</a>          b7():
+<a href=#621 id=621 data-nosnippet>621</a>            jmp b4()
+<a href=#622 id=622 data-nosnippet>622</a>          b8():
+<a href=#623 id=623 data-nosnippet>623</a>            return v4
+<a href=#624 id=624 data-nosnippet>624</a>        }
+<a href=#625 id=625 data-nosnippet>625</a>        "#</span>;
+<a href=#626 id=626 data-nosnippet>626</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#627 id=627 data-nosnippet>627</a>
+<a href=#628 id=628 data-nosnippet>628</a>        <span class="comment">// If we try to run the branch analysis now, it panics, it doesn't have the expected CFG structure.
+<a href=#629 id=629 data-nosnippet>629</a>        // Instead, run the pipeline up to just before the flattening pass.
+<a href=#630 id=630 data-nosnippet>630</a>        </span><span class="kw">let </span>ssa = run_pipeline_up_to_pass(ssa, <span class="string">"Flattening"</span>);
+<a href=#631 id=631 data-nosnippet>631</a>
+<a href=#632 id=632 data-nosnippet>632</a>        <span class="comment">// The resulting SSA has more than 70k blocks.
+<a href=#633 id=633 data-nosnippet>633</a>        // Both functions in the SSA have blocks such as b1-&gt;[b5, b6]-&gt;b7 where
+<a href=#634 id=634 data-nosnippet>634</a>        // a branch immediately rejoins. For whatever combination, it's too much for
+<a href=#635 id=635 data-nosnippet>635</a>        // a recursive algorithm, and can cause a stack overflow.
+<a href=#636 id=636 data-nosnippet>636</a>
+<a href=#637 id=637 data-nosnippet>637</a>        </span><span class="kw">let </span>function = ssa.main();
+<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let _ </span>= find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
+<a href=#640 id=640 data-nosnippet>640</a>    }
+<a href=#641 id=641 data-nosnippet>641</a>
+<a href=#642 id=642 data-nosnippet>642</a>    <span class="kw">fn </span>run_pipeline_up_to_pass(<span class="kw-2">mut </span>ssa: Ssa, stop_before_pass: <span class="kw-2">&amp;</span>str) -&gt; Ssa {
+<a href=#643 id=643 data-nosnippet>643</a>        <span class="kw">let </span>options = SsaEvaluatorOptions {
+<a href=#644 id=644 data-nosnippet>644</a>            ssa_logging: <span class="kw">crate</span>::ssa::SsaLogging::None,
+<a href=#645 id=645 data-nosnippet>645</a>            brillig_options: BrilligOptions::default(),
+<a href=#646 id=646 data-nosnippet>646</a>            print_codegen_timings: <span class="bool-val">false</span>,
+<a href=#647 id=647 data-nosnippet>647</a>            emit_ssa: <span class="prelude-val">None</span>,
+<a href=#648 id=648 data-nosnippet>648</a>            skip_underconstrained_check: <span class="bool-val">true</span>,
+<a href=#649 id=649 data-nosnippet>649</a>            skip_brillig_constraints_check: <span class="bool-val">true</span>,
+<a href=#650 id=650 data-nosnippet>650</a>            enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
+<a href=#651 id=651 data-nosnippet>651</a>            inliner_aggressiveness: <span class="number">0</span>,
+<a href=#652 id=652 data-nosnippet>652</a>            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
+<a href=#653 id=653 data-nosnippet>653</a>            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
+<a href=#654 id=654 data-nosnippet>654</a>            max_bytecode_increase_percent: <span class="prelude-val">None</span>,
+<a href=#655 id=655 data-nosnippet>655</a>            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+<a href=#656 id=656 data-nosnippet>656</a>            skip_passes: Vec::new(),
+<a href=#657 id=657 data-nosnippet>657</a>        };
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span>pipeline = primary_passes(<span class="kw-2">&amp;</span>options);
+<a href=#659 id=659 data-nosnippet>659</a>        <span class="kw">for </span>pass <span class="kw">in </span>pipeline {
+<a href=#660 id=660 data-nosnippet>660</a>            <span class="kw">if </span>pass.msg() == stop_before_pass {
+<a href=#661 id=661 data-nosnippet>661</a>                <span class="kw">break</span>;
+<a href=#662 id=662 data-nosnippet>662</a>            }
+<a href=#663 id=663 data-nosnippet>663</a>            ssa = pass
+<a href=#664 id=664 data-nosnippet>664</a>                .run(ssa)
+<a href=#665 id=665 data-nosnippet>665</a>                .unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">"failed to run pass '{}': {e}"</span>, pass.msg()));
+<a href=#666 id=666 data-nosnippet>666</a>        }
+<a href=#667 id=667 data-nosnippet>667</a>        ssa
+<a href=#668 id=668 data-nosnippet>668</a>    }
+<a href=#669 id=669 data-nosnippet>669</a>}</code></pre></div></section></main></body></html>
