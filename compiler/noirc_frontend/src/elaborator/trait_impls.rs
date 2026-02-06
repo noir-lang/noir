@@ -546,18 +546,17 @@ impl Elaborator<'_> {
         &mut self,
         impl_id: Option<TraitImplId>,
     ) {
-        if let Some(impl_id) = impl_id {
-            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
-            {
-                for trait_constrain in &trait_implementation.borrow().where_clause {
-                    let trait_bound = &trait_constrain.trait_bound;
-                    self.add_trait_bound_to_scope(
-                        trait_bound.location,
-                        &trait_constrain.typ,
-                        trait_bound,
-                        trait_bound.trait_id,
-                    );
-                }
+        if let Some(impl_id) = impl_id
+            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+        {
+            for trait_constrain in &trait_implementation.borrow().where_clause {
+                let trait_bound = &trait_constrain.trait_bound;
+                self.add_trait_bound_to_scope(
+                    trait_bound.location,
+                    &trait_constrain.typ,
+                    trait_bound,
+                    trait_bound.trait_id,
+                );
             }
         }
     }
@@ -566,14 +565,13 @@ impl Elaborator<'_> {
         &mut self,
         impl_id: Option<TraitImplId>,
     ) {
-        if let Some(impl_id) = impl_id {
-            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
-            {
-                for trait_constrain in &trait_implementation.borrow().where_clause {
-                    self.interner.remove_assumed_trait_implementations_for_trait(
-                        trait_constrain.trait_bound.trait_id,
-                    );
-                }
+        if let Some(impl_id) = impl_id
+            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+        {
+            for trait_constrain in &trait_implementation.borrow().where_clause {
+                self.interner.remove_assumed_trait_implementations_for_trait(
+                    trait_constrain.trait_bound.trait_id,
+                );
             }
         }
     }
@@ -849,27 +847,27 @@ impl Elaborator<'_> {
                 let trait_id = self.resolve_trait_by_path(trait_path);
 
                 // Check and remove and any generic that is specifying an associated item
-                if !trait_generics.named_args.is_empty() {
-                    if let Some(trait_id) = trait_id {
-                        let associated_types =
-                            self.interner.get_trait(trait_id).associated_types.clone();
-                        trait_generics.named_args.retain(|(name, typ)| {
-                            let associated_type = associated_types.iter().find(|associated_type| {
-                                associated_type.name.as_str() == name.as_str()
-                            });
-                            if associated_type.is_some() {
-                                let location = name.location().merge(typ.location);
-                                self.push_err(
-                                    ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
-                                        location,
-                                    },
-                                );
-                                false
-                            } else {
-                                true
-                            }
-                        });
-                    }
+                if !trait_generics.named_args.is_empty()
+                    && let Some(trait_id) = trait_id
+                {
+                    let associated_types =
+                        self.interner.get_trait(trait_id).associated_types.clone();
+                    trait_generics.named_args.retain(|(name, typ)| {
+                        let associated_type = associated_types
+                            .iter()
+                            .find(|associated_type| associated_type.name.as_str() == name.as_str());
+                        if associated_type.is_some() {
+                            let location = name.location().merge(typ.location);
+                            self.push_err(
+                                ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
+                                    location,
+                                },
+                            );
+                            false
+                        } else {
+                            true
+                        }
+                    });
                 }
 
                 (trait_id, trait_generics.clone(), location)

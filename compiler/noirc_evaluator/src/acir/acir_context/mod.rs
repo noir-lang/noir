@@ -128,11 +128,11 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(());
         }
 
-        if let Some(w) = self.var_to_expression(lhs)?.to_witness() {
-            if self.acir_ir.input_witnesses.contains(&w) {
-                //Input witnesses are not replaced
-                return Ok(());
-            }
+        if let Some(w) = self.var_to_expression(lhs)?.to_witness()
+            && self.acir_ir.input_witnesses.contains(&w)
+        {
+            //Input witnesses are not replaced
+            return Ok(());
         }
 
         let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {

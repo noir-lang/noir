@@ -167,27 +167,27 @@ pub fn method_call_is_visible(
 
             // A private method defined on `Foo<i32>` should be visible when calling
             // it from an impl on `Foo<i64>`, even though the generics are different.
-            if let Some(self_type) = self_type {
-                if is_same_type_regardless_generics(self_type, object_type) {
-                    if modifiers.visibility.is_private() {
-                        // Only allow accessing private methods of a type if we are under the same
-                        // module where the type was defined. OTOH if we are in an `impl Foo<i32>`
-                        // block in a different module, extending the type with new methods, then
-                        // we should only access public parts defined in other modules, or private
-                        // ones defined in the same extension.
-                        let def_map = &def_maps[&current_module.krate];
-                        // Cannot call `type_member_is_visible` because it goes up to the parent;
-                        // the `func_meta.source_module` already seems to be the parent.
-                        return module_is_descendant_of_target(
-                            def_map,
-                            current_module.local_id,
-                            func_meta.source_module,
-                        );
-                    } else {
-                        // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
-                        // already checked that the types are the same, so we are in the same crate.
-                        return true;
-                    }
+            if let Some(self_type) = self_type
+                && is_same_type_regardless_generics(self_type, object_type)
+            {
+                if modifiers.visibility.is_private() {
+                    // Only allow accessing private methods of a type if we are under the same
+                    // module where the type was defined. OTOH if we are in an `impl Foo<i32>`
+                    // block in a different module, extending the type with new methods, then
+                    // we should only access public parts defined in other modules, or private
+                    // ones defined in the same extension.
+                    let def_map = &def_maps[&current_module.krate];
+                    // Cannot call `type_member_is_visible` because it goes up to the parent;
+                    // the `func_meta.source_module` already seems to be the parent.
+                    return module_is_descendant_of_target(
+                        def_map,
+                        current_module.local_id,
+                        func_meta.source_module,
+                    );
+                } else {
+                    // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
+                    // already checked that the types are the same, so we are in the same crate.
+                    return true;
                 }
             }
 

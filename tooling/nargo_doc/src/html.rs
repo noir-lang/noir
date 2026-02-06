@@ -1224,11 +1224,11 @@ impl HTMLCreator {
     }
 
     fn render_type(&mut self, typ: &Type) {
-        if let Some(self_type) = &self.self_type {
-            if self_type == typ {
-                self.output.push_str("Self");
-                return;
-            }
+        if let Some(self_type) = &self.self_type
+            && self_type == typ
+        {
+            self.output.push_str("Self");
+            return;
         }
 
         match typ {
@@ -1441,18 +1441,13 @@ impl HTMLCreator {
                 })
                 .unwrap_or_default();
             let mut line = lines[link.line].to_string();
-            if let Some(id) = id {
-                if let Some(ItemInfo {
-                    path: _,
-                    uri,
-                    class: _,
-                    visibility: ItemVisibility::Public,
-                }) = self.id_to_info.get(id)
-                {
-                    let nesting = "../".repeat(self.current_path.len());
-                    let replacement = format!("[{name}]({nesting}{uri}{anchor})");
-                    line.replace_range(link.start..link.end, &replacement);
-                }
+            if let Some(id) = id
+                && let Some(ItemInfo { path: _, uri, class: _, visibility: ItemVisibility::Public }) =
+                    self.id_to_info.get(id)
+            {
+                let nesting = "../".repeat(self.current_path.len());
+                let replacement = format!("[{name}]({nesting}{uri}{anchor})");
+                line.replace_range(link.start..link.end, &replacement);
             }
             if let Some(primitive_type) = target.primitive_type() {
                 let nesting = "../".repeat(self.current_path.len());
@@ -1610,10 +1605,10 @@ fn get_reexports(items: &[(ItemVisibility, Item)]) -> Vec<&Reexport> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Reexport(reexport) = item {
-                    return Some(reexport);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Reexport(reexport) = item
+            {
+                return Some(reexport);
             }
             None
         })
@@ -1624,12 +1619,12 @@ fn get_modules(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Module(module) = item {
-                    if !module.is_contract && module.has_public_items() {
-                        return Some(module);
-                    }
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Module(module) = item
+                && !module.is_contract
+                && module.has_public_items()
+            {
+                return Some(module);
             }
             None
         })
@@ -1640,12 +1635,12 @@ fn get_contracts(items: &[(ItemVisibility, Item)]) -> Vec<&Module> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Module(module) = item {
-                    if module.is_contract && module.has_public_items() {
-                        return Some(module);
-                    }
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Module(module) = item
+                && module.is_contract
+                && module.has_public_items()
+            {
+                return Some(module);
             }
             None
         })
@@ -1656,10 +1651,10 @@ fn get_structs(items: &[(ItemVisibility, Item)]) -> Vec<&Struct> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Struct(struct_) = item {
-                    return Some(struct_);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Struct(struct_) = item
+            {
+                return Some(struct_);
             }
             None
         })
@@ -1670,10 +1665,10 @@ fn get_traits(items: &[(ItemVisibility, Item)]) -> Vec<&Trait> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Trait(trait_) = item {
-                    return Some(trait_);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Trait(trait_) = item
+            {
+                return Some(trait_);
             }
             None
         })
@@ -1684,10 +1679,10 @@ fn get_type_aliases(items: &[(ItemVisibility, Item)]) -> Vec<&TypeAlias> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::TypeAlias(alias) = item {
-                    return Some(alias);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::TypeAlias(alias) = item
+            {
+                return Some(alias);
             }
             None
         })
@@ -1698,10 +1693,10 @@ fn get_primitive_types(items: &[(ItemVisibility, Item)]) -> Vec<&PrimitiveType> 
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::PrimitiveType(primitive_type) = item {
-                    return Some(primitive_type);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::PrimitiveType(primitive_type) = item
+            {
+                return Some(primitive_type);
             }
             None
         })
@@ -1712,10 +1707,10 @@ fn get_globals(items: &[(ItemVisibility, Item)]) -> Vec<&Global> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Global(global) = item {
-                    return Some(global);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Global(global) = item
+            {
+                return Some(global);
             }
             None
         })
@@ -1726,10 +1721,10 @@ fn get_functions(items: &[(ItemVisibility, Item)]) -> Vec<&Function> {
     items
         .iter()
         .filter_map(|(visibility, item)| {
-            if visibility == &ItemVisibility::Public {
-                if let Item::Function(function) = item {
-                    return Some(function);
-                }
+            if visibility == &ItemVisibility::Public
+                && let Item::Function(function) = item
+            {
+                return Some(function);
             }
             None
         })
@@ -1817,10 +1812,10 @@ fn generics_to_string(generics: &[Generic]) -> String {
 }
 
 fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
-    if let Some(self_type) = self_type {
-        if self_type == typ {
-            return "Self".to_string();
-        }
+    if let Some(self_type) = self_type
+        && self_type == typ
+    {
+        return "Self".to_string();
     }
 
     match typ {
