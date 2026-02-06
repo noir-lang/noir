@@ -889,10 +889,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
         // There is special handling expected for parent traits. Say we have code like this:
         //
-        //    trait Foo { type Bar; }                                      // `Bar`     becomes `Bar'1`
-        //    trait Bar: Foo { fn foo_bar() -> <Self as Foo>::Bar }        // `foo_bar` becomes `forall '7 '3. fn() -> Self::Bar'7`, and we should have '1 as the NamedGeneric::original_type_var
-        //    impl Foo for () { type Bar = u32; }                          // `Bar`     becomes `<Baz as Foo>::Bar'5 -> u32`
-        //    impl Bar for () { fn foo_bar() -> <Self as Foo>::Bar { 0 } } // `foo_bar` becomes `fn() -> <Baz as Foo>::Bar'5 -> u32`
+        //    trait Foo { type Bar; }                                       // `Bar`     becomes `Bar'1`
+        //    trait Bar: Foo { fn foo_bar() -> <Self as Foo>::Bar }         // `foo_bar` becomes `forall '7 '3. fn() -> Self::Bar'7 ~> '1`, with '1 being NamedGeneric::original_type_var
+        //    struct Baz {}
+        //    impl Foo for Baz { type Bar = u32; }                          // `Bar`     becomes `<Baz as Foo>::Bar'5 -> u32`
+        //    impl Bar for Baz { fn foo_bar() -> <Self as Foo>::Bar { 0 } } // `foo_bar` becomes `fn() -> <Baz as Foo>::Bar'5 -> u32`
         //
         // We want to verify that the two `foo_bar` methods have compatible metas without having to do any further bindings during unification,
         // which would be rejected by `check_function_type_matches_expected_type`. To do so we must add a replacement from '7 to '5.
