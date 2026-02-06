@@ -274,11 +274,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Block parameter assignments at a jmp must happen "simultaneously" (like
                 // phi nodes). A naive sequential loop can lose values when a source register
                 // is overwritten by an earlier move in the same batch. For example, with:
-                //   jmp b1(v8, v3, u32 10)   where b1(v3, v35, v36)
+                //   `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
                 // Sequential execution would:
-                //   1. mov reg(v3), reg(v8)   -- overwrites reg(v3)
-                //   2. mov reg(v35), reg(v3)  -- reads the NEW v3 instead of the old one
-                // To prevent this, we save any source that would be clobbered into a
+                //      1. mov reg(v2), reg(v1) — overwrites old v3
+                //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+                // To prevent this, we save any source that would be overwritten into a
                 // temporary first.
                 let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
                 let mut temps = Vec::new();
@@ -296,8 +296,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         self.brillig_context.mov_instruction(*dst, *src);
                     }
                 }
-
-                drop(temps);
 
                 self.brillig_context
                     .jump_instruction(self.create_block_label_for_current_function(*destination));
