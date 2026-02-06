@@ -262,6 +262,12 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
+            Literal::Repeated { element, length, is_vector, .. } => {
+                let prefix = if *is_vector { "@" } else { "" };
+                write!(f, "{prefix}[")?;
+                self.print_expr(element, f)?;
+                write!(f, "; {length}]")
+            }
             Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal && *typ != Type::Field {
                     write!(f, "{x}_{typ}")
