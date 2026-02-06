@@ -188,13 +188,13 @@ pub struct CompileOptions {
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
 
-    /// Override the threshold for force-unrolling small Brillig loops.
+    /// Override the threshold for force-unrolling small loops.
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
     /// When `None`, the default threshold is used.
     /// Set to 0 to disable force-unrolling.
     #[arg(long, hide = true)]
-    pub force_brillig_unroll_threshold: Option<usize>,
+    pub force_unroll_threshold: Option<usize>,
 
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
@@ -254,7 +254,7 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
-            force_brillig_unroll_threshold: None,
+            force_unroll_threshold: None,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
@@ -291,7 +291,7 @@ impl CompileOptions {
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
-            force_brillig_unroll_threshold: self.force_brillig_unroll_threshold,
+            force_unroll_threshold: self.force_unroll_threshold,
             skip_passes: self.skip_ssa_pass.clone(),
         }
     }

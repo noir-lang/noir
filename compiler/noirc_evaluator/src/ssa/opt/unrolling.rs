@@ -1671,6 +1671,33 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
     }
 
+    /// Test that setting force_unroll_threshold to 0 disables force-unrolling.
+    ///
+    /// This uses a loop with 6 iterations where:
+    /// - is_small() = false (unrolled cost exceeds baseline)
+    /// - unrolled_instructions = 24 (within default threshold of 32)
+    ///
+    /// With the default threshold, this loop would be force-unrolled.
+    /// With threshold=0, it should NOT be unrolled.
+    #[test]
+    fn test_brillig_force_unroll_threshold_zero_disables_unrolling() {
+        let parse_ssa = || brillig_unroll_test_case_6470(6);
+        let ssa = parse_ssa();
+
+        // Verify the loop's properties match our expectations
+        let stats = loop0_stats(&ssa);
+        assert!(!stats.is_small(), "loop should not be small according to cost model");
+        assert!(
+            stats.unrolled_instructions() <= BRILLIG_FORCE_UNROLL_THRESHOLD,
+            "loop should be within default force-unroll threshold"
+        );
+
+        // With threshold=0, the loop should NOT be unrolled
+        let ssa = ssa.unroll_loops_iteratively(None, Some(0)).unwrap();
+        // Check that it's still the original (not unrolled)
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
+    }
+
     /// Test that `break` and `continue` stop unrolling without any panic.
     #[test]
     fn test_brillig_unroll_break_and_continue() {
