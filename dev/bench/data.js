@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770309562729,
+  "lastUpdate": 1770377872890,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "44c41ca084f605c613fca0efbfd6662b0754ce77",
-          "message": "chore(ssa): Remove redundant address check (#11394)",
-          "timestamp": "2026-01-29T20:42:18Z",
-          "tree_id": "3db035eaba43f36db76c93fe0d0241c162215994",
-          "url": "https://github.com/noir-lang/noir/commit/44c41ca084f605c613fca0efbfd6662b0754ce77"
-        },
-        "date": 1769720635807,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257197,
-            "range": "± 910",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227658,
-            "range": "± 4213",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799858,
-            "range": "± 12678",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2210680,
             "range": "± 2963",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a2d886ef05ab03c437bdf3544e78332d78ecfade",
+          "message": "fix(ssa): Clear aliases when marking references unknown (#11487)",
+          "timestamp": "2026-02-06T11:10:18Z",
+          "tree_id": "3d7cb5d365a3baeec79806a659dede5a1d3bf31b",
+          "url": "https://github.com/noir-lang/noir/commit/a2d886ef05ab03c437bdf3544e78332d78ecfade"
+        },
+        "date": 1770377826862,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 246640,
+            "range": "± 470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 216393,
+            "range": "± 1501",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2210897,
+            "range": "± 3782",
             "unit": "ns/iter"
           }
         ]
