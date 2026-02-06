@@ -119,8 +119,8 @@ fn add_terminator_arguments(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     inserter: &mut FunctionInserter,
-    entry_states: &mut BTreeMap<BasicBlockId, StateVec>,
-    exit_states: &mut BTreeMap<BasicBlockId, StateVec>,
+    entry_states: &BTreeMap<BasicBlockId, StateVec>,
+    exit_states: &BTreeMap<BasicBlockId, StateVec>,
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {

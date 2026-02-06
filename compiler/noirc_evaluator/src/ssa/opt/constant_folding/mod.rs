@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     io::Empty,
 };
 
@@ -30,7 +30,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
-        types::NumericType,
+        types::{NumericType, Type},
         value::{Value, ValueId, ValueMapping},
     },
     opt::pure::Purity,
@@ -129,7 +129,8 @@ impl Function {
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let mut dom = DominatorTree::with_function(self);
-        let mut context = Context::new(use_constraint_info);
+        let mutated_types = find_mutated_block_param_array_types(self);
+        let mut context = Context::new(use_constraint_info, mutated_types.clone());
 
         context.enqueue(&dom, [self.entry_block()]);
 
@@ -154,7 +155,7 @@ impl Function {
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
-            context = Context::new(use_constraint_info);
+            context = Context::new(use_constraint_info, mutated_types.clone());
             context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
         }
@@ -178,6 +179,58 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
         context.values_to_replace.value_types_are_consistent(dfg),
         "Constant folding should not map a ValueId to another of a different type"
     );
+}
+
+/// Pre-scan the function to find array types that are mutated through block parameters.
+///
+/// In RPO traversal, loop bodies are processed after loop exit blocks. This means if a
+/// MakeArray is cached before a loop, and the loop body mutates the array through a block
+/// parameter, the mutation won't be seen before a duplicate MakeArray in the exit block
+/// gets incorrectly deduplicated. We find these types upfront so we can skip caching them.
+fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
+    if !function.runtime().is_brillig() {
+        return HashSet::new();
+    }
+
+    let dfg = &function.dfg;
+    let mut result = HashSet::new();
+
+    for block_id in function.reachable_blocks() {
+        for instruction_id in dfg[block_id].instructions() {
+            let instruction = &dfg[*instruction_id];
+            match instruction {
+                Instruction::ArraySet { array, .. } => {
+                    if !matches!(&dfg[*array], Value::Instruction { .. }) {
+                        let typ = dfg.type_of_value(*array);
+                        if typ.is_array() {
+                            result.insert(typ);
+                        }
+                    }
+                }
+                Instruction::Store { value, .. } => {
+                    if !matches!(&dfg[*value], Value::Instruction { .. }) {
+                        let typ = dfg.type_of_value(*value);
+                        if typ.is_array() {
+                            result.insert(typ);
+                        }
+                    }
+                }
+                Instruction::Call { arguments, .. } => {
+                    for arg in arguments {
+                        if !matches!(&dfg[*arg], Value::Instruction { .. }) {
+                            let typ = dfg.type_of_value(*arg);
+                            if typ.is_array() {
+                                result.insert(typ);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    result
 }
 
 struct Context {
@@ -219,10 +272,17 @@ struct Context {
 
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
+
+    /// Array types that are mutated through block parameters in brillig.
+    /// In RPO traversal, loop bodies are processed after loop exits, so we may encounter
+    /// a duplicate MakeArray in the exit block before seeing the mutation in the loop body.
+    /// We pre-scan the function to find these types and skip caching MakeArray instructions
+    /// that produce them to avoid incorrect deduplication.
+    mutated_block_param_array_types: HashSet<Type>,
 }
 
 impl Context {
-    fn new(use_constraint_info: bool) -> Self {
+    fn new(use_constraint_info: bool, mutated_block_param_array_types: HashSet<Type>) -> Self {
         Self {
             use_constraint_info,
             block_queue: Default::default(),
@@ -230,6 +290,7 @@ impl Context {
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
             blocks_to_revisit: Default::default(),
+            mutated_block_param_array_types,
         }
     }
 
@@ -516,7 +577,12 @@ impl Context {
         let can_be_deduplicated = can_be_deduplicated(instruction, dfg);
 
         let use_constraint_info = self.use_constraint_info;
-        let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
+        let is_safe_make_array = match instruction {
+            Instruction::MakeArray { typ, .. } => {
+                !self.mutated_block_param_array_types.contains(typ)
+            }
+            _ => false,
+        };
 
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
@@ -533,8 +599,9 @@ impl Context {
         match can_be_deduplicated {
             CanBeDeduplicated::Always => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
-            // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
-            _ if is_make_array => cache_instruction(),
+            // We also allow deduplicating MakeArray instructions whose type isn't mutated
+            // through block parameters (which we can't track due to RPO ordering).
+            _ if is_safe_make_array => cache_instruction(),
 
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
@@ -2585,5 +2652,58 @@ mod tests {
 
         let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
         folded.interpret(Vec::new()).unwrap();
+    }
+
+    /// Regression test for MakeArray deduplication in brillig with loops.
+    /// When a MakeArray's result flows into a loop where it's mutated via a block parameter,
+    /// a duplicate MakeArray after the loop must not be deduplicated to the first one,
+    /// because in brillig the first array was mutated in place.
+    #[test]
+    fn do_not_deduplicate_make_array_mutated_through_block_param() {
+        // This SSA represents two sequential loops that each mutate a fresh [Field; 2] array.
+        // The second make_array (v10 in b3) must not be deduplicated to v8 (in b0),
+        // because v8's underlying memory is mutated by the array_set in the first loop (b2).
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v8 = make_array [Field -2, Field 2] : [Field; 2]
+            jmp b1(v8, u1 1)
+          b1(v0: [Field; 2], v1: u1):
+            jmpif v1 then: b2, else: b3
+          b2():
+            v32 = array_get v0, index u32 0 -> Field
+            v33 = add Field 3, v32
+            v34 = array_set v0, index u32 0, value v33
+            jmp b1(v34, u1 0)
+          b3():
+            v10 = make_array [Field -2, Field 2] : [Field; 2]
+            jmp b4(v10, u1 1)
+          b4(v4: [Field; 2], v5: u1):
+            jmpif v5 then: b5, else: b6
+          b5():
+            v28 = array_get v4, index u32 0 -> Field
+            v30 = add Field 3, v28
+            v31 = array_set v4, index u32 0, value v30
+            jmp b4(v31, u1 0)
+          b6():
+            v12 = array_get v4, index u32 0 -> Field
+            return v12
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Before folding, the interpreter should return Field(1):
+        // First loop: array_set [-2, 2] at index 0 with 3 + (-2) = 1 → [1, 2]
+        // Second loop (fresh array): array_set [-2, 2] at index 0 with 3 + (-2) = 1 → [1, 2]
+        // Return index 0 → 1
+        let before = ssa.interpret(Vec::new()).unwrap();
+
+        let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+        let after = folded.interpret(Vec::new()).unwrap();
+
+        assert_eq!(
+            before, after,
+            "MakeArray should not be deduplicated when mutated through a block parameter in a loop"
+        );
     }
 }
