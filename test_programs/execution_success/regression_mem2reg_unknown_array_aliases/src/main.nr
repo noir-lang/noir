@@ -6,7 +6,11 @@
 // block parameter is incorrectly removed.
 unconstrained fn main() -> pub bool {
     let condition = *func_1([[&mut false], [&mut true]]);
-    let row = if condition { [&mut false] } else { [&mut false] };
+    let row = if condition {
+        [&mut false]
+    } else {
+        [&mut false]
+    };
     *func_1([row, [&mut false]])
 }
 
