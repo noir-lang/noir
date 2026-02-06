@@ -259,11 +259,14 @@ impl<'f> PerFunctionContext<'f> {
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
-                Self::collect_terminator_value_aliases(
+                all_terminator_values.insert(value);
+                Self::for_each_value_alias(
                     value,
                     references,
                     &self.inserter.function.dfg,
-                    &mut all_terminator_values,
+                    &mut |alias| {
+                        all_terminator_values.insert(alias);
+                    },
                 );
             });
         }
@@ -357,38 +360,36 @@ impl<'f> PerFunctionContext<'f> {
         false
     }
 
-    /// Collects a terminator value and all its aliases into the output set.
-    ///
-    /// When a value has unknown aliases (e.g., because it contains references from
-    /// arrays with unknown contents), we fall back to directly collecting the array
-    /// elements if it's an array constant. This ensures that stores to references
-    /// within the array are not incorrectly removed.
-    fn collect_terminator_value_aliases(
+    /// Calls `callback` for each known alias of `value`, recursing into array
+    /// elements when the combined alias set is unknown. Skips values whose type
+    /// does not contain a reference.
+    fn for_each_value_alias(
         value: ValueId,
         references: &Block,
         dfg: &DataFlowGraph,
-        output: &mut HashSet<ValueId>,
+        callback: &mut impl FnMut(ValueId),
     ) {
-        output.insert(value);
-
-        let typ = dfg.type_of_value(value);
-        if !typ.contains_reference() {
+        if !dfg.type_of_value(value).contains_reference() {
             return;
         }
 
         let aliases = references.get_aliases_for_value(value);
         if aliases.is_unknown() {
-            // If aliases are unknown but this is an array constant, directly collect
-            // the elements. This handles the case where an array contains references
-            // that have unknown aliases (e.g., from array parameters), but we still
-            // need to track the elements that DO have known aliases.
             if let Some((elements, _)) = dfg.get_array_constant(value) {
                 for element in elements.iter() {
-                    Self::collect_terminator_value_aliases(*element, references, dfg, output);
+                    Self::for_each_value_alias(*element, references, dfg, callback);
                 }
+            } else {
+                // If aliases are unknown and we can't decompose the value further,
+                // conservatively include the value itself. This handles the case where
+                // alias information was cleared (e.g. by clear_aliases during Return
+                // handling) but the value is still a reference that may be stored to.
+                callback(value);
             }
         } else {
-            output.extend(aliases.iter());
+            for alias in aliases.iter() {
+                callback(alias);
+            }
         }
     }
 
@@ -677,9 +678,14 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                for alias in references.get_aliases_for_value(value).iter() {
-                    self.aliased_references.entry(alias).or_default().insert(instruction);
-                }
+                Self::for_each_value_alias(
+                    value,
+                    references,
+                    &self.inserter.function.dfg,
+                    &mut |alias| {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    },
+                );
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -829,11 +835,18 @@ impl<'f> PerFunctionContext<'f> {
                     // Mark references in both branches as being used by this IfElse instruction.
                     // This ensures that stores to those references are kept even in loops where
                     // alias information may not propagate correctly through the back edge.
-                    for alias in then_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
-                    for alias in else_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    for value in [*then_value, *else_value] {
+                        Self::for_each_value_alias(
+                            value,
+                            references,
+                            &self.inserter.function.dfg,
+                            &mut |alias| {
+                                self.aliased_references
+                                    .entry(alias)
+                                    .or_default()
+                                    .insert(instruction);
+                            },
+                        );
                     }
 
                     // `then_value` and `else_value` are now aliased by `result`
@@ -1027,7 +1040,11 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, interpreter::value::Value, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
 
     #[test]
@@ -3131,8 +3148,8 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    /// Tests for `collect_terminator_value_aliases` which recursively collects
-    /// aliases for values used in block terminators (return, jmp, etc.).
+    /// Tests for `for_each_value_alias` which recursively collects aliases
+    /// for values, including those used in block terminators (return, jmp, etc.).
     mod terminator_value_aliases {
         use super::*;
 
@@ -3250,8 +3267,33 @@ mod tests {
             }
             "#;
 
+            let ssa = Ssa::from_str(src).unwrap();
+            let (ssa, _) = assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::mem2reg);
+
             // The stores to v7 and v9 must be preserved since they escape via the returned array
-            assert_ssa_does_not_change(src, Ssa::mem2reg);
+            assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [&mut u1; 3]):
+                v2 = allocate -> &mut u1
+                store u1 0 at v2
+                v4 = allocate -> &mut u1
+                store u1 0 at v4
+                v6 = array_get v0, index u32 2 -> &mut u1
+                v7 = load v6 -> u1
+                jmpif v7 then: b1, else: b2
+              b1():
+                v11 = array_get v0, index u32 1 -> &mut u1
+                jmp b3(v11)
+              b2():
+                v9 = array_get v0, index u32 0 -> &mut u1
+                jmp b3(v9)
+              b3(v1: &mut u1):
+                v12 = allocate -> &mut u1
+                store u1 1 at v12
+                v16 = make_array [u32 1, v2, u32 2, v4, u32 3, v1, u32 4, v12] : [(u32, &mut u1); 4]
+                return v16
+            }
+            ");
         }
 
         // Test that the recursive alias collection works for arrays containing
@@ -3293,8 +3335,37 @@ mod tests {
             }
             "#;
 
+            let ssa = Ssa::from_str(src).unwrap();
+            let (ssa, _) = assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::mem2reg);
+
             // The stores to v7 and v9 must be preserved since they escape via the returned array
-            assert_ssa_does_not_change(src, Ssa::mem2reg);
+            assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [&mut [u1; 2]; 3]):
+                v2 = allocate -> &mut [u1; 2]
+                v5 = make_array [u1 0, u1 1] : [u1; 2]
+                store v5 at v2
+                v6 = allocate -> &mut [u1; 2]
+                v7 = make_array [u1 1, u1 0] : [u1; 2]
+                store v7 at v6
+                v9 = array_get v0, index u32 2 -> &mut [u1; 2]
+                v10 = load v9 -> [u1; 2]
+                v12 = array_get v10, index u32 0 -> u1
+                jmpif v12 then: b1, else: b2
+              b1():
+                v15 = array_get v0, index u32 1 -> &mut [u1; 2]
+                jmp b3(v15)
+              b2():
+                v13 = array_get v0, index u32 0 -> &mut [u1; 2]
+                jmp b3(v13)
+              b3(v1: &mut [u1; 2]):
+                v16 = allocate -> &mut [u1; 2]
+                v17 = make_array [u1 0, u1 0] : [u1; 2]
+                store v17 at v16
+                v18 = make_array [v2, v6, v1, v16] : [&mut [u1; 2]; 4]
+                return v18
+            }
+            ");
         }
     }
 
@@ -3356,6 +3427,85 @@ mod tests {
                 jmp b1(v10)
             }
         "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    // When an array has unknown combined aliases (e.g. mixing a block parameter with local
+    // allocations), `get_aliases_for_value().iter()` yields nothing, so references with
+    // known aliases inside the array are not recorded in `aliased_references`.
+    // This test checks the Store instruction path: storing such an array must still track
+    // its individual element aliases.
+    #[test]
+    fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmpif u1 0 then: b1, else: b2
+              b1():
+                v1 = allocate -> &mut u1
+                store u1 0 at v1
+                v2 = make_array [v1] : [&mut u1; 1]
+                jmp b3(v2)
+              b2():
+                v3 = allocate -> &mut u1
+                store u1 0 at v3
+                v4 = make_array [v3] : [&mut u1; 1]
+                jmp b3(v4)
+              b3(v5: [&mut u1; 1]):
+                v6 = allocate -> &mut u1
+                store u1 1 at v6
+                v7 = make_array [v6] : [&mut u1; 1]
+                v8 = make_array [v7, v5] : [[&mut u1; 1]; 2]
+                v9 = allocate -> &mut [[&mut u1; 1]; 2]
+                store v8 at v9
+                jmp b4(u1 0)
+              b4(v10: u1):
+                v11 = load v9 -> [[&mut u1; 1]; 2]
+                v12 = array_get v11, index u32 0 -> [&mut u1; 1]
+                v13 = array_get v12, index u32 0 -> &mut u1
+                v14 = load v13 -> u1
+                jmpif v10 then: b5, else: b6
+              b5():
+                return v14
+              b6():
+                jmp b4(u1 1)
+            }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    // Same class of bug as above but in the IfElse instruction path: when one of the
+    // IfElse operands is an array with unknown combined aliases, its known element aliases
+    // are not recorded in `aliased_references`.
+    #[test]
+    fn keep_store_when_if_else_operand_has_unknown_aliases_from_block_param() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut u1
+                store u1 1 at v0
+                v1 = make_array [v0] : [&mut u1; 1]
+                jmp b1(v1)
+              b1(v2: [&mut u1; 1]):
+                v3 = array_get v2, index u32 0 -> &mut u1
+                v4 = load v3 -> u1
+                v5 = not v4
+                v6 = allocate -> &mut u1
+                store u1 1 at v6
+                v7 = make_array [v6, v3] : [&mut u1; 2]
+                v8 = allocate -> &mut u1
+                store u1 0 at v8
+                v9 = allocate -> &mut u1
+                store u1 0 at v9
+                v10 = make_array [v8, v9] : [&mut u1; 2]
+                v11 = if v4 then v7 else (if v5) v10
+                v12 = array_get v11, index u32 0 -> &mut u1
+                v13 = load v12 -> u1
+                return v13
+            }
+        "#;
+
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
@@ -3471,5 +3621,38 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn store_in_returned_array_not_removed_across_branches() {
+        // Regression test: mem2reg incorrectly removes `store u1 0 at v1` in func_1
+        // when a branch (jmpif) follows the store. The reference v1 is placed into
+        // an array that is returned. The clear_aliases call in mark_all_unknown
+        // (during Return terminator handling) destroys the alias information
+        // before the terminator value collection can find that v1 is used.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(u1 0) -> [&mut u1; 2]
+            v1 = array_get v0, index u32 0 -> &mut u1
+            v2 = load v1 -> u1
+            return v2
+        }
+        brillig(inline) fn func_1 f1 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v2 = make_array [v1, v1] : [&mut u1; 2]
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
