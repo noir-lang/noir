@@ -3411,7 +3411,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg).unwrap();
     }
 
     // Same class of bug as above but in the IfElse instruction path: when one of the
@@ -3448,7 +3448,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg).unwrap();
     }
 
     #[test]
