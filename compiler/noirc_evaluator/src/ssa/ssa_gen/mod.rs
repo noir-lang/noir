@@ -297,8 +297,7 @@ impl FunctionContext<'_> {
                 }
 
                 let elements: Vec<_> =
-                    std::iter::repeat(element_value).take(*length as usize).collect();
-
+                    std::iter::repeat_n(element_value, *length as usize).collect();
                 let mut converted_typ = Self::convert_type(typ).flatten().into_iter();
                 let typ_0 = converted_typ.next().unwrap();
                 if *is_vector {
