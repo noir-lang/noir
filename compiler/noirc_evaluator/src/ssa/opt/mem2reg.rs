@@ -3373,8 +3373,6 @@ mod tests {
     // its individual element aliases.
     #[test]
     fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
-        use crate::ssa::opt::assert_pass_does_not_affect_execution;
-
         let src = r#"
             brillig(inline) impure fn main f0 {
               b0():
@@ -3410,8 +3408,8 @@ mod tests {
             }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg).unwrap();
+                assert_ssa_does_not_change(src, Ssa::mem2reg);
+
     }
 
     // Same class of bug as above but in the IfElse instruction path: when one of the
@@ -3419,8 +3417,6 @@ mod tests {
     // are not recorded in `aliased_references`.
     #[test]
     fn keep_store_when_if_else_operand_has_unknown_aliases_from_block_param() {
-        use crate::ssa::opt::assert_pass_does_not_affect_execution;
-
         let src = r#"
             brillig(inline) fn main f0 {
               b0():
@@ -3447,8 +3443,7 @@ mod tests {
             }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg).unwrap();
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
