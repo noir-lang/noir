@@ -357,7 +357,7 @@ impl Context {
     fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
         let mut mark_used = |dest, args: &[ValueId]| {
             for (i, arg) in args.iter().enumerate() {
-                if self.parameter_keep_list.get(&dest).map_or(true, |keep| keep[i]) {
+                if self.parameter_keep_list.get(&dest).is_none_or(|keep| keep[i]) {
                     self.mark_used_instruction_results(&function.dfg, *arg);
                 }
             }

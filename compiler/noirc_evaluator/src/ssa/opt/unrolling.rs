@@ -722,6 +722,15 @@ impl Loop {
                 else_arguments,
                 call_stack,
             } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+
                 let condition = *condition;
                 let next_blocks = context.handle_jmpif(
                     condition,
@@ -1164,7 +1173,17 @@ impl<'f> LoopIteration<'f> {
                 else_destination,
                 else_arguments,
                 call_stack,
-            } => self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack),
+            } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack)
+            }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.

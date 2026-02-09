@@ -63,8 +63,8 @@ impl Function {
             &blocks,
             &variables,
             &mut inserter,
-            &mut entry_states,
-            &mut exit_states,
+            &entry_states,
+            &exit_states,
             &cfg,
         );
         remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);

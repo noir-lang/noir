@@ -94,6 +94,15 @@ fn is_conditional(
         call_stack: _,
     }) = function.dfg[block].terminator()
     {
+        assert!(
+            then_arguments.is_empty(),
+            "basic_conditionals pass hasn't been updated to handle jmpif args"
+        );
+        assert!(
+            else_arguments.is_empty(),
+            "basic_conditions pass has not yet been updated to handle jmpif args"
+        );
+
         // A conditional must end with a JmpIf
         let mut then_successors = cfg.successors(*then_destination);
         let mut else_successors = cfg.successors(*else_destination);

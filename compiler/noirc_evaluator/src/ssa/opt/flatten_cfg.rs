@@ -512,6 +512,15 @@ impl<'f> Context<'f> {
                 else_arguments,
                 call_stack,
             } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "flatten_cfg has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "flatten_cfg has not been updated to handle jmpif arguments"
+                );
+
                 // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.
                 self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
