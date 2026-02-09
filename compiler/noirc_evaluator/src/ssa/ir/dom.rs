@@ -415,7 +415,7 @@ mod tests {
         let block2_id = builder.insert_block();
         let block3_id = builder.insert_block();
 
-        builder.terminate_with_jmpif(cond, block2_id, block3_id);
+        builder.terminate_with_jmpif_no_args(cond, block2_id, block3_id);
         builder.switch_to_block(block1_id);
         builder.terminate_with_jmp(block2_id, vec![]);
         builder.switch_to_block(block2_id);

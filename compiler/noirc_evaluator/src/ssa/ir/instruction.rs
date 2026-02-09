@@ -979,7 +979,9 @@ pub(crate) enum TerminatorInstruction {
     JmpIf {
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     },
 
@@ -1009,8 +1011,14 @@ impl TerminatorInstruction {
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 *condition = f(*condition);
+                for argument in then_arguments {
+                    *argument = f(*argument);
+                }
+                for argument in else_arguments {
+                    *argument = f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1030,8 +1038,14 @@ impl TerminatorInstruction {
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 f(*condition);
+                for argument in then_arguments {
+                    f(*argument);
+                }
+                for argument in else_arguments {
+                    f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1051,8 +1065,17 @@ impl TerminatorInstruction {
     pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
-                f(0, *condition);
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
+                let mut i = 0;
+                f(i, *condition);
+                for argument in then_arguments {
+                    i += 1;
+                    f(i, *argument);
+                }
+                for argument in else_arguments {
+                    i += 1;
+                    f(i, *argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for (index, argument) in arguments.iter().enumerate() {

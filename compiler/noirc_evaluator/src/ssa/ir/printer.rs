@@ -205,15 +205,19 @@ fn display_terminator(
         Some(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
+            then_arguments,
             else_destination,
+            else_arguments,
             call_stack: _,
         }) => {
             writeln!(
                 f,
-                "    jmpif {} then: {}, else: {}",
+                "    jmpif {}({}) then: {}({}), else: {}",
                 value(dfg, *condition),
                 then_destination,
-                else_destination
+                value_list(dfg, then_arguments),
+                else_destination,
+                value_list(dfg, else_arguments),
             )
         }
         Some(TerminatorInstruction::Return { return_values, .. }) => {

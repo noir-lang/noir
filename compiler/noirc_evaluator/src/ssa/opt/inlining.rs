@@ -641,7 +641,9 @@ impl<'function> PerFunctionContext<'function> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let condition = self.translate_value(*condition);
@@ -654,17 +656,25 @@ impl<'function> PerFunctionContext<'function> {
                         let next_block =
                             if constant.is_zero() { *else_destination } else { *then_destination };
 
+                        let arguments = if constant.is_zero() {
+                            vecmap(else_arguments, |arg| self.translate_value(*arg))
+                        } else {
+                            vecmap(then_arguments, |arg| self.translate_value(*arg))
+                        };
+
                         let next_block = self.translate_block(next_block, block_queue);
                         self.extend_call_stack(*call_stack);
-                        self.context.builder.terminate_with_jmp(next_block, vec![]);
+                        self.context.builder.terminate_with_jmp(next_block, arguments);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
+                        let then_arguments = vecmap(then_arguments, |arg| self.translate_value(*arg));
+                        let else_arguments = vecmap(else_arguments, |arg| self.translate_value(*arg));
                         self.extend_call_stack(*call_stack);
                         self.context
                             .builder
-                            .terminate_with_jmpif(condition, then_block, else_block);
+                            .terminate_with_jmpif(condition, then_block, then_arguments, else_block, else_arguments);
                     }
                 }
                 None

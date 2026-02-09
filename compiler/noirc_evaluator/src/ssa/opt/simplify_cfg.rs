@@ -123,18 +123,19 @@ fn check_for_constant_jmpif(
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack,
     }) = function.dfg[block].terminator()
         && let Some(constant) = function.dfg.get_numeric_constant(*condition)
     {
-        let (destination, unchosen_destination) = if constant.is_zero() {
-            (*else_destination, *then_destination)
+        let (destination, arguments, unchosen_destination) = if constant.is_zero() {
+            (*else_destination, else_arguments.clone(), *then_destination)
         } else {
-            (*then_destination, *else_destination)
+            (*then_destination, then_arguments.clone(), *else_destination)
         };
 
-        let arguments = Vec::new();
         let call_stack = *call_stack;
         let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
         function.dfg[block].set_terminator(jmp);
@@ -187,17 +188,23 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let then_destination =
                     if then_destination == block { final_destination } else { then_destination };
                 let else_destination =
                     if else_destination == block { final_destination } else { else_destination };
+                assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
+                assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments: Vec::new(),
                     else_destination,
+                    else_arguments: Vec::new(),
                     call_stack,
                 }
             }

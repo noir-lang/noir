@@ -507,7 +507,9 @@ impl<'f> Context<'f> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.

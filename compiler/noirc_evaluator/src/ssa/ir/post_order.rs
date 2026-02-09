@@ -161,7 +161,7 @@ mod tests {
         // A → B   •
         // ↓
         // D   •   •
-        builder.terminate_with_jmpif(cond_a, block_b_id, block_d_id);
+        builder.terminate_with_jmpif_no_args(cond_a, block_b_id, block_d_id);
         //  •   B   •
         //  •   ↓   •
         //  •   E   •
@@ -171,7 +171,7 @@ mod tests {
         //
         // D ← E → F
         builder.switch_to_block(block_e_id);
-        builder.terminate_with_jmpif(cond_e, block_d_id, block_f_id);
+        builder.terminate_with_jmpif_no_args(cond_e, block_d_id, block_f_id);
         // •   B   •
         //   ↗
         // D   •   •
@@ -217,7 +217,7 @@ mod tests {
 
         builder.switch_to_block(b1);
         let zero = builder.numeric_constant(0u32, NumericType::bool());
-        builder.terminate_with_jmpif(zero, b2, b3);
+        builder.terminate_with_jmpif_no_args(zero, b2, b3);
 
         builder.switch_to_block(b2);
         builder.terminate_with_jmp(b1, Vec::new());

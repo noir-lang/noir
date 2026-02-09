@@ -421,15 +421,36 @@ impl FunctionBuilder {
         &mut self,
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
     ) {
         let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
+            then_arguments,
             else_destination,
+            else_arguments,
             call_stack,
         });
+    }
+
+    /// Terminate the current block with a jmpif instruction to jmp with the given arguments
+    /// block with no arguments.
+    pub fn terminate_with_jmpif_no_args(
+        &mut self,
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+    ) {
+        self.terminate_with_jmpif(
+            condition,
+            then_destination,
+            Vec::new(),
+            else_destination,
+            Vec::new(),
+        );
     }
 
     /// Terminate the current block with a return instruction

@@ -632,7 +632,7 @@ fn create_apply_function(
 
                 let condition =
                     function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
-                function_builder.terminate_with_jmpif(
+                function_builder.terminate_with_jmpif_no_args(
                     condition,
                     executor_block,
                     next_function_block.unwrap(),

@@ -20,11 +20,6 @@ use crate::ssa::{
 
 impl Ssa {
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
-        // As a pre-requisite for mem2reg_simple, we need to ensure that for each block with multiple predecessors,
-        // each of those predecessors has only a single successor. This limitation is because we don't currently support
-        // block arguments on [TerminatorInstruction::JmpIf] and thus need the extra block for a [TerminatorInstruction::Jmp]
-        self = self.process_cfg_for_mem2reg_simple();
-
         for function in self.functions.values_mut() {
             // This pass can work in ACIR but is currently very slow for fully inlined + unrolled
             // programs which can be hundreds of thousands of blocks with many mutable variables.

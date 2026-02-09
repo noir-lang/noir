@@ -88,7 +88,9 @@ fn is_conditional(
     if let Some(TerminatorInstruction::JmpIf {
         condition: _,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack: _,
     }) = function.dfg[block].terminator()
     {
@@ -382,14 +384,18 @@ impl Context<'_> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let condition = self.inserter.resolve(condition);
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack,
                 }
             }

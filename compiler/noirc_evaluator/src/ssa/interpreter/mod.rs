@@ -343,18 +343,19 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack: _,
                 }) => {
-                    block_id = if self.lookup_bool(*condition, "jmpif condition")? {
-                        *then_destination
+                    (block_id, arguments) = if self.lookup_bool(*condition, "jmpif condition")? {
+                        (*then_destination, self.lookup_all(then_arguments)?)
                     } else {
-                        *else_destination
+                        (*else_destination, self.lookup_all(else_arguments)?)
                     };
                     if self.options.trace {
                         println!("jump to {block_id}");
                     }
-                    arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
                     let return_values = self.lookup_all(return_values)?;

@@ -455,7 +455,7 @@ mod tests {
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
 
-        builder.terminate_with_jmpif(v4, b1, b2);
+        builder.terminate_with_jmpif_no_args(v4, b1, b2);
 
         builder.switch_to_block(b2);
 
@@ -575,7 +575,7 @@ mod tests {
 
         let v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
 
-        builder.terminate_with_jmpif(v5, b2, b3);
+        builder.terminate_with_jmpif_no_args(v5, b2, b3);
 
         builder.switch_to_block(b2);
 
@@ -589,7 +589,7 @@ mod tests {
 
         let v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
 
-        builder.terminate_with_jmpif(v8, b5, b6);
+        builder.terminate_with_jmpif_no_args(v8, b5, b6);
 
         builder.switch_to_block(b5);
 
@@ -598,7 +598,7 @@ mod tests {
 
         let v11 = builder.insert_not(v10);
 
-        builder.terminate_with_jmpif(v11, b7, b8);
+        builder.terminate_with_jmpif_no_args(v11, b7, b8);
 
         builder.switch_to_block(b7);
 
@@ -696,7 +696,7 @@ mod tests {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        builder.terminate_with_jmpif(v0, b1, b2);
+        builder.terminate_with_jmpif_no_args(v0, b1, b2);
 
         builder.switch_to_block(b1);
         let twenty_seven = builder.field_constant(27_u128);
