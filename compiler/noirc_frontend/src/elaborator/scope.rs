@@ -6,7 +6,7 @@ use crate::elaborator::patterns::Variable;
 use crate::hir::def_map::ModuleId;
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
-use crate::node_interner::TypeAliasId;
+use crate::node_interner::{DefinitionKind, TypeAliasId};
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
@@ -56,6 +56,12 @@ impl Elaborator<'_> {
     /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
     /// of the variable, add the [HirIdent] to the list of captures.
     pub(super) fn resolve_local_variable(&mut self, variable: &Variable) {
+        // Only local variables can be captured by closures.
+        // (the variable might point to a numeric generic like `let N: u32`, which is not captured)
+        let DefinitionKind::Local(..) = self.interner.definition(variable.ident.id).kind else {
+            return;
+        };
+
         let mut transitive_capture_index: Option<usize> = None;
 
         for lambda_index in 0..self.lambda_stack.len() {

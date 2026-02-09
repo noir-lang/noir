@@ -2,7 +2,7 @@ use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{NodeInterner, StmtId},
     test_utils::get_program,
-    tests::{assert_no_errors, check_errors},
+    tests::{assert_no_errors, check_errors, check_monomorphization_error},
 };
 
 #[test]
@@ -573,4 +573,18 @@ fn errors_on_duplicate_lambda_parameter_name() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn lambda_referes_to_numeric_generic() {
+    let src = r#"
+    fn main() -> pub bool {
+        foo::<10>()
+    }
+
+    fn foo<let N: u32>() -> bool {
+        (|x| x == N)(10)
+    }
+    "#;
+    check_monomorphization_error(src);
 }
