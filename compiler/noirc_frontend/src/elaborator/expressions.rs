@@ -467,21 +467,12 @@ impl Elaborator<'_> {
                 {
                     Some(IdentFromPath::Variable(variable)) => {
                         self.handle_local_variable(&variable);
-                        let hir_ident = variable.ident;
-                        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                        let expr_id = self.intern_expr(hir_expr, *location);
-                        let typ = self.type_check_variable(hir_ident, &expr_id, None);
-                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
-                        (typ, expr_id)
+                        self.elaborate_fmt_string_ident(variable.ident, *location)
                     }
                     Some(IdentFromPath::Definition { id, item: _ }) => {
                         self.handle_definition_id(id, *location);
                         let hir_ident = HirIdent::non_trait_method(id, *location);
-                        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                        let expr_id = self.intern_expr(hir_expr, *location);
-                        let typ = self.type_check_variable(hir_ident, &expr_id, None);
-                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
-                        (typ, expr_id)
+                        self.elaborate_fmt_string_ident(hir_ident, *location)
                     }
                     Some(IdentFromPath::TypeAlias(_)) | None => {
                         let hir_expr = HirExpression::Error;
@@ -501,6 +492,18 @@ impl Elaborator<'_> {
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
+    }
+
+    fn elaborate_fmt_string_ident(
+        &mut self,
+        hir_ident: HirIdent,
+        location: Location,
+    ) -> (Type, ExprId) {
+        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+        let expr_id = self.intern_expr(hir_expr, location);
+        let typ = self.type_check_variable(hir_ident, &expr_id, None);
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+        (typ, expr_id)
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {

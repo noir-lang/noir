@@ -446,52 +446,16 @@ impl Elaborator<'_> {
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Path(path) => {
-                let mut mutable = true;
                 let location = path.location;
                 let path = self.validate_path(path);
                 match self.get_ident_from_path_or_error(path.clone()) {
                     Ok(IdentFromPath::Variable(variable)) => {
                         self.resolve_local_variable(&variable);
-
-                        let ident = variable.ident;
-                        let definition = self.interner.definition(ident.id);
-                        mutable = definition.mutable;
-
-                        if definition.comptime && !self.in_comptime_context() {
-                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                                name: definition.name.clone(),
-                                location: ident.location,
-                            });
-                        }
-
-                        let typ =
-                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
-                        let typ = typ.follow_bindings();
-
-                        self.interner.add_local_reference(ident.id, location);
-
-                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                        self.elaborate_lvalue_ident(variable.ident, location)
                     }
                     Ok(IdentFromPath::Definition { id, item: _ }) => {
                         let ident = HirIdent::non_trait_method(id, location);
-
-                        let definition = self.interner.definition(ident.id);
-                        mutable = definition.mutable;
-
-                        if definition.comptime && !self.in_comptime_context() {
-                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                                name: definition.name.clone(),
-                                location: ident.location,
-                            });
-                        }
-
-                        let typ =
-                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
-                        let typ = typ.follow_bindings();
-
-                        self.interner.add_local_reference(ident.id, location);
-
-                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                        self.elaborate_lvalue_ident(ident, location)
                     }
                     Ok(IdentFromPath::TypeAlias(_)) => {
                         (HirLValue::Error { location }, Type::Error, false, Vec::new())
@@ -514,6 +478,7 @@ impl Elaborator<'_> {
                         } else {
                             self.push_err(error);
                         }
+                        let mutable = true;
                         (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
                 }
@@ -658,6 +623,29 @@ impl Elaborator<'_> {
                 self.elaborate_lvalue(lvalue)
             }
         }
+    }
+
+    fn elaborate_lvalue_ident(
+        &mut self,
+        ident: HirIdent,
+        location: Location,
+    ) -> (HirLValue, Type, bool, Vec<StmtId>) {
+        let definition = self.interner.definition(ident.id);
+        let mutable = definition.mutable;
+
+        if definition.comptime && !self.in_comptime_context() {
+            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+                name: definition.name.clone(),
+                location: ident.location,
+            });
+        }
+
+        let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
+        let typ = typ.follow_bindings();
+
+        self.interner.add_local_reference(ident.id, location);
+
+        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
     }
 
     fn fresh_definition_for_lvalue_index(
