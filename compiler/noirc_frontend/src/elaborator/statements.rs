@@ -495,11 +495,7 @@ impl Elaborator<'_> {
                         } else {
                             self.push_err(error);
                         }
-
-                        let id = DefinitionId::dummy_id();
-                        let ident = HirIdent::non_trait_method(id, location);
-                        let typ = Type::Error;
-                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                        (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
                 }
             }
