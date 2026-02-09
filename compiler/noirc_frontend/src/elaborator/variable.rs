@@ -300,14 +300,15 @@ impl Elaborator<'_> {
             };
         }
 
+        // The location of variables or definitions we register (for LSP) must be that of the
+        // path's last segment, as intermediate segments solve to other definitions.
+        let location = path.last_ident().location();
+
         // If the Path is being used as an Expression, then it is referring to a global from a separate module
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let location = path.location;
-
         let ident_from_path = self.get_ident_from_path(path);
-
         ident_from_path.map(|ident_from_path| match ident_from_path {
             IdentFromPath::Variable(variable) => {
                 self.handle_local_variable(&variable);
