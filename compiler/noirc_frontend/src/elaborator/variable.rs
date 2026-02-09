@@ -17,7 +17,7 @@ use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
-use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
+use crate::node_interner::{DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 use crate::{Kind, Type, TypeBindings};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -508,10 +508,6 @@ impl Elaborator<'_> {
         var_scope_index: usize,
         location: Location,
     ) {
-        if hir_ident.id == DefinitionId::dummy_id() {
-            return;
-        }
-
         match self.interner.definition(hir_ident.id).kind {
             DefinitionKind::Function(func_id) => {
                 if let Some(current_item) = self.current_item {

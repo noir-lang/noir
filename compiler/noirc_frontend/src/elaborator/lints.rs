@@ -13,9 +13,7 @@ use crate::{
         function::FuncMeta,
         stmt::HirStatement,
     },
-    node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
-    },
+    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner},
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
@@ -499,9 +497,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
 
     match interner.expression(&expr_id) {
         HirExpression::Ident(ident, _) => {
-            if ident.id == DefinitionId::dummy_id() {
-                return true;
-            }
             let definition = interner.definition(ident.id);
             if let DefinitionKind::Function(id) = definition.kind { func_id != id } else { true }
         }

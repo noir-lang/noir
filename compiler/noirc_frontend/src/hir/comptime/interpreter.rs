@@ -575,11 +575,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        // If the id is a dummy, assume the error was already issued elsewhere
-        if id == DefinitionId::dummy_id() {
-            return Ok(());
-        }
-
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
@@ -612,12 +607,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        if id == DefinitionId::dummy_id() {
-            Err(InterpreterError::VariableNotInScope { location })
-        } else {
-            let name = self.elaborator.interner.definition_name(id).to_string();
-            Err(InterpreterError::NonComptimeVarReferenced { name, location })
-        }
+        let name = self.elaborator.interner.definition_name(id).to_string();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     /// Evaluate an expression and return the result.
