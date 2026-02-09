@@ -1410,7 +1410,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     }
                 }
 
-                env.remove(&definition_id);
+                env.remove(definition_id);
             }
         }
     }
