@@ -662,3 +662,32 @@ fn acir_function_with_databus_array_input() {
     }
     ");
 }
+
+#[test]
+fn repeated_nested_array() {
+    let src = "
+    unconstrained fn main() {
+        let a = [1, 2];
+        let b = [a; 3];
+        use_var(b);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Check that only one inc_rc is added
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v2 = make_array [Field 1, Field 2] : [Field; 2]
+        inc_rc v2
+        v3 = make_array [v2, v2, v2] : [[Field; 2]; 3]
+        call f1(v3)
+        return
+    }
+    brillig(inline) fn use_var f1 {
+      b0(v0: [[Field; 2]; 3]):
+        return
+    }
+    ");
+}

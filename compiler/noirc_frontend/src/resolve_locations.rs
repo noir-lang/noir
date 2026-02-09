@@ -37,15 +37,15 @@ impl NodeInterner {
         let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
 
         for (index, interned_location) in self.id_to_location.iter() {
-            if interned_location.contains(&location) {
-                if let Some(typ) = self.try_id_type(*index) {
-                    if let Some(current_location) = location_candidate {
-                        if interned_location.span.is_smaller(&current_location.1.span) {
-                            location_candidate = Some((index, interned_location, typ));
-                        }
-                    } else {
+            if interned_location.contains(&location)
+                && let Some(typ) = self.try_id_type(*index)
+            {
+                if let Some(current_location) = location_candidate {
+                    if interned_location.span.is_smaller(&current_location.1.span) {
                         location_candidate = Some((index, interned_location, typ));
                     }
+                } else {
+                    location_candidate = Some((index, interned_location, typ));
                 }
             }
         }
