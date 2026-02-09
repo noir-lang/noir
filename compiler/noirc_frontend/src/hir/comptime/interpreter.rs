@@ -1406,10 +1406,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
             }
-            HirLValue::Error { .. } => {
-                // An error should have been produced already
-                Ok(())
-            }
+            HirLValue::Error { location } => Err(InterpreterError::VariableNotInScope { location }),
         }
     }
 
@@ -1501,9 +1498,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let (elements, index) = bounds_check(array, index, *location)?;
                 Ok(elements[index].clone())
             }
-            HirLValue::Error { .. } => {
-                // An error should have been produced already
-                Ok(Value::Unit)
+            HirLValue::Error { location } => {
+                Err(InterpreterError::VariableNotInScope { location: *location })
             }
         }
     }

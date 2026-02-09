@@ -510,9 +510,7 @@ impl Elaborator<'_> {
                 let dereference_lhs = move |_: &mut Self, _, element_type| {
                     // We must create a temporary value first to move out of object_ref before
                     // we eventually reassign to it.
-                    let id = DefinitionId::dummy_id();
-                    let ident = HirIdent::non_trait_method(id, location);
-                    let tmp_value = HirLValue::Ident(ident, Type::Error);
+                    let tmp_value = HirLValue::Error { location };
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
                     **object_ref = HirLValue::Dereference {
