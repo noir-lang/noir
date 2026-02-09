@@ -2404,6 +2404,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }
             }
+            HirLValue::Error { .. } => {
+                unreachable!("Encountered Error node during monomorphization");
+            }
         };
 
         Ok(value)

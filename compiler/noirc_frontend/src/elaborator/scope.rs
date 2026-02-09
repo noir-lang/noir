@@ -93,19 +93,20 @@ impl Elaborator<'_> {
     pub(super) fn lookup_item_as_value(
         &mut self,
         path: TypedPath,
-    ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
+    ) -> Result<(Option<DefinitionId>, PathResolutionItem), ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
 
         if let Some(function) = item.function_id() {
-            return Ok((self.interner.function_definition_id(function), item));
+            let definition_id = self.interner.function_definition_id(function);
+            return Ok((Some(definition_id), item));
         }
 
         let expected = "value";
         match item {
             PathResolutionItem::Global(global) => {
                 let global = self.interner.get_global(global);
-                Ok((global.definition_id, item))
+                Ok((Some(global.definition_id), item))
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -113,13 +114,13 @@ impl Elaborator<'_> {
                 if type_alias.borrow().numeric_expr.is_some() {
                     // Type alias to numeric generics are aliases to some global value
                     // Therefore we allow this case although we cannot provide the value yet
-                    return Ok((DefinitionId::dummy_id(), item));
+                    return Ok((None, item));
                 }
                 if matches!(type_alias.borrow().typ, Type::Alias(_, _))
                     || matches!(type_alias.borrow().typ, Type::Error)
                 {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
-                    return Ok((DefinitionId::dummy_id(), item));
+                    return Ok((None, item));
                 }
                 Err(ResolverError::Expected {
                     location,
@@ -127,7 +128,7 @@ impl Elaborator<'_> {
                     found: item.description(self.interner),
                 })
             }
-            PathResolutionItem::TraitConstant(_, _, def_id) => Ok((def_id, item)),
+            PathResolutionItem::TraitConstant(_, _, def_id) => Ok((Some(def_id), item)),
             item => Err(ResolverError::Expected {
                 location,
                 expected,

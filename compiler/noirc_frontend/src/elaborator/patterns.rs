@@ -14,7 +14,7 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{expr::HirIdent, stmt::HirPattern},
-    node_interner::{DefinitionId, DefinitionKind, FuncId, TypeAliasId, TypeId},
+    node_interner::{DefinitionKind, FuncId, TypeAliasId, TypeId},
 };
 
 use super::{
@@ -728,14 +728,12 @@ impl Elaborator<'_> {
     pub(crate) fn get_ident_from_path(
         &mut self,
         path: TypedPath,
-    ) -> Option<((HirIdent, usize), Option<PathResolutionItem>)> {
+    ) -> (Option<(HirIdent, usize)>, Option<PathResolutionItem>) {
         match self.get_ident_from_path_or_error(path) {
-            Ok(((hir_ident, index), path_resolution_item)) => {
-                Some(((hir_ident, index), path_resolution_item))
-            }
+            Ok(value) => value,
             Err(error) => {
                 self.push_err(error);
-                None
+                (None, None)
             }
         }
     }
@@ -744,7 +742,7 @@ impl Elaborator<'_> {
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,
         path: TypedPath,
-    ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
+    ) -> Result<(Option<(HirIdent, usize)>, Option<PathResolutionItem>), ResolverError> {
         let location = Location::new(path.last_ident().span(), path.location.file);
         let use_variable_result = path.as_single_segment().map(|segment| {
             let result = self.use_variable(&segment.ident);
@@ -757,11 +755,12 @@ impl Elaborator<'_> {
         });
 
         let error = match use_variable_result {
-            Some(Ok(found)) => return Ok((found, None)),
+            Some(Ok(found)) => return Ok((Some(found), None)),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_item_as_value(path) {
                 Ok((id, item)) => {
-                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
+                    let hir_ident = id.map(|id| (HirIdent::non_trait_method(id, location), 0));
+                    return Ok((hir_ident, Some(item)));
                 }
                 Err(ResolverError::PathResolutionError(..)) => {
                     // A path resolution error is more specific than a "variable not found"
@@ -780,17 +779,9 @@ impl Elaborator<'_> {
                 },
             },
             None => match self.lookup_item_as_value(path) {
-                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
-                    if dummy_id == DefinitionId::dummy_id() =>
-                {
-                    // Allow path which resolves to a type alias
-                    return Ok((
-                        (HirIdent::non_trait_method(dummy_id, location), 4),
-                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
-                    ));
-                }
                 Ok((id, item)) => {
-                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
+                    let hir_ident = id.map(|id| (HirIdent::non_trait_method(id, location), 0));
+                    return Ok((hir_ident, Some(item)));
                 }
                 Err(error) => error,
             },

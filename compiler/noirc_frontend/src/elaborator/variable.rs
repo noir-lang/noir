@@ -291,13 +291,16 @@ impl Elaborator<'_> {
         // If the expression is a singular indent, we search the resolver's current scope as normal.
         let location = path.location;
 
-        match self.get_ident_from_path(path) {
-            Some(((hir_ident, var_scope_index), item)) => {
-                self.handle_hir_ident(&hir_ident, var_scope_index, location);
-                (Some(hir_ident), item)
-            }
-            None => (None, None),
-        }
+        let (ident_and_var_scope_index, item) = self.get_ident_from_path(path);
+
+        let ident = if let Some((ident, var_scope_index)) = ident_and_var_scope_index {
+            self.handle_hir_ident(&ident, var_scope_index, location);
+            Some(ident)
+        } else {
+            None
+        };
+
+        (ident, item)
     }
 
     /// Solve any generics that are part of the path before the function, for example:

@@ -1406,6 +1406,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
             }
+            HirLValue::Error { .. } => {
+                // An error should have been produced already
+                Ok(())
+            }
         }
     }
 
@@ -1496,6 +1500,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let index = self.evaluate(*index)?;
                 let (elements, index) = bounds_check(array, index, *location)?;
                 Ok(elements[index].clone())
+            }
+            HirLValue::Error { .. } => {
+                // An error should have been produced already
+                Ok(Value::Unit)
             }
         }
     }

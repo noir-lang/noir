@@ -227,7 +227,9 @@ impl Elaborator<'_> {
             self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
         } else {
             let (id, name, location) = self.get_lvalue_error_info(&lvalue);
-            self.check_can_mutate_lambda_capture(id, name, location);
+            if let Some(id) = id {
+                self.check_can_mutate_lambda_capture(id, name, location);
+            }
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
@@ -415,20 +417,20 @@ impl Elaborator<'_> {
         (expr, Type::Unit)
     }
 
-    fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
+    fn get_lvalue_error_info(
+        &self,
+        lvalue: &HirLValue,
+    ) -> (Option<DefinitionId>, String, Location) {
         match lvalue {
             HirLValue::Ident(name, _) => {
                 let location = name.location;
-
-                if let Some(definition) = self.interner.try_definition(name.id) {
-                    (name.id, definition.name.clone(), location)
-                } else {
-                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), location)
-                }
+                let definition = self.interner.definition(name.id);
+                (Some(name.id), definition.name.clone(), location)
             }
             HirLValue::MemberAccess { object, .. } => self.get_lvalue_error_info(object),
             HirLValue::Index { array, .. } => self.get_lvalue_error_info(array),
             HirLValue::Dereference { lvalue, .. } => self.get_lvalue_error_info(lvalue),
+            HirLValue::Error { location, .. } => (None, "(undeclared variable)".into(), *location),
         }
     }
 
@@ -445,10 +447,11 @@ impl Elaborator<'_> {
                 let location = path.location;
                 let path = self.validate_path(path);
                 match self.get_ident_from_path_or_error(path.clone()) {
-                    Ok(((ident, scope_index), _)) => {
-                        self.resolve_local_variable(ident.clone(), scope_index);
+                    Ok((ident_and_var_scope_index, _)) => {
+                        if let Some((ident, scope_index)) = ident_and_var_scope_index {
+                            self.resolve_local_variable(ident.clone(), scope_index);
 
-                        if let Some(definition) = self.interner.try_definition(ident.id) {
+                            let definition = self.interner.definition(ident.id);
                             mutable = definition.mutable;
 
                             if definition.comptime && !self.in_comptime_context() {
@@ -459,15 +462,20 @@ impl Elaborator<'_> {
                                     },
                                 );
                             }
+
+                            let typ = self
+                                .interner
+                                .definition_type(ident.id)
+                                .instantiate(self.interner)
+                                .0;
+                            let typ = typ.follow_bindings();
+
+                            self.interner.add_local_reference(ident.id, location);
+
+                            (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                        } else {
+                            (HirLValue::Error { location }, Type::Error, false, Vec::new())
                         }
-
-                        let typ =
-                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
-                        let typ = typ.follow_bindings();
-
-                        self.interner.add_local_reference(ident.id, location);
-
-                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
                     }
                     Err(error) => {
                         // We couldn't find a variable or global. Let's see if the identifier refers to something
