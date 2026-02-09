@@ -328,9 +328,9 @@ impl FunctionContext<'_> {
                     let vector_length = self.builder.length_constant(u128::from(*length));
                     let vector_contents =
                         self.codegen_array_checked(elements, converted_typ.next().unwrap())?;
-                    Ok(Tree::Branch(vec![vector_length.into(), vector_contents]))
+                    Ok(Tree::Branch(vec![vector_length.into(), vector_contents.into()]))
                 } else {
-                    self.codegen_array_checked(elements, typ_0)
+                    self.codegen_array_checked(elements, typ_0).map(Into::into)
                 }
             }
             ast::Literal::Integer(value, typ, location) => {

@@ -37,9 +37,9 @@ pub struct Ssa {
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
     #[serde(skip)]
-    pub(crate) acir_globals: Arc<GlobalsGraph>,
+    pub acir_globals: Arc<GlobalsGraph>,
     #[serde(skip)]
-    pub(crate) brillig_globals: Arc<GlobalsGraph>,
+    pub brillig_globals: Arc<GlobalsGraph>,
 }
 
 impl Ssa {
