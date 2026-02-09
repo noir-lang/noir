@@ -462,7 +462,7 @@ impl Elaborator<'_> {
                 let (typ, expr_id) = match self
                     .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
                 {
-                    Some((hir_ident, var_scope_index, _)) => {
+                    Some(((hir_ident, var_scope_index), _)) => {
                         self.handle_hir_ident(&hir_ident, var_scope_index, *location);
                         let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                         let expr_id = self.intern_expr(hir_expr, *location);

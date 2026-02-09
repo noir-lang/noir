@@ -292,7 +292,7 @@ impl Elaborator<'_> {
         let location = path.location;
 
         match self.get_ident_from_path(path) {
-            Some((hir_ident, var_scope_index, item)) => {
+            Some(((hir_ident, var_scope_index), item)) => {
                 self.handle_hir_ident(&hir_ident, var_scope_index, location);
                 (Some(hir_ident), item)
             }

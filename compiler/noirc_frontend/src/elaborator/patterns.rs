@@ -728,10 +728,10 @@ impl Elaborator<'_> {
     pub(crate) fn get_ident_from_path(
         &mut self,
         path: TypedPath,
-    ) -> Option<(HirIdent, usize, Option<PathResolutionItem>)> {
+    ) -> Option<((HirIdent, usize), Option<PathResolutionItem>)> {
         match self.get_ident_from_path_or_error(path) {
             Ok(((hir_ident, index), path_resolution_item)) => {
-                Some((hir_ident, index, path_resolution_item))
+                Some(((hir_ident, index), path_resolution_item))
             }
             Err(error) => {
                 self.push_err(error);
