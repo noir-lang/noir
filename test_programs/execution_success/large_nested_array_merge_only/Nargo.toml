@@ -1,0 +1,6 @@
+[package]
+name = "large_nested_array_merge_only"
+type = "bin"
+authors = [""]
+
+[dependencies]
