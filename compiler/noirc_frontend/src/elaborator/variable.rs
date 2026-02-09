@@ -29,7 +29,6 @@ use noirc_errors::Location;
 pub(crate) enum VariableResolution {
     Ident(HirIdent, Option<PathResolutionItem>),
     TypeAlias(TypeAliasId),
-    None,
 }
 
 impl Elaborator<'_> {
@@ -72,7 +71,7 @@ impl Elaborator<'_> {
         let variable_resolution = self.resolve_variable(variable);
 
         let (hir_ident, item) = match variable_resolution {
-            VariableResolution::TypeAlias(type_alias_id) => {
+            Some(VariableResolution::TypeAlias(type_alias_id)) => {
                 // A type alias to a numeric generics is considered like a variable,
                 // but it is not a real variable so it does not resolve to a valid Identifier.
                 // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
@@ -99,8 +98,8 @@ impl Elaborator<'_> {
                 }
                 (None, None)
             }
-            VariableResolution::Ident(ident, item) => (Some(ident), item),
-            VariableResolution::None => (None, None),
+            Some(VariableResolution::Ident(ident, item)) => (Some(ident), item),
+            None => (None, None),
         };
 
         let definition_id = hir_ident.as_ref().map(|ident| ident.id);
@@ -268,7 +267,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
-    fn resolve_variable(&mut self, path: TypedPath) -> VariableResolution {
+    fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
 
@@ -279,23 +278,21 @@ impl Elaborator<'_> {
                         id: self.interner.function_definition_id(func_id),
                         impl_kind: ImplKind::NotATraitMethod,
                     };
-                    VariableResolution::Ident(ident, trait_path_resolution.item)
+                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
                 }
 
                 TraitPathResolutionMethod::TraitItem(item) => {
-                    // RETURNS: item with item
                     let ident = HirIdent {
                         location: path.location,
                         id: item.definition,
                         impl_kind: ImplKind::TraitItem(item),
                     };
-                    VariableResolution::Ident(ident, trait_path_resolution.item)
+                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
                 }
 
                 TraitPathResolutionMethod::MultipleTraitsInScope => {
-                    // RETURNS: None, None
                     // An error has already been pushed, don't return an identifier
-                    VariableResolution::None
+                    None
                 }
             };
         }
@@ -308,22 +305,19 @@ impl Elaborator<'_> {
 
         let ident_from_path = self.get_ident_from_path(path);
 
-        match ident_from_path {
-            Some(IdentFromPath::Variable(variable)) => {
+        ident_from_path.map(|ident_from_path| match ident_from_path {
+            IdentFromPath::Variable(variable) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
                 VariableResolution::Ident(hir_ident, None)
             }
-            Some(IdentFromPath::Definition { id, item }) => {
+            IdentFromPath::Definition { id, item } => {
                 self.handle_definition_id(id, location);
                 let hir_ident = HirIdent::non_trait_method(id, location);
                 VariableResolution::Ident(hir_ident, Some(item))
             }
-            Some(IdentFromPath::TypeAlias(type_alias_id)) => {
-                VariableResolution::TypeAlias(type_alias_id)
-            }
-            None => VariableResolution::None,
-        }
+            IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
+        })
     }
 
     /// Solve any generics that are part of the path before the function, for example:
