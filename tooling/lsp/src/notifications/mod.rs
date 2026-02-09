@@ -379,12 +379,11 @@ fn publish_diagnostics(
     for custom_diagnostic in custom_diagnostics.into_iter() {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
-        if let Some(uri) = uri_from_path(path) {
-            if let Some(diagnostic) =
+        if let Some(uri) = uri_from_path(path)
+            && let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
-            {
-                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
-            }
+        {
+            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
         }
     }
 

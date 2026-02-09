@@ -418,11 +418,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str(&associated_type.name);
                 if let Some(trait_bounds) =
                     trait_.associated_type_bounds.get(associated_type.name.as_str())
+                    && !trait_bounds.is_empty()
                 {
-                    if !trait_bounds.is_empty() {
-                        self.push_str(": ");
-                        self.show_trait_bounds(trait_bounds);
-                    }
+                    self.push_str(": ");
+                    self.show_trait_bounds(trait_bounds);
                 }
             }
 
@@ -1163,41 +1162,39 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 return name;
             }
 
-            if let Some(self_type) = &func_meta.self_type {
-                if self_type.is_primitive() {
-                    // Type path, like `Field::method(...)`
-                    self.show_type(self_type);
-                    self.push_str("::");
+            if let Some(self_type) = &func_meta.self_type
+                && self_type.is_primitive()
+            {
+                // Type path, like `Field::method(...)`
+                self.show_type(self_type);
+                self.push_str("::");
 
-                    let name = self.interner.function_name(&func_id).to_string();
-                    self.push_str(&name);
-                    return name;
-                }
-            }
-        }
-
-        if use_import {
-            if let Some(name) = self.imports.get(&module_def_id) {
-                let name = name.to_string();
+                let name = self.interner.function_name(&func_id).to_string();
                 self.push_str(&name);
                 return name;
             }
         }
 
+        if use_import && let Some(name) = self.imports.get(&module_def_id) {
+            let name = name.to_string();
+            self.push_str(&name);
+            return name;
+        }
+
         let current_module_parent_id = self.module_id.parent(self.def_maps);
 
         // Check if module_def_id is the current module's parent
-        if let ModuleDefId::ModuleId(module_id) = module_def_id {
-            if current_module_parent_id == Some(module_id) {
-                // If the parent is actually the crate's root, use "crate"
-                if current_module_parent_id.unwrap().parent(self.def_maps).is_none() {
-                    self.push_str("crate");
-                    return "crate".to_string();
-                }
-
-                self.push_str("super");
-                return "super".to_string();
+        if let ModuleDefId::ModuleId(module_id) = module_def_id
+            && current_module_parent_id == Some(module_id)
+        {
+            // If the parent is actually the crate's root, use "crate"
+            if current_module_parent_id.unwrap().parent(self.def_maps).is_none() {
+                self.push_str("crate");
+                return "crate".to_string();
             }
+
+            self.push_str("super");
+            return "super".to_string();
         }
 
         let is_visible = module_def_id_is_visible(
@@ -1209,34 +1206,32 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             self.def_maps,
             self.dependencies,
         );
-        if !is_visible {
-            if let Some(reexport) = self.interner.get_reexports(module_def_id).first() {
-                self.show_reference_to_module_def_id(
-                    ModuleDefId::ModuleId(reexport.module_id),
-                    reexport.visibility,
-                    true,
-                );
-                self.push_str("::");
-                self.push_str(reexport.name.as_str());
-                return reexport.name.to_string();
-            }
+        if !is_visible && let Some(reexport) = self.interner.get_reexports(module_def_id).first() {
+            self.show_reference_to_module_def_id(
+                ModuleDefId::ModuleId(reexport.module_id),
+                reexport.visibility,
+                true,
+            );
+            self.push_str("::");
+            self.push_str(reexport.name.as_str());
+            return reexport.name.to_string();
         }
 
         // Recurse on the parent module, but only if the parent module isn't the current module
         // (if so, we can already reach the definition just by printing its name)
         let module_def_id_parent_module =
             get_parent_module(module_def_id, self.interner, self.def_maps);
-        if module_def_id_parent_module != Some(self.module_id) {
-            if let Some(module_def_id_parent_module) = module_def_id_parent_module {
-                let visibility = self
-                    .module_def_id_visibility(ModuleDefId::ModuleId(module_def_id_parent_module));
-                self.show_reference_to_module_def_id(
-                    ModuleDefId::ModuleId(module_def_id_parent_module),
-                    visibility,
-                    use_import,
-                );
-                self.push_str("::");
-            }
+        if module_def_id_parent_module != Some(self.module_id)
+            && let Some(module_def_id_parent_module) = module_def_id_parent_module
+        {
+            let visibility =
+                self.module_def_id_visibility(ModuleDefId::ModuleId(module_def_id_parent_module));
+            self.show_reference_to_module_def_id(
+                ModuleDefId::ModuleId(module_def_id_parent_module),
+                visibility,
+                use_import,
+            );
+            self.push_str("::");
         }
 
         let name = self.module_def_id_name(module_def_id);

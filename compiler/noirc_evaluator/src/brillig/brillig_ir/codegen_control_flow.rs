@@ -222,13 +222,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             // Shortcuts: empty data does not need without allocation, and can even use the procedure.
             if data_size == 0 {
                 // use the procedure call for better code reuse
-                if ctx.can_call_procedures {
-                    if let Some(ErrorType::String(message)) =
+                if ctx.can_call_procedures
+                    && let Some(ErrorType::String(message)) =
                         ctx.obj.error_types.get(&error_selector)
-                    {
-                        ctx.call_error_with_string_procedure(message.clone());
-                        return;
-                    }
+                {
+                    ctx.call_error_with_string_procedure(message.clone());
+                    return;
                 }
 
                 // Fast path: Just write selector to free memory pointer, no allocation needed
