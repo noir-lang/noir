@@ -66,7 +66,7 @@ version = "1.0.0-beta.18"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
-rust-version = "1.87.0"
+rust-version = "1.89.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 

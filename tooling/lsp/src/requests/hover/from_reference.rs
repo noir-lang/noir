@@ -100,14 +100,14 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
         // this won't be an issue anymore.
         let module_attributes = args.interner.try_module_attributes(id)?;
 
-        if let Some(parent_local_id) = module_attributes.parent {
-            if format_parent_module_from_module_id(
+        if let Some(parent_local_id) = module_attributes.parent
+            && format_parent_module_from_module_id(
                 ModuleId { krate: id.krate, local_id: parent_local_id },
                 args,
                 &mut string,
-            ) {
-                string.push('\n');
-            }
+            )
+        {
+            string.push('\n');
         }
         string.push_str("    ");
         string.push_str("mod ");
@@ -317,11 +317,11 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{typ}"));
 
-    if let GlobalValue::Resolved(value) = &global_info.value {
-        if let Some(value) = value_to_string(value) {
-            string.push_str(" = ");
-            string.push_str(&value);
-        }
+    if let GlobalValue::Resolved(value) = &global_info.value
+        && let Some(value) = value_to_string(value)
+    {
+        string.push_str(" = ");
+        string.push_str(&value);
     }
 
     append_doc_comments(ReferenceId::Global(id), &mut string, args);

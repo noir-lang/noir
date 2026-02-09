@@ -91,14 +91,14 @@ fn run_package_comptime(
                 println!("[{}] Circuit output: {result_as_string}", package.name);
             }
 
-            if let Some(return_value) = return_value {
-                if result != return_value {
-                    let return_value_as_string =
-                        return_value.display(&context.def_interner).to_string();
-                    return Err(CliError::Generic(format!(
-                        "Unexpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
-                    )));
-                }
+            if let Some(return_value) = return_value
+                && result != return_value
+            {
+                let return_value_as_string =
+                    return_value.display(&context.def_interner).to_string();
+                return Err(CliError::Generic(format!(
+                    "Unexpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
+                )));
             }
 
             Ok(())

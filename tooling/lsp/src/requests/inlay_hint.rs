@@ -78,41 +78,41 @@ impl<'a> InlayHintCollector<'a> {
 
         let span = ident.span();
         let location = Location::new(ident.span(), self.file_id);
-        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
-            if let Some(referenced) = self.interner.find_referenced(location) {
-                let include_colon = true;
-                match referenced {
-                    ReferenceId::Global(global_id) => {
-                        let global_info = self.interner.get_global(global_id);
-                        let definition_id = global_info.definition_id;
-                        let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ, editable, include_colon);
-                    }
-                    ReferenceId::Local(definition_id) => {
-                        let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ, editable, include_colon);
-                    }
-                    ReferenceId::StructMember(struct_id, field_index) => {
-                        let struct_type = self.interner.get_type(struct_id);
-                        let struct_type = struct_type.borrow();
-                        let field = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, &field.typ, false, include_colon);
-                    }
-                    ReferenceId::EnumVariant(type_id, variant_index) => {
-                        let typ = self.interner.get_type(type_id);
-                        let shared_type = typ.clone();
-                        let typ = typ.borrow();
-                        let variant_type = typ.variant_function_type(variant_index, shared_type);
-                        self.push_type_hint(lsp_location, &variant_type, false, include_colon);
-                    }
-                    ReferenceId::Module(_)
-                    | ReferenceId::Type(_)
-                    | ReferenceId::Trait(_)
-                    | ReferenceId::TraitAssociatedType(_)
-                    | ReferenceId::Function(_)
-                    | ReferenceId::Alias(_)
-                    | ReferenceId::Reference(..) => (),
+        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span)
+            && let Some(referenced) = self.interner.find_referenced(location)
+        {
+            let include_colon = true;
+            match referenced {
+                ReferenceId::Global(global_id) => {
+                    let global_info = self.interner.get_global(global_id);
+                    let definition_id = global_info.definition_id;
+                    let typ = self.interner.definition_type(definition_id);
+                    self.push_type_hint(lsp_location, &typ, editable, include_colon);
                 }
+                ReferenceId::Local(definition_id) => {
+                    let typ = self.interner.definition_type(definition_id);
+                    self.push_type_hint(lsp_location, &typ, editable, include_colon);
+                }
+                ReferenceId::StructMember(struct_id, field_index) => {
+                    let struct_type = self.interner.get_type(struct_id);
+                    let struct_type = struct_type.borrow();
+                    let field = struct_type.field_at(field_index);
+                    self.push_type_hint(lsp_location, &field.typ, false, include_colon);
+                }
+                ReferenceId::EnumVariant(type_id, variant_index) => {
+                    let typ = self.interner.get_type(type_id);
+                    let shared_type = typ.clone();
+                    let typ = typ.borrow();
+                    let variant_type = typ.variant_function_type(variant_index, shared_type);
+                    self.push_type_hint(lsp_location, &variant_type, false, include_colon);
+                }
+                ReferenceId::Module(_)
+                | ReferenceId::Type(_)
+                | ReferenceId::Trait(_)
+                | ReferenceId::TraitAssociatedType(_)
+                | ReferenceId::Function(_)
+                | ReferenceId::Alias(_)
+                | ReferenceId::Reference(..) => (),
             }
         }
     }
@@ -180,11 +180,11 @@ impl<'a> InlayHintCollector<'a> {
             let mut parameters_count = func_meta.parameters.len();
 
             // Skip `self` parameter
-            if let Some((pattern, _, _)) = parameters.peek() {
-                if self.is_self_parameter(pattern) {
-                    parameters.next();
-                    parameters_count -= 1;
-                }
+            if let Some((pattern, _, _)) = parameters.peek()
+                && self.is_self_parameter(pattern)
+            {
+                parameters.next();
+                parameters_count -= 1;
             }
 
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
@@ -210,19 +210,18 @@ impl<'a> InlayHintCollector<'a> {
                         continue;
                     }
 
-                    if let Some(function_name) = &function_name {
-                        if function_name.ends_with(&parameter_name) {
-                            continue;
-                        }
-                    }
-                }
-
-                if let Some(call_argument_name) = get_expression_name(call_argument) {
-                    if parameter_name == call_argument_name
-                        || call_argument_name.ends_with(&parameter_name)
+                    if let Some(function_name) = &function_name
+                        && function_name.ends_with(&parameter_name)
                     {
                         continue;
                     }
+                }
+
+                if let Some(call_argument_name) = get_expression_name(call_argument)
+                    && (parameter_name == call_argument_name
+                        || call_argument_name.ends_with(&parameter_name))
+                {
+                    continue;
                 }
 
                 self.push_parameter_hint(lsp_location.range.start, &parameter_name);
@@ -307,12 +306,12 @@ impl<'a> InlayHintCollector<'a> {
     where
         F: FnOnce() -> String,
     {
-        if self.options.closing_brace_hints.enabled {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
-                let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
-                if lines >= self.options.closing_brace_hints.min_lines {
-                    self.push_text_hint(lsp_location.range.end, f());
-                }
+        if self.options.closing_brace_hints.enabled
+            && let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span)
+        {
+            let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+            if lines >= self.options.closing_brace_hints.min_lines {
+                self.push_text_hint(lsp_location.range.end, f());
             }
         }
     }

@@ -28,10 +28,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         for i in 0..n {
             // Check that destinations are relatives to 0,..,n-1
             assert_eq!(to_index(&destinations[i]), Some(i));
-            if let Some(index) = to_index(&sources[i]) {
-                if index < n && index != i {
-                    num_destinations[index] += 1;
-                }
+            if let Some(index) = to_index(&sources[i])
+                && index < n
+                && index != i
+            {
+                num_destinations[index] += 1;
             }
         }
 
@@ -52,18 +53,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 // Generates a move instruction
                 self.perform_movement(node, sources[node], &mut num_destinations, &mut processed);
                 // Follow the parent
-                if let Some(index) = to_index(&sources[node]) {
-                    if index < n {
-                        num_destinations[index] -= 1;
-                        if num_destinations[index] > 0 {
-                            // The parent node has another child, so we cannot process it yet.
-                            tail_candidates.push((sources[node], node));
-                            break;
-                        }
-                        // process the parent node
-                        node = index;
-                        continue;
+                if let Some(index) = to_index(&sources[node])
+                    && index < n
+                {
+                    num_destinations[index] -= 1;
+                    if num_destinations[index] > 0 {
+                        // The parent node has another child, so we cannot process it yet.
+                        tail_candidates.push((sources[node], node));
+                        break;
                     }
+                    // process the parent node
+                    node = index;
+                    continue;
                 }
                 // End of the path
                 break;

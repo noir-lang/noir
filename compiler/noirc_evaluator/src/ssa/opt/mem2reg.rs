@@ -350,10 +350,10 @@ impl<'f> PerFunctionContext<'f> {
 
             // Check whether there are any aliases whose instructions are not all marked for removal.
             // If there is any alias marked to survive, we should not remove its last store.
-            if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                if !alias_instructions.is_subset(&self.instructions_to_remove) {
-                    return true;
-                }
+            if let Some(alias_instructions) = self.aliased_references.get(&alias)
+                && !alias_instructions.is_subset(&self.instructions_to_remove)
+            {
+                return true;
             }
         }
 
@@ -667,13 +667,12 @@ impl<'f> PerFunctionContext<'f> {
                 if !self.aliased_references.contains_key(&address)
                     && address_aliases.single_alias().is_some()
                     && !has_loop_aliases
+                    && let Some(last_store) = references.last_stores.get(&address)
                 {
-                    if let Some(last_store) = references.last_stores.get(&address) {
-                        self.store_instructions_to_remove
-                            .entry(address)
-                            .or_default()
-                            .push((block_id, *last_store));
-                    }
+                    self.store_instructions_to_remove
+                        .entry(address)
+                        .or_default()
+                        .push((block_id, *last_store));
                 }
 
                 // Remember that we used the value in this instruction. If this instruction
@@ -850,16 +849,16 @@ impl<'f> PerFunctionContext<'f> {
                     }
 
                     // `then_value` and `else_value` are now aliased by `result`
-                    if let Some(then_expr) = references.expressions.get_mut(then_value) {
-                        if let Some(then_aliases) = references.aliases.get_mut(then_expr) {
-                            then_aliases.insert(result);
-                        }
+                    if let Some(then_expr) = references.expressions.get_mut(then_value)
+                        && let Some(then_aliases) = references.aliases.get_mut(then_expr)
+                    {
+                        then_aliases.insert(result);
                     }
 
-                    if let Some(else_expr) = references.expressions.get_mut(else_value) {
-                        if let Some(else_aliases) = references.aliases.get_mut(else_expr) {
-                            else_aliases.insert(result);
-                        }
+                    if let Some(else_expr) = references.expressions.get_mut(else_value)
+                        && let Some(else_aliases) = references.aliases.get_mut(else_expr)
+                    {
+                        else_aliases.insert(result);
                     }
                 }
             }
@@ -918,12 +917,11 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
                 // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
                 // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
-                if let Type::Reference(element) = &typ {
-                    if element.contains_reference() {
-                        if let Some(inner_ref) = references.get_known_value(value) {
-                            self.mark_all_unknown(&[inner_ref], references);
-                        }
-                    }
+                if let Type::Reference(element) = &typ
+                    && element.contains_reference()
+                    && let Some(inner_ref) = references.get_known_value(value)
+                {
+                    self.mark_all_unknown(&[inner_ref], references);
                 }
 
                 references.set_unknown(value);
@@ -979,32 +977,32 @@ impl<'f> PerFunctionContext<'f> {
                             return;
                         }
                         Type::Reference(_) => {
-                            if let Some(expression) = references.expressions.get(argument) {
-                                if let Some(aliases) = references.aliases.get_mut(expression) {
-                                    // If the argument has unknown aliases, we must be conservative
-                                    // and mark all destination parameters as unknown. Otherwise,
-                                    // inserting into an unknown alias set is a no-op and destination parameters
-                                    // would incorrectly end up in separate alias sets.
-                                    if aliases.is_unknown() {
-                                        self.mark_all_unknown(destination_parameters, references);
-                                        return;
-                                    }
-
-                                    let argument = *argument;
-
-                                    // The argument reference is possibly aliased by this block parameter
-                                    aliases.insert(*parameter);
-
-                                    // Check if we have seen the same argument
-                                    let seen_parameters = arg_set
-                                        .entry(argument)
-                                        .or_insert_with(|| VecSet::single(argument));
-                                    // Add the current parameter to the parameters we have seen for this argument.
-                                    // The previous parameters and the current one alias one another.
-                                    seen_parameters.insert(*parameter);
-                                    // Also add all of the argument aliases
-                                    seen_parameters.extend(aliases.iter());
+                            if let Some(expression) = references.expressions.get(argument)
+                                && let Some(aliases) = references.aliases.get_mut(expression)
+                            {
+                                // If the argument has unknown aliases, we must be conservative
+                                // and mark all destination parameters as unknown. Otherwise,
+                                // inserting into an unknown alias set is a no-op and destination parameters
+                                // would incorrectly end up in separate alias sets.
+                                if aliases.is_unknown() {
+                                    self.mark_all_unknown(destination_parameters, references);
+                                    return;
                                 }
+
+                                let argument = *argument;
+
+                                // The argument reference is possibly aliased by this block parameter
+                                aliases.insert(*parameter);
+
+                                // Check if we have seen the same argument
+                                let seen_parameters = arg_set
+                                    .entry(argument)
+                                    .or_insert_with(|| VecSet::single(argument));
+                                // Add the current parameter to the parameters we have seen for this argument.
+                                // The previous parameters and the current one alias one another.
+                                seen_parameters.insert(*parameter);
+                                // Also add all of the argument aliases
+                                seen_parameters.extend(aliases.iter());
                             }
                         }
                         typ if typ.contains_reference() => {

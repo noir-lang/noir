@@ -95,10 +95,10 @@ impl FileMap {
         let name = self.get_absolute_name(file_id)?;
 
         // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
-        if let Some(current_dir) = &self.current_dir {
-            if let Ok(name_without_prefix) = name.0.strip_prefix(current_dir) {
-                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
-            }
+        if let Some(current_dir) = &self.current_dir
+            && let Ok(name_without_prefix) = name.0.strip_prefix(current_dir)
+        {
+            return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
         }
 
         Ok(name)
