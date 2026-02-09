@@ -27,12 +27,11 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let Some(DefinitionKind::Function(func_id)) = interner.try_definition(id).map(|def| &def.kind)
-    else {
+    let DefinitionKind::Function(func_id) = interner.definition(id).kind else {
         return None;
     };
 
-    let attributes = interner.function_attributes(func_id);
+    let attributes = interner.function_attributes(&func_id);
     attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
         name: interner.definition_name(id).to_string(),
         note,

@@ -554,16 +554,12 @@ impl Elaborator<'_> {
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
-                if let Some(definition) = self.interner.try_definition(hir_ident.id) {
-                    let name = definition.name.clone();
-                    if !definition.mutable {
-                        self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                            name,
-                            location,
-                        });
-                    } else {
-                        self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
-                    }
+                let definition = self.interner.definition(hir_ident.id);
+                let name = definition.name.clone();
+                if !definition.mutable {
+                    self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
+                } else {
+                    self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
                 }
             }
             HirExpression::Index(_) => {
@@ -1632,23 +1628,19 @@ impl Elaborator<'_> {
         &self,
         func: ExprId,
         location: Location,
-    ) -> Result<Option<FuncId>, ResolverError> {
+    ) -> Result<FuncId, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let meta = self.interner.function_modifiers(&function);
-                        if meta.is_comptime {
-                            Ok(Some(function))
-                        } else {
-                            Err(ResolverError::MacroIsNotComptime { location })
-                        }
+                let definition = self.interner.definition(ident.id);
+                if let DefinitionKind::Function(function) = definition.kind {
+                    let meta = self.interner.function_modifiers(&function);
+                    if meta.is_comptime {
+                        Ok(function)
                     } else {
-                        Err(ResolverError::InvalidSyntaxInMacroCall { location })
+                        Err(ResolverError::MacroIsNotComptime { location })
                     }
                 } else {
-                    // Assume a name resolution error has already been issued
-                    Ok(None)
+                    Err(ResolverError::InvalidSyntaxInMacroCall { location })
                 }
             }
             _ => Err(ResolverError::InvalidSyntaxInMacroCall { location }),
@@ -1669,7 +1661,7 @@ impl Elaborator<'_> {
         });
 
         let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function?,
+            Ok(function) => function,
             Err(error) => {
                 self.push_err(error);
                 return None;

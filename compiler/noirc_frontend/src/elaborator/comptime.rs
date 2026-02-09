@@ -347,11 +347,7 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let Some(definition) = self.interner.try_definition(definition_id) else {
-            let error =
-                ResolverError::AttributeFunctionNotInScope { name: function_string, location };
-            return Err(error.into());
-        };
+        let definition = self.interner.definition(definition_id);
 
         let DefinitionKind::Function(function) = definition.kind else {
             return Err(ResolverError::NonFunctionInAnnotation { location }.into());

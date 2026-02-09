@@ -123,13 +123,11 @@ impl NodeInterner {
     /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
     pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            match self.try_definition(id).map(|def| &def.kind) {
-                Some(DefinitionKind::Function(func_id)) => Some(*func_id),
-                Some(DefinitionKind::Local(Some(expr_id))) => {
-                    self.lookup_function_from_expr(expr_id)
-                }
-                Some(DefinitionKind::Global(global_id)) => {
-                    let info = self.get_global(*global_id);
+            match self.definition(id).kind {
+                DefinitionKind::Function(func_id) => Some(func_id),
+                DefinitionKind::Local(Some(expr_id)) => self.lookup_function_from_expr(&expr_id),
+                DefinitionKind::Global(global_id) => {
+                    let info = self.get_global(global_id);
                     let expression = match self.statement(&info.let_statement) {
                         HirStatement::Let(HirLetStatement { expression, .. })
                         | HirStatement::Expression(expression) => expression,
@@ -139,7 +137,9 @@ impl NodeInterner {
                     };
                     self.lookup_function_from_expr(&expression)
                 }
-                _ => None,
+                DefinitionKind::Local(None)
+                | DefinitionKind::AssociatedConstant(..)
+                | DefinitionKind::NumericGeneric(..) => None,
             }
         } else {
             None

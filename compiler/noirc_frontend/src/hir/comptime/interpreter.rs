@@ -681,10 +681,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Evaluates a variable
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
-            let location = self.elaborator.interner.expr_location(&id);
-            InterpreterError::VariableNotInScope { location }
-        })?;
+        let definition = self.elaborator.interner.definition(ident.id);
 
         if let ImplKind::TraitItem(item) = ident.impl_kind {
             return self.evaluate_trait_item(item, id);

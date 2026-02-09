@@ -598,13 +598,13 @@ impl Elaborator<'_> {
         // variable to handle generic functions.
         let t = self.type_substitute_trait_as_type(&ident);
 
-        let definition = self.interner.try_definition(ident.id);
-        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
+        let definition = self.interner.definition(ident.id);
+        let function_generic_count = match definition.kind {
             DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(function).generic_count
+                self.interner.function_modifiers(&function).generic_count
             }
             _ => 0,
-        });
+        };
 
         let location = self.interner.expr_location(expr_id);
 
@@ -657,9 +657,8 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        if let Some(definition) = self.interner.try_definition(ident.id)
-            && let DefinitionKind::Function(function) = definition.kind
-        {
+        let definition = self.interner.definition(ident.id);
+        if let DefinitionKind::Function(function) = definition.kind {
             let function = self.interner.function_meta(&function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
                 constraint.apply_bindings(&bindings);
