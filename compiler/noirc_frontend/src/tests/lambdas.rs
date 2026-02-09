@@ -576,7 +576,7 @@ fn errors_on_duplicate_lambda_parameter_name() {
 }
 
 #[test]
-fn lambda_referes_to_numeric_generic() {
+fn lambda_refers_to_numeric_generic() {
     let src = r#"
     fn main() -> pub bool {
         foo::<10>()
