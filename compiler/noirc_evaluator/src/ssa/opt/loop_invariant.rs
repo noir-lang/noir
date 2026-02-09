@@ -143,11 +143,6 @@ impl Loops {
 
         context.map_dependent_instructions();
         context.inserter.map_data_bus_in_place();
-
-        // let new_values = context.loop_invariants.iter().map(|value| context.inserter.resolve(*value)).collect::<Vec<_>>();
-        // dbg!(new_values.clone());
-        // dbg!(context.defined_in_loop.clone());
-        // dbg!(context.loop_invariants.clone());
     }
 }
 

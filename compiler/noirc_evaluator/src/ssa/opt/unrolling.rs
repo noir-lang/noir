@@ -298,7 +298,7 @@ enum LoopUnrollResult {
 }
 
 /// Describe the blocks that constitute up a loop.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
@@ -838,7 +838,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<(im::HashSet<ValueId>, HashSet<ValueId>)> {
+    ) -> Option<(HashSet<ValueId>, HashSet<ValueId>)> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -860,7 +860,7 @@ impl Loop {
         let params =
             function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
 
-        let refs: im::HashSet<ValueId> = params.chain(allocations).collect();
+        let refs: HashSet<ValueId> = params.chain(allocations).collect();
 
         // Find refs whose pre-header stores all have constant values.
         // A ref is "constant initial" if it has at least one store in the pre-header blocks
@@ -897,11 +897,10 @@ impl Loop {
     fn count_loads_and_stores(
         &self,
         function: &Function,
-        refs: &im::HashSet<ValueId>,
+        refs: &HashSet<ValueId>,
     ) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
-        // let mut
         for block in &self.blocks {
             for instruction in function.dfg[*block].instructions() {
                 match &function.dfg[*instruction] {
@@ -926,25 +925,6 @@ impl Loop {
         });
         iter.sum()
     }
-
-    // /// Count the number of increments to the induction variable.
-    // /// It should be one, but it can be duplicated.
-    // /// The increment should be in the block where the back-edge was found.
-    // fn count_induction_increments(&self, function: &Function) -> usize {
-    //     let back = &function.dfg[self.back_edge_start];
-    //     let header = &function.dfg[self.header];
-    //     let induction_var = header.parameters()[0];
-    //     back.instructions()
-    //         .iter()
-    //         .filter(|instruction| {
-    //             let instruction = &function.dfg[**instruction];
-    //             matches!(instruction,
-    //                 Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
-    //                     if *lhs == induction_var
-    //             )
-    //         })
-    //         .count()
-    // }
 
     /// Whether this loop should be unrolled when compiling to Brillig.
     ///
@@ -1044,34 +1024,15 @@ impl Loop {
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
         // If we then unroll the loop, the induction variable will not exist anymore.
-        // TODO: we should appropriately unroll and account for the break
-        // TODO 2: move this logic out into its own method
-        let induction_var = self.get_induction_variable(function)?;
-        let mut uses_induction_var_outside = false;
-        for block in self.blocks.iter() {
-            let successors = function.dfg[*block].successors();
-            for successor in successors {
-                if !self.blocks.contains(&successor) {
-                    for instruction in function.dfg[successor].instructions() {
-                        let instruction = &function.dfg[*instruction];
-                        instruction.for_each_value(|value| {
-                            if value == induction_var {
-                                uses_induction_var_outside = true;
-                            }
-                        });
-                    }
-                }
-            }
-        }
+        let is_fully_executed = self.is_fully_executed(cfg);
 
-        let useless_instructions = if uses_induction_var_outside {
+        let useless_instructions = if !is_fully_executed {
             0
         } else {
             self.count_useless_instructions(function, &constant_initial_refs)
         };
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
-        // let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
 
         // Currently we don't iterate in reverse, so if upper <= lower it means 0 iterations.
@@ -1131,14 +1092,12 @@ struct BoilerplateStats {
     loads: usize,
     /// Number of stores into pre-header references in the loop.
     stores: usize,
-    /// Number of increments to the induction variable (might be duplicated).
-    // increments: usize,
     /// Number of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
     all_instructions: usize,
     /// "Useless instructions"
-    /// TODO: find a better term for this
-    /// We do not have a loop invariant, but something that becomes simpler upon unrolling
+    /// We do not have a loop invariant, but something that becomes simpler upon unrolling.
+    /// For example, a constant array access at the induction variable would simplify to a single constant.
     useless_instructions: usize,
 }
 
@@ -1237,7 +1196,7 @@ struct LoopIteration<'f> {
 
     /// Maps unrolled block ids back to the original source block ids
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
-    visited_blocks: im::HashSet<BasicBlockId>,
+    visited_blocks: HashSet<BasicBlockId>,
 
     /// Has `unroll_loop_iteration` reached the `loop_header_id`?
     encountered_loop_header: bool,
@@ -1266,7 +1225,7 @@ impl<'f> LoopIteration<'f> {
             source_block,
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
-            visited_blocks: im::HashSet::default(),
+            visited_blocks: HashSet::default(),
             encountered_loop_header: false,
 
             induction_value: None,
@@ -1733,9 +1692,9 @@ mod tests {
 
     #[test]
     fn test_boilerplate_stats_constant_array_source() {
-        // v3 is a constant array (MakeArray) defined outside the loop.
+        // v3 is a constant array defined outside the loop.
         // Inside the loop, `array_get v3, index v0` should be recognized as
-        // useless because v3 traces back to constant data via is_from_constant_source.
+        // useless because v3 traces back to constant data.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1759,7 +1718,7 @@ mod tests {
         }";
         let ssa = Ssa::from_str(src).unwrap();
         let stats = loop0_stats(&ssa);
-        // is_from_constant_source recognizes v3 (MakeArray) as constant even though
+        // is_from_constant_source recognizes v3 as constant even though
         // it's outside the loop and not in constant_after_unroll.
         // Load v6 from v2 (constant initial store u32 0) → v6 in constant_after_unroll.
         // Useless: lt, array_get (constant source + induction var), add (v6 + v7 both constant), unchecked_add = 4

@@ -184,7 +184,9 @@ pub struct CompileOptions {
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
-    /// unrolling small loops. A value of 100 allows up to 2× growth.
+    /// unrolling small loops.
+    /// When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions. A value of 100 allows up to 2× growth.
     /// A higher value results in fewer jumps but a larger program.
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
     #[arg(long, hide = true, allow_hyphen_values = true)]
