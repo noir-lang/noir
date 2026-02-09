@@ -16,6 +16,7 @@ use crate::{
     },
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
+    recursion::TypeRecursionContext,
     signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
@@ -29,6 +30,7 @@ use crate::{ast::Ident, node_interner::TypeId};
 use super::traits::NamedType;
 
 mod arithmetic;
+pub(crate) mod recursion;
 mod unification;
 pub(crate) mod validity;
 
@@ -320,13 +322,13 @@ impl Kind {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub fn has_cyclic_alias(
+    pub(crate) fn has_cyclic_alias(
         &self,
         aliases: &mut im::HashSet<TypeAliasId>,
-        seen_data_types: &mut SeenDataTypes,
+        type_recursion_context: &mut TypeRecursionContext,
     ) -> bool {
         match self {
-            Self::Numeric(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
+            Self::Numeric(typ) => typ.has_cyclic_alias_helper(aliases, type_recursion_context),
             Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
         }
     }
@@ -1097,13 +1099,13 @@ impl TypeVariable {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub fn has_cyclic_alias(
+    pub(crate) fn has_cyclic_alias(
         &self,
         aliases: &mut im::HashSet<TypeAliasId>,
-        seen_data_types: &mut SeenDataTypes,
+        type_recursion_context: &mut TypeRecursionContext,
     ) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
+            TypeBinding::Bound(typ) => typ.has_cyclic_alias_helper(aliases, type_recursion_context),
             TypeBinding::Unbound(_, _) => false,
         }
     }
@@ -1566,23 +1568,23 @@ impl Type {
     /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self) -> bool {
         let mut aliases = im::HashSet::<TypeAliasId>::default();
-        let mut seen_data_types = SeenDataTypes::default();
-        self.has_cyclic_alias_helper(&mut aliases, &mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.has_cyclic_alias_helper(&mut aliases, &mut type_recursion_context)
     }
 
     /// `aliases` is a mutable set of TypeAliasId to track visited aliases
     fn has_cyclic_alias_helper(
         &self,
         aliases: &mut im::HashSet<TypeAliasId>,
-        seen_data_types: &mut SeenDataTypes,
+        type_recursion_context: &mut TypeRecursionContext,
     ) -> bool {
         match self {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
-                type_var.has_cyclic_alias(aliases, seen_data_types)
+                type_var.has_cyclic_alias(aliases, type_recursion_context)
             }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
-                    || rhs.has_cyclic_alias_helper(aliases, seen_data_types)
+                lhs.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
+                    || rhs.has_cyclic_alias_helper(aliases, type_recursion_context)
             }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
@@ -1592,35 +1594,41 @@ impl Type {
                     aliases.insert(alias_id);
                     def.borrow()
                         .get_type(generics)
-                        .has_cyclic_alias_helper(aliases, seen_data_types)
+                        .has_cyclic_alias_helper(aliases, type_recursion_context)
                 }
             }
             Type::TraitAsType(_id, _name, generics) => {
                 generics.ordered.iter().any(|generic| {
-                    generic.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    generic.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
                 }) || generics.named.iter().any(|generic| {
-                    generic.typ.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                    generic
+                        .typ
+                        .has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
                 })
             }
-            Type::String(len) => len.has_cyclic_alias_helper(aliases, seen_data_types),
+            Type::String(len) => len.has_cyclic_alias_helper(aliases, type_recursion_context),
             Type::Array(len, typ) => {
-                len.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
-                    || typ.has_cyclic_alias_helper(aliases, seen_data_types)
+                len.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
+                    || typ.has_cyclic_alias_helper(aliases, type_recursion_context)
             }
-            Type::Vector(typ) => typ.has_cyclic_alias_helper(aliases, seen_data_types),
+            Type::Vector(typ) => typ.has_cyclic_alias_helper(aliases, type_recursion_context),
             Type::DataType(s, args) => {
                 let data_type = s.borrow();
-                let key = (data_type.id, args.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(data_type.id, args.clone()) {
                     data_type.get_fields(args).unwrap_or_else(Vec::new).iter().any(
                         |(_name, field, _visibility)| {
-                            field.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                            field.has_cyclic_alias_helper(
+                                &mut aliases.clone(),
+                                &mut type_recursion_context.clone().recur(),
+                            )
                         },
                     ) || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
                         |(_name, variant)| {
                             variant.iter().any(|variant_field| {
-                                variant_field
-                                    .has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                                variant_field.has_cyclic_alias_helper(
+                                    &mut aliases.clone(),
+                                    &mut type_recursion_context.clone().recur(),
+                                )
                             })
                         },
                     )
@@ -1629,31 +1637,30 @@ impl Type {
                 }
             }
             Type::Tuple(elements) => elements.iter().any(|element| {
-                element.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
+                element.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
             }),
             Type::FmtString(len, elements) => {
-                len.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
-                    || (*elements).has_cyclic_alias_helper(aliases, seen_data_types)
+                len.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
+                    || (*elements).has_cyclic_alias_helper(aliases, type_recursion_context)
             }
             Type::CheckedCast { to, from } => {
-                to.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
-                    || from.has_cyclic_alias_helper(aliases, seen_data_types)
+                to.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
+                    || from.has_cyclic_alias_helper(aliases, type_recursion_context)
             }
-            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases, seen_data_types),
+            Type::Constant(_x, kind) => kind.has_cyclic_alias(aliases, type_recursion_context),
             Type::Forall(typevars, typ) => {
-                typevars
-                    .iter()
-                    .any(|typevar| typevar.has_cyclic_alias(&mut aliases.clone(), seen_data_types))
-                    || typ.has_cyclic_alias_helper(aliases, seen_data_types)
+                typevars.iter().any(|typevar| {
+                    typevar.has_cyclic_alias(&mut aliases.clone(), type_recursion_context)
+                }) || typ.has_cyclic_alias_helper(aliases, type_recursion_context)
             }
             Type::Function(args, ret, env, _unconstrained) => {
-                args.iter()
-                    .any(|arg| arg.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types))
-                    || ret.has_cyclic_alias_helper(&mut aliases.clone(), seen_data_types)
-                    || env.has_cyclic_alias_helper(aliases, seen_data_types)
+                args.iter().any(|arg| {
+                    arg.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
+                }) || ret.has_cyclic_alias_helper(&mut aliases.clone(), type_recursion_context)
+                    || env.has_cyclic_alias_helper(aliases, type_recursion_context)
             }
             Type::Reference(element, _mutable) => {
-                element.has_cyclic_alias_helper(aliases, seen_data_types)
+                element.has_cyclic_alias_helper(aliases, type_recursion_context)
             }
             Type::FieldElement
             | Type::Integer(_, _)
@@ -1722,35 +1729,36 @@ impl Type {
 
     /// Check whether this type is an array or vector, and contains a nested vector in its element type.
     pub(crate) fn is_nested_vector(&self) -> bool {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.is_nested_vector_helper(&mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.is_nested_vector_helper(&mut type_recursion_context)
     }
 
-    fn is_nested_vector_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
+    fn is_nested_vector_helper(&self, type_recursion_context: &mut TypeRecursionContext) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
 
             Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).is_nested_vector_helper(seen_data_types)
+                alias.borrow().get_type(generics).is_nested_vector_helper(type_recursion_context)
             }
-            Type::FmtString(_size, elem) => elem.as_ref().is_nested_vector_helper(seen_data_types),
+            Type::FmtString(_size, elem) => {
+                elem.as_ref().is_nested_vector_helper(type_recursion_context)
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let key = (typ.id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
-                        if fields
-                            .iter()
-                            .any(|(_, field, _)| field.is_nested_vector_helper(seen_data_types))
-                        {
+                        if fields.iter().any(|(_, field, _)| {
+                            field.is_nested_vector_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
+                        }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
-                        && variants
-                            .iter()
-                            .flat_map(|(_, args)| args)
-                            .any(|typ| typ.is_nested_vector_helper(seen_data_types))
+                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
+                            typ.is_nested_vector_helper(&mut type_recursion_context.clone().recur())
+                        })
                     {
                         return true;
                     }
@@ -1759,7 +1767,7 @@ impl Type {
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    if typ.is_nested_vector_helper(seen_data_types) {
+                    if typ.is_nested_vector_helper(type_recursion_context) {
                         return true;
                     }
                 }
@@ -1768,16 +1776,18 @@ impl Type {
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.is_nested_vector_helper(seen_data_types),
+                    TypeBinding::Bound(binding) => {
+                        binding.is_nested_vector_helper(type_recursion_context)
+                    }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.is_nested_vector_helper(seen_data_types)
-                    || to.is_nested_vector_helper(seen_data_types)
+                from.is_nested_vector_helper(type_recursion_context)
+                    || to.is_nested_vector_helper(type_recursion_context)
             }
-            Type::Reference(element, _) => element.is_nested_vector_helper(seen_data_types),
-            Type::Forall(_, typ) => typ.is_nested_vector_helper(seen_data_types),
+            Type::Reference(element, _) => element.is_nested_vector_helper(type_recursion_context),
+            Type::Forall(_, typ) => typ.is_nested_vector_helper(type_recursion_context),
 
             Type::FieldElement
             | Type::Integer(..)
@@ -1795,33 +1805,34 @@ impl Type {
 
     /// Check whether this type is itself a vector, or a struct/enum/tuple/array which contains a vector.
     pub(crate) fn contains_vector(&self) -> bool {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.contains_vector_helper(&mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.contains_vector_helper(&mut type_recursion_context)
     }
 
-    pub(crate) fn contains_vector_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
+    pub(crate) fn contains_vector_helper(
+        &self,
+        type_recursion_context: &mut TypeRecursionContext,
+    ) -> bool {
         match self {
             Type::Vector(_) => true,
-            Type::Array(_, elem) => elem.as_ref().contains_vector_helper(seen_data_types),
+            Type::Array(_, elem) => elem.as_ref().contains_vector_helper(type_recursion_context),
             Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).contains_vector_helper(seen_data_types)
+                alias.borrow().get_type(generics).contains_vector_helper(type_recursion_context)
             }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let key = (typ.id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
-                        if fields
-                            .iter()
-                            .any(|(_, field, _)| field.contains_vector_helper(seen_data_types))
-                        {
+                        if fields.iter().any(|(_, field, _)| {
+                            field
+                                .contains_vector_helper(&mut type_recursion_context.clone().recur())
+                        }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
-                        && variants
-                            .iter()
-                            .flat_map(|(_, args)| args)
-                            .any(|typ| typ.contains_vector_helper(seen_data_types))
+                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
+                            typ.contains_vector_helper(&mut type_recursion_context.clone().recur())
+                        })
                     {
                         return true;
                     }
@@ -1830,30 +1841,32 @@ impl Type {
             }
             Type::Tuple(types) => {
                 for typ in types.iter() {
-                    if typ.contains_vector_helper(seen_data_types) {
+                    if typ.contains_vector_helper(type_recursion_context) {
                         return true;
                     }
                 }
                 false
             }
-            Type::FmtString(_size, elem) => elem.contains_vector_helper(seen_data_types),
+            Type::FmtString(_size, elem) => elem.contains_vector_helper(type_recursion_context),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_vector_helper(seen_data_types),
+                    TypeBinding::Bound(binding) => {
+                        binding.contains_vector_helper(type_recursion_context)
+                    }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.contains_vector_helper(seen_data_types)
-                    || to.contains_vector_helper(seen_data_types)
+                from.contains_vector_helper(type_recursion_context)
+                    || to.contains_vector_helper(type_recursion_context)
             }
-            Type::Reference(element, _) => element.contains_vector_helper(seen_data_types),
-            Type::Forall(_, typ) => typ.contains_vector_helper(seen_data_types),
+            Type::Reference(element, _) => element.contains_vector_helper(type_recursion_context),
+            Type::Forall(_, typ) => typ.contains_vector_helper(type_recursion_context),
             Type::Function(_arg, _ret, env, _unconstrained) => {
                 // The only part of a function type that actually holds types is the `env` portion as that's
                 // carried with the function. Arguments are passed in and the return type is returned.
-                env.contains_vector_helper(seen_data_types)
+                env.contains_vector_helper(type_recursion_context)
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1870,33 +1883,30 @@ impl Type {
 
     /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
     pub(crate) fn contains_array(&self) -> bool {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.contains_array_helper(&mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.contains_array_helper(&mut type_recursion_context)
     }
 
-    fn contains_array_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
+    fn contains_array_helper(&self, type_recursion_context: &mut TypeRecursionContext) -> bool {
         match self {
             Type::Array(..) => true,
-            Type::Vector(elem) => elem.as_ref().contains_array_helper(seen_data_types),
+            Type::Vector(elem) => elem.as_ref().contains_array_helper(type_recursion_context),
             Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).contains_array_helper(seen_data_types)
+                alias.borrow().get_type(generics).contains_array_helper(type_recursion_context)
             }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let key = (typ.id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
-                        if fields
-                            .iter()
-                            .any(|(_, field, _)| field.contains_array_helper(seen_data_types))
-                        {
+                        if fields.iter().any(|(_, field, _)| {
+                            field.contains_array_helper(&mut type_recursion_context.clone().recur())
+                        }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
-                        && variants
-                            .iter()
-                            .flat_map(|(_, args)| args)
-                            .any(|typ| typ.contains_array_helper(seen_data_types))
+                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
+                            typ.contains_array_helper(&mut type_recursion_context.clone().recur())
+                        })
                     {
                         return true;
                     }
@@ -1904,24 +1914,26 @@ impl Type {
                 false
             }
             Type::Tuple(types) => {
-                types.iter().any(|typ| typ.contains_array_helper(seen_data_types))
+                types.iter().any(|typ| typ.contains_array_helper(type_recursion_context))
             }
-            Type::FmtString(_size, elem) => elem.contains_array_helper(seen_data_types),
+            Type::FmtString(_size, elem) => elem.contains_array_helper(type_recursion_context),
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_array_helper(seen_data_types),
+                    TypeBinding::Bound(binding) => {
+                        binding.contains_array_helper(type_recursion_context)
+                    }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.contains_array_helper(seen_data_types)
-                    || to.contains_array_helper(seen_data_types)
+                from.contains_array_helper(type_recursion_context)
+                    || to.contains_array_helper(type_recursion_context)
             }
-            Type::Reference(element, _) => element.contains_array_helper(seen_data_types),
-            Type::Forall(_, typ) => typ.contains_array_helper(seen_data_types),
+            Type::Reference(element, _) => element.contains_array_helper(type_recursion_context),
+            Type::Forall(_, typ) => typ.contains_array_helper(type_recursion_context),
             Type::Function(_arg, _ret, env, _unconstrained) => {
-                env.contains_array_helper(seen_data_types)
+                env.contains_array_helper(type_recursion_context)
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1938,64 +1950,69 @@ impl Type {
 
     /// Check whether this type is a vector that contains a nested array in its element type.
     pub(crate) fn is_vector_with_nested_array(&self) -> bool {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.is_vector_with_nested_array_helper(&mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.is_vector_with_nested_array_helper(&mut type_recursion_context)
     }
 
-    fn is_vector_with_nested_array_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
+    fn is_vector_with_nested_array_helper(
+        &self,
+        type_recursion_context: &mut TypeRecursionContext,
+    ) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_array(),
             Type::Array(_, elem) => {
-                elem.as_ref().is_vector_with_nested_array_helper(seen_data_types)
+                elem.as_ref().is_vector_with_nested_array_helper(type_recursion_context)
             }
             Type::Alias(alias, generics) => alias
                 .borrow()
                 .get_type(generics)
-                .is_vector_with_nested_array_helper(seen_data_types),
+                .is_vector_with_nested_array_helper(type_recursion_context),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let key = (typ.id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
                         if fields.iter().any(|(_, field, _)| {
-                            field.is_vector_with_nested_array_helper(seen_data_types)
+                            field.is_vector_with_nested_array_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
                         }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
-                        && variants
-                            .iter()
-                            .flat_map(|(_, args)| args)
-                            .any(|typ| typ.is_vector_with_nested_array_helper(seen_data_types))
+                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
+                            typ.is_vector_with_nested_array_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
+                        })
                     {
                         return true;
                     }
                 }
                 false
             }
-            Type::Tuple(types) => {
-                types.iter().any(|typ| typ.is_vector_with_nested_array_helper(seen_data_types))
-            }
+            Type::Tuple(types) => types
+                .iter()
+                .any(|typ| typ.is_vector_with_nested_array_helper(type_recursion_context)),
             Type::FmtString(_size, elem) => {
-                elem.is_vector_with_nested_array_helper(seen_data_types)
+                elem.is_vector_with_nested_array_helper(type_recursion_context)
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => {
-                        binding.is_vector_with_nested_array_helper(seen_data_types)
+                        binding.is_vector_with_nested_array_helper(type_recursion_context)
                     }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.is_vector_with_nested_array_helper(seen_data_types)
-                    || to.is_vector_with_nested_array_helper(seen_data_types)
+                from.is_vector_with_nested_array_helper(type_recursion_context)
+                    || to.is_vector_with_nested_array_helper(type_recursion_context)
             }
             Type::Reference(element, _) => {
-                element.is_vector_with_nested_array_helper(seen_data_types)
+                element.is_vector_with_nested_array_helper(type_recursion_context)
             }
-            Type::Forall(_, typ) => typ.is_vector_with_nested_array_helper(seen_data_types),
+            Type::Forall(_, typ) => typ.is_vector_with_nested_array_helper(type_recursion_context),
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
@@ -2011,11 +2028,11 @@ impl Type {
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.contains_reference_helper(&mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.contains_reference_helper(&mut type_recursion_context)
     }
 
-    fn contains_reference_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
+    fn contains_reference_helper(&self, type_recursion_context: &mut TypeRecursionContext) -> bool {
         match self {
             Type::Unit
             | Type::Bool
@@ -2028,33 +2045,34 @@ impl Type {
             | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => {
-                length.contains_reference_helper(seen_data_types)
-                    || typ.contains_reference_helper(seen_data_types)
+                length.contains_reference_helper(type_recursion_context)
+                    || typ.contains_reference_helper(type_recursion_context)
             }
-            Type::Vector(typ) => typ.contains_reference_helper(seen_data_types),
+            Type::Vector(typ) => typ.contains_reference_helper(type_recursion_context),
             Type::FmtString(length, typ) => {
-                length.contains_reference_helper(seen_data_types)
-                    || typ.contains_reference_helper(seen_data_types)
+                length.contains_reference_helper(type_recursion_context)
+                    || typ.contains_reference_helper(type_recursion_context)
             }
             Type::Tuple(types) => {
-                types.iter().any(|typ| typ.contains_reference_helper(seen_data_types))
+                types.iter().any(|typ| typ.contains_reference_helper(type_recursion_context))
             }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let key = (typ.id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
-                        if fields
-                            .iter()
-                            .any(|(_, field, _)| field.contains_reference_helper(seen_data_types))
-                        {
+                        if fields.iter().any(|(_, field, _)| {
+                            field.contains_reference_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
+                        }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
-                        && variants
-                            .iter()
-                            .flat_map(|(_, args)| args)
-                            .any(|typ| typ.contains_reference_helper(seen_data_types))
+                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
+                            typ.contains_reference_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
+                        })
                     {
                         return true;
                     }
@@ -2062,37 +2080,39 @@ impl Type {
                 false
             }
             Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).contains_reference_helper(seen_data_types)
+                alias.borrow().get_type(generics).contains_reference_helper(type_recursion_context)
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => {
-                        binding.contains_reference_helper(seen_data_types)
+                        binding.contains_reference_helper(type_recursion_context)
                     }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from: _, to } => to.contains_reference_helper(seen_data_types),
+            Type::CheckedCast { from: _, to } => {
+                to.contains_reference_helper(type_recursion_context)
+            }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.contains_reference_helper(seen_data_types)
-                    || rhs.contains_reference_helper(seen_data_types)
+                lhs.contains_reference_helper(type_recursion_context)
+                    || rhs.contains_reference_helper(type_recursion_context)
             }
             Type::Function(_args, _ret, env, _unconstrained) => {
                 // The only part of a function type that actually holds types is the `env` portion as that's
                 // carried with the function. Arguments are passed in and the return type is returned.
-                env.contains_reference_helper(seen_data_types)
+                env.contains_reference_helper(type_recursion_context)
             }
             Type::Reference(..) => true,
         }
     }
 
     pub(crate) fn contains_function(&self) -> bool {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.contains_function_helper(&mut seen_data_types)
+        let mut type_recursion_context = TypeRecursionContext::default();
+        self.contains_function_helper(&mut type_recursion_context)
     }
 
-    fn contains_function_helper(&self, seen_data_types: &mut SeenDataTypes) -> bool {
+    fn contains_function_helper(&self, type_recursion_context: &mut TypeRecursionContext) -> bool {
         match self {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -2107,35 +2127,36 @@ impl Type {
 
             Type::Function(..) => true,
 
-            Type::Reference(typ, _) => typ.contains_function_helper(seen_data_types),
+            Type::Reference(typ, _) => typ.contains_function_helper(type_recursion_context),
             Type::Array(length, typ) => {
-                length.contains_function_helper(seen_data_types)
-                    || typ.contains_function_helper(seen_data_types)
+                length.contains_function_helper(type_recursion_context)
+                    || typ.contains_function_helper(type_recursion_context)
             }
-            Type::Vector(typ) => typ.contains_function_helper(seen_data_types),
+            Type::Vector(typ) => typ.contains_function_helper(type_recursion_context),
             Type::FmtString(length, typ) => {
-                length.contains_function_helper(seen_data_types)
-                    || typ.contains_function_helper(seen_data_types)
+                length.contains_function_helper(type_recursion_context)
+                    || typ.contains_function_helper(type_recursion_context)
             }
             Type::Tuple(types) => {
-                types.iter().any(|typ| typ.contains_function_helper(seen_data_types))
+                types.iter().any(|typ| typ.contains_function_helper(type_recursion_context))
             }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
-                let key = (typ.id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
-                        if fields
-                            .iter()
-                            .any(|(_, field, _)| field.contains_function_helper(seen_data_types))
-                        {
+                        if fields.iter().any(|(_, field, _)| {
+                            field.contains_function_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
+                        }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
-                        && variants
-                            .iter()
-                            .flat_map(|(_, args)| args)
-                            .any(|typ| typ.contains_function_helper(seen_data_types))
+                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
+                            typ.contains_function_helper(
+                                &mut type_recursion_context.clone().recur(),
+                            )
+                        })
                     {
                         return true;
                     }
@@ -2143,21 +2164,23 @@ impl Type {
                 false
             }
             Type::Alias(alias, generics) => {
-                alias.borrow().get_type(generics).contains_function_helper(seen_data_types)
+                alias.borrow().get_type(generics).contains_function_helper(type_recursion_context)
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => {
-                        binding.contains_function_helper(seen_data_types)
+                        binding.contains_function_helper(type_recursion_context)
                     }
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
-            Type::CheckedCast { from: _, to } => to.contains_function_helper(seen_data_types),
+            Type::CheckedCast { from: _, to } => {
+                to.contains_function_helper(type_recursion_context)
+            }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.contains_function_helper(seen_data_types)
-                    || rhs.contains_function_helper(seen_data_types)
+                lhs.contains_function_helper(type_recursion_context)
+                    || rhs.contains_function_helper(type_recursion_context)
             }
         }
     }
@@ -3644,10 +3667,6 @@ impl PartialEq for Type {
         }
     }
 }
-
-/// Tracks seen `DataType`s (with its generics) in some type-traversing algorithms
-/// to  avoid infinite recursion.
-pub(crate) type SeenDataTypes = rustc_hash::FxHashSet<(TypeId, Vec<Type>)>;
 
 #[cfg(test)]
 mod tests {
