@@ -633,16 +633,17 @@ impl Elaborator<'_> {
             }
         }
 
-        if let Type::TypeVariable(self_var) = object {
-            if self_var.borrow().is_unbound() && self.current_trait.is_some() {
-                // This would end up duplicating parent trait bounds we turned into where clauses on Self.
-                // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
-                // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
-                // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
-                // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
-                // So we skip the parents, because it would be redundant with the Self bounds.
-                return;
-            }
+        if let Type::TypeVariable(self_var) = object
+            && self_var.borrow().is_unbound()
+            && self.current_trait.is_some()
+        {
+            // This would end up duplicating parent trait bounds we turned into where clauses on Self.
+            // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
+            // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
+            // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
+            // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
+            // So we skip the parents, because it would be redundant with the Self bounds.
+            return;
         }
 
         // Also add assumed implementations for the parent traits, if any
@@ -863,10 +864,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
+    let ordered_generics = interner.get_ordered_generics_for_impl(impl_id);
 
-    if trait_info.generics.len() != impl_.trait_generics.len() {
+    if trait_info.generics.len() != ordered_generics.len() {
         let expected = trait_info.generics.len();
-        let found = impl_.trait_generics.len();
+        let found = ordered_generics.len();
         let location = impl_.ident.location();
         let item = trait_info.name.to_string();
         errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, location });
@@ -876,7 +878,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     let mut bindings = interner.trait_to_impl_bindings(
         impl_.trait_id,
         impl_id,
-        &impl_.trait_generics,
+        ordered_generics,
         impl_.typ.clone(),
     );
 
@@ -922,12 +924,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
                 original_type_var_id: Some(original_id),
                 ..
             }) = typ
+                && !bindings.contains_key(&type_var.id())
+                && let Some(replacement) = bindings.get(original_id)
             {
-                if !bindings.contains_key(&type_var.id()) {
-                    if let Some(replacement) = bindings.get(original_id) {
-                        bindings.insert(type_var.id(), replacement.clone());
-                    }
-                }
+                bindings.insert(type_var.id(), replacement.clone());
             };
             true
         });

@@ -161,11 +161,11 @@ pub struct NodeInterner {
 
     next_trait_implementation_id: usize,
 
-    /// The associated types for each trait impl.
+    /// The ordered generics and associated types for each trait impl.
     ///
     /// This is stored outside of the `TraitImpl` object since it is required before that object is
     /// created, when resolving the type signature of each method in the impl.
-    trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
+    trait_impl_generic_types: HashMap<TraitImplId, TraitGenerics>,
 
     trait_impl_associated_constants: HashMap<TraitImplId, HashMap<String, (DefinitionId, Type)>>,
 
@@ -348,7 +348,7 @@ pub enum TraitImplKind {
     ///
     /// A `Prepared` is eventually replaced by a `Normal` implementation, at which
     /// point we can look up the final `TraitImpl` in the node interner.
-    Prepared { impl_id: TraitImplId, ordered_generics: Vec<Type> },
+    Prepared(TraitImplId),
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
@@ -525,7 +525,7 @@ impl Default for NodeInterner {
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
-            trait_impl_associated_types: HashMap::default(),
+            trait_impl_generic_types: HashMap::default(),
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
@@ -1403,11 +1403,17 @@ impl NodeInterner {
         self.lsp_mode
     }
 
-    /// Sets the associated types for the given trait impl.
+    /// Sets the ordered generics and associated types for the given trait impl.
+    ///
+    /// The ordered generics are resolved generics on the trait itself.
+    /// * e.g. it is the `<C, D>` in `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
+    /// * e.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
+    ///
     /// Each type in [`NamedType`] will be wrapped in a [`Type::TypeVariable`] if it's of kind [`Kind::Numeric`].
-    pub(crate) fn set_associated_types_for_impl(
+    pub(crate) fn set_generic_types_for_impl(
         &mut self,
         impl_id: TraitImplId,
+        ordered_generics: Vec<Type>,
         associated_types: Vec<NamedType>,
     ) {
         // Wrap the named generics in type variables to be able to refer them as type variables
@@ -1429,13 +1435,26 @@ impl NodeInterner {
                 .or_default()
                 .insert(name, (definition_id, *numeric_type));
         }
-        self.trait_impl_associated_types.insert(impl_id, associated_types);
+        let trait_generics = TraitGenerics { ordered: ordered_generics, named: associated_types };
+        self.trait_impl_generic_types.insert(impl_id, trait_generics);
+    }
+
+    /// Returns the ordered generics and associated types for the given trait impl.
+    ///
+    /// The [Type] of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
+    pub fn get_trait_generics_for_impl(&self, impl_id: TraitImplId) -> &TraitGenerics {
+        &self.trait_impl_generic_types[&impl_id]
+    }
+
+    /// Returns the ordered generics for the given trait impl.
+    pub fn get_ordered_generics_for_impl(&self, impl_id: TraitImplId) -> &[Type] {
+        &self.get_trait_generics_for_impl(impl_id).ordered
     }
 
     /// Returns the associated types for the given trait impl.
     /// The Type of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
     pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[NamedType] {
-        &self.trait_impl_associated_types[&impl_id]
+        &self.get_trait_generics_for_impl(impl_id).named
     }
 
     /// Find an associated type in a trait implementation by the last segment in its name.
@@ -1446,8 +1465,8 @@ impl NodeInterner {
         impl_id: TraitImplId,
         type_name: &str,
     ) -> Option<&Type> {
-        let types = self.trait_impl_associated_types.get(&impl_id)?;
-        types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
+        let types = self.trait_impl_generic_types.get(&impl_id)?;
+        types.named.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
     }
 
     /// Returns the definition id for the associated constant of the given type variable.
@@ -1585,23 +1604,12 @@ impl NodeInterner {
                 &parent_bound.trait_generics.ordered,
                 &parent_bound.trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _)) => {
-                    let trait_impl = self.get_trait_implementation(impl_id);
+                Ok((TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id), _)) => {
+                    let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
                     self.trait_to_impl_bindings_helper(
                         trait_id,
                         impl_id,
-                        &trait_impl.borrow().trait_generics,
-                        impl_self_type,
-                        recursion_limit,
-                        visited,
-                        bindings,
-                    );
-                }
-                Ok((TraitImplKind::Prepared { impl_id, ordered_generics }, _)) => {
-                    self.trait_to_impl_bindings_helper(
-                        trait_id,
-                        impl_id,
-                        &ordered_generics,
+                        ordered_generics,
                         impl_self_type,
                         recursion_limit,
                         visited,

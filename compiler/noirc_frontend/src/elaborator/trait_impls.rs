@@ -123,6 +123,7 @@ impl Elaborator<'_> {
 
                 let associated_types =
                     self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+
                 for associated_type in &associated_types {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
                         // This can happen if the associated type is specified directly in the impl trait generics,
@@ -212,7 +213,6 @@ impl Elaborator<'_> {
                 modifiers.visibility = trait_visibility;
             }
 
-            let trait_generics = trait_impl.resolved_trait_generics.clone();
             let ident = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, _, _) => trait_path.last_ident(),
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
@@ -238,7 +238,6 @@ impl Elaborator<'_> {
                 location,
                 typ: self_type.clone(),
                 trait_id,
-                trait_generics,
                 file: trait_impl.file_id,
                 crate_id: self.crate_id,
                 where_clause,
@@ -340,12 +339,14 @@ impl Elaborator<'_> {
                     });
                 }
             } else {
+                let ordered_generics =
+                    self.interner.get_ordered_generics_for_impl(impl_id).to_vec();
                 for (_, func_id, _) in &overrides {
                     self.check_where_clause_against_trait(
                         func_id,
                         method,
                         trait_impl_where_clause,
-                        &trait_impl.resolved_trait_generics,
+                        &ordered_generics,
                         trait_id,
                         impl_id,
                     );
@@ -590,6 +591,16 @@ impl Elaborator<'_> {
             return;
         };
 
+        let Some(impl_id) = trait_impl.impl_id else {
+            self.push_err(TypeCheckError::ExpectingOtherError {
+                message:
+                    "check_trait_impl_where_clause_matches_trait_where_clause: missing impl ID"
+                        .to_string(),
+                location: trait_impl.object_type.location,
+            });
+            return;
+        };
+
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
             self.push_err(TypeCheckError::ExpectingOtherError {
                 message: "check_trait_impl_where_clause_matches_trait_where_clause: missing trait"
@@ -600,13 +611,10 @@ impl Elaborator<'_> {
         };
 
         let impl_trait = the_trait.name.to_string();
+        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
         let mut bindings = TypeBindings::default();
-        bind_ordered_generics(
-            &the_trait.generics,
-            &trait_impl.resolved_trait_generics,
-            &mut bindings,
-        );
+        bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         self.check_trait_bounds_are_satisfied(
             the_trait.where_clause.clone(),
@@ -736,14 +744,19 @@ impl Elaborator<'_> {
             return;
         };
 
+        let Some(impl_id) = trait_impl.impl_id else {
+            self.push_err(TypeCheckError::ExpectingOtherError {
+                message: "check_parent_traits_are_implemented: missing impl ID".to_string(),
+                location: trait_impl.object_type.location,
+            });
+            return;
+        };
+
         let impl_trait = the_trait.name.to_string();
+        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
         let mut bindings = TypeBindings::default();
-        bind_ordered_generics(
-            &the_trait.generics,
-            &trait_impl.resolved_trait_generics,
-            &mut bindings,
-        );
+        bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         // Note: we only check if the immediate parents are implemented, we don't check recursively.
         // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
@@ -818,12 +831,9 @@ impl Elaborator<'_> {
         let self_type = self.resolve_type(unresolved_type, wildcard_allowed);
 
         if let Some(trait_id) = trait_id {
-            self.interner.add_prepared_trait_implementation(
-                self_type.clone(),
-                trait_id,
-                impl_id,
-                trait_impl.resolved_trait_generics.clone(), // Set by resolve_trait_impl_associated_types
-            );
+            // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
+            // Now that we have resolved the self-type, register the prepared trait impl for it.
+            self.interner.add_prepared_trait_implementation(self_type.clone(), trait_id, impl_id);
         }
 
         trait_impl.methods.self_type = Some(self_type.clone());
@@ -1004,9 +1014,8 @@ impl Elaborator<'_> {
             })
             .unwrap_or_default();
 
-        trait_impl.resolved_trait_generics = ordered_generics;
         let impl_id = trait_impl.impl_id.expect("impl_id should be set");
-        self.interner.set_associated_types_for_impl(impl_id, named_generics);
+        self.interner.set_generic_types_for_impl(impl_id, ordered_generics, named_generics);
 
         trait_impl.unresolved_associated_types = associated_types;
     }

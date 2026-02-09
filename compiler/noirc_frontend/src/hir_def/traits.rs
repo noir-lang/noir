@@ -65,10 +65,12 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
+    /// Named generics of the trait.
     pub associated_types: ResolvedGenerics,
     pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
+    /// Ordered generics of the trait.
     pub generics: ResolvedGenerics,
     pub location: Location,
     pub visibility: ItemVisibility,
@@ -90,20 +92,17 @@ pub struct Trait {
     pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
+/// A completed trait implementation.
+///
+/// Note that ordered generics and named arguments (associated types) are stored separately
+/// in the NodeInterner. This is because they're required to resolve types before the impl
+/// as a whole is finished resolving.
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
     pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
-
-    /// Any ordered type arguments on the trait this impl is for.
-    /// E.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
-    ///
-    /// Note that named arguments (associated types) are stored separately
-    /// in the NodeInterner. This is because they're required to resolve types
-    /// before the impl as a whole is finished resolving.
-    pub trait_generics: Vec<Type>,
 
     pub file: FileId,
     pub crate_id: CrateId,

@@ -100,10 +100,6 @@ pub struct UnresolvedTraitImpl {
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
-
-    // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
-    // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
-    pub resolved_trait_generics: Vec<Type>,
 }
 
 #[derive(Clone)]
