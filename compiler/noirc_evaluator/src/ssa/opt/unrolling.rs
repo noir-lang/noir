@@ -876,12 +876,12 @@ impl Loop {
         let mut has_non_constant_store: HashSet<ValueId> = HashSet::default();
         for block in blocks.iter().filter(|b| !self.blocks.contains(b)) {
             for instruction_id in function.dfg[*block].instructions() {
-                if let Instruction::Store { address, value } = &function.dfg[*instruction_id] {
-                    if refs.contains(address) {
-                        has_store.insert(*address);
-                        if !function.dfg.is_constant(*value) {
-                            has_non_constant_store.insert(*address);
-                        }
+                if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
+                    && refs.contains(address)
+                {
+                    has_store.insert(*address);
+                    if !function.dfg.is_constant(*value) {
+                        has_non_constant_store.insert(*address);
                     }
                 }
             }
@@ -986,13 +986,13 @@ impl Loop {
                 // propagate the result into constant_after_unroll so downstream
                 // instructions can cascade, but don't count the load as useless
                 // (it's already counted as boilerplate via the load/store pair).
-                if let Instruction::Load { address } = instruction {
-                    if constant_initial_refs.contains(address) {
-                        for result in results {
-                            constant_after_unroll.insert(*result);
-                        }
-                        continue;
+                if let Instruction::Load { address } = instruction
+                    && constant_initial_refs.contains(address)
+                {
+                    for result in results {
+                        constant_after_unroll.insert(*result);
                     }
+                    continue;
                 }
 
                 let mut all_operands_constant = true;
