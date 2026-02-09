@@ -1,4 +1,4 @@
-// Test B: Large nested array with conditional in loop
+// Large nested array with conditional in loop
 // This tests loop unrolling + array merging from the if-then-else.
 fn main(input: [[u64; 3]; 1024], condition: bool) {
     let mut arr = input;
