@@ -370,8 +370,8 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
     fn main()
     {
         let _ = Foo::Bar;
-                ^^^^^^^^ Type annotation needed
-                ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
+                     ^^^ Type annotation needed
+                     ~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
     }
 
     "#;

@@ -747,8 +747,8 @@ fn regression_10431_enum_function_return() {
                         ^ Expected type, found numeric generic
                         ~ not a type
         Foo::Baz
-        ^^^^^^^^ Type annotation needed
-        ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
+             ^^^ Type annotation needed
+             ~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
     }
 
     fn main() {}

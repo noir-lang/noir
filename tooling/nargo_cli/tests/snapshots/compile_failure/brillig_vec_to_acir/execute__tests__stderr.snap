@@ -3,17 +3,17 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 warning: use of deprecated function new
-  ┌─ src/main.nr:4:21
+  ┌─ src/main.nr:4:26
   │
 4 │     let mut new_x = Vec::new();
-  │                     -------- std::collections::vec::Vec is deprecated, use the built-in vector type instead
+  │                          --- std::collections::vec::Vec is deprecated, use the built-in vector type instead
   │
 
 warning: use of deprecated function new
-  ┌─ src/main.nr:9:17
+  ┌─ src/main.nr:9:22
   │
 9 │     let mut a = Vec::new();
-  │                 -------- std::collections::vec::Vec is deprecated, use the built-in vector type instead
+  │                      --- std::collections::vec::Vec is deprecated, use the built-in vector type instead
   │
 
 warning: use of deprecated function push
