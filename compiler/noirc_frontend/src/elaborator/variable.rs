@@ -561,7 +561,7 @@ impl Elaborator<'_> {
     }
 
     pub(crate) fn handle_local_variable(&mut self, variable: &Variable) {
-        self.resolve_local_variable(variable);
+        self.check_if_variable_is_captured_by_closure(variable);
         let hir_ident = &variable.ident;
         self.interner.add_local_reference(hir_ident.id, hir_ident.location);
     }

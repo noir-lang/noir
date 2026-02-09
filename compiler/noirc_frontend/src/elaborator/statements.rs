@@ -450,7 +450,7 @@ impl Elaborator<'_> {
                 let path = self.validate_path(path);
                 match self.get_ident_from_path_or_error(path.clone()) {
                     Ok(IdentFromPath::Variable(variable)) => {
-                        self.resolve_local_variable(&variable);
+                        self.check_if_variable_is_captured_by_closure(&variable);
                         self.elaborate_lvalue_ident(variable.ident, location)
                     }
                     Ok(IdentFromPath::Definition { id, item: _ }) => {
