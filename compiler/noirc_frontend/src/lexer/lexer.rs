@@ -597,7 +597,7 @@ impl<'a> Lexer<'a> {
                     };
 
                     string.push(char);
-                    length += 1;
+                    length += char.len_utf8() as u32;
 
                     if char == '{' || char == '}' {
                         // This might look a bit strange, but if there's `{{` or `}}` in the format string
@@ -673,8 +673,8 @@ impl<'a> Lexer<'a> {
                         other
                     }
                 };
-                length += 1;
                 string.push(char);
+                length += char.len_utf8() as u32;
             }
 
             length += 1; // for the closing curly brace
@@ -1654,5 +1654,16 @@ mod tests {
         let str = "f\"{";
         let mut lexer = Lexer::new_with_dummy_file(str);
         let _ = lexer.next_token();
+    }
+
+    #[test]
+    fn fmtstr_utf8_length() {
+        let str = "f\"黒{x}\"";
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        let token = lexer.next_token().unwrap();
+        let Token::FmtStr(_, length) = token.into_token() else {
+            panic!("Expected FmtStr token");
+        };
+        assert_eq!(length, 6);
     }
 }
