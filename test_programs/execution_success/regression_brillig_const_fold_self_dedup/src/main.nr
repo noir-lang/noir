@@ -16,9 +16,17 @@ unconstrained fn main(b: Field) -> pub bool {
         let _ = if a {
             foo()[(
                 if a {
-                    if a { 0 } else { 0 }
+                    if a {
+                        0
+                    } else {
+                        0
+                    }
                 } else {
-                    if a { 0 } else { 0 }
+                    if a {
+                        0
+                    } else {
+                        0
+                    }
                 }
             )]
         } else {
