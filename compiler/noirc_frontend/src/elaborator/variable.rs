@@ -18,10 +18,19 @@ use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
-use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
+use crate::node_interner::{
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
+};
 use crate::{Kind, Type, TypeBindings};
 use iter_extended::vecmap;
 use noirc_errors::Location;
+
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum VariableResolution {
+    Ident(HirIdent, Option<PathResolutionItem>),
+    TypeAlias(TypeAliasId),
+    None,
+}
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
@@ -60,35 +69,41 @@ impl Elaborator<'_> {
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
-        let (hir_ident, item) = self.resolve_variable(variable);
-        let definition_id = hir_ident.as_ref().map(|ident| ident.id);
+        let variable_resolution = self.resolve_variable(variable);
 
-        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
-            // A type alias to a numeric generics is considered like a variable,
-            // but it is not a real variable so it does not resolve to a valid Identifier.
-            // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
-            let type_alias = self.interner.get_type_alias(alias);
-            if let Some(expr) = &type_alias.borrow().numeric_expr {
-                // Extract the declared numeric type from the type alias's kind.
-                let declared_type = match type_alias.borrow().typ.kind() {
-                    Kind::Numeric(declared_type) => declared_type,
-                    _ => Box::new(Type::Error),
-                };
-                let declared_type = *declared_type;
-                let expr_location = type_alias.borrow().location;
-                let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                let expr = Expression::new(expr, expr_location);
-                let (id, typ) = self.elaborate_expression(expr);
-                // Unify the expression's type with the declared type from the type alias
-                // to ensure proper type checking.
-                self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: declared_type.to_string(),
-                    expr_typ: typ.to_string(),
-                    expr_location,
-                });
-                return (id, declared_type, false, location);
+        let (hir_ident, item) = match variable_resolution {
+            VariableResolution::TypeAlias(type_alias_id) => {
+                // A type alias to a numeric generics is considered like a variable,
+                // but it is not a real variable so it does not resolve to a valid Identifier.
+                // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                if let Some(expr) = &type_alias.borrow().numeric_expr {
+                    // Extract the declared numeric type from the type alias's kind.
+                    let declared_type = match type_alias.borrow().typ.kind() {
+                        Kind::Numeric(declared_type) => declared_type,
+                        _ => Box::new(Type::Error),
+                    };
+                    let declared_type = *declared_type;
+                    let expr_location = type_alias.borrow().location;
+                    let expr = UnresolvedTypeExpression::to_expression_kind(expr);
+                    let expr = Expression::new(expr, expr_location);
+                    let (id, typ) = self.elaborate_expression(expr);
+                    // Unify the expression's type with the declared type from the type alias
+                    // to ensure proper type checking.
+                    self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
+                        expected_typ: declared_type.to_string(),
+                        expr_typ: typ.to_string(),
+                        expr_location,
+                    });
+                    return (id, declared_type, false, location);
+                }
+                (None, None)
             }
-        }
+            VariableResolution::Ident(ident, item) => (Some(ident), item),
+            VariableResolution::None => (None, None),
+        };
+
+        let definition_id = hir_ident.as_ref().map(|ident| ident.id);
 
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
@@ -253,35 +268,34 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
-    fn resolve_variable(
-        &mut self,
-        path: TypedPath,
-    ) -> (Option<HirIdent>, Option<PathResolutionItem>) {
+    fn resolve_variable(&mut self, path: TypedPath) -> VariableResolution {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
 
             return match trait_path_resolution.method {
-                TraitPathResolutionMethod::NotATraitMethod(func_id) => (
-                    Some(HirIdent {
+                TraitPathResolutionMethod::NotATraitMethod(func_id) => {
+                    let ident = HirIdent {
                         location: path.location,
                         id: self.interner.function_definition_id(func_id),
                         impl_kind: ImplKind::NotATraitMethod,
-                    }),
-                    trait_path_resolution.item,
-                ),
+                    };
+                    VariableResolution::Ident(ident, trait_path_resolution.item)
+                }
 
-                TraitPathResolutionMethod::TraitItem(item) => (
-                    Some(HirIdent {
+                TraitPathResolutionMethod::TraitItem(item) => {
+                    // RETURNS: item with item
+                    let ident = HirIdent {
                         location: path.location,
                         id: item.definition,
                         impl_kind: ImplKind::TraitItem(item),
-                    }),
-                    trait_path_resolution.item,
-                ),
+                    };
+                    VariableResolution::Ident(ident, trait_path_resolution.item)
+                }
 
                 TraitPathResolutionMethod::MultipleTraitsInScope => {
+                    // RETURNS: None, None
                     // An error has already been pushed, don't return an identifier
-                    (None, trait_path_resolution.item)
+                    VariableResolution::None
                 }
             };
         }
@@ -298,17 +312,17 @@ impl Elaborator<'_> {
             Some(IdentFromPath::Variable(variable)) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
-                (Some(hir_ident), None)
+                VariableResolution::Ident(hir_ident, None)
             }
             Some(IdentFromPath::Definition { id, item }) => {
                 self.handle_definition_id(id, location);
                 let hir_ident = HirIdent::non_trait_method(id, location);
-                (Some(hir_ident), Some(item))
+                VariableResolution::Ident(hir_ident, Some(item))
             }
             Some(IdentFromPath::TypeAlias(type_alias_id)) => {
-                (None, Some(PathResolutionItem::TypeAlias(type_alias_id)))
+                VariableResolution::TypeAlias(type_alias_id)
             }
-            None => (None, None),
+            None => VariableResolution::None,
         }
     }
 
