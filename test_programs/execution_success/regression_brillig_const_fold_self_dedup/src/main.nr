@@ -2,7 +2,7 @@
 // into a loop header and re-visiting it caused self-deduplication,
 // orphaning result values.
 //
-// Key ingredients:
+// We have the following:
 // - unconstrained (Brillig) function with a while loop
 // - Nested if/else on the same boolean creating sibling blocks with
 //   identical instructions (triggers hoisting to their common dominator)
