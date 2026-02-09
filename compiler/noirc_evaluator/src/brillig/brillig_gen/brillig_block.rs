@@ -383,7 +383,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             if src != dst {
                 // The else_address is the same as the destination here to avoid modification if the
                 // condition is false.
-                self.brillig_context.conditional_move_instruction(condition.address, *src, *dst, *dst);
+                self.brillig_context.conditional_move_instruction(
+                    condition.address,
+                    *src,
+                    *dst,
+                    *dst,
+                );
             }
         }
     }

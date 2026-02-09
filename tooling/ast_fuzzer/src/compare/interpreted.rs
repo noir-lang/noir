@@ -403,7 +403,7 @@ mod tests {
             v30 = cast v23 as i64
             v31 = lt v30, v19
             v32 = not v31
-            jmpif v32 then: b1, else: b2
+            jmpif v32 then: b1(), else: b2()
         "#;
 
         let ssa = sanitize_ssa(src);
@@ -422,7 +422,7 @@ mod tests {
             v_ = cast v_ as i64
             v_ = lt v_, v_
             v_ = not v_
-            jmpif v_ then: b_, else: b_
+            jmpif v_ then: b_(), else: b_()
         "#
         );
     }

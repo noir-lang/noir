@@ -315,7 +315,7 @@ mod memory_layout {
             jmp b1(u32 0)
           b1(v1: u32):
             v11 = lt v1, u32 5
-            jmpif v11 then: b2, else: b3
+            jmpif v11 then: b2(), else: b3()
           b2():
             v15 = load v8 -> [u32; 5]
             constrain v9 == u1 1, "Index out of bounds"

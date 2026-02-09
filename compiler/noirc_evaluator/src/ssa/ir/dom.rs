@@ -667,9 +667,9 @@ mod tests {
             jmp b1(u32 0)
           b1(v3: u32):
             v8 = lt v3, u32 4
-            jmpif v8 then: b2, else: b3
+            jmpif v8 then: b2(), else: b3()
           b2():
-            jmpif v5 then: b4, else: b5
+            jmpif v5 then: b4(), else: b5()
           b3():
             return
           b4():
@@ -802,7 +802,7 @@ mod tests {
           b0(v0: u1):
             jmp b1()
           b1():
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b2():
             return
         }

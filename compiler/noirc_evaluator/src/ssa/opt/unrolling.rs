@@ -717,7 +717,9 @@ impl Loop {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let condition = *condition;
@@ -1158,7 +1160,9 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack),
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
@@ -1338,12 +1342,12 @@ mod tests {
                     jmp b1(u32 0)
                 b1(v0: u32):  // header of outer loop
                     v1 = lt v0, u32 3
-                    jmpif v1 then: b2, else: b3
+                    jmpif v1 then: b2(), else: b3()
                 b2():
                     jmp b4(u32 0)
                 b4(v2: u32):  // header of inner loop
                     v3 = lt v2, u32 4
-                    jmpif v3 then: b5, else: b6
+                    jmpif v3 then: b5(), else: b6()
                 b5():
                     v4 = add v0, v2
                     v5 = lt u32 10, v4
@@ -1402,7 +1406,7 @@ mod tests {
             jmp b1(v0)
           b1(v1: u32):
             v2 = lt v1, u32 5
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -1446,7 +1450,7 @@ mod tests {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v41 = unchecked_add v0, u32 1
             jmp b1(v41)
@@ -1547,7 +1551,7 @@ mod tests {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v1 = unchecked_add v0, u32 1
             jmp b1(v1)
@@ -1718,13 +1722,13 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v5 = lt v0, u32 10
-            jmpif v5 then: b2, else: b6
+            jmpif v5 then: b2(), else: b6()
           b2():
             v7 = eq v0, u32 2
-            jmpif v7 then: b7, else: b3
+            jmpif v7 then: b7(), else: b3()
           b3():
             v11 = eq v0, u32 5
-            jmpif v11 then: b5, else: b4
+            jmpif v11 then: b5(), else: b4()
           b4():
             v15 = load v1 -> Field
             v17 = add v15, Field 1
@@ -1781,7 +1785,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v5 = lt v1, {idx_type} {upper}
-            jmpif v5 then: b3, else: b2
+            jmpif v5 then: b3(), else: b2()
           b3():
             v8 = load v2 -> u32
             v9 = add v8, v1
@@ -1830,7 +1834,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v7 = lt v1, {idx_type} {upper}
-            jmpif v7 then: b3, else: b2
+            jmpif v7 then: b3(), else: b2()
           b3():
             v9 = load v4 -> [u64; 6]
             v10 = cast v1 as u32
@@ -1879,9 +1883,9 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v3 = lt v0, u32 5
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
-            jmpif u1 1 then: b4, else: b5
+            jmpif u1 1 then: b4(), else: b5()
           b3():
             return u1 1
           b4():
@@ -1910,7 +1914,7 @@ mod tests {
             jmp b1(u32 10)
           b1(v0: u32):
             v3 = lt v0, u32 12
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             constrain v0 == u32 1
             jmp b1(u32 2)
@@ -1939,7 +1943,7 @@ mod tests {
             jmp b1()
           b1():
             v2 = load v0 -> u1
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             jmp b1()
           b3():
@@ -1966,7 +1970,7 @@ mod tests {
             jmp b1(u128 {0})
           b1(v0: u128):
             v3 = eq v0, u128 {0}
-            jmpif v3 then: b3, else: b2
+            jmpif v3 then: b3(), else: b2()
           b2():
             v6 = unchecked_add v0, u128 1
             jmp b1(v6)

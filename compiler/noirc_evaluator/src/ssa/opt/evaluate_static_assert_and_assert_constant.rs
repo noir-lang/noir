@@ -326,7 +326,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v4 = lt v0, u32 0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             call assert_constant(v2)
             v7 = unchecked_add v0, u32 1
@@ -352,7 +352,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v4 = lt v0, u32 0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v6 = unchecked_add v0, u32 1
             jmp b1(v6)
@@ -375,7 +375,7 @@ mod tests {
             jmp b1(v0)
           b1(v2: u32):
             v3 = lt v2, v1
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             call assert_constant(v0)
             v6 = unchecked_add v2, u32 1

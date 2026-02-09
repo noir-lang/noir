@@ -770,7 +770,7 @@ mod tests {
         brillig(inline) impure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -784,7 +784,7 @@ mod tests {
         brillig(inline) impure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -814,7 +814,7 @@ mod tests {
         brillig(inline) impure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -828,7 +828,7 @@ mod tests {
         brillig(inline) impure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -842,7 +842,7 @@ mod tests {
         brillig(inline) fn func_2 f3 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -856,7 +856,7 @@ mod tests {
         brillig(inline) fn func_1 f4 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -870,7 +870,7 @@ mod tests {
         brillig(inline) fn func_2 f5 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -884,7 +884,7 @@ mod tests {
         brillig(inline) fn func_1 f6 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():

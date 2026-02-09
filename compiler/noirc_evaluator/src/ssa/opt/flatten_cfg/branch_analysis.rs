@@ -455,9 +455,9 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
-            jmpif u1 0 then: b5, else: b6
+            jmpif u1 0 then: b5(), else: b6()
           b2():
             jmp b3()
           b3():
@@ -471,9 +471,9 @@ mod tests {
           b7():
             jmp b8()
           b8():
-            jmpif u1 0 then: b9, else: b10
+            jmpif u1 0 then: b9(), else: b10()
           b9():
-            jmpif u1 0 then: b11, else: b12
+            jmpif u1 0 then: b11(), else: b12()
           b10():
             jmp b14()
           b11():
@@ -508,12 +508,12 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
             v4 = eq v0, Field 2
-            jmpif v4 then: b3, else: b2
+            jmpif v4 then: b3(), else: b2()
           b1(v2: u32):
             return v2
           b2():
             v9 = eq v0, Field 3
-            jmpif v9 then: b6, else: b5
+            jmpif v9 then: b6(), else: b5()
           b3():
             v6 = call f2(v1) -> u32
             jmp b4(v6)
@@ -562,7 +562,7 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u64, v2: i32, v3: u1, v4: Field, v5: u1, v6: u1):
-            jmpif v6 then: b1, else: b2
+            jmpif v6 then: b1(), else: b2()
           b1():
             jmp b14()
           b2():
@@ -573,17 +573,17 @@ mod tests {
             jmp b14()
           b5(v7: u32):
             v11 = lt v7, u32 232
-            jmpif v11 then: b3, else: b4
+            jmpif v11 then: b3(), else: b4()
           b6():
             v18 = add v7, u32 1
             v19 = truncate v18 to 32 bits, max_bit_size: 33
             v21 = call f1(v4, v4, v4, v4, v4, v0, v0) -> Field
             jmp b5(v19)
           b7():
-            jmpif v6 then: b10, else: b11
+            jmpif v6 then: b10(), else: b11()
           b8(v8: u32):
             v14 = lt v8, u32 90
-            jmpif v14 then: b7, else: b6
+            jmpif v14 then: b7(), else: b6()
           b9():
             v16 = add v8, u32 1
             v17 = truncate v16 to 32 bits, max_bit_size: 33
@@ -603,12 +603,12 @@ mod tests {
           b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
             jmp b3(u32 54)
           b1():
-            jmpif v6 then: b5, else: b6
+            jmpif v6 then: b5(), else: b6()
           b2():
             jmp b8()
           b3(v7: u32):
             v10 = lt v7, u32 207
-            jmpif v10 then: b1, else: b2
+            jmpif v10 then: b1(), else: b2()
           b4():
             v12 = add v7, u32 1
             v13 = truncate v12 to 32 bits, max_bit_size: 33

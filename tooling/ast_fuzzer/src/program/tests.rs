@@ -87,7 +87,7 @@ fn test_modulo_of_negative_literals_in_range() {
         jmp b1(i64 -4)
       b1(v0: i64):
         v3 = lt v0, i64 -1
-        jmpif v3 then: b2, else: b3
+        jmpif v3 then: b2(), else: b3()
       b2():
         jmp b3()
       b3():

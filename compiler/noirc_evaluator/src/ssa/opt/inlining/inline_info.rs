@@ -421,7 +421,7 @@ mod tests {
           brillig(inline) fn is_even f1 {
             b0(v0: u32):
               v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
+              jmpif v3 then: b2(), else: b1()
             b1():
               v5 = call f3(v0) -> u32
               v7 = call f2(v5) -> u1
@@ -434,7 +434,7 @@ mod tests {
           brillig(inline) fn is_odd f2 {
             b0(v0: u32):
               v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
+              jmpif v3 then: b2(), else: b1()
             b1():
               v5 = call f3(v0) -> u32
               v7 = call f1(v5) -> u1

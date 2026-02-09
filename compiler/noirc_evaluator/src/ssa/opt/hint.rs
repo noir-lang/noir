@@ -72,7 +72,7 @@ mod tests {
               jmp b1(u32 0)
             b1(v2: u32):
               v5 = lt v2, v0
-              jmpif v5 then: b3, else: b2
+              jmpif v5 then: b3(), else: b2()
             b3():
               v7 = load v3 -> u32
               v8 = add v7, v1

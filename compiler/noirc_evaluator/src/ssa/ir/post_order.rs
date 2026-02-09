@@ -239,7 +239,7 @@ mod tests {
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3(u32 1)
           b2():
@@ -281,15 +281,15 @@ mod tests {
               b0(v0: u1):
                 jmp b1(v0)
               b1(v1: u1):
-                jmpif v1 then: b2, else: b3
+                jmpif v1 then: b2(), else: b3()
               b2():
                 jmp b4(v1)
               b3():
                 return
               b4(v2: u1):
-                jmpif v2 then: b5, else: b6
+                jmpif v2 then: b5(), else: b6()
               b5():
-                jmpif v2 then: b7, else: b8
+                jmpif v2 then: b7(), else: b8()
               b6():
                 jmp b1(v1)
               b7():

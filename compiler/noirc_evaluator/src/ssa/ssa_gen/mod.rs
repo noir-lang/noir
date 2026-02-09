@@ -774,7 +774,7 @@ impl FunctionContext<'_> {
         // cannot be determined at compile-time.
         self.builder.set_location(for_expr.end_range_location);
         let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
-        self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
+        self.builder.terminate_with_jmpif_no_args(jump_condition, loop_body, loop_end);
 
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
@@ -806,7 +806,7 @@ impl FunctionContext<'_> {
                 BinaryOp::And,
                 start_is_less_than_or_equal_to_end,
             );
-            self.builder.terminate_with_jmpif(
+            self.builder.terminate_with_jmpif_no_args(
                 should_execute_loop_body,
                 final_iteration,
                 final_iteration_end,
@@ -914,7 +914,7 @@ impl FunctionContext<'_> {
         // Codegen the entry (where the condition is)
         self.builder.switch_to_block(while_entry);
         let condition = self.codegen_non_tuple_expression(&while_.condition)?;
-        self.builder.terminate_with_jmpif(condition, while_body, while_end);
+        self.builder.terminate_with_jmpif_no_args(condition, while_body, while_end);
 
         self.enter_loop(Loop {
             loop_entry: while_entry,
@@ -973,7 +973,7 @@ impl FunctionContext<'_> {
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
 
-        self.builder.terminate_with_jmpif(condition, then_block, else_block);
+        self.builder.terminate_with_jmpif_no_args(condition, then_block, else_block);
 
         self.builder.switch_to_block(then_block);
         let then_result = self.codegen_expression(&if_expr.consequence);
@@ -1072,7 +1072,7 @@ impl FunctionContext<'_> {
 
             let case_block = self.builder.insert_block();
             let else_block = self.builder.insert_block();
-            self.builder.terminate_with_jmpif(eq, case_block, else_block);
+            self.builder.terminate_with_jmpif_no_args(eq, case_block, else_block);
 
             self.builder.switch_to_block(case_block);
             self.bind_case_arguments(variable.clone(), case);

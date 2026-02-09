@@ -89,7 +89,7 @@ acir(inline) fn main f0 {
     jmp b1(i32 -10)
   b1(v2: i32):
     v7 = lt v2, i32 40
-    jmpif v7 then: b2, else: b3
+    jmpif v7 then: b2(), else: b3()
   b2():
     call f1(v0, v1, v2)
 ```

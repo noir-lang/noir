@@ -295,11 +295,25 @@ impl Translator {
                 let arguments = self.translate_values(arguments)?;
                 self.builder.terminate_with_jmp(block_id, arguments);
             }
-            ParsedTerminator::Jmpif { condition, then_block, else_block } => {
+            ParsedTerminator::Jmpif {
+                condition,
+                then_block,
+                then_arguments,
+                else_block,
+                else_arguments,
+            } => {
                 let condition = self.translate_value(condition)?;
                 let then_destination = self.lookup_block(&then_block)?;
+                let then_arguments = self.translate_values(then_arguments)?;
                 let else_destination = self.lookup_block(&else_block)?;
-                self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+                let else_arguments = self.translate_values(else_arguments)?;
+                self.builder.terminate_with_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                );
             }
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;

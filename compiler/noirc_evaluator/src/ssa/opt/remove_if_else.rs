@@ -1093,7 +1093,7 @@ mod tests {
                 v3 = make_array [] : [()]
                 v4 = make_array [] : [()]
                 v6 = eq v0, u32 4
-                jmpif v6 then: b1, else: b2
+                jmpif v6 then: b1(), else: b2()
             b1():
                 jmp b3(u32 1, v3)
             b2():

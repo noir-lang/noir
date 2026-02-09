@@ -913,7 +913,7 @@ pub(crate) mod tests {
                 jmp b1(u32 0, u32 0, u32 0)
               b1(v3: u32, v35: u32, v36: u32):
                 v5 = lt v3, u32 17
-                jmpif v5 then: b2, else: b3
+                jmpif v5 then: b2(), else: b3()
               b2():
                 v8 = unchecked_add v3, u32 1
                 jmp b1(v8, v3, u32 10)
@@ -953,7 +953,7 @@ pub(crate) mod tests {
                 jmp b1(u32 0, u32 1, u32 0)
               b1(v0: u32, v1: u32, v2: u32):
                 v3 = lt v2, u32 1
-                jmpif v3 then: b2, else: b3
+                jmpif v3 then: b2(), else: b3()
               b2():
                 v4 = unchecked_add v2, u32 1
                 jmp b1(v1, v0, v4)

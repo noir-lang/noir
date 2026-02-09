@@ -1599,7 +1599,7 @@ mod tests {
 
         acir(inline) fn f1 f1 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             return Field 1
           b2():
@@ -1836,7 +1836,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b2()
           b2():
@@ -1999,7 +1999,7 @@ mod tests {
 
         builder.switch_to_block(b1);
 
-        builder.terminate_with_jmpif(v0, b2, b3);
+        builder.terminate_with_jmpif_no_args(v0, b2, b3);
 
         builder.switch_to_block(b2);
 

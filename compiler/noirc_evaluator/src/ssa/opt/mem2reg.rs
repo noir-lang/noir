@@ -75,7 +75,6 @@
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
 mod alias_set;
 mod block;
-mod cfg;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -1214,7 +1213,7 @@ mod tests {
             jmp b1(Field 0)
           b1(v3: Field):
             v4 = eq v3, Field 0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v5 = load v2 -> &mut Field
             store Field 2 at v5
@@ -1281,7 +1280,7 @@ mod tests {
             jmp b1(Field 0)
           b1(v3: Field):
             v4 = eq v3, Field 0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v5 = load v2 -> &mut Field
             store Field 2 at v5
@@ -1318,7 +1317,7 @@ mod tests {
             jmp b1(Field 0)
           b1(v0: Field):
             v4 = eq v0, Field 0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v11 = load v3 -> &mut Field
             store Field 2 at v11
@@ -1351,7 +1350,7 @@ mod tests {
             jmp b1(Field 0)
           b1(v0: Field):
             v4 = eq v0, Field 0
-            jmpif v4 then: b3, else: b2
+            jmpif v4 then: b3(), else: b2()
           b2():
             v9 = load v1 -> Field
             v10 = eq v9, Field 2
@@ -1384,7 +1383,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b1
+            jmpif v0 then: b2(), else: b1()
           b1():
             v6 = allocate -> &mut Field
             store Field 1 at v6
@@ -1418,7 +1417,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b1
+            jmpif v0 then: b2(), else: b1()
           b1():
             v8 = allocate -> &mut Field
             store Field 1 at v8
@@ -1498,7 +1497,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v7 = eq v0, u32 0
-            jmpif v7 then: b2, else: b3
+            jmpif v7 then: b2(), else: b3()
           b2():
             v14 = unchecked_add v0, u32 1
             jmp b1(v14)
@@ -1506,7 +1505,7 @@ mod tests {
             v8 = load v5 -> [&mut u1; 1]
             v9 = array_get v8, index u32 0 -> &mut u1
             v10 = load v9 -> u1
-            jmpif v10 then: b4, else: b5
+            jmpif v10 then: b4(), else: b5()
           b4():
             jmp b6(Field 0)
           b5():
@@ -1547,7 +1546,7 @@ mod tests {
             v1 = allocate -> &mut u1
             store u1 0 at v1
             v3 = make_array [v1] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(u32 0)
           b2():
@@ -1569,7 +1568,7 @@ mod tests {
           b0():
             v1 = allocate -> &mut u1
             store u1 0 at v1
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             v3 = make_array [v1] : [&mut u1]
             jmp b3(u32 0)
@@ -1635,7 +1634,7 @@ mod tests {
           b1():
             v4 = load v2 -> u32
             v6 = eq v4, u32 1
-            jmpif v6 then: b2, else: b3
+            jmpif v6 then: b2(), else: b3()
           b2():
             jmp b4()
           b3():
@@ -1671,7 +1670,7 @@ mod tests {
           b1():
             v4 = load v2 -> u32
             v6 = eq v4, u32 1
-            jmpif v6 then: b2, else: b3
+            jmpif v6 then: b2(), else: b3()
           b2():
             jmp b4()
           b3():
@@ -1719,7 +1718,7 @@ mod tests {
             store u1 1 at v5
             v6 = make_array [v5] : [&mut u1; 1]
             v7 = make_array [v4, v6] : [[&mut u1; 1]; 2]
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(u32 0)
           b2():
@@ -1730,7 +1729,7 @@ mod tests {
             v12 = array_get v7, index v0 -> [&mut u1; 1]
             v13 = array_get v12, index u32 0 -> &mut u1
             v14 = load v13 -> u1
-            jmpif v14 then: b4, else: b5
+            jmpif v14 then: b4(), else: b5()
           b4():
             jmp b6(u1 1)
           b5():
@@ -1757,7 +1756,7 @@ mod tests {
                 jmp b1(u32 10)
               b1(v0: u32):
                 v6 = lt v0, u32 11
-                jmpif v6 then: b2, else: b3
+                jmpif v6 then: b2(), else: b3()
               b2():
                 v8 = cast v0 as Field
                 store v8 at v1
@@ -1787,7 +1786,7 @@ mod tests {
             store v0 at v2
             jmp b1(Field 0)
           b1(v1: Field):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             store Field 10 at v0
             v6 = load v2 -> &mut Field
@@ -1979,7 +1978,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: &mut Field, v1: u1):
             v2 = load v0 -> Field
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -1997,7 +1996,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: &mut Field, v1: u1):
             v2 = load v0 -> Field
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -2016,7 +2015,7 @@ mod tests {
             v1 = allocate -> &mut u1
             store u1 0 at v1
             v3 = make_array [v1] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(u32 0, u32 1)
           b2():
@@ -2039,7 +2038,7 @@ mod tests {
             v2 = allocate -> &mut u1
             store u1 0 at v2
             v4 = make_array [v2] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(u32 0, u32 1)
           b2():
@@ -2101,7 +2100,7 @@ mod tests {
         acir(inline) fn create_note f0 {
           b0(v0: &mut Field):
             store Field 0 at v0
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             v5 = load v0 -> Field
             return v5
@@ -2123,7 +2122,7 @@ mod tests {
           b0(v0: u1):
             v2 = allocate -> &mut Field
             store Field 0 at v2
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v5 = make_array [v2] : [&mut Field; 1]
             jmp b3(v5)
@@ -2444,14 +2443,14 @@ mod tests {
             jmp b1(u32 0)
           b1(v6: u32):
             v8 = lt v6, u32 3
-            jmpif v8 then: b2, else: b3
+            jmpif v8 then: b2(), else: b3()
           b2():
             v20 = load v2 -> [Field; 3]
             v21 = load v3 -> [Field; 4]
             v22 = load v4 -> u32
             v23 = load v5 -> u1
             v24 = lt v6, v22
-            jmpif v24 then: b4, else: b5
+            jmpif v24 then: b4(), else: b5()
           b3():
             v9 = load v2 -> [Field; 3]
             v10 = load v3 -> [Field; 4]
@@ -2511,14 +2510,14 @@ mod tests {
             jmp b1(u32 0)
           b1(v4: u32):
             v7 = lt v4, u32 3
-            jmpif v7 then: b2, else: b3
+            jmpif v7 then: b2(), else: b3()
           b2():
             v14 = load v0 -> [Field; 3]
             v15 = load v1 -> [Field; 4]
             v16 = load v2 -> u32
             v17 = load v3 -> u1
             v18 = lt v4, v16
-            jmpif v18 then: b4, else: b5
+            jmpif v18 then: b4(), else: b5()
           b3():
             v8 = load v0 -> [Field; 3]
             v9 = load v1 -> [Field; 4]
@@ -2570,7 +2569,7 @@ mod tests {
             v11, v12 = call vector_push_back(u32 2, v7, v8) -> (u32, [&mut u1])
             v16 = array_get v12, index u32 1 -> &mut u1
             v17 = load v16 -> u1
-            jmpif v17 then: b1, else: b2
+            jmpif v17 then: b1(), else: b2()
           b1():
             jmp b3(v12)
           b2():
@@ -2596,7 +2595,7 @@ mod tests {
             v5 = make_array [v1, v4] : [&mut u1]
             v7 = array_set v5, index u32 2, value v4
             v8 = make_array [v1, v4] : [&mut u1]
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3(v8)
           b2():
@@ -2778,7 +2777,7 @@ mod tests {
           b0(v0: [&mut Field; 1], v1: u1):
             v3 = allocate -> &mut Field
             v4 = allocate -> &mut Field
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v7 = array_set v0, index u32 0, value v3
             jmp b3(v7)
@@ -2813,7 +2812,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v7 = eq v0, u32 0
-            jmpif v7 then: b2, else: b3
+            jmpif v7 then: b2(), else: b3()
           b2():
             v9 = array_get v4, index v0 -> &mut Field
             store Field 1 at v9
@@ -2853,7 +2852,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v9 = lt v0, u32 3
-            jmpif v9 then: b2, else: b3
+            jmpif v9 then: b2(), else: b3()
           b2():
             v10 = load v4 -> [&mut u1; 1]
             v11 = array_get v10, index u32 0 -> &mut u1
@@ -2899,7 +2898,7 @@ mod tests {
         b1():
           v6 = load v4 -> Field
           v8 = eq v6, Field 2
-          jmpif v8 then: b2, else: b3
+          jmpif v8 then: b2(), else: b3()
         b2():
           jmp b4()
         b3():
@@ -2958,7 +2957,7 @@ mod tests {
         b1():
           v6 = load v4 -> Field
           v8 = eq v6, Field 2
-          jmpif v8 then: b2, else: b3
+          jmpif v8 then: b2(), else: b3()
         b2():
           jmp b4()
         b3():
@@ -2989,7 +2988,7 @@ mod tests {
           v4 = load v1 -> [&mut u1; 1]
           v6 = array_get v4, index u32 0 -> &mut u1
           v7 = load v6 -> u1
-          jmpif v7 then: b1, else: b2
+          jmpif v7 then: b1(), else: b2()
         b1():
           v8 = load v1 -> [&mut u1; 1]
           v9 = array_set v8, index u32 0, value v2
@@ -3014,7 +3013,7 @@ mod tests {
           store u1 1 at v2
           v5 = array_get v0, index u32 0 -> &mut u1
           v6 = load v5 -> u1
-          jmpif v6 then: b1, else: b2
+          jmpif v6 then: b1(), else: b2()
         b1():
           v7 = array_set v0, index u32 0, value v2
           store v7 at v1
@@ -3171,7 +3170,7 @@ mod tests {
                 store u1 0 at v9
                 v11 = array_get v2, index u32 2 -> &mut u1
                 v12 = load v11 -> u1
-                jmpif v12 then: b1, else: b2
+                jmpif v12 then: b1(), else: b2()
               b1():
                 v16 = array_get v2, index u32 1 -> &mut u1
                 jmp b3(v16)
@@ -3211,7 +3210,7 @@ mod tests {
                 store u1 0 at v9
                 v11 = array_get v2, index u32 2 -> &mut u1
                 v12 = load v11 -> u1
-                jmpif v12 then: b1, else: b2
+                jmpif v12 then: b1(), else: b2()
               b1():
                 v16 = array_get v2, index u32 1 -> &mut u1
                 jmp b3(v16)
@@ -3251,7 +3250,7 @@ mod tests {
                 store u1 0 at v9
                 v11 = array_get v2, index u32 2 -> &mut u1
                 v12 = load v11 -> u1
-                jmpif v12 then: b1, else: b2
+                jmpif v12 then: b1(), else: b2()
               b1():
                 v16 = array_get v2, index u32 1 -> &mut u1
                 jmp b3(v16)
@@ -3279,7 +3278,7 @@ mod tests {
                 store u1 0 at v4
                 v6 = array_get v0, index u32 2 -> &mut u1
                 v7 = load v6 -> u1
-                jmpif v7 then: b1, else: b2
+                jmpif v7 then: b1(), else: b2()
               b1():
                 v11 = array_get v0, index u32 1 -> &mut u1
                 jmp b3(v11)
@@ -3318,7 +3317,7 @@ mod tests {
                 v11 = array_get v2, index u32 2 -> &mut [u1; 2]
                 v12 = load v11 -> [u1; 2]
                 v13 = array_get v12, index u32 0 -> u1
-                jmpif v13 then: b1, else: b2
+                jmpif v13 then: b1(), else: b2()
               b1():
                 v16 = array_get v2, index u32 1 -> &mut [u1; 2]
                 jmp b3(v16)
@@ -3350,7 +3349,7 @@ mod tests {
                 v9 = array_get v0, index u32 2 -> &mut [u1; 2]
                 v10 = load v9 -> [u1; 2]
                 v12 = array_get v10, index u32 0 -> u1
-                jmpif v12 then: b1, else: b2
+                jmpif v12 then: b1(), else: b2()
               b1():
                 v15 = array_get v0, index u32 1 -> &mut [u1; 2]
                 jmp b3(v15)
@@ -3380,7 +3379,7 @@ mod tests {
                 jmp b1(v2, Field 0)
               b1(v0: &mut Field, v1: Field):
                 v8 = eq v1, Field 2
-                jmpif v8 then: b2, else: b3
+                jmpif v8 then: b2(), else: b3()
               b2():
                 v12 = load v4 -> Field
                 return v12
@@ -3412,7 +3411,7 @@ mod tests {
                 jmp b1(Field 0)
               b1(v1: Field):
                 v8 = eq v1, Field 2
-                jmpif v8 then: b2, else: b3
+                jmpif v8 then: b2(), else: b3()
               b2():
                 v12 = load v4 -> Field
                 return v12
@@ -3439,7 +3438,7 @@ mod tests {
         let src = r#"
             brillig(inline) impure fn main f0 {
               b0():
-                jmpif u1 0 then: b1, else: b2
+                jmpif u1 0 then: b1(), else: b2()
               b1():
                 v1 = allocate -> &mut u1
                 store u1 0 at v1
@@ -3463,7 +3462,7 @@ mod tests {
                 v12 = array_get v11, index u32 0 -> [&mut u1; 1]
                 v13 = array_get v12, index u32 0 -> &mut u1
                 v14 = load v13 -> u1
-                jmpif v10 then: b5, else: b6
+                jmpif v10 then: b5(), else: b6()
               b5():
                 return v14
               b6():
@@ -3535,7 +3534,7 @@ mod tests {
                 jmp b1(Field 0)
               b1(v1: Field):
                 v8 = eq v1, Field 2
-                jmpif v8 then: b2, else: b3
+                jmpif v8 then: b2(), else: b3()
               b2():
                 v12 = load v4 -> Field
                 return v12
@@ -3642,7 +3641,7 @@ mod tests {
             v1 = allocate -> &mut u1
             store u1 0 at v1
             v2 = make_array [v1, v1] : [&mut u1; 2]
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():

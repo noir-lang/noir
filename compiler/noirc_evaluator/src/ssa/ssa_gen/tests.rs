@@ -87,7 +87,7 @@ fn basic_loop() {
         jmp b1(u32 0)
       b1(v4: u32):
         v5 = lt v4, u32 4
-        jmpif v5 then: b2, else: b3
+        jmpif v5 then: b2(), else: b3()
       b2():
         v6 = load v2 -> u32
         v7 = add v6, v4
@@ -285,7 +285,7 @@ fn for_loop_exclusive() {
         jmp b1(u32 0)
       b1(v0: u32):
         v4 = lt v0, u32 5
-        jmpif v4 then: b2, else: b3
+        jmpif v4 then: b2(), else: b3()
       b2():
         v6 = load v1 -> u32
         v7 = add v6, v0
@@ -328,7 +328,7 @@ fn for_loop_inclusive_max_value_without_break() {
         jmp b1(u8 0)
       b1(v0: u8):
         v6 = lt v0, u8 255
-        jmpif v6 then: b2, else: b3
+        jmpif v6 then: b2(), else: b3()
       b2():
         v12 = load v1 -> u8
         v13 = add v12, v0
@@ -338,7 +338,7 @@ fn for_loop_inclusive_max_value_without_break() {
       b3():
         v7 = load v3 -> u1
         v8 = unchecked_mul v7, u1 1
-        jmpif v8 then: b4, else: b5
+        jmpif v8 then: b4(), else: b5()
       b4():
         v9 = load v1 -> u8
         v10 = add v9, u8 255
@@ -373,7 +373,7 @@ fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
         jmp b1(u8 0)
       b1(v0: u8):
         v4 = lt v0, u8 255
-        jmpif v4 then: b2, else: b3
+        jmpif v4 then: b2(), else: b3()
       b2():
         v6 = load v1 -> u8
         v7 = add v6, v0
@@ -423,13 +423,13 @@ fn for_loop_inclusive_max_value_with_break() {
         jmp b1(u8 0)
       b1(v1: u8):
         v7 = lt v1, u8 255
-        jmpif v7 then: b2, else: b3
+        jmpif v7 then: b2(), else: b3()
       b2():
-        jmpif v0 then: b4, else: b5
+        jmpif v0 then: b4(), else: b5()
       b3():
         v13 = load v4 -> u1
         v14 = unchecked_mul v13, u1 1
-        jmpif v14 then: b6, else: b7
+        jmpif v14 then: b6(), else: b7()
       b4():
         store u1 0 at v4
         jmp b3()
@@ -440,7 +440,7 @@ fn for_loop_inclusive_max_value_with_break() {
         v11 = unchecked_add v1, u8 1
         jmp b1(v11)
       b6():
-        jmpif v0 then: b8, else: b9
+        jmpif v0 then: b8(), else: b9()
       b7():
         v17 = load v2 -> u8
         return v17
@@ -484,16 +484,16 @@ fn for_loop_inclusive_unknown_range_with_break() {
         jmp b1(v0)
       b1(v2: u8):
         v7 = lt v2, v1
-        jmpif v7 then: b2, else: b3
+        jmpif v7 then: b2(), else: b3()
       b2():
         v9 = eq v2, u8 10
-        jmpif v9 then: b4, else: b5
+        jmpif v9 then: b4(), else: b5()
       b3():
         v15 = load v5 -> u1
         v16 = lt v1, v0
         v17 = not v16
         v18 = unchecked_mul v15, v17
-        jmpif v18 then: b6, else: b7
+        jmpif v18 then: b6(), else: b7()
       b4():
         store u1 0 at v5
         jmp b3()
@@ -505,7 +505,7 @@ fn for_loop_inclusive_unknown_range_with_break() {
         jmp b1(v13)
       b6():
         v19 = eq v1, u8 10
-        jmpif v19 then: b8, else: b9
+        jmpif v19 then: b8(), else: b9()
       b7():
         v22 = load v3 -> u8
         return v22
@@ -541,14 +541,14 @@ fn for_loop_inclusive_with_continue() {
         jmp b1(u8 0)
       b1(v0: u8):
         v5 = lt v0, u8 255
-        jmpif v5 then: b2, else: b3
+        jmpif v5 then: b2(), else: b3()
       b2():
         v9 = unchecked_add v0, u8 1
         jmp b1(v9)
       b3():
         v6 = load v1 -> u1
         v7 = unchecked_mul v6, u1 1
-        jmpif v7 then: b4, else: b5
+        jmpif v7 then: b4(), else: b5()
       b4():
         jmp b5()
       b5():
@@ -581,7 +581,7 @@ fn for_loop_inclusive_max_value_to_max_value() {
         jmp b1(u8 255)
       b1(v0: u8):
         v6 = lt v0, u8 255
-        jmpif v6 then: b2, else: b3
+        jmpif v6 then: b2(), else: b3()
       b2():
         v12 = load v1 -> u8
         v13 = add v12, v0
@@ -591,7 +591,7 @@ fn for_loop_inclusive_max_value_to_max_value() {
       b3():
         v7 = load v3 -> u1
         v8 = unchecked_mul v7, u1 1
-        jmpif v8 then: b4, else: b5
+        jmpif v8 then: b4(), else: b5()
       b4():
         v9 = load v1 -> u8
         v10 = add v9, u8 255

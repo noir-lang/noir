@@ -457,7 +457,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 0
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   jmp b3(u32 5)
                 b2():
@@ -491,7 +491,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 5
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   v10 = make_array b"foo"
                   jmp b3(v10)
@@ -516,10 +516,10 @@ mod tests {
               b0(v0: u32):
                 v5 = eq v0, u32 5
                 v6 = not v5
-                jmpif v5 then: b5, else: b1
+                jmpif v5 then: b5(), else: b1()
               b1():
                 v8 = lt v0, u32 3
-                jmpif v8 then: b3, else: b2
+                jmpif v8 then: b3(), else: b2()
               b2():
                 v9 = truncate v0 to 2 bits, max_bit_size: 32
                 jmp b4(v9)
@@ -530,7 +530,7 @@ mod tests {
                 jmp b9(v1)
               b5():
                 v12 = lt u32 2, v0
-                jmpif v12 then: b7, else: b6
+                jmpif v12 then: b7(), else: b6()
               b6():
                 v13 = truncate v0 to 3 bits, max_bit_size: 32
                 jmp b8(v13)
@@ -553,7 +553,7 @@ mod tests {
           b0(v0: u32):
             v3 = eq v0, u32 5
             v4 = not v3
-            jmpif v3 then: b2, else: b1
+            jmpif v3 then: b2(), else: b1()
           b1():
             v16 = lt v0, u32 3
             v17 = truncate v0 to 1 bits, max_bit_size: 32

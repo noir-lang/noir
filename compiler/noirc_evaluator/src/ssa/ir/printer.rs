@@ -212,7 +212,7 @@ fn display_terminator(
         }) => {
             writeln!(
                 f,
-                "    jmpif {}({}) then: {}({}), else: {}",
+                "    jmpif {} then: {}({}), else: {}({})",
                 value(dfg, *condition),
                 then_destination,
                 value_list(dfg, then_arguments),

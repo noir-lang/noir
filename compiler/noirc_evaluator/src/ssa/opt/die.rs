@@ -355,21 +355,37 @@ impl Context {
 
     /// Adds values referenced by the terminator to the set of used values.
     fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        let terminator = block.unwrap_terminator();
-        let jmp_destination = if let TerminatorInstruction::Jmp { destination, .. } = terminator {
-            Some(*destination)
-        } else {
-            None
+        let mut mark_used = |dest, args: &[ValueId]| {
+            for (i, arg) in args.iter().enumerate() {
+                if self.parameter_keep_list.get(&dest).map_or(true, |keep| keep[i]) {
+                    self.mark_used_instruction_results(&function.dfg, *arg);
+                }
+            }
         };
 
-        // TODO: Update this for jmpif args
-        block.unwrap_terminator().for_eachi_value(|index, value| {
-            let keep_list = jmp_destination.and_then(|dest| self.parameter_keep_list.get(&dest));
-            let should_keep = keep_list.is_none_or(|list| list[index]);
-            if should_keep {
-                self.mark_used_instruction_results(&function.dfg, value);
+        match block.unwrap_terminator() {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                mark_used(*then_destination, then_arguments);
+                mark_used(*else_destination, else_arguments);
+                self.mark_used_instruction_results(&function.dfg, *condition);
             }
-        });
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                mark_used(*destination, arguments);
+            }
+            TerminatorInstruction::Return { return_values, .. } => {
+                for value in return_values {
+                    self.mark_used_instruction_results(&function.dfg, *value);
+                }
+            }
+            TerminatorInstruction::Unreachable { .. } => (),
+        }
     }
 
     /// Inspects a value and marks all instruction results as used.
@@ -1134,7 +1150,7 @@ mod tests {
           b1():
             v6 = load v4 -> Field
             v7 = eq v6, Field 2
-            jmpif v7 then: b2, else: b3
+            jmpif v7 then: b2(), else: b3()
           b2():
             jmp b4()
           b3():
@@ -1152,7 +1168,7 @@ mod tests {
           b5():
             v12 = load v11 -> Field
             v13 = eq v12, Field 1
-            jmpif v13 then: b6, else: b7
+            jmpif v13 then: b6(), else: b7()
           b6():
             jmp b8()
           b7():

@@ -669,12 +669,18 @@ impl<'function> PerFunctionContext<'function> {
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
-                        let then_arguments = vecmap(then_arguments, |arg| self.translate_value(*arg));
-                        let else_arguments = vecmap(else_arguments, |arg| self.translate_value(*arg));
+                        let then_arguments =
+                            vecmap(then_arguments, |arg| self.translate_value(*arg));
+                        let else_arguments =
+                            vecmap(else_arguments, |arg| self.translate_value(*arg));
                         self.extend_call_stack(*call_stack);
-                        self.context
-                            .builder
-                            .terminate_with_jmpif(condition, then_block, then_arguments, else_block, else_arguments);
+                        self.context.builder.terminate_with_jmpif(
+                            condition,
+                            then_block,
+                            then_arguments,
+                            else_block,
+                            else_arguments,
+                        );
                     }
                 }
                 None
@@ -823,7 +829,7 @@ mod tests {
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3(u32 1)
           b2():
@@ -888,7 +894,7 @@ mod tests {
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3(u32 1)
           b2():
@@ -909,7 +915,7 @@ mod tests {
             "acir(inline) fn factorial f1 {
   b0(v0: u32):
     v3 = eq v0, u32 0
-    jmpif v3 then: b1, else: b2
+    jmpif v3 then: b1(), else: b2()
   b1():
     jmp b3(u32 1)
   b2():
@@ -932,7 +938,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -948,7 +954,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1019,7 +1025,7 @@ mod tests {
 
         brillig(inline) fn bar f1 {
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1062,7 +1068,7 @@ mod tests {
         }
         brillig(inline) fn bar f1 {
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1072,7 +1078,7 @@ mod tests {
         }
         brillig(inline) fn baz f2 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():

@@ -735,7 +735,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u1):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v7 = add v0, u32 10
             jmp b3(v0, v7)
@@ -859,7 +859,7 @@ mod tests {
             jmp b1(u32 0)
         b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
         b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -907,7 +907,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
         b1():
             v2 = add Field 27, Field 42
             jmp b3(v2)

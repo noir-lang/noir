@@ -237,8 +237,29 @@ impl Function {
             let terminator = self.dfg[pred].unwrap_terminator_mut();
 
             match terminator {
-                TerminatorInstruction::JmpIf { .. } => {
-                    // No terminator arguments in a JmpIf
+                TerminatorInstruction::JmpIf {
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    ..
+                } => {
+                    if *then_destination == target_block {
+                        let new_args = then_arguments
+                            .iter()
+                            .zip(keep_list.iter())
+                            .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
+                            .collect();
+                        *then_arguments = new_args;
+                    }
+                    if *else_destination == target_block {
+                        let new_args = else_arguments
+                            .iter()
+                            .zip(keep_list.iter())
+                            .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
+                            .collect();
+                        *else_arguments = new_args;
+                    }
                 }
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
                     // Predecessor must jump to its successor
@@ -319,7 +340,7 @@ mod tests {
             v4 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v4
             v6 = array_get v4, index u32 3 -> u1
-            jmpif v6 then: b1, else: b2
+            jmpif v6 then: b1(), else: b2()
           b1():
             v9 = mul u32 601072115, u32 2825334515
             v10 = cast v9 as u64
@@ -367,7 +388,7 @@ mod tests {
             v3 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v3
             v5 = array_get v3, index u32 3 -> u1
-            jmpif v5 then: b1, else: b2
+            jmpif v5 then: b1(), else: b2()
           b1():
             v7 = mul u32 601072115, u32 2825334515
             jmp b3()
@@ -572,10 +593,10 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v5 = lt i16 3, v0
-            jmpif v5 then: b1, else: b2
+            jmpif v5 then: b1(), else: b2()
           b1():
             v8 = lt i16 4, v0
-            jmpif v8 then: b3, else: b4
+            jmpif v8 then: b3(), else: b4()
           b2():
             jmp b5(Field 3)
           b3():
@@ -584,7 +605,7 @@ mod tests {
             jmp b6(Field 2)
           b5(v1: Field):
             v12 = lt i16 5, v0
-            jmpif v12 then: b7, else: b8
+            jmpif v12 then: b7(), else: b8()
           b6(v2: Field):
             jmp b5(v2)
           b7():
@@ -638,10 +659,10 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = lt i16 4, v0
-            jmpif v4 then: b3, else: b4
+            jmpif v4 then: b3(), else: b4()
           b2():
             jmp b5()
           b3():
@@ -650,7 +671,7 @@ mod tests {
             jmp b6()
           b5():
             v6 = lt i16 5, v0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b6():
             jmp b5()
           b7():
@@ -669,10 +690,10 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = lt i16 4, v0
-            jmpif v4 then: b3, else: b4
+            jmpif v4 then: b3(), else: b4()
           b2():
             jmp b5()
           b3():
@@ -681,7 +702,7 @@ mod tests {
             jmp b6()
           b5():
             v6 = lt i16 5, v0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b6():
             jmp b5()
           b7():

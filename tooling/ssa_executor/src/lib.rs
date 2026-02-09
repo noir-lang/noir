@@ -93,7 +93,7 @@ mod tests {
         let ssa_without_runtime = "
             (inline) fn main f0 {
               b0(v0: i32, v1: u1, v2: u1, v3: u1, v4: u1, v5: u1, v6: u1):
-                jmpif v6 then: b1, else: b2
+                jmpif v6 then: b1(), else: b2()
               b1():
                 v7 = cast v0 as u128
                 jmp b3()

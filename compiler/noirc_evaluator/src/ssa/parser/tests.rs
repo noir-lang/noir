@@ -191,7 +191,7 @@ fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b2()
           b2():
@@ -206,11 +206,11 @@ fn test_multiple_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b4()
           b2():
-            jmpif v1 then: b3, else: b1
+            jmpif v1 then: b3(), else: b1()
           b3():
             jmp b4()
           b4():
@@ -844,7 +844,7 @@ fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_
     let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b1():
             v6 = add v3, v5
             return

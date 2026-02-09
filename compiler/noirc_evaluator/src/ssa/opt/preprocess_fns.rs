@@ -100,7 +100,7 @@ mod tests {
         acir(inline) fn foo f0 {
           b0(v0: u32, v1: Field):
             v2 = eq v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v6 = add v0, u32 1
             jmp b3(v6, v1)
@@ -124,7 +124,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: u32):
             v2 = eq v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = add v0, u32 1
             jmp b3()

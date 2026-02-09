@@ -439,7 +439,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///     jmp b1(u32 0) <--------------------------------- create iter (0) and jump to the "if_block"
     ///   b1(v1: u32): <------------------------------------ "if_block"
     ///     v5 = lt v1, u32 10 <---------------------------- compare iter with end_iter (10)
-    ///     jmpif v5 then: b3, else: b2 <------------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
+    ///     jmpif v5 then: b3(), else: b2() <------------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
     ///   b2(): <------------------------------------------- "end_block"
     ///     v6 = load v2 -> Field
     ///     return v6

@@ -963,10 +963,10 @@ mod tests {
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
             v5 = eq v0, Field 2
-            jmpif v5 then: b2, else: b1
+            jmpif v5 then: b2(), else: b1()
           b1():
             v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            jmpif v9 then: b4(), else: b3()
           b2():
             v7 = call f2(v1) -> u32
             jmp b6(v7)
@@ -1049,7 +1049,7 @@ mod tests {
           b0(v0: u1):
             v1 = allocate -> &mut function
             store f1 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store f2 at v1
             jmp b2()
@@ -1085,7 +1085,7 @@ mod tests {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 1 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store Field 2 at v1
             jmp b2()
@@ -1112,7 +1112,7 @@ mod tests {
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
             v3 = eq v0, Field 1
-            jmpif v3 then: b2, else: b1
+            jmpif v3 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
             v8 = call f2() -> u32
@@ -1296,12 +1296,12 @@ mod tests {
         acir(inline) fn lambdas_with_input_and_return_values f1 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(f2)
           b2():
             v6 = eq v0, u32 1
-            jmpif v6 then: b4, else: b5
+            jmpif v6 then: b4(), else: b5()
           b3(v1: function):
             v10 = call v1(v0) -> u32
             return v10
@@ -1341,12 +1341,12 @@ mod tests {
         acir(inline) fn lambdas_with_input_and_return_values f1 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(Field 2)
           b2():
             v6 = eq v0, u32 1
-            jmpif v6 then: b4, else: b5
+            jmpif v6 then: b4(), else: b5()
           b3(v1: Field):
             v11 = call f5(v1, v0) -> u32
             return v11
@@ -1374,10 +1374,10 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
             v5 = eq v0, Field 2
-            jmpif v5 then: b2, else: b1
+            jmpif v5 then: b2(), else: b1()
           b1():
             v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            jmpif v9 then: b4(), else: b3()
           b2():
             v7 = call f2(v1) -> u32
             jmp b6(v7)
@@ -1458,16 +1458,16 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b2(), else: b1()
           b1():
             v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            jmpif v5 then: b4(), else: b3()
           b2():
             call f1()
             jmp b9()
           b3():
             v8 = eq v0, Field 3
-            jmpif v8 then: b6, else: b5
+            jmpif v8 then: b6(), else: b5()
           b4():
             call f2()
             jmp b8()
@@ -1695,7 +1695,7 @@ mod tests {
                 v3 = call f1(f2) -> Field
                 v5 = call f1(f3) -> Field
                 v7 = eq v0, Field 0
-                jmpif v7 then: b1, else: b2
+                jmpif v7 then: b1(), else: b2()
             b1():
                 jmp b3(f4)
             b2():
@@ -1745,7 +1745,7 @@ mod tests {
             v4 = call f1(Field 2) -> Field
             v6 = call f1(Field 3) -> Field
             v8 = eq v0, Field 0
-            jmpif v8 then: b1, else: b2
+            jmpif v8 then: b1(), else: b2()
           b1():
             jmp b3(Field 4)
           b2():
@@ -1787,7 +1787,7 @@ mod tests {
         acir(inline_always) fn apply f7 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 4
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 5
             v9 = call f5(v1) -> Field
@@ -1801,7 +1801,7 @@ mod tests {
         acir(inline_always) fn apply f8 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 2
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 3
             v9 = call f3(v1) -> Field
@@ -1828,7 +1828,7 @@ mod tests {
             acir(inline) fn simple_recur f1 {
             b0(v0: function, v1: Field):
                 v3 = eq v1, Field 0
-                jmpif v3 then: b1, else: b2
+                jmpif v3 then: b1(), else: b2()
             b1():
                 jmp b3(f1)
             b2():
@@ -1885,7 +1885,7 @@ mod tests {
             store v0 at v4
             v5 = load v4 -> Field
             v7 = eq v5, Field 1
-            jmpif v7 then: b1, else: b2
+            jmpif v7 then: b1(), else: b2()
           b1():
             jmp b3(f1)
           b2():
@@ -1932,7 +1932,7 @@ mod tests {
             store v0 at v4
             v5 = load v4 -> Field
             v7 = eq v5, Field 1
-            jmpif v7 then: b1, else: b2
+            jmpif v7 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1979,17 +1979,17 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b7(f1)
           b2():
             v6 = eq v0, Field 2
-            jmpif v6 then: b3, else: b4
+            jmpif v6 then: b3(), else: b4()
           b3():
             jmp b7(f2)
           b4():
             v8 = eq v0, Field 3
-            jmpif v8 then: b5, else: b6
+            jmpif v8 then: b5(), else: b6()
           b5():
             jmp b7(f3)
           b6():
@@ -2037,17 +2037,17 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b7(Field 1)
           b2():
             v6 = eq v0, Field 2
-            jmpif v6 then: b3, else: b4
+            jmpif v6 then: b3(), else: b4()
           b3():
             jmp b7(Field 2)
           b4():
             v8 = eq v0, Field 3
-            jmpif v8 then: b5, else: b6
+            jmpif v8 then: b5(), else: b6()
           b5():
             jmp b7(Field 3)
           b6():
@@ -2080,7 +2080,7 @@ mod tests {
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
             v9 = call f2(v1) -> Field
@@ -2100,7 +2100,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(f1, f2)
           b2():
@@ -2140,7 +2140,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2173,10 +2173,10 @@ mod tests {
         brillig(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b2(), else: b1()
           b1():
             v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            jmpif v5 then: b4(), else: b3()
           b2():
             call f1()
             jmp b5()
@@ -2199,7 +2199,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(f1, f2)
           b2():
@@ -2240,7 +2240,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2273,16 +2273,16 @@ mod tests {
         acir(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b2(), else: b1()
           b1():
             v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            jmpif v5 then: b4(), else: b3()
           b2():
             call f1()
             jmp b9()
           b3():
             v8 = eq v0, Field 4
-            jmpif v8 then: b6, else: b5
+            jmpif v8 then: b6(), else: b5()
           b4():
             call f2()
             jmp b8()
@@ -2328,7 +2328,7 @@ mod tests {
             store f1 at v1
             v3 = allocate -> &mut function
             store f1 at v3
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store f2 at v1
             store f2 at v3
@@ -2361,7 +2361,7 @@ mod tests {
             store Field 1 at v1
             v3 = allocate -> &mut Field
             store Field 1 at v3
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store Field 2 at v1
             store Field 2 at v3
@@ -2385,7 +2385,7 @@ mod tests {
         acir(inline_always) fn apply f3 {
           b0(v0: Field):
             v3 = eq v0, Field 1
-            jmpif v3 then: b2, else: b1
+            jmpif v3 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
             v8 = call f2() -> Field
@@ -2411,7 +2411,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(f1, f2)
           b2():
@@ -2450,7 +2450,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2482,7 +2482,7 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 3
             v10, v11 = call f3() -> (u32, [Field])

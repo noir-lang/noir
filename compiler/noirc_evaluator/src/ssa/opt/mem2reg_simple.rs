@@ -67,13 +67,7 @@ impl Function {
             &mut exit_states,
             &cfg,
         );
-        remove_params_with_identical_terminator_args(
-            &blocks,
-            &entry_states,
-            &exit_states,
-            &mut inserter,
-            &cfg,
-        );
+        remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
         commit(&mut inserter, &variables, blocks);
     }
 }
@@ -108,8 +102,6 @@ fn add_block_params_and_find_exit_states(
 }
 
 /// Link entry & exit states by adding terminator arguments for every variable stored to.
-/// If there is only 1 predecessor we can save time by mapping the value here instead of adding the
-/// terminator argument.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
@@ -119,59 +111,56 @@ fn add_terminator_arguments(
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        for (address, entry_value) in entry_states[&block].iter() {
+        for address in entry_states[&block].keys() {
             // If the current block is this variable's source block, no merge is needed.
             if block == variables[address] {
                 continue;
             }
 
-            // Remember any value stored to address in this block. The initial value given here is unused and thus arbitrary.
-            let mut last_value = *entry_value;
-            let predecessors = cfg.predecessors(block);
-            let predecessor_count = predecessors.len();
-
-            for predecessor in predecessors {
+            for predecessor in cfg.predecessors(block) {
                 let exit_value = get_exit_value(*address, predecessor, entry_states, exit_states);
-                last_value = exit_value;
-
-                if predecessor_count > 1 {
-                    add_terminator_argument(inserter.function, exit_value, predecessor);
-                }
-            }
-
-            if predecessor_count == 1 {
-                inserter.map_value(*entry_value, last_value);
+                add_terminator_argument(inserter.function, exit_value, predecessor, block);
             }
         }
     }
 }
 
-/// Removes block parameters whose arguments (from predecessors' terminators) are all identical
-fn remove_params_with_identical_terminator_args(
+/// For every block, remove any block parameters whose arguments (from predecessors' terminators) are all identical
+fn remove_params_from_blocks_with_identical_terminator_args(
     blocks: &[BasicBlockId],
-    entry_states: &BTreeMap<BasicBlockId, StateVec>,
-    exit_states: &BTreeMap<BasicBlockId, StateVec>,
     inserter: &mut FunctionInserter,
     cfg: &ControlFlowGraph,
 ) {
-    // Simplify block parameters where all arguments are identical
-    for block in blocks.iter().copied() {
-        let parameters = inserter.function.dfg.block_parameters(block).to_vec();
+    // Sort blocks such that we remove parameters from blocks with multiple predecessors last.
+    // This helps remove some dependency on block ordering for optimizations. E.g. the
+    // `read_only_loop` test requires 2 passes of mem2reg_simple without this.
+    let mut blocks = blocks.to_vec();
+    blocks.sort_unstable_by_key(|block| cfg.predecessors(*block).len());
 
-        // Mask of whether each parameter has non-identical arguments,
-        // E.g. if parameter 2's arguments are all identical, then `mask[2]` would be false
-        let mask = keep_argument_mask(inserter, cfg, block, &parameters, entry_states, exit_states);
+    for block in blocks {
+        remove_params_from_block_with_identical_terminator_args(block, inserter, cfg);
+    }
+}
 
-        // Remove unneeded parameters from the block
-        retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
+/// Removes block parameters whose arguments (from predecessors' terminators) are all identical
+fn remove_params_from_block_with_identical_terminator_args(
+    block: BasicBlockId,
+    inserter: &mut FunctionInserter,
+    cfg: &ControlFlowGraph,
+) {
+    let parameters = inserter.function.dfg.block_parameters(block).to_vec();
 
-        // And remove the corresponding parameter's arguments from each predecessor
-        for predecessor in cfg.predecessors(block) {
-            let terminator = inserter.function.dfg[predecessor].unwrap_terminator_mut();
-            if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
-                retain_items_from_mask(arguments, &mask);
-            }
-        }
+    // Mask of whether each parameter has non-identical arguments,
+    // E.g. if parameter 2's arguments are all identical, then `mask[2]` would be false
+    let mask = keep_argument_mask(inserter, cfg, block, &parameters);
+
+    // Remove unneeded parameters from the block
+    retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
+
+    // And remove the corresponding parameter's arguments from each predecessor
+    for predecessor in cfg.predecessors(block) {
+        let arguments = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
+        retain_items_from_mask(arguments, &mask);
     }
 }
 
@@ -234,8 +223,6 @@ fn keep_argument_mask(
     cfg: &ControlFlowGraph,
     block: BasicBlockId,
     parameters: &[ValueId],
-    entry_states: &BTreeMap<BasicBlockId, StateVec>,
-    exit_states: &BTreeMap<BasicBlockId, StateVec>,
 ) -> Vec<bool> {
     let entry = inserter.function.entry_block();
     if block == entry {
@@ -244,65 +231,80 @@ fn keep_argument_mask(
     }
 
     vecmap(parameters.iter().enumerate(), |(i, parameter)| {
-        let mut predecessors = cfg.predecessors(block);
-        let predecessor_count = predecessors.len();
-
-        // Do not `inserter.resolve()` this parameter! We want the original block parameter, but it
-        // may already be mapped away in the inserter.
-        let parameter = *parameter;
-
-        if predecessor_count == 1 {
-            // If the block has 1 predecessor, we should always remove the block parameter, but the
-            // argument to map to may not come from a `Jmp`. In that case we'll have to grab the
-            // exit state of the previous block. This can be removed if we ever add arguments to
-            // jmpif instructions.
-            let predecessor = predecessors.next().unwrap();
-
-            // We map address -> block param, so we need to iterate all entries for this block to
-            // find the address for our block param if we don't want to maintain another map.
-            let parameter_variable = entry_states[&block]
-                .iter()
-                .find(|(_, v)| **v == parameter)
-                .map(|(k, _)| *k)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "{}\n{block} has no parameter value {parameter}, entry_states = {:?}",
-                        inserter.function, entry_states[&block]
-                    )
-                });
-
-            let argument = *exit_states[&predecessor]
-                .get(&parameter_variable)
-                .unwrap_or_else(|| &entry_states[&predecessor][&parameter_variable]);
-
-            inserter.map_value(parameter, argument);
-            return false;
-        }
-
-        let mut args = predecessors.map(|predecessor| {
-            let terminator = inserter.function.dfg[predecessor].unwrap_terminator();
-            if let TerminatorInstruction::Jmp { arguments, .. } = terminator {
-                arguments[i]
-            } else {
-                unreachable!("Only blocks with 1 predecessor should have predecessors with non-Jmp terminators")
-            }
-        });
+        let mut args = cfg
+            .predecessors(block)
+            .map(|predecessor| get_terminator_args(&inserter.function.dfg, predecessor, block)[i])
+            .map(|arg| inserter.resolve(arg))
+            // Filtering here optimizes away cases where we have the parameter changed in one block
+            // and unchanged in another (argument can only equal parameter in the case of back-edges)
+            .filter(|arg| arg != parameter);
 
         // The entry block is excluded so we always expec
         let first_arg = args
             .next()
             .expect("Entry block is excluded so there should always be >= 1 predecessor");
-        let first_arg = inserter.resolve(first_arg);
 
         // keep the parameter if the arguments do not all match
         // unwrap safety: for all multi-predecessor blocks, each predecessor should end in a jmp, not jmpif
-        let keep_param = !args.all(|arg| inserter.resolve(arg) == first_arg);
+        let keep_param = !args.all(|arg| arg == first_arg);
         if !keep_param {
             // All arguments are identical, so the choice to map to the first is arbitrary
-            inserter.map_value(parameter, first_arg);
+            // Do not `inserter.resolve()` this parameter! We want the original block parameter, but it
+            // may already be mapped away in the inserter.
+            inserter.map_value(*parameter, first_arg);
         }
         keep_param
     })
+}
+
+/// Get the terminator arguments for block `block` jumping to block `jmp_target`.
+/// The `jmp_target` is relevant if `block` terminates in a jmpif terminator and may jmp to
+/// multiple blocks. Panics if the given block does not have block arguments.
+fn get_terminator_args(
+    dfg: &DataFlowGraph,
+    block: BasicBlockId,
+    jmp_target: BasicBlockId,
+) -> &[ValueId] {
+    match dfg[block].unwrap_terminator() {
+        TerminatorInstruction::Jmp { arguments, .. } => arguments,
+        TerminatorInstruction::JmpIf {
+            then_destination, then_arguments, else_arguments, ..
+        } => {
+            if jmp_target == *then_destination {
+                then_arguments
+            } else {
+                else_arguments
+            }
+        }
+        TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
+            "get_terminator_args called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+        ),
+    }
+}
+
+/// Get the terminator arguments for block `block` jumping to block `jmp_target`.
+/// The `jmp_target` is relevant if `block` terminates in a jmpif terminator and may jmp to
+/// multiple blocks. Panics if the given block does not have block arguments.
+fn get_terminator_args_mut(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    jmp_target: BasicBlockId,
+) -> &mut Vec<ValueId> {
+    match dfg[block].unwrap_terminator_mut() {
+        TerminatorInstruction::Jmp { arguments, .. } => arguments,
+        TerminatorInstruction::JmpIf {
+            then_destination, then_arguments, else_arguments, ..
+        } => {
+            if jmp_target == *then_destination {
+                then_arguments
+            } else {
+                else_arguments
+            }
+        }
+        TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
+            "get_terminator_args called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+        ),
+    }
 }
 
 // For each index i of `items`, keep `items[i]` iff `mask[i]`
@@ -316,9 +318,23 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
 
 /// Adds an argument to the `Jmp` terminator of the current block, panicking if the terminator is
 /// not a `Jmp`.
-fn add_terminator_argument(function: &mut Function, arg: ValueId, block: BasicBlockId) {
+fn add_terminator_argument(
+    function: &mut Function,
+    arg: ValueId,
+    block: BasicBlockId,
+    jmp_target: BasicBlockId,
+) {
     match function.dfg[block].unwrap_terminator_mut() {
         TerminatorInstruction::Jmp { arguments, .. } => arguments.push(arg),
+        TerminatorInstruction::JmpIf {
+            then_destination, then_arguments, else_arguments, ..
+        } => {
+            if jmp_target == *then_destination {
+                then_arguments.push(arg);
+            } else {
+                else_arguments.push(arg);
+            }
+        }
         other => {
             panic!(
                 "Unexpected terminator in block {block} when adding block argument {arg}: {other:?}"
@@ -380,7 +396,7 @@ fn collect_all_eligible_variables(
     let mut variables = BTreeMap::default();
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
-    // We need to count stores to each variable. If there are none, it isn't eligible for mem2reg_simple.
+    // If there are no stores to a variable then it isn't eligible for mem2reg_simple.
     let mut variables_with_stores = FxHashSet::default();
 
     for block_id in blocks.iter().copied() {
@@ -399,9 +415,7 @@ fn collect_all_eligible_variables(
                     variables_with_stores.insert(*address);
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
-                _ => {
-                    instruction.for_each_value(|value| variables.remove(&value));
-                }
+                _ => instruction.for_each_value(|value| variables.remove(&value)),
             }
         }
 
@@ -462,7 +476,7 @@ mod tests {
     #[test]
     fn test_simple() {
         let src = "
-        acir(inline) fn func f0 {
+        brillig(inline) fn func f0 {
           b0():
             v0 = allocate -> &mut [Field; 2]
             v3 = make_array [Field 1, Field 1] : [Field; 2]
@@ -476,7 +490,7 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
 
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn func f0 {
+        brillig(inline) fn func f0 {
           b0():
             v1 = make_array [Field 1, Field 1] : [Field; 2]
             v3 = array_get v1, index u32 1 -> Field
@@ -488,11 +502,11 @@ mod tests {
     #[test]
     fn test_multi_block() {
         let src = "
-        acir(inline) fn func f0 {
+        brillig(inline) fn func f0 {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 0 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store Field 1 at v1
             jmp b3()
@@ -508,9 +522,9 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
 
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn func f0 {
+        brillig(inline) fn func f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -524,7 +538,7 @@ mod tests {
     #[test]
     fn test_single_predecessor_elimination() {
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 v1 = allocate -> &mut Field
                 store Field 7 at v1
@@ -538,7 +552,7 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Expect the allocate/load/store to be removed and the constant propagated to the return.
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 jmp b1()
               b1():
@@ -550,11 +564,11 @@ mod tests {
     #[test]
     fn test_identical_branch_arguments_removed() {
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1):
                 v1 = allocate -> &mut Field
                 store Field 0 at v1
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 1 at v1
                 jmp b3()
@@ -570,9 +584,9 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Both predecessors pass the same value, so the parameter should be removed and the value folded.
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3()
               b2():
@@ -586,7 +600,7 @@ mod tests {
     #[test]
     fn test_multiple_stores_same_block() {
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 v0 = allocate -> &mut Field
                 store Field 5 at v0
@@ -600,7 +614,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 v2 = add Field 5, Field 10
                 return v2
@@ -611,16 +625,16 @@ mod tests {
     #[test]
     fn test_three_way_merge() {
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1, v1: u1):
                 v2 = allocate -> &mut Field
                 store Field 1 at v2
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 2 at v2
                 jmp b5()
               b2():
-                jmpif v1 then: b3, else: b4
+                jmpif v1 then: b3(), else: b4()
               b3():
                 store Field 3 at v2
                 jmp b5()
@@ -635,13 +649,13 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Should handle merging from three different paths
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1, v1: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b5(Field 2)
               b2():
-                jmpif v1 then: b3, else: b4
+                jmpif v1 then: b3(), else: b4()
               b3():
                 jmp b5(Field 3)
               b4():
@@ -656,7 +670,7 @@ mod tests {
     fn test_no_optimization_with_aliasing() {
         // This test ensures we don't try to optimize allocations that might be aliased
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 v0 = allocate -> &mut Field
                 store Field 10 at v0
@@ -673,7 +687,7 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Should optimize separate allocations
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 v0 = allocate -> &mut Field
                 store Field 10 at v0
@@ -692,11 +706,11 @@ mod tests {
     fn test_variable_only_stored_in_one_branch() {
         // Variable is stored in one branch but not the other
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1):
                 v1 = allocate -> &mut Field
                 store Field 5 at v1
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 10 at v1
                 jmp b3()
@@ -711,9 +725,9 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // b2 path should pass the initial value (Field 5), b1 passes (Field 10)
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3(Field 10)
               b2():
@@ -728,7 +742,7 @@ mod tests {
     fn test_consecutive_stores_load() {
         // Multiple consecutive stores followed by a single load
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 v0 = allocate -> &mut Field
                 store Field 1 at v0
@@ -742,7 +756,7 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Only the last store should matter
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0():
                 return Field 3
             }
@@ -753,13 +767,13 @@ mod tests {
     fn test_deep_nesting_diamond() {
         // Deeply nested diamond patterns
         let src = "
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1, v1: u1):
                 v2 = allocate -> &mut Field
                 store Field 1 at v2
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
-                jmpif v1 then: b3, else: b4
+                jmpif v1 then: b3(), else: b4()
               b2():
                 store Field 2 at v2
                 jmp b5()
@@ -778,11 +792,11 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Should properly merge all three stores: from b2, b3, b4
         assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn func f0 {
+            brillig(inline) fn func f0 {
               b0(v0: u1, v1: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
-                jmpif v1 then: b3, else: b4
+                jmpif v1 then: b3(), else: b4()
               b2():
                 jmp b5(Field 2)
               b3():
@@ -802,7 +816,7 @@ mod tests {
         // it doesn't exist, leading to a panic. This regression ensures we do not do that, and
         // gives us a test case with more complex control-flow.
         let src = "
-acir(inline) fn main f0 {
+brillig(inline) fn main f0 {
   b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v4: u32):
     v3 = allocate -> &mut u32
     store v2 at v3
@@ -813,7 +827,7 @@ acir(inline) fn main f0 {
     jmp b1(u32 0)
   b1(v12: u32):
     v13 = lt v12, u32 5
-    jmpif v13 then: b2, else: b3
+    jmpif v13 then: b2(), else: b3()
   b2():
     v14 = load v3 -> u32
     v15 = load v3 -> u32
@@ -835,7 +849,7 @@ acir(inline) fn main f0 {
     jmp b4(u32 0)
   b4(v27: u32):
     v28 = lt v27, u32 5
-    jmpif v28 then: b5, else: b6
+    jmpif v28 then: b5(), else: b6()
   b5():
     v31 = add v4, u32 2
     store v31 at v6
@@ -861,7 +875,7 @@ acir(inline) fn main f0 {
     jmp b7(u32 0)
   b7(v54: u32):
     v55 = lt v54, u32 5
-    jmpif v55 then: b8, else: b9
+    jmpif v55 then: b8(), else: b9()
   b8():
     v56 = load v3 -> u32
     v57 = array_get v0, index v54 -> u32
@@ -879,7 +893,7 @@ acir(inline) fn main f0 {
     jmp b13(u32 0)
   b10(v62: u32):
     v63 = lt v62, u32 3
-    jmpif v63 then: b11, else: b12
+    jmpif v63 then: b11(), else: b12()
   b11():
     store u32 3 at v6
     v65 = load v3 -> u32
@@ -892,7 +906,7 @@ acir(inline) fn main f0 {
     jmp b7(v69)
   b13(v74: u32):
     v75 = lt v74, u32 3
-    jmpif v75 then: b14, else: b15
+    jmpif v75 then: b14(), else: b15()
   b14():
     v76 = load v3 -> u32
     v77 = array_get v0, index v74 -> u32
@@ -907,10 +921,10 @@ acir(inline) fn main f0 {
     constrain v92 == u32 11539
     v95 = load v3 -> u32
     v96 = eq v95, u32 0
-    jmpif v96 then: b19, else: b20
+    jmpif v96 then: b19(), else: b20()
   b16(v81: u32):
     v82 = lt v81, u32 2
-    jmpif v82 then: b17, else: b18
+    jmpif v82 then: b17(), else: b18()
   b17():
     v83 = load v3 -> u32
     v84 = add v74, v81
@@ -937,7 +951,7 @@ acir(inline) fn main f0 {
     jmp b22(u32 0)
   b22(v102: u32):
     v103 = lt v102, u32 5
-    jmpif v103 then: b23, else: b24
+    jmpif v103 then: b23(), else: b24()
   b23():
     v104 = array_get v1, index v102 -> u32
     jmp b25(u32 0)
@@ -957,7 +971,7 @@ acir(inline) fn main f0 {
     return
   b25(v105: u32):
     v106 = lt v105, u32 5
-    jmpif v106 then: b26, else: b27
+    jmpif v106 then: b26(), else: b27()
   b26():
     v107 = array_get v0, index v105 -> u32
     v108 = eq v107, v104
@@ -974,13 +988,13 @@ acir(inline) fn main f0 {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v3: u32):
             v27 = array_get v1, index u32 4 -> u32
             jmp b1(u32 0, v27, u32 2301)
           b1(v4: u32, v5: u32, v6: u32):
             v31 = lt v4, u32 5
-            jmpif v31 then: b2, else: b3
+            jmpif v31 then: b2(), else: b3()
           b2():
             v101 = mul v5, v5
             v102 = array_get v1, index v4 -> u32
@@ -994,7 +1008,7 @@ acir(inline) fn main f0 {
             jmp b4(u32 0, v5, u32 2301)
           b4(v7: u32, v8: u32, v9: u32):
             v33 = lt v7, u32 5
-            jmpif v33 then: b5, else: b6
+            jmpif v33 then: b5(), else: b6()
           b5():
             v95 = add v3, u32 2
             v96 = array_get v0, index v7 -> u32
@@ -1010,7 +1024,7 @@ acir(inline) fn main f0 {
             jmp b7(u32 0, v36, u32 2300001)
           b7(v10: u32, v11: u32, v12: u32):
             v38 = lt v10, u32 5
-            jmpif v38 then: b8, else: b9
+            jmpif v38 then: b8(), else: b9()
           b8():
             v88 = array_get v0, index v10 -> u32
             v89 = array_get v1, index v10 -> u32
@@ -1024,7 +1038,7 @@ acir(inline) fn main f0 {
             jmp b13(u32 0, v41, v12)
           b10(v13: u32, v14: u32, v15: u32):
             v92 = lt v13, u32 3
-            jmpif v92 then: b11, else: b12
+            jmpif v92 then: b11(), else: b12()
           b11():
             v94 = unchecked_add v13, u32 1
             jmp b10(v94, u32 4, u32 3)
@@ -1033,7 +1047,7 @@ acir(inline) fn main f0 {
             jmp b7(v93, v14, v15)
           b13(v16: u32, v17: u32, v18: u32):
             v43 = lt v16, u32 3
-            jmpif v43 then: b14, else: b15
+            jmpif v43 then: b14(), else: b15()
           b14():
             v75 = array_get v0, index v16 -> u32
             v76 = array_get v1, index v16 -> u32
@@ -1044,10 +1058,10 @@ acir(inline) fn main f0 {
             v45 = eq v17, u32 11539
             constrain v17 == u32 11539
             v46 = eq v17, u32 0
-            jmpif v46 then: b19, else: b20
+            jmpif v46 then: b19(), else: b20()
           b16(v19: u32, v20: u32):
             v79 = lt v19, u32 2
-            jmpif v79 then: b17, else: b18
+            jmpif v79 then: b17(), else: b18()
           b17():
             v81 = add v16, v19
             v82 = array_get v0, index v81 -> u32
@@ -1072,7 +1086,7 @@ acir(inline) fn main f0 {
             jmp b22(u32 0, v17, v18)
           b22(v22: u32, v23: u32, v24: u32):
             v50 = lt v22, u32 5
-            jmpif v50 then: b23, else: b24
+            jmpif v50 then: b23(), else: b24()
           b23():
             v66 = array_get v1, index v22 -> u32
             jmp b25(u32 0)
@@ -1087,7 +1101,7 @@ acir(inline) fn main f0 {
             return
           b25(v25: u32):
             v67 = lt v25, u32 5
-            jmpif v67 then: b26, else: b27
+            jmpif v67 then: b26(), else: b27()
           b26():
             v70 = array_get v0, index v25 -> u32
             v71 = eq v70, v66
@@ -1107,7 +1121,7 @@ acir(inline) fn main f0 {
         // This case would require us to add block arguments to a jmpif. Instead, we modify
         // the CFG to insert extra blocks. See [Ssa::process_cfg_for_mem2reg_simple] for more details.
         let src = "
-            acir(inline) fn to_le_bits f19 {
+            brillig(inline) fn to_le_bits f19 {
               b0(v0: Field):
                 v2 = call to_le_bits(v0) -> [u1; 32]
                 v7 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
@@ -1116,11 +1130,11 @@ acir(inline) fn main f0 {
                 jmp b1(u32 0)
               b1(v12: u32):
                 v13 = lt v12, u32 32
-                jmpif v13 then: b2, else: b3
+                jmpif v13 then: b2(), else: b3()
               b2():
                 v14 = load v10 -> u1
                 v15 = not v14
-                jmpif v15 then: b4, else: b5
+                jmpif v15 then: b4(), else: b5()
               b3():
                 v29 = load v10 -> u1
                 constrain v29 == u1 1
@@ -1134,7 +1148,7 @@ acir(inline) fn main f0 {
                 v22 = array_get v7, index v20 -> u1
                 v23 = eq v19, v22
                 v24 = not v23
-                jmpif v24 then: b6, else: b7
+                jmpif v24 then: b6(), else: b7()
               b5():
                 v28 = unchecked_add v12, u32 1
                 jmp b1(v28)
@@ -1153,17 +1167,17 @@ acir(inline) fn main f0 {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn to_le_bits f0 {
+        brillig(inline) fn to_le_bits f0 {
           b0(v0: Field):
             v6 = call to_le_bits(v0) -> [u1; 32]
             v9 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
             jmp b1(u32 0, u1 1)
           b1(v1: u32, v2: u1):
             v12 = lt v1, u32 32
-            jmpif v12 then: b2, else: b3
+            jmpif v12 then: b2(), else: b3()
           b2():
             v13 = not v2
-            jmpif v13 then: b4, else: b8
+            jmpif v13 then: b4(), else: b5(v2)
           b3():
             constrain v2 == u1 1
             return v6
@@ -1176,7 +1190,7 @@ acir(inline) fn main f0 {
             v20 = array_get v9, index v17 -> u1
             v21 = eq v16, v20
             v22 = not v21
-            jmpif v22 then: b6, else: b9
+            jmpif v22 then: b6(), else: b7(v2)
           b5(v3: u1):
             v27 = unchecked_add v1, u32 1
             jmp b1(v27, v3)
@@ -1189,10 +1203,6 @@ acir(inline) fn main f0 {
             jmp b7(u1 1)
           b7(v4: u1):
             jmp b5(v4)
-          b8():
-            jmp b5(v2)
-          b9():
-            jmp b7(v2)
         }
         ");
     }
@@ -1204,13 +1214,13 @@ acir(inline) fn main f0 {
         // we only check if all arguments are equal to forward them, but it is sufficient
         // to check if all arguments are equal or equal to the original block parameter.
         let src = "
-            acir(inline) fn main f0 {
+            brillig(inline) fn main f0 {
               b0(v0: u1):
                 v1 = allocate -> &mut Field
                 store Field 0 at v1
                 jmp b1()
               b1():
-                jmpif v0 then: b2, else: b3
+                jmpif v0 then: b2(), else: b3()
               b2():
                 jmp b1()
               b3():
@@ -1221,11 +1231,11 @@ acir(inline) fn main f0 {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: u1):
             jmp b1()
           b1():
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b2():
             jmp b1()
           b3():
@@ -1245,7 +1255,7 @@ acir(inline) fn main f0 {
               b1():
                 v2 = load v0 -> Field
                 v4 = eq v2, Field 6
-                jmpif v4 then: b2, else: b3
+                jmpif v4 then: b2(), else: b3()
               b2():
                 return
               b3():
@@ -1257,7 +1267,7 @@ acir(inline) fn main f0 {
               b4():
                 v8 = load v7 -> Field
                 v10 = eq v8, Field 7
-                jmpif v10 then: b5, else: b6
+                jmpif v10 then: b5(), else: b6()
               b5():
                 jmp b1()
               b6():
@@ -1270,26 +1280,26 @@ acir(inline) fn main f0 {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) predicate_pure fn main f0 {
-              b0():
-                jmp b1(Field 0)
-              b1(v0: Field):
-                v5 = eq v0, Field 6
-                jmpif v5 then: b2, else: b3
-              b2():
-                return
-              b3():
-                v7 = add v0, Field 1
-                jmp b4(v7, Field 0)
-              b4(v1: Field, v2: Field):
-                v9 = eq v2, Field 7
-                jmpif v9 then: b5, else: b6
-              b5():
-                jmp b1(v1)
-              b6():
-                v10 = add v2, Field 1
-                jmp b4(v1, v10)
-            }
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(Field 0)
+          b1(v0: Field):
+            v4 = eq v0, Field 6
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v6 = add v0, Field 1
+            jmp b4(Field 0)
+          b4(v1: Field):
+            v8 = eq v1, Field 7
+            jmpif v8 then: b5(), else: b6()
+          b5():
+            jmp b1(v6)
+          b6():
+            v9 = add v1, Field 1
+            jmp b4(v9)
+        }
         ");
     }
 }
