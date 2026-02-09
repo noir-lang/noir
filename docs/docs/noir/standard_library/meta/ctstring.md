@@ -40,13 +40,13 @@ Creates an empty `CtString`.
 
 #include_code append_str noir_stdlib/src/meta/ctstring.nr rust
 
-Returns a new CtString with the given str appended onto the end.
+Appends the given str onto the end of the given CtString.
 
 ### append_fmtstr
 
 #include_code append_fmtstr noir_stdlib/src/meta/ctstring.nr rust
 
-Returns a new CtString with the given fmtstr appended onto the end.
+Appends the given fmtstr onto the end of the given CtString.
 
 ### as_quoted_str
 

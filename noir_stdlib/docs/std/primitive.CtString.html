@@ -111,9 +111,9 @@ afterward.</p></div>
 
 <div class="padded-methods"><code id="new" class="code-header">pub comptime fn <a href="#new"><span class="fn">new</span></a>() -> Self</code>
 
-<code id="append_str" class="code-header">pub comptime fn <a href="#append_str"><span class="fn">append_str</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
+<code id="append_str" class="code-header">pub comptime fn <a href="#append_str"><span class="fn">append_str</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;)</code>
 
-<code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr"><span class="fn">append_fmtstr</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
+<code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr"><span class="fn">append_fmtstr</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(&mut self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;)</code>
 
 <code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str"><span class="fn">as_quoted_str</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
