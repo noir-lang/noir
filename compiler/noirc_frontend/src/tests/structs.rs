@@ -143,8 +143,8 @@ fn cannot_determine_type_of_generic_argument_in_function_call_for_generic_impl()
 
     fn main() {
         Foo::one();
-             ^^^ Type annotation needed
-             ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+        ^^^^^^^^ Type annotation needed
+        ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
     check_errors(src);

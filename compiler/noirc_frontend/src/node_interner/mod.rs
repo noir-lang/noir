@@ -875,7 +875,7 @@ impl NodeInterner {
 
     /// Returns the type of the definition, or [Type::Error] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
-        self.definition_to_type[&id].clone()
+        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
     }
 
     /// Returns the type of the definition, unless it's a function returning an `impl Trait`,

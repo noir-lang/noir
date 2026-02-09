@@ -16,7 +16,10 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
-    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
+    elaborator::{
+        patterns::IdentFromPath,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
@@ -462,15 +465,25 @@ impl Elaborator<'_> {
                 let (typ, expr_id) = match self
                     .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
                 {
-                    (Some((hir_ident, var_scope_index)), _) => {
-                        self.handle_hir_ident(&hir_ident, var_scope_index, *location);
+                    Some(IdentFromPath::Variable(variable)) => {
+                        self.handle_local_variable(&variable);
+                        let hir_ident = variable.ident;
                         let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                         let expr_id = self.intern_expr(hir_expr, *location);
                         let typ = self.type_check_variable(hir_ident, &expr_id, None);
                         let expr_id = self.intern_expr_type(expr_id, typ.clone());
                         (typ, expr_id)
                     }
-                    _ => {
+                    Some(IdentFromPath::Definition { id, item: _ }) => {
+                        self.handle_definition_id(id, *location);
+                        let hir_ident = HirIdent::non_trait_method(id, *location);
+                        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+                        let expr_id = self.intern_expr(hir_expr, *location);
+                        let typ = self.type_check_variable(hir_ident, &expr_id, None);
+                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+                        (typ, expr_id)
+                    }
+                    Some(IdentFromPath::TypeAlias(_)) | None => {
                         let hir_expr = HirExpression::Error;
                         let expr_id = self.intern_expr(hir_expr, *location);
                         let typ = Type::Error;

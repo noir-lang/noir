@@ -339,10 +339,8 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                let error = ResolverError::AttributeFunctionIsNotAPath {
-                    function: function_string,
-                    location,
-                };
+                let error =
+                    ResolverError::AttributeFunctionNotInScope { name: function_string, location };
                 return Err(error.into());
             }
         };

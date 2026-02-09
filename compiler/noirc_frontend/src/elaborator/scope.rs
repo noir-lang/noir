@@ -2,9 +2,11 @@
 
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
+use crate::elaborator::patterns::Variable;
 use crate::hir::def_map::ModuleId;
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
+use crate::node_interner::TypeAliasId;
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
@@ -21,6 +23,11 @@ use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
+
+pub(crate) enum ItemAsValue {
+    Definition { id: DefinitionId, item: PathResolutionItem },
+    TypeAlias(TypeAliasId),
+}
 
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
@@ -45,27 +52,27 @@ impl Elaborator<'_> {
 
     /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
     /// of the variable, add the [HirIdent] to the list of captures.
-    pub(super) fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
+    pub(super) fn resolve_local_variable(&mut self, variable: &Variable) {
         let mut transitive_capture_index: Option<usize> = None;
 
         for lambda_index in 0..self.lambda_stack.len() {
-            if self.lambda_stack[lambda_index].scope_index > var_scope_index {
+            if self.lambda_stack[lambda_index].scope_index > variable.scope {
                 // Beware: the same variable may be captured multiple times, so we check
                 // for its presence before adding the capture below.
                 let position = self.lambda_stack[lambda_index]
                     .captures
                     .iter()
-                    .position(|capture| capture.ident.id == hir_ident.id);
+                    .position(|capture| capture.ident.id == variable.ident.id);
 
                 if position.is_none() {
                     // In a comptime context we capture comptime and non-comptime variables
                     // (the latter will be an error).
                     // In a non-comptime context we don't capture comptime variables.
                     if self.in_comptime_context()
-                        || !self.interner.definition(hir_ident.id).is_comptime_local()
+                        || !self.interner.definition(variable.ident.id).is_comptime_local()
                     {
                         self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
-                            ident: hir_ident.clone(),
+                            ident: variable.ident.clone(),
                             transitive_capture_index,
                         });
                     }
@@ -93,34 +100,37 @@ impl Elaborator<'_> {
     pub(super) fn lookup_item_as_value(
         &mut self,
         path: TypedPath,
-    ) -> Result<(Option<DefinitionId>, PathResolutionItem), ResolverError> {
+    ) -> Result<ItemAsValue, ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
 
         if let Some(function) = item.function_id() {
             let definition_id = self.interner.function_definition_id(function);
-            return Ok((Some(definition_id), item));
+            let item_as_value = ItemAsValue::Definition { id: definition_id, item };
+            return Ok(item_as_value);
         }
 
         let expected = "value";
         match item {
             PathResolutionItem::Global(global) => {
                 let global = self.interner.get_global(global);
-                Ok((Some(global.definition_id), item))
+                let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
+                Ok(item_as_value)
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
 
+                // Type alias is returned
                 if type_alias.borrow().numeric_expr.is_some() {
                     // Type alias to numeric generics are aliases to some global value
                     // Therefore we allow this case although we cannot provide the value yet
-                    return Ok((None, item));
+                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
                 }
                 if matches!(type_alias.borrow().typ, Type::Alias(_, _))
                     || matches!(type_alias.borrow().typ, Type::Error)
                 {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
-                    return Ok((None, item));
+                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
                 }
                 Err(ResolverError::Expected {
                     location,
@@ -128,7 +138,11 @@ impl Elaborator<'_> {
                     found: item.description(self.interner),
                 })
             }
-            PathResolutionItem::TraitConstant(_, _, def_id) => Ok((Some(def_id), item)),
+            PathResolutionItem::TraitConstant(_, _, def_id) => {
+                // TraitConstant is returned, item is Some
+                let item_as_value = ItemAsValue::Definition { id: def_id, item };
+                Ok(item_as_value)
+            }
             item => Err(ResolverError::Expected {
                 location,
                 expected,

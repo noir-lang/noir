@@ -9,6 +9,7 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
+use crate::elaborator::patterns::{IdentFromPath, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
@@ -17,7 +18,7 @@ use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
-use crate::node_interner::{DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
+use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
 use crate::{Kind, Type, TypeBindings};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -291,16 +292,24 @@ impl Elaborator<'_> {
         // If the expression is a singular indent, we search the resolver's current scope as normal.
         let location = path.location;
 
-        let (ident_and_var_scope_index, item) = self.get_ident_from_path(path);
+        let ident_from_path = self.get_ident_from_path(path);
 
-        let ident = if let Some((ident, var_scope_index)) = ident_and_var_scope_index {
-            self.handle_hir_ident(&ident, var_scope_index, location);
-            Some(ident)
-        } else {
-            None
-        };
-
-        (ident, item)
+        match ident_from_path {
+            Some(IdentFromPath::Variable(variable)) => {
+                self.handle_local_variable(&variable);
+                let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
+                (Some(hir_ident), None)
+            }
+            Some(IdentFromPath::Definition { id, item }) => {
+                self.handle_definition_id(id, location);
+                let hir_ident = HirIdent::non_trait_method(id, location);
+                (Some(hir_ident), Some(item))
+            }
+            Some(IdentFromPath::TypeAlias(type_alias_id)) => {
+                (None, Some(PathResolutionItem::TypeAlias(type_alias_id)))
+            }
+            None => (None, None),
+        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
@@ -502,19 +511,14 @@ impl Elaborator<'_> {
     /// * mark the item currently being elaborated as a dependency of it
     /// * elaborate a global definition, if needed
     /// * add local identifiers to lambda captures
-    pub(crate) fn handle_hir_ident(
-        &mut self,
-        hir_ident: &HirIdent,
-        var_scope_index: usize,
-        location: Location,
-    ) {
-        match self.interner.definition(hir_ident.id).kind {
+    pub(crate) fn handle_definition_id(&mut self, definition_id: DefinitionId, location: Location) {
+        match self.interner.definition(definition_id).kind {
             DefinitionKind::Function(func_id) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_function_dependency(current_item, func_id);
                 }
 
-                self.interner.add_function_reference(func_id, hir_ident.location);
+                self.interner.add_function_reference(func_id, location);
             }
             DefinitionKind::Global(global_id) => {
                 self.elaborate_global_if_unresolved(&global_id);
@@ -522,29 +526,32 @@ impl Elaborator<'_> {
                     self.interner.add_global_dependency(current_item, global_id);
                 }
 
-                self.interner.add_global_reference(global_id, hir_ident.location);
+                self.interner.add_global_reference(global_id, location);
             }
             DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
                 // Initialize numeric generics to a polymorphic integer type in case
                 // they're used in expressions. We must do this here since type_check_variable
                 // does not check definition kinds and otherwise expects parameters to
                 // already be typed.
-                if self.interner.definition_type(hir_ident.id) == Type::Error {
+                if self.interner.definition_type(definition_id) == Type::Error {
                     let type_var_kind = Kind::Numeric(numeric_typ.clone());
                     let typ = self.type_variable_with_kind(type_var_kind);
-                    self.interner.push_definition_type(hir_ident.id, typ);
+                    self.interner.push_definition_type(definition_id, typ);
                 }
             }
             DefinitionKind::Local(_) => {
-                // only local variables can be captured by closures.
-                self.resolve_local_variable(hir_ident.clone(), var_scope_index);
-
-                self.interner.add_local_reference(hir_ident.id, location);
+                // Handled separately in `handle_local_variable`
             }
             DefinitionKind::AssociatedConstant(..) => {
                 // Nothing to do here
             }
         }
+    }
+
+    pub(crate) fn handle_local_variable(&mut self, variable: &Variable) {
+        self.resolve_local_variable(variable);
+        let hir_ident = &variable.ident;
+        self.interner.add_local_reference(hir_ident.id, hir_ident.location);
     }
 
     /// Starting with empty bindings, perform the type checking of an interned expression
