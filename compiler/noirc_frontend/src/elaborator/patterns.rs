@@ -24,14 +24,21 @@ use super::{
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
+/// Represents a variable in the source code.
 pub(crate) struct Variable {
+    /// The identifier of the variable.
     pub(crate) ident: HirIdent,
+    /// The scope index where the variable is declared.
     pub(crate) scope: usize,
 }
 
+/// The result of [`Elaborator::get_ident_from_path`] and [`Elaborator::get_ident_from_path_or_error`].
 pub(crate) enum IdentFromPath {
+    /// A variable was found.
     Variable(Variable),
+    /// A definition was found.
     Definition { id: DefinitionId, item: PathResolutionItem },
+    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
     TypeAlias(TypeAliasId),
 }
 

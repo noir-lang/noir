@@ -25,9 +25,12 @@ use crate::{Kind, Type, TypeBindings};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
+/// The result of [`Elaborator::resolve_variable`].
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum VariableResolution {
+    /// The path resolved to a variable or a definition.
     Ident(HirIdent, Option<PathResolutionItem>),
+    /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
     TypeAlias(TypeAliasId),
 }
 

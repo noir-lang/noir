@@ -24,8 +24,11 @@ use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
+/// The result of [`Elaborator::lookup_item_as_value`].
 pub(crate) enum ItemAsValue {
+    /// A definition was found.
     Definition { id: DefinitionId, item: PathResolutionItem },
+    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
     TypeAlias(TypeAliasId),
 }
 
