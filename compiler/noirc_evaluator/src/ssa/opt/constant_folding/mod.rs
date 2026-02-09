@@ -317,17 +317,29 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
-                    // We track whether we may mutate `MakeArray` instructions before we deduplicate
-                    // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    //
-                    // This also applies to calls that return arrays.
-                    if runtime_is_brillig {
-                        Self::increase_rc(id, cached, block, dfg);
+                    // Guard against self-deduplication: if the cached results are exactly
+                    // our own results, the instruction was hoisted here in an earlier visit
+                    // and has now been `take_instructions`-ed out. The cache still points to
+                    // itself, so mapping old→cached is an identity (no-op) that would cause
+                    // us to skip re-inserting the instruction, orphaning its result values.
+                    // In that case, fall through and re-insert instead of deduplicating.
+                    // The `!is_empty` guard is needed because Constrain instructions have
+                    // no results and trivially match.
+                    if !old_results.is_empty() && old_results == cached {
+                        // Fall through to re-insert the instruction normally.
+                    } else {
+                        // We track whether we may mutate `MakeArray` instructions before we deduplicate
+                        // them but we still need to issue an extra inc_rc in case they're mutated afterward.
+                        //
+                        // This also applies to calls that return arrays.
+                        if runtime_is_brillig {
+                            Self::increase_rc(id, cached, block, dfg);
+                        }
+
+                        self.values_to_replace.batch_insert(&old_results, cached);
+
+                        return;
                     }
-
-                    self.values_to_replace.batch_insert(&old_results, cached);
-
-                    return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { dominator } => {
                     // During revisits we can visit a block which dominates something we already cached instructions from,
@@ -2585,5 +2597,70 @@ mod tests {
 
         let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
         folded.interpret(Vec::new()).unwrap();
+    }
+
+    /// Regression test for a bug where constant folding's instruction hoisting could
+    /// orphan values when a hoisted instruction self-deduplicated during a revisit.
+    ///
+    /// The bug: during a revisit iteration, hoisting an instruction into the loop
+    /// header (b1) — which hasn't been visited yet in that iteration — then visiting
+    /// it via a back-edge successor, causes the instruction to self-deduplicate
+    /// (the cache already points to its own results from the hoist, so the pass
+    /// skips re-insertion, orphaning the values).
+    #[test]
+    fn hoist_into_loop_header_does_not_self_deduplicate() {
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v4 = allocate -> &mut u1
+            store u1 1 at v4
+            v6 = allocate -> &mut u1
+            store u1 1 at v6
+            jmp b1()
+          b1():
+            v9 = load v6 -> u1
+            jmpif v9 then: b2, else: b3
+          b2():
+            v11 = load v4 -> u1
+            jmpif v11 then: b4, else: b5
+          b3():
+            v10 = load v4 -> u1
+            return v10
+          b4():
+            jmpif v11 then: b6, else: b7
+          b5():
+            jmp b8()
+          b6():
+            v20 = not v11
+            jmp b15(u32 0)
+          b7():
+            v21 = not v11
+            jmp b15(u32 0)
+          b8():
+            // This `eq` is DFG-simplified to `not v11`, matching the cached `not v11`
+            // from b6/b7. The deduplicated `not` gets hoisted toward the loop header,
+            // and on a revisit iteration it self-deduplicates (the cache points to its
+            // own results), orphaning v19.
+            v19 = eq v11, u1 0
+            store v19 at v4
+            store u1 0 at v6
+            jmp b1()
+          b15(v3: u32):
+            constrain v3 == u32 0, "Index out of bounds"
+            constrain v3 == u32 0, "Index out of bounds"
+            jmp b8()
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let input = Value::from_constant(42_u128.into(), NumericType::NativeField).unwrap();
+
+        let before = ssa.interpret(vec![input.clone()]);
+        assert!(before.is_ok(), "SSA should execute successfully before constant folding");
+
+        let ssa = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+
+        let after = ssa.interpret(vec![input]);
+        assert_eq!(before, after, "Constant folding should not change execution result");
     }
 }
