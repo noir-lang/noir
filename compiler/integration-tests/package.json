@@ -26,7 +26,7 @@
     "buffer-esm": "^1.2.0",
     "eslint": "^9.39.2",
     "eslint-plugin-prettier": "^5.5.5",
-    "ethers": "^6.14.3",
+    "ethers": "^6.16.0",
     "hardhat": "^2.24.1",
     "prettier": "3.8.1",
     "smol-toml": "^1.6.0",
