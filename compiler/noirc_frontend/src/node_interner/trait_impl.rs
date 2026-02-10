@@ -471,22 +471,7 @@ impl NodeInterner {
 
                 let impl_generic = named_impl_generic.typ.force_substitute(&instantiation_bindings);
 
-                // We know that these are both essentially NamedGeneric types. If they are both unbound,
-                // we want them to be the exact same type variable, otherwise it would indicate they come
-                // from different traits, which _could_ unify in a concrete impl, but Rust would reject
-                // them without further evidence (ie. just looking at the traits).
-                // If the right side was an unbound type variable, it would just bind to the left during unification,
-                // which we need to avoid if we want to reject the uncertainty. Doesn't apply to associated consts.
-                match (trait_generic.typ.follow_bindings(), impl_generic.follow_bindings()) {
-                    (Type::NamedGeneric(t), Type::TypeVariable(v))
-                        if t.type_var.borrow().is_unbound()
-                            && v.borrow().is_unbound()
-                            && v.kind().is_normal_or_any() =>
-                    {
-                        t.type_var.id() == v.id()
-                    }
-                    _ => trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok(),
-                }
+                trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
             });
 
             if !associated_types_unify {
