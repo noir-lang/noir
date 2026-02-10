@@ -3,7 +3,6 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{FunctionDefinition, ItemVisibility},
-    // TODO: WIP
     hir::comptime::InterpreterError,
     hir::def_map::ModuleId,
     hir_def::{
@@ -123,8 +122,6 @@ impl NodeInterner {
     /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
     ///
     /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
-    // TODO: WIP
-    // pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
     pub(crate) fn lookup_function_from_expr(
         &self,
         expr: &ExprId,
@@ -132,12 +129,8 @@ impl NodeInterner {
     ) -> Result<Option<FuncId>, InterpreterError> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
             match self.try_definition(id).map(|def| &def.kind) {
-                // TODO: WIP
-                // Some(DefinitionKind::Function(func_id)) => Some(*func_id),
                 Some(DefinitionKind::Function(func_id)) => Ok(Some(*func_id)),
                 Some(DefinitionKind::Local(Some(expr_id))) => {
-                    // TODO: WIP
-                    // self.lookup_function_from_expr(expr_id)
                     self.lookup_function_from_expr(expr_id, location)
                 }
                 Some(DefinitionKind::Global(global_id)) => {
@@ -145,12 +138,7 @@ impl NodeInterner {
                     let expression = match self.statement(&info.let_statement) {
                         HirStatement::Let(HirLetStatement { expression, .. })
                         | HirStatement::Expression(expression) => expression,
-                        // TODO: WIP
-                        // other => unreachable!(
-                        //     "Expected global to be a let statement or expression but found: {other:?}"
-                        // ),
                         other => {
-                            // TODO: WIP
                             return Err(InterpreterError::expecting_other_error(
                                 format!(
                                     "Expected global to be a let statement or expression but found: {other:?}"
@@ -159,17 +147,11 @@ impl NodeInterner {
                             ));
                         }
                     };
-                    // TODO: WIP
-                    // self.lookup_function_from_expr(&expression)
                     self.lookup_function_from_expr(&expression, location)
                 }
-                // TODO: WIP
-                // _ => None,
                 _ => Ok(None),
             }
         } else {
-            // TODO: WIP
-            // None
             Ok(None)
         }
     }

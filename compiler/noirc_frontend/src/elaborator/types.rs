@@ -2575,11 +2575,7 @@ impl Elaborator<'_> {
         if !is_current_func_constrained {
             // Check if we're calling verify_proof_with_type in an unconstrained context
             self.run_lint(|elaborator| {
-                // TODO: WIP
-                // lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
                 lints::error_if_verify_proof_with_type(elaborator.interner, call.func, location)
-                // TODO: WIP
-                // .map(Into::into)
             });
         }
 
@@ -2590,7 +2586,6 @@ impl Elaborator<'_> {
                 false
             };
 
-        // TODO: WIP
         let func_is_unconstrained_call = match self.is_unconstrained_call(call.func, location) {
             Ok(result) => result,
             Err(error) => {
@@ -2599,8 +2594,6 @@ impl Elaborator<'_> {
             }
         };
         let is_unconstrained_call =
-            // TODO: WIP
-            // func_type_is_unconstrained || self.is_unconstrained_call(call.func);
             func_type_is_unconstrained || func_is_unconstrained_call;
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
 
@@ -2632,23 +2625,15 @@ impl Elaborator<'_> {
     }
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
-    // TODO: WIP
-    // fn is_unconstrained_call(&self, expr: ExprId) -> bool {
     fn is_unconstrained_call(
         &self,
         expr: ExprId,
         location: Location,
     ) -> Result<bool, CompilationError> {
-        // TODO: WIP
-        // if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
         if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)? {
             let modifiers = self.interner.function_modifiers(&func_id);
-            // TODO: WIP
-            // modifiers.is_unconstrained
             Ok(modifiers.is_unconstrained)
         } else {
-            // TODO: WIP
-            // false
             Ok(false)
         }
     }

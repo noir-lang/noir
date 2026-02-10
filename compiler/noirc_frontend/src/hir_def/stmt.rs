@@ -9,8 +9,6 @@ use noirc_errors::{Location, Span};
 /// the Statement AST node. Unlike the AST node, any nested nodes
 /// are referred to indirectly via ExprId or StmtId, which can be
 /// used to retrieve the relevant node via the NodeInterner.
-// TODO: WIP
-// #[derive(Debug, Clone)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirStatement {
     Let(HirLetStatement),
@@ -26,8 +24,6 @@ pub enum HirStatement {
     Error,
 }
 
-// TODO: WIP
-// #[derive(Debug, Clone)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirLetStatement {
     pub pattern: HirPattern,
@@ -67,8 +63,6 @@ impl HirLetStatement {
     }
 }
 
-// TODO: WIP
-// #[derive(Debug, Clone)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirForStatement {
     pub identifier: HirIdent,
@@ -79,8 +73,6 @@ pub struct HirForStatement {
 }
 
 /// Corresponds to `lvalue = expression;` in the source code
-// TODO: WIP
-// #[derive(Debug, Clone)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirAssignStatement {
     pub lvalue: HirLValue,

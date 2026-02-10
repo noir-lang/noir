@@ -235,8 +235,6 @@ fn global_closure_with_undefined_variable_method_call() {
     check_errors(src);
 }
 
-// TODO: WIP (make more variants of this test?)
-// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
 #[test]
 fn regression_11489_mutually_recursive_function() {
     let src = r#"
@@ -250,8 +248,6 @@ fn regression_11489_mutually_recursive_function() {
     check_errors(src);
 }
 
-// TODO: WIP (make more variants of this test?)
-// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
 #[test]
 fn regression_11489_mutually_recursive_typed_function() {
     let src = r#"
@@ -265,8 +261,6 @@ fn regression_11489_mutually_recursive_typed_function() {
     check_errors(src);
 }
 
-// TODO: WIP
-// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
 #[test]
 fn regression_11489_function() {
     let src = r#"
@@ -277,8 +271,6 @@ fn regression_11489_function() {
     check_errors(src);
 }
 
-// TODO: WIP
-// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
 #[test]
 fn regression_11489_typed_function() {
     let src = r#"
@@ -289,7 +281,6 @@ fn regression_11489_typed_function() {
     check_errors(src);
 }
 
-// TODO: WIP
 #[test]
 fn regression_11489_value() {
     let src = r#"
@@ -301,8 +292,6 @@ fn regression_11489_value() {
     check_errors(src);
 }
 
-// TODO: WIP (make more variants of this test?)
-// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
 #[test]
 fn regression_11489_mutually_recursive_value() {
     let src = r#"
@@ -316,8 +305,6 @@ fn regression_11489_mutually_recursive_value() {
     check_errors(src);
 }
 
-// TODO: WIP
-// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
 #[test]
 fn regression_11489_comptime_function() {
     let src = r#"
@@ -328,7 +315,6 @@ fn regression_11489_comptime_function() {
     check_errors(src);
 }
 
-// TODO: WIP
 #[test]
 fn regression_11489_comptime_value() {
     let src = r#"

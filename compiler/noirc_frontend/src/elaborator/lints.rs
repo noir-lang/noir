@@ -5,7 +5,6 @@ use crate::{
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
-        // TODO: WIP
         def_collector::dc_crate::CompilationError,
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
@@ -311,14 +310,9 @@ pub(super) fn unconstrained_function_return(
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
-    // TODO: WIP
     location: Location,
-    // TODO: WIP
-    // ) -> Option<TypeCheckError> {
 ) -> Option<CompilationError> {
     // Called function
-    // TODO: WIP
-    // let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
     let func_id = match interner.lookup_function_from_expr(&func_expr_id, location) {
         Ok(func_id) => func_id?,
         Err(error) => return Some(error.into()),
@@ -331,8 +325,6 @@ pub(super) fn error_if_verify_proof_with_type(
         if module_id.krate.is_stdlib() {
             // Get the function location for the error
             let location = interner.expr_location(&func_expr_id);
-            // TODO: WIP
-            // return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
             return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location }.into());
         }
     }
