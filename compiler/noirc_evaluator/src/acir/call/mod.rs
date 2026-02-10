@@ -1,7 +1,5 @@
 use acvm::AcirField;
-use acvm::acir::brillig::lengths::{
-    ElementsFlattenedLength, FlattenedLength, SemanticLength,
-};
+use acvm::acir::brillig::lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength};
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 use noirc_artifacts::ssa::SsaReport;
