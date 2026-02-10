@@ -325,20 +325,19 @@ fn parse_str_to_field(value: &str, arg_name: &str) -> Result<FieldElement, Input
     } else {
         BigUint::from_str_radix(value, 10)
     };
-    let bigint = big_num
-        .map_err(|err_msg| InputParserError::ParseStr {
-            arg_name: arg_name.into(),
-            value: value.into(),
-            error: err_msg.to_string(),
-        })?;
+    let bigint = big_num.map_err(|err_msg| InputParserError::ParseStr {
+        arg_name: arg_name.into(),
+        value: value.into(),
+        error: err_msg.to_string(),
+    })?;
     if bigint < FieldElement::modulus() {
-                    Ok(field_from_big_uint(bigint))
-                } else {
-                    Err(InputParserError::InputExceedsFieldModulus {
-                        arg_name: arg_name.into(),
-                        value: value.to_string(),
-                    })
-                }
+        Ok(field_from_big_uint(bigint))
+    } else {
+        Err(InputParserError::InputExceedsFieldModulus {
+            arg_name: arg_name.into(),
+            value: value.to_string(),
+        })
+    }
 }
 
 fn parse_str_to_signed(
@@ -354,12 +353,11 @@ fn parse_str_to_signed(
         BigInt::from_str_radix(value, 10)
     };
 
-    let bigint = big_num
-        .map_err(|err_msg| InputParserError::ParseStr {
-            arg_name: arg_name.into(),
-            value: value.into(),
-            error: err_msg.to_string(),
-        })?;
+    let bigint = big_num.map_err(|err_msg| InputParserError::ParseStr {
+        arg_name: arg_name.into(),
+        value: value.into(),
+        error: err_msg.to_string(),
+    })?;
     let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
     let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
 

@@ -77,8 +77,7 @@ impl DebugTypeTracker {
         field_id: SourceFieldId,
         cursor_type: &PrintableType,
     ) -> Option<usize> {
-        let field_name = self.source_field_names
-            .get(&field_id)?;
+        let field_name = self.source_field_names.get(&field_id)?;
         get_field(cursor_type, field_name)
     }
 
@@ -121,7 +120,8 @@ impl DebugTypeTracker {
     }
 
     pub fn get_type(&self, source_var_id: SourceVarId) -> Option<&PrintableType> {
-        let (_, type_id) = self.source_to_debug_vars
+        let (_, type_id) = self
+            .source_to_debug_vars
             .get(&source_var_id)
             .and_then(|var_id| self.variables.get(var_id))?;
         self.types.get(type_id)

@@ -1073,9 +1073,7 @@ impl NodeInterner {
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
 
-        let methods = self.methods
-            .get(&key)
-            .and_then(|h| h.get(method_name))?;
+        let methods = self.methods.get(&key).and_then(|h| h.get(method_name))?;
         methods.find_direct_method(typ, check_self_param, self)
     }
 

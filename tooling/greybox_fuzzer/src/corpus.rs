@@ -119,11 +119,16 @@ impl CorpusFileManager {
             if self.file_manager.has_file(&path) {
                 continue;
             }
-            let source = std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {} into string", path.as_os_str().display()));
+            let source = std::fs::read_to_string(path.as_path()).unwrap_or_else(|_| {
+                panic!("could not read file {} into string", path.as_os_str().display())
+            });
 
             let parsed_source = parse_json(&source, &self.abi).map_err(|parsing_error| {
-                format!("Error while parsing file {}: {:?}", path.as_os_str().display(), parsing_error)
+                format!(
+                    "Error while parsing file {}: {:?}",
+                    path.as_os_str().display(),
+                    parsing_error
+                )
             })?;
 
             // Add the file and its parsed contents to our tracking maps
@@ -160,11 +165,13 @@ impl CorpusFileManager {
         }
         let file_name = Path::new(&digest(contents)).with_extension(CORPUS_FILE_EXTENSION);
         let full_file_path = self.corpus_path.join(file_name);
-        let mut file = File::create(&full_file_path)
-            .map_err(|_x| format!("Couldn't create file {}", full_file_path.as_os_str().display()))?;
+        let mut file = File::create(&full_file_path).map_err(|_x| {
+            format!("Couldn't create file {}", full_file_path.as_os_str().display())
+        })?;
 
-        file.write_all(contents.as_bytes())
-            .map_err(|_x| format!("Couldn't write to file {}", full_file_path.as_os_str().display()))?;
+        file.write_all(contents.as_bytes()).map_err(|_x| {
+            format!("Couldn't write to file {}", full_file_path.as_os_str().display())
+        })?;
         self.file_manager.add_file_with_source(&full_file_path, String::from(contents));
         Ok(())
     }

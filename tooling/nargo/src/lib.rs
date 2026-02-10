@@ -127,8 +127,9 @@ fn insert_all_files_into_file_manager(
         let source = if let Some(src) = overrides.and_then(|overrides| overrides.get(&filename)) {
             src.to_string()
         } else {
-            std::fs::read_to_string(filename.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {} into string", filename.display()))
+            std::fs::read_to_string(filename.as_path()).unwrap_or_else(|_| {
+                panic!("could not read file {} into string", filename.display())
+            })
         };
 
         file_manager.add_file_with_source(filename.as_path(), source);

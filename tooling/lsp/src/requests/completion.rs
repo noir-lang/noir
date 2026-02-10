@@ -68,7 +68,11 @@ pub(crate) fn on_completion_request(
 ) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position.clone(), |args| {
         let file_id = args.location.file;
-        let byte_index = utils::position_to_byte_index(args.files, file_id, &params.text_document_position.position)?;
+        let byte_index = utils::position_to_byte_index(
+            args.files,
+            file_id,
+            &params.text_document_position.position,
+        )?;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
         let byte = source.as_bytes().get(byte_index - 1).copied();

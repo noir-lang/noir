@@ -297,7 +297,8 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         .and_then(|file_name_os_str| file_name_os_str.to_str())
     else {
         return Err(LspError::WorkspaceResolutionError(format!(
-            "Could not resolve parent folder for file: {}", file_path.display()
+            "Could not resolve parent folder for file: {}",
+            file_path.display()
         )));
     };
 

@@ -910,10 +910,10 @@ impl Attributes {
     pub fn as_test_function(&self) -> Option<(&TestScope, Location)> {
         let attr = self.function()?;
         if let FunctionAttributeKind::Test(scope) = &attr.kind {
-                        Some((scope, attr.location))
-                    } else {
-                        None
-                    }
+            Some((scope, attr.location))
+        } else {
+            None
+        }
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
@@ -923,10 +923,10 @@ impl Attributes {
     pub fn as_fuzzing_harness(&self) -> Option<(&FuzzingScope, Location)> {
         let attr = self.function()?;
         if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
-                        Some((scope, attr.location))
-                    } else {
-                        None
-                    }
+            Some((scope, attr.location))
+        } else {
+            None
+        }
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
