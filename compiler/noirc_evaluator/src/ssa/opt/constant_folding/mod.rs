@@ -92,7 +92,7 @@ impl Ssa {
             if func.runtime().is_brillig() {
                 let cloned_function = Function::clone_with_id(*func_id, func);
                 brillig_functions.insert(*func_id, cloned_function);
-            };
+            }
         }
         let mut interpreter = if brillig_functions.is_empty() {
             None
@@ -358,7 +358,7 @@ impl Context {
                     target_block = dominator;
                 }
             }
-        };
+        }
 
         // First try to inline a call to a brillig function with all constant arguments.
         let new_results = if runtime_is_brillig {
@@ -395,7 +395,7 @@ impl Context {
         // so that we use the correct set of constrained values in future.
         if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
-        };
+        }
     }
 
     fn increase_rc(

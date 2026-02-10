@@ -246,7 +246,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
             self.push(' ');
-        };
+        }
     }
 
     fn show_visibility(&mut self, visibility: Visibility) {
@@ -563,7 +563,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
             self.show_value(value);
-        };
+        }
         self.push_str(";");
     }
 

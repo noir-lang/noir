@@ -584,7 +584,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 num_bits: F::max_num_bits(),
                 call_stack: self.get_call_stack(),
             });
-        };
+        }
         let constraint = if num_bits == 0 {
             AcirOpcode::AssertZero(Expression::from(witness))
         } else {

@@ -34,30 +34,31 @@ pub(super) fn hover_from_reference(
     position: Position,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
-    utils::position_to_byte_index(args.files, file_id, &position)
-        .and_then(|byte_index| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    let (reference, link_lsp_location) =
+        utils::position_to_byte_index(args.files, file_id, &position)
+            .and_then(|byte_index| {
+                let file = args.files.get_file(file_id).unwrap();
+                let source = file.source();
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
-            finder.find(&parsed_module)
-        })
-        .or_else(|| {
-            args.interner.reference_at_location(args.location).map(|reference| (reference, None))
-        })
-        .and_then(|(reference, link_lsp_location)| {
-            let location = args.interner.reference_location(reference);
-            let lsp_location = link_lsp_location
-                .or_else(|| to_lsp_location(args.files, location.file, location.span));
-            format_reference(reference, args).map(|formatted| Hover {
-                range: lsp_location.map(|location| location.range),
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: formatted,
-                }),
+                let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
+                finder.find(&parsed_module)
             })
-        })
+            .or_else(|| {
+                args.interner
+                    .reference_at_location(args.location)
+                    .map(|reference| (reference, None))
+            })?;
+    let location = args.interner.reference_location(reference);
+    let lsp_location =
+        link_lsp_location.or_else(|| to_lsp_location(args.files, location.file, location.span));
+    format_reference(reference, args).map(|formatted| Hover {
+        range: lsp_location.map(|location| location.range),
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: formatted,
+        }),
+    })
 }
 
 pub(super) fn format_reference(

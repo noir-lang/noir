@@ -2121,7 +2121,7 @@ impl<'interner> Monomorphizer<'interner> {
             for id in &call.arguments {
                 arguments.push(self.expr(*id)?);
             }
-        };
+        }
 
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
