@@ -319,351 +319,352 @@
 <a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">let </span>external_types = <span class="self">self</span>.type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span>trait_impl.typ);
 <a href=#320 id=320 data-nosnippet>320</a>
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span><span class="kw-2">mut </span>type_var_names = BTreeSet::new();
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>trait_impl.trait_generics {
-<a href=#323 id=323 data-nosnippet>323</a>            gather_named_type_vars(generic, <span class="kw-2">&amp;mut </span>type_var_names);
-<a href=#324 id=324 data-nosnippet>324</a>        }
-<a href=#325 id=325 data-nosnippet>325</a>        gather_named_type_vars(<span class="kw-2">&amp;</span>trait_impl.typ, <span class="kw-2">&amp;mut </span>type_var_names);
-<a href=#326 id=326 data-nosnippet>326</a>
-<a href=#327 id=327 data-nosnippet>327</a>        TraitImpl {
-<a href=#328 id=328 data-nosnippet>328</a>            generics: type_var_names,
-<a href=#329 id=329 data-nosnippet>329</a>            id: trait_impl_id,
-<a href=#330 id=330 data-nosnippet>330</a>            methods: trait_impl.methods.clone(),
-<a href=#331 id=331 data-nosnippet>331</a>            external_types,
-<a href=#332 id=332 data-nosnippet>332</a>        }
-<a href=#333 id=333 data-nosnippet>333</a>    }
-<a href=#334 id=334 data-nosnippet>334</a>
-<a href=#335 id=335 data-nosnippet>335</a>    <span class="kw">fn </span>build_trait(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_id: TraitId) -&gt; Item {
-<a href=#336 id=336 data-nosnippet>336</a>        <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-<a href=#337 id=337 data-nosnippet>337</a>
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span><span class="kw-2">mut </span>func_ids = trait_
-<a href=#339 id=339 data-nosnippet>339</a>            .method_ids
-<a href=#340 id=340 data-nosnippet>340</a>            .values()
-<a href=#341 id=341 data-nosnippet>341</a>            .map(|func_id| {
-<a href=#342 id=342 data-nosnippet>342</a>                <span class="kw">let </span>location = <span class="self">self</span>.interner.function_meta(func_id).location;
-<a href=#343 id=343 data-nosnippet>343</a>                (func_id, location)
-<a href=#344 id=344 data-nosnippet>344</a>            })
-<a href=#345 id=345 data-nosnippet>345</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#346 id=346 data-nosnippet>346</a>
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="comment">// Make sure functions are shown in the same order they were defined
-<a href=#348 id=348 data-nosnippet>348</a>        </span>func_ids.sort_by_key(|(_func_id, location)| <span class="kw-2">*</span>location);
-<a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">let </span>methods = func_ids.into_iter().map(|(func_id, <span class="kw">_</span>)| <span class="kw-2">*</span>func_id).collect();
-<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>trait_impls = <span class="self">self</span>.build_trait_impls_for_trait(trait_id);
-<a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>        Item::Trait(Trait { id: trait_id, methods, trait_impls })
-<a href=#354 id=354 data-nosnippet>354</a>    }
-<a href=#355 id=355 data-nosnippet>355</a>
-<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">fn </span>type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">match </span>typ {
-<a href=#358 id=358 data-nosnippet>358</a>            Type::Array(length, typ) =&gt; {
-<a href=#359 id=359 data-nosnippet>359</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
-<a href=#360 id=360 data-nosnippet>360</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
-<a href=#361 id=361 data-nosnippet>361</a>            }
-<a href=#362 id=362 data-nosnippet>362</a>            Type::Vector(typ) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
-<a href=#363 id=363 data-nosnippet>363</a>            Type::FmtString(length, typ) =&gt; {
-<a href=#364 id=364 data-nosnippet>364</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
-<a href=#365 id=365 data-nosnippet>365</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
-<a href=#366 id=366 data-nosnippet>366</a>            }
-<a href=#367 id=367 data-nosnippet>367</a>            Type::Tuple(types) =&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>                types.iter().all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
-<a href=#369 id=369 data-nosnippet>369</a>            }
-<a href=#370 id=370 data-nosnippet>370</a>            Type::DataType(data_type, generics) =&gt; {
-<a href=#371 id=371 data-nosnippet>371</a>                <span class="kw">let </span>data_type = data_type.borrow();
-<a href=#372 id=372 data-nosnippet>372</a>                data_type.id.krate() != <span class="self">self</span>.crate_id
-<a href=#373 id=373 data-nosnippet>373</a>                    &amp;&amp; generics
-<a href=#374 id=374 data-nosnippet>374</a>                        .iter()
-<a href=#375 id=375 data-nosnippet>375</a>                        .all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
-<a href=#376 id=376 data-nosnippet>376</a>            }
-<a href=#377 id=377 data-nosnippet>377</a>            Type::Alias(_type_alias, generics) =&gt; {
-<a href=#378 id=378 data-nosnippet>378</a>                generics.iter().all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
-<a href=#379 id=379 data-nosnippet>379</a>            }
-<a href=#380 id=380 data-nosnippet>380</a>            Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) =&gt; {
-<a href=#381 id=381 data-nosnippet>381</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
-<a href=#382 id=382 data-nosnippet>382</a>                trait_.id.<span class="number">0</span>.krate != <span class="self">self</span>.crate_id
-<a href=#383 id=383 data-nosnippet>383</a>                    &amp;&amp; generics
-<a href=#384 id=384 data-nosnippet>384</a>                        .ordered
-<a href=#385 id=385 data-nosnippet>385</a>                        .iter()
-<a href=#386 id=386 data-nosnippet>386</a>                        .all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
-<a href=#387 id=387 data-nosnippet>387</a>                    &amp;&amp; generics.named.iter().all(|named_type| {
-<a href=#388 id=388 data-nosnippet>388</a>                        <span class="self">self</span>.type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span>named_type.typ)
-<a href=#389 id=389 data-nosnippet>389</a>                    })
-<a href=#390 id=390 data-nosnippet>390</a>            }
-<a href=#391 id=391 data-nosnippet>391</a>            Type::CheckedCast { from, to: <span class="kw">_ </span>} =&gt; {
-<a href=#392 id=392 data-nosnippet>392</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(from)
-<a href=#393 id=393 data-nosnippet>393</a>            }
-<a href=#394 id=394 data-nosnippet>394</a>            Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
-<a href=#395 id=395 data-nosnippet>395</a>                args.iter().all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
-<a href=#396 id=396 data-nosnippet>396</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(ret)
-<a href=#397 id=397 data-nosnippet>397</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(env)
-<a href=#398 id=398 data-nosnippet>398</a>            }
-<a href=#399 id=399 data-nosnippet>399</a>            Type::Reference(typ, <span class="kw">_</span>) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
-<a href=#400 id=400 data-nosnippet>400</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
-<a href=#401 id=401 data-nosnippet>401</a>            Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
-<a href=#402 id=402 data-nosnippet>402</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(lhs)
-<a href=#403 id=403 data-nosnippet>403</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(rhs)
-<a href=#404 id=404 data-nosnippet>404</a>            }
-<a href=#405 id=405 data-nosnippet>405</a>            Type::Unit
-<a href=#406 id=406 data-nosnippet>406</a>            | Type::Bool
-<a href=#407 id=407 data-nosnippet>407</a>            | Type::Integer(..)
-<a href=#408 id=408 data-nosnippet>408</a>            | Type::FieldElement
-<a href=#409 id=409 data-nosnippet>409</a>            | Type::String(<span class="kw">_</span>)
-<a href=#410 id=410 data-nosnippet>410</a>            | Type::Quoted(<span class="kw">_</span>)
-<a href=#411 id=411 data-nosnippet>411</a>            | Type::Constant(..)
-<a href=#412 id=412 data-nosnippet>412</a>            | Type::TypeVariable(..)
-<a href=#413 id=413 data-nosnippet>413</a>            | Type::NamedGeneric(..)
-<a href=#414 id=414 data-nosnippet>414</a>            | Type::Error =&gt; <span class="bool-val">true</span>,
-<a href=#415 id=415 data-nosnippet>415</a>        }
-<a href=#416 id=416 data-nosnippet>416</a>    }
-<a href=#417 id=417 data-nosnippet>417</a>
-<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_primitive_types(<span class="kw-2">&amp;</span><span class="self">self</span>, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
-<a href=#419 id=419 data-nosnippet>419</a>        <span class="self">self</span>.add_primitive_type(Type::Bool, items);
-<a href=#420 id=420 data-nosnippet>420</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::One), items);
-<a href=#421 id=421 data-nosnippet>421</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight), items);
-<a href=#422 id=422 data-nosnippet>422</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#423 id=423 data-nosnippet>423</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
-<a href=#424 id=424 data-nosnippet>424</a>            items,
-<a href=#425 id=425 data-nosnippet>425</a>        );
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#427 id=427 data-nosnippet>427</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-<a href=#428 id=428 data-nosnippet>428</a>            items,
-<a href=#429 id=429 data-nosnippet>429</a>        );
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#431 id=431 data-nosnippet>431</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
-<a href=#432 id=432 data-nosnippet>432</a>            items,
-<a href=#433 id=433 data-nosnippet>433</a>        );
-<a href=#434 id=434 data-nosnippet>434</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#435 id=435 data-nosnippet>435</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
-<a href=#436 id=436 data-nosnippet>436</a>            items,
-<a href=#437 id=437 data-nosnippet>437</a>        );
-<a href=#438 id=438 data-nosnippet>438</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Signed, IntegerBitSize::Eight), items);
-<a href=#439 id=439 data-nosnippet>439</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen), items);
-<a href=#440 id=440 data-nosnippet>440</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#441 id=441 data-nosnippet>441</a>            Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
-<a href=#442 id=442 data-nosnippet>442</a>            items,
-<a href=#443 id=443 data-nosnippet>443</a>        );
-<a href=#444 id=444 data-nosnippet>444</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#445 id=445 data-nosnippet>445</a>            Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-<a href=#446 id=446 data-nosnippet>446</a>            items,
-<a href=#447 id=447 data-nosnippet>447</a>        );
-<a href=#448 id=448 data-nosnippet>448</a>        <span class="self">self</span>.add_primitive_type(Type::FieldElement, items);
-<a href=#449 id=449 data-nosnippet>449</a>        <span class="self">self</span>.add_primitive_type(Type::String(Box::new(Type::Error)), items);
-<a href=#450 id=450 data-nosnippet>450</a>        <span class="self">self</span>.add_primitive_type(
-<a href=#451 id=451 data-nosnippet>451</a>            Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
-<a href=#452 id=452 data-nosnippet>452</a>            items,
-<a href=#453 id=453 data-nosnippet>453</a>        );
-<a href=#454 id=454 data-nosnippet>454</a>        <span class="self">self</span>.add_primitive_type(Type::Array(Box::new(Type::Error), Box::new(Type::Error)), items);
-<a href=#455 id=455 data-nosnippet>455</a>        <span class="self">self</span>.add_primitive_type(Type::Vector(Box::new(Type::Error)), items);
-<a href=#456 id=456 data-nosnippet>456</a>        <span class="kw">for </span>quoted_type <span class="kw">in </span>QuotedType::iter() {
-<a href=#457 id=457 data-nosnippet>457</a>            <span class="self">self</span>.add_primitive_type(Type::Quoted(quoted_type), items);
-<a href=#458 id=458 data-nosnippet>458</a>        }
-<a href=#459 id=459 data-nosnippet>459</a>    }
-<a href=#460 id=460 data-nosnippet>460</a>
-<a href=#461 id=461 data-nosnippet>461</a>    <span class="kw">fn </span>add_primitive_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: Type, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
-<a href=#462 id=462 data-nosnippet>462</a>        <span class="kw">let </span><span class="kw-2">mut </span>impls = <span class="kw">if let </span><span class="prelude-val">Some</span>(methods) = <span class="self">self</span>.interner.get_type_methods(<span class="kw-2">&amp;</span>typ) {
-<a href=#463 id=463 data-nosnippet>463</a>            <span class="self">self</span>.build_impls(methods.values())
-<a href=#464 id=464 data-nosnippet>464</a>        } <span class="kw">else </span>{
-<a href=#465 id=465 data-nosnippet>465</a>            Vec::new()
-<a href=#466 id=466 data-nosnippet>466</a>        };
-<a href=#467 id=467 data-nosnippet>467</a>        <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Bool | Type::Integer(..) | Type::FieldElement) {
-<a href=#468 id=468 data-nosnippet>468</a>            <span class="comment">// Numeric types seem to share all Field impls
-<a href=#469 id=469 data-nosnippet>469</a>            </span>impls.retain(|impl_| impl_.typ == typ);
-<a href=#470 id=470 data-nosnippet>470</a>        }
-<a href=#471 id=471 data-nosnippet>471</a>
-<a href=#472 id=472 data-nosnippet>472</a>        <span class="kw">let </span>trait_impls = <span class="self">self</span>.build_primitive_type_trait_impls(<span class="kw-2">&amp;</span>typ);
-<a href=#473 id=473 data-nosnippet>473</a>        <span class="kw">let </span>primitive_type = PrimitiveType { typ: typ.clone(), impls, trait_impls };
-<a href=#474 id=474 data-nosnippet>474</a>        items.push((ItemVisibility::Public, Item::PrimitiveType(primitive_type)));
-<a href=#475 id=475 data-nosnippet>475</a>    }
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>    <span class="kw">fn </span>build_primitive_type_trait_impls(<span class="kw-2">&amp;</span><span class="self">self</span>, primitive_type: <span class="kw-2">&amp;</span>Type) -&gt; Vec&lt;TraitImpl&gt; {
-<a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = <span class="self">self
-<a href=#479 id=479 data-nosnippet>479</a>            </span>.trait_impls
-<a href=#480 id=480 data-nosnippet>480</a>            .iter()
-<a href=#481 id=481 data-nosnippet>481</a>            .filter_map(|trait_impl_id| {
-<a href=#482 id=482 data-nosnippet>482</a>                <span class="kw">let </span>trait_impl = <span class="self">self</span>.interner.get_trait_implementation(<span class="kw-2">*</span>trait_impl_id);
-<a href=#483 id=483 data-nosnippet>483</a>                <span class="kw">let </span>trait_impl = trait_impl.borrow();
-<a href=#484 id=484 data-nosnippet>484</a>                <span class="kw">if </span>type_mentions_primitive_type(<span class="kw-2">&amp;</span>trait_impl.typ, primitive_type) {
-<a href=#485 id=485 data-nosnippet>485</a>                    <span class="prelude-val">Some</span>((<span class="kw-2">*</span>trait_impl_id, trait_impl.location))
-<a href=#486 id=486 data-nosnippet>486</a>                } <span class="kw">else </span>{
-<a href=#487 id=487 data-nosnippet>487</a>                    <span class="prelude-val">None
-<a href=#488 id=488 data-nosnippet>488</a>                </span>}
-<a href=#489 id=489 data-nosnippet>489</a>            })
-<a href=#490 id=490 data-nosnippet>490</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#491 id=491 data-nosnippet>491</a>
-<a href=#492 id=492 data-nosnippet>492</a>        <span class="self">self</span>.sort_trait_impls(<span class="kw-2">&amp;mut </span>trait_impls);
-<a href=#493 id=493 data-nosnippet>493</a>
-<a href=#494 id=494 data-nosnippet>494</a>        trait_impls.into_iter().map(|(trait_impl, <span class="kw">_</span>)| <span class="self">self</span>.build_trait_impl(trait_impl)).collect()
-<a href=#495 id=495 data-nosnippet>495</a>    }
-<a href=#496 id=496 data-nosnippet>496</a>}
-<a href=#497 id=497 data-nosnippet>497</a>
-<a href=#498 id=498 data-nosnippet>498</a><span class="kw">fn </span>gather_named_type_vars(typ: <span class="kw-2">&amp;</span>Type, type_vars: <span class="kw-2">&amp;mut </span>BTreeSet&lt;(String, Kind)&gt;) {
-<a href=#499 id=499 data-nosnippet>499</a>    <span class="kw">match </span>typ {
-<a href=#500 id=500 data-nosnippet>500</a>        Type::Array(length, typ) =&gt; {
-<a href=#501 id=501 data-nosnippet>501</a>            gather_named_type_vars(length, type_vars);
-<a href=#502 id=502 data-nosnippet>502</a>            gather_named_type_vars(typ, type_vars);
-<a href=#503 id=503 data-nosnippet>503</a>        }
-<a href=#504 id=504 data-nosnippet>504</a>        Type::Vector(typ) =&gt; {
-<a href=#505 id=505 data-nosnippet>505</a>            gather_named_type_vars(typ, type_vars);
-<a href=#506 id=506 data-nosnippet>506</a>        }
-<a href=#507 id=507 data-nosnippet>507</a>        Type::FmtString(length, typ) =&gt; {
-<a href=#508 id=508 data-nosnippet>508</a>            gather_named_type_vars(length, type_vars);
-<a href=#509 id=509 data-nosnippet>509</a>            gather_named_type_vars(typ, type_vars);
-<a href=#510 id=510 data-nosnippet>510</a>        }
-<a href=#511 id=511 data-nosnippet>511</a>        Type::Tuple(types) =&gt; {
-<a href=#512 id=512 data-nosnippet>512</a>            <span class="kw">for </span>typ <span class="kw">in </span>types {
-<a href=#513 id=513 data-nosnippet>513</a>                gather_named_type_vars(typ, type_vars);
-<a href=#514 id=514 data-nosnippet>514</a>            }
-<a href=#515 id=515 data-nosnippet>515</a>        }
-<a href=#516 id=516 data-nosnippet>516</a>        Type::DataType(<span class="kw">_</span>, generics) | Type::Alias(<span class="kw">_</span>, generics) =&gt; {
-<a href=#517 id=517 data-nosnippet>517</a>            <span class="kw">for </span>typ <span class="kw">in </span>generics {
-<a href=#518 id=518 data-nosnippet>518</a>                gather_named_type_vars(typ, type_vars);
-<a href=#519 id=519 data-nosnippet>519</a>            }
-<a href=#520 id=520 data-nosnippet>520</a>        }
-<a href=#521 id=521 data-nosnippet>521</a>        Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, trait_generics) =&gt; {
-<a href=#522 id=522 data-nosnippet>522</a>            <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>trait_generics.ordered {
-<a href=#523 id=523 data-nosnippet>523</a>                gather_named_type_vars(typ, type_vars);
-<a href=#524 id=524 data-nosnippet>524</a>            }
-<a href=#525 id=525 data-nosnippet>525</a>            <span class="kw">for </span>named_type <span class="kw">in </span><span class="kw-2">&amp;</span>trait_generics.named {
-<a href=#526 id=526 data-nosnippet>526</a>                gather_named_type_vars(<span class="kw-2">&amp;</span>named_type.typ, type_vars);
-<a href=#527 id=527 data-nosnippet>527</a>            }
-<a href=#528 id=528 data-nosnippet>528</a>        }
-<a href=#529 id=529 data-nosnippet>529</a>        Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; {
-<a href=#530 id=530 data-nosnippet>530</a>            type_vars.insert((name.to_string(), type_var.kind()));
-<a href=#531 id=531 data-nosnippet>531</a>        }
-<a href=#532 id=532 data-nosnippet>532</a>        Type::CheckedCast { from, to: <span class="kw">_ </span>} =&gt; {
-<a href=#533 id=533 data-nosnippet>533</a>            gather_named_type_vars(from, type_vars);
-<a href=#534 id=534 data-nosnippet>534</a>        }
-<a href=#535 id=535 data-nosnippet>535</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
-<a href=#536 id=536 data-nosnippet>536</a>            <span class="kw">for </span>typ <span class="kw">in </span>args {
-<a href=#537 id=537 data-nosnippet>537</a>                gather_named_type_vars(typ, type_vars);
-<a href=#538 id=538 data-nosnippet>538</a>            }
-<a href=#539 id=539 data-nosnippet>539</a>            gather_named_type_vars(ret, type_vars);
-<a href=#540 id=540 data-nosnippet>540</a>            gather_named_type_vars(env, type_vars);
-<a href=#541 id=541 data-nosnippet>541</a>        }
-<a href=#542 id=542 data-nosnippet>542</a>        Type::Reference(typ, <span class="kw">_</span>) =&gt; {
-<a href=#543 id=543 data-nosnippet>543</a>            gather_named_type_vars(typ, type_vars);
-<a href=#544 id=544 data-nosnippet>544</a>        }
-<a href=#545 id=545 data-nosnippet>545</a>        Type::Forall(<span class="kw">_</span>, typ) =&gt; {
-<a href=#546 id=546 data-nosnippet>546</a>            gather_named_type_vars(typ, type_vars);
-<a href=#547 id=547 data-nosnippet>547</a>        }
-<a href=#548 id=548 data-nosnippet>548</a>        Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
-<a href=#549 id=549 data-nosnippet>549</a>            gather_named_type_vars(lhs, type_vars);
-<a href=#550 id=550 data-nosnippet>550</a>            gather_named_type_vars(rhs, type_vars);
-<a href=#551 id=551 data-nosnippet>551</a>        }
-<a href=#552 id=552 data-nosnippet>552</a>        Type::String(typ) =&gt; {
-<a href=#553 id=553 data-nosnippet>553</a>            gather_named_type_vars(typ, type_vars);
-<a href=#554 id=554 data-nosnippet>554</a>        }
-<a href=#555 id=555 data-nosnippet>555</a>        Type::Unit
-<a href=#556 id=556 data-nosnippet>556</a>        | Type::FieldElement
-<a href=#557 id=557 data-nosnippet>557</a>        | Type::Integer(..)
-<a href=#558 id=558 data-nosnippet>558</a>        | Type::Bool
-<a href=#559 id=559 data-nosnippet>559</a>        | Type::Quoted(<span class="kw">_</span>)
-<a href=#560 id=560 data-nosnippet>560</a>        | Type::Constant(..)
-<a href=#561 id=561 data-nosnippet>561</a>        | Type::TypeVariable(<span class="kw">_</span>)
-<a href=#562 id=562 data-nosnippet>562</a>        | Type::Error =&gt; (),
-<a href=#563 id=563 data-nosnippet>563</a>    }
-<a href=#564 id=564 data-nosnippet>564</a>}
-<a href=#565 id=565 data-nosnippet>565</a>
-<a href=#566 id=566 data-nosnippet>566</a><span class="kw">fn </span>type_mentions_data_type(typ: <span class="kw-2">&amp;</span>Type, data_type: <span class="kw-2">&amp;</span><span class="kw">crate</span>::DataType) -&gt; bool {
-<a href=#567 id=567 data-nosnippet>567</a>    <span class="kw">match </span>typ {
-<a href=#568 id=568 data-nosnippet>568</a>        Type::Array(length, typ) =&gt; {
-<a href=#569 id=569 data-nosnippet>569</a>            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
-<a href=#570 id=570 data-nosnippet>570</a>        }
-<a href=#571 id=571 data-nosnippet>571</a>        Type::Vector(typ) =&gt; type_mentions_data_type(typ, data_type),
-<a href=#572 id=572 data-nosnippet>572</a>        Type::FmtString(length, typ) =&gt; {
-<a href=#573 id=573 data-nosnippet>573</a>            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
-<a href=#574 id=574 data-nosnippet>574</a>        }
-<a href=#575 id=575 data-nosnippet>575</a>        Type::Tuple(types) =&gt; types.iter().any(|typ| type_mentions_data_type(typ, data_type)),
-<a href=#576 id=576 data-nosnippet>576</a>        Type::DataType(other_data_type, generics) =&gt; {
-<a href=#577 id=577 data-nosnippet>577</a>            <span class="kw">let </span>other_data_type = other_data_type.borrow();
-<a href=#578 id=578 data-nosnippet>578</a>            data_type.id == other_data_type.id
-<a href=#579 id=579 data-nosnippet>579</a>                || generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
-<a href=#580 id=580 data-nosnippet>580</a>        }
-<a href=#581 id=581 data-nosnippet>581</a>        Type::Alias(_type_alias, generics) =&gt; {
-<a href=#582 id=582 data-nosnippet>582</a>            generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
-<a href=#583 id=583 data-nosnippet>583</a>        }
-<a href=#584 id=584 data-nosnippet>584</a>        Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, generics) =&gt; {
-<a href=#585 id=585 data-nosnippet>585</a>            generics.ordered.iter().any(|typ| type_mentions_data_type(typ, data_type))
-<a href=#586 id=586 data-nosnippet>586</a>                || generics
-<a href=#587 id=587 data-nosnippet>587</a>                    .named
-<a href=#588 id=588 data-nosnippet>588</a>                    .iter()
-<a href=#589 id=589 data-nosnippet>589</a>                    .any(|named_type| type_mentions_data_type(<span class="kw-2">&amp;</span>named_type.typ, data_type))
-<a href=#590 id=590 data-nosnippet>590</a>        }
-<a href=#591 id=591 data-nosnippet>591</a>        Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; type_mentions_data_type(to, data_type),
-<a href=#592 id=592 data-nosnippet>592</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
-<a href=#593 id=593 data-nosnippet>593</a>            args.iter().any(|typ| type_mentions_data_type(typ, data_type))
-<a href=#594 id=594 data-nosnippet>594</a>                || type_mentions_data_type(ret, data_type)
-<a href=#595 id=595 data-nosnippet>595</a>                || type_mentions_data_type(env, data_type)
-<a href=#596 id=596 data-nosnippet>596</a>        }
-<a href=#597 id=597 data-nosnippet>597</a>        Type::Reference(typ, <span class="kw">_</span>) =&gt; type_mentions_data_type(typ, data_type),
-<a href=#598 id=598 data-nosnippet>598</a>        Type::Forall(<span class="kw">_</span>, typ) =&gt; type_mentions_data_type(typ, data_type),
-<a href=#599 id=599 data-nosnippet>599</a>        Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
-<a href=#600 id=600 data-nosnippet>600</a>            type_mentions_data_type(lhs, data_type) || type_mentions_data_type(rhs, data_type)
-<a href=#601 id=601 data-nosnippet>601</a>        }
-<a href=#602 id=602 data-nosnippet>602</a>        Type::Unit
-<a href=#603 id=603 data-nosnippet>603</a>        | Type::Bool
-<a href=#604 id=604 data-nosnippet>604</a>        | Type::Integer(..)
-<a href=#605 id=605 data-nosnippet>605</a>        | Type::FieldElement
-<a href=#606 id=606 data-nosnippet>606</a>        | Type::String(<span class="kw">_</span>)
-<a href=#607 id=607 data-nosnippet>607</a>        | Type::Quoted(<span class="kw">_</span>)
-<a href=#608 id=608 data-nosnippet>608</a>        | Type::Constant(..)
-<a href=#609 id=609 data-nosnippet>609</a>        | Type::TypeVariable(..)
-<a href=#610 id=610 data-nosnippet>610</a>        | Type::NamedGeneric(..)
-<a href=#611 id=611 data-nosnippet>611</a>        | Type::Error =&gt; <span class="bool-val">false</span>,
-<a href=#612 id=612 data-nosnippet>612</a>    }
-<a href=#613 id=613 data-nosnippet>613</a>}
-<a href=#614 id=614 data-nosnippet>614</a>
-<a href=#615 id=615 data-nosnippet>615</a><span class="kw">fn </span>type_mentions_primitive_type(typ: <span class="kw-2">&amp;</span>Type, target_type: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">if </span>typ == target_type {
-<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#618 id=618 data-nosnippet>618</a>    }
-<a href=#619 id=619 data-nosnippet>619</a>
-<a href=#620 id=620 data-nosnippet>620</a>    <span class="kw">match </span>typ {
-<a href=#621 id=621 data-nosnippet>621</a>        Type::Array(length, typ) =&gt; {
-<a href=#622 id=622 data-nosnippet>622</a>            type_mentions_primitive_type(length, target_type)
-<a href=#623 id=623 data-nosnippet>623</a>                || type_mentions_primitive_type(typ, target_type)
-<a href=#624 id=624 data-nosnippet>624</a>        }
-<a href=#625 id=625 data-nosnippet>625</a>        Type::Vector(typ) =&gt; type_mentions_primitive_type(typ, target_type),
-<a href=#626 id=626 data-nosnippet>626</a>        Type::FmtString(length, typ) =&gt; {
-<a href=#627 id=627 data-nosnippet>627</a>            type_mentions_primitive_type(length, target_type)
-<a href=#628 id=628 data-nosnippet>628</a>                || type_mentions_primitive_type(typ, target_type)
-<a href=#629 id=629 data-nosnippet>629</a>        }
-<a href=#630 id=630 data-nosnippet>630</a>        Type::Tuple(types) =&gt; {
-<a href=#631 id=631 data-nosnippet>631</a>            types.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
-<a href=#632 id=632 data-nosnippet>632</a>        }
-<a href=#633 id=633 data-nosnippet>633</a>        Type::DataType(<span class="kw">_</span>, generics) =&gt; {
-<a href=#634 id=634 data-nosnippet>634</a>            generics.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
-<a href=#635 id=635 data-nosnippet>635</a>        }
-<a href=#636 id=636 data-nosnippet>636</a>        Type::Alias(_type_alias, generics) =&gt; {
-<a href=#637 id=637 data-nosnippet>637</a>            generics.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
-<a href=#638 id=638 data-nosnippet>638</a>        }
-<a href=#639 id=639 data-nosnippet>639</a>        Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, generics) =&gt; {
-<a href=#640 id=640 data-nosnippet>640</a>            generics.ordered.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
-<a href=#641 id=641 data-nosnippet>641</a>                || generics
-<a href=#642 id=642 data-nosnippet>642</a>                    .named
-<a href=#643 id=643 data-nosnippet>643</a>                    .iter()
-<a href=#644 id=644 data-nosnippet>644</a>                    .any(|named_type| type_mentions_primitive_type(<span class="kw-2">&amp;</span>named_type.typ, target_type))
-<a href=#645 id=645 data-nosnippet>645</a>        }
-<a href=#646 id=646 data-nosnippet>646</a>        Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; type_mentions_primitive_type(to, target_type),
-<a href=#647 id=647 data-nosnippet>647</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
-<a href=#648 id=648 data-nosnippet>648</a>            args.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
-<a href=#649 id=649 data-nosnippet>649</a>                || type_mentions_primitive_type(ret, target_type)
-<a href=#650 id=650 data-nosnippet>650</a>                || type_mentions_primitive_type(env, target_type)
-<a href=#651 id=651 data-nosnippet>651</a>        }
-<a href=#652 id=652 data-nosnippet>652</a>        Type::Reference(typ, <span class="kw">_</span>) =&gt; type_mentions_primitive_type(typ, target_type),
-<a href=#653 id=653 data-nosnippet>653</a>        Type::Forall(<span class="kw">_</span>, typ) =&gt; type_mentions_primitive_type(typ, target_type),
-<a href=#654 id=654 data-nosnippet>654</a>        Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
-<a href=#655 id=655 data-nosnippet>655</a>            type_mentions_primitive_type(lhs, target_type)
-<a href=#656 id=656 data-nosnippet>656</a>                || type_mentions_primitive_type(rhs, target_type)
-<a href=#657 id=657 data-nosnippet>657</a>        }
-<a href=#658 id=658 data-nosnippet>658</a>        Type::Unit
-<a href=#659 id=659 data-nosnippet>659</a>        | Type::Bool
-<a href=#660 id=660 data-nosnippet>660</a>        | Type::Integer(..)
-<a href=#661 id=661 data-nosnippet>661</a>        | Type::FieldElement
-<a href=#662 id=662 data-nosnippet>662</a>        | Type::String(<span class="kw">_</span>)
-<a href=#663 id=663 data-nosnippet>663</a>        | Type::Quoted(<span class="kw">_</span>)
-<a href=#664 id=664 data-nosnippet>664</a>        | Type::Constant(..)
-<a href=#665 id=665 data-nosnippet>665</a>        | Type::TypeVariable(..)
-<a href=#666 id=666 data-nosnippet>666</a>        | Type::NamedGeneric(..)
-<a href=#667 id=667 data-nosnippet>667</a>        | Type::Error =&gt; <span class="bool-val">false</span>,
-<a href=#668 id=668 data-nosnippet>668</a>    }
-<a href=#669 id=669 data-nosnippet>669</a>}</code></pre></div></section></main></body></html>
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>ordered_generics = <span class="self">self</span>.interner.get_ordered_generics_for_impl(trait_impl_id);
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">for </span>generic <span class="kw">in </span>ordered_generics {
+<a href=#324 id=324 data-nosnippet>324</a>            gather_named_type_vars(generic, <span class="kw-2">&amp;mut </span>type_var_names);
+<a href=#325 id=325 data-nosnippet>325</a>        }
+<a href=#326 id=326 data-nosnippet>326</a>        gather_named_type_vars(<span class="kw-2">&amp;</span>trait_impl.typ, <span class="kw-2">&amp;mut </span>type_var_names);
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a>        TraitImpl {
+<a href=#329 id=329 data-nosnippet>329</a>            generics: type_var_names,
+<a href=#330 id=330 data-nosnippet>330</a>            id: trait_impl_id,
+<a href=#331 id=331 data-nosnippet>331</a>            methods: trait_impl.methods.clone(),
+<a href=#332 id=332 data-nosnippet>332</a>            external_types,
+<a href=#333 id=333 data-nosnippet>333</a>        }
+<a href=#334 id=334 data-nosnippet>334</a>    }
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="kw">fn </span>build_trait(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_id: TraitId) -&gt; Item {
+<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#338 id=338 data-nosnippet>338</a>
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">let </span><span class="kw-2">mut </span>func_ids = trait_
+<a href=#340 id=340 data-nosnippet>340</a>            .method_ids
+<a href=#341 id=341 data-nosnippet>341</a>            .values()
+<a href=#342 id=342 data-nosnippet>342</a>            .map(|func_id| {
+<a href=#343 id=343 data-nosnippet>343</a>                <span class="kw">let </span>location = <span class="self">self</span>.interner.function_meta(func_id).location;
+<a href=#344 id=344 data-nosnippet>344</a>                (func_id, location)
+<a href=#345 id=345 data-nosnippet>345</a>            })
+<a href=#346 id=346 data-nosnippet>346</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#347 id=347 data-nosnippet>347</a>
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="comment">// Make sure functions are shown in the same order they were defined
+<a href=#349 id=349 data-nosnippet>349</a>        </span>func_ids.sort_by_key(|(_func_id, location)| <span class="kw-2">*</span>location);
+<a href=#350 id=350 data-nosnippet>350</a>
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>methods = func_ids.into_iter().map(|(func_id, <span class="kw">_</span>)| <span class="kw-2">*</span>func_id).collect();
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>trait_impls = <span class="self">self</span>.build_trait_impls_for_trait(trait_id);
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>        Item::Trait(Trait { id: trait_id, methods, trait_impls })
+<a href=#355 id=355 data-nosnippet>355</a>    }
+<a href=#356 id=356 data-nosnippet>356</a>
+<a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">fn </span>type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">match </span>typ {
+<a href=#359 id=359 data-nosnippet>359</a>            Type::Array(length, typ) =&gt; {
+<a href=#360 id=360 data-nosnippet>360</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
+<a href=#361 id=361 data-nosnippet>361</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
+<a href=#362 id=362 data-nosnippet>362</a>            }
+<a href=#363 id=363 data-nosnippet>363</a>            Type::Vector(typ) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
+<a href=#364 id=364 data-nosnippet>364</a>            Type::FmtString(length, typ) =&gt; {
+<a href=#365 id=365 data-nosnippet>365</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
+<a href=#366 id=366 data-nosnippet>366</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
+<a href=#367 id=367 data-nosnippet>367</a>            }
+<a href=#368 id=368 data-nosnippet>368</a>            Type::Tuple(types) =&gt; {
+<a href=#369 id=369 data-nosnippet>369</a>                types.iter().all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
+<a href=#370 id=370 data-nosnippet>370</a>            }
+<a href=#371 id=371 data-nosnippet>371</a>            Type::DataType(data_type, generics) =&gt; {
+<a href=#372 id=372 data-nosnippet>372</a>                <span class="kw">let </span>data_type = data_type.borrow();
+<a href=#373 id=373 data-nosnippet>373</a>                data_type.id.krate() != <span class="self">self</span>.crate_id
+<a href=#374 id=374 data-nosnippet>374</a>                    &amp;&amp; generics
+<a href=#375 id=375 data-nosnippet>375</a>                        .iter()
+<a href=#376 id=376 data-nosnippet>376</a>                        .all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
+<a href=#377 id=377 data-nosnippet>377</a>            }
+<a href=#378 id=378 data-nosnippet>378</a>            Type::Alias(_type_alias, generics) =&gt; {
+<a href=#379 id=379 data-nosnippet>379</a>                generics.iter().all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
+<a href=#380 id=380 data-nosnippet>380</a>            }
+<a href=#381 id=381 data-nosnippet>381</a>            Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) =&gt; {
+<a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
+<a href=#383 id=383 data-nosnippet>383</a>                trait_.id.<span class="number">0</span>.krate != <span class="self">self</span>.crate_id
+<a href=#384 id=384 data-nosnippet>384</a>                    &amp;&amp; generics
+<a href=#385 id=385 data-nosnippet>385</a>                        .ordered
+<a href=#386 id=386 data-nosnippet>386</a>                        .iter()
+<a href=#387 id=387 data-nosnippet>387</a>                        .all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
+<a href=#388 id=388 data-nosnippet>388</a>                    &amp;&amp; generics.named.iter().all(|named_type| {
+<a href=#389 id=389 data-nosnippet>389</a>                        <span class="self">self</span>.type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span>named_type.typ)
+<a href=#390 id=390 data-nosnippet>390</a>                    })
+<a href=#391 id=391 data-nosnippet>391</a>            }
+<a href=#392 id=392 data-nosnippet>392</a>            Type::CheckedCast { from, to: <span class="kw">_ </span>} =&gt; {
+<a href=#393 id=393 data-nosnippet>393</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(from)
+<a href=#394 id=394 data-nosnippet>394</a>            }
+<a href=#395 id=395 data-nosnippet>395</a>            Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+<a href=#396 id=396 data-nosnippet>396</a>                args.iter().all(|typ| <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ))
+<a href=#397 id=397 data-nosnippet>397</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(ret)
+<a href=#398 id=398 data-nosnippet>398</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(env)
+<a href=#399 id=399 data-nosnippet>399</a>            }
+<a href=#400 id=400 data-nosnippet>400</a>            Type::Reference(typ, <span class="kw">_</span>) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
+<a href=#401 id=401 data-nosnippet>401</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ),
+<a href=#402 id=402 data-nosnippet>402</a>            Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
+<a href=#403 id=403 data-nosnippet>403</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(lhs)
+<a href=#404 id=404 data-nosnippet>404</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(rhs)
+<a href=#405 id=405 data-nosnippet>405</a>            }
+<a href=#406 id=406 data-nosnippet>406</a>            Type::Unit
+<a href=#407 id=407 data-nosnippet>407</a>            | Type::Bool
+<a href=#408 id=408 data-nosnippet>408</a>            | Type::Integer(..)
+<a href=#409 id=409 data-nosnippet>409</a>            | Type::FieldElement
+<a href=#410 id=410 data-nosnippet>410</a>            | Type::String(<span class="kw">_</span>)
+<a href=#411 id=411 data-nosnippet>411</a>            | Type::Quoted(<span class="kw">_</span>)
+<a href=#412 id=412 data-nosnippet>412</a>            | Type::Constant(..)
+<a href=#413 id=413 data-nosnippet>413</a>            | Type::TypeVariable(..)
+<a href=#414 id=414 data-nosnippet>414</a>            | Type::NamedGeneric(..)
+<a href=#415 id=415 data-nosnippet>415</a>            | Type::Error =&gt; <span class="bool-val">true</span>,
+<a href=#416 id=416 data-nosnippet>416</a>        }
+<a href=#417 id=417 data-nosnippet>417</a>    }
+<a href=#418 id=418 data-nosnippet>418</a>
+<a href=#419 id=419 data-nosnippet>419</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add_primitive_types(<span class="kw-2">&amp;</span><span class="self">self</span>, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
+<a href=#420 id=420 data-nosnippet>420</a>        <span class="self">self</span>.add_primitive_type(Type::Bool, items);
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::One), items);
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight), items);
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#424 id=424 data-nosnippet>424</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
+<a href=#425 id=425 data-nosnippet>425</a>            items,
+<a href=#426 id=426 data-nosnippet>426</a>        );
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#428 id=428 data-nosnippet>428</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+<a href=#429 id=429 data-nosnippet>429</a>            items,
+<a href=#430 id=430 data-nosnippet>430</a>        );
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#432 id=432 data-nosnippet>432</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+<a href=#433 id=433 data-nosnippet>433</a>            items,
+<a href=#434 id=434 data-nosnippet>434</a>        );
+<a href=#435 id=435 data-nosnippet>435</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#436 id=436 data-nosnippet>436</a>            Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
+<a href=#437 id=437 data-nosnippet>437</a>            items,
+<a href=#438 id=438 data-nosnippet>438</a>        );
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Signed, IntegerBitSize::Eight), items);
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="self">self</span>.add_primitive_type(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen), items);
+<a href=#441 id=441 data-nosnippet>441</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#442 id=442 data-nosnippet>442</a>            Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
+<a href=#443 id=443 data-nosnippet>443</a>            items,
+<a href=#444 id=444 data-nosnippet>444</a>        );
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#446 id=446 data-nosnippet>446</a>            Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+<a href=#447 id=447 data-nosnippet>447</a>            items,
+<a href=#448 id=448 data-nosnippet>448</a>        );
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="self">self</span>.add_primitive_type(Type::FieldElement, items);
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="self">self</span>.add_primitive_type(Type::String(Box::new(Type::Error)), items);
+<a href=#451 id=451 data-nosnippet>451</a>        <span class="self">self</span>.add_primitive_type(
+<a href=#452 id=452 data-nosnippet>452</a>            Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
+<a href=#453 id=453 data-nosnippet>453</a>            items,
+<a href=#454 id=454 data-nosnippet>454</a>        );
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="self">self</span>.add_primitive_type(Type::Array(Box::new(Type::Error), Box::new(Type::Error)), items);
+<a href=#456 id=456 data-nosnippet>456</a>        <span class="self">self</span>.add_primitive_type(Type::Vector(Box::new(Type::Error)), items);
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">for </span>quoted_type <span class="kw">in </span>QuotedType::iter() {
+<a href=#458 id=458 data-nosnippet>458</a>            <span class="self">self</span>.add_primitive_type(Type::Quoted(quoted_type), items);
+<a href=#459 id=459 data-nosnippet>459</a>        }
+<a href=#460 id=460 data-nosnippet>460</a>    }
+<a href=#461 id=461 data-nosnippet>461</a>
+<a href=#462 id=462 data-nosnippet>462</a>    <span class="kw">fn </span>add_primitive_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: Type, items: <span class="kw-2">&amp;mut </span>Vec&lt;(ItemVisibility, Item)&gt;) {
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="kw">let </span><span class="kw-2">mut </span>impls = <span class="kw">if let </span><span class="prelude-val">Some</span>(methods) = <span class="self">self</span>.interner.get_type_methods(<span class="kw-2">&amp;</span>typ) {
+<a href=#464 id=464 data-nosnippet>464</a>            <span class="self">self</span>.build_impls(methods.values())
+<a href=#465 id=465 data-nosnippet>465</a>        } <span class="kw">else </span>{
+<a href=#466 id=466 data-nosnippet>466</a>            Vec::new()
+<a href=#467 id=467 data-nosnippet>467</a>        };
+<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Bool | Type::Integer(..) | Type::FieldElement) {
+<a href=#469 id=469 data-nosnippet>469</a>            <span class="comment">// Numeric types seem to share all Field impls
+<a href=#470 id=470 data-nosnippet>470</a>            </span>impls.retain(|impl_| impl_.typ == typ);
+<a href=#471 id=471 data-nosnippet>471</a>        }
+<a href=#472 id=472 data-nosnippet>472</a>
+<a href=#473 id=473 data-nosnippet>473</a>        <span class="kw">let </span>trait_impls = <span class="self">self</span>.build_primitive_type_trait_impls(<span class="kw-2">&amp;</span>typ);
+<a href=#474 id=474 data-nosnippet>474</a>        <span class="kw">let </span>primitive_type = PrimitiveType { typ: typ.clone(), impls, trait_impls };
+<a href=#475 id=475 data-nosnippet>475</a>        items.push((ItemVisibility::Public, Item::PrimitiveType(primitive_type)));
+<a href=#476 id=476 data-nosnippet>476</a>    }
+<a href=#477 id=477 data-nosnippet>477</a>
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="kw">fn </span>build_primitive_type_trait_impls(<span class="kw-2">&amp;</span><span class="self">self</span>, primitive_type: <span class="kw-2">&amp;</span>Type) -&gt; Vec&lt;TraitImpl&gt; {
+<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">let </span><span class="kw-2">mut </span>trait_impls = <span class="self">self
+<a href=#480 id=480 data-nosnippet>480</a>            </span>.trait_impls
+<a href=#481 id=481 data-nosnippet>481</a>            .iter()
+<a href=#482 id=482 data-nosnippet>482</a>            .filter_map(|trait_impl_id| {
+<a href=#483 id=483 data-nosnippet>483</a>                <span class="kw">let </span>trait_impl = <span class="self">self</span>.interner.get_trait_implementation(<span class="kw-2">*</span>trait_impl_id);
+<a href=#484 id=484 data-nosnippet>484</a>                <span class="kw">let </span>trait_impl = trait_impl.borrow();
+<a href=#485 id=485 data-nosnippet>485</a>                <span class="kw">if </span>type_mentions_primitive_type(<span class="kw-2">&amp;</span>trait_impl.typ, primitive_type) {
+<a href=#486 id=486 data-nosnippet>486</a>                    <span class="prelude-val">Some</span>((<span class="kw-2">*</span>trait_impl_id, trait_impl.location))
+<a href=#487 id=487 data-nosnippet>487</a>                } <span class="kw">else </span>{
+<a href=#488 id=488 data-nosnippet>488</a>                    <span class="prelude-val">None
+<a href=#489 id=489 data-nosnippet>489</a>                </span>}
+<a href=#490 id=490 data-nosnippet>490</a>            })
+<a href=#491 id=491 data-nosnippet>491</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#492 id=492 data-nosnippet>492</a>
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="self">self</span>.sort_trait_impls(<span class="kw-2">&amp;mut </span>trait_impls);
+<a href=#494 id=494 data-nosnippet>494</a>
+<a href=#495 id=495 data-nosnippet>495</a>        trait_impls.into_iter().map(|(trait_impl, <span class="kw">_</span>)| <span class="self">self</span>.build_trait_impl(trait_impl)).collect()
+<a href=#496 id=496 data-nosnippet>496</a>    }
+<a href=#497 id=497 data-nosnippet>497</a>}
+<a href=#498 id=498 data-nosnippet>498</a>
+<a href=#499 id=499 data-nosnippet>499</a><span class="kw">fn </span>gather_named_type_vars(typ: <span class="kw-2">&amp;</span>Type, type_vars: <span class="kw-2">&amp;mut </span>BTreeSet&lt;(String, Kind)&gt;) {
+<a href=#500 id=500 data-nosnippet>500</a>    <span class="kw">match </span>typ {
+<a href=#501 id=501 data-nosnippet>501</a>        Type::Array(length, typ) =&gt; {
+<a href=#502 id=502 data-nosnippet>502</a>            gather_named_type_vars(length, type_vars);
+<a href=#503 id=503 data-nosnippet>503</a>            gather_named_type_vars(typ, type_vars);
+<a href=#504 id=504 data-nosnippet>504</a>        }
+<a href=#505 id=505 data-nosnippet>505</a>        Type::Vector(typ) =&gt; {
+<a href=#506 id=506 data-nosnippet>506</a>            gather_named_type_vars(typ, type_vars);
+<a href=#507 id=507 data-nosnippet>507</a>        }
+<a href=#508 id=508 data-nosnippet>508</a>        Type::FmtString(length, typ) =&gt; {
+<a href=#509 id=509 data-nosnippet>509</a>            gather_named_type_vars(length, type_vars);
+<a href=#510 id=510 data-nosnippet>510</a>            gather_named_type_vars(typ, type_vars);
+<a href=#511 id=511 data-nosnippet>511</a>        }
+<a href=#512 id=512 data-nosnippet>512</a>        Type::Tuple(types) =&gt; {
+<a href=#513 id=513 data-nosnippet>513</a>            <span class="kw">for </span>typ <span class="kw">in </span>types {
+<a href=#514 id=514 data-nosnippet>514</a>                gather_named_type_vars(typ, type_vars);
+<a href=#515 id=515 data-nosnippet>515</a>            }
+<a href=#516 id=516 data-nosnippet>516</a>        }
+<a href=#517 id=517 data-nosnippet>517</a>        Type::DataType(<span class="kw">_</span>, generics) | Type::Alias(<span class="kw">_</span>, generics) =&gt; {
+<a href=#518 id=518 data-nosnippet>518</a>            <span class="kw">for </span>typ <span class="kw">in </span>generics {
+<a href=#519 id=519 data-nosnippet>519</a>                gather_named_type_vars(typ, type_vars);
+<a href=#520 id=520 data-nosnippet>520</a>            }
+<a href=#521 id=521 data-nosnippet>521</a>        }
+<a href=#522 id=522 data-nosnippet>522</a>        Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, trait_generics) =&gt; {
+<a href=#523 id=523 data-nosnippet>523</a>            <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>trait_generics.ordered {
+<a href=#524 id=524 data-nosnippet>524</a>                gather_named_type_vars(typ, type_vars);
+<a href=#525 id=525 data-nosnippet>525</a>            }
+<a href=#526 id=526 data-nosnippet>526</a>            <span class="kw">for </span>named_type <span class="kw">in </span><span class="kw-2">&amp;</span>trait_generics.named {
+<a href=#527 id=527 data-nosnippet>527</a>                gather_named_type_vars(<span class="kw-2">&amp;</span>named_type.typ, type_vars);
+<a href=#528 id=528 data-nosnippet>528</a>            }
+<a href=#529 id=529 data-nosnippet>529</a>        }
+<a href=#530 id=530 data-nosnippet>530</a>        Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; {
+<a href=#531 id=531 data-nosnippet>531</a>            type_vars.insert((name.to_string(), type_var.kind()));
+<a href=#532 id=532 data-nosnippet>532</a>        }
+<a href=#533 id=533 data-nosnippet>533</a>        Type::CheckedCast { from, to: <span class="kw">_ </span>} =&gt; {
+<a href=#534 id=534 data-nosnippet>534</a>            gather_named_type_vars(from, type_vars);
+<a href=#535 id=535 data-nosnippet>535</a>        }
+<a href=#536 id=536 data-nosnippet>536</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="kw">for </span>typ <span class="kw">in </span>args {
+<a href=#538 id=538 data-nosnippet>538</a>                gather_named_type_vars(typ, type_vars);
+<a href=#539 id=539 data-nosnippet>539</a>            }
+<a href=#540 id=540 data-nosnippet>540</a>            gather_named_type_vars(ret, type_vars);
+<a href=#541 id=541 data-nosnippet>541</a>            gather_named_type_vars(env, type_vars);
+<a href=#542 id=542 data-nosnippet>542</a>        }
+<a href=#543 id=543 data-nosnippet>543</a>        Type::Reference(typ, <span class="kw">_</span>) =&gt; {
+<a href=#544 id=544 data-nosnippet>544</a>            gather_named_type_vars(typ, type_vars);
+<a href=#545 id=545 data-nosnippet>545</a>        }
+<a href=#546 id=546 data-nosnippet>546</a>        Type::Forall(<span class="kw">_</span>, typ) =&gt; {
+<a href=#547 id=547 data-nosnippet>547</a>            gather_named_type_vars(typ, type_vars);
+<a href=#548 id=548 data-nosnippet>548</a>        }
+<a href=#549 id=549 data-nosnippet>549</a>        Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
+<a href=#550 id=550 data-nosnippet>550</a>            gather_named_type_vars(lhs, type_vars);
+<a href=#551 id=551 data-nosnippet>551</a>            gather_named_type_vars(rhs, type_vars);
+<a href=#552 id=552 data-nosnippet>552</a>        }
+<a href=#553 id=553 data-nosnippet>553</a>        Type::String(typ) =&gt; {
+<a href=#554 id=554 data-nosnippet>554</a>            gather_named_type_vars(typ, type_vars);
+<a href=#555 id=555 data-nosnippet>555</a>        }
+<a href=#556 id=556 data-nosnippet>556</a>        Type::Unit
+<a href=#557 id=557 data-nosnippet>557</a>        | Type::FieldElement
+<a href=#558 id=558 data-nosnippet>558</a>        | Type::Integer(..)
+<a href=#559 id=559 data-nosnippet>559</a>        | Type::Bool
+<a href=#560 id=560 data-nosnippet>560</a>        | Type::Quoted(<span class="kw">_</span>)
+<a href=#561 id=561 data-nosnippet>561</a>        | Type::Constant(..)
+<a href=#562 id=562 data-nosnippet>562</a>        | Type::TypeVariable(<span class="kw">_</span>)
+<a href=#563 id=563 data-nosnippet>563</a>        | Type::Error =&gt; (),
+<a href=#564 id=564 data-nosnippet>564</a>    }
+<a href=#565 id=565 data-nosnippet>565</a>}
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a><span class="kw">fn </span>type_mentions_data_type(typ: <span class="kw-2">&amp;</span>Type, data_type: <span class="kw-2">&amp;</span><span class="kw">crate</span>::DataType) -&gt; bool {
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">match </span>typ {
+<a href=#569 id=569 data-nosnippet>569</a>        Type::Array(length, typ) =&gt; {
+<a href=#570 id=570 data-nosnippet>570</a>            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
+<a href=#571 id=571 data-nosnippet>571</a>        }
+<a href=#572 id=572 data-nosnippet>572</a>        Type::Vector(typ) =&gt; type_mentions_data_type(typ, data_type),
+<a href=#573 id=573 data-nosnippet>573</a>        Type::FmtString(length, typ) =&gt; {
+<a href=#574 id=574 data-nosnippet>574</a>            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
+<a href=#575 id=575 data-nosnippet>575</a>        }
+<a href=#576 id=576 data-nosnippet>576</a>        Type::Tuple(types) =&gt; types.iter().any(|typ| type_mentions_data_type(typ, data_type)),
+<a href=#577 id=577 data-nosnippet>577</a>        Type::DataType(other_data_type, generics) =&gt; {
+<a href=#578 id=578 data-nosnippet>578</a>            <span class="kw">let </span>other_data_type = other_data_type.borrow();
+<a href=#579 id=579 data-nosnippet>579</a>            data_type.id == other_data_type.id
+<a href=#580 id=580 data-nosnippet>580</a>                || generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
+<a href=#581 id=581 data-nosnippet>581</a>        }
+<a href=#582 id=582 data-nosnippet>582</a>        Type::Alias(_type_alias, generics) =&gt; {
+<a href=#583 id=583 data-nosnippet>583</a>            generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
+<a href=#584 id=584 data-nosnippet>584</a>        }
+<a href=#585 id=585 data-nosnippet>585</a>        Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, generics) =&gt; {
+<a href=#586 id=586 data-nosnippet>586</a>            generics.ordered.iter().any(|typ| type_mentions_data_type(typ, data_type))
+<a href=#587 id=587 data-nosnippet>587</a>                || generics
+<a href=#588 id=588 data-nosnippet>588</a>                    .named
+<a href=#589 id=589 data-nosnippet>589</a>                    .iter()
+<a href=#590 id=590 data-nosnippet>590</a>                    .any(|named_type| type_mentions_data_type(<span class="kw-2">&amp;</span>named_type.typ, data_type))
+<a href=#591 id=591 data-nosnippet>591</a>        }
+<a href=#592 id=592 data-nosnippet>592</a>        Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; type_mentions_data_type(to, data_type),
+<a href=#593 id=593 data-nosnippet>593</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+<a href=#594 id=594 data-nosnippet>594</a>            args.iter().any(|typ| type_mentions_data_type(typ, data_type))
+<a href=#595 id=595 data-nosnippet>595</a>                || type_mentions_data_type(ret, data_type)
+<a href=#596 id=596 data-nosnippet>596</a>                || type_mentions_data_type(env, data_type)
+<a href=#597 id=597 data-nosnippet>597</a>        }
+<a href=#598 id=598 data-nosnippet>598</a>        Type::Reference(typ, <span class="kw">_</span>) =&gt; type_mentions_data_type(typ, data_type),
+<a href=#599 id=599 data-nosnippet>599</a>        Type::Forall(<span class="kw">_</span>, typ) =&gt; type_mentions_data_type(typ, data_type),
+<a href=#600 id=600 data-nosnippet>600</a>        Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
+<a href=#601 id=601 data-nosnippet>601</a>            type_mentions_data_type(lhs, data_type) || type_mentions_data_type(rhs, data_type)
+<a href=#602 id=602 data-nosnippet>602</a>        }
+<a href=#603 id=603 data-nosnippet>603</a>        Type::Unit
+<a href=#604 id=604 data-nosnippet>604</a>        | Type::Bool
+<a href=#605 id=605 data-nosnippet>605</a>        | Type::Integer(..)
+<a href=#606 id=606 data-nosnippet>606</a>        | Type::FieldElement
+<a href=#607 id=607 data-nosnippet>607</a>        | Type::String(<span class="kw">_</span>)
+<a href=#608 id=608 data-nosnippet>608</a>        | Type::Quoted(<span class="kw">_</span>)
+<a href=#609 id=609 data-nosnippet>609</a>        | Type::Constant(..)
+<a href=#610 id=610 data-nosnippet>610</a>        | Type::TypeVariable(..)
+<a href=#611 id=611 data-nosnippet>611</a>        | Type::NamedGeneric(..)
+<a href=#612 id=612 data-nosnippet>612</a>        | Type::Error =&gt; <span class="bool-val">false</span>,
+<a href=#613 id=613 data-nosnippet>613</a>    }
+<a href=#614 id=614 data-nosnippet>614</a>}
+<a href=#615 id=615 data-nosnippet>615</a>
+<a href=#616 id=616 data-nosnippet>616</a><span class="kw">fn </span>type_mentions_primitive_type(typ: <span class="kw-2">&amp;</span>Type, target_type: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">if </span>typ == target_type {
+<a href=#618 id=618 data-nosnippet>618</a>        <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#619 id=619 data-nosnippet>619</a>    }
+<a href=#620 id=620 data-nosnippet>620</a>
+<a href=#621 id=621 data-nosnippet>621</a>    <span class="kw">match </span>typ {
+<a href=#622 id=622 data-nosnippet>622</a>        Type::Array(length, typ) =&gt; {
+<a href=#623 id=623 data-nosnippet>623</a>            type_mentions_primitive_type(length, target_type)
+<a href=#624 id=624 data-nosnippet>624</a>                || type_mentions_primitive_type(typ, target_type)
+<a href=#625 id=625 data-nosnippet>625</a>        }
+<a href=#626 id=626 data-nosnippet>626</a>        Type::Vector(typ) =&gt; type_mentions_primitive_type(typ, target_type),
+<a href=#627 id=627 data-nosnippet>627</a>        Type::FmtString(length, typ) =&gt; {
+<a href=#628 id=628 data-nosnippet>628</a>            type_mentions_primitive_type(length, target_type)
+<a href=#629 id=629 data-nosnippet>629</a>                || type_mentions_primitive_type(typ, target_type)
+<a href=#630 id=630 data-nosnippet>630</a>        }
+<a href=#631 id=631 data-nosnippet>631</a>        Type::Tuple(types) =&gt; {
+<a href=#632 id=632 data-nosnippet>632</a>            types.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+<a href=#633 id=633 data-nosnippet>633</a>        }
+<a href=#634 id=634 data-nosnippet>634</a>        Type::DataType(<span class="kw">_</span>, generics) =&gt; {
+<a href=#635 id=635 data-nosnippet>635</a>            generics.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+<a href=#636 id=636 data-nosnippet>636</a>        }
+<a href=#637 id=637 data-nosnippet>637</a>        Type::Alias(_type_alias, generics) =&gt; {
+<a href=#638 id=638 data-nosnippet>638</a>            generics.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+<a href=#639 id=639 data-nosnippet>639</a>        }
+<a href=#640 id=640 data-nosnippet>640</a>        Type::TraitAsType(<span class="kw">_</span>, <span class="kw">_</span>, generics) =&gt; {
+<a href=#641 id=641 data-nosnippet>641</a>            generics.ordered.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+<a href=#642 id=642 data-nosnippet>642</a>                || generics
+<a href=#643 id=643 data-nosnippet>643</a>                    .named
+<a href=#644 id=644 data-nosnippet>644</a>                    .iter()
+<a href=#645 id=645 data-nosnippet>645</a>                    .any(|named_type| type_mentions_primitive_type(<span class="kw-2">&amp;</span>named_type.typ, target_type))
+<a href=#646 id=646 data-nosnippet>646</a>        }
+<a href=#647 id=647 data-nosnippet>647</a>        Type::CheckedCast { from: <span class="kw">_</span>, to } =&gt; type_mentions_primitive_type(to, target_type),
+<a href=#648 id=648 data-nosnippet>648</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+<a href=#649 id=649 data-nosnippet>649</a>            args.iter().any(|typ| type_mentions_primitive_type(typ, target_type))
+<a href=#650 id=650 data-nosnippet>650</a>                || type_mentions_primitive_type(ret, target_type)
+<a href=#651 id=651 data-nosnippet>651</a>                || type_mentions_primitive_type(env, target_type)
+<a href=#652 id=652 data-nosnippet>652</a>        }
+<a href=#653 id=653 data-nosnippet>653</a>        Type::Reference(typ, <span class="kw">_</span>) =&gt; type_mentions_primitive_type(typ, target_type),
+<a href=#654 id=654 data-nosnippet>654</a>        Type::Forall(<span class="kw">_</span>, typ) =&gt; type_mentions_primitive_type(typ, target_type),
+<a href=#655 id=655 data-nosnippet>655</a>        Type::InfixExpr(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
+<a href=#656 id=656 data-nosnippet>656</a>            type_mentions_primitive_type(lhs, target_type)
+<a href=#657 id=657 data-nosnippet>657</a>                || type_mentions_primitive_type(rhs, target_type)
+<a href=#658 id=658 data-nosnippet>658</a>        }
+<a href=#659 id=659 data-nosnippet>659</a>        Type::Unit
+<a href=#660 id=660 data-nosnippet>660</a>        | Type::Bool
+<a href=#661 id=661 data-nosnippet>661</a>        | Type::Integer(..)
+<a href=#662 id=662 data-nosnippet>662</a>        | Type::FieldElement
+<a href=#663 id=663 data-nosnippet>663</a>        | Type::String(<span class="kw">_</span>)
+<a href=#664 id=664 data-nosnippet>664</a>        | Type::Quoted(<span class="kw">_</span>)
+<a href=#665 id=665 data-nosnippet>665</a>        | Type::Constant(..)
+<a href=#666 id=666 data-nosnippet>666</a>        | Type::TypeVariable(..)
+<a href=#667 id=667 data-nosnippet>667</a>        | Type::NamedGeneric(..)
+<a href=#668 id=668 data-nosnippet>668</a>        | Type::Error =&gt; <span class="bool-val">false</span>,
+<a href=#669 id=669 data-nosnippet>669</a>    }
+<a href=#670 id=670 data-nosnippet>670</a>}</code></pre></div></section></main></body></html>

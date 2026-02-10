@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["IMPL_SEARCH_RECURSION_LIMIT"]};
+window.SIDEBAR_ITEMS = {"constant":["IMPL_SEARCH_RECURSION_LIMIT"],"enum":["TraitLookupMode"]};

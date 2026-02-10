@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>    }
 <a href=#64 id=64 data-nosnippet>64</a>}
 <a href=#65 id=65 data-nosnippet>65</a>
-<a href=#66 id=66 data-nosnippet>66</a><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+<a href=#66 id=66 data-nosnippet>66</a><span class="attr">#[derive(Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 <a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub struct </span>Location {
 <a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">pub </span>span: Span,
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">pub </span>file: FileId,
@@ -102,4 +102,10 @@
 <a href=#102 id=102 data-nosnippet>102</a>    <span class="kw">fn </span>partial_cmp(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ordering&gt; {
 <a href=#103 id=103 data-nosnippet>103</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.cmp(other))
 <a href=#104 id=104 data-nosnippet>104</a>    }
-<a href=#105 id=105 data-nosnippet>105</a>}</code></pre></div></section></main></body></html>
+<a href=#105 id=105 data-nosnippet>105</a>}
+<a href=#106 id=106 data-nosnippet>106</a>
+<a href=#107 id=107 data-nosnippet>107</a><span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>Location {
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#109 id=109 data-nosnippet>109</a>        <span class="macro">write!</span>(f, <span class="string">"{}/{}:{}"</span>, <span class="self">self</span>.file.as_usize(), <span class="self">self</span>.span.start(), <span class="self">self</span>.span.end())
+<a href=#110 id=110 data-nosnippet>110</a>    }
+<a href=#111 id=111 data-nosnippet>111</a>}</code></pre></div></section></main></body></html>
