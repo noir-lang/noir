@@ -396,8 +396,8 @@ fn collect_all_eligible_variables(
     let mut variables = BTreeMap::default();
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
-    // If there are no stores to a variable then it isn't eligible for mem2reg_simple.
-    let mut variables_with_stores = FxHashSet::default();
+    // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg_simple.
+    let mut variables_with_stores_in_decl_block = FxHashSet::default();
 
     for block_id in blocks.iter().copied() {
         let block = &function.dfg[block_id];
@@ -412,7 +412,10 @@ fn collect_all_eligible_variables(
                 // Storing to an address is fine, but storing an address prevents optimizing it out.
                 Instruction::Store { address, value } => {
                     variables.remove(value);
-                    variables_with_stores.insert(*address);
+
+                    if variables.get(address) == Some(&block_id) {
+                        variables_with_stores_in_decl_block.insert(*address);
+                    }
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
                 _ => instruction.for_each_value(|value| variables.remove(&value)),
@@ -422,7 +425,7 @@ fn collect_all_eligible_variables(
         block.unwrap_terminator().for_each_value(|value| variables.remove(&value));
     }
 
-    variables.retain(|address, _| variables_with_stores.contains(address));
+    variables.retain(|address, _| variables_with_stores_in_decl_block.contains(address));
     variables
 }
 
