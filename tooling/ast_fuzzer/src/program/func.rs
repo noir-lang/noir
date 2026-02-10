@@ -478,7 +478,7 @@ impl<'a> FunctionContext<'a> {
                     }
                 };
             }
-        };
+        }
 
         let mut freq = Freq::new(u, &self.config().expr_freqs)?;
 

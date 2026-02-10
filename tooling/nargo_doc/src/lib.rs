@@ -414,9 +414,21 @@ impl DocItemBuilder<'_> {
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = get_trait_id(trait_.id, self.interner);
-        let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
-        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
+        let ordered_generics =
+            vecmap(self.interner.get_ordered_generics_for_impl(trait_impl_id), |typ| {
+                self.convert_type(typ)
+            });
+
+        TraitImpl {
+            r#type,
+            generics,
+            methods,
+            trait_id,
+            trait_name,
+            trait_generics: ordered_generics,
+            where_clause,
+        }
     }
 
     fn convert_trait_constraint(

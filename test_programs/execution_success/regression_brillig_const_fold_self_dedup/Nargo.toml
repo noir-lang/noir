@@ -1,0 +1,7 @@
+[package]
+name = "regression_brillig_const_fold_self_dedup"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

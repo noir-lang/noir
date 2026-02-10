@@ -81,7 +81,7 @@ impl NodeFinder<'_> {
                 for (ident, typ) in parameters {
                     if matches!(typ.typ, UnresolvedTypeData::Error) {
                         continue;
-                    };
+                    }
                     let param_name = ident.as_str();
                     if names_to_exclude.contains(param_name) {
                         continue;
@@ -115,7 +115,7 @@ impl NodeFinder<'_> {
                 };
                 if matches!(parameter.typ.typ, UnresolvedTypeData::Error) {
                     continue;
-                };
+                }
                 let param_name = ident.as_str();
                 if names_to_exclude.contains(param_name) {
                     continue;

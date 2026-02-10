@@ -56,7 +56,7 @@ fn generate_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
             panic!(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
-        };
+        }
         let test_dir = &test_dir.path();
 
         write!(
@@ -93,7 +93,7 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
             panic!(
                 "Invalid test directory: {test_file_name}. Cannot include `-`, please convert to `_`"
             );
-        };
+        }
         let test_dir = &test_dir.path();
 
         let file_name = test_dir.join("src").join("main.nr");

@@ -693,7 +693,7 @@ impl ChunkFormatter<'_, '_> {
 
                 increase_indentation = true;
             }
-        };
+        }
 
         group.trailing_comment(self.skip_comments_and_whitespace_chunk());
 

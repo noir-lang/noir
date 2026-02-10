@@ -491,7 +491,7 @@ fn trait_bound_on_implementing_type() {
             <Self as Foo>::foo()
         }
     }
-    
+
     fn main() {
         GenericStruct::<Field>::bar();
     }
@@ -574,12 +574,16 @@ fn errors_on_mutually_recursive_impls() {
     pub struct Baz {}
 
     impl Foo for Bar where Baz: Foo {
+                                ^^^ Constraint for `Baz: Foo` is not needed, another matching impl is already in scope
+                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Baz {}).foo()
         }
     }
 
     impl Foo for Baz where Bar: Foo {
+                                ^^^ Constraint for `Bar: Foo` is not needed, another matching impl is already in scope
+                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Bar {}).foo()
         }
@@ -596,4 +600,58 @@ fn errors_on_mutually_recursive_impls() {
     }
     "#;
     check_errors(src);
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/11514
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn where_clause_on_generic_struct_parameter() {
+    let src = r#"
+    pub trait E {
+        fn e(self) -> u32;
+    }
+
+    struct A<F> {
+        f: F,
+    }
+
+    struct F<G> {
+        g: G,
+    }
+
+    fn f<X>(w: A<F<X>>)
+    where
+        F<X>: E,
+    {
+        w.f.e();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/11514 (simplified)
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn where_clause_on_self_type_with_generic() {
+    let src = r#"
+    pub trait E {
+        fn e(self) -> u32;
+    }
+
+    struct A<F> {
+        f: F,
+    }
+
+    fn f<X>(a: A<X>)
+    where
+        A<X>: E,
+    {
+        a.e();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }
