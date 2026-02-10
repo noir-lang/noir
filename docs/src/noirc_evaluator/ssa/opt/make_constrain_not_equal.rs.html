@@ -57,122 +57,135 @@
 <a href=#57 id=57 data-nosnippet>57</a>            <span class="kw">return</span>;
 <a href=#58 id=58 data-nosnippet>58</a>        }
 <a href=#59 id=59 data-nosnippet>59</a>
-<a href=#60 id=60 data-nosnippet>60</a>        <span class="self">self</span>.simple_optimization(|context| {
-<a href=#61 id=61 data-nosnippet>61</a>            <span class="comment">// This Noir code:
-<a href=#62 id=62 data-nosnippet>62</a>            //
-<a href=#63 id=63 data-nosnippet>63</a>            // ```noir
-<a href=#64 id=64 data-nosnippet>64</a>            // assert(x != y)
-<a href=#65 id=65 data-nosnippet>65</a>            // ```
-<a href=#66 id=66 data-nosnippet>66</a>            //
-<a href=#67 id=67 data-nosnippet>67</a>            // always translates to an SSA like this:
-<a href=#68 id=68 data-nosnippet>68</a>            //
-<a href=#69 id=69 data-nosnippet>69</a>            // ```ssa
-<a href=#70 id=70 data-nosnippet>70</a>            // v0 = eq x, y
-<a href=#71 id=71 data-nosnippet>71</a>            // constrain v0 == u1 0
-<a href=#72 id=72 data-nosnippet>72</a>            // ```
-<a href=#73 id=73 data-nosnippet>73</a>            </span><span class="kw">let </span>instruction = context.instruction();
-<a href=#74 id=74 data-nosnippet>74</a>
-<a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">let </span>Instruction::Constrain(lhs, rhs, msg) = instruction <span class="kw">else </span>{
-<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">return</span>;
-<a href=#77 id=77 data-nosnippet>77</a>            };
-<a href=#78 id=78 data-nosnippet>78</a>
-<a href=#79 id=79 data-nosnippet>79</a>            <span class="comment">// Only transform if side effects is one, because
-<a href=#80 id=80 data-nosnippet>80</a>            // `Constrain` does not use `enable_side_effects` while `ConstrainNotEqual` does.
-<a href=#81 id=81 data-nosnippet>81</a>            // In that case (side effects is a variable), the instructions have different semantics
-<a href=#82 id=82 data-nosnippet>82</a>            // and the transformation would be a mis-compilation.
-<a href=#83 id=83 data-nosnippet>83</a>            </span><span class="kw">if </span>!context
-<a href=#84 id=84 data-nosnippet>84</a>                .dfg
-<a href=#85 id=85 data-nosnippet>85</a>                .get_numeric_constant(context.enable_side_effects)
-<a href=#86 id=86 data-nosnippet>86</a>                .is_some_and(|c| c.is_one())
-<a href=#87 id=87 data-nosnippet>87</a>            {
-<a href=#88 id=88 data-nosnippet>88</a>                <span class="kw">return</span>;
-<a href=#89 id=89 data-nosnippet>89</a>            }
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>            <span class="kw">if </span>!context.dfg.get_numeric_constant(<span class="kw-2">*</span>rhs).is_some_and(|constant| constant.is_zero()) {
-<a href=#92 id=92 data-nosnippet>92</a>                <span class="kw">return</span>;
-<a href=#93 id=93 data-nosnippet>93</a>            }
-<a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>context.dfg[<span class="kw-2">*</span>lhs] <span class="kw">else </span>{
-<a href=#96 id=96 data-nosnippet>96</a>                <span class="kw">return</span>;
-<a href=#97 id=97 data-nosnippet>97</a>            };
-<a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">let </span>Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
-<a href=#100 id=100 data-nosnippet>100</a>                context.dfg[<span class="kw-2">*</span>instruction]
-<a href=#101 id=101 data-nosnippet>101</a>            <span class="kw">else </span>{
-<a href=#102 id=102 data-nosnippet>102</a>                <span class="kw">return</span>;
-<a href=#103 id=103 data-nosnippet>103</a>            };
-<a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a>            <span class="kw">let </span>new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
-<a href=#106 id=106 data-nosnippet>106</a>            context.replace_current_instruction_with(new_instruction);
-<a href=#107 id=107 data-nosnippet>107</a>        });
-<a href=#108 id=108 data-nosnippet>108</a>    }
-<a href=#109 id=109 data-nosnippet>109</a>}
-<a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a><span class="attr">#[cfg(test)]
-<a href=#112 id=112 data-nosnippet>112</a></span><span class="kw">mod </span>tests {
-<a href=#113 id=113 data-nosnippet>113</a>    <span class="kw">use crate</span>::{
-<a href=#114 id=114 data-nosnippet>114</a>        assert_ssa_snapshot,
-<a href=#115 id=115 data-nosnippet>115</a>        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
-<a href=#116 id=116 data-nosnippet>116</a>    };
-<a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="attr">#[test]
-<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="kw">fn </span>replaces_constrain_with_constrain_not_equal_in_acir() {
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#121 id=121 data-nosnippet>121</a>        acir(inline) fn main f1 {
-<a href=#122 id=122 data-nosnippet>122</a>          b0(v0: Field, v1: Field):
-<a href=#123 id=123 data-nosnippet>123</a>            v2 = eq v0, v1
-<a href=#124 id=124 data-nosnippet>124</a>            constrain v2 == u1 0
-<a href=#125 id=125 data-nosnippet>125</a>            return
-<a href=#126 id=126 data-nosnippet>126</a>        }
-<a href=#127 id=127 data-nosnippet>127</a>        "</span>;
-<a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">let </span>ssa = ssa.make_constrain_not_equal();
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#131 id=131 data-nosnippet>131</a>        acir(inline) fn main f0 {
-<a href=#132 id=132 data-nosnippet>132</a>          b0(v0: Field, v1: Field):
-<a href=#133 id=133 data-nosnippet>133</a>            v2 = eq v0, v1
-<a href=#134 id=134 data-nosnippet>134</a>            constrain v0 != v1
-<a href=#135 id=135 data-nosnippet>135</a>            return
-<a href=#136 id=136 data-nosnippet>136</a>        }
-<a href=#137 id=137 data-nosnippet>137</a>        "</span>);
-<a href=#138 id=138 data-nosnippet>138</a>    }
-<a href=#139 id=139 data-nosnippet>139</a>
-<a href=#140 id=140 data-nosnippet>140</a>    <span class="attr">#[test]
-<a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">fn </span>does_not_replace_constrain_with_constrain_not_equal_in_brillig() {
-<a href=#142 id=142 data-nosnippet>142</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#143 id=143 data-nosnippet>143</a>        brillig(inline) fn main f1 {
-<a href=#144 id=144 data-nosnippet>144</a>          b0(v0: Field, v1: Field):
-<a href=#145 id=145 data-nosnippet>145</a>            v2 = eq v0, v1
-<a href=#146 id=146 data-nosnippet>146</a>            constrain v2 == u1 0
-<a href=#147 id=147 data-nosnippet>147</a>            return
-<a href=#148 id=148 data-nosnippet>148</a>        }
-<a href=#149 id=149 data-nosnippet>149</a>        "</span>;
-<a href=#150 id=150 data-nosnippet>150</a>        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
+<a href=#60 id=60 data-nosnippet>60</a>        <span class="attr">#[cfg(debug_assertions)]
+<a href=#61 id=61 data-nosnippet>61</a>        </span>make_constrain_not_equal_pre_check(<span class="self">self</span>);
+<a href=#62 id=62 data-nosnippet>62</a>
+<a href=#63 id=63 data-nosnippet>63</a>        <span class="self">self</span>.simple_optimization(|context| {
+<a href=#64 id=64 data-nosnippet>64</a>            <span class="comment">// This Noir code:
+<a href=#65 id=65 data-nosnippet>65</a>            //
+<a href=#66 id=66 data-nosnippet>66</a>            // ```noir
+<a href=#67 id=67 data-nosnippet>67</a>            // assert(x != y)
+<a href=#68 id=68 data-nosnippet>68</a>            // ```
+<a href=#69 id=69 data-nosnippet>69</a>            //
+<a href=#70 id=70 data-nosnippet>70</a>            // always translates to an SSA like this:
+<a href=#71 id=71 data-nosnippet>71</a>            //
+<a href=#72 id=72 data-nosnippet>72</a>            // ```ssa
+<a href=#73 id=73 data-nosnippet>73</a>            // v0 = eq x, y
+<a href=#74 id=74 data-nosnippet>74</a>            // constrain v0 == u1 0
+<a href=#75 id=75 data-nosnippet>75</a>            // ```
+<a href=#76 id=76 data-nosnippet>76</a>            </span><span class="kw">let </span>instruction = context.instruction();
+<a href=#77 id=77 data-nosnippet>77</a>
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="kw">let </span>Instruction::Constrain(lhs, rhs, msg) = instruction <span class="kw">else </span>{
+<a href=#79 id=79 data-nosnippet>79</a>                <span class="kw">return</span>;
+<a href=#80 id=80 data-nosnippet>80</a>            };
+<a href=#81 id=81 data-nosnippet>81</a>
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="comment">// Only transform if side effects is one, because
+<a href=#83 id=83 data-nosnippet>83</a>            // `Constrain` does not use `enable_side_effects` while `ConstrainNotEqual` does.
+<a href=#84 id=84 data-nosnippet>84</a>            // In that case (side effects is a variable), the instructions have different semantics
+<a href=#85 id=85 data-nosnippet>85</a>            // and the transformation would be a mis-compilation.
+<a href=#86 id=86 data-nosnippet>86</a>            </span><span class="kw">if </span>!context
+<a href=#87 id=87 data-nosnippet>87</a>                .dfg
+<a href=#88 id=88 data-nosnippet>88</a>                .get_numeric_constant(context.enable_side_effects)
+<a href=#89 id=89 data-nosnippet>89</a>                .is_some_and(|c| c.is_one())
+<a href=#90 id=90 data-nosnippet>90</a>            {
+<a href=#91 id=91 data-nosnippet>91</a>                <span class="kw">return</span>;
+<a href=#92 id=92 data-nosnippet>92</a>            }
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a>            <span class="kw">if </span>!context.dfg.get_numeric_constant(<span class="kw-2">*</span>rhs).is_some_and(|constant| constant.is_zero()) {
+<a href=#95 id=95 data-nosnippet>95</a>                <span class="kw">return</span>;
+<a href=#96 id=96 data-nosnippet>96</a>            }
+<a href=#97 id=97 data-nosnippet>97</a>
+<a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>context.dfg[<span class="kw-2">*</span>lhs] <span class="kw">else </span>{
+<a href=#99 id=99 data-nosnippet>99</a>                <span class="kw">return</span>;
+<a href=#100 id=100 data-nosnippet>100</a>            };
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>            <span class="kw">let </span>Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
+<a href=#103 id=103 data-nosnippet>103</a>                context.dfg[<span class="kw-2">*</span>instruction]
+<a href=#104 id=104 data-nosnippet>104</a>            <span class="kw">else </span>{
+<a href=#105 id=105 data-nosnippet>105</a>                <span class="kw">return</span>;
+<a href=#106 id=106 data-nosnippet>106</a>            };
+<a href=#107 id=107 data-nosnippet>107</a>
+<a href=#108 id=108 data-nosnippet>108</a>            <span class="kw">let </span>new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+<a href=#109 id=109 data-nosnippet>109</a>            context.replace_current_instruction_with(new_instruction);
+<a href=#110 id=110 data-nosnippet>110</a>        });
+<a href=#111 id=111 data-nosnippet>111</a>    }
+<a href=#112 id=112 data-nosnippet>112</a>}
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a><span class="doccomment">/// Pre-check condition for [Function::make_constrain_not_equal].
+<a href=#115 id=115 data-nosnippet>115</a>///
+<a href=#116 id=116 data-nosnippet>116</a>/// Panics if:
+<a href=#117 id=117 data-nosnippet>117</a>///   - Any ACIR function contains &gt; 1 block, i.e. the CFG hasn't been flattened yet.
+<a href=#118 id=118 data-nosnippet>118</a></span><span class="attr">#[cfg(debug_assertions)]
+<a href=#119 id=119 data-nosnippet>119</a></span><span class="kw">fn </span>make_constrain_not_equal_pre_check(function: <span class="kw-2">&amp;</span>Function) {
+<a href=#120 id=120 data-nosnippet>120</a>    <span class="comment">// flatten_cfg must have run
+<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="kw">super</span>::checks::assert_cfg_is_flattened(function);
+<a href=#122 id=122 data-nosnippet>122</a>}
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a><span class="attr">#[cfg(test)]
+<a href=#125 id=125 data-nosnippet>125</a></span><span class="kw">mod </span>tests {
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="kw">use crate</span>::{
+<a href=#127 id=127 data-nosnippet>127</a>        assert_ssa_snapshot,
+<a href=#128 id=128 data-nosnippet>128</a>        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+<a href=#129 id=129 data-nosnippet>129</a>    };
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="attr">#[test]
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">fn </span>replaces_constrain_with_constrain_not_equal_in_acir() {
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#134 id=134 data-nosnippet>134</a>        acir(inline) fn main f1 {
+<a href=#135 id=135 data-nosnippet>135</a>          b0(v0: Field, v1: Field):
+<a href=#136 id=136 data-nosnippet>136</a>            v2 = eq v0, v1
+<a href=#137 id=137 data-nosnippet>137</a>            constrain v2 == u1 0
+<a href=#138 id=138 data-nosnippet>138</a>            return
+<a href=#139 id=139 data-nosnippet>139</a>        }
+<a href=#140 id=140 data-nosnippet>140</a>        "</span>;
+<a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#142 id=142 data-nosnippet>142</a>        <span class="kw">let </span>ssa = ssa.make_constrain_not_equal();
+<a href=#143 id=143 data-nosnippet>143</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#144 id=144 data-nosnippet>144</a>        acir(inline) fn main f0 {
+<a href=#145 id=145 data-nosnippet>145</a>          b0(v0: Field, v1: Field):
+<a href=#146 id=146 data-nosnippet>146</a>            v2 = eq v0, v1
+<a href=#147 id=147 data-nosnippet>147</a>            constrain v0 != v1
+<a href=#148 id=148 data-nosnippet>148</a>            return
+<a href=#149 id=149 data-nosnippet>149</a>        }
+<a href=#150 id=150 data-nosnippet>150</a>        "</span>);
 <a href=#151 id=151 data-nosnippet>151</a>    }
 <a href=#152 id=152 data-nosnippet>152</a>
 <a href=#153 id=153 data-nosnippet>153</a>    <span class="attr">#[test]
-<a href=#154 id=154 data-nosnippet>154</a>    </span><span class="doccomment">/// https://github.com/noir-lang/noir/issues/10929
-<a href=#155 id=155 data-nosnippet>155</a>    /// When side effects is not one, the transformation
-<a href=#156 id=156 data-nosnippet>156</a>    /// should NOT happen because `Constrain` and `ConstrainNotEqual` have different
-<a href=#157 id=157 data-nosnippet>157</a>    /// semantics with respect to `enable_side_effects`:
-<a href=#158 id=158 data-nosnippet>158</a>    /// - `Constrain` ignores `enable_side_effects` (always executes)
-<a href=#159 id=159 data-nosnippet>159</a>    /// - `ConstrainNotEqual` respects `enable_side_effects` (only executes when enabled)
-<a href=#160 id=160 data-nosnippet>160</a>    ///
-<a href=#161 id=161 data-nosnippet>161</a>    /// Because `Constrain` ignores side effects, during the `remove_enable_side_effects`
-<a href=#162 id=162 data-nosnippet>162</a>    /// pass it might end up under a different side effect than it started with after flattening,
-<a href=#163 id=163 data-nosnippet>163</a>    /// which makes it unsafe to transform it into `ConstrainNotEqual`. Since we don't validate
-<a href=#164 id=164 data-nosnippet>164</a>    /// whether an arbitrary SSA has a side effect variable above `Constrain` which is compatible
-<a href=#165 id=165 data-nosnippet>165</a>    /// with its variables, the conservative thing to do is to only transform if we know it it is safe.
-<a href=#166 id=166 data-nosnippet>166</a>    </span><span class="kw">fn </span>regression_10929() {
-<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#168 id=168 data-nosnippet>168</a>        acir(inline) predicate_pure fn main f0 {
-<a href=#169 id=169 data-nosnippet>169</a>          b0(v0: Field, v1: Field, v2: u1):
-<a href=#170 id=170 data-nosnippet>170</a>            enable_side_effects v2
-<a href=#171 id=171 data-nosnippet>171</a>            v3 = eq v0, v1
-<a href=#172 id=172 data-nosnippet>172</a>            constrain v3 == u1 0
-<a href=#173 id=173 data-nosnippet>173</a>            return
-<a href=#174 id=174 data-nosnippet>174</a>        }
-<a href=#175 id=175 data-nosnippet>175</a>        "#</span>;
-<a href=#176 id=176 data-nosnippet>176</a>        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
-<a href=#177 id=177 data-nosnippet>177</a>    }
-<a href=#178 id=178 data-nosnippet>178</a>}</code></pre></div></section></main></body></html>
+<a href=#154 id=154 data-nosnippet>154</a>    </span><span class="kw">fn </span>does_not_replace_constrain_with_constrain_not_equal_in_brillig() {
+<a href=#155 id=155 data-nosnippet>155</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#156 id=156 data-nosnippet>156</a>        brillig(inline) fn main f1 {
+<a href=#157 id=157 data-nosnippet>157</a>          b0(v0: Field, v1: Field):
+<a href=#158 id=158 data-nosnippet>158</a>            v2 = eq v0, v1
+<a href=#159 id=159 data-nosnippet>159</a>            constrain v2 == u1 0
+<a href=#160 id=160 data-nosnippet>160</a>            return
+<a href=#161 id=161 data-nosnippet>161</a>        }
+<a href=#162 id=162 data-nosnippet>162</a>        "</span>;
+<a href=#163 id=163 data-nosnippet>163</a>        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
+<a href=#164 id=164 data-nosnippet>164</a>    }
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="attr">#[test]
+<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="doccomment">/// https://github.com/noir-lang/noir/issues/10929
+<a href=#168 id=168 data-nosnippet>168</a>    /// When side effects is not one, the transformation
+<a href=#169 id=169 data-nosnippet>169</a>    /// should NOT happen because `Constrain` and `ConstrainNotEqual` have different
+<a href=#170 id=170 data-nosnippet>170</a>    /// semantics with respect to `enable_side_effects`:
+<a href=#171 id=171 data-nosnippet>171</a>    /// - `Constrain` ignores `enable_side_effects` (always executes)
+<a href=#172 id=172 data-nosnippet>172</a>    /// - `ConstrainNotEqual` respects `enable_side_effects` (only executes when enabled)
+<a href=#173 id=173 data-nosnippet>173</a>    ///
+<a href=#174 id=174 data-nosnippet>174</a>    /// Because `Constrain` ignores side effects, during the `remove_enable_side_effects`
+<a href=#175 id=175 data-nosnippet>175</a>    /// pass it might end up under a different side effect than it started with after flattening,
+<a href=#176 id=176 data-nosnippet>176</a>    /// which makes it unsafe to transform it into `ConstrainNotEqual`. Since we don't validate
+<a href=#177 id=177 data-nosnippet>177</a>    /// whether an arbitrary SSA has a side effect variable above `Constrain` which is compatible
+<a href=#178 id=178 data-nosnippet>178</a>    /// with its variables, the conservative thing to do is to only transform if we know it it is safe.
+<a href=#179 id=179 data-nosnippet>179</a>    </span><span class="kw">fn </span>regression_10929() {
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#181 id=181 data-nosnippet>181</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#182 id=182 data-nosnippet>182</a>          b0(v0: Field, v1: Field, v2: u1):
+<a href=#183 id=183 data-nosnippet>183</a>            enable_side_effects v2
+<a href=#184 id=184 data-nosnippet>184</a>            v3 = eq v0, v1
+<a href=#185 id=185 data-nosnippet>185</a>            constrain v3 == u1 0
+<a href=#186 id=186 data-nosnippet>186</a>            return
+<a href=#187 id=187 data-nosnippet>187</a>        }
+<a href=#188 id=188 data-nosnippet>188</a>        "#</span>;
+<a href=#189 id=189 data-nosnippet>189</a>        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
+<a href=#190 id=190 data-nosnippet>190</a>    }
+<a href=#191 id=191 data-nosnippet>191</a>}</code></pre></div></section></main></body></html>

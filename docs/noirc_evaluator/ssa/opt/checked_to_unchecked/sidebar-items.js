@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_max_num_bits"]};
+window.SIDEBAR_ITEMS = {"fn":["checked_to_unchecked_pre_check","get_max_num_bits"]};
