@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770759313997,
+  "lastUpdate": 1770759440404,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1d434ab2d99e8c8566e817459a3816edeaadbc10",
-          "message": "chore(ssa): Skip emitting databus instructions for Brillig functions (#11418)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
-          "timestamp": "2026-02-03T10:51:18Z",
-          "tree_id": "43f48e03151afa5ac3bdf9d42b61e0018d24b7ec",
-          "url": "https://github.com/noir-lang/noir/commit/1d434ab2d99e8c8566e817459a3816edeaadbc10"
-        },
-        "date": 1770117406532,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267356,
-            "range": "± 1970",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 238775,
-            "range": "± 7307",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799958,
-            "range": "± 1462",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2732907,
             "range": "± 1854",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "de3035859913df5f76069d10205d6d5f08c677de",
+          "message": "fix(ssa): Handle inlining functions with no reachable return (#11528)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-10T21:13:01Z",
+          "tree_id": "06377961c17e2975a09e27cffcc62e3eea283659",
+          "url": "https://github.com/noir-lang/noir/commit/de3035859913df5f76069d10205d6d5f08c677de"
+        },
+        "date": 1770759393638,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 235489,
+            "range": "± 569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 207208,
+            "range": "± 1838",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2201861,
+            "range": "± 2711",
             "unit": "ns/iter"
           }
         ]
