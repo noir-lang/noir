@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770745826542,
+  "lastUpdate": 1770745828608,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49423,75 +49423,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "af76ed21dd9793242c94ba5af4052a70bdb8a990",
-          "message": "chore(ssa): force-unroll small Brillig loops under instruction threshold (#11431)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-02-02T18:23:10Z",
-          "tree_id": "d65b2b71a024f8388c5876da02a61170d7dc9d32",
-          "url": "https://github.com/noir-lang/noir/commit/af76ed21dd9793242c94ba5af4052a70bdb8a990"
-        },
-        "date": 1770059628984,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.168,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.192,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.117,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.097,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -54336,6 +54267,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.104,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea34c2a3238ef89abec5f14ccd8be0be86f2d0b0",
+          "message": "fix: correct way to track type recursion (#11509)",
+          "timestamp": "2026-02-10T17:12:40Z",
+          "tree_id": "62715ac7e4f927ba135470b4efb6257b47d87360",
+          "url": "https://github.com/noir-lang/noir/commit/ea34c2a3238ef89abec5f14ccd8be0be86f2d0b0"
+        },
+        "date": 1770745778229,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.93,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.908,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.914,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.378,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.41,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.382,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.35,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.358,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.342,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.348,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.366,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.123,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.109,
             "unit": "s"
           }
         ]
