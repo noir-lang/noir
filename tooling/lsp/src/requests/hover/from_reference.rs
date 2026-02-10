@@ -363,8 +363,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_impl = trait_impl.borrow();
         let trait_ = args.interner.get_trait(trait_impl.trait_id);
 
-        let generics = trait_impl
-            .trait_generics
+        let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
+
+        let generics = ordered_generics
             .iter()
             .filter_map(|generic| {
                 if let Type::NamedGeneric(generic) = generic {
@@ -390,9 +391,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
         string.push(' ');
         string.push_str(trait_.name.as_str());
-        if !trait_impl.trait_generics.is_empty() {
+        if !ordered_generics.is_empty() {
             string.push('<');
-            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+            for (index, generic) in ordered_generics.iter().enumerate() {
                 if index > 0 {
                     string.push_str(", ");
                 }
