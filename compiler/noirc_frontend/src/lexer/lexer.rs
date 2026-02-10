@@ -597,7 +597,7 @@ impl<'a> Lexer<'a> {
                     };
 
                     string.push(char);
-                    length += 1;
+                    length += char.len_utf8() as u32;
 
                     if char == '{' || char == '}' {
                         // This might look a bit strange, but if there's `{{` or `}}` in the format string

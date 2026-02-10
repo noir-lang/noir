@@ -1,0 +1,6 @@
+[package]
+name = "fmtstr_utf8_length"
+type = "bin"
+authors = [""]
+
+[dependencies]
