@@ -1,7 +1,10 @@
 //! Tests for trait inheritance (supertraits).
 //! Validates that supertrait bounds are correctly enforced and resolved, including with generics.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::{
+    test_utils::stdlib_src,
+    tests::{assert_no_errors, check_errors, check_errors_with_stdlib},
+};
 
 #[test]
 fn trait_inheritance() {
@@ -212,4 +215,130 @@ fn trait_impl_with_child_constraint() {
     impl<T: Child> Child for Struct<T> {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn trait_inheritance_with_ambiguous_associated_type() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Bar;
+        // This is rejected by Rust as ambiguous, but is accepted by Noir.
+        fn qux() -> Self::Bar;
+
+        fn quy() -> <Self as Qux>::Bar;
+        fn quz() -> <Self as Foo>::Bar;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_inheritance_assoc_via_self_as_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub trait Qux: Foo {
+        fn quz() -> <Self as Foo>::Bar;
+    }
+
+    pub struct Spam;
+
+    impl Foo for Spam {
+        type Bar = u32;
+    }
+
+    impl Qux for Spam {
+        fn quz() -> <Self as Foo>::Bar {
+            10
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Bar;
+        fn quy() -> <Self as Qux>::Bar;
+        fn quz() -> <Self as Foo>::Bar;
+    }
+
+    pub struct Spam;
+
+    impl Foo for Spam {
+        type Bar = u32;
+        fn foo() -> Self::Bar { 10 }
+    }
+
+    impl Qux for Spam {
+        type Bar = str<5>;
+
+        fn quy() -> <Self as Qux>::Bar {
+            "hello"
+        }
+        fn quz() -> <Self as Foo>::Bar {
+            <Self as Foo>::foo()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_inheritance_using_eq_in_default_method() {
+    let src = "
+    pub trait Foo: Eq {
+        fn foo(self) -> bool {
+            self == self
+        }
+    }
+    ";
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
+#[test]
+fn trait_inheritance_with_calling_method_on_self_in_default_method() {
+    let src = r#"
+    pub trait Empty: Eq {
+        fn empty() -> Self;
+
+        fn is_empty(self) -> bool {
+            self.eq(Self::empty())
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
+#[test]
+fn trait_self_bound_with_calling_method_on_self_in_default_method() {
+    let src = r#"
+    pub trait Empty
+    where Self: Eq {
+        fn empty() -> Self;
+
+        fn is_empty(self) -> bool {
+            self.eq(Self::empty())
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }
