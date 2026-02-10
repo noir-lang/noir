@@ -49,7 +49,15 @@ impl Function {
         let mut entry_states = BTreeMap::default();
         let mut exit_states = BTreeMap::default();
 
-        let variables = collect_all_eligible_variables(inserter.function, &blocks);
+        let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
+        println!("Found {} variables to optimize out", variables.len());
+
+        // Limit increase in memory usage by arbitrarily limiting this pass to 100 variables
+        let mut i = 0;
+        variables.retain(|_, _| {
+            i += 1;
+            i <= 100
+        });
 
         add_block_params_and_find_exit_states(
             &blocks,
