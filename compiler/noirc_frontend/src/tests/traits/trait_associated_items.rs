@@ -568,6 +568,76 @@ fn associated_type_mismatch_across_modules() {
 }
 
 #[test]
+fn associated_type_mismatch_with_inheritance() {
+    // This code would be rejected by Rust, without further evidence to support their equivalence.
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo(x: Self::Bar) -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Baz;
+        fn qux(x: Self::Baz) -> Self::Baz {
+            <Self as Foo>::foo(x)
+             ^^^^^^^^^^^ No matching impl found for `Self: Foo<Bar = Self::Baz>`
+             ~~~~~~~~~~~ No impl for `Self: Foo<Bar = Self::Baz>`
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_and_constant_composite() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        let Baz: u32;
+        fn foo(x: [Self::Bar; Self::Baz]) -> u32;
+    }
+
+    impl Foo for () {
+        type Bar = ();
+        let Baz: u32 = 0;
+        fn foo(_x: [Self::Bar; Self::Baz]) -> u32 {
+            0
+        }
+    }
+
+    fn main() {
+        let _ = <() as Foo>::foo([(); 0]);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_refer_to_generic() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    impl<let M: u32> Deserialize for [Field; M] {
+        let N: u32 = M;
+
+        fn deserialize(fields: Self) -> Self {
+            fields
+        }
+    }
+
+    pub fn go<let M: u32>(fields: [Field; M]) {
+        let _data = <[Field; M] as Deserialize<N = M>>::deserialize(fields);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn associated_type_behind_self_as_trait() {
     let src = r#"
     pub trait Foo {
@@ -808,6 +878,24 @@ fn associated_constant_in_trait_method_missing_in_impl() {
 }
 
 #[test]
+fn associated_type_via_self_as_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+        fn foo() -> <Self as Foo>::Bar { 10 }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn generic_associated_type_access_direct_bound() {
     // T::Qux works when T: Baz and Baz defines Qux (direct bound syntax)
     let src = r#"
@@ -823,6 +911,23 @@ fn generic_associated_type_access_direct_bound() {
 }
 
 #[test]
+fn associated_type_via_self_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+        fn foo() -> Self::Bar { 10 }
+    }"#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn generic_associated_type_access_where_clause() {
     // T::Qux works when T: Baz and Baz defines Qux (where clause syntax)
     let src = r#"
@@ -831,6 +936,27 @@ fn generic_associated_type_access_where_clause() {
 
     impl<T> Foo for T where T: Baz {
         type Bar = T::Qux;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_referred_via_full_path_from_function() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+    }
+
+    pub fn qux_foo_bar() -> <Qux as Foo>::Bar {
+        0
     }
     fn main() {}
     "#;
@@ -943,19 +1069,19 @@ fn associated_type_in_trait_impl_method_where_clause() {
 
 #[test]
 fn associated_type_accessed_through_self_in_trait_impl_method() {
-    let src = "  
-    trait HasQux { type Qux; }                                                                                                                            
-    trait Foo { type Bar: HasQux; }                                                                                                                  
-    trait Result { 
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait Result {
         type Output;
-        fn use_bar(_x: Self::Output) {}   
-    }                                                                                                                                       
-                                                                                                                                             
-    impl<T> Result for T where T: Foo {                                                                                   
-        type Output = T::Bar;  
-        fn use_bar(_x: Self::Output) {}                                                                          
-    }                                                                                                                                        
-    fn main() { }                                                                                                                             
+        fn use_bar(_x: Self::Output) {}
+    }
+
+    impl<T> Result for T where T: Foo {
+        type Output = T::Bar;
+        fn use_bar(_x: Self::Output) {}
+    }
+    fn main() { }
     ";
     check_errors(src);
 }
@@ -963,17 +1089,17 @@ fn associated_type_accessed_through_self_in_trait_impl_method() {
 /// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
 #[test]
 fn fully_qualified_nested_associated_type() {
-    let src = "                                                                                                                              
-    trait HasQux { type Qux; }                                                                                                               
-    trait Foo { type Bar: HasQux; }                                                                                                          
-    trait Result { type Output; }                                                                                                            
-                                                                                                                                             
-    impl<T> Result for T where T: Foo {                                                                                                      
-        type Output = <T::Bar as HasQux>::Qux;  
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait Result { type Output; }
+
+    impl<T> Result for T where T: Foo {
+        type Output = <T::Bar as HasQux>::Qux;
                                  ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
-                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`                                                                             
-    }                                                                                                                                        
-    fn main() {}                                                                                                                             
+                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`
+    }
+    fn main() {}
     ";
     check_errors(src);
 }
