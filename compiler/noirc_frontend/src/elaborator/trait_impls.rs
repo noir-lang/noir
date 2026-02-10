@@ -1015,7 +1015,7 @@ impl Elaborator<'_> {
             .unwrap_or_default();
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set");
-        self.interner.set_generic_types_for_impl(impl_id, ordered_generics, named_generics);
+        self.interner.set_trait_generics_for_impl(impl_id, ordered_generics, named_generics);
 
         trait_impl.unresolved_associated_types = associated_types;
     }

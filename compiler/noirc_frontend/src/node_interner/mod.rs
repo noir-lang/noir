@@ -1410,7 +1410,7 @@ impl NodeInterner {
     /// * e.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
     ///
     /// Each type in [`NamedType`] will be wrapped in a [`Type::TypeVariable`] if it's of kind [`Kind::Numeric`].
-    pub(crate) fn set_generic_types_for_impl(
+    pub(crate) fn set_trait_generics_for_impl(
         &mut self,
         impl_id: TraitImplId,
         ordered_generics: Vec<Type>,
