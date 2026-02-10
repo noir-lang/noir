@@ -57,6 +57,9 @@ impl Function {
             return;
         }
 
+        #[cfg(debug_assertions)]
+        make_constrain_not_equal_pre_check(self);
+
         self.simple_optimization(|context| {
             // This Noir code:
             //
@@ -106,6 +109,16 @@ impl Function {
             context.replace_current_instruction_with(new_instruction);
         });
     }
+}
+
+/// Pre-check condition for [Function::make_constrain_not_equal].
+///
+/// Panics if:
+///   - Any ACIR function contains > 1 block, i.e. the CFG hasn't been flattened yet.
+#[cfg(debug_assertions)]
+fn make_constrain_not_equal_pre_check(function: &Function) {
+    // flatten_cfg must have run
+    super::checks::assert_cfg_is_flattened(function);
 }
 
 #[cfg(test)]

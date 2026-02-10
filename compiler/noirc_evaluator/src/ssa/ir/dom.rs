@@ -69,7 +69,8 @@ impl DominatorTree {
     /// This returns `None` if `block_id` is not reachable from the entry block, or if it is the
     /// entry block which has no dominators.
     pub(crate) fn immediate_dominator(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
-        self.nodes.get(&block_id).and_then(|node| node.immediate_dominator)
+        let node = self.nodes.get(&block_id)?;
+        node.immediate_dominator
     }
 
     /// Compare two blocks relative to the reverse post-order.

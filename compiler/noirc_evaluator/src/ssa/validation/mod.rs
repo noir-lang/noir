@@ -176,7 +176,7 @@ impl<'f> Validator<'f> {
                     )
                 {
                     panic!("Cannot use `{operator}` with field elements");
-                };
+                }
             }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {

@@ -138,7 +138,7 @@ impl Loops {
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
             if let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) {
                 context.hoist_loop_invariants(&loop_, &self.yet_to_unroll, pre_header);
-            };
+            }
         }
 
         context.map_dependent_instructions();
@@ -398,7 +398,7 @@ impl<'f> LoopInvariantContext<'f> {
                 )
             {
                 context.all_induction_variables.insert(induction_variable, bounds);
-            };
+            }
         }
 
         context
@@ -478,7 +478,7 @@ impl<'f> LoopInvariantContext<'f> {
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
-        };
+        }
     }
 
     /// Checks whether a `block` is control dependent on any blocks after

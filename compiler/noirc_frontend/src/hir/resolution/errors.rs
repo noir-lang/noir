@@ -156,8 +156,6 @@ pub enum ResolverError {
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("Type `{typ}` is more private than item `{item}`")]
     TypeIsMorePrivateThenItem { typ: String, item: String, location: Location },
-    #[error("Attribute function `{function}` is not a path")]
-    AttributeFunctionIsNotAPath { function: String, location: Location },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, location: Location },
     #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}`")]
@@ -238,7 +236,6 @@ impl ResolverError {
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
-            | ResolverError::AttributeFunctionIsNotAPath { location, .. }
             | ResolverError::AttributeFunctionNotInScope { location, .. }
             | ResolverError::TraitNotImplemented { location, .. }
             | ResolverError::ExpectedTrait { location, .. }
@@ -781,13 +778,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Type `{typ}` is more private than item `{item}`"),
                     String::new(),
-                    *location,
-                )
-            },
-            ResolverError::AttributeFunctionIsNotAPath { function, location } => {
-                Diagnostic::simple_error(
-                    format!("Attribute function `{function}` is not a path"),
-                    "An attribute's function should be a single identifier or a path".into(),
                     *location,
                 )
             },

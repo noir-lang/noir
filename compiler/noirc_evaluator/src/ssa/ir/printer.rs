@@ -61,7 +61,7 @@ impl Display for Printer<'_> {
                     writeln!(f, "{id}")?;
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
-            };
+            }
         }
 
         if globals_dfg.values_iter().next().is_some() {

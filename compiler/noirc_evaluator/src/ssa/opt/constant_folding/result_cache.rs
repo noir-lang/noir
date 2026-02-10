@@ -112,14 +112,14 @@ impl InstructionResultCache {
             // We expect globals to be immutable, so we can cache those results indefinitely.
             if dfg.is_global(*value) {
                 return;
-            };
+            }
 
             let value_type = dfg.type_of_value(*value);
 
             // We only care about arrays and vectors. (`Store` can act on non-array values as well)
             if !value_type.is_array() {
                 return;
-            };
+            }
 
             // Look up the original instruction that created the value, which is the cache key.
             let instruction = match &dfg[*value] {
@@ -205,17 +205,16 @@ impl ResultCache {
         dom: &mut DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin, results)| {
-            if dom.dominates(*origin, block) {
-                Some(CacheResult::Cached { results })
-            } else if !has_side_effects {
-                // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin, block);
-                Some(CacheResult::NeedToHoistToCommonBlock { dominator })
-            } else {
-                None
-            }
-        })
+        let (origin, results) = self.result.as_ref()?;
+        if dom.dominates(*origin, block) {
+            Some(CacheResult::Cached { results })
+        } else if !has_side_effects {
+            // Insert a copy of this instruction in the common dominator
+            let dominator = dom.common_dominator(*origin, block);
+            Some(CacheResult::NeedToHoistToCommonBlock { dominator })
+        } else {
+            None
+        }
     }
 }
 

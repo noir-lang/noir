@@ -41,7 +41,6 @@ use crate::{
         },
         def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
-        type_check::generics::TraitGenerics,
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -1388,9 +1387,8 @@ fn trait_impl_trait_generic_args(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_impl_id = get_trait_impl(argument)?;
-    let trait_impl = interner.get_trait_implementation(trait_impl_id);
-    let trait_impl = trait_impl.borrow();
-    let trait_generics = trait_impl.trait_generics.iter().map(|t| Value::Type(t.clone())).collect();
+    let ordered_generics = interner.get_ordered_generics_for_impl(trait_impl_id);
+    let trait_generics = ordered_generics.iter().map(|t| Value::Type(t.clone())).collect();
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Type)));
 
     Ok(Value::Vector(trait_generics, vector_type))
@@ -2565,10 +2563,8 @@ fn function_def_as_typed_expr(
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
-        let ordered = trait_impl.trait_generics.clone();
-        let named =
-            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
-        let trait_generics = TraitGenerics { ordered, named };
+        let trait_generics =
+            interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
