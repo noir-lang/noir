@@ -318,10 +318,9 @@ impl Context {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
                     // Guard against self-deduplication: if the cached results are exactly
-                    // our own results, the instruction was hoisted here in an earlier visit
-                    // and has now been `take_instructions`-ed out. The cache still points to
-                    // itself, so mapping old→cached is an identity (no-op) that would cause
-                    // us to skip re-inserting the instruction, orphaning its result values.
+                    // our own results, the instruction was hoisted here in an earlier visit.
+                    // The cache still points to itself, so mapping old→cached is a no-op that
+                    // would cause us to skip re-inserting the instruction, orphaning its result values.
                     // In that case, fall through and re-insert instead of deduplicating.
                     // The `!is_empty` guard is needed because Constrain instructions have
                     // no results and trivially match.
