@@ -13,7 +13,7 @@ use super::{AcirContext, AcirValue, AcirVar};
 impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
     /// to represent the result of the blackbox function.
-    pub(super) fn black_box_function(
+    pub(crate) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
