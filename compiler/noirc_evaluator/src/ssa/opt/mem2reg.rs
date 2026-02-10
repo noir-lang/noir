@@ -3531,9 +3531,7 @@ mod tests {
     //
     // This test directly checks the `instruction_input_references` set because the bug
     // is currently masked at the store-removal stage by `mark_all_unknown` → `clear_aliases`
-    // making the aliases unknown (which conservatively protects stores). The fix is still
-    // needed: if `clear_aliases` behavior ever changes, the missing input references would
-    // cause incorrect store removal.
+    // making the aliases unknown (which conservatively protects stores).
     #[test]
     fn call_with_unknown_alias_array_populates_instruction_input_references() {
         use crate::ssa::ir::basic_block::BasicBlockId;
