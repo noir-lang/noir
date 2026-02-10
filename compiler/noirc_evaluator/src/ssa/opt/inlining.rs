@@ -1456,6 +1456,42 @@ mod tests {
         ");
     }
 
+    /// Same as [inline_diverging_function] but the loop header has block parameters.
+    #[test]
+    fn inline_diverging_function_with_block_parameters() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v2 = add v0, v1
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1(v2, v0)
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v4 = add v0, v1
+            jmp b2()
+          b2():
+            jmp b1(v4, v0)
+        }
+        ");
+    }
+
     #[test]
     fn does_not_inline_acir_fold_functions() {
         let src = "
