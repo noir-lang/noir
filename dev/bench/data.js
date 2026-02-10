@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770732751056,
+  "lastUpdate": 1770733142142,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23076,48 +23076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "091e39df0d21a2311d24983b524a429bb77acc45",
-          "message": "fix: unify macro call type with actual type in comptime blocks (#11411)",
-          "timestamp": "2026-02-02T13:59:58Z",
-          "tree_id": "9668cfbc3904cfdead0aafb5d061eac3c55122f4",
-          "url": "https://github.com/noir-lang/noir/commit/091e39df0d21a2311d24983b524a429bb77acc45"
-        },
-        "date": 1770042045481,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258691,
-            "range": "± 429",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228836,
-            "range": "± 2669",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799438,
-            "range": "± 2290",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25169,6 +25127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2725035,
             "range": "± 4340",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "20aac96320c45e179cbf893f377395ccca0d0855",
+          "message": "chore: remove duplicated lines from docs (#11525)",
+          "timestamp": "2026-02-10T14:15:39Z",
+          "tree_id": "48e0f8a9545fdaf9d50de1cb06e6917a26f8fd9e",
+          "url": "https://github.com/noir-lang/noir/commit/20aac96320c45e179cbf893f377395ccca0d0855"
+        },
+        "date": 1770733095858,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 237542,
+            "range": "± 834",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 208025,
+            "range": "± 1218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2205087,
+            "range": "± 5006",
             "unit": "ns/iter"
           }
         ]
