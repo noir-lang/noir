@@ -57,7 +57,7 @@ Test cases are auto-generated from these directories by `tooling/nargo_cli/build
 
 ## Build & Development Commands
 
-The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.87.0. Run `just --list` to see all available commands.
+The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.
 
 ### Building
 

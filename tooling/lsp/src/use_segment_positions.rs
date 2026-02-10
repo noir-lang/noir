@@ -88,7 +88,7 @@ impl UseSegmentPositions {
         let kind_string = match use_tree.prefix.kind {
             PathKind::Crate => Some("crate".to_string()),
             PathKind::Super => Some("super".to_string()),
-            PathKind::Dep | PathKind::Plain => None,
+            PathKind::Absolute | PathKind::Plain => None,
             PathKind::Resolved(_) => Some("$crate".to_string()),
         };
         if let Some(kind_string) = kind_string {
@@ -332,10 +332,10 @@ fn new_use_completion_item_additional_text_edits(
     let mut newlines = "\n";
 
     // If the line we are inserting into is not an empty line, insert an extra line to make some room
-    if let Some(line_text) = request.lines.get(line as usize) {
-        if !line_text.trim().is_empty() {
-            newlines = "\n\n";
-        }
+    if let Some(line_text) = request.lines.get(line as usize)
+        && !line_text.trim().is_empty()
+    {
+        newlines = "\n\n";
     }
 
     vec![TextEdit {

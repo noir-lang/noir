@@ -457,16 +457,16 @@ impl ChunkFormatter<'_, '_> {
                     //       let y = x + 1;
                     //       y * 2
                     //     })
-                    if expr_index == exprs_len - 1 {
-                        if let ExpressionKind::Lambda(lambda) = expr.kind {
-                            let mut lambda_group = formatter.format_lambda(*lambda);
-                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
-                                first_line_width: lambda_group.first_line_width,
-                                indentation: None,
-                            };
-                            chunks.group(lambda_group.group);
-                            return;
-                        }
+                    if expr_index == exprs_len - 1
+                        && let ExpressionKind::Lambda(lambda) = expr.kind
+                    {
+                        let mut lambda_group = formatter.format_lambda(*lambda);
+                        lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
+                            first_line_width: lambda_group.first_line_width,
+                            indentation: None,
+                        };
+                        chunks.group(lambda_group.group);
+                        return;
                     }
                     expr_index += 1;
 
@@ -1735,6 +1735,13 @@ global y = 1;
     fn format_call() {
         let src = "global x =  foo :: bar ( 1, 2 )  ;";
         let expected = "global x = foo::bar(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_dep_call() {
+        let src = "global x =  dep :: foo :: bar ( 1, 2 )  ;";
+        let expected = "global x = ::foo::bar(1, 2);\n";
         assert_format(src, expected);
     }
 
