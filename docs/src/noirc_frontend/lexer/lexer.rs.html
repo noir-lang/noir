@@ -597,13 +597,13 @@
 <a href=#597 id=597 data-nosnippet>597</a>                    };
 <a href=#598 id=598 data-nosnippet>598</a>
 <a href=#599 id=599 data-nosnippet>599</a>                    string.push(char);
-<a href=#600 id=600 data-nosnippet>600</a>                    length += <span class="number">1</span>;
+<a href=#600 id=600 data-nosnippet>600</a>                    length += char.len_utf8() <span class="kw">as </span>u32;
 <a href=#601 id=601 data-nosnippet>601</a>
 <a href=#602 id=602 data-nosnippet>602</a>                    <span class="kw">if </span>char == <span class="string">'{' </span>|| char == <span class="string">'}' </span>{
 <a href=#603 id=603 data-nosnippet>603</a>                        <span class="comment">// This might look a bit strange, but if there's `{{` or `}}` in the format string
 <a href=#604 id=604 data-nosnippet>604</a>                        // then it will be `{` and `}` in the string fragment respectively, but on the codegen
 <a href=#605 id=605 data-nosnippet>605</a>                        // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
-<a href=#606 id=606 data-nosnippet>606</a>                        // thus the actual length of the codegen'd string will be one more than what we get here.
+<a href=#606 id=606 data-nosnippet>606</a>                        // thus the length of `{{` and `}}` need to be counted as 2.
 <a href=#607 id=607 data-nosnippet>607</a>                        //
 <a href=#608 id=608 data-nosnippet>608</a>                        // We could just make the fragment include the double curly braces, but then the interpreter
 <a href=#609 id=609 data-nosnippet>609</a>                        // would need to undo the curly braces, so it's simpler to add them during codegen.
@@ -673,8 +673,8 @@
 <a href=#673 id=673 data-nosnippet>673</a>                        other
 <a href=#674 id=674 data-nosnippet>674</a>                    }
 <a href=#675 id=675 data-nosnippet>675</a>                };
-<a href=#676 id=676 data-nosnippet>676</a>                length += <span class="number">1</span>;
-<a href=#677 id=677 data-nosnippet>677</a>                string.push(char);
+<a href=#676 id=676 data-nosnippet>676</a>                string.push(char);
+<a href=#677 id=677 data-nosnippet>677</a>                length += char.len_utf8() <span class="kw">as </span>u32;
 <a href=#678 id=678 data-nosnippet>678</a>            }
 <a href=#679 id=679 data-nosnippet>679</a>
 <a href=#680 id=680 data-nosnippet>680</a>            length += <span class="number">1</span>; <span class="comment">// for the closing curly brace
@@ -1655,4 +1655,17 @@
 <a href=#1655 id=1655 data-nosnippet>1655</a>        <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(str);
 <a href=#1656 id=1656 data-nosnippet>1656</a>        <span class="kw">let _ </span>= lexer.next_token();
 <a href=#1657 id=1657 data-nosnippet>1657</a>    }
-<a href=#1658 id=1658 data-nosnippet>1658</a>}</code></pre></div></section></main></body></html>
+<a href=#1658 id=1658 data-nosnippet>1658</a>
+<a href=#1659 id=1659 data-nosnippet>1659</a>    <span class="attr">#[test]
+<a href=#1660 id=1660 data-nosnippet>1660</a>    </span><span class="kw">fn </span>fmtstr_utf8_length() {
+<a href=#1661 id=1661 data-nosnippet>1661</a>        <span class="kw">let </span>str = <span class="string">"f\"黒{x}\""</span>;
+<a href=#1662 id=1662 data-nosnippet>1662</a>        <span class="macro">assert_eq!</span>(str.len(), <span class="number">9</span>);
+<a href=#1663 id=1663 data-nosnippet>1663</a>        <span class="macro">assert_eq!</span>(str.chars().count(), <span class="number">7</span>);
+<a href=#1664 id=1664 data-nosnippet>1664</a>        <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(str);
+<a href=#1665 id=1665 data-nosnippet>1665</a>        <span class="kw">let </span>token = lexer.next_token().unwrap();
+<a href=#1666 id=1666 data-nosnippet>1666</a>        <span class="kw">let </span>Token::FmtStr(<span class="kw">_</span>, length) = token.into_token() <span class="kw">else </span>{
+<a href=#1667 id=1667 data-nosnippet>1667</a>            <span class="macro">panic!</span>(<span class="string">"Expected FmtStr token"</span>);
+<a href=#1668 id=1668 data-nosnippet>1668</a>        };
+<a href=#1669 id=1669 data-nosnippet>1669</a>        <span class="macro">assert_eq!</span>(length, <span class="number">6</span>);
+<a href=#1670 id=1670 data-nosnippet>1670</a>    }
+<a href=#1671 id=1671 data-nosnippet>1671</a>}</code></pre></div></section></main></body></html>
