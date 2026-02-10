@@ -137,6 +137,19 @@ impl Function {
         // Try to unroll loops first:
         let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(force_unroll_threshold);
 
+        // For Brillig, when unrolling succeeded, simplify and retry to catch
+        // newly-exposed inner loops after outer ones were unrolled.
+        if self.runtime().is_brillig() {
+            while has_unrolled {
+                simplify_between_unrolls(self);
+                let (unrolled, errors) = self.try_unroll_loops(force_unroll_threshold);
+                unroll_errors = errors;
+                if !unrolled {
+                    break;
+                }
+            }
+        }
+
         // Keep unrolling until no more errors are found
         while !unroll_errors.is_empty() {
             let prev_unroll_err_count = unroll_errors.len();
@@ -1663,8 +1676,8 @@ mod tests {
     fn test_brillig_unroll_iteratively_with_large_max_increase() {
         let ssa = brillig_unroll_test_case();
         let ssa = ssa.unroll_loops_iteratively(Some(50), FORCE_UNROLL_THRESHOLD).unwrap();
-        // Check that it did the unroll
-        assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
+        // Check that it did the unroll (simplification after unrolling may merge blocks)
+        assert_eq!(ssa.main().reachable_blocks().len(), 1, "The loop should be unrolled");
     }
 
     /// Test that setting force_unroll_threshold to 0 disables force-unrolling.
