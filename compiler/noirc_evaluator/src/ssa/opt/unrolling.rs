@@ -140,7 +140,7 @@ impl Function {
         // For Brillig, when unrolling succeeded, simplify and retry to catch
         // newly-exposed inner loops after outer ones were unrolled.
         if self.runtime().is_brillig() {
-            while has_unrolled {
+            loop {
                 simplify_between_unrolls(self);
                 let (unrolled, errors) = self.try_unroll_loops(force_unroll_threshold);
                 unroll_errors = errors;
