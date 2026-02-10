@@ -102,7 +102,7 @@ impl LayoutConfig {
 
 // These constants represent expert chosen defaults that are appropriate for the majority of programs
 pub(crate) const NUM_STACK_FRAMES: usize = 16;
-pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
+pub(crate) const MAX_STACK_FRAME_SIZE: usize = 4096; // here
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
 
 impl Default for LayoutConfig {

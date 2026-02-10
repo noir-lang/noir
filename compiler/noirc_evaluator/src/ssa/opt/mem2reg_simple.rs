@@ -314,6 +314,8 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
         i += 1;
         mask[i - 1]
     });
+    // Reclaim some memory, important in larger programs
+    items.shrink_to_fit();
 }
 
 /// Adds an argument to the `Jmp` terminator of the current block, panicking if the terminator is
