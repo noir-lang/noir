@@ -49,7 +49,7 @@ impl Ssa {
         // Skip the check if there are no Brillig functions involved
         if !self.functions.values().any(|func| func.runtime().is_brillig()) {
             return vec![];
-        };
+        }
 
         self.functions
             .values()

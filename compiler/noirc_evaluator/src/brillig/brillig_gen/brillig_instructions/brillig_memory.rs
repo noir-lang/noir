@@ -458,7 +458,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 self.brillig_context.codegen_initialize_vector(vector, *size, None);
             }
             _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
-        };
+        }
 
         // Get a pointer to where the items need to be written.
         let items_pointer =

@@ -277,6 +277,21 @@ fn trait_impl_associated_type_without_body() {
 }
 
 #[test]
+fn trait_impl_overlap() {
+    let src = r#"
+    trait Trait { }
+
+    impl<T> Trait for T { }
+            ~~~~~ Previous impl defined here
+    impl Trait for u32 { }
+                   ^^^ Impl for type `u32` overlaps with existing impl
+                   ~~~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn regression_6581_impl_only() {
     let src = "
     trait Foo {

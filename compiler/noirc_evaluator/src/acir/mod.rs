@@ -880,7 +880,7 @@ impl<'a> Context<'a> {
             _ => unreachable!(
                 "ICE: Truncates are only ever applied to the result of a binary op or a param"
             ),
-        };
+        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }

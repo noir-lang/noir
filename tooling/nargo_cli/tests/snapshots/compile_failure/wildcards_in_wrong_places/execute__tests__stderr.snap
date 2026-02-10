@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: Constraint for `Gen<_>: Trait2` is not needed, another matching impl is already in scope
+   ┌─ src/main.nr:29:13
+   │
+29 │     Gen<_>: Trait2<_>,
+   │             ------ Unnecessary trait constraint in where clause
+   │
+
 error: The placeholder `_` is not allowed in struct field types
   ┌─ src/main.nr:6:9
   │
@@ -15,6 +22,20 @@ error: The placeholder `_` is not allowed in struct field types
 6 │     x: [_; _],
   │            -
   │
+
+error: The placeholder `_` is not allowed in trait constraints
+   ┌─ src/main.nr:29:9
+   │
+29 │     Gen<_>: Trait2<_>,
+   │         -
+   │
+
+error: The placeholder `_` is not allowed in trait bounds
+   ┌─ src/main.nr:29:20
+   │
+29 │     Gen<_>: Trait2<_>,
+   │                    -
+   │
 
 error: The placeholder `_` is not allowed in function parameter types
   ┌─ src/main.nr:1:16
@@ -77,20 +98,6 @@ error: The placeholder `_` is not allowed in function return types
    │
 10 │     fn foo(_: [_; _]) -> [_; _] {
    │                              -
-   │
-
-error: The placeholder `_` is not allowed in trait constraints
-   ┌─ src/main.nr:29:9
-   │
-29 │     Gen<_>: Trait2<_>,
-   │         -
-   │
-
-error: The placeholder `_` is not allowed in trait bounds
-   ┌─ src/main.nr:29:20
-   │
-29 │     Gen<_>: Trait2<_>,
-   │                    -
    │
 
 error: The placeholder `_` is not allowed in function parameter types

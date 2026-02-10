@@ -310,7 +310,7 @@ pub(super) fn simplify_binary(
             }
             return SimplifyResult::SimplifiedToInstruction(simplified);
         }
-    };
+    }
     SimplifyResult::SimplifiedToInstruction(simplified)
 }
 
