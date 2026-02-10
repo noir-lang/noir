@@ -319,7 +319,8 @@ impl<'context> ItemBuilder<'context> {
         let external_types = self.type_only_mention_types_outside_current_crate(&trait_impl.typ);
 
         let mut type_var_names = BTreeSet::new();
-        for generic in &trait_impl.trait_generics {
+        let ordered_generics = self.interner.get_ordered_generics_for_impl(trait_impl_id);
+        for generic in ordered_generics {
             gather_named_type_vars(generic, &mut type_var_names);
         }
         gather_named_type_vars(&trait_impl.typ, &mut type_var_names);

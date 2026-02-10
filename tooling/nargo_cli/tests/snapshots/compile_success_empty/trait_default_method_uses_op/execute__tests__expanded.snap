@@ -3,7 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 pub trait Foo: Eq {
-    fn foo<T>(self) -> bool {
+    fn foo<T>(self) -> bool
+    where
+        Self: Eq,
+    {
         self == self
     }
 }

@@ -750,7 +750,7 @@ pub(crate) mod tests {
                     panic!("We are performing a mem copy when it should have been skipped");
                 }
                 _ => {}
-            };
+            }
             vm.process_opcode();
         }
 
