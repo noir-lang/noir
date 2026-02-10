@@ -13,7 +13,7 @@ use super::{AcirContext, AcirValue, AcirVar};
 impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
     /// to represent the result of the blackbox function.
-    pub(crate) fn black_box_function(
+    pub(super) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
@@ -65,6 +65,12 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 };
+                // We inject the predicate as a witness input to the black box function, 
+                // so that it can be used to conditionally execute the recursive aggregation.
+                //
+                // This is specific to the recursive aggregation black box, as other blackbox functions either:
+                // - do not have a predicate input (e.g. keccak, blake2s, etc.)
+                // - or have a predicate input that is already included in the `inputs` vector (e.g. ecdsa blackboxes).
                 inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
                 vec![proof_type_constant]
             }
