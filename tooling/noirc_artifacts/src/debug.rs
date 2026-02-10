@@ -221,17 +221,15 @@ impl<'a> Files<'a> for DebugArtifact {
     }
 
     fn line_index(&self, file_id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).and_then(|file| {
-            SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
-                .line_index((), byte_index)
-        })
+        let file = self.file_map.get(&file_id).ok_or(Error::FileMissing)?;
+        SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
+                        .line_index((), byte_index)
     }
 
     fn line_range(&self, file_id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).and_then(|file| {
-            SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
-                .line_range((), line_index)
-        })
+        let file = self.file_map.get(&file_id).ok_or(Error::FileMissing)?;
+        SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
+                        .line_range((), line_index)
     }
 }
 

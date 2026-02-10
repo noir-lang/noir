@@ -143,10 +143,10 @@ fn create_point(
     let point = ark_grumpkin::Affine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
         return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
-    };
+    }
     if !point.is_in_correct_subgroup_assuming_on_curve() {
         return Err(format!("Point ({}, {}) is not in correct subgroup", x.to_hex(), y.to_hex()));
-    };
+    }
     Ok(point)
 }
 

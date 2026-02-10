@@ -68,26 +68,24 @@ pub(crate) fn on_completion_request(
 ) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position.clone(), |args| {
         let file_id = args.location.file;
-        utils::position_to_byte_index(args.files, file_id, &params.text_document_position.position)
-            .and_then(|byte_index| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let byte = source.as_bytes().get(byte_index - 1).copied();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let byte_index = utils::position_to_byte_index(args.files, file_id, &params.text_document_position.position)?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let byte = source.as_bytes().get(byte_index - 1).copied();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = NodeFinder::new(
-                    args.files,
-                    file_id,
-                    source,
-                    byte_index,
-                    byte,
-                    args.crate_id,
-                    args.def_maps,
-                    args.dependencies(),
-                    args.interner,
-                );
-                finder.find(&parsed_module)
-            })
+        let mut finder = NodeFinder::new(
+            args.files,
+            file_id,
+            source,
+            byte_index,
+            byte,
+            args.crate_id,
+            args.def_maps,
+            args.dependencies(),
+            args.interner,
+        );
+        finder.find(&parsed_module)
     });
     future::ready(result)
 }
@@ -520,7 +518,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     requested_items,
                 );
-            };
+            }
         } else {
             // We are right after the last segment
             let prefix = ident.to_string().to_case(Case::Snake);
@@ -1460,7 +1458,7 @@ impl Visitor for NodeFinder<'_> {
             body.accept(None, self);
 
             self.func_id = None;
-        };
+        }
 
         self.type_parameters = old_type_parameters;
 

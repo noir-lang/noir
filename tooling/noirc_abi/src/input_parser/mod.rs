@@ -325,22 +325,20 @@ fn parse_str_to_field(value: &str, arg_name: &str) -> Result<FieldElement, Input
     } else {
         BigUint::from_str_radix(value, 10)
     };
-    big_num
+    let bigint = big_num
         .map_err(|err_msg| InputParserError::ParseStr {
             arg_name: arg_name.into(),
             value: value.into(),
             error: err_msg.to_string(),
-        })
-        .and_then(|bigint| {
-            if bigint < FieldElement::modulus() {
-                Ok(field_from_big_uint(bigint))
-            } else {
-                Err(InputParserError::InputExceedsFieldModulus {
-                    arg_name: arg_name.into(),
-                    value: value.to_string(),
-                })
-            }
-        })
+        })?;
+    if bigint < FieldElement::modulus() {
+                    Ok(field_from_big_uint(bigint))
+                } else {
+                    Err(InputParserError::InputExceedsFieldModulus {
+                        arg_name: arg_name.into(),
+                        value: value.to_string(),
+                    })
+                }
 }
 
 fn parse_str_to_signed(
@@ -356,50 +354,48 @@ fn parse_str_to_signed(
         BigInt::from_str_radix(value, 10)
     };
 
-    big_num
+    let bigint = big_num
         .map_err(|err_msg| InputParserError::ParseStr {
             arg_name: arg_name.into(),
             value: value.into(),
             error: err_msg.to_string(),
+        })?;
+    let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+    let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
+
+    let max = BigInt::from(max);
+    let min = BigInt::from(min);
+
+    if bigint < min {
+        return Err(InputParserError::InputUnderflowsMinimum {
+            arg_name: arg_name.into(),
+            value: bigint.to_string(),
+            min: min.to_string(),
+        });
+    }
+
+    if bigint > max {
+        return Err(InputParserError::InputOverflowsMaximum {
+            arg_name: arg_name.into(),
+            value: bigint.to_string(),
+            max: max.to_string(),
+        });
+    }
+
+    let modulus: BigInt = FieldElement::modulus().into();
+    let bigint = if bigint.sign() == num_bigint::Sign::Minus {
+        BigInt::from(2).pow(width) + bigint
+    } else {
+        bigint
+    };
+    if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
+        Ok(field_from_big_int(bigint))
+    } else {
+        Err(InputParserError::InputExceedsFieldModulus {
+            arg_name: arg_name.into(),
+            value: value.to_string(),
         })
-        .and_then(|bigint| {
-            let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
-            let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
-
-            let max = BigInt::from(max);
-            let min = BigInt::from(min);
-
-            if bigint < min {
-                return Err(InputParserError::InputUnderflowsMinimum {
-                    arg_name: arg_name.into(),
-                    value: bigint.to_string(),
-                    min: min.to_string(),
-                });
-            }
-
-            if bigint > max {
-                return Err(InputParserError::InputOverflowsMaximum {
-                    arg_name: arg_name.into(),
-                    value: bigint.to_string(),
-                    max: max.to_string(),
-                });
-            }
-
-            let modulus: BigInt = FieldElement::modulus().into();
-            let bigint = if bigint.sign() == num_bigint::Sign::Minus {
-                BigInt::from(2).pow(width) + bigint
-            } else {
-                bigint
-            };
-            if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
-                Ok(field_from_big_int(bigint))
-            } else {
-                Err(InputParserError::InputExceedsFieldModulus {
-                    arg_name: arg_name.into(),
-                    value: value.to_string(),
-                })
-            }
-        })
+    }
 }
 
 fn parse_integer_to_signed(

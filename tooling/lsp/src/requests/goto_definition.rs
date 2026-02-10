@@ -58,24 +58,23 @@ fn on_goto_definition_inner(
                 });
             location.map(|location| (location, None))
         };
-        location.and_then(|(location, link_lsp_location)| {
-            let location = to_lsp_location(args.files, location.file, location.span)?;
-            let response = match link_lsp_location {
-                Some(lsp_location) => {
-                    // In case of doc comment references we want the underline to cover the entire
-                    // range of the reference, not just the word that's being hovered.
-                    let location_link = LocationLink {
-                        origin_selection_range: Some(lsp_location.range),
-                        target_uri: location.uri,
-                        target_range: location.range,
-                        target_selection_range: location.range,
-                    };
-                    GotoDefinitionResponse::Link(vec![location_link])
-                }
-                None => GotoDefinitionResponse::from(location).to_owned(),
-            };
-            Some(response)
-        })
+        let (location, link_lsp_location) = location?;
+        let location = to_lsp_location(args.files, location.file, location.span)?;
+        let response = match link_lsp_location {
+            Some(lsp_location) => {
+                // In case of doc comment references we want the underline to cover the entire
+                // range of the reference, not just the word that's being hovered.
+                let location_link = LocationLink {
+                    origin_selection_range: Some(lsp_location.range),
+                    target_uri: location.uri,
+                    target_range: location.range,
+                    target_selection_range: location.range,
+                };
+                GotoDefinitionResponse::Link(vec![location_link])
+            }
+            None => GotoDefinitionResponse::from(location).to_owned(),
+        };
+        Some(response)
     })
 }
 
@@ -124,7 +123,7 @@ mod goto_definition_tests {
                 assert_eq!(location.range, expected_range);
             } else {
                 panic!("Expected a scalar response");
-            };
+            }
         }
     }
 
@@ -157,7 +156,7 @@ mod goto_definition_tests {
             assert_eq!(location.range, expected_range);
         } else {
             panic!("Expected a scalar response");
-        };
+        }
     }
 
     #[test]

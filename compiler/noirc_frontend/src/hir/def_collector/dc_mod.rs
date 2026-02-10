@@ -810,7 +810,7 @@ impl ModCollector<'_> {
                 Err(error) => {
                     errors.push(error.into());
                 }
-            };
+            }
         }
         errors
     }

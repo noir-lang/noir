@@ -149,7 +149,7 @@ impl<'context> Elaborator<'context> {
             errors = vecmap(errors, |error| {
                 CompilationError::ComptimeError(reason.to_macro_error(error))
             });
-        };
+        }
 
         self.errors.extend(errors);
         self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
@@ -526,7 +526,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 push_arg(interpreter.evaluate(expr_id)?);
-            };
+            }
         }
 
         if is_varargs {

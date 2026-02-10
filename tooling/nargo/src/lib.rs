@@ -128,7 +128,7 @@ fn insert_all_files_into_file_manager(
             src.to_string()
         } else {
             std::fs::read_to_string(filename.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {filename:?} into string"))
+                .unwrap_or_else(|_| panic!("could not read file {} into string", filename.display()))
         };
 
         file_manager.add_file_with_source(filename.as_path(), source);
@@ -150,7 +150,7 @@ fn collect_all_files_in_package(
     let entry_path_parent = package
         .entry_path
         .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {}", package.entry_path.display()));
 
     collect_all_files_under_path(entry_path_parent, filenames, seen_filenames);
 
@@ -199,7 +199,7 @@ fn collect_all_files_under_path(
 
         if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
             continue;
-        };
+        }
 
         let path = entry.into_path();
         if seen_filenames.insert(path.clone()) {

@@ -1981,7 +1981,7 @@ impl Elaborator<'_> {
                         expected_typ: return_type.to_string(),
                         expr_location: location,
                     });
-                };
+                }
 
                 let expected_object_type = args.pop().unwrap_or_else(|| {
                     unreachable!("ICE: expected operator method on {object_type} to take arguments, but found no arguments")

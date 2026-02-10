@@ -2884,14 +2884,14 @@ impl Type {
                     } else {
                         drop(binding);
                         return this;
-                    };
+                    }
                 }
                 Type::Alias(alias_def, generics) => {
                     let typ = alias_def.borrow().get_type(generics);
                     this = Cow::Owned(typ);
                 }
                 _ => return this,
-            };
+            }
         }
         panic!("Type recursion limit reached - types are too large")
     }

@@ -678,7 +678,7 @@ fn compile_contract_inner(
             if !show {
                 options.show_ssa_pass.clear();
             }
-        };
+        }
 
         let function = match compile_no_check(context, &options, function_id, None, true) {
             Ok(function) => function,
