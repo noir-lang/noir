@@ -92,7 +92,7 @@
 <a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">if </span>func.runtime().is_brillig() {
 <a href=#93 id=93 data-nosnippet>93</a>                <span class="kw">let </span>cloned_function = Function::clone_with_id(<span class="kw-2">*</span>func_id, func);
 <a href=#94 id=94 data-nosnippet>94</a>                brillig_functions.insert(<span class="kw-2">*</span>func_id, cloned_function);
-<a href=#95 id=95 data-nosnippet>95</a>            };
+<a href=#95 id=95 data-nosnippet>95</a>            }
 <a href=#96 id=96 data-nosnippet>96</a>        }
 <a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="kw">if </span>brillig_functions.is_empty() {
 <a href=#98 id=98 data-nosnippet>98</a>            <span class="prelude-val">None
@@ -358,7 +358,7 @@
 <a href=#358 id=358 data-nosnippet>358</a>                    </span>target_block = dominator;
 <a href=#359 id=359 data-nosnippet>359</a>                }
 <a href=#360 id=360 data-nosnippet>360</a>            }
-<a href=#361 id=361 data-nosnippet>361</a>        };
+<a href=#361 id=361 data-nosnippet>361</a>        }
 <a href=#362 id=362 data-nosnippet>362</a>
 <a href=#363 id=363 data-nosnippet>363</a>        <span class="comment">// First try to inline a call to a brillig function with all constant arguments.
 <a href=#364 id=364 data-nosnippet>364</a>        </span><span class="kw">let </span>new_results = <span class="kw">if </span>runtime_is_brillig {
@@ -395,7 +395,7 @@
 <a href=#395 id=395 data-nosnippet>395</a>        // so that we use the correct set of constrained values in future.
 <a href=#396 id=396 data-nosnippet>396</a>        </span><span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
 <a href=#397 id=397 data-nosnippet>397</a>            <span class="kw-2">*</span>side_effects_enabled_var = condition;
-<a href=#398 id=398 data-nosnippet>398</a>        };
+<a href=#398 id=398 data-nosnippet>398</a>        }
 <a href=#399 id=399 data-nosnippet>399</a>    }
 <a href=#400 id=400 data-nosnippet>400</a>
 <a href=#401 id=401 data-nosnippet>401</a>    <span class="kw">fn </span>increase_rc(

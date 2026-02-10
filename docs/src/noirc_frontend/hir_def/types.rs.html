@@ -2900,14 +2900,14 @@
 <a href=#2900 id=2900 data-nosnippet>2900</a>                    } <span class="kw">else </span>{
 <a href=#2901 id=2901 data-nosnippet>2901</a>                        drop(binding);
 <a href=#2902 id=2902 data-nosnippet>2902</a>                        <span class="kw">return </span>this;
-<a href=#2903 id=2903 data-nosnippet>2903</a>                    };
+<a href=#2903 id=2903 data-nosnippet>2903</a>                    }
 <a href=#2904 id=2904 data-nosnippet>2904</a>                }
 <a href=#2905 id=2905 data-nosnippet>2905</a>                Type::Alias(alias_def, generics) =&gt; {
 <a href=#2906 id=2906 data-nosnippet>2906</a>                    <span class="kw">let </span>typ = alias_def.borrow().get_type(generics);
 <a href=#2907 id=2907 data-nosnippet>2907</a>                    this = Cow::Owned(typ);
 <a href=#2908 id=2908 data-nosnippet>2908</a>                }
 <a href=#2909 id=2909 data-nosnippet>2909</a>                <span class="kw">_ </span>=&gt; <span class="kw">return </span>this,
-<a href=#2910 id=2910 data-nosnippet>2910</a>            };
+<a href=#2910 id=2910 data-nosnippet>2910</a>            }
 <a href=#2911 id=2911 data-nosnippet>2911</a>        }
 <a href=#2912 id=2912 data-nosnippet>2912</a>        <span class="macro">panic!</span>(<span class="string">"Type recursion limit reached - types are too large"</span>)
 <a href=#2913 id=2913 data-nosnippet>2913</a>    }

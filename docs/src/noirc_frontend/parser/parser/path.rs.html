@@ -160,7 +160,7 @@
 <a href=#160 id=160 data-nosnippet>160</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt; {
 <a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">if </span><span class="self">self</span>.token.token() != <span class="kw-2">&amp;</span>Token::Less {
 <a href=#162 id=162 data-nosnippet>162</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#163 id=163 data-nosnippet>163</a>        };
+<a href=#163 id=163 data-nosnippet>163</a>        }
 <a href=#164 id=164 data-nosnippet>164</a>
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generic_type_args();
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">for </span>(name, _typ) <span class="kw">in </span><span class="kw-2">&amp;</span>generics.named_args {

@@ -638,8 +638,8 @@
 <a href=#638 id=638 data-nosnippet>638</a>    <span class="doccomment">/// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
 <a href=#639 id=639 data-nosnippet>639</a>    /// Returns `None` if the given value is not an integer constant.
 <a href=#640 id=640 data-nosnippet>640</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_integer_constant(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
-<a href=#641 id=641 data-nosnippet>641</a>        <span class="self">self</span>.get_numeric_constant_with_type(value)
-<a href=#642 id=642 data-nosnippet>642</a>            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>(f, t) = <span class="self">self</span>.get_numeric_constant_with_type(value)<span class="question-mark">?</span>;
+<a href=#642 id=642 data-nosnippet>642</a>        IntegerConstant::from_numeric_constant(f, t)
 <a href=#643 id=643 data-nosnippet>643</a>    }
 <a href=#644 id=644 data-nosnippet>644</a>
 <a href=#645 id=645 data-nosnippet>645</a>    <span class="doccomment">/// Returns the field element and type represented by this value if it is a numeric constant.
@@ -701,7 +701,7 @@
 <a href=#701 id=701 data-nosnippet>701</a>            <span class="kw">let </span>u64_value = field_value.try_to_u64()<span class="question-mark">?</span>;
 <a href=#702 id=702 data-nosnippet>702</a>            <span class="kw">if </span>u64_value &gt; <span class="number">255 </span>{
 <a href=#703 id=703 data-nosnippet>703</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#704 id=704 data-nosnippet>704</a>            };
+<a href=#704 id=704 data-nosnippet>704</a>            }
 <a href=#705 id=705 data-nosnippet>705</a>            <span class="kw">let </span>byte = u64_value <span class="kw">as </span>u8;
 <a href=#706 id=706 data-nosnippet>706</a>            bytes.push(byte);
 <a href=#707 id=707 data-nosnippet>707</a>        }

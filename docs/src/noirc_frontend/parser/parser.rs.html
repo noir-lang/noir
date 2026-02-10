@@ -536,7 +536,7 @@
 <a href=#536 id=536 data-nosnippet>536</a>    <span class="kw">fn </span>set_lexer_skip_whitespaces_flag(<span class="kw-2">&amp;mut </span><span class="self">self</span>, flag: bool) {
 <a href=#537 id=537 data-nosnippet>537</a>        <span class="kw">if let </span>TokenStream::Lexer(lexer) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.tokens {
 <a href=#538 id=538 data-nosnippet>538</a>            lexer.set_skip_whitespaces_flag(flag);
-<a href=#539 id=539 data-nosnippet>539</a>        };
+<a href=#539 id=539 data-nosnippet>539</a>        }
 <a href=#540 id=540 data-nosnippet>540</a>    }
 <a href=#541 id=541 data-nosnippet>541</a>
 <a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">fn </span>next_is(<span class="kw-2">&amp;</span><span class="self">self</span>, token: Token) -&gt; bool {

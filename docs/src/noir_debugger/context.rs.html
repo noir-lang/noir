@@ -516,8 +516,8 @@
 <a href=#516 id=516 data-nosnippet>516</a>
 <a href=#517 id=517 data-nosnippet>517</a>    <span class="doccomment">/// Returns the `FileId` of the file associated with the innermost function on the call stack.
 <a href=#518 id=518 data-nosnippet>518</a>    </span><span class="kw">fn </span>get_current_file(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FileId&gt; {
-<a href=#519 id=519 data-nosnippet>519</a>        <span class="self">self</span>.get_current_source_location()
-<a href=#520 id=520 data-nosnippet>520</a>            .and_then(|locations| locations.last().map(|location| location.file))
+<a href=#519 id=519 data-nosnippet>519</a>        <span class="kw">let </span>locations = <span class="self">self</span>.get_current_source_location()<span class="question-mark">?</span>;
+<a href=#520 id=520 data-nosnippet>520</a>        locations.last().map(|location| location.file)
 <a href=#521 id=521 data-nosnippet>521</a>    }
 <a href=#522 id=522 data-nosnippet>522</a>
 <a href=#523 id=523 data-nosnippet>523</a>    <span class="doccomment">/// Returns the (possible) stack of source locations corresponding to the

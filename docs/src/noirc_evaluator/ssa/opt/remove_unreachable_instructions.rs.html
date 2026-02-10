@@ -229,7 +229,7 @@
 <a href=#229 id=229 data-nosnippet>229</a>                        }
 <a href=#230 id=230 data-nosnippet>230</a>                    };
 <a href=#231 id=231 data-nosnippet>231</a>                <span class="kw">return</span>;
-<a href=#232 id=232 data-nosnippet>232</a>            };
+<a href=#232 id=232 data-nosnippet>232</a>            }
 <a href=#233 id=233 data-nosnippet>233</a>
 <a href=#234 id=234 data-nosnippet>234</a>            <span class="kw">if </span>current_block_reachability == Reachability::UnreachableUnderPredicate {
 <a href=#235 id=235 data-nosnippet>235</a>                <span class="kw">if </span>should_replace_instruction_with_defaults(context) {
@@ -380,7 +380,7 @@
 <a href=#380 id=380 data-nosnippet>380</a>                    };
 <a href=#381 id=381 data-nosnippet>381</a>                }
 <a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">_ </span>=&gt; (),
-<a href=#383 id=383 data-nosnippet>383</a>            };
+<a href=#383 id=383 data-nosnippet>383</a>            }
 <a href=#384 id=384 data-nosnippet>384</a>
 <a href=#385 id=385 data-nosnippet>385</a>            <span class="comment">// Once we find an instruction that will always fail, replace the terminator with `unreachable`.
 <a href=#386 id=386 data-nosnippet>386</a>            // Subsequent instructions in this block will be removed.
@@ -575,7 +575,7 @@
 <a href=#575 id=575 data-nosnippet>575</a>            // effect variable. Instructions which use its result would then get
 <a href=#576 id=576 data-nosnippet>576</a>            // incorrect zero, instead of whatever was in the array.
 <a href=#577 id=577 data-nosnippet>577</a>        </span>}
-<a href=#578 id=578 data-nosnippet>578</a>    };
+<a href=#578 id=578 data-nosnippet>578</a>    }
 <a href=#579 id=579 data-nosnippet>579</a>
 <a href=#580 id=580 data-nosnippet>580</a>    <span class="comment">// Instructions that don't interact with the predicate should be left alone,
 <a href=#581 id=581 data-nosnippet>581</a>    // because the `remove_enable_side_effects` pass might have moved the boundaries around them.

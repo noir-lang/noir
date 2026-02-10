@@ -132,606 +132,607 @@
 <a href=#132 id=132 data-nosnippet>132</a>            <span class="self">Self</span>::FmtString(template, values) =&gt; {
 <a href=#133 id=133 data-nosnippet>133</a>                <span class="kw">let </span><span class="kw-2">mut </span>values_iter = values.iter();
 <a href=#134 id=134 data-nosnippet>134</a>                write_template_replacing_interpolations(template, fmt, || {
-<a href=#135 id=135 data-nosnippet>135</a>                    values_iter.next().and_then(|(value, typ)| to_string(value, typ))
-<a href=#136 id=136 data-nosnippet>136</a>                })
-<a href=#137 id=137 data-nosnippet>137</a>            }
-<a href=#138 id=138 data-nosnippet>138</a>        }
-<a href=#139 id=139 data-nosnippet>139</a>    }
-<a href=#140 id=140 data-nosnippet>140</a>}
-<a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a><span class="doccomment">/// Format a given [PrintableValue] according to an expected [PrintableType].
-<a href=#143 id=143 data-nosnippet>143</a>///
-<a href=#144 id=144 data-nosnippet>144</a>/// Returns `None` if the value is not what we expect based on the type.
-<a href=#145 id=145 data-nosnippet>145</a></span><span class="kw">fn </span>to_string&lt;F: AcirField&gt;(value: <span class="kw-2">&amp;</span>PrintableValue&lt;F&gt;, typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
-<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
-<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">match </span>typ {
-<a href=#148 id=148 data-nosnippet>148</a>        PrintableType::Field =&gt; {
-<a href=#149 id=149 data-nosnippet>149</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
-<a href=#150 id=150 data-nosnippet>150</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#151 id=151 data-nosnippet>151</a>            };
-<a href=#152 id=152 data-nosnippet>152</a>            output.push_str(<span class="kw-2">&amp;</span>f.to_short_hex());
-<a href=#153 id=153 data-nosnippet>153</a>        }
-<a href=#154 id=154 data-nosnippet>154</a>        PrintableType::UnsignedInteger { width } =&gt; {
-<a href=#155 id=155 data-nosnippet>155</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
-<a href=#156 id=156 data-nosnippet>156</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#157 id=157 data-nosnippet>157</a>            };
-<a href=#158 id=158 data-nosnippet>158</a>            <span class="comment">// Retain the lower 'width' bits
-<a href=#159 id=159 data-nosnippet>159</a>            </span><span class="macro">assert!</span>(<span class="kw-2">*</span>width &lt;= <span class="number">128</span>, <span class="string">"We don't currently support unsigned integers larger than u128"</span>);
-<a href=#160 id=160 data-nosnippet>160</a>            <span class="kw">let </span><span class="kw-2">mut </span>uint_cast = f.to_u128();
-<a href=#161 id=161 data-nosnippet>161</a>            <span class="kw">if </span><span class="kw-2">*</span>width != <span class="number">128 </span>{
-<a href=#162 id=162 data-nosnippet>162</a>                uint_cast &amp;= (<span class="number">1 </span>&lt;&lt; width) - <span class="number">1</span>;
-<a href=#163 id=163 data-nosnippet>163</a>            };
-<a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a>            output.push_str(<span class="kw-2">&amp;</span>uint_cast.to_string());
-<a href=#166 id=166 data-nosnippet>166</a>        }
-<a href=#167 id=167 data-nosnippet>167</a>        PrintableType::SignedInteger { width } =&gt; {
-<a href=#168 id=168 data-nosnippet>168</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
-<a href=#169 id=169 data-nosnippet>169</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#170 id=170 data-nosnippet>170</a>            };
-<a href=#171 id=171 data-nosnippet>171</a>            <span class="kw">let </span><span class="kw-2">mut </span>uint = f.to_u128(); <span class="comment">// Interpret as uint
-<a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>            // Extract sign relative to width of input
-<a href=#174 id=174 data-nosnippet>174</a>            </span><span class="kw">if </span>(uint &gt;&gt; (width - <span class="number">1</span>)) == <span class="number">1 </span>{
-<a href=#175 id=175 data-nosnippet>175</a>                output.push(<span class="string">'-'</span>);
-<a href=#176 id=176 data-nosnippet>176</a>                uint = (uint ^ ((<span class="number">1 </span>&lt;&lt; width) - <span class="number">1</span>)) + <span class="number">1</span>; <span class="comment">// Two's complement relative to width of input
-<a href=#177 id=177 data-nosnippet>177</a>            </span>}
-<a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a>            output.push_str(<span class="kw-2">&amp;</span>uint.to_string());
-<a href=#180 id=180 data-nosnippet>180</a>        }
-<a href=#181 id=181 data-nosnippet>181</a>        PrintableType::Boolean =&gt; {
-<a href=#182 id=182 data-nosnippet>182</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
-<a href=#183 id=183 data-nosnippet>183</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#184 id=184 data-nosnippet>184</a>            };
-<a href=#185 id=185 data-nosnippet>185</a>            <span class="kw">if </span>f.is_one() {
-<a href=#186 id=186 data-nosnippet>186</a>                output.push_str(<span class="string">"true"</span>);
-<a href=#187 id=187 data-nosnippet>187</a>            } <span class="kw">else </span>{
-<a href=#188 id=188 data-nosnippet>188</a>                output.push_str(<span class="string">"false"</span>);
-<a href=#189 id=189 data-nosnippet>189</a>            }
-<a href=#190 id=190 data-nosnippet>190</a>        }
-<a href=#191 id=191 data-nosnippet>191</a>        PrintableType::Function { .. } =&gt; {
-<a href=#192 id=192 data-nosnippet>192</a>            <span class="kw">let </span>PrintableValue::Field(<span class="kw">_</span>) = value <span class="kw">else </span>{
-<a href=#193 id=193 data-nosnippet>193</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#194 id=194 data-nosnippet>194</a>            };
-<a href=#195 id=195 data-nosnippet>195</a>            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;{typ}&gt;&gt;"</span>));
-<a href=#196 id=196 data-nosnippet>196</a>        }
-<a href=#197 id=197 data-nosnippet>197</a>        PrintableType::Reference { mutable, .. } =&gt; {
-<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">if </span><span class="kw-2">*</span>mutable {
-<a href=#199 id=199 data-nosnippet>199</a>                output.push_str(<span class="string">"&lt;&lt;mutable ref&gt;&gt;"</span>);
-<a href=#200 id=200 data-nosnippet>200</a>            } <span class="kw">else </span>{
-<a href=#201 id=201 data-nosnippet>201</a>                output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
-<a href=#202 id=202 data-nosnippet>202</a>            }
-<a href=#203 id=203 data-nosnippet>203</a>        }
-<a href=#204 id=204 data-nosnippet>204</a>        PrintableType::Array { typ, .. } | PrintableType::Vector { typ } =&gt; {
-<a href=#205 id=205 data-nosnippet>205</a>            <span class="kw">let </span>PrintableValue::Vec { array_elements, is_vector } = value <span class="kw">else </span>{
-<a href=#206 id=206 data-nosnippet>206</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#207 id=207 data-nosnippet>207</a>            };
-<a href=#208 id=208 data-nosnippet>208</a>            <span class="kw">if </span><span class="kw-2">*</span>is_vector {
-<a href=#209 id=209 data-nosnippet>209</a>                output.push(<span class="string">'@'</span>);
-<a href=#210 id=210 data-nosnippet>210</a>            }
-<a href=#211 id=211 data-nosnippet>211</a>            output.push(<span class="string">'['</span>);
-<a href=#212 id=212 data-nosnippet>212</a>            <span class="kw">let </span><span class="kw-2">mut </span>values = array_elements.iter().peekable();
-<a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>(value) = values.next() {
-<a href=#214 id=214 data-nosnippet>214</a>                output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-<a href=#215 id=215 data-nosnippet>215</a>                    <span class="string">"{}"</span>,
-<a href=#216 id=216 data-nosnippet>216</a>                    PrintableValueDisplay::Plain(value.clone(), <span class="kw-2">*</span>typ.clone())
-<a href=#217 id=217 data-nosnippet>217</a>                ));
-<a href=#218 id=218 data-nosnippet>218</a>                <span class="kw">if </span>values.peek().is_some() {
-<a href=#219 id=219 data-nosnippet>219</a>                    output.push_str(<span class="string">", "</span>);
-<a href=#220 id=220 data-nosnippet>220</a>                }
-<a href=#221 id=221 data-nosnippet>221</a>            }
-<a href=#222 id=222 data-nosnippet>222</a>            output.push(<span class="string">']'</span>);
-<a href=#223 id=223 data-nosnippet>223</a>        }
-<a href=#224 id=224 data-nosnippet>224</a>        PrintableType::String { .. } =&gt; {
-<a href=#225 id=225 data-nosnippet>225</a>            <span class="kw">let </span>PrintableValue::String(s) = value <span class="kw">else </span>{
-<a href=#226 id=226 data-nosnippet>226</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#227 id=227 data-nosnippet>227</a>            };
-<a href=#228 id=228 data-nosnippet>228</a>            output.push_str(s);
-<a href=#229 id=229 data-nosnippet>229</a>        }
-<a href=#230 id=230 data-nosnippet>230</a>        PrintableType::FmtString { typ, .. } =&gt; {
-<a href=#231 id=231 data-nosnippet>231</a>            <span class="kw">let </span>PrintableValue::FmtString(template, values) = value <span class="kw">else </span>{
-<a href=#232 id=232 data-nosnippet>232</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#233 id=233 data-nosnippet>233</a>            };
-<a href=#234 id=234 data-nosnippet>234</a>            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
-<a href=#235 id=235 data-nosnippet>235</a>                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
-<a href=#236 id=236 data-nosnippet>236</a>            };
-<a href=#237 id=237 data-nosnippet>237</a>            <span class="kw">let </span>template = template.to_string();
-<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">let </span>args = values.iter().cloned().zip(types.iter().cloned()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#239 id=239 data-nosnippet>239</a>            output.push_str(<span class="kw-2">&amp;</span>PrintableValueDisplay::FmtString(template, args).to_string());
-<a href=#240 id=240 data-nosnippet>240</a>        }
-<a href=#241 id=241 data-nosnippet>241</a>        PrintableType::Struct { name, fields, .. } =&gt; {
-<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">let </span>PrintableValue::Struct(map) = value <span class="kw">else </span>{
-<a href=#243 id=243 data-nosnippet>243</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#244 id=244 data-nosnippet>244</a>            };
-<a href=#245 id=245 data-nosnippet>245</a>            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{name} {{ "</span>));
-<a href=#246 id=246 data-nosnippet>246</a>
-<a href=#247 id=247 data-nosnippet>247</a>            <span class="kw">let </span><span class="kw-2">mut </span>fields = fields.iter().peekable();
-<a href=#248 id=248 data-nosnippet>248</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>((key, field_type)) = fields.next() {
-<a href=#249 id=249 data-nosnippet>249</a>                <span class="kw">let </span>value = <span class="kw-2">&amp;</span>map[key];
-<a href=#250 id=250 data-nosnippet>250</a>                output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-<a href=#251 id=251 data-nosnippet>251</a>                    <span class="string">"{key}: {}"</span>,
-<a href=#252 id=252 data-nosnippet>252</a>                    PrintableValueDisplay::Plain(value.clone(), field_type.clone())
-<a href=#253 id=253 data-nosnippet>253</a>                ));
-<a href=#254 id=254 data-nosnippet>254</a>                <span class="kw">if </span>fields.peek().is_some() {
-<a href=#255 id=255 data-nosnippet>255</a>                    output.push_str(<span class="string">", "</span>);
-<a href=#256 id=256 data-nosnippet>256</a>                }
-<a href=#257 id=257 data-nosnippet>257</a>            }
-<a href=#258 id=258 data-nosnippet>258</a>
-<a href=#259 id=259 data-nosnippet>259</a>            output.push_str(<span class="string">" }"</span>);
-<a href=#260 id=260 data-nosnippet>260</a>        }
-<a href=#261 id=261 data-nosnippet>261</a>        PrintableType::Tuple { types } =&gt; {
-<a href=#262 id=262 data-nosnippet>262</a>            <span class="kw">let </span>PrintableValue::Vec { array_elements, .. } = value <span class="kw">else </span>{
-<a href=#263 id=263 data-nosnippet>263</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#264 id=264 data-nosnippet>264</a>            };
-<a href=#265 id=265 data-nosnippet>265</a>            output.push(<span class="string">'('</span>);
-<a href=#266 id=266 data-nosnippet>266</a>            <span class="kw">let </span><span class="kw-2">mut </span>elements = array_elements.iter().zip(types).peekable();
-<a href=#267 id=267 data-nosnippet>267</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
-<a href=#268 id=268 data-nosnippet>268</a>                output.push_str(
-<a href=#269 id=269 data-nosnippet>269</a>                    <span class="kw-2">&amp;</span>PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
-<a href=#270 id=270 data-nosnippet>270</a>                );
-<a href=#271 id=271 data-nosnippet>271</a>                <span class="kw">if </span>elements.peek().is_some() {
-<a href=#272 id=272 data-nosnippet>272</a>                    output.push_str(<span class="string">", "</span>);
-<a href=#273 id=273 data-nosnippet>273</a>                }
-<a href=#274 id=274 data-nosnippet>274</a>            }
-<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">if </span>types.len() == <span class="number">1 </span>{
-<a href=#276 id=276 data-nosnippet>276</a>                output.push(<span class="string">','</span>);
-<a href=#277 id=277 data-nosnippet>277</a>            }
-<a href=#278 id=278 data-nosnippet>278</a>            output.push(<span class="string">')'</span>);
-<a href=#279 id=279 data-nosnippet>279</a>        }
-<a href=#280 id=280 data-nosnippet>280</a>        PrintableType::Unit =&gt; {
-<a href=#281 id=281 data-nosnippet>281</a>            output.push_str(<span class="string">"()"</span>);
-<a href=#282 id=282 data-nosnippet>282</a>        }
-<a href=#283 id=283 data-nosnippet>283</a>        PrintableType::Enum { name, variants } =&gt; {
-<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">let </span>PrintableValue::Enum { tag, elements } = value <span class="kw">else </span>{
-<a href=#285 id=285 data-nosnippet>285</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#286 id=286 data-nosnippet>286</a>            };
-<a href=#287 id=287 data-nosnippet>287</a>            <span class="kw">let </span>(variant_name, types) = <span class="kw-2">&amp;</span>variants[<span class="kw-2">*</span>tag];
-<a href=#288 id=288 data-nosnippet>288</a>            <span class="kw">let </span>has_fields = !elements.is_empty();
-<a href=#289 id=289 data-nosnippet>289</a>            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{name}::{variant_name}"</span>));
-<a href=#290 id=290 data-nosnippet>290</a>            <span class="kw">if </span>has_fields {
-<a href=#291 id=291 data-nosnippet>291</a>                output.push(<span class="string">'('</span>);
-<a href=#292 id=292 data-nosnippet>292</a>            }
-<a href=#293 id=293 data-nosnippet>293</a>            <span class="kw">let </span><span class="kw-2">mut </span>elements = elements.iter().zip(types).peekable();
-<a href=#294 id=294 data-nosnippet>294</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
-<a href=#295 id=295 data-nosnippet>295</a>                output.push_str(
-<a href=#296 id=296 data-nosnippet>296</a>                    <span class="kw-2">&amp;</span>PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
-<a href=#297 id=297 data-nosnippet>297</a>                );
-<a href=#298 id=298 data-nosnippet>298</a>                <span class="kw">if </span>elements.peek().is_some() {
-<a href=#299 id=299 data-nosnippet>299</a>                    output.push_str(<span class="string">", "</span>);
-<a href=#300 id=300 data-nosnippet>300</a>                }
-<a href=#301 id=301 data-nosnippet>301</a>            }
-<a href=#302 id=302 data-nosnippet>302</a>            <span class="kw">if </span>has_fields {
-<a href=#303 id=303 data-nosnippet>303</a>                output.push(<span class="string">')'</span>);
-<a href=#304 id=304 data-nosnippet>304</a>            }
-<a href=#305 id=305 data-nosnippet>305</a>        }
-<a href=#306 id=306 data-nosnippet>306</a>    }
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a>    <span class="prelude-val">Some</span>(output)
-<a href=#309 id=309 data-nosnippet>309</a>}
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a><span class="kw">fn </span>write_template_replacing_interpolations(
-<a href=#312 id=312 data-nosnippet>312</a>    template: <span class="kw-2">&amp;</span>str,
-<a href=#313 id=313 data-nosnippet>313</a>    fmt: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw-2">mut </span>replacement: <span class="kw">impl </span>FnMut() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#315 id=315 data-nosnippet>315</a>) -&gt; std::fmt::Result {
-<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">let </span><span class="kw-2">mut </span>last_index = <span class="number">0</span>; <span class="comment">// How far we've written from the template
-<a href=#317 id=317 data-nosnippet>317</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>char_indices = template.char_indices().peekable();
-<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>((char_index, char)) = char_indices.next() {
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="comment">// If we see a '}' it must be "}}" because the ones for interpolation are handled
-<a href=#320 id=320 data-nosnippet>320</a>        // when we see '{'
-<a href=#321 id=321 data-nosnippet>321</a>        </span><span class="kw">if </span>char == <span class="string">'}' </span>{
-<a href=#322 id=322 data-nosnippet>322</a>            <span class="comment">// Write what we've seen so far in the template, including this '}'
-<a href=#323 id=323 data-nosnippet>323</a>            </span><span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..=char_index])<span class="question-mark">?</span>;
-<a href=#324 id=324 data-nosnippet>324</a>
-<a href=#325 id=325 data-nosnippet>325</a>            <span class="comment">// Skip the second '}'
-<a href=#326 id=326 data-nosnippet>326</a>            </span><span class="kw">let </span>(<span class="kw">_</span>, closing_curly) = char_indices.next().unwrap();
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="macro">assert_eq!</span>(closing_curly, <span class="string">'}'</span>);
-<a href=#328 id=328 data-nosnippet>328</a>
-<a href=#329 id=329 data-nosnippet>329</a>            last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
-<a href=#330 id=330 data-nosnippet>330</a>            <span class="kw">continue</span>;
-<a href=#331 id=331 data-nosnippet>331</a>        }
-<a href=#332 id=332 data-nosnippet>332</a>
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="comment">// Keep going forward until we find a '{'
-<a href=#334 id=334 data-nosnippet>334</a>        </span><span class="kw">if </span>char != <span class="string">'{' </span>{
-<a href=#335 id=335 data-nosnippet>335</a>            <span class="kw">continue</span>;
-<a href=#336 id=336 data-nosnippet>336</a>        }
-<a href=#337 id=337 data-nosnippet>337</a>
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="comment">// We'll either have to write an interpolation or '{{' if it's an escape,
-<a href=#339 id=339 data-nosnippet>339</a>        // so let's write what we've seen so far in the template.
-<a href=#340 id=340 data-nosnippet>340</a>        </span><span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..char_index])<span class="question-mark">?</span>;
-<a href=#341 id=341 data-nosnippet>341</a>
-<a href=#342 id=342 data-nosnippet>342</a>        <span class="comment">// If it's '{{', write '{' and keep going
-<a href=#343 id=343 data-nosnippet>343</a>        </span><span class="kw">if </span>char_indices.peek().map(|(<span class="kw">_</span>, char)| char) == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">'{'</span>) {
-<a href=#344 id=344 data-nosnippet>344</a>            <span class="macro">write!</span>(fmt, <span class="string">"{{"</span>)<span class="question-mark">?</span>;
-<a href=#345 id=345 data-nosnippet>345</a>
-<a href=#346 id=346 data-nosnippet>346</a>            <span class="comment">// Skip the second '{'
-<a href=#347 id=347 data-nosnippet>347</a>            </span>char_indices.next().unwrap();
-<a href=#348 id=348 data-nosnippet>348</a>
-<a href=#349 id=349 data-nosnippet>349</a>            last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
-<a href=#350 id=350 data-nosnippet>350</a>            <span class="kw">continue</span>;
-<a href=#351 id=351 data-nosnippet>351</a>        }
-<a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="comment">// Write the interpolation
-<a href=#354 id=354 data-nosnippet>354</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(string) = replacement() {
-<a href=#355 id=355 data-nosnippet>355</a>            <span class="macro">write!</span>(fmt, <span class="string">"{string}"</span>)<span class="question-mark">?</span>;
-<a href=#356 id=356 data-nosnippet>356</a>        } <span class="kw">else </span>{
-<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(std::fmt::Error);
-<a href=#358 id=358 data-nosnippet>358</a>        }
-<a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a>        <span class="comment">// Whatever was inside '{...}' doesn't matter, so skip until we find '}'
-<a href=#361 id=361 data-nosnippet>361</a>        </span><span class="kw">while let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, char)) = char_indices.next() {
-<a href=#362 id=362 data-nosnippet>362</a>            <span class="kw">if </span>char == <span class="string">'}' </span>{
-<a href=#363 id=363 data-nosnippet>363</a>                last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
-<a href=#364 id=364 data-nosnippet>364</a>                <span class="kw">break</span>;
-<a href=#365 id=365 data-nosnippet>365</a>            }
-<a href=#366 id=366 data-nosnippet>366</a>        }
-<a href=#367 id=367 data-nosnippet>367</a>    }
-<a href=#368 id=368 data-nosnippet>368</a>
-<a href=#369 id=369 data-nosnippet>369</a>    <span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..])
-<a href=#370 id=370 data-nosnippet>370</a>}
-<a href=#371 id=371 data-nosnippet>371</a>
-<a href=#372 id=372 data-nosnippet>372</a><span class="doccomment">/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
-<a href=#373 id=373 data-nosnippet>373</a></span><span class="kw">pub fn </span>decode_printable_value&lt;F: AcirField&gt;(
-<a href=#374 id=374 data-nosnippet>374</a>    field_iterator: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = F&gt;,
-<a href=#375 id=375 data-nosnippet>375</a>    typ: <span class="kw-2">&amp;</span>PrintableType,
-<a href=#376 id=376 data-nosnippet>376</a>) -&gt; PrintableValue&lt;F&gt; {
-<a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">match </span>typ {
-<a href=#378 id=378 data-nosnippet>378</a>        PrintableType::Field
-<a href=#379 id=379 data-nosnippet>379</a>        | PrintableType::SignedInteger { .. }
-<a href=#380 id=380 data-nosnippet>380</a>        | PrintableType::UnsignedInteger { .. }
-<a href=#381 id=381 data-nosnippet>381</a>        | PrintableType::Boolean =&gt; {
-<a href=#382 id=382 data-nosnippet>382</a>            <span class="kw">let </span>field_element = field_iterator.next().expect(<span class="string">"not enough data: expected bool"</span>);
-<a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a>            PrintableValue::Field(field_element)
-<a href=#385 id=385 data-nosnippet>385</a>        }
-<a href=#386 id=386 data-nosnippet>386</a>        PrintableType::Array { length, typ } =&gt; {
-<a href=#387 id=387 data-nosnippet>387</a>            <span class="kw">let </span>length = <span class="kw-2">*</span>length <span class="kw">as </span>usize;
-<a href=#388 id=388 data-nosnippet>388</a>            <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
-<a href=#389 id=389 data-nosnippet>389</a>
-<a href=#390 id=390 data-nosnippet>390</a>            <span class="kw">for _ in </span><span class="number">0</span>..length {
-<a href=#391 id=391 data-nosnippet>391</a>                array_elements.push(decode_printable_value(field_iterator, typ));
-<a href=#392 id=392 data-nosnippet>392</a>            }
-<a href=#393 id=393 data-nosnippet>393</a>
-<a href=#394 id=394 data-nosnippet>394</a>            PrintableValue::Vec { array_elements, is_vector: <span class="bool-val">false </span>}
-<a href=#395 id=395 data-nosnippet>395</a>        }
-<a href=#396 id=396 data-nosnippet>396</a>        PrintableType::Vector { typ } =&gt; {
-<a href=#397 id=397 data-nosnippet>397</a>            <span class="kw">let </span>length =
-<a href=#398 id=398 data-nosnippet>398</a>                field_iterator.next().expect(<span class="string">"not enough data: expected vector length"</span>).to_u128()
-<a href=#399 id=399 data-nosnippet>399</a>                    <span class="kw">as </span>usize;
-<a href=#400 id=400 data-nosnippet>400</a>
-<a href=#401 id=401 data-nosnippet>401</a>            <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a>            <span class="kw">for _ in </span><span class="number">0</span>..length {
-<a href=#404 id=404 data-nosnippet>404</a>                array_elements.push(decode_printable_value(field_iterator, typ));
-<a href=#405 id=405 data-nosnippet>405</a>            }
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>            PrintableValue::Vec { array_elements, is_vector: <span class="bool-val">true </span>}
-<a href=#408 id=408 data-nosnippet>408</a>        }
-<a href=#409 id=409 data-nosnippet>409</a>        PrintableType::Tuple { types } =&gt; PrintableValue::Vec {
-<a href=#410 id=410 data-nosnippet>410</a>            array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
-<a href=#411 id=411 data-nosnippet>411</a>            is_vector: <span class="bool-val">false</span>,
-<a href=#412 id=412 data-nosnippet>412</a>        },
-<a href=#413 id=413 data-nosnippet>413</a>        PrintableType::String { length } =&gt; {
-<a href=#414 id=414 data-nosnippet>414</a>            <span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
-<a href=#415 id=415 data-nosnippet>415</a>            <span class="kw">let </span>string = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
-<a href=#416 id=416 data-nosnippet>416</a>            PrintableValue::String(string)
-<a href=#417 id=417 data-nosnippet>417</a>        }
-<a href=#418 id=418 data-nosnippet>418</a>        PrintableType::FmtString { length, typ } =&gt; {
-<a href=#419 id=419 data-nosnippet>419</a>            <span class="comment">// First comes the template string, for which we know its length
-<a href=#420 id=420 data-nosnippet>420</a>            </span><span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
-<a href=#421 id=421 data-nosnippet>421</a>            <span class="kw">let </span>string = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
-<a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a>            <span class="comment">// Next comes the number of interpolated values
-<a href=#424 id=424 data-nosnippet>424</a>            </span><span class="kw">let </span>tuple_length =
-<a href=#425 id=425 data-nosnippet>425</a>                field_iterator.next().expect(<span class="string">"Expected tuple length"</span>).to_u128() <span class="kw">as </span>usize;
-<a href=#426 id=426 data-nosnippet>426</a>            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
-<a href=#427 id=427 data-nosnippet>427</a>                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
-<a href=#428 id=428 data-nosnippet>428</a>            };
-<a href=#429 id=429 data-nosnippet>429</a>            <span class="macro">assert_eq!</span>(tuple_length, types.len());
-<a href=#430 id=430 data-nosnippet>430</a>
-<a href=#431 id=431 data-nosnippet>431</a>            <span class="comment">// Next come the interpolated values
-<a href=#432 id=432 data-nosnippet>432</a>            </span><span class="kw">let </span>values = types
-<a href=#433 id=433 data-nosnippet>433</a>                .iter()
-<a href=#434 id=434 data-nosnippet>434</a>                .map(|typ| decode_printable_value(field_iterator, typ))
-<a href=#435 id=435 data-nosnippet>435</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#436 id=436 data-nosnippet>436</a>
-<a href=#437 id=437 data-nosnippet>437</a>            PrintableValue::FmtString(string, values)
-<a href=#438 id=438 data-nosnippet>438</a>        }
-<a href=#439 id=439 data-nosnippet>439</a>        PrintableType::Struct { fields, .. } =&gt; {
-<a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">let </span><span class="kw-2">mut </span>struct_map = BTreeMap::new();
-<a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>            <span class="kw">for </span>(field_key, param_type) <span class="kw">in </span>fields {
-<a href=#443 id=443 data-nosnippet>443</a>                <span class="kw">let </span>field_value = decode_printable_value(field_iterator, param_type);
-<a href=#444 id=444 data-nosnippet>444</a>
-<a href=#445 id=445 data-nosnippet>445</a>                struct_map.insert(field_key.to_owned(), field_value);
-<a href=#446 id=446 data-nosnippet>446</a>            }
-<a href=#447 id=447 data-nosnippet>447</a>
-<a href=#448 id=448 data-nosnippet>448</a>            PrintableValue::Struct(struct_map)
-<a href=#449 id=449 data-nosnippet>449</a>        }
-<a href=#450 id=450 data-nosnippet>450</a>        PrintableType::Function { env, .. } =&gt; {
-<a href=#451 id=451 data-nosnippet>451</a>            <span class="comment">// We want to consume the fields from the environment, but for now they are not actually printed.
-<a href=#452 id=452 data-nosnippet>452</a>            </span><span class="kw">let </span>_env = decode_printable_value(field_iterator, env);
-<a href=#453 id=453 data-nosnippet>453</a>            <span class="kw">let </span>func_id = field_iterator.next().expect(<span class="string">"not enough data: expected function ID"</span>);
-<a href=#454 id=454 data-nosnippet>454</a>            PrintableValue::Field(func_id)
-<a href=#455 id=455 data-nosnippet>455</a>        }
-<a href=#456 id=456 data-nosnippet>456</a>        PrintableType::Reference { typ, .. } =&gt; {
-<a href=#457 id=457 data-nosnippet>457</a>            <span class="comment">// We decode the reference, but it's not actually used for printing.
-<a href=#458 id=458 data-nosnippet>458</a>            // The reference consists of varying number of fields, depending on type.
-<a href=#459 id=459 data-nosnippet>459</a>            </span><span class="kw">let </span>num_fields = flattened_reference_size(typ);
-<a href=#460 id=460 data-nosnippet>460</a>            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..num_fields {
-<a href=#461 id=461 data-nosnippet>461</a>                <span class="kw">let _ </span>= field_iterator
-<a href=#462 id=462 data-nosnippet>462</a>                    .next()
-<a href=#463 id=463 data-nosnippet>463</a>                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"not enough data: expected reference field [{i}]"</span>));
-<a href=#464 id=464 data-nosnippet>464</a>            }
-<a href=#465 id=465 data-nosnippet>465</a>            PrintableValue::Other
-<a href=#466 id=466 data-nosnippet>466</a>        }
-<a href=#467 id=467 data-nosnippet>467</a>        PrintableType::Unit =&gt; PrintableValue::Field(F::zero()),
-<a href=#468 id=468 data-nosnippet>468</a>        PrintableType::Enum { name: <span class="kw">_</span>, variants } =&gt; {
-<a href=#469 id=469 data-nosnippet>469</a>            <span class="kw">let </span>tag = field_iterator.next().expect(<span class="string">"not enough data: expected enum tag"</span>);
-<a href=#470 id=470 data-nosnippet>470</a>            <span class="kw">let </span>tag = tag.to_u128() <span class="kw">as </span>usize;
-<a href=#471 id=471 data-nosnippet>471</a>            <span class="comment">// A serialized enum looks as follows:
-<a href=#472 id=472 data-nosnippet>472</a>            //  [tag, variant0.field0, ..., variant0.fieldN, variant1.field0, ..., variant1.fieldM, ...]
-<a href=#473 id=473 data-nosnippet>473</a>            // So the number of fields are always the same, and we have to consume all of them
-<a href=#474 id=474 data-nosnippet>474</a>            // to make sure the next item will resume parsing from the right index;
-<a href=#475 id=475 data-nosnippet>475</a>            // the tag tells us which ones are non-default values.
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>            // Striving to keep only the non-default values in memory.
-<a href=#478 id=478 data-nosnippet>478</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::with_capacity(variants[tag].<span class="number">1</span>.len());
-<a href=#479 id=479 data-nosnippet>479</a>            <span class="kw">for </span>(i, (<span class="kw">_</span>, types)) <span class="kw">in </span>variants.iter().enumerate() {
-<a href=#480 id=480 data-nosnippet>480</a>                <span class="kw">for </span>typ <span class="kw">in </span>types {
-<a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">let </span>value = decode_printable_value(field_iterator, typ);
-<a href=#482 id=482 data-nosnippet>482</a>                    <span class="kw">if </span>i == tag {
-<a href=#483 id=483 data-nosnippet>483</a>                        elements.push(value);
-<a href=#484 id=484 data-nosnippet>484</a>                    }
-<a href=#485 id=485 data-nosnippet>485</a>                }
-<a href=#486 id=486 data-nosnippet>486</a>            }
-<a href=#487 id=487 data-nosnippet>487</a>            PrintableValue::Enum { tag, elements }
-<a href=#488 id=488 data-nosnippet>488</a>        }
-<a href=#489 id=489 data-nosnippet>489</a>    }
-<a href=#490 id=490 data-nosnippet>490</a>}
-<a href=#491 id=491 data-nosnippet>491</a>
-<a href=#492 id=492 data-nosnippet>492</a><span class="kw">pub fn </span>decode_string_value&lt;F: AcirField&gt;(field_elements: <span class="kw-2">&amp;</span>[F]) -&gt; String {
-<a href=#493 id=493 data-nosnippet>493</a>    <span class="kw">let </span>string_as_slice = vecmap(field_elements, |e| {
-<a href=#494 id=494 data-nosnippet>494</a>        <span class="kw">let </span><span class="kw-2">mut </span>field_as_bytes = e.to_be_bytes();
-<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">let </span>char_byte = field_as_bytes.pop().unwrap(); <span class="comment">// A character in a string is represented by a u8, thus we just want the last byte of the element
-<a href=#496 id=496 data-nosnippet>496</a>        </span><span class="macro">assert!</span>(field_as_bytes.into_iter().all(|b| b == <span class="number">0</span>)); <span class="comment">// Assert that the rest of the field element's bytes are empty
-<a href=#497 id=497 data-nosnippet>497</a>        </span>char_byte
-<a href=#498 id=498 data-nosnippet>498</a>    });
-<a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a>    <span class="kw">let </span>final_string = String::from_utf8_lossy(<span class="kw-2">&amp;</span>string_as_slice).to_string();
-<a href=#501 id=501 data-nosnippet>501</a>    final_string.to_owned()
-<a href=#502 id=502 data-nosnippet>502</a>}
-<a href=#503 id=503 data-nosnippet>503</a>
-<a href=#504 id=504 data-nosnippet>504</a><span class="kw">pub enum </span>TryFromParamsError {
-<a href=#505 id=505 data-nosnippet>505</a>    MissingForeignCallInputs,
-<a href=#506 id=506 data-nosnippet>506</a>    ParsingError(serde_json::Error),
-<a href=#507 id=507 data-nosnippet>507</a>}
-<a href=#508 id=508 data-nosnippet>508</a>
-<a href=#509 id=509 data-nosnippet>509</a><span class="kw">impl</span>&lt;F: AcirField&gt; PrintableValueDisplay&lt;F&gt; {
-<a href=#510 id=510 data-nosnippet>510</a>    <span class="doccomment">/// Decode the print parameters after the first _newline_ flag has already been split.
-<a href=#511 id=511 data-nosnippet>511</a>    ///
-<a href=#512 id=512 data-nosnippet>512</a>    /// The last parameter is expected to be the flag indicating whether we are dealing
-<a href=#513 id=513 data-nosnippet>513</a>    /// with a format string.
-<a href=#514 id=514 data-nosnippet>514</a>    ///
-<a href=#515 id=515 data-nosnippet>515</a>    /// We expect at least 3 arguments (tuples are passed as multiple values):
-<a href=#516 id=516 data-nosnippet>516</a>    /// * normal: value.0, ..., value.i, meta, false
-<a href=#517 id=517 data-nosnippet>517</a>    /// * formatted: msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
-<a href=#518 id=518 data-nosnippet>518</a>    ///
-<a href=#519 id=519 data-nosnippet>519</a>    /// The meta parts are JSON descriptors of the corresponding types, which guide the decoding.
-<a href=#520 id=520 data-nosnippet>520</a>    </span><span class="kw">pub fn </span>try_from_params(
-<a href=#521 id=521 data-nosnippet>521</a>        foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
-<a href=#522 id=522 data-nosnippet>522</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
-<a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">let </span>(is_fmt_str, foreign_call_inputs) =
-<a href=#524 id=524 data-nosnippet>524</a>            foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
-<a href=#525 id=525 data-nosnippet>525</a>
-<a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">if </span>is_fmt_str.unwrap_field().is_one() {
-<a href=#527 id=527 data-nosnippet>527</a>            convert_fmt_string_inputs(foreign_call_inputs)
-<a href=#528 id=528 data-nosnippet>528</a>        } <span class="kw">else </span>{
-<a href=#529 id=529 data-nosnippet>529</a>            convert_string_inputs(foreign_call_inputs)
-<a href=#530 id=530 data-nosnippet>530</a>        }
-<a href=#531 id=531 data-nosnippet>531</a>    }
-<a href=#532 id=532 data-nosnippet>532</a>}
-<a href=#533 id=533 data-nosnippet>533</a>
-<a href=#534 id=534 data-nosnippet>534</a><span class="doccomment">/// Flatten input parameters into a field vector.
-<a href=#535 id=535 data-nosnippet>535</a>///
-<a href=#536 id=536 data-nosnippet>536</a>/// Vectors are expected to have exactly as many elements as indicated by their corresponding length,
-<a href=#537 id=537 data-nosnippet>537</a>/// with any extra elements pruned by the caller already.
-<a href=#538 id=538 data-nosnippet>538</a></span><span class="kw">fn </span>flatten_inputs&lt;F: AcirField&gt;(input_values: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;]) -&gt; <span class="kw">impl </span>Iterator&lt;Item = F&gt; {
-<a href=#539 id=539 data-nosnippet>539</a>    input_values.iter().flat_map(|param| param.fields())
-<a href=#540 id=540 data-nosnippet>540</a>}
-<a href=#541 id=541 data-nosnippet>541</a>
-<a href=#542 id=542 data-nosnippet>542</a><span class="doccomment">/// Decode parameters for a normal call, without format string.
-<a href=#543 id=543 data-nosnippet>543</a>///
-<a href=#544 id=544 data-nosnippet>544</a>/// It will have a single meta descriptor:
-<a href=#545 id=545 data-nosnippet>545</a>///
-<a href=#546 id=546 data-nosnippet>546</a>/// value.0, ..., value.i, meta
-<a href=#547 id=547 data-nosnippet>547</a></span><span class="kw">fn </span>convert_string_inputs&lt;F: AcirField&gt;(
-<a href=#548 id=548 data-nosnippet>548</a>    foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
-<a href=#549 id=549 data-nosnippet>549</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
-<a href=#550 id=550 data-nosnippet>550</a>    <span class="comment">// Fetch the PrintableType from the foreign call input
-<a href=#551 id=551 data-nosnippet>551</a>    // The remaining input values should hold what is to be printed
-<a href=#552 id=552 data-nosnippet>552</a>    </span><span class="kw">let </span>(printable_type_as_values, input_values) =
-<a href=#553 id=553 data-nosnippet>553</a>        foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
-<a href=#554 id=554 data-nosnippet>554</a>
-<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">let </span>printable_type = fetch_printable_type(printable_type_as_values)<span class="question-mark">?</span>;
-<a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a>    <span class="comment">// We must use a flat map here as each value in a struct will be in a separate input value
-<a href=#558 id=558 data-nosnippet>558</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>input_values_as_fields = flatten_inputs(input_values);
-<a href=#559 id=559 data-nosnippet>559</a>
-<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">let </span>value = decode_printable_value(<span class="kw-2">&amp;mut </span>input_values_as_fields, <span class="kw-2">&amp;</span>printable_type);
-<a href=#561 id=561 data-nosnippet>561</a>
-<a href=#562 id=562 data-nosnippet>562</a>    <span class="prelude-val">Ok</span>(PrintableValueDisplay::Plain(value, printable_type))
-<a href=#563 id=563 data-nosnippet>563</a>}
-<a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a><span class="doccomment">/// Decode parameters for a call with format string.
-<a href=#566 id=566 data-nosnippet>566</a>///
-<a href=#567 id=567 data-nosnippet>567</a>/// It will have the format message, followed by the number of arguments, and their values:
-<a href=#568 id=568 data-nosnippet>568</a>///
-<a href=#569 id=569 data-nosnippet>569</a>/// msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN
-<a href=#570 id=570 data-nosnippet>570</a></span><span class="kw">fn </span>convert_fmt_string_inputs&lt;F: AcirField&gt;(
-<a href=#571 id=571 data-nosnippet>571</a>    foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
-<a href=#572 id=572 data-nosnippet>572</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
-<a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">let </span>(message, input_and_printable_types) =
-<a href=#574 id=574 data-nosnippet>574</a>        foreign_call_inputs.split_first().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
-<a href=#575 id=575 data-nosnippet>575</a>
-<a href=#576 id=576 data-nosnippet>576</a>    <span class="kw">let </span>message_as_fields = message.fields();
-<a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">let </span>message_as_string = decode_string_value(<span class="kw-2">&amp;</span>message_as_fields);
-<a href=#578 id=578 data-nosnippet>578</a>
-<a href=#579 id=579 data-nosnippet>579</a>    <span class="kw">let </span>(num_values, input_and_printable_types) = input_and_printable_types
-<a href=#580 id=580 data-nosnippet>580</a>        .split_first()
-<a href=#581 id=581 data-nosnippet>581</a>        .ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
-<a href=#582 id=582 data-nosnippet>582</a>
-<a href=#583 id=583 data-nosnippet>583</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
-<a href=#584 id=584 data-nosnippet>584</a>    <span class="kw">let </span>num_values = num_values.unwrap_field().to_u128() <span class="kw">as </span>usize;
-<a href=#585 id=585 data-nosnippet>585</a>
-<a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">let </span>types_start_at = input_and_printable_types.len() - num_values;
-<a href=#587 id=587 data-nosnippet>587</a>
-<a href=#588 id=588 data-nosnippet>588</a>    <span class="kw">let </span><span class="kw-2">mut </span>input_iter = flatten_inputs(<span class="kw-2">&amp;</span>input_and_printable_types[<span class="number">0</span>..types_start_at]);
-<a href=#589 id=589 data-nosnippet>589</a>
-<a href=#590 id=590 data-nosnippet>590</a>    <span class="kw">for </span>printable_type <span class="kw">in </span>input_and_printable_types.iter().skip(types_start_at) {
-<a href=#591 id=591 data-nosnippet>591</a>        <span class="kw">let </span>printable_type = fetch_printable_type(printable_type)<span class="question-mark">?</span>;
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>value = decode_printable_value(<span class="kw-2">&amp;mut </span>input_iter, <span class="kw-2">&amp;</span>printable_type);
-<a href=#593 id=593 data-nosnippet>593</a>
-<a href=#594 id=594 data-nosnippet>594</a>        output.push((value, printable_type));
-<a href=#595 id=595 data-nosnippet>595</a>    }
-<a href=#596 id=596 data-nosnippet>596</a>
-<a href=#597 id=597 data-nosnippet>597</a>    <span class="prelude-val">Ok</span>(PrintableValueDisplay::FmtString(message_as_string, output))
-<a href=#598 id=598 data-nosnippet>598</a>}
-<a href=#599 id=599 data-nosnippet>599</a>
-<a href=#600 id=600 data-nosnippet>600</a><span class="doccomment">/// Decode the JSON type descriptor of the arguments passed to the print.
-<a href=#601 id=601 data-nosnippet>601</a></span><span class="kw">fn </span>fetch_printable_type&lt;F: AcirField&gt;(
-<a href=#602 id=602 data-nosnippet>602</a>    printable_type: <span class="kw-2">&amp;</span>ForeignCallParam&lt;F&gt;,
-<a href=#603 id=603 data-nosnippet>603</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableType, TryFromParamsError&gt; {
-<a href=#604 id=604 data-nosnippet>604</a>    <span class="kw">let </span>printable_type_as_fields = printable_type.fields();
-<a href=#605 id=605 data-nosnippet>605</a>    <span class="kw">let </span>printable_type_as_string = decode_string_value(<span class="kw-2">&amp;</span>printable_type_as_fields);
-<a href=#606 id=606 data-nosnippet>606</a>    <span class="kw">let </span>printable_type: <span class="prelude-ty">Result</span>&lt;PrintableType, serde_json::Error&gt; =
-<a href=#607 id=607 data-nosnippet>607</a>        serde_json::from_str(<span class="kw-2">&amp;</span>printable_type_as_string);
-<a href=#608 id=608 data-nosnippet>608</a>    <span class="kw">match </span>printable_type {
-<a href=#609 id=609 data-nosnippet>609</a>        <span class="prelude-val">Ok</span>(printable_type) =&gt; <span class="prelude-val">Ok</span>(printable_type),
-<a href=#610 id=610 data-nosnippet>610</a>        <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(TryFromParamsError::ParsingError(err)),
-<a href=#611 id=611 data-nosnippet>611</a>    }
-<a href=#612 id=612 data-nosnippet>612</a>}
-<a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a><span class="doccomment">/// Calculate the number of fields used represent a reference to a type.
-<a href=#615 id=615 data-nosnippet>615</a></span><span class="kw">fn </span>flattened_reference_size(typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; usize {
-<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">match </span>typ {
-<a href=#617 id=617 data-nosnippet>617</a>        PrintableType::Tuple { types } =&gt; types.iter().map(flattened_reference_size).sum(),
-<a href=#618 id=618 data-nosnippet>618</a>        PrintableType::Struct { fields, .. } =&gt; {
-<a href=#619 id=619 data-nosnippet>619</a>            fields.iter().map(|(<span class="kw">_</span>, typ)| flattened_reference_size(typ)).sum()
-<a href=#620 id=620 data-nosnippet>620</a>        }
-<a href=#621 id=621 data-nosnippet>621</a>        PrintableType::Reference { typ, .. } =&gt; flattened_reference_size(typ),
-<a href=#622 id=622 data-nosnippet>622</a>        PrintableType::Unit =&gt; <span class="number">0</span>,
-<a href=#623 id=623 data-nosnippet>623</a>        PrintableType::Array { .. }
-<a href=#624 id=624 data-nosnippet>624</a>        | PrintableType::String { .. }
-<a href=#625 id=625 data-nosnippet>625</a>        | PrintableType::Boolean
-<a href=#626 id=626 data-nosnippet>626</a>        | PrintableType::Field
-<a href=#627 id=627 data-nosnippet>627</a>        | PrintableType::Function { .. }
-<a href=#628 id=628 data-nosnippet>628</a>        | PrintableType::SignedInteger { .. }
-<a href=#629 id=629 data-nosnippet>629</a>        | PrintableType::UnsignedInteger { .. }
-<a href=#630 id=630 data-nosnippet>630</a>        | PrintableType::FmtString { .. } =&gt; <span class="number">1</span>,
-<a href=#631 id=631 data-nosnippet>631</a>        PrintableType::Vector { .. } =&gt; <span class="number">2</span>, <span class="comment">// length + pointer
-<a href=#632 id=632 data-nosnippet>632</a>        </span>PrintableType::Enum { .. } =&gt; {
-<a href=#633 id=633 data-nosnippet>633</a>            <span class="comment">// This is tricky because enums are encoded as [tag, field1, field2, ...],
-<a href=#634 id=634 data-nosnippet>634</a>            // however when we have a reference to an enum variant, then even the tag
-<a href=#635 id=635 data-nosnippet>635</a>            // is just a memory address, so we can't use its value to decide how many
-<a href=#636 id=636 data-nosnippet>636</a>            // fields to consume.
-<a href=#637 id=637 data-nosnippet>637</a>            // For example a tuple like `Bar::Baz((1, [2, 3]))` would be encoded as [0, 1, [2, 3]],
-<a href=#638 id=638 data-nosnippet>638</a>            // where 0 means this is the first variant in the `Bar` enum,
-<a href=#639 id=639 data-nosnippet>639</a>            // but a reference to it would be like [36065, 36057, 36058].
-<a href=#640 id=640 data-nosnippet>640</a>            </span><span class="macro">todo!</span>(<span class="string">"flattened reference size for enums is not implemented"</span>);
-<a href=#641 id=641 data-nosnippet>641</a>        }
-<a href=#642 id=642 data-nosnippet>642</a>    }
-<a href=#643 id=643 data-nosnippet>643</a>}
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a><span class="attr">#[cfg(test)]
-<a href=#646 id=646 data-nosnippet>646</a></span><span class="kw">mod </span>tests {
-<a href=#647 id=647 data-nosnippet>647</a>    <span class="kw">use </span>acvm::FieldElement;
-<a href=#648 id=648 data-nosnippet>648</a>
-<a href=#649 id=649 data-nosnippet>649</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
-<a href=#650 id=650 data-nosnippet>650</a>
-<a href=#651 id=651 data-nosnippet>651</a>    <span class="kw">use </span><span class="kw">crate</span>::to_string;
-<a href=#652 id=652 data-nosnippet>652</a>
-<a href=#653 id=653 data-nosnippet>653</a>    <span class="kw">use super</span>::{PrintableType, PrintableValue, PrintableValueDisplay};
-<a href=#654 id=654 data-nosnippet>654</a>
-<a href=#655 id=655 data-nosnippet>655</a>    <span class="attr">#[test]
-<a href=#656 id=656 data-nosnippet>656</a>    </span><span class="kw">fn </span>printable_value_display_to_string_without_interpolations() {
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="kw">let </span>template = <span class="string">"hello"</span>;
-<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span>display =
-<a href=#659 id=659 data-nosnippet>659</a>            PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), <span class="macro">vec!</span>[]);
-<a href=#660 id=660 data-nosnippet>660</a>        <span class="macro">assert_eq!</span>(display.to_string(), template);
-<a href=#661 id=661 data-nosnippet>661</a>    }
-<a href=#662 id=662 data-nosnippet>662</a>
-<a href=#663 id=663 data-nosnippet>663</a>    <span class="attr">#[test]
-<a href=#664 id=664 data-nosnippet>664</a>    </span><span class="kw">fn </span>printable_value_display_to_string_with_curly_escapes() {
-<a href=#665 id=665 data-nosnippet>665</a>        <span class="kw">let </span>template = <span class="string">"hello {{world}} {{{{double_escape}}}}"</span>;
-<a href=#666 id=666 data-nosnippet>666</a>        <span class="kw">let </span>expected = <span class="string">"hello {world} {{double_escape}}"</span>;
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span>display =
-<a href=#668 id=668 data-nosnippet>668</a>            PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), <span class="macro">vec!</span>[]);
-<a href=#669 id=669 data-nosnippet>669</a>        <span class="macro">assert_eq!</span>(display.to_string(), expected);
-<a href=#670 id=670 data-nosnippet>670</a>    }
-<a href=#671 id=671 data-nosnippet>671</a>
-<a href=#672 id=672 data-nosnippet>672</a>    <span class="attr">#[test]
-<a href=#673 id=673 data-nosnippet>673</a>    </span><span class="kw">fn </span>printable_value_display_to_string_with_interpolations() {
-<a href=#674 id=674 data-nosnippet>674</a>        <span class="kw">let </span>template = <span class="string">"hello {one} {{no}} {two} {{not_again}} {three} world"</span>;
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>values = <span class="macro">vec!</span>[
-<a href=#676 id=676 data-nosnippet>676</a>            (PrintableValue::String(<span class="string">"ONE"</span>.to_string()), PrintableType::String { length: <span class="number">3 </span>}),
-<a href=#677 id=677 data-nosnippet>677</a>            (PrintableValue::String(<span class="string">"TWO"</span>.to_string()), PrintableType::String { length: <span class="number">3 </span>}),
-<a href=#678 id=678 data-nosnippet>678</a>            (PrintableValue::String(<span class="string">"THREE"</span>.to_string()), PrintableType::String { length: <span class="number">5 </span>}),
-<a href=#679 id=679 data-nosnippet>679</a>        ];
-<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">let </span>expected = <span class="string">"hello ONE {no} TWO {not_again} THREE world"</span>;
-<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">let </span>display =
-<a href=#682 id=682 data-nosnippet>682</a>            PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), values);
-<a href=#683 id=683 data-nosnippet>683</a>        <span class="macro">assert_eq!</span>(display.to_string(), expected);
-<a href=#684 id=684 data-nosnippet>684</a>    }
-<a href=#685 id=685 data-nosnippet>685</a>
-<a href=#686 id=686 data-nosnippet>686</a>    <span class="attr">#[test]
-<a href=#687 id=687 data-nosnippet>687</a>    </span><span class="kw">fn </span>one_element_tuple_to_string() {
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
-<a href=#689 id=689 data-nosnippet>689</a>            array_elements: <span class="macro">vec!</span>[PrintableValue::Field(<span class="number">1_u128</span>.into())],
-<a href=#690 id=690 data-nosnippet>690</a>            is_vector: <span class="bool-val">false</span>,
-<a href=#691 id=691 data-nosnippet>691</a>        };
-<a href=#692 id=692 data-nosnippet>692</a>        <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field] };
-<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01,)"</span>);
-<a href=#695 id=695 data-nosnippet>695</a>    }
-<a href=#696 id=696 data-nosnippet>696</a>
-<a href=#697 id=697 data-nosnippet>697</a>    <span class="attr">#[test]
-<a href=#698 id=698 data-nosnippet>698</a>    </span><span class="kw">fn </span>two_elements_tuple_to_string() {
-<a href=#699 id=699 data-nosnippet>699</a>        <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
-<a href=#700 id=700 data-nosnippet>700</a>            array_elements: <span class="macro">vec!</span>[
-<a href=#701 id=701 data-nosnippet>701</a>                PrintableValue::Field(<span class="number">1_u128</span>.into()),
-<a href=#702 id=702 data-nosnippet>702</a>                PrintableValue::Field(<span class="number">2_u128</span>.into()),
-<a href=#703 id=703 data-nosnippet>703</a>            ],
-<a href=#704 id=704 data-nosnippet>704</a>            is_vector: <span class="bool-val">false</span>,
-<a href=#705 id=705 data-nosnippet>705</a>        };
-<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field, PrintableType::Field] };
-<a href=#707 id=707 data-nosnippet>707</a>        <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
-<a href=#708 id=708 data-nosnippet>708</a>        <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01, 0x02)"</span>);
-<a href=#709 id=709 data-nosnippet>709</a>    }
-<a href=#710 id=710 data-nosnippet>710</a>
-<a href=#711 id=711 data-nosnippet>711</a>    <span class="comment">// Test for issue: https://github.com/noir-lang/noir/issues/10710
-<a href=#712 id=712 data-nosnippet>712</a>    </span><span class="attr">#[test]
-<a href=#713 id=713 data-nosnippet>713</a>    </span><span class="kw">fn </span>invalid_string() {
-<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">use </span><span class="kw">super</span>::decode_string_value;
-<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw">let </span>field_elements: Vec&lt;FieldElement&gt; = <span class="macro">vec!</span>[
-<a href=#716 id=716 data-nosnippet>716</a>            FieldElement::from(<span class="number">255_u128</span>),
+<a href=#135 id=135 data-nosnippet>135</a>                    <span class="kw">let </span>(value, typ) = values_iter.next()<span class="question-mark">?</span>;
+<a href=#136 id=136 data-nosnippet>136</a>                    to_string(value, typ)
+<a href=#137 id=137 data-nosnippet>137</a>                })
+<a href=#138 id=138 data-nosnippet>138</a>            }
+<a href=#139 id=139 data-nosnippet>139</a>        }
+<a href=#140 id=140 data-nosnippet>140</a>    }
+<a href=#141 id=141 data-nosnippet>141</a>}
+<a href=#142 id=142 data-nosnippet>142</a>
+<a href=#143 id=143 data-nosnippet>143</a><span class="doccomment">/// Format a given [PrintableValue] according to an expected [PrintableType].
+<a href=#144 id=144 data-nosnippet>144</a>///
+<a href=#145 id=145 data-nosnippet>145</a>/// Returns `None` if the value is not what we expect based on the type.
+<a href=#146 id=146 data-nosnippet>146</a></span><span class="kw">fn </span>to_string&lt;F: AcirField&gt;(value: <span class="kw-2">&amp;</span>PrintableValue&lt;F&gt;, typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = String::new();
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">match </span>typ {
+<a href=#149 id=149 data-nosnippet>149</a>        PrintableType::Field =&gt; {
+<a href=#150 id=150 data-nosnippet>150</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+<a href=#151 id=151 data-nosnippet>151</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#152 id=152 data-nosnippet>152</a>            };
+<a href=#153 id=153 data-nosnippet>153</a>            output.push_str(<span class="kw-2">&amp;</span>f.to_short_hex());
+<a href=#154 id=154 data-nosnippet>154</a>        }
+<a href=#155 id=155 data-nosnippet>155</a>        PrintableType::UnsignedInteger { width } =&gt; {
+<a href=#156 id=156 data-nosnippet>156</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+<a href=#157 id=157 data-nosnippet>157</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#158 id=158 data-nosnippet>158</a>            };
+<a href=#159 id=159 data-nosnippet>159</a>            <span class="comment">// Retain the lower 'width' bits
+<a href=#160 id=160 data-nosnippet>160</a>            </span><span class="macro">assert!</span>(<span class="kw-2">*</span>width &lt;= <span class="number">128</span>, <span class="string">"We don't currently support unsigned integers larger than u128"</span>);
+<a href=#161 id=161 data-nosnippet>161</a>            <span class="kw">let </span><span class="kw-2">mut </span>uint_cast = f.to_u128();
+<a href=#162 id=162 data-nosnippet>162</a>            <span class="kw">if </span><span class="kw-2">*</span>width != <span class="number">128 </span>{
+<a href=#163 id=163 data-nosnippet>163</a>                uint_cast &amp;= (<span class="number">1 </span>&lt;&lt; width) - <span class="number">1</span>;
+<a href=#164 id=164 data-nosnippet>164</a>            }
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>            output.push_str(<span class="kw-2">&amp;</span>uint_cast.to_string());
+<a href=#167 id=167 data-nosnippet>167</a>        }
+<a href=#168 id=168 data-nosnippet>168</a>        PrintableType::SignedInteger { width } =&gt; {
+<a href=#169 id=169 data-nosnippet>169</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+<a href=#170 id=170 data-nosnippet>170</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#171 id=171 data-nosnippet>171</a>            };
+<a href=#172 id=172 data-nosnippet>172</a>            <span class="kw">let </span><span class="kw-2">mut </span>uint = f.to_u128(); <span class="comment">// Interpret as uint
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a>            // Extract sign relative to width of input
+<a href=#175 id=175 data-nosnippet>175</a>            </span><span class="kw">if </span>(uint &gt;&gt; (width - <span class="number">1</span>)) == <span class="number">1 </span>{
+<a href=#176 id=176 data-nosnippet>176</a>                output.push(<span class="string">'-'</span>);
+<a href=#177 id=177 data-nosnippet>177</a>                uint = (uint ^ ((<span class="number">1 </span>&lt;&lt; width) - <span class="number">1</span>)) + <span class="number">1</span>; <span class="comment">// Two's complement relative to width of input
+<a href=#178 id=178 data-nosnippet>178</a>            </span>}
+<a href=#179 id=179 data-nosnippet>179</a>
+<a href=#180 id=180 data-nosnippet>180</a>            output.push_str(<span class="kw-2">&amp;</span>uint.to_string());
+<a href=#181 id=181 data-nosnippet>181</a>        }
+<a href=#182 id=182 data-nosnippet>182</a>        PrintableType::Boolean =&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>            <span class="kw">let </span>PrintableValue::Field(f) = value <span class="kw">else </span>{
+<a href=#184 id=184 data-nosnippet>184</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#185 id=185 data-nosnippet>185</a>            };
+<a href=#186 id=186 data-nosnippet>186</a>            <span class="kw">if </span>f.is_one() {
+<a href=#187 id=187 data-nosnippet>187</a>                output.push_str(<span class="string">"true"</span>);
+<a href=#188 id=188 data-nosnippet>188</a>            } <span class="kw">else </span>{
+<a href=#189 id=189 data-nosnippet>189</a>                output.push_str(<span class="string">"false"</span>);
+<a href=#190 id=190 data-nosnippet>190</a>            }
+<a href=#191 id=191 data-nosnippet>191</a>        }
+<a href=#192 id=192 data-nosnippet>192</a>        PrintableType::Function { .. } =&gt; {
+<a href=#193 id=193 data-nosnippet>193</a>            <span class="kw">let </span>PrintableValue::Field(<span class="kw">_</span>) = value <span class="kw">else </span>{
+<a href=#194 id=194 data-nosnippet>194</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#195 id=195 data-nosnippet>195</a>            };
+<a href=#196 id=196 data-nosnippet>196</a>            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;{typ}&gt;&gt;"</span>));
+<a href=#197 id=197 data-nosnippet>197</a>        }
+<a href=#198 id=198 data-nosnippet>198</a>        PrintableType::Reference { mutable, .. } =&gt; {
+<a href=#199 id=199 data-nosnippet>199</a>            <span class="kw">if </span><span class="kw-2">*</span>mutable {
+<a href=#200 id=200 data-nosnippet>200</a>                output.push_str(<span class="string">"&lt;&lt;mutable ref&gt;&gt;"</span>);
+<a href=#201 id=201 data-nosnippet>201</a>            } <span class="kw">else </span>{
+<a href=#202 id=202 data-nosnippet>202</a>                output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
+<a href=#203 id=203 data-nosnippet>203</a>            }
+<a href=#204 id=204 data-nosnippet>204</a>        }
+<a href=#205 id=205 data-nosnippet>205</a>        PrintableType::Array { typ, .. } | PrintableType::Vector { typ } =&gt; {
+<a href=#206 id=206 data-nosnippet>206</a>            <span class="kw">let </span>PrintableValue::Vec { array_elements, is_vector } = value <span class="kw">else </span>{
+<a href=#207 id=207 data-nosnippet>207</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#208 id=208 data-nosnippet>208</a>            };
+<a href=#209 id=209 data-nosnippet>209</a>            <span class="kw">if </span><span class="kw-2">*</span>is_vector {
+<a href=#210 id=210 data-nosnippet>210</a>                output.push(<span class="string">'@'</span>);
+<a href=#211 id=211 data-nosnippet>211</a>            }
+<a href=#212 id=212 data-nosnippet>212</a>            output.push(<span class="string">'['</span>);
+<a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">let </span><span class="kw-2">mut </span>values = array_elements.iter().peekable();
+<a href=#214 id=214 data-nosnippet>214</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>(value) = values.next() {
+<a href=#215 id=215 data-nosnippet>215</a>                output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+<a href=#216 id=216 data-nosnippet>216</a>                    <span class="string">"{}"</span>,
+<a href=#217 id=217 data-nosnippet>217</a>                    PrintableValueDisplay::Plain(value.clone(), <span class="kw-2">*</span>typ.clone())
+<a href=#218 id=218 data-nosnippet>218</a>                ));
+<a href=#219 id=219 data-nosnippet>219</a>                <span class="kw">if </span>values.peek().is_some() {
+<a href=#220 id=220 data-nosnippet>220</a>                    output.push_str(<span class="string">", "</span>);
+<a href=#221 id=221 data-nosnippet>221</a>                }
+<a href=#222 id=222 data-nosnippet>222</a>            }
+<a href=#223 id=223 data-nosnippet>223</a>            output.push(<span class="string">']'</span>);
+<a href=#224 id=224 data-nosnippet>224</a>        }
+<a href=#225 id=225 data-nosnippet>225</a>        PrintableType::String { .. } =&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>            <span class="kw">let </span>PrintableValue::String(s) = value <span class="kw">else </span>{
+<a href=#227 id=227 data-nosnippet>227</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#228 id=228 data-nosnippet>228</a>            };
+<a href=#229 id=229 data-nosnippet>229</a>            output.push_str(s);
+<a href=#230 id=230 data-nosnippet>230</a>        }
+<a href=#231 id=231 data-nosnippet>231</a>        PrintableType::FmtString { typ, .. } =&gt; {
+<a href=#232 id=232 data-nosnippet>232</a>            <span class="kw">let </span>PrintableValue::FmtString(template, values) = value <span class="kw">else </span>{
+<a href=#233 id=233 data-nosnippet>233</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#234 id=234 data-nosnippet>234</a>            };
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
+<a href=#236 id=236 data-nosnippet>236</a>                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
+<a href=#237 id=237 data-nosnippet>237</a>            };
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">let </span>template = template.to_string();
+<a href=#239 id=239 data-nosnippet>239</a>            <span class="kw">let </span>args = values.iter().cloned().zip(types.iter().cloned()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#240 id=240 data-nosnippet>240</a>            output.push_str(<span class="kw-2">&amp;</span>PrintableValueDisplay::FmtString(template, args).to_string());
+<a href=#241 id=241 data-nosnippet>241</a>        }
+<a href=#242 id=242 data-nosnippet>242</a>        PrintableType::Struct { name, fields, .. } =&gt; {
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">let </span>PrintableValue::Struct(map) = value <span class="kw">else </span>{
+<a href=#244 id=244 data-nosnippet>244</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#245 id=245 data-nosnippet>245</a>            };
+<a href=#246 id=246 data-nosnippet>246</a>            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{name} {{ "</span>));
+<a href=#247 id=247 data-nosnippet>247</a>
+<a href=#248 id=248 data-nosnippet>248</a>            <span class="kw">let </span><span class="kw-2">mut </span>fields = fields.iter().peekable();
+<a href=#249 id=249 data-nosnippet>249</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>((key, field_type)) = fields.next() {
+<a href=#250 id=250 data-nosnippet>250</a>                <span class="kw">let </span>value = <span class="kw-2">&amp;</span>map[key];
+<a href=#251 id=251 data-nosnippet>251</a>                output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+<a href=#252 id=252 data-nosnippet>252</a>                    <span class="string">"{key}: {}"</span>,
+<a href=#253 id=253 data-nosnippet>253</a>                    PrintableValueDisplay::Plain(value.clone(), field_type.clone())
+<a href=#254 id=254 data-nosnippet>254</a>                ));
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="kw">if </span>fields.peek().is_some() {
+<a href=#256 id=256 data-nosnippet>256</a>                    output.push_str(<span class="string">", "</span>);
+<a href=#257 id=257 data-nosnippet>257</a>                }
+<a href=#258 id=258 data-nosnippet>258</a>            }
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>            output.push_str(<span class="string">" }"</span>);
+<a href=#261 id=261 data-nosnippet>261</a>        }
+<a href=#262 id=262 data-nosnippet>262</a>        PrintableType::Tuple { types } =&gt; {
+<a href=#263 id=263 data-nosnippet>263</a>            <span class="kw">let </span>PrintableValue::Vec { array_elements, .. } = value <span class="kw">else </span>{
+<a href=#264 id=264 data-nosnippet>264</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#265 id=265 data-nosnippet>265</a>            };
+<a href=#266 id=266 data-nosnippet>266</a>            output.push(<span class="string">'('</span>);
+<a href=#267 id=267 data-nosnippet>267</a>            <span class="kw">let </span><span class="kw-2">mut </span>elements = array_elements.iter().zip(types).peekable();
+<a href=#268 id=268 data-nosnippet>268</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
+<a href=#269 id=269 data-nosnippet>269</a>                output.push_str(
+<a href=#270 id=270 data-nosnippet>270</a>                    <span class="kw-2">&amp;</span>PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+<a href=#271 id=271 data-nosnippet>271</a>                );
+<a href=#272 id=272 data-nosnippet>272</a>                <span class="kw">if </span>elements.peek().is_some() {
+<a href=#273 id=273 data-nosnippet>273</a>                    output.push_str(<span class="string">", "</span>);
+<a href=#274 id=274 data-nosnippet>274</a>                }
+<a href=#275 id=275 data-nosnippet>275</a>            }
+<a href=#276 id=276 data-nosnippet>276</a>            <span class="kw">if </span>types.len() == <span class="number">1 </span>{
+<a href=#277 id=277 data-nosnippet>277</a>                output.push(<span class="string">','</span>);
+<a href=#278 id=278 data-nosnippet>278</a>            }
+<a href=#279 id=279 data-nosnippet>279</a>            output.push(<span class="string">')'</span>);
+<a href=#280 id=280 data-nosnippet>280</a>        }
+<a href=#281 id=281 data-nosnippet>281</a>        PrintableType::Unit =&gt; {
+<a href=#282 id=282 data-nosnippet>282</a>            output.push_str(<span class="string">"()"</span>);
+<a href=#283 id=283 data-nosnippet>283</a>        }
+<a href=#284 id=284 data-nosnippet>284</a>        PrintableType::Enum { name, variants } =&gt; {
+<a href=#285 id=285 data-nosnippet>285</a>            <span class="kw">let </span>PrintableValue::Enum { tag, elements } = value <span class="kw">else </span>{
+<a href=#286 id=286 data-nosnippet>286</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#287 id=287 data-nosnippet>287</a>            };
+<a href=#288 id=288 data-nosnippet>288</a>            <span class="kw">let </span>(variant_name, types) = <span class="kw-2">&amp;</span>variants[<span class="kw-2">*</span>tag];
+<a href=#289 id=289 data-nosnippet>289</a>            <span class="kw">let </span>has_fields = !elements.is_empty();
+<a href=#290 id=290 data-nosnippet>290</a>            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{name}::{variant_name}"</span>));
+<a href=#291 id=291 data-nosnippet>291</a>            <span class="kw">if </span>has_fields {
+<a href=#292 id=292 data-nosnippet>292</a>                output.push(<span class="string">'('</span>);
+<a href=#293 id=293 data-nosnippet>293</a>            }
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="kw">let </span><span class="kw-2">mut </span>elements = elements.iter().zip(types).peekable();
+<a href=#295 id=295 data-nosnippet>295</a>            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
+<a href=#296 id=296 data-nosnippet>296</a>                output.push_str(
+<a href=#297 id=297 data-nosnippet>297</a>                    <span class="kw-2">&amp;</span>PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
+<a href=#298 id=298 data-nosnippet>298</a>                );
+<a href=#299 id=299 data-nosnippet>299</a>                <span class="kw">if </span>elements.peek().is_some() {
+<a href=#300 id=300 data-nosnippet>300</a>                    output.push_str(<span class="string">", "</span>);
+<a href=#301 id=301 data-nosnippet>301</a>                }
+<a href=#302 id=302 data-nosnippet>302</a>            }
+<a href=#303 id=303 data-nosnippet>303</a>            <span class="kw">if </span>has_fields {
+<a href=#304 id=304 data-nosnippet>304</a>                output.push(<span class="string">')'</span>);
+<a href=#305 id=305 data-nosnippet>305</a>            }
+<a href=#306 id=306 data-nosnippet>306</a>        }
+<a href=#307 id=307 data-nosnippet>307</a>    }
+<a href=#308 id=308 data-nosnippet>308</a>
+<a href=#309 id=309 data-nosnippet>309</a>    <span class="prelude-val">Some</span>(output)
+<a href=#310 id=310 data-nosnippet>310</a>}
+<a href=#311 id=311 data-nosnippet>311</a>
+<a href=#312 id=312 data-nosnippet>312</a><span class="kw">fn </span>write_template_replacing_interpolations(
+<a href=#313 id=313 data-nosnippet>313</a>    template: <span class="kw-2">&amp;</span>str,
+<a href=#314 id=314 data-nosnippet>314</a>    fmt: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="kw-2">mut </span>replacement: <span class="kw">impl </span>FnMut() -&gt; <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#316 id=316 data-nosnippet>316</a>) -&gt; std::fmt::Result {
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">let </span><span class="kw-2">mut </span>last_index = <span class="number">0</span>; <span class="comment">// How far we've written from the template
+<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>char_indices = template.char_indices().peekable();
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>((char_index, char)) = char_indices.next() {
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="comment">// If we see a '}' it must be "}}" because the ones for interpolation are handled
+<a href=#321 id=321 data-nosnippet>321</a>        // when we see '{'
+<a href=#322 id=322 data-nosnippet>322</a>        </span><span class="kw">if </span>char == <span class="string">'}' </span>{
+<a href=#323 id=323 data-nosnippet>323</a>            <span class="comment">// Write what we've seen so far in the template, including this '}'
+<a href=#324 id=324 data-nosnippet>324</a>            </span><span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..=char_index])<span class="question-mark">?</span>;
+<a href=#325 id=325 data-nosnippet>325</a>
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="comment">// Skip the second '}'
+<a href=#327 id=327 data-nosnippet>327</a>            </span><span class="kw">let </span>(<span class="kw">_</span>, closing_curly) = char_indices.next().unwrap();
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="macro">assert_eq!</span>(closing_curly, <span class="string">'}'</span>);
+<a href=#329 id=329 data-nosnippet>329</a>
+<a href=#330 id=330 data-nosnippet>330</a>            last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
+<a href=#331 id=331 data-nosnippet>331</a>            <span class="kw">continue</span>;
+<a href=#332 id=332 data-nosnippet>332</a>        }
+<a href=#333 id=333 data-nosnippet>333</a>
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="comment">// Keep going forward until we find a '{'
+<a href=#335 id=335 data-nosnippet>335</a>        </span><span class="kw">if </span>char != <span class="string">'{' </span>{
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="kw">continue</span>;
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="comment">// We'll either have to write an interpolation or '{{' if it's an escape,
+<a href=#340 id=340 data-nosnippet>340</a>        // so let's write what we've seen so far in the template.
+<a href=#341 id=341 data-nosnippet>341</a>        </span><span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..char_index])<span class="question-mark">?</span>;
+<a href=#342 id=342 data-nosnippet>342</a>
+<a href=#343 id=343 data-nosnippet>343</a>        <span class="comment">// If it's '{{', write '{' and keep going
+<a href=#344 id=344 data-nosnippet>344</a>        </span><span class="kw">if </span>char_indices.peek().map(|(<span class="kw">_</span>, char)| char) == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">'{'</span>) {
+<a href=#345 id=345 data-nosnippet>345</a>            <span class="macro">write!</span>(fmt, <span class="string">"{{"</span>)<span class="question-mark">?</span>;
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>            <span class="comment">// Skip the second '{'
+<a href=#348 id=348 data-nosnippet>348</a>            </span>char_indices.next().unwrap();
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a>            last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
+<a href=#351 id=351 data-nosnippet>351</a>            <span class="kw">continue</span>;
+<a href=#352 id=352 data-nosnippet>352</a>        }
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>        <span class="comment">// Write the interpolation
+<a href=#355 id=355 data-nosnippet>355</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(string) = replacement() {
+<a href=#356 id=356 data-nosnippet>356</a>            <span class="macro">write!</span>(fmt, <span class="string">"{string}"</span>)<span class="question-mark">?</span>;
+<a href=#357 id=357 data-nosnippet>357</a>        } <span class="kw">else </span>{
+<a href=#358 id=358 data-nosnippet>358</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(std::fmt::Error);
+<a href=#359 id=359 data-nosnippet>359</a>        }
+<a href=#360 id=360 data-nosnippet>360</a>
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="comment">// Whatever was inside '{...}' doesn't matter, so skip until we find '}'
+<a href=#362 id=362 data-nosnippet>362</a>        </span><span class="kw">while let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, char)) = char_indices.next() {
+<a href=#363 id=363 data-nosnippet>363</a>            <span class="kw">if </span>char == <span class="string">'}' </span>{
+<a href=#364 id=364 data-nosnippet>364</a>                last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
+<a href=#365 id=365 data-nosnippet>365</a>                <span class="kw">break</span>;
+<a href=#366 id=366 data-nosnippet>366</a>            }
+<a href=#367 id=367 data-nosnippet>367</a>        }
+<a href=#368 id=368 data-nosnippet>368</a>    }
+<a href=#369 id=369 data-nosnippet>369</a>
+<a href=#370 id=370 data-nosnippet>370</a>    <span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..])
+<a href=#371 id=371 data-nosnippet>371</a>}
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a><span class="doccomment">/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
+<a href=#374 id=374 data-nosnippet>374</a></span><span class="kw">pub fn </span>decode_printable_value&lt;F: AcirField&gt;(
+<a href=#375 id=375 data-nosnippet>375</a>    field_iterator: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = F&gt;,
+<a href=#376 id=376 data-nosnippet>376</a>    typ: <span class="kw-2">&amp;</span>PrintableType,
+<a href=#377 id=377 data-nosnippet>377</a>) -&gt; PrintableValue&lt;F&gt; {
+<a href=#378 id=378 data-nosnippet>378</a>    <span class="kw">match </span>typ {
+<a href=#379 id=379 data-nosnippet>379</a>        PrintableType::Field
+<a href=#380 id=380 data-nosnippet>380</a>        | PrintableType::SignedInteger { .. }
+<a href=#381 id=381 data-nosnippet>381</a>        | PrintableType::UnsignedInteger { .. }
+<a href=#382 id=382 data-nosnippet>382</a>        | PrintableType::Boolean =&gt; {
+<a href=#383 id=383 data-nosnippet>383</a>            <span class="kw">let </span>field_element = field_iterator.next().expect(<span class="string">"not enough data: expected bool"</span>);
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a>            PrintableValue::Field(field_element)
+<a href=#386 id=386 data-nosnippet>386</a>        }
+<a href=#387 id=387 data-nosnippet>387</a>        PrintableType::Array { length, typ } =&gt; {
+<a href=#388 id=388 data-nosnippet>388</a>            <span class="kw">let </span>length = <span class="kw-2">*</span>length <span class="kw">as </span>usize;
+<a href=#389 id=389 data-nosnippet>389</a>            <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
+<a href=#390 id=390 data-nosnippet>390</a>
+<a href=#391 id=391 data-nosnippet>391</a>            <span class="kw">for _ in </span><span class="number">0</span>..length {
+<a href=#392 id=392 data-nosnippet>392</a>                array_elements.push(decode_printable_value(field_iterator, typ));
+<a href=#393 id=393 data-nosnippet>393</a>            }
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a>            PrintableValue::Vec { array_elements, is_vector: <span class="bool-val">false </span>}
+<a href=#396 id=396 data-nosnippet>396</a>        }
+<a href=#397 id=397 data-nosnippet>397</a>        PrintableType::Vector { typ } =&gt; {
+<a href=#398 id=398 data-nosnippet>398</a>            <span class="kw">let </span>length =
+<a href=#399 id=399 data-nosnippet>399</a>                field_iterator.next().expect(<span class="string">"not enough data: expected vector length"</span>).to_u128()
+<a href=#400 id=400 data-nosnippet>400</a>                    <span class="kw">as </span>usize;
+<a href=#401 id=401 data-nosnippet>401</a>
+<a href=#402 id=402 data-nosnippet>402</a>            <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>            <span class="kw">for _ in </span><span class="number">0</span>..length {
+<a href=#405 id=405 data-nosnippet>405</a>                array_elements.push(decode_printable_value(field_iterator, typ));
+<a href=#406 id=406 data-nosnippet>406</a>            }
+<a href=#407 id=407 data-nosnippet>407</a>
+<a href=#408 id=408 data-nosnippet>408</a>            PrintableValue::Vec { array_elements, is_vector: <span class="bool-val">true </span>}
+<a href=#409 id=409 data-nosnippet>409</a>        }
+<a href=#410 id=410 data-nosnippet>410</a>        PrintableType::Tuple { types } =&gt; PrintableValue::Vec {
+<a href=#411 id=411 data-nosnippet>411</a>            array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
+<a href=#412 id=412 data-nosnippet>412</a>            is_vector: <span class="bool-val">false</span>,
+<a href=#413 id=413 data-nosnippet>413</a>        },
+<a href=#414 id=414 data-nosnippet>414</a>        PrintableType::String { length } =&gt; {
+<a href=#415 id=415 data-nosnippet>415</a>            <span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
+<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let </span>string = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
+<a href=#417 id=417 data-nosnippet>417</a>            PrintableValue::String(string)
+<a href=#418 id=418 data-nosnippet>418</a>        }
+<a href=#419 id=419 data-nosnippet>419</a>        PrintableType::FmtString { length, typ } =&gt; {
+<a href=#420 id=420 data-nosnippet>420</a>            <span class="comment">// First comes the template string, for which we know its length
+<a href=#421 id=421 data-nosnippet>421</a>            </span><span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
+<a href=#422 id=422 data-nosnippet>422</a>            <span class="kw">let </span>string = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
+<a href=#423 id=423 data-nosnippet>423</a>
+<a href=#424 id=424 data-nosnippet>424</a>            <span class="comment">// Next comes the number of interpolated values
+<a href=#425 id=425 data-nosnippet>425</a>            </span><span class="kw">let </span>tuple_length =
+<a href=#426 id=426 data-nosnippet>426</a>                field_iterator.next().expect(<span class="string">"Expected tuple length"</span>).to_u128() <span class="kw">as </span>usize;
+<a href=#427 id=427 data-nosnippet>427</a>            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
+<a href=#428 id=428 data-nosnippet>428</a>                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
+<a href=#429 id=429 data-nosnippet>429</a>            };
+<a href=#430 id=430 data-nosnippet>430</a>            <span class="macro">assert_eq!</span>(tuple_length, types.len());
+<a href=#431 id=431 data-nosnippet>431</a>
+<a href=#432 id=432 data-nosnippet>432</a>            <span class="comment">// Next come the interpolated values
+<a href=#433 id=433 data-nosnippet>433</a>            </span><span class="kw">let </span>values = types
+<a href=#434 id=434 data-nosnippet>434</a>                .iter()
+<a href=#435 id=435 data-nosnippet>435</a>                .map(|typ| decode_printable_value(field_iterator, typ))
+<a href=#436 id=436 data-nosnippet>436</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#437 id=437 data-nosnippet>437</a>
+<a href=#438 id=438 data-nosnippet>438</a>            PrintableValue::FmtString(string, values)
+<a href=#439 id=439 data-nosnippet>439</a>        }
+<a href=#440 id=440 data-nosnippet>440</a>        PrintableType::Struct { fields, .. } =&gt; {
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw">let </span><span class="kw-2">mut </span>struct_map = BTreeMap::new();
+<a href=#442 id=442 data-nosnippet>442</a>
+<a href=#443 id=443 data-nosnippet>443</a>            <span class="kw">for </span>(field_key, param_type) <span class="kw">in </span>fields {
+<a href=#444 id=444 data-nosnippet>444</a>                <span class="kw">let </span>field_value = decode_printable_value(field_iterator, param_type);
+<a href=#445 id=445 data-nosnippet>445</a>
+<a href=#446 id=446 data-nosnippet>446</a>                struct_map.insert(field_key.to_owned(), field_value);
+<a href=#447 id=447 data-nosnippet>447</a>            }
+<a href=#448 id=448 data-nosnippet>448</a>
+<a href=#449 id=449 data-nosnippet>449</a>            PrintableValue::Struct(struct_map)
+<a href=#450 id=450 data-nosnippet>450</a>        }
+<a href=#451 id=451 data-nosnippet>451</a>        PrintableType::Function { env, .. } =&gt; {
+<a href=#452 id=452 data-nosnippet>452</a>            <span class="comment">// We want to consume the fields from the environment, but for now they are not actually printed.
+<a href=#453 id=453 data-nosnippet>453</a>            </span><span class="kw">let </span>_env = decode_printable_value(field_iterator, env);
+<a href=#454 id=454 data-nosnippet>454</a>            <span class="kw">let </span>func_id = field_iterator.next().expect(<span class="string">"not enough data: expected function ID"</span>);
+<a href=#455 id=455 data-nosnippet>455</a>            PrintableValue::Field(func_id)
+<a href=#456 id=456 data-nosnippet>456</a>        }
+<a href=#457 id=457 data-nosnippet>457</a>        PrintableType::Reference { typ, .. } =&gt; {
+<a href=#458 id=458 data-nosnippet>458</a>            <span class="comment">// We decode the reference, but it's not actually used for printing.
+<a href=#459 id=459 data-nosnippet>459</a>            // The reference consists of varying number of fields, depending on type.
+<a href=#460 id=460 data-nosnippet>460</a>            </span><span class="kw">let </span>num_fields = flattened_reference_size(typ);
+<a href=#461 id=461 data-nosnippet>461</a>            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..num_fields {
+<a href=#462 id=462 data-nosnippet>462</a>                <span class="kw">let _ </span>= field_iterator
+<a href=#463 id=463 data-nosnippet>463</a>                    .next()
+<a href=#464 id=464 data-nosnippet>464</a>                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"not enough data: expected reference field [{i}]"</span>));
+<a href=#465 id=465 data-nosnippet>465</a>            }
+<a href=#466 id=466 data-nosnippet>466</a>            PrintableValue::Other
+<a href=#467 id=467 data-nosnippet>467</a>        }
+<a href=#468 id=468 data-nosnippet>468</a>        PrintableType::Unit =&gt; PrintableValue::Field(F::zero()),
+<a href=#469 id=469 data-nosnippet>469</a>        PrintableType::Enum { name: <span class="kw">_</span>, variants } =&gt; {
+<a href=#470 id=470 data-nosnippet>470</a>            <span class="kw">let </span>tag = field_iterator.next().expect(<span class="string">"not enough data: expected enum tag"</span>);
+<a href=#471 id=471 data-nosnippet>471</a>            <span class="kw">let </span>tag = tag.to_u128() <span class="kw">as </span>usize;
+<a href=#472 id=472 data-nosnippet>472</a>            <span class="comment">// A serialized enum looks as follows:
+<a href=#473 id=473 data-nosnippet>473</a>            //  [tag, variant0.field0, ..., variant0.fieldN, variant1.field0, ..., variant1.fieldM, ...]
+<a href=#474 id=474 data-nosnippet>474</a>            // So the number of fields are always the same, and we have to consume all of them
+<a href=#475 id=475 data-nosnippet>475</a>            // to make sure the next item will resume parsing from the right index;
+<a href=#476 id=476 data-nosnippet>476</a>            // the tag tells us which ones are non-default values.
+<a href=#477 id=477 data-nosnippet>477</a>
+<a href=#478 id=478 data-nosnippet>478</a>            // Striving to keep only the non-default values in memory.
+<a href=#479 id=479 data-nosnippet>479</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::with_capacity(variants[tag].<span class="number">1</span>.len());
+<a href=#480 id=480 data-nosnippet>480</a>            <span class="kw">for </span>(i, (<span class="kw">_</span>, types)) <span class="kw">in </span>variants.iter().enumerate() {
+<a href=#481 id=481 data-nosnippet>481</a>                <span class="kw">for </span>typ <span class="kw">in </span>types {
+<a href=#482 id=482 data-nosnippet>482</a>                    <span class="kw">let </span>value = decode_printable_value(field_iterator, typ);
+<a href=#483 id=483 data-nosnippet>483</a>                    <span class="kw">if </span>i == tag {
+<a href=#484 id=484 data-nosnippet>484</a>                        elements.push(value);
+<a href=#485 id=485 data-nosnippet>485</a>                    }
+<a href=#486 id=486 data-nosnippet>486</a>                }
+<a href=#487 id=487 data-nosnippet>487</a>            }
+<a href=#488 id=488 data-nosnippet>488</a>            PrintableValue::Enum { tag, elements }
+<a href=#489 id=489 data-nosnippet>489</a>        }
+<a href=#490 id=490 data-nosnippet>490</a>    }
+<a href=#491 id=491 data-nosnippet>491</a>}
+<a href=#492 id=492 data-nosnippet>492</a>
+<a href=#493 id=493 data-nosnippet>493</a><span class="kw">pub fn </span>decode_string_value&lt;F: AcirField&gt;(field_elements: <span class="kw-2">&amp;</span>[F]) -&gt; String {
+<a href=#494 id=494 data-nosnippet>494</a>    <span class="kw">let </span>string_as_slice = vecmap(field_elements, |e| {
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">let </span><span class="kw-2">mut </span>field_as_bytes = e.to_be_bytes();
+<a href=#496 id=496 data-nosnippet>496</a>        <span class="kw">let </span>char_byte = field_as_bytes.pop().unwrap(); <span class="comment">// A character in a string is represented by a u8, thus we just want the last byte of the element
+<a href=#497 id=497 data-nosnippet>497</a>        </span><span class="macro">assert!</span>(field_as_bytes.into_iter().all(|b| b == <span class="number">0</span>)); <span class="comment">// Assert that the rest of the field element's bytes are empty
+<a href=#498 id=498 data-nosnippet>498</a>        </span>char_byte
+<a href=#499 id=499 data-nosnippet>499</a>    });
+<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">let </span>final_string = String::from_utf8_lossy(<span class="kw-2">&amp;</span>string_as_slice).to_string();
+<a href=#502 id=502 data-nosnippet>502</a>    final_string.to_owned()
+<a href=#503 id=503 data-nosnippet>503</a>}
+<a href=#504 id=504 data-nosnippet>504</a>
+<a href=#505 id=505 data-nosnippet>505</a><span class="kw">pub enum </span>TryFromParamsError {
+<a href=#506 id=506 data-nosnippet>506</a>    MissingForeignCallInputs,
+<a href=#507 id=507 data-nosnippet>507</a>    ParsingError(serde_json::Error),
+<a href=#508 id=508 data-nosnippet>508</a>}
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a><span class="kw">impl</span>&lt;F: AcirField&gt; PrintableValueDisplay&lt;F&gt; {
+<a href=#511 id=511 data-nosnippet>511</a>    <span class="doccomment">/// Decode the print parameters after the first _newline_ flag has already been split.
+<a href=#512 id=512 data-nosnippet>512</a>    ///
+<a href=#513 id=513 data-nosnippet>513</a>    /// The last parameter is expected to be the flag indicating whether we are dealing
+<a href=#514 id=514 data-nosnippet>514</a>    /// with a format string.
+<a href=#515 id=515 data-nosnippet>515</a>    ///
+<a href=#516 id=516 data-nosnippet>516</a>    /// We expect at least 3 arguments (tuples are passed as multiple values):
+<a href=#517 id=517 data-nosnippet>517</a>    /// * normal: value.0, ..., value.i, meta, false
+<a href=#518 id=518 data-nosnippet>518</a>    /// * formatted: msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
+<a href=#519 id=519 data-nosnippet>519</a>    ///
+<a href=#520 id=520 data-nosnippet>520</a>    /// The meta parts are JSON descriptors of the corresponding types, which guide the decoding.
+<a href=#521 id=521 data-nosnippet>521</a>    </span><span class="kw">pub fn </span>try_from_params(
+<a href=#522 id=522 data-nosnippet>522</a>        foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
+<a href=#523 id=523 data-nosnippet>523</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
+<a href=#524 id=524 data-nosnippet>524</a>        <span class="kw">let </span>(is_fmt_str, foreign_call_inputs) =
+<a href=#525 id=525 data-nosnippet>525</a>            foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
+<a href=#526 id=526 data-nosnippet>526</a>
+<a href=#527 id=527 data-nosnippet>527</a>        <span class="kw">if </span>is_fmt_str.unwrap_field().is_one() {
+<a href=#528 id=528 data-nosnippet>528</a>            convert_fmt_string_inputs(foreign_call_inputs)
+<a href=#529 id=529 data-nosnippet>529</a>        } <span class="kw">else </span>{
+<a href=#530 id=530 data-nosnippet>530</a>            convert_string_inputs(foreign_call_inputs)
+<a href=#531 id=531 data-nosnippet>531</a>        }
+<a href=#532 id=532 data-nosnippet>532</a>    }
+<a href=#533 id=533 data-nosnippet>533</a>}
+<a href=#534 id=534 data-nosnippet>534</a>
+<a href=#535 id=535 data-nosnippet>535</a><span class="doccomment">/// Flatten input parameters into a field vector.
+<a href=#536 id=536 data-nosnippet>536</a>///
+<a href=#537 id=537 data-nosnippet>537</a>/// Vectors are expected to have exactly as many elements as indicated by their corresponding length,
+<a href=#538 id=538 data-nosnippet>538</a>/// with any extra elements pruned by the caller already.
+<a href=#539 id=539 data-nosnippet>539</a></span><span class="kw">fn </span>flatten_inputs&lt;F: AcirField&gt;(input_values: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;]) -&gt; <span class="kw">impl </span>Iterator&lt;Item = F&gt; {
+<a href=#540 id=540 data-nosnippet>540</a>    input_values.iter().flat_map(|param| param.fields())
+<a href=#541 id=541 data-nosnippet>541</a>}
+<a href=#542 id=542 data-nosnippet>542</a>
+<a href=#543 id=543 data-nosnippet>543</a><span class="doccomment">/// Decode parameters for a normal call, without format string.
+<a href=#544 id=544 data-nosnippet>544</a>///
+<a href=#545 id=545 data-nosnippet>545</a>/// It will have a single meta descriptor:
+<a href=#546 id=546 data-nosnippet>546</a>///
+<a href=#547 id=547 data-nosnippet>547</a>/// value.0, ..., value.i, meta
+<a href=#548 id=548 data-nosnippet>548</a></span><span class="kw">fn </span>convert_string_inputs&lt;F: AcirField&gt;(
+<a href=#549 id=549 data-nosnippet>549</a>    foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
+<a href=#550 id=550 data-nosnippet>550</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
+<a href=#551 id=551 data-nosnippet>551</a>    <span class="comment">// Fetch the PrintableType from the foreign call input
+<a href=#552 id=552 data-nosnippet>552</a>    // The remaining input values should hold what is to be printed
+<a href=#553 id=553 data-nosnippet>553</a>    </span><span class="kw">let </span>(printable_type_as_values, input_values) =
+<a href=#554 id=554 data-nosnippet>554</a>        foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
+<a href=#555 id=555 data-nosnippet>555</a>
+<a href=#556 id=556 data-nosnippet>556</a>    <span class="kw">let </span>printable_type = fetch_printable_type(printable_type_as_values)<span class="question-mark">?</span>;
+<a href=#557 id=557 data-nosnippet>557</a>
+<a href=#558 id=558 data-nosnippet>558</a>    <span class="comment">// We must use a flat map here as each value in a struct will be in a separate input value
+<a href=#559 id=559 data-nosnippet>559</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>input_values_as_fields = flatten_inputs(input_values);
+<a href=#560 id=560 data-nosnippet>560</a>
+<a href=#561 id=561 data-nosnippet>561</a>    <span class="kw">let </span>value = decode_printable_value(<span class="kw-2">&amp;mut </span>input_values_as_fields, <span class="kw-2">&amp;</span>printable_type);
+<a href=#562 id=562 data-nosnippet>562</a>
+<a href=#563 id=563 data-nosnippet>563</a>    <span class="prelude-val">Ok</span>(PrintableValueDisplay::Plain(value, printable_type))
+<a href=#564 id=564 data-nosnippet>564</a>}
+<a href=#565 id=565 data-nosnippet>565</a>
+<a href=#566 id=566 data-nosnippet>566</a><span class="doccomment">/// Decode parameters for a call with format string.
+<a href=#567 id=567 data-nosnippet>567</a>///
+<a href=#568 id=568 data-nosnippet>568</a>/// It will have the format message, followed by the number of arguments, and their values:
+<a href=#569 id=569 data-nosnippet>569</a>///
+<a href=#570 id=570 data-nosnippet>570</a>/// msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN
+<a href=#571 id=571 data-nosnippet>571</a></span><span class="kw">fn </span>convert_fmt_string_inputs&lt;F: AcirField&gt;(
+<a href=#572 id=572 data-nosnippet>572</a>    foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
+<a href=#573 id=573 data-nosnippet>573</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
+<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">let </span>(message, input_and_printable_types) =
+<a href=#575 id=575 data-nosnippet>575</a>        foreign_call_inputs.split_first().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
+<a href=#576 id=576 data-nosnippet>576</a>
+<a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">let </span>message_as_fields = message.fields();
+<a href=#578 id=578 data-nosnippet>578</a>    <span class="kw">let </span>message_as_string = decode_string_value(<span class="kw-2">&amp;</span>message_as_fields);
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">let </span>(num_values, input_and_printable_types) = input_and_printable_types
+<a href=#581 id=581 data-nosnippet>581</a>        .split_first()
+<a href=#582 id=582 data-nosnippet>582</a>        .ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
+<a href=#583 id=583 data-nosnippet>583</a>
+<a href=#584 id=584 data-nosnippet>584</a>    <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
+<a href=#585 id=585 data-nosnippet>585</a>    <span class="kw">let </span>num_values = num_values.unwrap_field().to_u128() <span class="kw">as </span>usize;
+<a href=#586 id=586 data-nosnippet>586</a>
+<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">let </span>types_start_at = input_and_printable_types.len() - num_values;
+<a href=#588 id=588 data-nosnippet>588</a>
+<a href=#589 id=589 data-nosnippet>589</a>    <span class="kw">let </span><span class="kw-2">mut </span>input_iter = flatten_inputs(<span class="kw-2">&amp;</span>input_and_printable_types[<span class="number">0</span>..types_start_at]);
+<a href=#590 id=590 data-nosnippet>590</a>
+<a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">for </span>printable_type <span class="kw">in </span>input_and_printable_types.iter().skip(types_start_at) {
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>printable_type = fetch_printable_type(printable_type)<span class="question-mark">?</span>;
+<a href=#593 id=593 data-nosnippet>593</a>        <span class="kw">let </span>value = decode_printable_value(<span class="kw-2">&amp;mut </span>input_iter, <span class="kw-2">&amp;</span>printable_type);
+<a href=#594 id=594 data-nosnippet>594</a>
+<a href=#595 id=595 data-nosnippet>595</a>        output.push((value, printable_type));
+<a href=#596 id=596 data-nosnippet>596</a>    }
+<a href=#597 id=597 data-nosnippet>597</a>
+<a href=#598 id=598 data-nosnippet>598</a>    <span class="prelude-val">Ok</span>(PrintableValueDisplay::FmtString(message_as_string, output))
+<a href=#599 id=599 data-nosnippet>599</a>}
+<a href=#600 id=600 data-nosnippet>600</a>
+<a href=#601 id=601 data-nosnippet>601</a><span class="doccomment">/// Decode the JSON type descriptor of the arguments passed to the print.
+<a href=#602 id=602 data-nosnippet>602</a></span><span class="kw">fn </span>fetch_printable_type&lt;F: AcirField&gt;(
+<a href=#603 id=603 data-nosnippet>603</a>    printable_type: <span class="kw-2">&amp;</span>ForeignCallParam&lt;F&gt;,
+<a href=#604 id=604 data-nosnippet>604</a>) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableType, TryFromParamsError&gt; {
+<a href=#605 id=605 data-nosnippet>605</a>    <span class="kw">let </span>printable_type_as_fields = printable_type.fields();
+<a href=#606 id=606 data-nosnippet>606</a>    <span class="kw">let </span>printable_type_as_string = decode_string_value(<span class="kw-2">&amp;</span>printable_type_as_fields);
+<a href=#607 id=607 data-nosnippet>607</a>    <span class="kw">let </span>printable_type: <span class="prelude-ty">Result</span>&lt;PrintableType, serde_json::Error&gt; =
+<a href=#608 id=608 data-nosnippet>608</a>        serde_json::from_str(<span class="kw-2">&amp;</span>printable_type_as_string);
+<a href=#609 id=609 data-nosnippet>609</a>    <span class="kw">match </span>printable_type {
+<a href=#610 id=610 data-nosnippet>610</a>        <span class="prelude-val">Ok</span>(printable_type) =&gt; <span class="prelude-val">Ok</span>(printable_type),
+<a href=#611 id=611 data-nosnippet>611</a>        <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(TryFromParamsError::ParsingError(err)),
+<a href=#612 id=612 data-nosnippet>612</a>    }
+<a href=#613 id=613 data-nosnippet>613</a>}
+<a href=#614 id=614 data-nosnippet>614</a>
+<a href=#615 id=615 data-nosnippet>615</a><span class="doccomment">/// Calculate the number of fields used represent a reference to a type.
+<a href=#616 id=616 data-nosnippet>616</a></span><span class="kw">fn </span>flattened_reference_size(typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; usize {
+<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">match </span>typ {
+<a href=#618 id=618 data-nosnippet>618</a>        PrintableType::Tuple { types } =&gt; types.iter().map(flattened_reference_size).sum(),
+<a href=#619 id=619 data-nosnippet>619</a>        PrintableType::Struct { fields, .. } =&gt; {
+<a href=#620 id=620 data-nosnippet>620</a>            fields.iter().map(|(<span class="kw">_</span>, typ)| flattened_reference_size(typ)).sum()
+<a href=#621 id=621 data-nosnippet>621</a>        }
+<a href=#622 id=622 data-nosnippet>622</a>        PrintableType::Reference { typ, .. } =&gt; flattened_reference_size(typ),
+<a href=#623 id=623 data-nosnippet>623</a>        PrintableType::Unit =&gt; <span class="number">0</span>,
+<a href=#624 id=624 data-nosnippet>624</a>        PrintableType::Array { .. }
+<a href=#625 id=625 data-nosnippet>625</a>        | PrintableType::String { .. }
+<a href=#626 id=626 data-nosnippet>626</a>        | PrintableType::Boolean
+<a href=#627 id=627 data-nosnippet>627</a>        | PrintableType::Field
+<a href=#628 id=628 data-nosnippet>628</a>        | PrintableType::Function { .. }
+<a href=#629 id=629 data-nosnippet>629</a>        | PrintableType::SignedInteger { .. }
+<a href=#630 id=630 data-nosnippet>630</a>        | PrintableType::UnsignedInteger { .. }
+<a href=#631 id=631 data-nosnippet>631</a>        | PrintableType::FmtString { .. } =&gt; <span class="number">1</span>,
+<a href=#632 id=632 data-nosnippet>632</a>        PrintableType::Vector { .. } =&gt; <span class="number">2</span>, <span class="comment">// length + pointer
+<a href=#633 id=633 data-nosnippet>633</a>        </span>PrintableType::Enum { .. } =&gt; {
+<a href=#634 id=634 data-nosnippet>634</a>            <span class="comment">// This is tricky because enums are encoded as [tag, field1, field2, ...],
+<a href=#635 id=635 data-nosnippet>635</a>            // however when we have a reference to an enum variant, then even the tag
+<a href=#636 id=636 data-nosnippet>636</a>            // is just a memory address, so we can't use its value to decide how many
+<a href=#637 id=637 data-nosnippet>637</a>            // fields to consume.
+<a href=#638 id=638 data-nosnippet>638</a>            // For example a tuple like `Bar::Baz((1, [2, 3]))` would be encoded as [0, 1, [2, 3]],
+<a href=#639 id=639 data-nosnippet>639</a>            // where 0 means this is the first variant in the `Bar` enum,
+<a href=#640 id=640 data-nosnippet>640</a>            // but a reference to it would be like [36065, 36057, 36058].
+<a href=#641 id=641 data-nosnippet>641</a>            </span><span class="macro">todo!</span>(<span class="string">"flattened reference size for enums is not implemented"</span>);
+<a href=#642 id=642 data-nosnippet>642</a>        }
+<a href=#643 id=643 data-nosnippet>643</a>    }
+<a href=#644 id=644 data-nosnippet>644</a>}
+<a href=#645 id=645 data-nosnippet>645</a>
+<a href=#646 id=646 data-nosnippet>646</a><span class="attr">#[cfg(test)]
+<a href=#647 id=647 data-nosnippet>647</a></span><span class="kw">mod </span>tests {
+<a href=#648 id=648 data-nosnippet>648</a>    <span class="kw">use </span>acvm::FieldElement;
+<a href=#649 id=649 data-nosnippet>649</a>
+<a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+<a href=#651 id=651 data-nosnippet>651</a>
+<a href=#652 id=652 data-nosnippet>652</a>    <span class="kw">use </span><span class="kw">crate</span>::to_string;
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a>    <span class="kw">use super</span>::{PrintableType, PrintableValue, PrintableValueDisplay};
+<a href=#655 id=655 data-nosnippet>655</a>
+<a href=#656 id=656 data-nosnippet>656</a>    <span class="attr">#[test]
+<a href=#657 id=657 data-nosnippet>657</a>    </span><span class="kw">fn </span>printable_value_display_to_string_without_interpolations() {
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span>template = <span class="string">"hello"</span>;
+<a href=#659 id=659 data-nosnippet>659</a>        <span class="kw">let </span>display =
+<a href=#660 id=660 data-nosnippet>660</a>            PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), <span class="macro">vec!</span>[]);
+<a href=#661 id=661 data-nosnippet>661</a>        <span class="macro">assert_eq!</span>(display.to_string(), template);
+<a href=#662 id=662 data-nosnippet>662</a>    }
+<a href=#663 id=663 data-nosnippet>663</a>
+<a href=#664 id=664 data-nosnippet>664</a>    <span class="attr">#[test]
+<a href=#665 id=665 data-nosnippet>665</a>    </span><span class="kw">fn </span>printable_value_display_to_string_with_curly_escapes() {
+<a href=#666 id=666 data-nosnippet>666</a>        <span class="kw">let </span>template = <span class="string">"hello {{world}} {{{{double_escape}}}}"</span>;
+<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span>expected = <span class="string">"hello {world} {{double_escape}}"</span>;
+<a href=#668 id=668 data-nosnippet>668</a>        <span class="kw">let </span>display =
+<a href=#669 id=669 data-nosnippet>669</a>            PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), <span class="macro">vec!</span>[]);
+<a href=#670 id=670 data-nosnippet>670</a>        <span class="macro">assert_eq!</span>(display.to_string(), expected);
+<a href=#671 id=671 data-nosnippet>671</a>    }
+<a href=#672 id=672 data-nosnippet>672</a>
+<a href=#673 id=673 data-nosnippet>673</a>    <span class="attr">#[test]
+<a href=#674 id=674 data-nosnippet>674</a>    </span><span class="kw">fn </span>printable_value_display_to_string_with_interpolations() {
+<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>template = <span class="string">"hello {one} {{no}} {two} {{not_again}} {three} world"</span>;
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span>values = <span class="macro">vec!</span>[
+<a href=#677 id=677 data-nosnippet>677</a>            (PrintableValue::String(<span class="string">"ONE"</span>.to_string()), PrintableType::String { length: <span class="number">3 </span>}),
+<a href=#678 id=678 data-nosnippet>678</a>            (PrintableValue::String(<span class="string">"TWO"</span>.to_string()), PrintableType::String { length: <span class="number">3 </span>}),
+<a href=#679 id=679 data-nosnippet>679</a>            (PrintableValue::String(<span class="string">"THREE"</span>.to_string()), PrintableType::String { length: <span class="number">5 </span>}),
+<a href=#680 id=680 data-nosnippet>680</a>        ];
+<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">let </span>expected = <span class="string">"hello ONE {no} TWO {not_again} THREE world"</span>;
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>display =
+<a href=#683 id=683 data-nosnippet>683</a>            PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), values);
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="macro">assert_eq!</span>(display.to_string(), expected);
+<a href=#685 id=685 data-nosnippet>685</a>    }
+<a href=#686 id=686 data-nosnippet>686</a>
+<a href=#687 id=687 data-nosnippet>687</a>    <span class="attr">#[test]
+<a href=#688 id=688 data-nosnippet>688</a>    </span><span class="kw">fn </span>one_element_tuple_to_string() {
+<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
+<a href=#690 id=690 data-nosnippet>690</a>            array_elements: <span class="macro">vec!</span>[PrintableValue::Field(<span class="number">1_u128</span>.into())],
+<a href=#691 id=691 data-nosnippet>691</a>            is_vector: <span class="bool-val">false</span>,
+<a href=#692 id=692 data-nosnippet>692</a>        };
+<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field] };
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
+<a href=#695 id=695 data-nosnippet>695</a>        <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01,)"</span>);
+<a href=#696 id=696 data-nosnippet>696</a>    }
+<a href=#697 id=697 data-nosnippet>697</a>
+<a href=#698 id=698 data-nosnippet>698</a>    <span class="attr">#[test]
+<a href=#699 id=699 data-nosnippet>699</a>    </span><span class="kw">fn </span>two_elements_tuple_to_string() {
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
+<a href=#701 id=701 data-nosnippet>701</a>            array_elements: <span class="macro">vec!</span>[
+<a href=#702 id=702 data-nosnippet>702</a>                PrintableValue::Field(<span class="number">1_u128</span>.into()),
+<a href=#703 id=703 data-nosnippet>703</a>                PrintableValue::Field(<span class="number">2_u128</span>.into()),
+<a href=#704 id=704 data-nosnippet>704</a>            ],
+<a href=#705 id=705 data-nosnippet>705</a>            is_vector: <span class="bool-val">false</span>,
+<a href=#706 id=706 data-nosnippet>706</a>        };
+<a href=#707 id=707 data-nosnippet>707</a>        <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field, PrintableType::Field] };
+<a href=#708 id=708 data-nosnippet>708</a>        <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
+<a href=#709 id=709 data-nosnippet>709</a>        <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01, 0x02)"</span>);
+<a href=#710 id=710 data-nosnippet>710</a>    }
+<a href=#711 id=711 data-nosnippet>711</a>
+<a href=#712 id=712 data-nosnippet>712</a>    <span class="comment">// Test for issue: https://github.com/noir-lang/noir/issues/10710
+<a href=#713 id=713 data-nosnippet>713</a>    </span><span class="attr">#[test]
+<a href=#714 id=714 data-nosnippet>714</a>    </span><span class="kw">fn </span>invalid_string() {
+<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw">use </span><span class="kw">super</span>::decode_string_value;
+<a href=#716 id=716 data-nosnippet>716</a>        <span class="kw">let </span>field_elements: Vec&lt;FieldElement&gt; = <span class="macro">vec!</span>[
 <a href=#717 id=717 data-nosnippet>717</a>            FieldElement::from(<span class="number">255_u128</span>),
 <a href=#718 id=718 data-nosnippet>718</a>            FieldElement::from(<span class="number">255_u128</span>),
-<a href=#719 id=719 data-nosnippet>719</a>        ];
-<a href=#720 id=720 data-nosnippet>720</a>
-<a href=#721 id=721 data-nosnippet>721</a>        <span class="comment">// [255, 255, 255] is not valid UTF-8, and is converted using replacement char.
-<a href=#722 id=722 data-nosnippet>722</a>        </span><span class="kw">let </span>result = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
-<a href=#723 id=723 data-nosnippet>723</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"���"</span>);
-<a href=#724 id=724 data-nosnippet>724</a>    }
-<a href=#725 id=725 data-nosnippet>725</a>
-<a href=#726 id=726 data-nosnippet>726</a>    <span class="macro">proptest!</span> {
-<a href=#727 id=727 data-nosnippet>727</a>        <span class="attr">#[test]
-<a href=#728 id=728 data-nosnippet>728</a>        </span><span class="kw">fn </span>handles_decoding_u128_values(uint_value: u128) {
-<a href=#729 id=729 data-nosnippet>729</a>            <span class="kw">let </span>value = PrintableValue::Field(FieldElement::from(uint_value));
-<a href=#730 id=730 data-nosnippet>730</a>            <span class="kw">let </span>typ = PrintableType::UnsignedInteger { width: <span class="number">128 </span>};
-<a href=#731 id=731 data-nosnippet>731</a>
-<a href=#732 id=732 data-nosnippet>732</a>            <span class="kw">let </span>value_as_string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ).unwrap();
-<a href=#733 id=733 data-nosnippet>733</a>            <span class="comment">// We want to match rust's stringification.
-<a href=#734 id=734 data-nosnippet>734</a>            </span><span class="macro">prop_assert_eq!</span>(value_as_string, uint_value.to_string());
-<a href=#735 id=735 data-nosnippet>735</a>        }
-<a href=#736 id=736 data-nosnippet>736</a>    }
-<a href=#737 id=737 data-nosnippet>737</a>}</code></pre></div></section></main></body></html>
+<a href=#719 id=719 data-nosnippet>719</a>            FieldElement::from(<span class="number">255_u128</span>),
+<a href=#720 id=720 data-nosnippet>720</a>        ];
+<a href=#721 id=721 data-nosnippet>721</a>
+<a href=#722 id=722 data-nosnippet>722</a>        <span class="comment">// [255, 255, 255] is not valid UTF-8, and is converted using replacement char.
+<a href=#723 id=723 data-nosnippet>723</a>        </span><span class="kw">let </span>result = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
+<a href=#724 id=724 data-nosnippet>724</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"���"</span>);
+<a href=#725 id=725 data-nosnippet>725</a>    }
+<a href=#726 id=726 data-nosnippet>726</a>
+<a href=#727 id=727 data-nosnippet>727</a>    <span class="macro">proptest!</span> {
+<a href=#728 id=728 data-nosnippet>728</a>        <span class="attr">#[test]
+<a href=#729 id=729 data-nosnippet>729</a>        </span><span class="kw">fn </span>handles_decoding_u128_values(uint_value: u128) {
+<a href=#730 id=730 data-nosnippet>730</a>            <span class="kw">let </span>value = PrintableValue::Field(FieldElement::from(uint_value));
+<a href=#731 id=731 data-nosnippet>731</a>            <span class="kw">let </span>typ = PrintableType::UnsignedInteger { width: <span class="number">128 </span>};
+<a href=#732 id=732 data-nosnippet>732</a>
+<a href=#733 id=733 data-nosnippet>733</a>            <span class="kw">let </span>value_as_string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ).unwrap();
+<a href=#734 id=734 data-nosnippet>734</a>            <span class="comment">// We want to match rust's stringification.
+<a href=#735 id=735 data-nosnippet>735</a>            </span><span class="macro">prop_assert_eq!</span>(value_as_string, uint_value.to_string());
+<a href=#736 id=736 data-nosnippet>736</a>        }
+<a href=#737 id=737 data-nosnippet>737</a>    }
+<a href=#738 id=738 data-nosnippet>738</a>}</code></pre></div></section></main></body></html>

@@ -351,7 +351,7 @@
 <a href=#351 id=351 data-nosnippet>351</a>                    <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
 <a href=#352 id=352 data-nosnippet>352</a>                        <span class="comment">// Not a free memory op, carry on as a regular binary operation.
 <a href=#353 id=353 data-nosnippet>353</a>                    </span>}
-<a href=#354 id=354 data-nosnippet>354</a>                };
+<a href=#354 id=354 data-nosnippet>354</a>                }
 <a href=#355 id=355 data-nosnippet>355</a>                <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.process_binary_int_op(<span class="kw-2">*</span>op, <span class="kw-2">*</span>bit_size, <span class="kw-2">*</span>lhs, <span class="kw-2">*</span>rhs, <span class="kw-2">*</span>result)
 <a href=#356 id=356 data-nosnippet>356</a>                {
 <a href=#357 id=357 data-nosnippet>357</a>                    <span class="self">self</span>.fail(error.to_string())

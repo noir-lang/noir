@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>                <span class="comment">// We still need to keep the EnableSideEffects instruction
 <a href=#43 id=43 data-nosnippet>43</a>                </span>function.dfg[block_id].instructions_mut().push(instruction_id);
 <a href=#44 id=44 data-nosnippet>44</a>                <span class="kw">continue</span>;
-<a href=#45 id=45 data-nosnippet>45</a>            };
+<a href=#45 id=45 data-nosnippet>45</a>            }
 <a href=#46 id=46 data-nosnippet>46</a>
 <a href=#47 id=47 data-nosnippet>47</a>            <span class="comment">// If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
 <a href=#48 id=48 data-nosnippet>48</a>            // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
@@ -198,13 +198,13 @@
 <a href=#198 id=198 data-nosnippet>198</a>    <span class="kw">if </span>function.dfg.try_get_array_length(<span class="kw-2">*</span>array).is_none() {
 <a href=#199 id=199 data-nosnippet>199</a>        <span class="comment">// Nothing to do for vectors
 <a href=#200 id=200 data-nosnippet>200</a>        </span><span class="kw">return</span>;
-<a href=#201 id=201 data-nosnippet>201</a>    };
+<a href=#201 id=201 data-nosnippet>201</a>    }
 <a href=#202 id=202 data-nosnippet>202</a>
 <a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">let </span>element_size = function.dfg.type_of_value(<span class="kw-2">*</span>array).element_size().to_usize();
 <a href=#204 id=204 data-nosnippet>204</a>    <span class="kw">if </span>element_size &lt;= <span class="number">1 </span>{
 <a href=#205 id=205 data-nosnippet>205</a>        <span class="comment">// Not a composite type
 <a href=#206 id=206 data-nosnippet>206</a>        </span><span class="kw">return</span>;
-<a href=#207 id=207 data-nosnippet>207</a>    };
+<a href=#207 id=207 data-nosnippet>207</a>    }
 <a href=#208 id=208 data-nosnippet>208</a>
 <a href=#209 id=209 data-nosnippet>209</a>    <span class="comment">// It's a composite type.
 <a href=#210 id=210 data-nosnippet>210</a>    // When doing ArrayGet on a composite type, this **always** results in instructions like these

@@ -76,18 +76,18 @@
 <a href=#76 id=76 data-nosnippet>76</a>    instruction: <span class="kw-2">&amp;</span>Instruction,
 <a href=#77 id=77 data-nosnippet>77</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 <a href=#78 id=78 data-nosnippet>78</a>) {
-<a href=#79 id=79 data-nosnippet>79</a>    <span class="kw">if let </span>Instruction::Binary(binary) = instruction {
-<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">if </span>dfg.type_of_value(binary.lhs).is_signed() {
-<a href=#81 id=81 data-nosnippet>81</a>            <span class="macro">assert!</span>(
-<a href=#82 id=82 data-nosnippet>82</a>                !<span class="macro">matches!</span>(
-<a href=#83 id=83 data-nosnippet>83</a>                    binary.operator,
-<a href=#84 id=84 data-nosnippet>84</a>                    BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
-<a href=#85 id=85 data-nosnippet>85</a>                        | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
-<a href=#86 id=86 data-nosnippet>86</a>                        | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
-<a href=#87 id=87 data-nosnippet>87</a>                ),
-<a href=#88 id=88 data-nosnippet>88</a>                <span class="string">"Checked signed binary operation found (add/sub/mul)"
-<a href=#89 id=89 data-nosnippet>89</a>            </span>);
-<a href=#90 id=90 data-nosnippet>90</a>        }
+<a href=#79 id=79 data-nosnippet>79</a>    <span class="kw">if let </span>Instruction::Binary(binary) = instruction
+<a href=#80 id=80 data-nosnippet>80</a>        &amp;&amp; dfg.type_of_value(binary.lhs).is_signed()
+<a href=#81 id=81 data-nosnippet>81</a>    {
+<a href=#82 id=82 data-nosnippet>82</a>        <span class="macro">assert!</span>(
+<a href=#83 id=83 data-nosnippet>83</a>            !<span class="macro">matches!</span>(
+<a href=#84 id=84 data-nosnippet>84</a>                binary.operator,
+<a href=#85 id=85 data-nosnippet>85</a>                BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
+<a href=#86 id=86 data-nosnippet>86</a>                    | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
+<a href=#87 id=87 data-nosnippet>87</a>                    | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
+<a href=#88 id=88 data-nosnippet>88</a>            ),
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="string">"Checked signed binary operation found (add/sub/mul)"
+<a href=#90 id=90 data-nosnippet>90</a>        </span>);
 <a href=#91 id=91 data-nosnippet>91</a>    }
 <a href=#92 id=92 data-nosnippet>92</a>}
 <a href=#93 id=93 data-nosnippet>93</a>

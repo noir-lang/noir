@@ -77,54 +77,54 @@
 <a href=#77 id=77 data-nosnippet>77</a>        field_id: SourceFieldId,
 <a href=#78 id=78 data-nosnippet>78</a>        cursor_type: <span class="kw-2">&amp;</span>PrintableType,
 <a href=#79 id=79 data-nosnippet>79</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
-<a href=#80 id=80 data-nosnippet>80</a>        <span class="self">self</span>.source_field_names
-<a href=#81 id=81 data-nosnippet>81</a>            .get(<span class="kw-2">&amp;</span>field_id)
-<a href=#82 id=82 data-nosnippet>82</a>            .and_then(|field_name| get_field(cursor_type, field_name))
-<a href=#83 id=83 data-nosnippet>83</a>    }
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a>    <span class="kw">fn </span>insert_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, the_type: <span class="kw-2">&amp;</span>Type) -&gt; DebugTypeId {
-<a href=#86 id=86 data-nosnippet>86</a>        <span class="kw">let </span>printable_type: PrintableType = the_type.follow_bindings().into();
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="self">self</span>.types_reverse.get(<span class="kw-2">&amp;</span>printable_type).copied().unwrap_or_else(|| {
-<a href=#88 id=88 data-nosnippet>88</a>            <span class="kw">let </span>type_id = DebugTypeId(<span class="self">self</span>.next_type_id);
-<a href=#89 id=89 data-nosnippet>89</a>            <span class="self">self</span>.next_type_id += <span class="number">1</span>;
-<a href=#90 id=90 data-nosnippet>90</a>            <span class="self">self</span>.types_reverse.insert(printable_type.clone(), type_id);
-<a href=#91 id=91 data-nosnippet>91</a>            <span class="self">self</span>.types.insert(type_id, printable_type);
-<a href=#92 id=92 data-nosnippet>92</a>            type_id
-<a href=#93 id=93 data-nosnippet>93</a>        })
-<a href=#94 id=94 data-nosnippet>94</a>    }
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">pub fn </span>insert_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source_var_id: SourceVarId, var_type: <span class="kw-2">&amp;</span>Type) -&gt; DebugVarId {
-<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">if </span>!<span class="self">self</span>.source_variables.contains_key(<span class="kw-2">&amp;</span>source_var_id) {
-<a href=#98 id=98 data-nosnippet>98</a>            <span class="macro">unreachable!</span>(<span class="string">"cannot find source debug variable {source_var_id:?}"</span>);
-<a href=#99 id=99 data-nosnippet>99</a>        }
-<a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>type_id = <span class="self">self</span>.insert_type(var_type);
-<a href=#102 id=102 data-nosnippet>102</a>
-<a href=#103 id=103 data-nosnippet>103</a>        <span class="comment">// check if we need to instantiate the var with a new type
-<a href=#104 id=104 data-nosnippet>104</a>        </span><span class="kw">let </span>existing_var_id = <span class="self">self</span>.source_to_debug_vars.get(<span class="kw-2">&amp;</span>source_var_id).and_then(|var_id| {
-<a href=#105 id=105 data-nosnippet>105</a>            <span class="kw">let </span>(<span class="kw">_</span>, existing_type_id) = <span class="self">self</span>.variables.get(var_id).unwrap();
-<a href=#106 id=106 data-nosnippet>106</a>            (<span class="kw-2">*</span>existing_type_id == type_id).then_some(var_id)
-<a href=#107 id=107 data-nosnippet>107</a>        });
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(var_id) = existing_var_id {
-<a href=#109 id=109 data-nosnippet>109</a>            <span class="kw-2">*</span>var_id
-<a href=#110 id=110 data-nosnippet>110</a>        } <span class="kw">else </span>{
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="kw">let </span>var_id = DebugVarId(<span class="self">self</span>.next_var_id);
-<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.next_var_id += <span class="number">1</span>;
-<a href=#113 id=113 data-nosnippet>113</a>            <span class="self">self</span>.variables.insert(var_id, (source_var_id, type_id));
-<a href=#114 id=114 data-nosnippet>114</a>            <span class="self">self</span>.source_to_debug_vars.insert(source_var_id, var_id);
-<a href=#115 id=115 data-nosnippet>115</a>            var_id
-<a href=#116 id=116 data-nosnippet>116</a>        }
-<a href=#117 id=117 data-nosnippet>117</a>    }
-<a href=#118 id=118 data-nosnippet>118</a>
-<a href=#119 id=119 data-nosnippet>119</a>    <span class="kw">pub fn </span>get_var_id(<span class="kw-2">&amp;</span><span class="self">self</span>, source_var_id: SourceVarId) -&gt; <span class="prelude-ty">Option</span>&lt;DebugVarId&gt; {
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="self">self</span>.source_to_debug_vars.get(<span class="kw-2">&amp;</span>source_var_id).copied()
-<a href=#121 id=121 data-nosnippet>121</a>    }
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">pub fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>, source_var_id: SourceVarId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>PrintableType&gt; {
-<a href=#124 id=124 data-nosnippet>124</a>        <span class="self">self</span>.source_to_debug_vars
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let </span>field_name = <span class="self">self</span>.source_field_names.get(<span class="kw-2">&amp;</span>field_id)<span class="question-mark">?</span>;
+<a href=#81 id=81 data-nosnippet>81</a>        get_field(cursor_type, field_name)
+<a href=#82 id=82 data-nosnippet>82</a>    }
+<a href=#83 id=83 data-nosnippet>83</a>
+<a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">fn </span>insert_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, the_type: <span class="kw-2">&amp;</span>Type) -&gt; DebugTypeId {
+<a href=#85 id=85 data-nosnippet>85</a>        <span class="kw">let </span>printable_type: PrintableType = the_type.follow_bindings().into();
+<a href=#86 id=86 data-nosnippet>86</a>        <span class="self">self</span>.types_reverse.get(<span class="kw-2">&amp;</span>printable_type).copied().unwrap_or_else(|| {
+<a href=#87 id=87 data-nosnippet>87</a>            <span class="kw">let </span>type_id = DebugTypeId(<span class="self">self</span>.next_type_id);
+<a href=#88 id=88 data-nosnippet>88</a>            <span class="self">self</span>.next_type_id += <span class="number">1</span>;
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="self">self</span>.types_reverse.insert(printable_type.clone(), type_id);
+<a href=#90 id=90 data-nosnippet>90</a>            <span class="self">self</span>.types.insert(type_id, printable_type);
+<a href=#91 id=91 data-nosnippet>91</a>            type_id
+<a href=#92 id=92 data-nosnippet>92</a>        })
+<a href=#93 id=93 data-nosnippet>93</a>    }
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>    <span class="kw">pub fn </span>insert_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source_var_id: SourceVarId, var_type: <span class="kw-2">&amp;</span>Type) -&gt; DebugVarId {
+<a href=#96 id=96 data-nosnippet>96</a>        <span class="kw">if </span>!<span class="self">self</span>.source_variables.contains_key(<span class="kw-2">&amp;</span>source_var_id) {
+<a href=#97 id=97 data-nosnippet>97</a>            <span class="macro">unreachable!</span>(<span class="string">"cannot find source debug variable {source_var_id:?}"</span>);
+<a href=#98 id=98 data-nosnippet>98</a>        }
+<a href=#99 id=99 data-nosnippet>99</a>
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>type_id = <span class="self">self</span>.insert_type(var_type);
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="comment">// check if we need to instantiate the var with a new type
+<a href=#103 id=103 data-nosnippet>103</a>        </span><span class="kw">let </span>existing_var_id = <span class="self">self</span>.source_to_debug_vars.get(<span class="kw-2">&amp;</span>source_var_id).and_then(|var_id| {
+<a href=#104 id=104 data-nosnippet>104</a>            <span class="kw">let </span>(<span class="kw">_</span>, existing_type_id) = <span class="self">self</span>.variables.get(var_id).unwrap();
+<a href=#105 id=105 data-nosnippet>105</a>            (<span class="kw-2">*</span>existing_type_id == type_id).then_some(var_id)
+<a href=#106 id=106 data-nosnippet>106</a>        });
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(var_id) = existing_var_id {
+<a href=#108 id=108 data-nosnippet>108</a>            <span class="kw-2">*</span>var_id
+<a href=#109 id=109 data-nosnippet>109</a>        } <span class="kw">else </span>{
+<a href=#110 id=110 data-nosnippet>110</a>            <span class="kw">let </span>var_id = DebugVarId(<span class="self">self</span>.next_var_id);
+<a href=#111 id=111 data-nosnippet>111</a>            <span class="self">self</span>.next_var_id += <span class="number">1</span>;
+<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.variables.insert(var_id, (source_var_id, type_id));
+<a href=#113 id=113 data-nosnippet>113</a>            <span class="self">self</span>.source_to_debug_vars.insert(source_var_id, var_id);
+<a href=#114 id=114 data-nosnippet>114</a>            var_id
+<a href=#115 id=115 data-nosnippet>115</a>        }
+<a href=#116 id=116 data-nosnippet>116</a>    }
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">pub fn </span>get_var_id(<span class="kw-2">&amp;</span><span class="self">self</span>, source_var_id: SourceVarId) -&gt; <span class="prelude-ty">Option</span>&lt;DebugVarId&gt; {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="self">self</span>.source_to_debug_vars.get(<span class="kw-2">&amp;</span>source_var_id).copied()
+<a href=#120 id=120 data-nosnippet>120</a>    }
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a>    <span class="kw">pub fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>, source_var_id: SourceVarId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>PrintableType&gt; {
+<a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>(<span class="kw">_</span>, type_id) = <span class="self">self
+<a href=#124 id=124 data-nosnippet>124</a>            </span>.source_to_debug_vars
 <a href=#125 id=125 data-nosnippet>125</a>            .get(<span class="kw-2">&amp;</span>source_var_id)
-<a href=#126 id=126 data-nosnippet>126</a>            .and_then(|var_id| <span class="self">self</span>.variables.get(var_id))
-<a href=#127 id=127 data-nosnippet>127</a>            .and_then(|(<span class="kw">_</span>, type_id)| <span class="self">self</span>.types.get(type_id))
+<a href=#126 id=126 data-nosnippet>126</a>            .and_then(|var_id| <span class="self">self</span>.variables.get(var_id))<span class="question-mark">?</span>;
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="self">self</span>.types.get(type_id)
 <a href=#128 id=128 data-nosnippet>128</a>    }
 <a href=#129 id=129 data-nosnippet>129</a>}
 <a href=#130 id=130 data-nosnippet>130</a>

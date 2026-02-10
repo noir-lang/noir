@@ -74,7 +74,7 @@
 <a href=#74 id=74 data-nosnippet>74</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_as_used(<span class="kw-2">&amp;mut </span><span class="self">self</span>, current_mod_id: ModuleId, name: <span class="kw-2">&amp;</span>Ident) {
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(items) = <span class="self">self</span>.unused_items.get_mut(<span class="kw-2">&amp;</span>current_mod_id) {
 <a href=#76 id=76 data-nosnippet>76</a>            items.remove(name);
-<a href=#77 id=77 data-nosnippet>77</a>        };
+<a href=#77 id=77 data-nosnippet>77</a>        }
 <a href=#78 id=78 data-nosnippet>78</a>    }
 <a href=#79 id=79 data-nosnippet>79</a>
 <a href=#80 id=80 data-nosnippet>80</a>    <span class="doccomment">/// Get all the unused items per module.

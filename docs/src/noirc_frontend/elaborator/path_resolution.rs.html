@@ -819,7 +819,7 @@
 <a href=#819 id=819 data-nosnippet>819</a>            <span class="kw">let </span>trait_id = trait_id.expect(<span class="string">"The None option was already considered before"</span>);
 <a href=#820 id=820 data-nosnippet>820</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(trait_id) {
 <a href=#821 id=821 data-nosnippet>821</a>                results.push((trait_id, name, item));
-<a href=#822 id=822 data-nosnippet>822</a>            };
+<a href=#822 id=822 data-nosnippet>822</a>            }
 <a href=#823 id=823 data-nosnippet>823</a>        }
 <a href=#824 id=824 data-nosnippet>824</a>
 <a href=#825 id=825 data-nosnippet>825</a>        <span class="kw">if </span>results.is_empty() {
@@ -965,7 +965,7 @@
 <a href=#965 id=965 data-nosnippet>965</a>        <span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
 <a href=#966 id=966 data-nosnippet>966</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id) {
 <a href=#967 id=967 data-nosnippet>967</a>                results.push((<span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>func_id, name));
-<a href=#968 id=968 data-nosnippet>968</a>            };
+<a href=#968 id=968 data-nosnippet>968</a>            }
 <a href=#969 id=969 data-nosnippet>969</a>        }
 <a href=#970 id=970 data-nosnippet>970</a>
 <a href=#971 id=971 data-nosnippet>971</a>        <span class="kw">if </span>results.is_empty() {

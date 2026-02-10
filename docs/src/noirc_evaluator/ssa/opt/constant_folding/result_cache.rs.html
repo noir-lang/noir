@@ -101,12 +101,12 @@
 <a href=#101 id=101 data-nosnippet>101</a>            <span class="comment">// We expect globals to be immutable, so we can cache those results indefinitely.
 <a href=#102 id=102 data-nosnippet>102</a>            </span><span class="kw">if </span>dfg.is_global(<span class="kw-2">*</span>value) {
 <a href=#103 id=103 data-nosnippet>103</a>                <span class="kw">return</span>;
-<a href=#104 id=104 data-nosnippet>104</a>            };
+<a href=#104 id=104 data-nosnippet>104</a>            }
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a>            <span class="comment">// We only care about arrays and vectors. (`Store` can act on non-array values as well)
 <a href=#107 id=107 data-nosnippet>107</a>            </span><span class="kw">if </span>!dfg.type_of_value(<span class="kw-2">*</span>value).is_array() {
 <a href=#108 id=108 data-nosnippet>108</a>                <span class="kw">return</span>;
-<a href=#109 id=109 data-nosnippet>109</a>            };
+<a href=#109 id=109 data-nosnippet>109</a>            }
 <a href=#110 id=110 data-nosnippet>110</a>
 <a href=#111 id=111 data-nosnippet>111</a>            <span class="comment">// Look up the original instruction that created the value, which is the cache key.
 <a href=#112 id=112 data-nosnippet>112</a>            </span><span class="kw">let </span>instruction = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>value] {
@@ -186,34 +186,33 @@
 <a href=#186 id=186 data-nosnippet>186</a>        dom: <span class="kw-2">&amp;mut </span>DominatorTree,
 <a href=#187 id=187 data-nosnippet>187</a>        has_side_effects: bool,
 <a href=#188 id=188 data-nosnippet>188</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;CacheResult&gt; {
-<a href=#189 id=189 data-nosnippet>189</a>        <span class="self">self</span>.result.as_ref().and_then(|(origin, results)| {
-<a href=#190 id=190 data-nosnippet>190</a>            <span class="kw">if </span>dom.dominates(<span class="kw-2">*</span>origin, block) {
-<a href=#191 id=191 data-nosnippet>191</a>                <span class="prelude-val">Some</span>(CacheResult::Cached { results })
-<a href=#192 id=192 data-nosnippet>192</a>            } <span class="kw">else if </span>!has_side_effects {
-<a href=#193 id=193 data-nosnippet>193</a>                <span class="comment">// Insert a copy of this instruction in the common dominator
-<a href=#194 id=194 data-nosnippet>194</a>                </span><span class="kw">let </span>dominator = dom.common_dominator(<span class="kw-2">*</span>origin, block);
-<a href=#195 id=195 data-nosnippet>195</a>                <span class="prelude-val">Some</span>(CacheResult::NeedToHoistToCommonBlock { dominator })
-<a href=#196 id=196 data-nosnippet>196</a>            } <span class="kw">else </span>{
-<a href=#197 id=197 data-nosnippet>197</a>                <span class="prelude-val">None
-<a href=#198 id=198 data-nosnippet>198</a>            </span>}
-<a href=#199 id=199 data-nosnippet>199</a>        })
-<a href=#200 id=200 data-nosnippet>200</a>    }
-<a href=#201 id=201 data-nosnippet>201</a>}
-<a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a><span class="attr">#[derive(Debug)]
-<a href=#204 id=204 data-nosnippet>204</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>CacheResult&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#205 id=205 data-nosnippet>205</a>    <span class="doccomment">/// The result of an earlier instruction can be readily reused, because it was found
-<a href=#206 id=206 data-nosnippet>206</a>    /// in a block that dominates the one where the current instruction is. We can drop
-<a href=#207 id=207 data-nosnippet>207</a>    /// the current instruction and redefine its results in terms of the existing values.
-<a href=#208 id=208 data-nosnippet>208</a>    </span>Cached {
-<a href=#209 id=209 data-nosnippet>209</a>        <span class="doccomment">/// The value IDs we can reuse.
-<a href=#210 id=210 data-nosnippet>210</a>        </span>results: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[ValueId],
-<a href=#211 id=211 data-nosnippet>211</a>    },
-<a href=#212 id=212 data-nosnippet>212</a>    <span class="doccomment">/// We found an identical instruction in a non-dominating block, so we cannot directly
-<a href=#213 id=213 data-nosnippet>213</a>    /// reuse its results, because they are not visible in the current block. However, we
-<a href=#214 id=214 data-nosnippet>214</a>    /// can hoist the instruction into the common dominator, and deduplicate later.
-<a href=#215 id=215 data-nosnippet>215</a>    </span>NeedToHoistToCommonBlock {
-<a href=#216 id=216 data-nosnippet>216</a>        <span class="doccomment">/// The common dominator where we can hoist the current instruction.
-<a href=#217 id=217 data-nosnippet>217</a>        </span>dominator: BasicBlockId,
-<a href=#218 id=218 data-nosnippet>218</a>    },
-<a href=#219 id=219 data-nosnippet>219</a>}</code></pre></div></section></main></body></html>
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span>(origin, results) = <span class="self">self</span>.result.as_ref()<span class="question-mark">?</span>;
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">if </span>dom.dominates(<span class="kw-2">*</span>origin, block) {
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="prelude-val">Some</span>(CacheResult::Cached { results })
+<a href=#192 id=192 data-nosnippet>192</a>        } <span class="kw">else if </span>!has_side_effects {
+<a href=#193 id=193 data-nosnippet>193</a>            <span class="comment">// Insert a copy of this instruction in the common dominator
+<a href=#194 id=194 data-nosnippet>194</a>            </span><span class="kw">let </span>dominator = dom.common_dominator(<span class="kw-2">*</span>origin, block);
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="prelude-val">Some</span>(CacheResult::NeedToHoistToCommonBlock { dominator })
+<a href=#196 id=196 data-nosnippet>196</a>        } <span class="kw">else </span>{
+<a href=#197 id=197 data-nosnippet>197</a>            <span class="prelude-val">None
+<a href=#198 id=198 data-nosnippet>198</a>        </span>}
+<a href=#199 id=199 data-nosnippet>199</a>    }
+<a href=#200 id=200 data-nosnippet>200</a>}
+<a href=#201 id=201 data-nosnippet>201</a>
+<a href=#202 id=202 data-nosnippet>202</a><span class="attr">#[derive(Debug)]
+<a href=#203 id=203 data-nosnippet>203</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>CacheResult&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="doccomment">/// The result of an earlier instruction can be readily reused, because it was found
+<a href=#205 id=205 data-nosnippet>205</a>    /// in a block that dominates the one where the current instruction is. We can drop
+<a href=#206 id=206 data-nosnippet>206</a>    /// the current instruction and redefine its results in terms of the existing values.
+<a href=#207 id=207 data-nosnippet>207</a>    </span>Cached {
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="doccomment">/// The value IDs we can reuse.
+<a href=#209 id=209 data-nosnippet>209</a>        </span>results: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[ValueId],
+<a href=#210 id=210 data-nosnippet>210</a>    },
+<a href=#211 id=211 data-nosnippet>211</a>    <span class="doccomment">/// We found an identical instruction in a non-dominating block, so we cannot directly
+<a href=#212 id=212 data-nosnippet>212</a>    /// reuse its results, because they are not visible in the current block. However, we
+<a href=#213 id=213 data-nosnippet>213</a>    /// can hoist the instruction into the common dominator, and deduplicate later.
+<a href=#214 id=214 data-nosnippet>214</a>    </span>NeedToHoistToCommonBlock {
+<a href=#215 id=215 data-nosnippet>215</a>        <span class="doccomment">/// The common dominator where we can hoist the current instruction.
+<a href=#216 id=216 data-nosnippet>216</a>        </span>dominator: BasicBlockId,
+<a href=#217 id=217 data-nosnippet>217</a>    },
+<a href=#218 id=218 data-nosnippet>218</a>}</code></pre></div></section></main></body></html>

@@ -81,7 +81,7 @@
 <a href=#81 id=81 data-nosnippet>81</a>                <span class="kw">for </span>(ident, typ) <span class="kw">in </span>parameters {
 <a href=#82 id=82 data-nosnippet>82</a>                    <span class="kw">if </span><span class="macro">matches!</span>(typ.typ, UnresolvedTypeData::Error) {
 <a href=#83 id=83 data-nosnippet>83</a>                        <span class="kw">continue</span>;
-<a href=#84 id=84 data-nosnippet>84</a>                    };
+<a href=#84 id=84 data-nosnippet>84</a>                    }
 <a href=#85 id=85 data-nosnippet>85</a>                    <span class="kw">let </span>param_name = ident.as_str();
 <a href=#86 id=86 data-nosnippet>86</a>                    <span class="kw">if </span>names_to_exclude.contains(param_name) {
 <a href=#87 id=87 data-nosnippet>87</a>                        <span class="kw">continue</span>;
@@ -115,7 +115,7 @@
 <a href=#115 id=115 data-nosnippet>115</a>                };
 <a href=#116 id=116 data-nosnippet>116</a>                <span class="kw">if </span><span class="macro">matches!</span>(parameter.typ.typ, UnresolvedTypeData::Error) {
 <a href=#117 id=117 data-nosnippet>117</a>                    <span class="kw">continue</span>;
-<a href=#118 id=118 data-nosnippet>118</a>                };
+<a href=#118 id=118 data-nosnippet>118</a>                }
 <a href=#119 id=119 data-nosnippet>119</a>                <span class="kw">let </span>param_name = ident.as_str();
 <a href=#120 id=120 data-nosnippet>120</a>                <span class="kw">if </span>names_to_exclude.contains(param_name) {
 <a href=#121 id=121 data-nosnippet>121</a>                    <span class="kw">continue</span>;

@@ -170,7 +170,7 @@
 <a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">let </span>entry_path_parent = package
 <a href=#171 id=171 data-nosnippet>171</a>        .entry_path
 <a href=#172 id=172 data-nosnippet>172</a>        .parent()
-<a href=#173 id=173 data-nosnippet>173</a>        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"The entry path is expected to be a single file within a directory and so should have a parent {:?}"</span>, package.entry_path));
+<a href=#173 id=173 data-nosnippet>173</a>        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"The entry path is expected to be a single file within a directory and so should have a parent {}"</span>, package.entry_path.display()));
 <a href=#174 id=174 data-nosnippet>174</a>
 <a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">let </span><span class="kw-2">mut </span>debug_instrumenter = DebugInstrumenter::default();
 <a href=#176 id=176 data-nosnippet>176</a>

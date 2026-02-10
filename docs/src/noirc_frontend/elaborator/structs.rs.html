@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>                <span class="kw">let </span><span class="kw-2">mut </span>attributes = typ.struct_def.attributes.iter();
 <a href=#61 id=61 data-nosnippet>61</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = attributes.find_map(|attr| attr.kind.must_use_message()) {
 <a href=#62 id=62 data-nosnippet>62</a>                    struct_def.must_use = <span class="kw">crate</span>::MustUse::MustUse(message);
-<a href=#63 id=63 data-nosnippet>63</a>                };
+<a href=#63 id=63 data-nosnippet>63</a>                }
 <a href=#64 id=64 data-nosnippet>64</a>                struct_def.set_fields(fields);
 <a href=#65 id=65 data-nosnippet>65</a>            });
 <a href=#66 id=66 data-nosnippet>66</a>        }

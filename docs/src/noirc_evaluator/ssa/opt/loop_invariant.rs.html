@@ -138,7 +138,7 @@
 <a href=#138 id=138 data-nosnippet>138</a>            <span class="comment">// If the loop does not have a preheader we skip hoisting loop invariants for this loop
 <a href=#139 id=139 data-nosnippet>139</a>            </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(pre_header) = loop_.get_pre_header(context.inserter.function, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg) {
 <a href=#140 id=140 data-nosnippet>140</a>                context.hoist_loop_invariants(<span class="kw-2">&amp;</span>loop_, <span class="kw-2">&amp;</span><span class="self">self</span>.yet_to_unroll, pre_header);
-<a href=#141 id=141 data-nosnippet>141</a>            };
+<a href=#141 id=141 data-nosnippet>141</a>            }
 <a href=#142 id=142 data-nosnippet>142</a>        }
 <a href=#143 id=143 data-nosnippet>143</a>
 <a href=#144 id=144 data-nosnippet>144</a>        context.map_dependent_instructions();
@@ -398,7 +398,7 @@
 <a href=#398 id=398 data-nosnippet>398</a>                )
 <a href=#399 id=399 data-nosnippet>399</a>            {
 <a href=#400 id=400 data-nosnippet>400</a>                context.all_induction_variables.insert(induction_variable, bounds);
-<a href=#401 id=401 data-nosnippet>401</a>            };
+<a href=#401 id=401 data-nosnippet>401</a>            }
 <a href=#402 id=402 data-nosnippet>402</a>        }
 <a href=#403 id=403 data-nosnippet>403</a>
 <a href=#404 id=404 data-nosnippet>404</a>        context
@@ -478,7 +478,7 @@
 <a href=#478 id=478 data-nosnippet>478</a>            get_induction_var_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter, loop_, pre_header)
 <a href=#479 id=479 data-nosnippet>479</a>        {
 <a href=#480 id=480 data-nosnippet>480</a>            <span class="self">self</span>.outer_induction_variables.insert(induction_variable, bounds);
-<a href=#481 id=481 data-nosnippet>481</a>        };
+<a href=#481 id=481 data-nosnippet>481</a>        }
 <a href=#482 id=482 data-nosnippet>482</a>    }
 <a href=#483 id=483 data-nosnippet>483</a>
 <a href=#484 id=484 data-nosnippet>484</a>    <span class="doccomment">/// Checks whether a `block` is control dependent on any blocks after

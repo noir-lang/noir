@@ -49,7 +49,7 @@
 <a href=#49 id=49 data-nosnippet>49</a>                required_compiler_version: version.clone(),
 <a href=#50 id=50 data-nosnippet>50</a>                compiler_version_found: strip_build_meta_data(compiler_version),
 <a href=#51 id=51 data-nosnippet>51</a>            });
-<a href=#52 id=52 data-nosnippet>52</a>        };
+<a href=#52 id=52 data-nosnippet>52</a>        }
 <a href=#53 id=53 data-nosnippet>53</a>    }
 <a href=#54 id=54 data-nosnippet>54</a>
 <a href=#55 id=55 data-nosnippet>55</a>    <span class="comment">// Check that all of this package's dependencies' compiler version requirements are satisfied
@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>            <span class="macro">panic!</span>(
 <a href=#113 id=113 data-nosnippet>113</a>                <span class="string">"semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
 <a href=#114 id=114 data-nosnippet>114</a>            </span>)
-<a href=#115 id=115 data-nosnippet>115</a>        };
+<a href=#115 id=115 data-nosnippet>115</a>        }
 <a href=#116 id=116 data-nosnippet>116</a>
 <a href=#117 id=117 data-nosnippet>117</a>        package.compiler_required_version = <span class="prelude-val">Some</span>(<span class="string">"0.2.0"</span>.to_string());
 <a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">let </span>got_err = <span class="kw">match </span>semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>            <span class="macro">panic!</span>(
 <a href=#166 id=166 data-nosnippet>166</a>                <span class="string">"semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
 <a href=#167 id=167 data-nosnippet>167</a>            </span>)
-<a href=#168 id=168 data-nosnippet>168</a>        };
+<a href=#168 id=168 data-nosnippet>168</a>        }
 <a href=#169 id=169 data-nosnippet>169</a>
 <a href=#170 id=170 data-nosnippet>170</a>        package.dependencies.insert(
 <a href=#171 id=171 data-nosnippet>171</a>            CrateName::from_str(<span class="string">"test_dep_invalid"</span>).unwrap(),
@@ -205,7 +205,7 @@
 <a href=#205 id=205 data-nosnippet>205</a>            <span class="macro">panic!</span>(
 <a href=#206 id=206 data-nosnippet>206</a>                <span class="string">"semver check should have passed. compiler version is 0.2.0 and required version from the package is &gt;=0.1.0\n error: {err:?}"
 <a href=#207 id=207 data-nosnippet>207</a>            </span>)
-<a href=#208 id=208 data-nosnippet>208</a>        };
+<a href=#208 id=208 data-nosnippet>208</a>        }
 <a href=#209 id=209 data-nosnippet>209</a>    }
 <a href=#210 id=210 data-nosnippet>210</a>
 <a href=#211 id=211 data-nosnippet>211</a>    <span class="attr">#[test]
@@ -225,7 +225,7 @@
 <a href=#225 id=225 data-nosnippet>225</a>
 <a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
 <a href=#227 id=227 data-nosnippet>227</a>            <span class="macro">panic!</span>(<span class="string">"{err}"</span>);
-<a href=#228 id=228 data-nosnippet>228</a>        };
+<a href=#228 id=228 data-nosnippet>228</a>        }
 <a href=#229 id=229 data-nosnippet>229</a>    }
 <a href=#230 id=230 data-nosnippet>230</a>
 <a href=#231 id=231 data-nosnippet>231</a>    <span class="attr">#[test]
@@ -247,6 +247,6 @@
 <a href=#247 id=247 data-nosnippet>247</a>            <span class="macro">panic!</span>(
 <a href=#248 id=248 data-nosnippet>248</a>                <span class="string">"semver check should have passed. compiler version is 0.1.0+build_data and required version from the package is 0.1.0\n The build data should be ignored\n error: {err:?}"
 <a href=#249 id=249 data-nosnippet>249</a>            </span>)
-<a href=#250 id=250 data-nosnippet>250</a>        };
+<a href=#250 id=250 data-nosnippet>250</a>        }
 <a href=#251 id=251 data-nosnippet>251</a>    }
 <a href=#252 id=252 data-nosnippet>252</a>}</code></pre></div></section></main></body></html>
