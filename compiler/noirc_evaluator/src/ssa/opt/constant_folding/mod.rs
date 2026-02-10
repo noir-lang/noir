@@ -2598,68 +2598,51 @@ mod tests {
         folded.interpret(Vec::new()).unwrap();
     }
 
-    /// Regression test for a bug where constant folding's instruction hoisting could
-    /// orphan values when a hoisted instruction self-deduplicated during a revisit.
+    /// Regression test: constant folding's instruction hoisting can orphan values when
+    /// a hoisted instruction self-deduplicates during a revisit.
     ///
-    /// The bug: during a revisit iteration, hoisting an instruction into the loop
-    /// header (b1) — which hasn't been visited yet in that iteration — then visiting
-    /// it via a back-edge successor, causes the instruction to self-deduplicate
-    /// (the cache already points to its own results from the hoist, so the pass
-    /// skips re-insertion, orphaning the values).
+    /// Pass 1: b4/b5 are siblings with `not v2`, hoisted to b3. The `eq v2, u1 0`
+    /// in b6 doesn't match `not` in the cache, but push_instruction simplifies it to
+    /// a new `Not(v2)` instruction placed in b6 (not seen by this pass).
+    ///
+    /// Revisit from b3: the new `Not(v2)` in b6 hits the cache from b3, but b3
+    /// doesn't dominate b6 (path b2→b6 bypasses b3), so it's hoisted to
+    /// common_dom(b3, b6) = b2. Later in the same iteration, b2 is visited via the
+    /// loop back-edge (b6→b1→b2), and the hoisted `Not` self-deduplicates: the cache
+    /// points to its own results, so the pass skips re-insertion, orphaning the result.
     #[test]
     fn hoist_into_loop_header_does_not_self_deduplicate() {
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
-            v4 = allocate -> &mut u1
-            store u1 1 at v4
-            v6 = allocate -> &mut u1
-            store u1 1 at v6
+            v1 = allocate -> &mut u1
+            store u1 1 at v1
             jmp b1()
           b1():
-            v9 = load v6 -> u1
-            jmpif v9 then: b2, else: b3
+            v2 = load v1 -> u1
+            jmpif v2 then: b2, else: b7
           b2():
-            v11 = load v4 -> u1
-            jmpif v11 then: b4, else: b5
+            jmpif v2 then: b3, else: b6
           b3():
-            v10 = load v4 -> u1
-            return v10
+            jmpif v2 then: b4, else: b5
           b4():
-            jmpif v11 then: b6, else: b7
+            v3 = not v2
+            jmp b6()
           b5():
-            jmp b8()
+            v4 = not v2
+            jmp b6()
           b6():
-            v20 = not v11
-            jmp b15(u32 0)
-          b7():
-            v21 = not v11
-            jmp b15(u32 0)
-          b8():
-            // This `eq` is DFG-simplified to `not v11`, matching the cached `not v11`
-            // from b6/b7. The deduplicated `not` gets hoisted toward the loop header,
-            // and on a revisit iteration it self-deduplicates (the cache points to its
-            // own results), orphaning v19.
-            v19 = eq v11, u1 0
-            store v19 at v4
-            store u1 0 at v6
+            v5 = eq v2, u1 0
+            store v5 at v1
             jmp b1()
-          b15(v3: u32):
-            constrain v3 == u32 0, "Index out of bounds"
-            constrain v3 == u32 0, "Index out of bounds"
-            jmp b8()
+          b7():
+            return v2
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-
         let input = Value::from_constant(42_u128.into(), NumericType::NativeField).unwrap();
-
-        let before = ssa.interpret(vec![input.clone()]);
-        assert!(before.is_ok(), "SSA should execute successfully before constant folding");
-
-        let ssa = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
-
-        let after = ssa.interpret(vec![input]);
-        assert_eq!(before, after, "Constant folding should not change execution result");
+        let (_, _) = assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| {
+            ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER)
+        });
     }
 }
