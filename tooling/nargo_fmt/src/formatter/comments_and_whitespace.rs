@@ -79,7 +79,7 @@ impl Formatter<'_> {
         // Was the last token we processed a block comment?
         let mut last_was_block_comment = false;
 
-        let mut ignore_next = false;
+        let mut ignore_next = self.ignore_next;
 
         loop {
             match &self.token {
@@ -118,6 +118,7 @@ impl Formatter<'_> {
 
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
+                        self.ignore_next = true;
                     }
 
                     // Here we check if we need to write one line, two lines or none after the
@@ -149,6 +150,7 @@ impl Formatter<'_> {
 
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
+                        self.ignore_next = true;
                     }
 
                     // Here we check if we need to write one line, two lines or none after the
@@ -187,7 +189,8 @@ impl Formatter<'_> {
     pub(crate) fn write_line_comment(&mut self, comment: &str, prefix: &str) {
         // We don't wrap lines that start with '#' because these might be
         // markdown headers and wrapping those would actually break them.
-        if !self.config.wrap_comments
+        if self.ignore_next
+            || !self.config.wrap_comments
             || self.in_chunk
             || comment.trim_start().starts_with('#')
             || self.current_line_width() + comment.chars().count() + prefix.len()
@@ -220,7 +223,7 @@ impl Formatter<'_> {
     pub(crate) fn write_block_comment(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
 
-        if !self.config.wrap_comments || self.in_chunk {
+        if self.ignore_next || !self.config.wrap_comments || self.in_chunk {
             self.write(comment);
             self.write("*/");
             return;
@@ -1236,5 +1239,57 @@ global x: Field = 1;
 }
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_wrap_line_comment_if_directed_to_ignore() {
+        let src = "// noir-fmt:ignore
+// This is a long comment that's going to be wrapped.
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, src, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_block_comment_if_directed_to_ignore() {
+        let src = "// noir-fmt:ignore
+/* This is a long comment that's going to be wrapped. */
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, src, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_outer_doc_line_comment_if_directed_to_ignore() {
+        let src = "// noir-fmt:ignore
+/// This is a long comment that's going to be wrapped.
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, src, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_inner_doc_line_comment_if_directed_to_ignore() {
+        let src = "// noir-fmt:ignore
+//! This is a long comment that's going to be wrapped.
+";
+        assert_format_wrapping_comments(src, src, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_outer_doc_block_comment_if_directed_to_ignore() {
+        let src = "// noir-fmt:ignore
+/** This is a long comment that's going to be wrapped. */
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, src, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_inner_doc_block_comment_if_directed_to_ignore() {
+        let src = "// noir-fmt:ignore
+/*! This is a long comment that's going to be wrapped. */
+";
+        assert_format_wrapping_comments(src, src, 29);
     }
 }

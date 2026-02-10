@@ -297,9 +297,16 @@ impl<'a> Formatter<'a> {
 
     /// Advances to the next token (the current token is not written).
     pub(crate) fn bump(&mut self) -> Token {
-        self.ignore_next = false;
-
         let next_token = self.read_token_internal();
+
+        // Keep the ignore status as long as we keep finding comments or whitespace, otherwise reset it
+        if !matches!(
+            next_token.token(),
+            Token::LineComment(..) | Token::BlockComment(..) | Token::Whitespace(..),
+        ) {
+            self.ignore_next = false;
+        }
+
         self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
