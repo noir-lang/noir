@@ -65,7 +65,7 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 };
-                // We inject the predicate as a witness input to the black box function, 
+                // We inject the predicate as a witness input to the black box function,
                 // so that it can be used to conditionally execute the recursive aggregation.
                 //
                 // This is specific to the recursive aggregation black box, as other blackbox functions either:
