@@ -21,7 +21,7 @@
 //!     has when not unrolled.
 //!     This cost estimation is analogous to LLVM's `analyzeLoopUnrollCost` which estimates
 //!     which loads become constant after unrolling. See:
-//!     https://llvm.org/doxygen/LoopUnrollPass_8cpp_source.html
+//!     <https://llvm.org/doxygen/LoopUnrollPass_8cpp_source.html>
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
 //!   - Differing post-conditions (see below).
