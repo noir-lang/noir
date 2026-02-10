@@ -535,4 +535,25 @@
 <a href=#535 id=535 data-nosnippet>535</a>        "
 <a href=#536 id=536 data-nosnippet>536</a>        </span>);
 <a href=#537 id=537 data-nosnippet>537</a>    }
-<a href=#538 id=538 data-nosnippet>538</a>}</code></pre></div></section></main></body></html>
+<a href=#538 id=538 data-nosnippet>538</a>
+<a href=#539 id=539 data-nosnippet>539</a>    <span class="attr">#[test]
+<a href=#540 id=540 data-nosnippet>540</a>    </span><span class="kw">fn </span>keep_enable_side_effects_for_recursive_aggregation() {
+<a href=#541 id=541 data-nosnippet>541</a>        <span class="comment">// RecursiveAggregation uses the `current_side_effects_enabled_var` as its predicate
+<a href=#542 id=542 data-nosnippet>542</a>        // during ACIR generation. If `remove_enable_side_effects` drops the `EnableSideEffectsIf`
+<a href=#543 id=543 data-nosnippet>543</a>        // before a recursive_aggregation call, ACIR gen injects a stale predicate, which can
+<a href=#544 id=544 data-nosnippet>544</a>        // silently disable recursive verification constraints.
+<a href=#545 id=545 data-nosnippet>545</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#546 id=546 data-nosnippet>546</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#547 id=547 data-nosnippet>547</a>          b0(v0: u1, v1: [Field; 1], v2: [Field; 1], v3: [Field; 1], v4: Field):
+<a href=#548 id=548 data-nosnippet>548</a>            v5 = not v0
+<a href=#549 id=549 data-nosnippet>549</a>            enable_side_effects v0
+<a href=#550 id=550 data-nosnippet>550</a>            constrain Field 1 != Field 0
+<a href=#551 id=551 data-nosnippet>551</a>            enable_side_effects v5
+<a href=#552 id=552 data-nosnippet>552</a>            call recursive_aggregation(v1, v2, v3, v4, u32 0)
+<a href=#553 id=553 data-nosnippet>553</a>            enable_side_effects u1 1
+<a href=#554 id=554 data-nosnippet>554</a>            return
+<a href=#555 id=555 data-nosnippet>555</a>        }
+<a href=#556 id=556 data-nosnippet>556</a>        "#</span>;
+<a href=#557 id=557 data-nosnippet>557</a>        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+<a href=#558 id=558 data-nosnippet>558</a>    }
+<a href=#559 id=559 data-nosnippet>559</a>}</code></pre></div></section></main></body></html>
