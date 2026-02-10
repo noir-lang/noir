@@ -13,9 +13,7 @@ use crate::{
         function::FuncMeta,
         stmt::HirStatement,
     },
-    node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
-    },
+    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner},
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
@@ -29,12 +27,11 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let Some(DefinitionKind::Function(func_id)) = interner.try_definition(id).map(|def| &def.kind)
-    else {
+    let DefinitionKind::Function(func_id) = interner.definition(id).kind else {
         return None;
     };
 
-    let attributes = interner.function_attributes(func_id);
+    let attributes = interner.function_attributes(&func_id);
     attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
         name: interner.definition_name(id).to_string(),
         note,
@@ -499,9 +496,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
 
     match interner.expression(&expr_id) {
         HirExpression::Ident(ident, _) => {
-            if ident.id == DefinitionId::dummy_id() {
-                return true;
-            }
             let definition = interner.definition(ident.id);
             if let DefinitionKind::Function(id) = definition.kind { func_id != id } else { true }
         }
