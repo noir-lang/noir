@@ -1279,8 +1279,8 @@ impl<'interner> Monomorphizer<'interner> {
         // of both (constrained, unconstrained). This is used only as an optimization to avoid
         // unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
-        // If true, evaluate some builtins to function values. This is disabled when codegening the
-        // function in a function call since we can avoid creating a new function and instead
+        // If true, evaluate some builtins to function values. This is disabled when code-generating
+        // the function in a function call since we can avoid creating a new function and instead
         // inline the body directly which keeps some minimal SSA pass tests working.
         evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -2121,7 +2121,7 @@ impl<'interner> Monomorphizer<'interner> {
             for id in &call.arguments {
                 arguments.push(self.expr(*id)?);
             }
-        };
+        }
 
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
@@ -2403,6 +2403,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let reference = Box::new(self.lvalue(*lvalue)?);
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }
+            }
+            HirLValue::Error { .. } => {
+                unreachable!("Encountered Error node during monomorphization");
             }
         };
 
@@ -3008,6 +3011,9 @@ fn resolve_trait_item_impl(
 
     match trait_impl {
         TraitImplKind::Normal(impl_id) => Ok(impl_id),
+        TraitImplKind::Prepared { .. } => {
+            unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
+        }
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
@@ -3035,6 +3041,11 @@ fn resolve_trait_item_impl(
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     Err(InterpreterError::NoImpl { location })
+                }
+                Ok((TraitImplKind::Prepared { .. }, _)) => {
+                    unreachable!(
+                        "ICE: Prepared trait impl should have been replaced by a Normal one"
+                    )
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })

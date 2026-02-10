@@ -194,7 +194,7 @@ impl<'a> AsyncReplDebugger<'a> {
                         self.terminate(context);
                         break;
                     }
-                };
+                }
             } else {
                 println!("Upstream channel closed. Terminating debugger");
                 break;
@@ -568,7 +568,7 @@ impl DebugController {
             let status = self.debugger_status();
             if let DebuggerStatus::Idle = status {
                 break;
-            };
+            }
         }
     }
 

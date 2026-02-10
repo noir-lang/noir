@@ -358,7 +358,7 @@ pub fn optimize_ssa_builder_into_acir(
                 )
             },
         ));
-    };
+    }
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
