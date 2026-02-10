@@ -133,7 +133,7 @@ impl Elaborator<'_> {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
-                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+                self.push_err(TypeCheckError::expecting_other_error(message, location));
             }
 
             None

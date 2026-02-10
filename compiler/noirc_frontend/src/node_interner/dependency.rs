@@ -4,6 +4,8 @@ use noirc_errors::Location;
 use petgraph::{
     algo::tarjan_scc,
     graph::{DiGraph, NodeIndex as PetGraphIndex},
+    // TODO: WIP
+    visit::{EdgeRef, GraphBase},
 };
 
 use crate::{
@@ -83,58 +85,141 @@ impl NodeInterner {
     }
 
     pub(crate) fn check_for_dependency_cycles(&self) -> Vec<CompilationError> {
-        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
+        // TODO: WIP (check for self-dependencies here?)
+        // dbg!(&self.dependency_graph);
+
+        // TODO: WIP
         let mut errors = Vec::new();
 
+        // TODO: WIP
         let mut push_error = |item: String, scc: &[_], i, location: Location| {
             let cycle = self.get_cycle_error_string(scc, i);
+            // TODO: WIP (consider why this isn't being emitted for some of the new tests?)
             let error = ResolverError::DependencyCycle { item, cycle, location };
             errors.push(error.into());
         };
 
+        // TODO: WIP
+        let mut push_error_from_index =
+            |scc: &[_],
+             scc_index,
+             node_index: <DiGraph<DependencyId, ()> as GraphBase>::NodeId|
+             -> bool {
+                match self.dependency_graph[node_index] {
+                    DependencyId::Struct(struct_id) => {
+                        let struct_type = self.get_type(struct_id);
+                        let struct_type = struct_type.borrow();
+                        let name = &struct_type.name;
+                        push_error(name.to_string(), scc, scc_index, name.location());
+                        true
+                    }
+                    DependencyId::Global(global_id) => {
+                        let global = self.get_global(global_id);
+                        let name = global.ident.to_string();
+                        push_error(name, scc, scc_index, global.location);
+                        true
+                    }
+                    DependencyId::Alias(alias_id) => {
+                        let alias = self.get_type_alias(alias_id);
+                        // If type aliases form a cycle, we have to manually break the cycle
+                        // here to prevent infinite recursion in the type checker.
+                        alias.borrow_mut().typ = Type::Error;
+
+                        // push_error will borrow the alias so we have to drop the mutable borrow
+                        let alias = alias.borrow();
+                        push_error(alias.name.to_string(), scc, scc_index, alias.name.location());
+                        true
+                    }
+                    DependencyId::Trait(trait_id) => {
+                        let the_trait = self.get_trait(trait_id);
+                        let name = &the_trait.name;
+                        push_error(name.to_string(), scc, scc_index, name.location());
+                        true
+                    }
+                    // Mutually recursive functions are allowed
+                    DependencyId::Function(_) => false,
+                    // Local variables should never be in a dependency cycle, scoping rules
+                    // prevents referring to them before they're defined
+                    DependencyId::Variable(loc) => unreachable!(
+                        "Variable used at location {loc:?} caught in a dependency cycle"
+                    ),
+                }
+            };
+
+        // TODO: WIP
+        // Checking for single-node cycles
+        for edge_reference in self.dependency_graph.edge_references() {
+            let source = edge_reference.source();
+            let target = edge_reference.target();
+            if source == target {
+                let scc_index = 0;
+                let node_index = source;
+                push_error_from_index(&[source], scc_index, node_index);
+            }
+        }
+
+        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
+        // TODO: WIP
+        // let mut errors = Vec::new();
+
+        // TODO: WIP
+        // let mut push_error = |item: String, scc: &[_], i, location: Location| {
+        //     let cycle = self.get_cycle_error_string(scc, i);
+        //     // TODO: WIP (consider why this isn't being emitted for some of the new tests?)
+        //     let error = ResolverError::DependencyCycle { item, cycle, location };
+        //     errors.push(error.into());
+        // };
+
         for scc in strongly_connected_components {
             if scc.len() > 1 {
                 // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
-                for (i, index) in scc.iter().enumerate() {
-                    match self.dependency_graph[*index] {
-                        DependencyId::Struct(struct_id) => {
-                            let struct_type = self.get_type(struct_id);
-                            let struct_type = struct_type.borrow();
-                            let name = &struct_type.name;
-                            push_error(name.to_string(), &scc, i, name.location());
-                            break;
-                        }
-                        DependencyId::Global(global_id) => {
-                            let global = self.get_global(global_id);
-                            let name = global.ident.to_string();
-                            push_error(name, &scc, i, global.location);
-                            break;
-                        }
-                        DependencyId::Alias(alias_id) => {
-                            let alias = self.get_type_alias(alias_id);
-                            // If type aliases form a cycle, we have to manually break the cycle
-                            // here to prevent infinite recursion in the type checker.
-                            alias.borrow_mut().typ = Type::Error;
-
-                            // push_error will borrow the alias so we have to drop the mutable borrow
-                            let alias = alias.borrow();
-                            push_error(alias.name.to_string(), &scc, i, alias.name.location());
-                            break;
-                        }
-                        DependencyId::Trait(trait_id) => {
-                            let the_trait = self.get_trait(trait_id);
-                            let name = &the_trait.name;
-                            push_error(name.to_string(), &scc, i, name.location());
-                            break;
-                        }
-                        // Mutually recursive functions are allowed
-                        DependencyId::Function(_) => (),
-                        // Local variables should never be in a dependency cycle, scoping rules
-                        // prevents referring to them before they're defined
-                        DependencyId::Variable(loc) => unreachable!(
-                            "Variable used at location {loc:?} caught in a dependency cycle"
-                        ),
+                // TODO: WIP
+                // for (i, index) in scc.iter().enumerate() {
+                for (scc_index, node_index) in scc.iter().enumerate() {
+                    if push_error_from_index(&scc, scc_index, *node_index) {
+                        break;
                     }
+
+                    // TODO: WIP
+                    // match self.dependency_graph[*index] {
+                    //     DependencyId::Struct(struct_id) => {
+                    //         let struct_type = self.get_type(struct_id);
+                    //         let struct_type = struct_type.borrow();
+                    //         let name = &struct_type.name;
+                    //         push_error(name.to_string(), &scc, i, name.location());
+                    //         break;
+                    //     }
+                    //     DependencyId::Global(global_id) => {
+                    //         let global = self.get_global(global_id);
+                    //         let name = global.ident.to_string();
+                    //         push_error(name, &scc, i, global.location);
+                    //         break;
+                    //     }
+                    //     DependencyId::Alias(alias_id) => {
+                    //         let alias = self.get_type_alias(alias_id);
+                    //         // If type aliases form a cycle, we have to manually break the cycle
+                    //         // here to prevent infinite recursion in the type checker.
+                    //         alias.borrow_mut().typ = Type::Error;
+                    //
+                    //         // push_error will borrow the alias so we have to drop the mutable borrow
+                    //         let alias = alias.borrow();
+                    //         push_error(alias.name.to_string(), &scc, i, alias.name.location());
+                    //         break;
+                    //     }
+                    //     DependencyId::Trait(trait_id) => {
+                    //         let the_trait = self.get_trait(trait_id);
+                    //         let name = &the_trait.name;
+                    //         push_error(name.to_string(), &scc, i, name.location());
+                    //         break;
+                    //     }
+                    //     // Mutually recursive functions are allowed
+                    //     DependencyId::Function(_) => (),
+                    //     // Local variables should never be in a dependency cycle, scoping rules
+                    //     // prevents referring to them before they're defined
+                    //     DependencyId::Variable(loc) => unreachable!(
+                    //         "Variable used at location {loc:?} caught in a dependency cycle"
+                    //     ),
+                    // }
                 }
             }
         }

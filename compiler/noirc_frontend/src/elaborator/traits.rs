@@ -367,10 +367,10 @@ impl Elaborator<'_> {
         let Ok(PathResolutionItem::Trait(trait_id)) =
             self.resolve_path_or_error(trait_path.clone(), PathResolutionTarget::Type)
         else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "add_missing_named_generics: missing trait".to_string(),
-                location: trait_path.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "add_missing_named_generics: missing trait",
+                object.location,
+            ));
             return Vec::new();
         };
 
@@ -621,10 +621,10 @@ impl Elaborator<'_> {
                 return;
             }
             Err(error) => {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: format!("Elaborator::add_trait_bound_to_scope: encountered error while running add_assumed_trait_implementation: {error:?}"),
+                self.push_err(TypeCheckError::expecting_other_error(
+                    format!("Elaborator::add_trait_bound_to_scope: encountered error while running add_assumed_trait_implementation: {error:?}"),
                     location,
-                });
+                ));
             }
         }
 
@@ -824,10 +824,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     // If the trait implementation is not defined in the interner then there was a previous
     // error in resolving the trait path and there is likely no trait for this impl.
     let Some(impl_) = interner.try_get_trait_implementation(impl_id) else {
-        errors.push(TypeCheckError::ExpectingOtherError {
-            message: "check_trait_impl_method_matches_declaration: missing trait impl".to_string(),
-            location: noir_function.def.location,
-        });
+        errors.push(TypeCheckError::expecting_other_error(
+            "check_trait_impl_method_matches_declaration: missing trait impl",
+            meta.name.location,
+        ));
         return errors;
     };
 
@@ -886,11 +886,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             &mut errors,
         );
     } else {
-        errors.push(TypeCheckError::ExpectingOtherError {
-            message: "check_trait_impl_method_matches_declaration: missing trait method function"
-                .to_string(),
-            location: meta.name.location,
-        });
+        errors.push(TypeCheckError::expecting_other_error(
+            "check_trait_impl_method_matches_declaration: missing trait method function",
+            meta.name.location,
+        ));
     }
 
     errors

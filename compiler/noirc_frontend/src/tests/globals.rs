@@ -234,3 +234,108 @@ fn global_closure_with_undefined_variable_method_call() {
     "#;
     check_errors(src);
 }
+
+// TODO: WIP (make more variants of this test?)
+// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
+#[test]
+fn regression_11489_mutually_recursive_function() {
+    let src = r#"
+    global foo: Field = bar();
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+                        ^^^^^ Expected a function, but found a(n) Field
+
+    global bar: Field = foo();
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP (make more variants of this test?)
+// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
+#[test]
+fn regression_11489_mutually_recursive_typed_function() {
+    let src = r#"
+    global foo: fn() = bar;
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+
+    global bar: fn() = foo;
+                       ^^^ Failed to resolve this global
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP
+// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
+#[test]
+fn regression_11489_function() {
+    let src = r#"
+    global foo: Field = foo();
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> foo
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP
+// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
+#[test]
+fn regression_11489_typed_function() {
+    let src = r#"
+    global foo: fn() = foo();
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> foo
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP
+#[test]
+fn regression_11489_value() {
+    let src = r#"
+    global foo: Field = foo;
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> foo
+                        ^^^ Failed to resolve this global
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP (make more variants of this test?)
+// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
+#[test]
+fn regression_11489_mutually_recursive_value() {
+    let src = r#"
+    global foo: Field = bar;
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+
+    global bar: Field = foo;
+                        ^^^ Failed to resolve this global
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP
+// TODO: WIP (make issue to follow up on this after https://github.com/noir-lang/noir/pull/11472 ?)
+#[test]
+fn regression_11489_comptime_function() {
+    let src = r#"
+    comptime global foo: Field = foo();
+                    ^^^ Dependency cycle found
+                    ~~~ 'foo' recursively depends on itself: foo -> foo
+    "#;
+    check_errors(src);
+}
+
+// TODO: WIP
+#[test]
+fn regression_11489_comptime_value() {
+    let src = r#"
+    comptime global foo: Field = foo;
+                    ^^^ Dependency cycle found
+                    ~~~ 'foo' recursively depends on itself: foo -> foo
+                                 ^^^ Failed to resolve this global
+    "#;
+    check_errors(src);
+}

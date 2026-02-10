@@ -340,10 +340,10 @@ impl Elaborator<'_> {
                 CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
             ) {
                 // Expecting a DefCollectorErrorKind::Duplicate error in this case
-                TypeCheckError::ExpectingOtherError {
-                    message: "define_enum_variant_function: duplicate definition".to_string(),
+                TypeCheckError::expecting_other_error(
+                    "define_enum_variant_function: duplicate definition",
                     location,
-                }
+                )
                 .into()
             } else {
                 error

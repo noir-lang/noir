@@ -831,10 +831,10 @@ impl Elaborator<'_> {
                 };
 
                 if !suffix_kind.unifies(expected_kind) {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
                         location,
-                    });
+                    ));
                 }
 
                 Type::Constant(int, suffix_kind)
@@ -2001,11 +2001,10 @@ impl Elaborator<'_> {
                 });
             }
             Type::Error => {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "type_check_operator_method: encountered method_type of type 'error'"
-                        .to_string(),
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "type_check_operator_method: encountered method_type of type 'error'",
                     location,
-                });
+                ));
             }
             other => {
                 unreachable!(
@@ -2576,8 +2575,11 @@ impl Elaborator<'_> {
         if !is_current_func_constrained {
             // Check if we're calling verify_proof_with_type in an unconstrained context
             self.run_lint(|elaborator| {
-                lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
-                    .map(Into::into)
+                // TODO: WIP
+                // lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
+                lints::error_if_verify_proof_with_type(elaborator.interner, call.func, location)
+                // TODO: WIP
+                // .map(Into::into)
             });
         }
 
@@ -2588,8 +2590,18 @@ impl Elaborator<'_> {
                 false
             };
 
+        // TODO: WIP
+        let func_is_unconstrained_call = match self.is_unconstrained_call(call.func, location) {
+            Ok(result) => result,
+            Err(error) => {
+                self.push_err(error);
+                false
+            }
+        };
         let is_unconstrained_call =
-            func_type_is_unconstrained || self.is_unconstrained_call(call.func);
+            // TODO: WIP
+            // func_type_is_unconstrained || self.is_unconstrained_call(call.func);
+            func_type_is_unconstrained || func_is_unconstrained_call;
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
 
         if crossing_runtime_boundary {
@@ -2620,12 +2632,24 @@ impl Elaborator<'_> {
     }
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
-    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
+    // TODO: WIP
+    // fn is_unconstrained_call(&self, expr: ExprId) -> bool {
+    fn is_unconstrained_call(
+        &self,
+        expr: ExprId,
+        location: Location,
+    ) -> Result<bool, CompilationError> {
+        // TODO: WIP
+        // if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)? {
             let modifiers = self.interner.function_modifiers(&func_id);
-            modifiers.is_unconstrained
+            // TODO: WIP
+            // modifiers.is_unconstrained
+            Ok(modifiers.is_unconstrained)
         } else {
-            false
+            // TODO: WIP
+            // false
+            Ok(false)
         }
     }
 

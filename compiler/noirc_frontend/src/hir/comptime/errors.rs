@@ -6,7 +6,7 @@ use crate::{
     ast::{Ident, TraitBound},
     hir::{
         def_collector::dc_crate::CompilationError,
-        type_check::{NoMatchingImplFoundError, TypeCheckError},
+        type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
     signed_field::SignedField,
@@ -307,6 +307,7 @@ pub enum InterpreterError {
     TraitImplResolutionRecursionLimitReached {
         location: Location,
     },
+    ExpectingOtherError(ExpectingOtherError),
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -408,6 +409,7 @@ impl InterpreterError {
             | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
+            InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -431,6 +433,16 @@ impl InterpreterError {
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
+    }
+
+    pub(crate) fn expecting_other_error<S: Into<String>>(
+        message: S,
+        location: Location,
+    ) -> InterpreterError {
+        InterpreterError::ExpectingOtherError(ExpectingOtherError {
+            message: message.into(),
+            location,
+        })
     }
 }
 
@@ -869,6 +881,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_warning(primary, secondary, *location)
             }
+            InterpreterError::ExpectingOtherError(error) => error.into(),
         }
     }
 }

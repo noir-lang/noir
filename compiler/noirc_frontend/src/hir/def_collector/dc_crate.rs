@@ -217,7 +217,11 @@ impl CompilationError {
     }
 
     pub(crate) fn is_expecting_other_error_error(&self) -> bool {
-        matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
+        matches!(
+            self,
+            CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. })
+                | CompilationError::InterpreterError(InterpreterError::ExpectingOtherError { .. })
+        )
     }
 
     pub(crate) fn should_be_filtered(&self) -> bool {
@@ -378,7 +382,7 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
+        if errors.iter().any(|error| !error.is_expecting_other_error_error() && error.is_error()) {
             errors.retain(|error| !error.is_expecting_other_error_error());
         }
         errors
