@@ -3,15 +3,11 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     brillig::assert_usize,
     ssa::ir::{
-        function::RuntimeType,
         types::{NumericType, Type},
         value::{ValueId, ValueMapping},
     },
 };
-use acvm::{
-    FieldElement,
-    acir::brillig::lengths::{FlattenedLength, SemanticLength},
-};
+use acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
 use noirc_frontend::monomorphization::ast::Parameters;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;

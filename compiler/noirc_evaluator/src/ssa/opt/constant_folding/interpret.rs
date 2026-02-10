@@ -86,11 +86,10 @@ fn evaluate_const_argument_call(
     // Mark ACIR flat arrays and unflatten them for the Brillig interpreter.
     if !dfg.runtime().is_brillig() {
         for arg in interpreter_args.iter_mut() {
-            if let InterpreterValue::ArrayOrVector(array) = arg {
-                if !array.is_vector && array.element_types.iter().any(|t| t.contains_an_array()) {
+            if let InterpreterValue::ArrayOrVector(array) = arg
+                && !array.is_vector && array.element_types.iter().any(|t| t.contains_an_array()) {
                     array.is_flat = true;
                 }
-            }
             *arg = InterpreterValue::unflatten_for_brillig(arg);
         }
     }

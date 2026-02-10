@@ -5,7 +5,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, InstructionId},
-        types::{NumericType, Type},
+        types::NumericType,
         value::ValueId,
     },
     opt::die::Context,

@@ -6,7 +6,7 @@ use acvm::{
     AcirField as _, FieldElement,
     acir::{
         BlackBoxFunc,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{ElementTypesLength, SemanticLength},
     },
 };
 use bn254_blackbox_solver::derive_generators;
@@ -624,9 +624,8 @@ fn simplify_vector_push_back(
             operator: BinaryOp::Mul { unchecked: true },
             rhs: flat_element_size,
         });
-        let flat_len =
-            dfg.insert_instruction_and_results(flat_len, block, None, call_stack).first();
-        flat_len
+        
+        dfg.insert_instruction_and_results(flat_len, block, None, call_stack).first()
     } else {
         arguments[0]
     };

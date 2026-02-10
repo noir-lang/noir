@@ -6,7 +6,6 @@ mod value;
 use acvm::AcirField;
 use noirc_errors::call_stack::CallStack;
 use noirc_frontend::hir_def::expr::Constructor;
-use noirc_frontend::hir_def::function;
 use noirc_frontend::token::FmtStrFragment;
 pub use program::Ssa;
 

@@ -228,14 +228,13 @@ impl<'f> Validator<'f> {
                             }
                         }
                         Type::Vector(composite_type) => {
-                            if composite_type.is_empty() {
-                                if !elements.is_empty() {
+                            if composite_type.is_empty()
+                                && !elements.is_empty() {
                                     panic!(
                                         "MakeArray vector has non-zero {} elements but composite type is empty",
                                         elements.len(),
                                     );
                                 }
-                            }
                             // For ACIR vectors, elements are fully flattened so
                             // we can't check divisibility by composite_type.len().
                         }

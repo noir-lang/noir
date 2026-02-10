@@ -27,7 +27,7 @@ use acvm::{
     FieldElement,
     acir::{
         AcirField,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{ElementTypesLength, SemanticLength},
     },
 };
 use iter_extended::vecmap;

@@ -10,7 +10,7 @@ use crate::ssa::ir::{
 };
 use acvm::{
     AcirField as _, FieldElement,
-    acir::brillig::lengths::{ElementTypesLength, FlattenedLength, SemanticLength},
+    acir::brillig::lengths::{FlattenedLength, SemanticLength},
 };
 use binary::simplify_binary;
 use call::simplify_call;

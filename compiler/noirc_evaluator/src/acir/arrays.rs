@@ -1075,7 +1075,7 @@ impl Context<'_> {
                     //     result.push_back(element);
                     // }
                     let element = self.array_get_value(
-                        &&Type::Numeric(value_types[i as usize % value_types.len()]),
+                        (&Type::Numeric(value_types[i as usize % value_types.len()])),
                         block_id,
                         &mut var_index,
                     )?;
