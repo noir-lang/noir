@@ -1245,6 +1245,7 @@ global x: Field = 1;
     fn does_not_wrap_line_comment_if_directed_to_ignore() {
         let src = "// noir-fmt:ignore
 // This is a long comment that's going to be wrapped.
+// This is a long comment that's going to be wrapped.
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, src, 29);
@@ -1253,6 +1254,7 @@ global x: Field = 1;
     #[test]
     fn does_not_wrap_block_comment_if_directed_to_ignore() {
         let src = "// noir-fmt:ignore
+/* This is a long comment that's going to be wrapped. */
 /* This is a long comment that's going to be wrapped. */
 global x: Field = 1;
 ";
@@ -1263,6 +1265,7 @@ global x: Field = 1;
     fn does_not_wrap_outer_doc_line_comment_if_directed_to_ignore() {
         let src = "// noir-fmt:ignore
 /// This is a long comment that's going to be wrapped.
+/// This is a long comment that's going to be wrapped.
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, src, 29);
@@ -1272,6 +1275,7 @@ global x: Field = 1;
     fn does_not_wrap_inner_doc_line_comment_if_directed_to_ignore() {
         let src = "// noir-fmt:ignore
 //! This is a long comment that's going to be wrapped.
+//! This is a long comment that's going to be wrapped.
 ";
         assert_format_wrapping_comments(src, src, 29);
     }
@@ -1279,6 +1283,7 @@ global x: Field = 1;
     #[test]
     fn does_not_wrap_outer_doc_block_comment_if_directed_to_ignore() {
         let src = "// noir-fmt:ignore
+/** This is a long comment that's going to be wrapped. */
 /** This is a long comment that's going to be wrapped. */
 global x: Field = 1;
 ";
@@ -1288,6 +1293,7 @@ global x: Field = 1;
     #[test]
     fn does_not_wrap_inner_doc_block_comment_if_directed_to_ignore() {
         let src = "// noir-fmt:ignore
+/*! This is a long comment that's going to be wrapped. */
 /*! This is a long comment that's going to be wrapped. */
 ";
         assert_format_wrapping_comments(src, src, 29);
