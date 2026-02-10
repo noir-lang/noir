@@ -19,6 +19,9 @@
 //!   - Brillig functions only have small loops unrolled, where a small loop is defined as a loop
 //!     which, when unrolled, is estimated to have the same or fewer total instructions as it
 //!     has when not unrolled.
+//!     This cost estimation is analogous to LLVM's `analyzeLoopUnrollCost` which estimates
+//!     which loads become constant after unrolling. See:
+//!     https://llvm.org/doxygen/LoopUnrollPass_8cpp_source.html
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
 //!   - Differing post-conditions (see below).
@@ -886,7 +889,19 @@ impl Loop {
                 }
             }
         }
-        let constant_initial_refs =
+
+        // Conservatively mark any reference that appears as a block terminator
+        // argument within the loop as non-constant. Such refs can become aliased
+        // via block parameters, meaning stores through the alias won't be visible
+        // on the original ValueId. Since we only scan pre-header stores by address,
+        // aliased refs would be incorrectly classified as constant-initial.
+        for block_id in &self.blocks {
+            for arg in function.dfg[*block_id].terminator_arguments() {
+                has_non_constant_store.insert(*arg);
+            }
+        }
+
+        let constant_initial_refs: HashSet<ValueId> =
             has_store.difference(&has_non_constant_store).copied().collect();
 
         Some((refs, constant_initial_refs))
@@ -1791,6 +1806,69 @@ mod tests {
         assert_eq!(stats.useful_instructions(), 0);
         // unrolled = 0 * 35 = 0 < baseline = 8
         assert!(stats.is_small());
+    }
+
+    /// A reference passed as a block terminator argument is NOT classified
+    /// as constant-initial.
+    ///
+    /// v2 is passed into the loop header as a block param and the back-edge swaps it with v4, creating an alias.
+    /// Stores through the alias (v0, which takes on v4's value) are not visible when
+    /// scanning pre-header stores for v4, so v4 would be incorrectly classified as
+    /// constant-initial without the terminator filter.
+    #[test]
+    fn test_boilerplate_stats_ref_block_param_alias() {
+        // Two allocations v2 and v4. v2 is passed as block param to loop header (b1),
+        // and the back-edge (b2 -> b1) swaps to v4. This creates an alias: the loop
+        // header param v0 can be either v2 or v4 depending on iteration.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v4 = allocate -> &mut Field
+            store Field 1 at v4
+            jmp b1(v2, u32 0)
+          b1(v0: &mut Field, v1: u32):
+            v6 = lt v1, u32 4
+            jmpif v6 then: b2, else: b3
+          b2():
+            v7 = load v0 -> Field
+            v8 = add v7, Field 1
+            store v8 at v0
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v4, v10)
+          b3():
+            v11 = load v2 -> Field
+            v12 = load v4 -> Field
+            v13 = add v11, v12
+            return v13
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+        let loop0 = loops.yet_to_unroll.pop().unwrap();
+
+        let v2 = ValueId::test_new(2);
+        let v4 = ValueId::test_new(4);
+
+        let (refs, constant_initial_refs) =
+            loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        // Both v2 and v4 are reference allocations visible in the pre-header.
+        assert!(refs.contains(&v2), "v2 should be in refs");
+        assert!(refs.contains(&v4), "v4 should be in refs");
+
+        // v2 is only passed in b0's terminator (outside the loop), so it stays.
+        assert!(
+            constant_initial_refs.contains(&v2),
+            "v2 should be constant-initial (store Field 0 in pre-header)"
+        );
+        // v4 appears in b2's `jmp b1(v4, v10)` — a terminator inside the loop —
+        // so it must be removed by the filter.
+        assert!(
+            !constant_initial_refs.contains(&v4),
+            "v4 should NOT be constant-initial (aliased via block param)"
+        );
     }
 
     /// Test that we can unroll a small loop.
