@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770744629057,
+  "lastUpdate": 1770745284811,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23121,48 +23121,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "242b61d72ff7c42d7b1c1b9b5337b2d4dddc14dc",
-          "message": "feat: improve error message when large numbers are used in TOML (#11426)",
-          "timestamp": "2026-02-02T18:40:28Z",
-          "tree_id": "c648041954998a294127582a77cb6322b82a13ee",
-          "url": "https://github.com/noir-lang/noir/commit/242b61d72ff7c42d7b1c1b9b5337b2d4dddc14dc"
-        },
-        "date": 1770059010381,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267512,
-            "range": "± 622",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234099,
-            "range": "± 6764",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799340,
-            "range": "± 1810",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2732546,
             "range": "± 1656",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea34c2a3238ef89abec5f14ccd8be0be86f2d0b0",
+          "message": "fix: correct way to track type recursion (#11509)",
+          "timestamp": "2026-02-10T17:12:40Z",
+          "tree_id": "62715ac7e4f927ba135470b4efb6257b47d87360",
+          "url": "https://github.com/noir-lang/noir/commit/ea34c2a3238ef89abec5f14ccd8be0be86f2d0b0"
+        },
+        "date": 1770745241639,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 217838,
+            "range": "± 1898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 204016,
+            "range": "± 2106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3140078,
+            "range": "± 16848",
             "unit": "ns/iter"
           }
         ]
