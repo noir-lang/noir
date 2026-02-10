@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770727651575,
+  "lastUpdate": 1770727653326,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49303,105 +49303,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "26174818+jialinli98@users.noreply.github.com",
-            "name": "Jialin Li",
-            "username": "jialinli98"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7b985844f8ea9d98efa1418034eb9d59ba605e13",
-          "message": "feat: add `--profile-execution` to inspector command (#11218)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-01-30T19:33:53Z",
-          "tree_id": "857eb6909b4c43b720f74ace8ad844cdfdf31e18",
-          "url": "https://github.com/noir-lang/noir/commit/7b985844f8ea9d98efa1418034eb9d59ba605e13"
-        },
-        "date": 1769803630546,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.773,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.767,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.784,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.098,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1.19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.142,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.342,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.118,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.102,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -54211,6 +54112,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.118,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.115,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4a81d784268ba4a62a01042f676f3570362f428f",
+          "message": "chore: bump time dependency (#11522)",
+          "timestamp": "2026-02-10T12:34:27Z",
+          "tree_id": "3a935a72bec8654dcf5127d1295723e8ea61127b",
+          "url": "https://github.com/noir-lang/noir/commit/4a81d784268ba4a62a01042f676f3570362f428f"
+        },
+        "date": 1770727609446,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.776,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.761,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.818,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.232,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.174,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.178,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.178,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.14,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.115,
             "unit": "s"
           },
           {
