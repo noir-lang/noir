@@ -1,7 +1,7 @@
 //! Lint checks for function attributes, visibility, and usage restrictions.
 
 use crate::{
-    NamedGeneric, SeenDataTypes, Type, TypeBinding,
+    NamedGeneric, Type, TypeBinding,
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
@@ -14,6 +14,7 @@ use crate::{
         stmt::HirStatement,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner},
+    recursion::TypeRecursionContext,
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
@@ -154,23 +155,30 @@ pub(super) fn oracle_returns_multiple_vectors(
         return None;
     }
 
-    fn vector_count(typ: &Type, seen_data_types: &mut SeenDataTypes) -> usize {
+    fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, seen_data_types),
-            Type::Vector(typ) => 1 + vector_count(typ, seen_data_types),
-            Type::FmtString(_, item) => vector_count(item, seen_data_types),
-            Type::Tuple(items) => items.iter().map(|typ| vector_count(typ, seen_data_types)).sum(),
+            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
+            Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Tuple(items) => items
+                .iter()
+                .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
+                .sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
-                let key = (struct_type.id, args.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(struct_type.id, args.clone()) {
                     if let Some(fields) = struct_type.get_fields(args) {
-                        fields.iter().map(|(_, typ, _)| vector_count(typ, seen_data_types)).sum()
+                        fields
+                            .iter()
+                            .map(|(_, typ, _)| {
+                                vector_count(typ, type_recursion_context.clone().recur())
+                            })
+                            .sum()
                     } else if let Some(variants) = struct_type.get_variants(args) {
                         variants
                             .iter()
                             .flat_map(|(_, types)| types)
-                            .map(|typ| vector_count(typ, seen_data_types))
+                            .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
                             .sum()
                     } else {
                         0
@@ -182,11 +190,22 @@ pub(super) fn oracle_returns_multiple_vectors(
                     0
                 }
             }
-            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args), seen_data_types),
+            Type::Alias(def, args) => {
+                if type_recursion_context.insert_alias(def.borrow().id, args.clone()) {
+                    vector_count(&def.borrow().get_type(args), type_recursion_context.recur())
+                } else {
+                    // If we bump into a recursive type, we stop counting.
+                    // "zero" isn't strictly correct here, but the recursive type will be an error
+                    // already so this count won't matter in the end.
+                    0
+                }
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => vector_count(binding, seen_data_types),
+                    TypeBinding::Bound(binding) => {
+                        vector_count(binding, type_recursion_context.recur())
+                    }
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -207,9 +226,7 @@ pub(super) fn oracle_returns_multiple_vectors(
         }
     }
 
-    let mut seen_data_types = SeenDataTypes::default();
-
-    if vector_count(func.return_type(), &mut seen_data_types) > 1 {
+    if vector_count(func.return_type(), TypeRecursionContext::default()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {
