@@ -158,14 +158,15 @@ pub(super) fn oracle_returns_multiple_vectors(
         return None;
     }
 
-    fn vector_count(typ: &Type, type_recursion_context: &mut TypeRecursionContext) -> usize {
+    fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, type_recursion_context),
-            Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context),
-            Type::FmtString(_, item) => vector_count(item, type_recursion_context),
-            Type::Tuple(items) => {
-                items.iter().map(|typ| vector_count(typ, type_recursion_context)).sum()
-            }
+            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
+            Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Tuple(items) => items
+                .iter()
+                .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
+                .sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if type_recursion_context.insert_data_type(struct_type.id, args.clone()) {
@@ -173,16 +174,14 @@ pub(super) fn oracle_returns_multiple_vectors(
                         fields
                             .iter()
                             .map(|(_, typ, _)| {
-                                vector_count(typ, &mut type_recursion_context.clone().recur())
+                                vector_count(typ, type_recursion_context.clone().recur())
                             })
                             .sum()
                     } else if let Some(variants) = struct_type.get_variants(args) {
                         variants
                             .iter()
                             .flat_map(|(_, types)| types)
-                            .map(|typ| {
-                                vector_count(typ, &mut type_recursion_context.clone().recur())
-                            })
+                            .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
                             .sum()
                     } else {
                         0
@@ -195,12 +194,14 @@ pub(super) fn oracle_returns_multiple_vectors(
                 }
             }
             Type::Alias(def, args) => {
-                vector_count(&def.borrow().get_type(args), type_recursion_context)
+                vector_count(&def.borrow().get_type(args), type_recursion_context.recur())
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => vector_count(binding, type_recursion_context),
+                    TypeBinding::Bound(binding) => {
+                        vector_count(binding, type_recursion_context.recur())
+                    }
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -221,9 +222,7 @@ pub(super) fn oracle_returns_multiple_vectors(
         }
     }
 
-    let mut type_recursion_context = TypeRecursionContext::default();
-
-    if vector_count(func.return_type(), &mut type_recursion_context) > 1 {
+    if vector_count(func.return_type(), TypeRecursionContext::default()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {

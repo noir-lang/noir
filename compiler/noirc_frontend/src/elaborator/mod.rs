@@ -543,21 +543,22 @@ impl<'context> Elaborator<'context> {
     }
 
     fn mark_type_as_used(&mut self, typ: &Type) {
-        let mut type_recursion_context = TypeRecursionContext::default();
-        self.mark_type_as_used_helper(typ, &mut type_recursion_context);
+        self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
     }
 
     fn mark_type_as_used_helper(
         &mut self,
         typ: &Type,
-        type_recursion_context: &mut TypeRecursionContext,
+        mut type_recursion_context: TypeRecursionContext,
     ) {
         match typ {
-            Type::Array(_n, typ) => self.mark_type_as_used_helper(typ, type_recursion_context),
-            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context),
+            Type::Array(_n, typ) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+            }
+            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context.recur()),
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_type_as_used_helper(typ, type_recursion_context);
+                    self.mark_type_as_used_helper(typ, type_recursion_context.clone().recur());
                 }
             }
             Type::DataType(datatype, generics) => {
@@ -566,14 +567,14 @@ impl<'context> Elaborator<'context> {
                     for generic in generics {
                         self.mark_type_as_used_helper(
                             generic,
-                            &mut type_recursion_context.clone().recur(),
+                            type_recursion_context.clone().recur(),
                         );
                     }
                     if let Some(fields) = datatype.borrow().get_fields(generics) {
                         for (_, typ, _) in fields {
                             self.mark_type_as_used_helper(
                                 &typ,
-                                &mut type_recursion_context.clone().recur(),
+                                type_recursion_context.clone().recur(),
                             );
                         }
                     } else if let Some(variants) = datatype.borrow().get_variants(generics) {
@@ -581,7 +582,7 @@ impl<'context> Elaborator<'context> {
                             for typ in variant_types {
                                 self.mark_type_as_used_helper(
                                     &typ,
-                                    &mut type_recursion_context.clone().recur(),
+                                    type_recursion_context.clone().recur(),
                                 );
                             }
                         }
@@ -591,19 +592,19 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias_type, generics) => {
                 self.mark_type_as_used_helper(
                     &alias_type.borrow().get_type(generics),
-                    type_recursion_context,
+                    type_recursion_context.recur(),
                 );
             }
             Type::CheckedCast { from, to } => {
-                self.mark_type_as_used_helper(from, type_recursion_context);
-                self.mark_type_as_used_helper(to, type_recursion_context);
+                self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(to, type_recursion_context.recur());
             }
             Type::Reference(typ, _) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context);
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used_helper(left, type_recursion_context);
-                self.mark_type_as_used_helper(right, type_recursion_context);
+                self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(right, type_recursion_context.recur());
             }
             Type::FieldElement
             | Type::Integer(..)
