@@ -422,6 +422,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     &removed_items,
                 );
             }
+            Value::Intrinsic(Intrinsic::VectorEnumerate) => {
+                todo!("vector_enumerate Brillig codegen not yet implemented")
+            }
             _ => unreachable!("ICE: Vector operation not supported"),
         }
     }

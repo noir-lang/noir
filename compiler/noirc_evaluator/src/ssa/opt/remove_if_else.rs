@@ -462,6 +462,7 @@ impl Context {
             | Intrinsic::ToRadix(_)
             | Intrinsic::ArrayRefCount
             | Intrinsic::VectorRefCount
+            | Intrinsic::VectorEnumerate
             | Intrinsic::FieldLessThan => SizeChange::None,
             Intrinsic::ResizeArray => todo!(),
         }

@@ -975,6 +975,7 @@ impl<'f> Context<'f> {
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorInsert
             | Intrinsic::VectorRemove
+            | Intrinsic::VectorEnumerate
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)

@@ -370,6 +370,11 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::VectorEnumerate => {
+            // Vector enumerate is handled by a dedicated pass after inlining
+            // See: expand_vector_enumerate.rs
+            SimplifyResult::None
+        }
         Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => {
             if dfg.runtime.is_acir() {
                 // In ACIR, ref counts are not tracked so we always simplify them to zero.

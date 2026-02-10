@@ -155,6 +155,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
+        // Expand vector_enumerate calls with constant vectors
+        // This must run after inlining so the closure is already inlined
+        SsaPass::new(Ssa::expand_vector_enumerate, "Expand vector_enumerate"),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.

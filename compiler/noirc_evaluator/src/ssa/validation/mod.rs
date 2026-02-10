@@ -632,6 +632,20 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "VectorRefCount");
                 assert_u32(&result_type, "VectorRefCount result");
             }
+            Intrinsic::VectorEnumerate => {
+                // fn enumerate<T>(vector: [T], closure: fn([T], u32) -> ()) {}
+                assert!(arguments.len() >= 3, "VectorEnumerate must have at least three arguments");
+
+                let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&vector_length_type, "VectorEnumerate vector length");
+
+                let vector_type = self.function.dfg.type_of_value(arguments[1]);
+                assert_vector(&vector_type, "VectorEnumerate vector");
+
+                // Third argument is the closure function - we don't validate function types here
+
+                self.assert_no_results(instruction, "VectorEnumerate");
+            }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
             }
