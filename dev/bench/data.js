@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770730490130,
+  "lastUpdate": 1770731038596,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23076,48 +23076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "91d90e32d8ef2bbfaa318ce42334bba3039908af",
-          "message": "chore: Add workflow orchestration guidelines to CLAUDE.md (#11421)\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
-          "timestamp": "2026-02-02T13:05:59Z",
-          "tree_id": "051d2fac3601a495ae86c9a51ae1e1bbaf1ba29c",
-          "url": "https://github.com/noir-lang/noir/commit/91d90e32d8ef2bbfaa318ce42334bba3039908af"
-        },
-        "date": 1770038847975,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256746,
-            "range": "± 1274",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228007,
-            "range": "± 4767",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2801979,
-            "range": "± 2061",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -25169,6 +25127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2775655,
             "range": "± 831763",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0af4c1a0adc17eab8928db147bd7f7e1d50fc83e",
+          "message": "chore: add pre/post checks to SSA optimization passes (#11477)",
+          "timestamp": "2026-02-10T13:08:03Z",
+          "tree_id": "88e5e9b36d0b559909d0c0cced78ef25d3271941",
+          "url": "https://github.com/noir-lang/noir/commit/0af4c1a0adc17eab8928db147bd7f7e1d50fc83e"
+        },
+        "date": 1770730996806,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252086,
+            "range": "± 2399",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220037,
+            "range": "± 3843",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2725980,
+            "range": "± 2323",
             "unit": "ns/iter"
           }
         ]
