@@ -600,13 +600,8 @@ impl<'a> Lexer<'a> {
                     length += char.len_utf8() as u32;
 
                     if char == '{' || char == '}' {
-                        // This might look a bit strange, but if there's `{{` or `}}` in the format string
-                        // then it will be `{` and `}` in the string fragment respectively, but on the codegen
-                        // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
-                        // thus the actual length of the codegen'd string will be one more than what we get here.
-                        //
-                        // We could just make the fragment include the double curly braces, but then the interpreter
-                        // would need to undo the curly braces, so it's simpler to add them during codegen.
+                        // Since "{{" and "}}" get converted to '{' and '}' respectively,
+                        // their effective length is 1
                         length += 1;
                     }
                 } else {
