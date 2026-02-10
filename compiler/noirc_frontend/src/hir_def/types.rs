@@ -322,13 +322,9 @@ impl Kind {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub(crate) fn has_cyclic_alias(
-        &self,
-        aliases: &mut im::HashSet<TypeAliasId>,
-        type_recursion_context: TypeRecursionContext,
-    ) -> bool {
+    pub(crate) fn has_cyclic_alias(&self, type_recursion_context: TypeRecursionContext) -> bool {
         match self {
-            Self::Numeric(typ) => typ.has_cyclic_alias_helper(aliases, type_recursion_context),
+            Self::Numeric(typ) => typ.has_cyclic_alias_helper(type_recursion_context),
             Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
         }
     }
@@ -1099,13 +1095,9 @@ impl TypeVariable {
     }
 
     /// See [`Type::has_cyclic_alias`] for more detail
-    pub(crate) fn has_cyclic_alias(
-        &self,
-        aliases: &mut im::HashSet<TypeAliasId>,
-        type_recursion_context: TypeRecursionContext,
-    ) -> bool {
+    pub(crate) fn has_cyclic_alias(&self, type_recursion_context: TypeRecursionContext) -> bool {
         match &*self.borrow() {
-            TypeBinding::Bound(typ) => typ.has_cyclic_alias_helper(aliases, type_recursion_context),
+            TypeBinding::Bound(typ) => typ.has_cyclic_alias_helper(type_recursion_context),
             TypeBinding::Unbound(_, _) => false,
         }
     }
@@ -1557,89 +1549,55 @@ impl Type {
     }
 
     /// Determines if a type contains a self referring alias by tracking visited TypeAliasId.
-    ///
-    /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
-    /// - it returns `true` if a cyclic alias is detected, `false` otherwise
-    ///
-    /// Note: cloning the `aliases` parameter when calling this function recursively in multiple
-    /// branches, e.g. as done with [`Type::InfixExpr`], can prevent tests like
-    /// `ensure_repeated_aliases_in_tuples_are_not_detected_as_cyclic_aliases` and
-    /// `ensure_repeated_aliases_in_arrays_are_not_detected_as_cyclic_aliases` from failing
-    /// due to the same non-cyclic alias being detected twice in different recursive calls
     pub fn has_cyclic_alias(&self) -> bool {
-        let mut aliases = im::HashSet::<TypeAliasId>::default();
-        self.has_cyclic_alias_helper(&mut aliases, TypeRecursionContext::default())
+        self.has_cyclic_alias_helper(TypeRecursionContext::default())
     }
 
     /// `aliases` is a mutable set of TypeAliasId to track visited aliases
-    fn has_cyclic_alias_helper(
-        &self,
-        aliases: &mut im::HashSet<TypeAliasId>,
-        mut type_recursion_context: TypeRecursionContext,
-    ) -> bool {
+    fn has_cyclic_alias_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
         match self {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
-                type_var.has_cyclic_alias(aliases, type_recursion_context.recur())
+                type_var.has_cyclic_alias(type_recursion_context.recur())
             }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias_helper(
-                    &mut aliases.clone(),
-                    type_recursion_context.clone().recur(),
-                ) || rhs.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                lhs.has_cyclic_alias_helper(type_recursion_context.clone().recur())
+                    || rhs.has_cyclic_alias_helper(type_recursion_context.recur())
             }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
-                if aliases.contains(&alias_id) {
-                    true
-                } else {
-                    aliases.insert(alias_id);
+                if type_recursion_context.insert_alias(alias_id, generics.clone()) {
                     def.borrow()
                         .get_type(generics)
-                        .has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                        .has_cyclic_alias_helper(type_recursion_context.recur())
+                } else {
+                    false
                 }
             }
             Type::TraitAsType(_id, _name, generics) => {
                 generics.ordered.iter().any(|generic| {
-                    generic.has_cyclic_alias_helper(
-                        &mut aliases.clone(),
-                        type_recursion_context.clone().recur(),
-                    )
+                    generic.has_cyclic_alias_helper(type_recursion_context.clone().recur())
                 }) || generics.named.iter().any(|generic| {
-                    generic.typ.has_cyclic_alias_helper(
-                        &mut aliases.clone(),
-                        type_recursion_context.clone().recur(),
-                    )
+                    generic.typ.has_cyclic_alias_helper(type_recursion_context.clone().recur())
                 })
             }
-            Type::String(len) => {
-                len.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
-            }
+            Type::String(len) => len.has_cyclic_alias_helper(type_recursion_context.recur()),
             Type::Array(len, typ) => {
-                len.has_cyclic_alias_helper(
-                    &mut aliases.clone(),
-                    type_recursion_context.clone().recur(),
-                ) || typ.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                len.has_cyclic_alias_helper(type_recursion_context.clone().recur())
+                    || typ.has_cyclic_alias_helper(type_recursion_context.recur())
             }
-            Type::Vector(typ) => {
-                typ.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
-            }
+            Type::Vector(typ) => typ.has_cyclic_alias_helper(type_recursion_context.recur()),
             Type::DataType(s, args) => {
                 let data_type = s.borrow();
                 if type_recursion_context.insert_data_type(data_type.id, args.clone()) {
                     data_type.get_fields(args).unwrap_or_else(Vec::new).iter().any(
                         |(_name, field, _visibility)| {
-                            field.has_cyclic_alias_helper(
-                                &mut aliases.clone(),
-                                type_recursion_context.clone().recur(),
-                            )
+                            field.has_cyclic_alias_helper(type_recursion_context.clone().recur())
                         },
                     ) || data_type.get_variants(args).unwrap_or_else(Vec::new).iter().any(
                         |(_name, variant)| {
                             variant.iter().any(|variant_field| {
-                                variant_field.has_cyclic_alias_helper(
-                                    &mut aliases.clone(),
-                                    type_recursion_context.clone().recur(),
-                                )
+                                variant_field
+                                    .has_cyclic_alias_helper(type_recursion_context.clone().recur())
                             })
                         },
                     )
@@ -1648,47 +1606,31 @@ impl Type {
                 }
             }
             Type::Tuple(elements) => elements.iter().any(|element| {
-                element.has_cyclic_alias_helper(
-                    &mut aliases.clone(),
-                    type_recursion_context.clone().recur(),
-                )
+                element.has_cyclic_alias_helper(type_recursion_context.clone().recur())
             }),
             Type::FmtString(len, elements) => {
-                len.has_cyclic_alias_helper(
-                    &mut aliases.clone(),
-                    type_recursion_context.clone().recur(),
-                ) || (*elements).has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                len.has_cyclic_alias_helper(type_recursion_context.clone().recur())
+                    || (*elements).has_cyclic_alias_helper(type_recursion_context.recur())
             }
             Type::CheckedCast { to, from } => {
-                to.has_cyclic_alias_helper(
-                    &mut aliases.clone(),
-                    type_recursion_context.clone().recur(),
-                ) || from.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                to.has_cyclic_alias_helper(type_recursion_context.clone().recur())
+                    || from.has_cyclic_alias_helper(type_recursion_context.recur())
             }
-            Type::Constant(_x, kind) => {
-                kind.has_cyclic_alias(aliases, type_recursion_context.recur())
-            }
+            Type::Constant(_x, kind) => kind.has_cyclic_alias(type_recursion_context.recur()),
             Type::Forall(typevars, typ) => {
-                typevars.iter().any(|typevar| {
-                    typevar.has_cyclic_alias(
-                        &mut aliases.clone(),
-                        type_recursion_context.clone().recur(),
-                    )
-                }) || typ.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                typevars
+                    .iter()
+                    .any(|typevar| typevar.has_cyclic_alias(type_recursion_context.clone().recur()))
+                    || typ.has_cyclic_alias_helper(type_recursion_context.recur())
             }
             Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(|arg| {
-                    arg.has_cyclic_alias_helper(
-                        &mut aliases.clone(),
-                        type_recursion_context.clone().recur(),
-                    )
-                }) || ret.has_cyclic_alias_helper(
-                    &mut aliases.clone(),
-                    type_recursion_context.clone().recur(),
-                ) || env.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                args.iter()
+                    .any(|arg| arg.has_cyclic_alias_helper(type_recursion_context.clone().recur()))
+                    || ret.has_cyclic_alias_helper(type_recursion_context.clone().recur())
+                    || env.has_cyclic_alias_helper(type_recursion_context.recur())
             }
             Type::Reference(element, _mutable) => {
-                element.has_cyclic_alias_helper(aliases, type_recursion_context.recur())
+                element.has_cyclic_alias_helper(type_recursion_context.recur())
             }
             Type::FieldElement
             | Type::Integer(_, _)
@@ -1765,10 +1707,16 @@ impl Type {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
             Type::Array(_, elem) => elem.as_ref().contains_vector(),
 
-            Type::Alias(alias, generics) => alias
-                .borrow()
-                .get_type(generics)
-                .is_nested_vector_helper(type_recursion_context.recur()),
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .is_nested_vector_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
             Type::FmtString(_size, elem) => {
                 elem.as_ref().is_nested_vector_helper(type_recursion_context.recur())
             }
@@ -1845,10 +1793,16 @@ impl Type {
             Type::Array(_, elem) => {
                 elem.as_ref().contains_vector_helper(type_recursion_context.recur())
             }
-            Type::Alias(alias, generics) => alias
-                .borrow()
-                .get_type(generics)
-                .contains_vector_helper(type_recursion_context.recur()),
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .contains_vector_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
@@ -1925,10 +1879,16 @@ impl Type {
             Type::Vector(elem) => {
                 elem.as_ref().contains_array_helper(type_recursion_context.recur())
             }
-            Type::Alias(alias, generics) => alias
-                .borrow()
-                .get_type(generics)
-                .contains_array_helper(type_recursion_context.recur()),
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .contains_array_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
@@ -2001,10 +1961,16 @@ impl Type {
             Type::Array(_, elem) => {
                 elem.as_ref().is_vector_with_nested_array_helper(type_recursion_context.recur())
             }
-            Type::Alias(alias, generics) => alias
-                .borrow()
-                .get_type(generics)
-                .is_vector_with_nested_array_helper(type_recursion_context.recur()),
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .is_vector_with_nested_array_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
@@ -2114,10 +2080,16 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias
-                .borrow()
-                .get_type(generics)
-                .contains_reference_helper(type_recursion_context.recur()),
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .contains_reference_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
@@ -2194,10 +2166,16 @@ impl Type {
                 }
                 false
             }
-            Type::Alias(alias, generics) => alias
-                .borrow()
-                .get_type(generics)
-                .contains_function_helper(type_recursion_context.recur()),
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .contains_function_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {

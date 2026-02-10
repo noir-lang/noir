@@ -194,7 +194,14 @@ pub(super) fn oracle_returns_multiple_vectors(
                 }
             }
             Type::Alias(def, args) => {
-                vector_count(&def.borrow().get_type(args), type_recursion_context.recur())
+                if type_recursion_context.insert_alias(def.borrow().id, args.clone()) {
+                    vector_count(&def.borrow().get_type(args), type_recursion_context.recur())
+                } else {
+                    // If we bump into a recursive type, we stop counting.
+                    // "zero" isn't strictly correct here, but the recursive type will be an error
+                    // already so this count won't matter in the end.
+                    0
+                }
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {

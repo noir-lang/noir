@@ -126,16 +126,20 @@ impl Type {
 
                 Type::Alias(alias, generics) => {
                     let alias = alias.borrow();
-                    if let Some(invalid_type) = helper(
-                        &alias.get_type(generics),
-                        allow_empty_arrays,
-                        type_recursion_context.recur(),
-                    ) {
-                        let alias_name = alias.name.clone();
-                        Some(InvalidType::Alias {
-                            alias_name,
-                            invalid_type: Box::new(invalid_type),
-                        })
+                    if type_recursion_context.insert_alias(alias.id, generics.clone()) {
+                        if let Some(invalid_type) = helper(
+                            &alias.get_type(generics),
+                            allow_empty_arrays,
+                            type_recursion_context.recur(),
+                        ) {
+                            let alias_name = alias.name.clone();
+                            Some(InvalidType::Alias {
+                                alias_name,
+                                invalid_type: Box::new(invalid_type),
+                            })
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -268,6 +272,8 @@ impl Type {
             Type::CheckedCast { to, .. } => to.non_inlined_function_input_validity_helper(type_recursion_context.recur()),
 
             Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+
                 let alias = alias.borrow();
                 if let Some(invalid_type) = alias.get_type(generics).non_inlined_function_input_validity_helper(type_recursion_context.recur()) {
                     let alias_name = alias.name.clone();
@@ -275,6 +281,10 @@ impl Type {
                 } else {
                     None
                 }
+            } else {
+                None
+
+            }
             }
 
             Type::Array(length, element) => {
@@ -368,10 +378,14 @@ impl Type {
             Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias
-                    .get_type(generics)
-                    .is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    let alias = alias.borrow();
+                    alias
+                        .get_type(generics)
+                        .is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
+                } else {
+                    true
+                }
             }
 
             Type::Array(length, element) => {

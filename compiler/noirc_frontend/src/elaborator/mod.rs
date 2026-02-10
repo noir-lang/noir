@@ -590,10 +590,12 @@ impl<'context> Elaborator<'context> {
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.mark_type_as_used_helper(
-                    &alias_type.borrow().get_type(generics),
-                    type_recursion_context.recur(),
-                );
+                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
+                    self.mark_type_as_used_helper(
+                        &alias_type.borrow().get_type(generics),
+                        type_recursion_context.recur(),
+                    );
+                }
             }
             Type::CheckedCast { from, to } => {
                 self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
