@@ -603,7 +603,7 @@ impl<'a> Lexer<'a> {
                         // This might look a bit strange, but if there's `{{` or `}}` in the format string
                         // then it will be `{` and `}` in the string fragment respectively, but on the codegen
                         // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
-                        // thus the actual length of the codegen'd string will be one more than what we get here.
+                        // thus the length of `{{` and `}}` need to be counted as 2.
                         //
                         // We could just make the fragment include the double curly braces, but then the interpreter
                         // would need to undo the curly braces, so it's simpler to add them during codegen.
