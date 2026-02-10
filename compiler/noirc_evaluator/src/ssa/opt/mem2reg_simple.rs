@@ -380,7 +380,7 @@ fn abstract_interpret_block(
                 }
             }
             _ => (),
-        };
+        }
     }
 
     *inserter.function.dfg[block].instructions_mut() = instructions;
