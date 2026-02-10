@@ -269,8 +269,8 @@
 <a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#270 id=270 data-nosnippet>270</a>            HirMethodReference::FuncId(func_id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
 <a href=#271 id=271 data-nosnippet>271</a>            HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) =&gt; {
-<a href=#272 id=272 data-nosnippet>272</a>                <span class="kw">match </span><span class="kw-2">&amp;</span>interner.try_definition(<span class="kw-2">*</span>definition)<span class="question-mark">?</span>.kind {
-<a href=#273 id=273 data-nosnippet>273</a>                    DefinitionKind::Function(func_id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
+<a href=#272 id=272 data-nosnippet>272</a>                <span class="kw">match </span>interner.definition(<span class="kw-2">*</span>definition).kind {
+<a href=#273 id=273 data-nosnippet>273</a>                    DefinitionKind::Function(func_id) =&gt; <span class="prelude-val">Some</span>(func_id),
 <a href=#274 id=274 data-nosnippet>274</a>                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#275 id=275 data-nosnippet>275</a>                }
 <a href=#276 id=276 data-nosnippet>276</a>            }

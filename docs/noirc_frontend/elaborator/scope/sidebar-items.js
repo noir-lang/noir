@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"type":["Scope","ScopeTree"]};
+window.SIDEBAR_ITEMS = {"enum":["ItemAsValue"],"type":["Scope","ScopeTree"]};

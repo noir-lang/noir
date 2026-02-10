@@ -531,41 +531,44 @@
 <a href=#531 id=531 data-nosnippet>531</a>                <span class="kw">let </span>lvalue = Box::new(lvalue.to_display_ast(interner));
 <a href=#532 id=532 data-nosnippet>532</a>                LValue::Dereference(lvalue, <span class="kw-2">*</span>location)
 <a href=#533 id=533 data-nosnippet>533</a>            }
-<a href=#534 id=534 data-nosnippet>534</a>        }
-<a href=#535 id=535 data-nosnippet>535</a>    }
-<a href=#536 id=536 data-nosnippet>536</a>}
-<a href=#537 id=537 data-nosnippet>537</a>
-<a href=#538 id=538 data-nosnippet>538</a><span class="kw">impl </span>HirArrayLiteral {
-<a href=#539 id=539 data-nosnippet>539</a>    <span class="doccomment">/// Convert to AST for display (some details lost)
-<a href=#540 id=540 data-nosnippet>540</a>    </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner, location: Location) -&gt; ArrayLiteral {
-<a href=#541 id=541 data-nosnippet>541</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#542 id=542 data-nosnippet>542</a>            HirArrayLiteral::Standard(elements) =&gt; {
-<a href=#543 id=543 data-nosnippet>543</a>                ArrayLiteral::Standard(vecmap(elements, |element| element.to_display_ast(interner)))
-<a href=#544 id=544 data-nosnippet>544</a>            }
-<a href=#545 id=545 data-nosnippet>545</a>            HirArrayLiteral::Repeated { repeated_element, length } =&gt; {
-<a href=#546 id=546 data-nosnippet>546</a>                <span class="kw">let </span>repeated_element = Box::new(repeated_element.to_display_ast(interner));
-<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>length = <span class="kw">match </span>length {
-<a href=#548 id=548 data-nosnippet>548</a>                    Type::Constant(length, kind) =&gt; {
-<a href=#549 id=549 data-nosnippet>549</a>                        <span class="kw">let </span>suffix = kind.as_integer_type_suffix();
-<a href=#550 id=550 data-nosnippet>550</a>                        <span class="kw">let </span>literal = Literal::Integer(<span class="kw-2">*</span>length, suffix);
-<a href=#551 id=551 data-nosnippet>551</a>                        <span class="kw">let </span>expr_kind = ExpressionKind::Literal(literal);
-<a href=#552 id=552 data-nosnippet>552</a>                        Box::new(Expression::new(expr_kind, location))
-<a href=#553 id=553 data-nosnippet>553</a>                    }
-<a href=#554 id=554 data-nosnippet>554</a>                    other =&gt; <span class="macro">panic!</span>(
-<a href=#555 id=555 data-nosnippet>555</a>                        <span class="string">"Cannot convert non-constant type for repeated array literal from Hir -&gt; Ast: {other:?}"
-<a href=#556 id=556 data-nosnippet>556</a>                    </span>),
-<a href=#557 id=557 data-nosnippet>557</a>                };
-<a href=#558 id=558 data-nosnippet>558</a>                ArrayLiteral::Repeated { repeated_element, length }
-<a href=#559 id=559 data-nosnippet>559</a>            }
-<a href=#560 id=560 data-nosnippet>560</a>        }
-<a href=#561 id=561 data-nosnippet>561</a>    }
-<a href=#562 id=562 data-nosnippet>562</a>}
-<a href=#563 id=563 data-nosnippet>563</a>
-<a href=#564 id=564 data-nosnippet>564</a><span class="kw">impl </span>HirBlockExpression {
-<a href=#565 id=565 data-nosnippet>565</a>    <span class="doccomment">/// Convert to AST for display (some details lost)
-<a href=#566 id=566 data-nosnippet>566</a>    </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; BlockExpression {
-<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span>statements =
-<a href=#568 id=568 data-nosnippet>568</a>            vecmap(<span class="self">self</span>.statements.clone(), |statement| statement.to_display_ast(interner));
-<a href=#569 id=569 data-nosnippet>569</a>        BlockExpression { statements }
-<a href=#570 id=570 data-nosnippet>570</a>    }
-<a href=#571 id=571 data-nosnippet>571</a>}</code></pre></div></section></main></body></html>
+<a href=#534 id=534 data-nosnippet>534</a>            HirLValue::Error { location } =&gt; {
+<a href=#535 id=535 data-nosnippet>535</a>                LValue::Path(Path::from_single(<span class="string">"(unknown-variable)"</span>.to_string(), <span class="kw-2">*</span>location))
+<a href=#536 id=536 data-nosnippet>536</a>            }
+<a href=#537 id=537 data-nosnippet>537</a>        }
+<a href=#538 id=538 data-nosnippet>538</a>    }
+<a href=#539 id=539 data-nosnippet>539</a>}
+<a href=#540 id=540 data-nosnippet>540</a>
+<a href=#541 id=541 data-nosnippet>541</a><span class="kw">impl </span>HirArrayLiteral {
+<a href=#542 id=542 data-nosnippet>542</a>    <span class="doccomment">/// Convert to AST for display (some details lost)
+<a href=#543 id=543 data-nosnippet>543</a>    </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner, location: Location) -&gt; ArrayLiteral {
+<a href=#544 id=544 data-nosnippet>544</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#545 id=545 data-nosnippet>545</a>            HirArrayLiteral::Standard(elements) =&gt; {
+<a href=#546 id=546 data-nosnippet>546</a>                ArrayLiteral::Standard(vecmap(elements, |element| element.to_display_ast(interner)))
+<a href=#547 id=547 data-nosnippet>547</a>            }
+<a href=#548 id=548 data-nosnippet>548</a>            HirArrayLiteral::Repeated { repeated_element, length } =&gt; {
+<a href=#549 id=549 data-nosnippet>549</a>                <span class="kw">let </span>repeated_element = Box::new(repeated_element.to_display_ast(interner));
+<a href=#550 id=550 data-nosnippet>550</a>                <span class="kw">let </span>length = <span class="kw">match </span>length {
+<a href=#551 id=551 data-nosnippet>551</a>                    Type::Constant(length, kind) =&gt; {
+<a href=#552 id=552 data-nosnippet>552</a>                        <span class="kw">let </span>suffix = kind.as_integer_type_suffix();
+<a href=#553 id=553 data-nosnippet>553</a>                        <span class="kw">let </span>literal = Literal::Integer(<span class="kw-2">*</span>length, suffix);
+<a href=#554 id=554 data-nosnippet>554</a>                        <span class="kw">let </span>expr_kind = ExpressionKind::Literal(literal);
+<a href=#555 id=555 data-nosnippet>555</a>                        Box::new(Expression::new(expr_kind, location))
+<a href=#556 id=556 data-nosnippet>556</a>                    }
+<a href=#557 id=557 data-nosnippet>557</a>                    other =&gt; <span class="macro">panic!</span>(
+<a href=#558 id=558 data-nosnippet>558</a>                        <span class="string">"Cannot convert non-constant type for repeated array literal from Hir -&gt; Ast: {other:?}"
+<a href=#559 id=559 data-nosnippet>559</a>                    </span>),
+<a href=#560 id=560 data-nosnippet>560</a>                };
+<a href=#561 id=561 data-nosnippet>561</a>                ArrayLiteral::Repeated { repeated_element, length }
+<a href=#562 id=562 data-nosnippet>562</a>            }
+<a href=#563 id=563 data-nosnippet>563</a>        }
+<a href=#564 id=564 data-nosnippet>564</a>    }
+<a href=#565 id=565 data-nosnippet>565</a>}
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a><span class="kw">impl </span>HirBlockExpression {
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="doccomment">/// Convert to AST for display (some details lost)
+<a href=#569 id=569 data-nosnippet>569</a>    </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; BlockExpression {
+<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">let </span>statements =
+<a href=#571 id=571 data-nosnippet>571</a>            vecmap(<span class="self">self</span>.statements.clone(), |statement| statement.to_display_ast(interner));
+<a href=#572 id=572 data-nosnippet>572</a>        BlockExpression { statements }
+<a href=#573 id=573 data-nosnippet>573</a>    }
+<a href=#574 id=574 data-nosnippet>574</a>}</code></pre></div></section></main></body></html>

@@ -123,23 +123,23 @@
 <a href=#123 id=123 data-nosnippet>123</a>    /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
 <a href=#124 id=124 data-nosnippet>124</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_function_from_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
 <a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">if let </span>HirExpression::Ident(HirIdent { id, .. }, <span class="kw">_</span>) = <span class="self">self</span>.expression(expr) {
-<a href=#126 id=126 data-nosnippet>126</a>            <span class="kw">match </span><span class="self">self</span>.try_definition(id).map(|def| <span class="kw-2">&amp;</span>def.kind) {
-<a href=#127 id=127 data-nosnippet>127</a>                <span class="prelude-val">Some</span>(DefinitionKind::Function(func_id)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
-<a href=#128 id=128 data-nosnippet>128</a>                <span class="prelude-val">Some</span>(DefinitionKind::Local(<span class="prelude-val">Some</span>(expr_id))) =&gt; {
-<a href=#129 id=129 data-nosnippet>129</a>                    <span class="self">self</span>.lookup_function_from_expr(expr_id)
-<a href=#130 id=130 data-nosnippet>130</a>                }
-<a href=#131 id=131 data-nosnippet>131</a>                <span class="prelude-val">Some</span>(DefinitionKind::Global(global_id)) =&gt; {
-<a href=#132 id=132 data-nosnippet>132</a>                    <span class="kw">let </span>info = <span class="self">self</span>.get_global(<span class="kw-2">*</span>global_id);
-<a href=#133 id=133 data-nosnippet>133</a>                    <span class="kw">let </span>expression = <span class="kw">match </span><span class="self">self</span>.statement(<span class="kw-2">&amp;</span>info.let_statement) {
-<a href=#134 id=134 data-nosnippet>134</a>                        HirStatement::Let(HirLetStatement { expression, .. })
-<a href=#135 id=135 data-nosnippet>135</a>                        | HirStatement::Expression(expression) =&gt; expression,
-<a href=#136 id=136 data-nosnippet>136</a>                        other =&gt; <span class="macro">unreachable!</span>(
-<a href=#137 id=137 data-nosnippet>137</a>                            <span class="string">"Expected global to be a let statement or expression but found: {other:?}"
-<a href=#138 id=138 data-nosnippet>138</a>                        </span>),
-<a href=#139 id=139 data-nosnippet>139</a>                    };
-<a href=#140 id=140 data-nosnippet>140</a>                    <span class="self">self</span>.lookup_function_from_expr(<span class="kw-2">&amp;</span>expression)
-<a href=#141 id=141 data-nosnippet>141</a>                }
-<a href=#142 id=142 data-nosnippet>142</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#126 id=126 data-nosnippet>126</a>            <span class="kw">match </span><span class="self">self</span>.definition(id).kind {
+<a href=#127 id=127 data-nosnippet>127</a>                DefinitionKind::Function(func_id) =&gt; <span class="prelude-val">Some</span>(func_id),
+<a href=#128 id=128 data-nosnippet>128</a>                DefinitionKind::Local(<span class="prelude-val">Some</span>(expr_id)) =&gt; <span class="self">self</span>.lookup_function_from_expr(<span class="kw-2">&amp;</span>expr_id),
+<a href=#129 id=129 data-nosnippet>129</a>                DefinitionKind::Global(global_id) =&gt; {
+<a href=#130 id=130 data-nosnippet>130</a>                    <span class="kw">let </span>info = <span class="self">self</span>.get_global(global_id);
+<a href=#131 id=131 data-nosnippet>131</a>                    <span class="kw">let </span>expression = <span class="kw">match </span><span class="self">self</span>.statement(<span class="kw-2">&amp;</span>info.let_statement) {
+<a href=#132 id=132 data-nosnippet>132</a>                        HirStatement::Let(HirLetStatement { expression, .. })
+<a href=#133 id=133 data-nosnippet>133</a>                        | HirStatement::Expression(expression) =&gt; expression,
+<a href=#134 id=134 data-nosnippet>134</a>                        other =&gt; <span class="macro">unreachable!</span>(
+<a href=#135 id=135 data-nosnippet>135</a>                            <span class="string">"Expected global to be a let statement or expression but found: {other:?}"
+<a href=#136 id=136 data-nosnippet>136</a>                        </span>),
+<a href=#137 id=137 data-nosnippet>137</a>                    };
+<a href=#138 id=138 data-nosnippet>138</a>                    <span class="self">self</span>.lookup_function_from_expr(<span class="kw-2">&amp;</span>expression)
+<a href=#139 id=139 data-nosnippet>139</a>                }
+<a href=#140 id=140 data-nosnippet>140</a>                DefinitionKind::Local(<span class="prelude-val">None</span>)
+<a href=#141 id=141 data-nosnippet>141</a>                | DefinitionKind::AssociatedConstant(..)
+<a href=#142 id=142 data-nosnippet>142</a>                | DefinitionKind::NumericGeneric(..) =&gt; <span class="prelude-val">None</span>,
 <a href=#143 id=143 data-nosnippet>143</a>            }
 <a href=#144 id=144 data-nosnippet>144</a>        } <span class="kw">else </span>{
 <a href=#145 id=145 data-nosnippet>145</a>            <span class="prelude-val">None
