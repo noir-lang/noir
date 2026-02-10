@@ -271,7 +271,7 @@ impl SimulatorProcess {
                     panic!("Failed to decode simulator response: {e}");
                 }
             }
-        };
+        }
         let response_line = String::from_utf8(response_line).unwrap();
         log::debug!("Gz decoding response time {:?}", gz_decode_step.elapsed());
         log::debug!("Decoding response time {:?}", decode_step.elapsed());
