@@ -1589,7 +1589,7 @@ impl Type {
                         .get_type(generics)
                         .has_cyclic_alias_helper(type_recursion_context.recur())
                 } else {
-                    false
+                    true
                 }
             }
             Type::TraitAsType(_id, _name, generics) => {
