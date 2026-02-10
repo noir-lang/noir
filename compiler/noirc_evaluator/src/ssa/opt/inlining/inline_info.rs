@@ -6,10 +6,12 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -23,7 +25,14 @@ use crate::ssa::{
 /// When that function has no control flow, it generally means we can expect all loads and stores within the
 /// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
 /// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
-pub const MAX_INSTRUCTIONS: usize = 10;
+pub(crate) const MAX_INSTRUCTIONS: usize = 10;
+
+/// The maximum Brillig weight for a function to be considered "simple" by the inlining cost model.
+/// This is used in `compute_function_should_be_inlined` where instruction weights are in Brillig
+/// cost units (not raw SSA instruction count). A value of 30 preserves the original intent of
+/// inlining functions with ~10 instructions, accounting for the fact that checked integer ops
+/// cost ~3 Brillig opcodes each.
+pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 30;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -347,46 +356,31 @@ fn compute_function_own_weight(func: &Function) -> usize {
         for instruction in func.dfg[block_id].instructions() {
             weight += brillig_cost(*instruction, &func.dfg);
         }
-        // TODO: We add one for the terminator. This can be improved as Jmp and Return must move their arguments
-        weight += 1;
+        weight += terminator_cost(block_id, &func.dfg);
     }
     // We use an approximation of the average increase in instruction ratio from SSA to Brillig
     // In order to get the actual weight we'd need to codegen this function to brillig.
     weight
 }
 
-/// Computes a cost estimate of a basic block
-/// WARNING: these are estimates of the runtime cost of each instruction,
-/// These numbers can be improved.
+/// Estimate the Brillig cost of a block's terminator instruction.
+fn terminator_cost(block_id: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+    match dfg[block_id].unwrap_terminator() {
+        TerminatorInstruction::JmpIf { .. } => 2, // jump_if + jump
+        TerminatorInstruction::Jmp { arguments, .. } => 1 + arguments.len(), // moves + jump
+        TerminatorInstruction::Return { return_values, .. } => 1 + return_values.len(), // moves + return
+        TerminatorInstruction::Unreachable { .. } => 0,
+    }
+}
+
+/// Computes a cost estimate of an instruction in terms of Brillig opcodes.
+/// These estimates are type-aware: Field operations are typically cheaper than
+/// checked integer operations because they don't need overflow checks.
 fn brillig_cost(instruction: InstructionId, dfg: &DataFlowGraph) -> usize {
     match &dfg[instruction] {
         Instruction::Binary(binary) => {
-            // TODO: various operations have different costs for unsigned/signed
-            match binary.operator {
-                BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } => {
-                    if unchecked {
-                        3
-                    } else {
-                        7
-                    }
-                }
-                BinaryOp::Mul { unchecked } => {
-                    if unchecked {
-                        3
-                    } else {
-                        8
-                    }
-                }
-                // TODO: signed div/mod have different costs
-                BinaryOp::Div => 1,
-                BinaryOp::Mod => 3,
-                BinaryOp::Eq => 1,
-                // TODO: unsigned and signed lt have different costs
-                BinaryOp::Lt => 5,
-                BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => 1,
-                // TODO: signed shl/shr have different costs
-                BinaryOp::Shl | BinaryOp::Shr => 1,
-            }
+            let typ = dfg.type_of_value(binary.lhs).unwrap_numeric();
+            binary_cost(binary.operator, typ)
         }
         // A Cast can be either simplified, or lead to a truncate
         Instruction::Cast(_, _) => 3,
@@ -417,11 +411,6 @@ fn brillig_cost(instruction: InstructionId, dfg: &DataFlowGraph) -> usize {
                 Value::Intrinsic(intrinsic) => {
                     match intrinsic {
                         Intrinsic::ArrayLen => 1,
-                        Intrinsic::AsSlice => {
-                            10 // mem copy
-                            + 8 // vector and array pointer init
-                            + 2 // size registers
-                        }
                         Intrinsic::BlackBox(_) => {
                             // TODO: we could differentiate inputs/outputs with array and vector inputs (we add one to the pointer)
                             1
@@ -431,11 +420,14 @@ fn brillig_cost(instruction: InstructionId, dfg: &DataFlowGraph) -> usize {
                     }
                 }
 
+                // Indirect calls (e.g., calling a function pointer from an instruction result or parameter).
+                // These can occur in ACIR before defunctionalization.
                 Value::Instruction { .. }
                 | Value::Param { .. }
                 | Value::NumericConstant { .. }
                 | Value::Global(_) => {
-                    unreachable!("unsupported function call type {:?}", dfg[*func])
+                    let results = dfg.instruction_results(instruction);
+                    5 + arguments.len() + results.len()
                 }
             }
         }
@@ -446,16 +438,58 @@ fn brillig_cost(instruction: InstructionId, dfg: &DataFlowGraph) -> usize {
             // NOTE: Assumes that the RC is one
             7
         }
-        Instruction::ArrayGet { .. } => 1,
-        // if less than 10 elements, it is translated into a store for each element
-        // if more than 10, it is a loop, so 20 should be a good estimate, worst case being 10 stores and ~10 index increments
-        Instruction::MakeArray { .. } => 20,
+        Instruction::ArrayGet { .. } => 3,
+        // If less than 10 elements, it is translated into a store for each element (~2 ops each: const + store).
+        // If 10 or more, it uses a loop, so cap at 20.
+        Instruction::MakeArray { elements, .. } => std::cmp::min(elements.len() * 2, 20),
 
         Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => 3,
 
         Instruction::EnableSideEffectsIf { .. } | Instruction::Noop => 0,
         // TODO: this is only true for non array values
         Instruction::IfElse { .. } => 1,
+    }
+}
+
+/// Estimate the Brillig opcode cost of a binary operation based on the operator and operand type.
+///
+/// Field operations are single opcodes. Checked unsigned operations are more expensive
+/// (e.g., checked add = add + lt + constrain = 3 opcodes). Unchecked integer operations
+/// are single opcodes. Signed operations that reach Brillig are always unchecked.
+fn binary_cost(op: BinaryOp, typ: NumericType) -> usize {
+    match op {
+        BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } => {
+            if unchecked || typ.is_field() {
+                1
+            } else {
+                // checked unsigned: op + lt_eq + constrain
+                3
+            }
+        }
+        BinaryOp::Mul { unchecked } => {
+            if unchecked || typ.is_field() {
+                1
+            } else {
+                // checked unsigned mul is expensive
+                8
+            }
+        }
+        BinaryOp::Div | BinaryOp::Mod => {
+            if typ.is_field() {
+                // Field div is a single opcode; field mod doesn't exist but cost 1 as fallback
+                1
+            } else {
+                // Unsigned: div=1, mod=div+mul+sub=3
+                match op {
+                    BinaryOp::Div => 1,
+                    BinaryOp::Mod => 3,
+                    _ => unreachable!(),
+                }
+            }
+        }
+        BinaryOp::Eq | BinaryOp::Lt => 1,
+        BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => 1,
+        BinaryOp::Shl | BinaryOp::Shr => 1,
     }
 }
 
@@ -468,11 +502,11 @@ fn compute_function_interface_cost(func: &Function) -> usize {
 mod tests {
     use crate::ssa::{
         ir::{call_graph::CallGraph, map::Id},
-        opt::inlining::{MAX_INSTRUCTIONS, inline_info::compute_bottom_up_order},
+        opt::inlining::inline_info::compute_bottom_up_order,
         ssa_gen::Ssa,
     };
 
-    use super::compute_inline_infos;
+    use super::{MAX_INSTRUCTIONS, compute_inline_infos};
 
     #[test]
     fn mark_mutually_recursive_functions() {
@@ -582,7 +616,10 @@ mod tests {
         assert_eq!(ids[3], 0, "main: last, it's the entry");
 
         // Check own weights
-        assert_eq!(ows, [2, 7, 7, 4]);
+        // decrement: sub(3, checked u32) + return(2) = 5
+        // is_even/is_odd: b0(eq=1 + jmpif=2) + b1(call=7 + call=7 + jmp=2) + b2(jmp=2) + b3(return=2) = 23
+        // main: call(7) + eq(1) + constrain(4) + return(1) = 13
+        assert_eq!(ows, [5, 23, 23, 13]);
 
         // Check transitive weights
         assert_eq!(tws[0], ows[0], "decrement");

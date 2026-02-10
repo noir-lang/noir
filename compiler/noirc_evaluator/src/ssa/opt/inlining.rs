@@ -29,7 +29,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
-pub use inline_info::MAX_INSTRUCTIONS;
+pub use inline_info::MAX_SIMPLE_FUNCTION_WEIGHT;
 pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
@@ -1526,7 +1526,7 @@ mod simple_functions {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS},
+            opt::{assert_normalized_ssa_equals, inlining::inline_info::MAX_INSTRUCTIONS},
         },
     };
 
