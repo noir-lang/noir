@@ -41,11 +41,7 @@ impl AliasSet {
     /// Otherwise, return None.
     pub(super) fn single_alias(&self) -> Option<ValueId> {
         let aliases = self.aliases.as_ref()?;
-        if aliases.len() == 1 {
-            Some(*aliases.iter().next().unwrap())
-        } else {
-            None
-        }
+        if aliases.len() == 1 { Some(*aliases.iter().next().unwrap()) } else { None }
     }
 
     /// Unify this alias set with another. The result of this set is empty if either set is empty.
