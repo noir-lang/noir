@@ -56,7 +56,7 @@ use std::{
 };
 
 use crate::{
-    SeenDataTypes, Type,
+    Type,
     ast::UnresolvedGenerics,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
@@ -83,6 +83,7 @@ use crate::{
         DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
+    recursion::TypeRecursionContext,
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
@@ -542,55 +543,70 @@ impl<'context> Elaborator<'context> {
     }
 
     fn mark_type_as_used(&mut self, typ: &Type) {
-        let mut seen_data_types = SeenDataTypes::default();
-        self.mark_type_as_used_helper(typ, &mut seen_data_types);
+        self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
     }
 
-    fn mark_type_as_used_helper(&mut self, typ: &Type, seen_data_types: &mut SeenDataTypes) {
+    fn mark_type_as_used_helper(
+        &mut self,
+        typ: &Type,
+        mut type_recursion_context: TypeRecursionContext,
+    ) {
         match typ {
-            Type::Array(_n, typ) => self.mark_type_as_used_helper(typ, seen_data_types),
-            Type::Vector(typ) => self.mark_type_as_used_helper(typ, seen_data_types),
+            Type::Array(_n, typ) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+            }
+            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context.recur()),
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_type_as_used_helper(typ, seen_data_types);
+                    self.mark_type_as_used_helper(typ, type_recursion_context.clone().recur());
                 }
             }
             Type::DataType(datatype, generics) => {
-                let key = (datatype.borrow().id, generics.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
                     self.mark_struct_as_constructed(datatype.clone());
                     for generic in generics {
-                        self.mark_type_as_used_helper(generic, seen_data_types);
+                        self.mark_type_as_used_helper(
+                            generic,
+                            type_recursion_context.clone().recur(),
+                        );
                     }
                     if let Some(fields) = datatype.borrow().get_fields(generics) {
                         for (_, typ, _) in fields {
-                            self.mark_type_as_used_helper(&typ, seen_data_types);
+                            self.mark_type_as_used_helper(
+                                &typ,
+                                type_recursion_context.clone().recur(),
+                            );
                         }
                     } else if let Some(variants) = datatype.borrow().get_variants(generics) {
                         for (_, variant_types) in variants {
                             for typ in variant_types {
-                                self.mark_type_as_used_helper(&typ, seen_data_types);
+                                self.mark_type_as_used_helper(
+                                    &typ,
+                                    type_recursion_context.clone().recur(),
+                                );
                             }
                         }
                     }
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.mark_type_as_used_helper(
-                    &alias_type.borrow().get_type(generics),
-                    seen_data_types,
-                );
+                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
+                    self.mark_type_as_used_helper(
+                        &alias_type.borrow().get_type(generics),
+                        type_recursion_context.recur(),
+                    );
+                }
             }
             Type::CheckedCast { from, to } => {
-                self.mark_type_as_used_helper(from, seen_data_types);
-                self.mark_type_as_used_helper(to, seen_data_types);
+                self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(to, type_recursion_context.recur());
             }
             Type::Reference(typ, _) => {
-                self.mark_type_as_used_helper(typ, seen_data_types);
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used_helper(left, seen_data_types);
-                self.mark_type_as_used_helper(right, seen_data_types);
+                self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(right, type_recursion_context.recur());
             }
             Type::FieldElement
             | Type::Integer(..)
