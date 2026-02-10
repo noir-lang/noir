@@ -382,8 +382,6 @@ pub struct FunctionModifiers {
 
     pub attributes: Attributes,
 
-    pub is_unconstrained: bool,
-
     pub generic_count: usize,
 
     pub is_comptime: bool,
@@ -401,7 +399,6 @@ impl FunctionModifiers {
             name: String::new(),
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
-            is_unconstrained: false,
             generic_count: 0,
             is_comptime: false,
             name_location: Location::dummy(),
