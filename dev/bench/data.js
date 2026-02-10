@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770729998754,
+  "lastUpdate": 1770730008244,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d917005204b0e9b15d26d6c983eccf577009f74",
-          "message": "fix(ssa): Count array call arguments as possible mutations when removing RC increments  (#11388)",
-          "timestamp": "2026-01-30T23:29:07Z",
-          "tree_id": "9ced74bf7d44f81ea53e7e8a5b35727a49348b70",
-          "url": "https://github.com/noir-lang/noir/commit/8d917005204b0e9b15d26d6c983eccf577009f74"
-        },
-        "date": 1769818389371,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 288.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 503.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 261.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 360.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 360.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 360.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 360.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 11340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 11340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 360.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 3040,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 360.25,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 98.06,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 184.79,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4919,6 +4820,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 98.07,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 184.85,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d1e7da84d399036d96b428d643fecf98a3854001",
+          "message": "fix(elaborator): Handle `<Object as Trait}>::<Type>` in function signatures (#11417)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2026-02-10T12:28:31Z",
+          "tree_id": "7041e648d4424bab17dcd4ba93531a29420ff8ae",
+          "url": "https://github.com/noir-lang/noir/commit/d1e7da84d399036d96b428d643fecf98a3854001"
+        },
+        "date": 1770729964929,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 291.05,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 505.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 264.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 352.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 351.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 354.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 354.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 11330,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 11330,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1080,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 351.46,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 98.09,
             "unit": "MB"
           },
           {
