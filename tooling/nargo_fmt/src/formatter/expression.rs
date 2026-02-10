@@ -4,7 +4,6 @@ use noirc_frontend::{
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
-        UnresolvedTypeData,
     },
     token::{Keyword, Token, TokenKind},
 };
@@ -139,23 +138,29 @@ impl ChunkFormatter<'_, '_> {
             })),
             Literal::Array(array_literal) => group.group(self.format_array_literal(
                 array_literal,
-                false, // is slice
+                false, // is vector
             )),
-            Literal::Slice(array_literal) => {
+            Literal::Vector(array_literal) => {
                 group.group(self.format_array_literal(
                     array_literal,
-                    true, // is slice
+                    true, // is vector
                 ));
             }
         }
     }
 
-    fn format_array_literal(&mut self, literal: ArrayLiteral, is_slice: bool) -> ChunkGroup {
+    fn format_array_literal(&mut self, literal: ArrayLiteral, is_vector: bool) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
-            if is_slice {
-                formatter.write_token(Token::SliceStart);
+            if is_vector {
+                if formatter.is_at(Token::DeprecatedVectorStart) {
+                    // Support the old vector syntax `&[1, 2, 3]`
+                    formatter.bump();
+                    formatter.write("@");
+                } else {
+                    formatter.write_token(Token::At);
+                }
             }
             formatter.write_left_bracket();
         }));
@@ -218,9 +223,13 @@ impl ChunkFormatter<'_, '_> {
     fn format_lambda(&mut self, lambda: Lambda) -> FormattedLambda {
         let mut group = ChunkGroup::new();
 
-        let lambda_has_return_type = lambda.return_type.typ != UnresolvedTypeData::Unspecified;
+        let lambda_has_return_type = lambda.return_type.is_some();
 
         let params_and_return_type_chunk = self.chunk(|formatter| {
+            if lambda.unconstrained {
+                formatter.write_keyword(Keyword::Unconstrained);
+                formatter.write_space();
+            }
             formatter.write_token(Token::Pipe);
             for (index, (pattern, typ)) in lambda.parameters.into_iter().enumerate() {
                 if index > 0 {
@@ -228,7 +237,7 @@ impl ChunkFormatter<'_, '_> {
                     formatter.write_space();
                 }
                 let mut pattern_and_type_group = formatter.format_pattern(pattern);
-                if typ.typ != UnresolvedTypeData::Unspecified {
+                if let Some(typ) = typ {
                     pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
                         formatter.write_token(Token::Colon);
                         formatter.write_space();
@@ -243,10 +252,10 @@ impl ChunkFormatter<'_, '_> {
             }
             formatter.write_token(Token::Pipe);
             formatter.write_space();
-            if lambda_has_return_type {
+            if let Some(return_type) = lambda.return_type {
                 formatter.write_token(Token::Arrow);
                 formatter.write_space();
-                formatter.format_type(lambda.return_type);
+                formatter.format_type(return_type);
                 formatter.write_space();
             }
         });
@@ -266,11 +275,9 @@ impl ChunkFormatter<'_, '_> {
         let comments_count_before_body = self.written_comments_count;
         self.format_expression(lambda.body, &mut body_group);
 
-        body_group.kind = GroupKind::LambdaBody {
-            block_statement_count,
-            has_comments: self.written_comments_count > comments_count_before_body,
-            lambda_has_return_type,
-        };
+        let has_comments = self.written_comments_count > comments_count_before_body;
+        body_group.kind =
+            GroupKind::LambdaBody { block_statement_count, has_comments, lambda_has_return_type };
 
         group.group(body_group);
 
@@ -450,16 +457,16 @@ impl ChunkFormatter<'_, '_> {
                     //       let y = x + 1;
                     //       y * 2
                     //     })
-                    if expr_index == exprs_len - 1 {
-                        if let ExpressionKind::Lambda(lambda) = expr.kind {
-                            let mut lambda_group = formatter.format_lambda(*lambda);
-                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
-                                first_line_width: lambda_group.first_line_width,
-                                indentation: None,
-                            };
-                            chunks.group(lambda_group.group);
-                            return;
-                        }
+                    if expr_index == exprs_len - 1
+                        && let ExpressionKind::Lambda(lambda) = expr.kind
+                    {
+                        let mut lambda_group = formatter.format_lambda(*lambda);
+                        lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
+                            first_line_width: lambda_group.first_line_width,
+                            indentation: None,
+                        };
+                        chunks.group(lambda_group.group);
+                        return;
                     }
                     expr_index += 1;
 
@@ -564,7 +571,7 @@ impl ChunkFormatter<'_, '_> {
             group.trailing_comma();
         }
 
-        group.text(chunk);
+        group.trailing_comment_at_block_end(chunk);
 
         if force_trailing_comma {
             group.text(TextChunk::new(",".to_string()));
@@ -581,7 +588,7 @@ impl ChunkFormatter<'_, '_> {
     fn format_constructor(&mut self, constructor: ConstructorExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_type(constructor.typ);
+            formatter.format_type_in_expression(constructor.typ);
             formatter.write_space();
             formatter.write_left_brace();
         }));
@@ -686,7 +693,7 @@ impl ChunkFormatter<'_, '_> {
 
                 increase_indentation = true;
             }
-        };
+        }
 
         group.trailing_comment(self.skip_comments_and_whitespace_chunk());
 
@@ -966,6 +973,7 @@ impl ChunkFormatter<'_, '_> {
 
             // Add a trailing comma regardless of whether the user specified one or not
             group.text(self.chunk(|formatter| {
+                formatter.skip_comments_and_whitespace();
                 if formatter.token == Token::Comma {
                     formatter.write_current_token_and_bump();
                 } else {
@@ -1290,7 +1298,7 @@ impl ChunkFormatter<'_, '_> {
         }
 
         // Finally format the comment, if any
-        group.text(self.chunk(|formatter| {
+        group.trailing_comment_at_block_end(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
@@ -1432,9 +1440,16 @@ mod tests {
     }
 
     #[test]
-    fn format_standard_slice() {
-        let src = "global x = & [ 1 , 2 , 3 , ] ;";
-        let expected = "global x = &[1, 2, 3];\n";
+    fn format_standard_vector() {
+        let src = "global x = @ [ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_old_vector_syntax() {
+        let src = "global x = &[ 1 , 2 , 3 , ] ;";
+        let expected = "global x = @[1, 2, 3];\n";
         assert_format(src, expected);
     }
 
@@ -1720,6 +1735,13 @@ global y = 1;
     fn format_call() {
         let src = "global x =  foo :: bar ( 1, 2 )  ;";
         let expected = "global x = foo::bar(1, 2);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_dep_call() {
+        let src = "global x =  dep :: foo :: bar ( 1, 2 )  ;";
+        let expected = "global x = ::foo::bar(1, 2);\n";
         assert_format(src, expected);
     }
 
@@ -2274,6 +2296,13 @@ global y = 1;
     }
 
     #[test]
+    fn format_unconstrained_lambda_no_parameters() {
+        let src = "global x =  unconstrained  | |  1 ;";
+        let expected = "global x = unconstrained || 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_lambda_with_parameters() {
         let src = "global x = | x , y : Field , z |  1 ;";
         let expected = "global x = |x, y: Field, z| 1;\n";
@@ -2486,7 +2515,7 @@ global y = 1;
 
     #[test]
     fn format_match() {
-        let src = "fn main() {  match  x  {  A=>B,C  =>  {D}E=>(),  } }";
+        let src = "fn main() {  match  x  {  A=>B  ,  C  =>  {D}E=>()  ,  } }";
         // We should remove the block on D for single expressions in the future,
         // unless D is an if or match.
         let expected = "fn main() {
@@ -2639,5 +2668,14 @@ global y = 1;
 }
 "#;
         assert_format_with_max_width(src, src, 20);
+    }
+
+    #[test]
+    fn turbofish_with_negative_literal() {
+        let src = r#"fn main() {
+    foo::<-128>();
+}
+"#;
+        assert_format(src, src);
     }
 }

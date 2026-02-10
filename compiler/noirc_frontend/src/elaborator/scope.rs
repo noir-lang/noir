@@ -1,7 +1,12 @@
+//! Lexical scoping, variable lookup, and closure capture tracking.
+
 use crate::ast::{ERROR_IDENT, Ident};
-use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::elaborator::path_resolution::PathResolution;
+use crate::elaborator::patterns::Variable;
+use crate::hir::def_map::ModuleId;
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
+use crate::node_interner::{DefinitionKind, TypeAliasId};
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
@@ -14,24 +19,29 @@ use crate::{
 use crate::{Type, TypeAlias};
 
 use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
-use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
+/// The result of [`Elaborator::lookup_item_as_value`].
+pub(crate) enum ItemAsValue {
+    /// A definition was found.
+    Definition { id: DefinitionId, item: PathResolutionItem },
+    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
+    TypeAlias(TypeAliasId),
+}
+
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
-        assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
-        ModuleId { krate: self.crate_id, local_id: self.local_module }
+        ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
-    pub fn replace_module(&mut self, new_module: ModuleId) -> ModuleId {
-        assert_ne!(new_module.local_id, LocalModuleId::dummy_id(), "local_module is unset");
-        let current_module = self.module_id();
-
+    pub fn replace_module(&mut self, new_module: ModuleId) -> Option<ModuleId> {
+        let current_module =
+            self.local_module.map(|local_id| ModuleId { krate: self.crate_id, local_id });
         self.crate_id = new_module.krate;
-        self.local_module = new_module.local_id;
+        self.local_module = Some(new_module.local_id);
         current_module
     }
 
@@ -39,27 +49,42 @@ impl Elaborator<'_> {
         self.interner.get_type(type_id)
     }
 
-    pub(super) fn get_trait_mut(&mut self, trait_id: TraitId) -> &mut Trait {
-        self.interner.get_trait_mut(trait_id)
+    pub(super) fn get_trait(&self, trait_id: TraitId) -> &Trait {
+        self.interner.get_trait(trait_id)
     }
 
-    pub(super) fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
+    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [HirIdent] to the list of captures.
+    pub(super) fn check_if_variable_is_captured_by_closure(&mut self, variable: &Variable) {
+        // Only local variables can be captured by closures.
+        // (the variable might point to a numeric generic like `let N: u32`, which is not captured)
+        let DefinitionKind::Local(..) = self.interner.definition(variable.ident.id).kind else {
+            return;
+        };
+
         let mut transitive_capture_index: Option<usize> = None;
 
         for lambda_index in 0..self.lambda_stack.len() {
-            if self.lambda_stack[lambda_index].scope_index > var_scope_index {
+            if self.lambda_stack[lambda_index].scope_index > variable.scope {
                 // Beware: the same variable may be captured multiple times, so we check
                 // for its presence before adding the capture below.
                 let position = self.lambda_stack[lambda_index]
                     .captures
                     .iter()
-                    .position(|capture| capture.ident.id == hir_ident.id);
+                    .position(|capture| capture.ident.id == variable.ident.id);
 
                 if position.is_none() {
-                    self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
-                        ident: hir_ident.clone(),
-                        transitive_capture_index,
-                    });
+                    // In a comptime context we capture comptime and non-comptime variables
+                    // (the latter will be an error).
+                    // In a non-comptime context we don't capture comptime variables.
+                    if self.in_comptime_context()
+                        || !self.interner.definition(variable.ident.id).is_comptime_local()
+                    {
+                        self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
+                            ident: variable.ident.clone(),
+                            transitive_capture_index,
+                        });
+                    }
                 }
 
                 if lambda_index + 1 < self.lambda_stack.len() {
@@ -77,41 +102,61 @@ impl Elaborator<'_> {
         }
     }
 
-    pub(super) fn lookup_global(
+    /// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+    /// If the path resolves to an item that is not a value (for example a struct, an enum,
+    /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
+    /// when no item is found.
+    pub(super) fn lookup_item_as_value(
         &mut self,
         path: TypedPath,
-    ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
+    ) -> Result<ItemAsValue, ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
 
         if let Some(function) = item.function_id() {
-            return Ok((self.interner.function_definition_id(function), item));
+            let definition_id = self.interner.function_definition_id(function);
+            let item_as_value = ItemAsValue::Definition { id: definition_id, item };
+            return Ok(item_as_value);
         }
 
-        let expected = "global variable";
-        let got = "local variable";
+        let expected = "value";
         match item {
             PathResolutionItem::Global(global) => {
                 let global = self.interner.get_global(global);
-                Ok((global.definition_id, item))
+                let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
+                Ok(item_as_value)
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
 
+                // Type alias is returned
                 if type_alias.borrow().numeric_expr.is_some() {
                     // Type alias to numeric generics are aliases to some global value
                     // Therefore we allow this case although we cannot provide the value yet
-                    return Ok((DefinitionId::dummy_id(), item));
+                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
                 }
                 if matches!(type_alias.borrow().typ, Type::Alias(_, _))
                     || matches!(type_alias.borrow().typ, Type::Error)
                 {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
-                    return Ok((DefinitionId::dummy_id(), item));
+                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
                 }
-                Err(ResolverError::Expected { location, expected, got })
+                Err(ResolverError::Expected {
+                    location,
+                    expected,
+                    found: item.description(self.interner),
+                })
             }
-            _ => Err(ResolverError::Expected { location, expected, got }),
+            PathResolutionItem::TraitConstant(_, _, def_id) => {
+                // TraitConstant is returned, item is Some
+                let item_as_value = ItemAsValue::Definition { id: def_id, item };
+                Ok(item_as_value)
+            }
+            item => Err(ResolverError::Expected {
+                location,
+                expected,
+                found: item.description(self.interner),
+            }),
         }
     }
 
@@ -133,12 +178,11 @@ impl Elaborator<'_> {
         }
 
         for unused_var in unused_vars.iter() {
-            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
-                let name = &definition_info.name;
-                if name != ERROR_IDENT && !definition_info.is_global() {
-                    let ident = Ident::new(name.to_owned(), unused_var.location);
-                    self.push_err(ResolverError::UnusedVariable { ident });
-                }
+            let definition_info = self.interner.definition(unused_var.id);
+            let name = &definition_info.name;
+            if name != ERROR_IDENT && !definition_info.is_global() {
+                let ident = Ident::new(name.to_owned(), unused_var.location);
+                self.push_err(ResolverError::UnusedVariable { ident });
             }
         }
     }
@@ -152,16 +196,16 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given trait by name/path.
-    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&mut Trait> {
+    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&Trait> {
         let location = path.location;
         match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
-                    Some(self.get_trait_mut(trait_id))
+                    Some(self.get_trait(trait_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
-                        got: item.description(),
+                        found: item.description(self.interner),
                         location,
                     });
                     None
@@ -174,16 +218,16 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Looks up a given type by name.
+    /// Looks up a given [Type] by name.
+    ///
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();
-        if let Some(segment) = segment {
-            if segment.ident.as_str() == SELF_TYPE_NAME {
-                if let Some(typ) = &self.self_type {
-                    return Some(typ.clone());
-                }
-            }
+        if let Some(segment) = segment
+            && segment.ident.is_self_type_name()
+            && let Some(typ) = &self.self_type
+        {
+            return Some(typ.clone());
         }
 
         let location = path.location;
@@ -201,7 +245,7 @@ impl Elaborator<'_> {
             Ok(other) => {
                 self.push_err(ResolverError::Expected {
                     expected: "type",
-                    got: other.description(),
+                    found: other.description(self.interner),
                     location,
                 });
                 None
@@ -218,8 +262,9 @@ impl Elaborator<'_> {
         path: TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
+        match self.resolve_path_inner(path, PathResolutionTarget::Type, mode) {
+            Ok(PathResolution { item: PathResolutionItem::TypeAlias(type_alias_id), errors }) => {
+                self.push_errors(errors);
                 Some(self.interner.get_type_alias(type_alias_id))
             }
             _ => None,

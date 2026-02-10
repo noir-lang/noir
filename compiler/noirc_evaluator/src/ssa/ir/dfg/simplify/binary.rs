@@ -1,6 +1,7 @@
 use acvm::{AcirField as _, FieldElement};
 
 use crate::ssa::ir::{
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     instruction::{
         Binary, BinaryOp, Instruction,
@@ -8,11 +9,17 @@ use crate::ssa::ir::{
     },
     types::NumericType,
 };
+use noirc_errors::call_stack::CallStackId;
 
 use super::SimplifyResult;
 
 /// Try to simplify this binary instruction, returning the new value if possible.
-pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> SimplifyResult {
+pub(super) fn simplify_binary(
+    binary: &Binary,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> SimplifyResult {
     let lhs = binary.lhs;
     let rhs = binary.rhs;
 
@@ -108,46 +115,40 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
                 // b*(b*x) = b*x if b is boolean
-                if let super::Value::Instruction { instruction, .. } = &dfg[rhs] {
-                    if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
+                if let super::Value::Instruction { instruction, .. } = &dfg[rhs]
+                    && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                         dfg[*instruction]
-                    {
-                        if matches!(operator, BinaryOp::Mul { .. })
-                            && (lhs == b_lhs || lhs == b_rhs)
-                        {
-                            return SimplifyResult::SimplifiedTo(rhs);
-                        }
-                    }
+                    && matches!(operator, BinaryOp::Mul { .. })
+                    && (lhs == b_lhs || lhs == b_rhs)
+                {
+                    return SimplifyResult::SimplifiedTo(rhs);
                 }
             }
             // (b*x)*b = b*x if b is boolean
-            if dfg.get_value_max_num_bits(rhs) == 1 {
-                if let super::Value::Instruction { instruction, .. } = &dfg[lhs] {
-                    if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                        dfg[*instruction]
-                    {
-                        if matches!(operator, BinaryOp::Mul { .. })
-                            && (rhs == b_lhs || rhs == b_rhs)
-                        {
-                            return SimplifyResult::SimplifiedTo(lhs);
-                        }
-                    }
-                }
+            if dfg.get_value_max_num_bits(rhs) == 1
+                && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
+                && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
+                    dfg[*instruction]
+                && matches!(operator, BinaryOp::Mul { .. })
+                && (rhs == b_lhs || rhs == b_rhs)
+            {
+                return SimplifyResult::SimplifiedTo(lhs);
             }
         }
         BinaryOp::Div => {
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
-            if let Some(rhs_value) = rhs_value {
-                if lhs_type == NumericType::NativeField && !rhs_value.is_zero() {
-                    let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
-                    return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
-                        lhs,
-                        rhs,
-                        operator: BinaryOp::Mul { unchecked: false },
-                    }));
-                }
+            if let Some(rhs_value) = rhs_value
+                && lhs_type == NumericType::NativeField
+                && !rhs_value.is_zero()
+            {
+                let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                    lhs,
+                    rhs,
+                    operator: BinaryOp::Mul { unchecked: false },
+                }));
             }
         }
         BinaryOp::Mod => {
@@ -165,7 +166,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         return SimplifyResult::SimplifiedToInstruction(Instruction::Truncate {
                             value: lhs,
                             bit_size,
-                            max_bit_size: lhs_type.bit_size(),
+                            max_bit_size: lhs_type.bit_size::<FieldElement>(),
                         });
                     }
                 }
@@ -211,6 +212,17 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         lhs,
                         zero,
                     ));
+                } else if lhs_is_zero && dfg.runtime.is_acir() {
+                    // `0 < rhs` for unsigned values is the same as `rhs != 0`,
+                    // which is slightly more performant in ACIR
+                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                    let instruction =
+                        Instruction::Binary(Binary { lhs: rhs, rhs: zero, operator: BinaryOp::Eq });
+                    let eq = dfg
+                        .insert_instruction_and_results(instruction, block, None, call_stack)
+                        .first();
+                    let neq = Instruction::Not(eq);
+                    return SimplifyResult::SimplifiedToInstruction(neq);
                 }
             }
         }
@@ -242,7 +254,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                             let value = if lhs_value.is_some() { rhs } else { lhs };
                             let bit_size =
                                 if bitmask == u128::MAX { 128 } else { (bitmask + 1).ilog2() };
-                            let max_bit_size = lhs_type.bit_size();
+                            let max_bit_size = lhs_type.bit_size::<FieldElement>();
 
                             if bit_size == max_bit_size {
                                 // If we're truncating a value into the full size of its type then
@@ -298,7 +310,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             }
             return SimplifyResult::SimplifiedToInstruction(simplified);
         }
-    };
+    }
     SimplifyResult::SimplifiedToInstruction(simplified)
 }
 
@@ -338,6 +350,28 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_zero_less_than_unsigned_value_to_not_equals_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = lt u8 0, v0
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v2 = eq v0, u8 0
+            v3 = not v2
+            return v3
         }
         ");
     }

@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+enum Foo {
+    Zero,
+    One(Field),
+    Two(u32, u64),
+}
+
+fn main() {
+    let enums: [Foo; 3] = [Foo::Zero, Foo::One(10_Field), Foo::Two(20_u32, 30_u64)];
+    println((enums, 40_Field));
+    println(f"Hello {enums}!")
+}

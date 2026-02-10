@@ -4,8 +4,7 @@ use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, Sign, input_parser::InputValue};
-use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::CompiledProgram;
+use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 use crate::{
     errors::CliError,
@@ -108,10 +107,10 @@ pub fn save_witness(
     let mut witness_path = save_witness_to_dir(witness_stack, witness_name, witness_dir)?;
 
     // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-    if let Ok(current_dir) = std::env::current_dir() {
-        if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
-            witness_path = name_without_prefix.to_path_buf();
-        }
+    if let Ok(current_dir) = std::env::current_dir()
+        && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir)
+    {
+        witness_path = name_without_prefix.to_path_buf();
     }
 
     noirc_errors::println_to_stdout!(
@@ -128,10 +127,10 @@ pub fn check_witness(
     return_values: ReturnValues,
 ) -> Result<(), CliError> {
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
-    if let Some(ref expected) = circuit.abi.return_type {
-        if return_values.actual_return.is_none() {
-            return Err(CliError::MissingReturn { expected: expected.clone() });
-        }
+    if let Some(ref expected) = circuit.abi.return_type
+        && return_values.actual_return.is_none()
+    {
+        return Err(CliError::MissingReturn { expected: expected.clone() });
     }
 
     // Check that if the prover file contained a `return` entry then that's what we got.
@@ -190,13 +189,13 @@ fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, st
         (AbiType::Struct { path, fields: field_types }, InputValue::Struct(field_values)) => {
             string.push_str(path);
             string.push_str(" { ");
-            for (index, (field_name, field_value)) in field_values.iter().enumerate() {
+            for (index, (field_name, typ)) in field_types.iter().enumerate() {
                 if index != 0 {
                     string.push_str(", ");
                 }
                 string.push_str(field_name);
                 string.push_str(": ");
-                let typ = &field_types.iter().find(|(name, _)| name == field_name).unwrap().1;
+                let field_value = &field_values[field_name];
                 append_input_value_to_string(field_value, typ, string);
             }
             string.push_str(" }");

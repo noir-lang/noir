@@ -8,6 +8,22 @@ pub use generic_ark::AcirField;
 
 /// Temporarily exported generic field to aid migration to `AcirField`
 pub use field_element::FieldElement as GenericFieldElement;
+use num_bigint::BigInt;
+
+pub fn truncate_to<F: AcirField>(input: &F, bits: u32) -> F {
+    let num_bits = input.num_bits();
+    if bits >= num_bits {
+        *input
+    } else if num_bits < 128 {
+        let mask = 2u128.pow(bits) - 1;
+        F::from(input.to_u128() & mask)
+    } else {
+        let input_int = BigInt::from_bytes_be(num_bigint::Sign::Plus, &input.to_be_bytes());
+        let modulus = BigInt::from(2u32).pow(bits);
+        let result = input_int % modulus;
+        F::from_be_bytes_reduce(&result.to_bytes_be().1)
+    }
+}
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "bls12_381")] {

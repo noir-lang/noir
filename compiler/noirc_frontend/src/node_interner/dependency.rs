@@ -46,18 +46,22 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Struct(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [GlobalId].
     pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
         self.add_dependency(dependent, DependencyId::Global(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [FuncId].
     pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [TypeAliasId].
     pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [TraitId].
     pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
         self.add_dependency(dependent, DependencyId::Trait(dependency));
     }
@@ -96,7 +100,8 @@ impl NodeInterner {
                         DependencyId::Struct(struct_id) => {
                             let struct_type = self.get_type(struct_id);
                             let struct_type = struct_type.borrow();
-                            push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
+                            let name = &struct_type.name;
+                            push_error(name.to_string(), &scc, i, name.location());
                             break;
                         }
                         DependencyId::Global(global_id) => {
@@ -113,12 +118,13 @@ impl NodeInterner {
 
                             // push_error will borrow the alias so we have to drop the mutable borrow
                             let alias = alias.borrow();
-                            push_error(alias.name.to_string(), &scc, i, alias.location);
+                            push_error(alias.name.to_string(), &scc, i, alias.name.location());
                             break;
                         }
                         DependencyId::Trait(trait_id) => {
                             let the_trait = self.get_trait(trait_id);
-                            push_error(the_trait.name.to_string(), &scc, i, the_trait.location);
+                            let name = &the_trait.name;
+                            push_error(name.to_string(), &scc, i, name.location());
                             break;
                         }
                         // Mutually recursive functions are allowed

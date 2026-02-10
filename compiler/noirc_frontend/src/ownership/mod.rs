@@ -9,7 +9,7 @@
 //! count. These operations are equivalent on arrays. Cloning may be applied to any value and only
 //! increments the reference counts of any arrays contained within (but not behind references or
 //! inside nested arrays). This document also focuses on arrays but all reference count operations
-//! on arrays are also performed on slices.
+//! on arrays are also performed on vectors.
 //!
 //! Arrays in brillig have copy on write semantics which relies on us incrementing their
 //! reference counts when they are shared in multiple places. Note that while Noir has references,
@@ -126,17 +126,14 @@ impl Context {
         }
     }
 
-    /// Handle the rhs of a `&expr` unary expression.
+    /// Handle the RHS of a `&expr` unary expression.
     /// Variables and field accesses in these expressions are exempt from clones.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
-    ///
-    /// # Returns
-    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
-    fn handle_reference_expression(&mut self, expr: &mut Expression) -> bool {
+    fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
-            Expression::Ident(_) => false,
+            Expression::Ident(_) => (),
             Expression::Block(exprs) => {
                 let len_minus_one = exprs.len().saturating_sub(1);
                 for expr in exprs.iter_mut().take(len_minus_one) {
@@ -144,31 +141,29 @@ impl Context {
                     self.handle_expression(expr);
                 }
                 if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr)
-                } else {
-                    true
+                    self.handle_reference_expression(expr);
                 }
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
-                self.handle_reference_expression(rhs)
+                self.handle_reference_expression(rhs);
             }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
 
             Expression::Index(index) => {
-                let is_moved = self.handle_reference_expression(&mut index.collection);
+                self.handle_reference_expression(&mut index.collection);
                 self.handle_expression(&mut index.index);
-                is_moved
             }
 
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
-            other => {
-                self.handle_expression(other);
-                true
-            }
+            other => self.handle_expression(other),
         }
     }
 
+    /// Handle an [Expression::ExtractTupleField] by moving the cloning to limit its scope to the
+    /// innermost item it needs to be applied to.
+    ///
+    /// Panics if called on a different kind of expression.
     fn handle_extract_expression(&mut self, expr: &mut Expression) {
         let Expression::ExtractTupleField(tuple, index) = expr else {
             panic!("handle_extract_expression given non-extract expression {expr}");
@@ -178,10 +173,11 @@ impl Context {
         // so we check here to move the clone to the outermost extract expression instead.
         // E.g. we want to change `a.clone().b.c` to `a.b.c.clone()`.
         if let Some((should_clone, tuple_type)) = self.handle_extract_expression_rec(tuple) {
-            if let Some(elements) = unwrap_tuple_type(tuple_type) {
-                if should_clone && contains_array_or_str_type(&elements[*index]) {
-                    clone_expr(expr);
-                }
+            if let Some(elements) = unwrap_tuple_type(tuple_type)
+                && should_clone
+                && contains_array_or_str_type(&elements[*index])
+            {
+                clone_expr(expr);
             }
         } else {
             self.handle_expression(tuple);
@@ -190,6 +186,7 @@ impl Context {
 
     /// Traverse an expression comprised of only identifiers, tuple field extractions, and
     /// dereferences returning whether we should clone the result and the type of that result.
+    ///
     /// Returns None if a different expression variant was found.
     fn handle_extract_expression_rec(&mut self, expr: &mut Expression) -> Option<(bool, Type)> {
         match expr {
@@ -245,10 +242,15 @@ impl Context {
 
             Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
-            Literal::Array(array) | Literal::Slice(array) => {
+            Literal::Array(array) | Literal::Vector(array) => {
                 for element in array.contents.iter_mut() {
                     self.handle_expression(element);
                 }
+            }
+
+            Literal::Repeated { element, .. } => {
+                self.handle_expression(element);
+                // Reference counting for repeated arrays is handled in SSA via inc_rc instructions
             }
         }
     }
@@ -282,15 +284,15 @@ impl Context {
 
     fn handle_index(&mut self, index_expr: &mut Expression) {
         let Expression::Index(index) = index_expr else {
-            panic!("handle_index should only be called with Index nodes");
+            panic!("handle_index given non-index expression: {index_expr}");
         };
 
         // Don't clone the collection, cloning only the resulting element is cheaper.
-        let is_moved = self.handle_reference_expression(&mut index.collection);
+        self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
         // If the index collection is being borrowed we need to clone the result.
-        if !is_moved && contains_array_or_str_type(&index.element_type) {
+        if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
@@ -319,6 +321,12 @@ impl Context {
     }
 
     fn handle_match(&mut self, match_expr: &mut crate::monomorphization::ast::Match) {
+        // Note: We don't need to explicitly handle `Match::variable_to_match` here.
+        // The matched variable is just a LocalId reference to a variable that was assigned earlier.
+        // Cloning for that variable happens at its use sites (e.g., when passed to the enum
+        // constructor or used after the match), not at the match expression itself.
+        // The match will only destructure the value; it doesn't "use" the variable in a way that
+        // requires additional cloning beyond what the last-use analysis already handles.
         for case in &mut match_expr.cases {
             self.handle_expression(&mut case.branch);
         }
@@ -338,20 +346,6 @@ impl Context {
         self.handle_expression(&mut call.func);
         for arg in &mut call.arguments {
             self.handle_expression(arg);
-        }
-
-        // Hack to avoid clones when calling `array.len()`.
-        // That function takes arrays by value but we know it never mutates them.
-        if let Expression::Ident(ident) = call.func.as_ref() {
-            if let Definition::Builtin(name) = &ident.definition {
-                if name == "array_len" {
-                    if let Some(Expression::Clone(array)) = call.arguments.get_mut(0) {
-                        let array =
-                            std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
-                        call.arguments[0] = array;
-                    }
-                }
-            }
         }
     }
 
@@ -422,6 +416,8 @@ fn clone_expr(expr: &mut Expression) {
     *expr = Expression::Clone(Box::new(old_expr));
 }
 
+/// Returns `true` if the type contains an `Array`, `Vector`, `String` or `FmtString`,
+/// directly or as part of a `Tuple`, but _not_ through a reference.
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {
         Type::Field
@@ -431,12 +427,15 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
         | Type::Function(..)
         | Type::Reference(..) => false,
 
-        Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
+        Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Vector(_) => true,
 
         Type::Tuple(elements) => elements.iter().any(contains_array_or_str_type),
     }
 }
 
+/// Returns the element types of a [Type::Tuple], or a reference to a tuple.
+///
+/// Returns `None` for any other type.
 fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
         Type::Tuple(elements) => Some(elements),

@@ -486,7 +486,7 @@ impl<
     pub fn fuzz(&mut self) -> FuzzTestResult {
         self.metrics.set_num_threads(self.num_threads);
         // Generate a seed for the campaign
-        let seed = thread_rng().r#gen::<u64>();
+        let seed = rand::rng().random::<u64>();
 
         // Init a fast PRNG used throughout the campaign
         let mut prng = XorShiftRng::seed_from_u64(seed);
@@ -529,7 +529,7 @@ impl<
         }
         let abi_change_detected = elements_for_dictionary.is_some();
         if let Some(elements_for_dictionary) = elements_for_dictionary {
-            self.mutator.update_dictionary_from_vector(&elements_for_dictionary);
+            self.mutator.update_dictionary_from_slice(&elements_for_dictionary);
         }
 
         let minimized_corpus = if self.minimize_corpus {
@@ -804,11 +804,8 @@ impl<
                     }
                 };
                 // If we ran ACIR and managed to produce an ACIR witness
-                if acir_round {
-                    if let Some(ref witness) = witness {
-                        accumulated_coverage
-                            .update_non_bool_witness_list_with_witness_stack(witness);
-                    }
+                if acir_round && let Some(ref witness) = witness {
+                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(witness);
                 }
 
                 // Form the coverage object to accumulate

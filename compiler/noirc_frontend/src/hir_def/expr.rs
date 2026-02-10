@@ -2,14 +2,15 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
+use crate::{Shared, TypeBindings};
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -58,6 +59,9 @@ pub struct HirIdent {
 }
 
 impl HirIdent {
+    /// Create a [HirIdent] with [ImplKind::NotATraitMethod].
+    ///
+    /// It may not be a method at all.
     pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
         Self { id, location, impl_kind: ImplKind::NotATraitMethod }
     }
@@ -122,7 +126,7 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
-    Slice(HirArrayLiteral),
+    Vector(HirArrayLiteral),
     Bool(bool),
     Integer(SignedField),
     Str(String),
@@ -170,7 +174,7 @@ pub struct HirInfixExpression {
     /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
     /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
     /// after the call to `Eq::eq` to get the result of the `!=` operator.
-    pub trait_method_id: TraitItemId,
+    pub trait_method_id: Option<TraitItemId>,
 }
 
 /// This is always a struct field access `my_struct.field`
@@ -230,7 +234,11 @@ pub struct HirMethodCallExpression {
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
-pub struct HirConstrainExpression(pub ExprId, pub FileId, pub Option<ExprId>);
+pub struct HirConstrainExpression(
+    /*condition*/ pub ExprId,
+    pub FileId,
+    /*message*/ pub Option<ExprId>,
+);
 
 #[derive(Debug, Clone)]
 pub enum HirMethodReference {
@@ -242,36 +250,54 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitItemId(DefinitionId, TraitId, TraitGenerics, bool /* assumed */),
+    TraitItemId(HirTraitMethodReference),
+}
+
+#[derive(Debug, Clone)]
+pub struct HirTraitMethodReference {
+    pub trait_id: TraitId,
+    pub definition: DefinitionId,
+    pub trait_generics: TraitGenerics,
+    pub assumed: bool,
 }
 
 impl HirMethodReference {
+    /// Return the [FuncId] of a method if it's known.
+    ///
+    /// Returns `None` for trait methods don't have a know function definition.
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
-            HirMethodReference::TraitItemId(method_id, _, _, _) => {
-                match &interner.try_definition(*method_id)?.kind {
-                    DefinitionKind::Function(func_id) => Some(*func_id),
+            HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) => {
+                match interner.definition(*definition).kind {
+                    DefinitionKind::Function(func_id) => Some(func_id),
                     _ => None,
                 }
             }
         }
     }
 
+    /// Looks up definition of a function and its implementation kind (a normal function or a trait method),
+    /// and interns an identifier we can use to call the function.
     pub fn into_function_id_and_name(
         self,
         object_type: Type,
         generics: Option<Vec<Type>>,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirIdent) {
+    ) -> (PushedExpr<HasLocation>, HirIdent) {
         let (id, impl_kind) = match self {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitItemId(definition, trait_id, trait_generics, assumed) => {
+            HirMethodReference::TraitItemId(HirTraitMethodReference {
+                definition,
+                trait_id,
+                trait_generics,
+                assumed,
+            }) => {
                 let constraint = TraitConstraint {
-                    typ: object_type,
+                    typ: Self::find_self_type(definition, object_type, interner),
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
@@ -279,9 +305,50 @@ impl HirMethodReference {
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location);
+        let func = interner
+            .push_expr(HirExpression::Ident(func_var.clone(), generics))
+            .push_location(interner, location);
         (func, func_var)
+    }
+
+    /// Find what the trait's Self type should be to construct the trait constraint, given the type
+    /// of its first argument. Assuming this is a method call, it should be sufficient to expect
+    /// Self is somewhere within the first argument. Usually the first parameter is either `Self`
+    /// or `&mut Self`.
+    ///
+    /// This defaults to `object_type` if there are any unexpected type errors (expected to be
+    /// issued elsewhere).
+    fn find_self_type(
+        definition: DefinitionId,
+        object_type: Type,
+        interner: &NodeInterner,
+    ) -> Type {
+        // Get the function type, e.g: `fn(&mut Self, i32) -> Field`
+        let function_type = interner.definition_type(definition);
+
+        // Instantiate, e.g: `fn(&mut ?Self, A, B) -> C`
+        let (instantiated, _bindings) = function_type.instantiate(interner);
+        let instantiated = instantiated.follow_bindings_shallow();
+
+        let first_parameter = match instantiated.as_ref() {
+            Type::Function(parameters, _, _, _) if !parameters.is_empty() => &parameters[0],
+            _ => return object_type,
+        };
+
+        // Match the first parameter, expected to be `?Self` or `&mut ?Self` to our object type. If
+        // successful, we expect `bindings` to have a single binding of `?Self` to either our
+        // object type or its element type, if it is a reference. Note that unifying here also
+        // handles the case where `object_type` is unbound but is discovered (here) that it must at
+        // least be a reference.
+        let mut bindings = TypeBindings::default();
+        if object_type.try_unify(first_parameter, &mut bindings).is_ok() && bindings.len() == 1 {
+            // We're expecting `Self` or `&mut Self`, where `Self` becomes a type variable after
+            // instantiation, so the value of `Self` for the constraint should be what it is bound
+            // to in `bindings`.
+            bindings.into_values().next().unwrap().2
+        } else {
+            object_type
+        }
     }
 }
 
@@ -371,6 +438,7 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

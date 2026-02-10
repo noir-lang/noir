@@ -18,6 +18,7 @@ fn test_valid_ecdsa_signature_secp256r1() {
         corrupt_pubkey_x: false,
         corrupt_pubkey_y: false,
         corrupt_signature: false,
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
@@ -46,6 +47,7 @@ fn test_valid_ecdsa_signature_secp256k1() {
         corrupt_pubkey_x: false,
         corrupt_pubkey_y: false,
         corrupt_signature: false,
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
@@ -65,7 +67,6 @@ fn test_valid_ecdsa_signature_secp256k1() {
 }
 
 #[test]
-#[should_panic]
 fn test_corrupted_ecdsa_signature_secp256r1() {
     let _ = env_logger::try_init();
     let msg = [122, 97, 109, 97, 121];
@@ -75,6 +76,7 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
         corrupt_pubkey_x: true,
         corrupt_pubkey_y: true,
         corrupt_signature: true,
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
@@ -101,7 +103,6 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
 }
 
 #[test]
-#[should_panic]
 fn test_corrupted_ecdsa_signature_secp256k1() {
     let _ = env_logger::try_init();
     let msg = [122, 97, 109, 97, 121];
@@ -111,6 +112,7 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
         corrupt_pubkey_x: true,
         corrupt_pubkey_y: true,
         corrupt_signature: true,
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];

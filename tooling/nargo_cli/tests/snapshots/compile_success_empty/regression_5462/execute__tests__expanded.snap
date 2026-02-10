@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let empty_slice: [u8] = &[];
-    if empty_slice != &[] {
-        let _: (u8, [u8]) = empty_slice.pop_front();
+    let empty_vector: [u8] = [].as_vector();
+    if empty_vector != [].as_vector() {
+        let _: (u8, [u8]) = empty_vector.pop_front();
     };
-    if empty_slice.len() != 0_u32 {
-        let _: (u8, [u8]) = empty_slice.pop_front();
+    if empty_vector.len() != 0_u32 {
+        let _: (u8, [u8]) = empty_vector.pop_front();
     }
 }

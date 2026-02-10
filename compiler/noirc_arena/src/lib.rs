@@ -6,14 +6,6 @@ use std::fmt;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct Index(usize);
 
-impl Index {
-    /// Return a dummy index (max value internally).
-    /// This should be avoided over `Option<Index>` if possible.
-    pub fn dummy() -> Self {
-        Self(usize::MAX)
-    }
-}
-
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)

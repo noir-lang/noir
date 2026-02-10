@@ -26,27 +26,46 @@ use crate::{
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
+        opt::{LoopOrder, Loops},
         ssa_gen::Ssa,
     },
 };
 
-use super::unrolling::Loops;
-
 impl Ssa {
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn evaluate_static_assert_and_assert_constant(
+    pub(crate) fn evaluate_static_assert_and_assert_constant(self) -> Result<Ssa, RuntimeError> {
+        let error_on_failure = true;
+        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
+    }
+
+    /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn try_evaluate_static_assert_and_assert_constant(
+        self,
+    ) -> Result<Ssa, RuntimeError> {
+        let error_on_failure = false;
+        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
+    }
+
+    /// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
+    /// or `static_assert` is detected.
+    fn evaluate_static_assert_and_assert_constant_helper(
         mut self,
+        error_on_failure: bool,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            function.evaluate_static_assert_and_assert_constant()?;
+            function.evaluate_static_assert_and_assert_constant(error_on_failure)?;
         }
         Ok(self)
     }
 }
 
 impl Function {
-    fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
+    fn evaluate_static_assert_and_assert_constant(
+        &mut self,
+        error_on_failure: bool,
+    ) -> Result<(), RuntimeError> {
         let assert_constant_id = self.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
         let static_assert_id = self.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
         if assert_constant_id.is_none() && static_assert_id.is_none() {
@@ -70,6 +89,7 @@ impl Function {
                     assert_constant_id,
                     static_assert_id,
                     inside_empty_loop,
+                    error_on_failure,
                 )? {
                     filtered_instructions.push(instruction);
                 }
@@ -83,7 +103,7 @@ impl Function {
 
 /// Returns all of a function's block that are part of empty loops.
 fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
-    let loops = Loops::find_all(function);
+    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
 
     let cfg = ControlFlowGraph::with_function(function);
     let mut blocks_within_empty_loop = HashSet::default();
@@ -116,12 +136,16 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
 ///
 /// This returns Ok(true) if the given instruction should be kept in the block and
 /// Ok(false) if it should be removed.
+///
+/// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
+/// or `static_assert` is detected.
 fn check_instruction(
-    function: &mut Function,
+    function: &Function,
     instruction: InstructionId,
     assert_constant_id: Option<ValueId>,
     static_assert_id: Option<ValueId>,
     inside_empty_loop: bool,
+    error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
@@ -134,9 +158,9 @@ fn check_instruction(
             }
 
             if is_assert_constant {
-                evaluate_assert_constant(function, instruction, arguments)
+                evaluate_assert_constant(function, instruction, arguments, error_on_failure)
             } else if is_static_assert {
-                evaluate_static_assert(function, instruction, arguments)
+                evaluate_static_assert(function, instruction, arguments, error_on_failure)
             } else {
                 Ok(true)
             }
@@ -149,16 +173,22 @@ fn check_instruction(
 /// constants. If all of the elements are constants, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled
 /// since it has already been evaluated.
+///
+/// If `error_on_failure` is set, an error is thrown when a failing `static_assert`
+/// is detected.
 fn evaluate_assert_constant(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
+    error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
-    } else {
+    } else if error_on_failure {
         let call_stack = function.dfg.get_instruction_call_stack(instruction);
         Err(RuntimeError::AssertConstantFailed { call_stack })
+    } else {
+        Ok(true)
     }
 }
 
@@ -168,10 +198,14 @@ fn evaluate_assert_constant(
 /// When it passes, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled
 /// since it has already been evaluated.
+///
+/// If `error_on_failure` is set, an error is thrown when a failing `assert_constant`
+/// is detected.
 fn evaluate_static_assert(
     function: &Function,
     instruction: InstructionId,
     arguments: &[ValueId],
+    error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
     if arguments.len() < 2 {
         panic!("ICE: static_assert called with wrong number of arguments")
@@ -179,6 +213,10 @@ fn evaluate_static_assert(
 
     // To turn the arguments into a string we do the same as we'd do if the arguments
     // were passed to the built-in foreign call "print" functions.
+    //
+    // We do this before checking whether the argument to `static_assert` is true because
+    // the message argument might end up being dynamic, and we want to report that error
+    // even if the assertion would have passed.
     let mut foreign_call_params = Vec::with_capacity(arguments.len() - 1);
     for arg in arguments.iter().skip(1) {
         append_foreign_call_param(*arg, &function.dfg, instruction, &mut foreign_call_params)?;
@@ -203,10 +241,18 @@ fn evaluate_static_assert(
 
     let call_stack = function.dfg.get_instruction_call_stack(instruction);
     if !function.dfg.is_constant(arguments[0]) {
-        return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+        if error_on_failure {
+            return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+        } else {
+            return Ok(true);
+        }
     }
 
-    Err(RuntimeError::StaticAssertFailed { message, call_stack })
+    if error_on_failure {
+        Err(RuntimeError::StaticAssertFailed { message, call_stack })
+    } else {
+        Ok(true)
+    }
 }
 
 fn append_foreign_call_param(
@@ -231,7 +277,7 @@ fn append_foreign_call_param(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::ssa_gen::Ssa};
 
     #[test]

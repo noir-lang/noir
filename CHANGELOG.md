@@ -1,5 +1,331 @@
 # Changelog
 
+## [1.0.0-beta.18](https://github.com/noir-lang/noir/compare/v1.0.0-beta.17...v1.0.0-beta.18) (2026-01-06)
+
+
+### Features
+
+* **frontend:** Skip comptime evaluation on elaboration failure ([#10741](https://github.com/noir-lang/noir/issues/10741)) ([b784048](https://github.com/noir-lang/noir/commit/b78404829adef044a34d641e9a751fef342ac15b))
+* Improved error message when if is missing its condition ([#11037](https://github.com/noir-lang/noir/issues/11037)) ([abfee1f](https://github.com/noir-lang/noir/commit/abfee1f54b20984172ba23482f4af160395cfba5))
+* Panic message can be str or fmtstr ([#10004](https://github.com/noir-lang/noir/issues/10004)) ([dbdfe6f](https://github.com/noir-lang/noir/commit/dbdfe6f0890970cad2aad6e58228a1899c833adc))
+
+
+### Bug Fixes
+
+* **acir:** Always increment the dynamic slice length during push back ([#10940](https://github.com/noir-lang/noir/issues/10940)) ([ab4978f](https://github.com/noir-lang/noir/commit/ab4978fbf5afa244acc65647ef6fcfd1080c73eb))
+* **acir:** Grow element type sizes array on slice ops ([#10951](https://github.com/noir-lang/noir/issues/10951)) ([181f3c2](https://github.com/noir-lang/noir/commit/181f3c26b24aa65e2d2b121a16007a547ddde134))
+* **acir:** Read slices with their type ([#10939](https://github.com/noir-lang/noir/issues/10939)) ([240a4d5](https://github.com/noir-lang/noir/commit/240a4d5204ac77f85bca27a5cf7065c90efce0ca))
+* Add missing "cannot" in error message ([#10937](https://github.com/noir-lang/noir/issues/10937)) ([e2cdc0b](https://github.com/noir-lang/noir/commit/e2cdc0b725ea1f5fa882fedfb91f6646453dbfa3))
+* Address race condition in parallel noir_js build ([#11028](https://github.com/noir-lang/noir/issues/11028)) ([d08a41c](https://github.com/noir-lang/noir/commit/d08a41c82a2eca4cfd5facb197c851ac808343a1))
+* Avoid wrapping around for capacity ([#11042](https://github.com/noir-lang/noir/issues/11042)) ([5d72c67](https://github.com/noir-lang/noir/commit/5d72c67e346c7e92ecc284cb6370631ef3005cc9))
+* Check duplicate name across types and constants ([#10906](https://github.com/noir-lang/noir/issues/10906)) ([c72a05e](https://github.com/noir-lang/noir/commit/c72a05e23ad8f393d257869afed30791f151fc25))
+* Comptime fmtstr display ([#11074](https://github.com/noir-lang/noir/issues/11074)) ([35ae96c](https://github.com/noir-lang/noir/commit/35ae96c94eca403845d3d3b840569211df76bc05))
+* **comptime:** Lower fmtstr to fmtstr, not str ([#11002](https://github.com/noir-lang/noir/issues/11002)) ([177e05f](https://github.com/noir-lang/noir/commit/177e05f2445eec0b2704ce5b979761bc192cadb9))
+* Correct type bindings when invoking closure in comptime interpreter ([#10672](https://github.com/noir-lang/noir/issues/10672)) ([8d757a3](https://github.com/noir-lang/noir/commit/8d757a3d333aabfa754e763e6dda8117b4000c25))
+* Defining an impl on a type alias ([#11068](https://github.com/noir-lang/noir/issues/11068)) ([3abfbf8](https://github.com/noir-lang/noir/commit/3abfbf8bbc9a6dafb335fda2200c69ab1705bf70))
+* Do not bind unification ([#10919](https://github.com/noir-lang/noir/issues/10919)) ([1ad815e](https://github.com/noir-lang/noir/commit/1ad815e8d37d8bd8ff99ebd9803c8d966698c6e5))
+* Do not mark witness as equivalent to a constant ([#11072](https://github.com/noir-lang/noir/issues/11072)) ([e91e684](https://github.com/noir-lang/noir/commit/e91e68446df6d9819b14d81126cba6c5bdb26213))
+* Don't allow unknown witnesses in CircuitSimulator write op ([#11077](https://github.com/noir-lang/noir/issues/11077)) ([078c746](https://github.com/noir-lang/noir/commit/078c7463a3a7a69d56f24fd39a42af19b863c958))
+* Don't assume default entry exists ([#9330](https://github.com/noir-lang/noir/issues/9330)) ([d8c37ea](https://github.com/noir-lang/noir/commit/d8c37eaaf0c5287abf33c3293b462bc8aa147f51))
+* **elaborator:** Filter skipped interpreter error when calling macro arguments   ([#11019](https://github.com/noir-lang/noir/issues/11019)) ([f9553b6](https://github.com/noir-lang/noir/commit/f9553b6232dc48aa22a550077879ea477e206ce4))
+* Error if trait impl associated type is missing its body ([#11076](https://github.com/noir-lang/noir/issues/11076)) ([9fca3a7](https://github.com/noir-lang/noir/commit/9fca3a78e5b6304a488c2b837bdc97306bb89ab8))
+* Error on returning unit type in empty array ([#10844](https://github.com/noir-lang/noir/issues/10844)) ([d201d96](https://github.com/noir-lang/noir/commit/d201d960f888268751eaa9fb5b3e338b4a455f03))
+* **examples:** Fails CI when any of `just examples` errors out ([#10956](https://github.com/noir-lang/noir/issues/10956)) ([dff029d](https://github.com/noir-lang/noir/commit/dff029ddba970efe9e1b3ad06c8261aaf52a18e2))
+* **examples:** Fix the `browser` example ([#10966](https://github.com/noir-lang/noir/issues/10966)) ([366fa46](https://github.com/noir-lang/noir/commit/366fa46a17d5b4f050f8a51c4110e41ef15bb5c2))
+* **examples:** Update the `recursion` example to use `bb` version `3.0.0-nightly.20251104` ([#10964](https://github.com/noir-lang/noir/issues/10964)) ([d8bb035](https://github.com/noir-lang/noir/commit/d8bb0355d184c940f90af179d52f14fdf9ae80d7))
+* **examples:** Update the `solidity_verifier` example ([#10965](https://github.com/noir-lang/noir/issues/10965)) ([dc21601](https://github.com/noir-lang/noir/commit/dc2160106f49f8a4e0be75d581b9fcd03e1c58da))
+* Find associated types via their name ([#10920](https://github.com/noir-lang/noir/issues/10920)) ([f1d6f56](https://github.com/noir-lang/noir/commit/f1d6f5601135f38c5b76ebb6b4c438a01c314c8a))
+* **fmt:** Handle negative literals in turbofish ([#11015](https://github.com/noir-lang/noir/issues/11015)) ([1c73ac0](https://github.com/noir-lang/noir/commit/1c73ac05439f4f0a072991a04f58aaec175d9312))
+* Fold attribute unit parameter error ([#11073](https://github.com/noir-lang/noir/issues/11073)) ([32f513f](https://github.com/noir-lang/noir/commit/32f513fc50fe50c3d3dbfdf21aa62c6eab687d57))
+* **fuzzer:** Add the "in" keyword to `make_name` ([#10957](https://github.com/noir-lang/noir/issues/10957)) ([be15de4](https://github.com/noir-lang/noir/commit/be15de4b4cc2f66e3e5b44af7e1f9af7a2f85044))
+* **LSP:** Show fn env and omit unit return type in inlay hints ([#10566](https://github.com/noir-lang/noir/issues/10566)) ([dbc5585](https://github.com/noir-lang/noir/commit/dbc5585cf317e7ef71d05506043663383e89ec88))
+* Maximum recursion depth for the parser ([#10955](https://github.com/noir-lang/noir/issues/10955)) ([0bf7626](https://github.com/noir-lang/noir/commit/0bf762690b7d58296976ae05a0beaf5b9eb3ddde))
+* **mem2reg:** Array set value aliases across blocks ([#11036](https://github.com/noir-lang/noir/issues/11036)) ([e6e5616](https://github.com/noir-lang/noir/commit/e6e56167903682f6a16dc0ce420bb422ce8804e9))
+* **mem2reg:** Loop carried aliases ([#11018](https://github.com/noir-lang/noir/issues/11018)) ([4c79b1c](https://github.com/noir-lang/noir/commit/4c79b1c42e65ba08ffb750941ed235bbf71f5795))
+* Reference aliases in if_else arrays ([#10902](https://github.com/noir-lang/noir/issues/10902)) ([436f025](https://github.com/noir-lang/noir/commit/436f025532e0bb85c8aca8aee8857b473cd02388))
+* Restore the previous state in case of error ([#10954](https://github.com/noir-lang/noir/issues/10954)) ([2039605](https://github.com/noir-lang/noir/commit/2039605281a19d67ec14caad5f39ebb51d8bfe1d))
+* Skip release-end job when release PR isn't updated ([#11031](https://github.com/noir-lang/noir/issues/11031)) ([0a365c8](https://github.com/noir-lang/noir/commit/0a365c89fc601cf1fb2faf2ef1db0de0a517ec3c))
+* **ssa:** Insert `enable_side_effects` before `Constrain` ([#10936](https://github.com/noir-lang/noir/issues/10936)) ([5470218](https://github.com/noir-lang/noir/commit/547021879aadc09caf0a20a506b250900a0f4810))
+* **ssa:** Override the vector capacity if we have already determined a constant length ([#10963](https://github.com/noir-lang/noir/issues/10963)) ([4566208](https://github.com/noir-lang/noir/commit/4566208cf96799a13bd2aeac5a74b6c2a2272d62))
+* **ssa:** Pop elements from input slice for slice pop back simplification ([#10941](https://github.com/noir-lang/noir/issues/10941)) ([e28ef53](https://github.com/noir-lang/noir/commit/e28ef5330e3d4e0e9bd26b7e813df2c2bf1cfaee))
+* **SSA:** Validate that enable_side_effects takes a u1 ([#11001](https://github.com/noir-lang/noir/issues/11001)) ([40847e0](https://github.com/noir-lang/noir/commit/40847e0b83c68be37fe9f27bb5391a9990c3f5a6))
+* Transform into constrain_not_equal outside enable_side_effects ([#10935](https://github.com/noir-lang/noir/issues/10935)) ([417d667](https://github.com/noir-lang/noir/commit/417d66755679e8a563138b6cbcdc88b27f1c5740))
+* Type alias of unit return type of main function ([#11038](https://github.com/noir-lang/noir/issues/11038)) ([2f1315f](https://github.com/noir-lang/noir/commit/2f1315f4835d25a0a383e79ea4fd890a63449077))
+* Update values on all blocks during constant folding ([#10952](https://github.com/noir-lang/noir/issues/10952)) ([c44eebd](https://github.com/noir-lang/noir/commit/c44eebd91da2b4ee3fa35ca527b862ab36ddae3e))
+
+## [1.0.0-beta.17](https://github.com/noir-lang/noir/compare/v1.0.0-beta.16...v1.0.0-beta.17) (2025-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove protobuf ([#9055](https://github.com/noir-lang/noir/issues/9055))
+* remove `expression-width` from compile options ([#10845](https://github.com/noir-lang/noir/issues/10845))
+
+### Features
+
+* Always check bitsize of logical operation inputs ([#10750](https://github.com/noir-lang/noir/issues/10750)) ([6d9dcae](https://github.com/noir-lang/noir/commit/6d9dcae76a4cd9e1d756b14e27604970e01098e0))
+* Always perform pedantic checks on embedded curve operations ([#10776](https://github.com/noir-lang/noir/issues/10776)) ([9297904](https://github.com/noir-lang/noir/commit/929790438ed336cf246072b4c3e13df1a5199bdd))
+* **brillig:** Show Brillig opcode advisories ([#10746](https://github.com/noir-lang/noir/issues/10746)) ([50c3d0f](https://github.com/noir-lang/noir/commit/50c3d0f563e83fcf563f7260cf1417c2e74c71f1))
+* **doc:** Mobile style ([#10760](https://github.com/noir-lang/noir/issues/10760)) ([6fa1a4b](https://github.com/noir-lang/noir/commit/6fa1a4bd35006b292e21b26b217f20101d84c8e1))
+* Remove `bounded-codegen` feature from ACIRgen ([#10693](https://github.com/noir-lang/noir/issues/10693)) ([a3b5f97](https://github.com/noir-lang/noir/commit/a3b5f9752ce0141df75db30edaeb121e5e010e3d))
+
+
+### Bug Fixes
+
+* **acir:** Do not read empty array under inactive predicates for various slice ops ([#10882](https://github.com/noir-lang/noir/issues/10882)) ([5a65dae](https://github.com/noir-lang/noir/commit/5a65daee121a836e2c084b9839159163d4811c20))
+* **acir:** Nested array slice pop back  ([#10871](https://github.com/noir-lang/noir/issues/10871)) ([c9669fc](https://github.com/noir-lang/noir/commit/c9669fcb45182513d86d0832d62808d96c02f266))
+* Apply_range_constraint off-by-one error ([#10692](https://github.com/noir-lang/noir/issues/10692)) ([2c47c5a](https://github.com/noir-lang/noir/commit/2c47c5ab47c230cfa186c2eb27383cc8f5b533ce))
+* Avoid possible overflow during truncation ([#10841](https://github.com/noir-lang/noir/issues/10841)) ([9a5ea6f](https://github.com/noir-lang/noir/commit/9a5ea6f3cae79e2a0b83082b93462d28fce61151))
+* **brillig:** Fix lookup for the back-edge ([#10816](https://github.com/noir-lang/noir/issues/10816)) ([6e73ab4](https://github.com/noir-lang/noir/commit/6e73ab4a06152778d91f3cbfd17acfdf9ca851c6))
+* Capture variables in lambda by copy ([#10683](https://github.com/noir-lang/noir/issues/10683)) ([bc40e89](https://github.com/noir-lang/noir/commit/bc40e892bdc179077cb08a30965aad8d4c2247bd))
+* Check types crossing boundaries during monomorphization too ([#10803](https://github.com/noir-lang/noir/issues/10803)) ([084ed53](https://github.com/noir-lang/noir/commit/084ed530b4bddd6733d03f9d965669aa9a87fae7))
+* **comptime:** `zeroed` returned `U8(0)` for `u1` ([#10892](https://github.com/noir-lang/noir/issues/10892)) ([a65b988](https://github.com/noir-lang/noir/commit/a65b9886a9f90800bd6050cb02d987c09a53f032))
+* Disallow no-predicates on entry points ([#10847](https://github.com/noir-lang/noir/issues/10847)) ([132eaee](https://github.com/noir-lang/noir/commit/132eaee4af4a0b589ce52be093c36702f35e07e0))
+* Do not crash on invalid strings ([#10739](https://github.com/noir-lang/noir/issues/10739)) ([00eadc5](https://github.com/noir-lang/noir/commit/00eadc5b94f900fac3eede72d9024d61086329f4))
+* Don't capture comptime vars in closures ([#10737](https://github.com/noir-lang/noir/issues/10737)) ([3900aa8](https://github.com/noir-lang/noir/commit/3900aa878cd851891a5e05c800943391932e7b4d))
+* Element type sizes array has extra room for slice_insert ([#10742](https://github.com/noir-lang/noir/issues/10742)) ([b5f559f](https://github.com/noir-lang/noir/commit/b5f559fd7aff6449a13a8687f3f0c1706bbf7549))
+* Error on duplicate field in set_fields ([#10726](https://github.com/noir-lang/noir/issues/10726)) ([a5edaa6](https://github.com/noir-lang/noir/commit/a5edaa61161198bd1f0f66952c671bc879366dfd))
+* Error on wrong Ordering trait, instead of panic. ([#10895](https://github.com/noir-lang/noir/issues/10895)) ([10ab9a5](https://github.com/noir-lang/noir/commit/10ab9a54ad8c8640c9a08495904404a3d0822e43))
+* Fix calling type variables of kind `Any` ([#10724](https://github.com/noir-lang/noir/issues/10724)) ([9493100](https://github.com/noir-lang/noir/commit/9493100ea745f2bea79632f4132220b773494a01))
+* Fix no numeric generic given leading to panic ([#10725](https://github.com/noir-lang/noir/issues/10725)) ([131f9bc](https://github.com/noir-lang/noir/commit/131f9bc7bdd53b7b529ea7868bb5b5605baccf8d))
+* **frontend:** Allow indirect calls to oracles from constrained functions  ([#10826](https://github.com/noir-lang/noir/issues/10826)) ([a4c1387](https://github.com/noir-lang/noir/commit/a4c13872630141d6e728cfff3b36f004e013e4bb))
+* Handle u128 indices in comptime interpreter ([#10867](https://github.com/noir-lang/noir/issues/10867)) ([723dd59](https://github.com/noir-lang/noir/commit/723dd59f48cc937e66f15ffbdb3927687952563a))
+* Implement `checked_transmute` in the comptime interpreter ([#10732](https://github.com/noir-lang/noir/issues/10732)) ([a4391f8](https://github.com/noir-lang/noir/commit/a4391f8c4dd5dfb5b8e559527bfc3cfbed5ad6b9))
+* Iterative decompose_constrain ([#10818](https://github.com/noir-lang/noir/issues/10818)) ([c25124d](https://github.com/noir-lang/noir/commit/c25124d983b1591b8b49b8f0d3168ea64c23ada3))
+* Keep track of comptime closure callstack ([#10735](https://github.com/noir-lang/noir/issues/10735)) ([7615632](https://github.com/noir-lang/noir/commit/7615632df856497750d6c0f856643a93df7dc40f))
+* **lexer:** Don't create broken span on broken interpolation ([#10722](https://github.com/noir-lang/noir/issues/10722)) ([20473e1](https://github.com/noir-lang/noir/commit/20473e1c85f835cf8d25ac1efd64fff292b78ec4))
+* **LSP:** Correct link range for doc comment references ([#10769](https://github.com/noir-lang/noir/issues/10769)) ([40146b9](https://github.com/noir-lang/noir/commit/40146b93c0ee38bdf55dd13058ac966c77a83118))
+* **LSP:** Semantic tokens in trait methods ([#10815](https://github.com/noir-lang/noir/issues/10815)) ([d4150ea](https://github.com/noir-lang/noir/commit/d4150ea6f903065e7d5a9d6975a749a4e904ed47))
+* Oob check for arrays with 0-size elements ([#10738](https://github.com/noir-lang/noir/issues/10738)) ([16cad49](https://github.com/noir-lang/noir/commit/16cad49bed299e97f664251e6086f3c6a61c0ba2))
+* Restore side effects in interpreter between calls ([#10883](https://github.com/noir-lang/noir/issues/10883)) ([9e3ebd3](https://github.com/noir-lang/noir/commit/9e3ebd3729a49455cef2793e6a8c129cb7689132))
+* SignedField Eq and Hash implementations ([#10671](https://github.com/noir-lang/noir/issues/10671)) ([caaf7c3](https://github.com/noir-lang/noir/commit/caaf7c3d601533e546119994a2798a6f5454083d))
+* Slice with zero size elements ([#10716](https://github.com/noir-lang/noir/issues/10716)) ([e76a832](https://github.com/noir-lang/noir/commit/e76a83247cd3e880b286e9805a3e83a0a29cb575))
+* **ssa:** Clear the SSA interpreter `call_stack` between top level calls ([#10901](https://github.com/noir-lang/noir/issues/10901)) ([438ab72](https://github.com/noir-lang/noir/commit/438ab7267b2b3231924822e74e7ac0a5ac7090a7))
+* Track when witnesses are used in the predicates of brillig calls when merging expressions ([#10922](https://github.com/noir-lang/noir/issues/10922)) ([daf526c](https://github.com/noir-lang/noir/commit/daf526ce21a8574894ea7d7006c78c565df1ee4a))
+* Use try_bind() to check for self-referencing types ([#10905](https://github.com/noir-lang/noir/issues/10905)) ([c3c91a9](https://github.com/noir-lang/noir/commit/c3c91a99258bec1849ad2b92fc1c46b564f2042b))
+* Validate loop range have identical types in comptime ([#10888](https://github.com/noir-lang/noir/issues/10888)) ([56ee0a9](https://github.com/noir-lang/noir/commit/56ee0a9b2f3359b9aab4db4eb538902c8af00956))
+* Wrap value merge of remove-if-else in enabled side effects ([#10740](https://github.com/noir-lang/noir/issues/10740)) ([4eab810](https://github.com/noir-lang/noir/commit/4eab8100c27a1b7d431bdb0b57d58eb9483c973c))
+
+
+### Miscellaneous Chores
+
+* Remove `expression-width` from compile options ([#10845](https://github.com/noir-lang/noir/issues/10845)) ([fe8e10e](https://github.com/noir-lang/noir/commit/fe8e10e649f1c8136e2ed2fa6f3bc784a61932ea))
+* Remove protobuf ([#9055](https://github.com/noir-lang/noir/issues/9055)) ([e0fba02](https://github.com/noir-lang/noir/commit/e0fba023363a21e335d005668923ee05d82ceeab))
+
+## [1.0.0-beta.16](https://github.com/noir-lang/noir/compare/v1.0.0-beta.15...v1.0.0-beta.16) (2025-12-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Do not allow returning functions from unconstrained to constrained ([#10666](https://github.com/noir-lang/noir/issues/10666))
+* **ssa:** Validate that no ACIR-to-Brillig call contains a reference in SSA ([#10497](https://github.com/noir-lang/noir/issues/10497))
+* **frontend:** Preserve int type when quoting tokens  ([#10330](https://github.com/noir-lang/noir/issues/10330))
+
+### Features
+
+* `nargo execute --force-comptime` ([#10611](https://github.com/noir-lang/noir/issues/10611)) ([1a93035](https://github.com/noir-lang/noir/commit/1a930357477fc0c210dc5a8960680282d4cfa24e))
+* Doc comments inter-links ([#10527](https://github.com/noir-lang/noir/issues/10527)) ([b131feb](https://github.com/noir-lang/noir/commit/b131feb017209eda0189ce40986cb96641323fcf))
+* **doc:** Colorize code blocks ([#10550](https://github.com/noir-lang/noir/issues/10550)) ([271d332](https://github.com/noir-lang/noir/commit/271d332049d25e534dbce77c7f86195407660ae2))
+* **doc:** Show deprecated functions ([#10536](https://github.com/noir-lang/noir/issues/10536)) ([581c878](https://github.com/noir-lang/noir/commit/581c878d9910a361552cc5edc08b4cd440afc656))
+* **fuzz:** Add support for more functions in comptime_vs_brillig_direct ([#10500](https://github.com/noir-lang/noir/issues/10500)) ([9fd2cf1](https://github.com/noir-lang/noir/commit/9fd2cf1aed74715747fab3d4cdc6abdaf6e37b36))
+* **LSP:** Semantic tokens for doc comment code blocks ([#10565](https://github.com/noir-lang/noir/issues/10565)) ([0ffef1c](https://github.com/noir-lang/noir/commit/0ffef1c383ce73611cad6cdd678bce64a1cbceb1))
+* Primitive types doc comments ([#10432](https://github.com/noir-lang/noir/issues/10432)) ([fb1d555](https://github.com/noir-lang/noir/commit/fb1d5553c50973d54d220a8de97381ec13f42604))
+* Remove bit shifts by small known amounts in DIE ([#10680](https://github.com/noir-lang/noir/issues/10680)) ([316aef6](https://github.com/noir-lang/noir/commit/316aef679a9cd8a1faabec66c7052f7ee4319bfc))
+* Remove unnecessary mutation of blackbox functions during flattening ([#10182](https://github.com/noir-lang/noir/issues/10182)) ([050f978](https://github.com/noir-lang/noir/commit/050f9785ba8d109d355360de27428e79b2d7d604))
+* **ssa:** Limit the number of steps executed by the SSA interpreter during constant folding ([#10481](https://github.com/noir-lang/noir/issues/10481)) ([6f0c090](https://github.com/noir-lang/noir/commit/6f0c090d3e8412ce0445200d0e720aae5ee6433c))
+* **test:** Add `--no-run` to `test` command ([#10632](https://github.com/noir-lang/noir/issues/10632)) ([3766725](https://github.com/noir-lang/noir/commit/3766725ba9546d86ee796c7b97cc29b8d37236bd))
+
+
+### Bug Fixes
+
+* **acir-gen:** Use the side effect variable in `slice_pop_back` ([#10455](https://github.com/noir-lang/noir/issues/10455)) ([1bbaffe](https://github.com/noir-lang/noir/commit/1bbaffe34b868226cd95d4282a668b7e57feac9d))
+* Address off-by-one error when calculating bitsize of remainder ([#10721](https://github.com/noir-lang/noir/issues/10721)) ([a0f0517](https://github.com/noir-lang/noir/commit/a0f05179e5db8b6bc82fbc256655bf24a577c1a0))
+* Allow cast in loops upper bound ([#10584](https://github.com/noir-lang/noir/issues/10584)) ([7dfb184](https://github.com/noir-lang/noir/commit/7dfb1845e4ca6d2f0dc0fe96c45e9433aa1f87ef))
+* Avoid adding default entry ([#10679](https://github.com/noir-lang/noir/issues/10679)) ([8eca323](https://github.com/noir-lang/noir/commit/8eca323daa078b5aa207fbb4133fd5b4f23ae1e3))
+* Avoid producing duplicate private error messages ([#10449](https://github.com/noir-lang/noir/issues/10449)) ([06d4363](https://github.com/noir-lang/noir/commit/06d43639d6a29aea192c2368b6de20776a46eade))
+* **brillig_gen:** Switch to iterative variable liveness ([#10460](https://github.com/noir-lang/noir/issues/10460)) ([c117dfa](https://github.com/noir-lang/noir/commit/c117dfab68bfe7e01465259314eda6abaf7a5a8c))
+* **brillig:** Handle the return of multiple vectors from foreign calls ([#10505](https://github.com/noir-lang/noir/issues/10505)) ([a873620](https://github.com/noir-lang/noir/commit/a8736206336afd59b45da4569a55407628c3570f))
+* **brillig:** Prevent wrap-around of the free-memory-pointer ([#10526](https://github.com/noir-lang/noir/issues/10526)) ([d81a38d](https://github.com/noir-lang/noir/commit/d81a38de4d5963d71f637aed1a6f425119b7ea73))
+* **brillig:** Skip decrementing ref-count in array/vector copy and other refactors ([#10335](https://github.com/noir-lang/noir/issues/10335)) ([cf8602d](https://github.com/noir-lang/noir/commit/cf8602db79a1b0f940b90c6d20a0375e30043499))
+* Builtin with body now errors instead of crashing ([#10474](https://github.com/noir-lang/noir/issues/10474)) ([e794b78](https://github.com/noir-lang/noir/commit/e794b78f57948a0555fdf43b78bc12b90982dc0e))
+* Check overflow for Pedersen grumpkin scalars ([#10462](https://github.com/noir-lang/noir/issues/10462)) ([975ef74](https://github.com/noir-lang/noir/commit/975ef74029c784e2df96e05fe3bac27593b3d111))
+* Clarify predicate comment in BrilligCall and Call opcodes ([#10356](https://github.com/noir-lang/noir/issues/10356)) ([1739efd](https://github.com/noir-lang/noir/commit/1739efd8a6e2ee94d4d0e896370f048e957c3f9c))
+* **compiler:** Improve error message for impl on primitive types ([#10430](https://github.com/noir-lang/noir/issues/10430)) ([#10442](https://github.com/noir-lang/noir/issues/10442)) ([f51f756](https://github.com/noir-lang/noir/commit/f51f75613474c532eaf5a3f42316340a13005e5e))
+* **comptime:** Validate that radix decomposition fits in the specified limbs ([#10656](https://github.com/noir-lang/noir/issues/10656)) ([df9c20a](https://github.com/noir-lang/noir/commit/df9c20a655a741a1201b8764aa06200883a99cca))
+* Correct location for out of bounds match case integer ([#10454](https://github.com/noir-lang/noir/issues/10454)) ([36ecc83](https://github.com/noir-lang/noir/commit/36ecc83ad50a16988debe0216dd9b56ae179043a))
+* Defunctionalize foreign functions in pre-SSA pass over mAST ([#10160](https://github.com/noir-lang/noir/issues/10160)) ([597633c](https://github.com/noir-lang/noir/commit/597633c521dc1dbcdc9f62f54f01e4b2c9563440))
+* Disallow comptime-only types in non-comptime globals ([#10458](https://github.com/noir-lang/noir/issues/10458)) ([2a27b18](https://github.com/noir-lang/noir/commit/2a27b186687cab46e6976a68250833d63fd402ec))
+* Disallow keywords in attributes ([#10473](https://github.com/noir-lang/noir/issues/10473)) ([fd27764](https://github.com/noir-lang/noir/commit/fd27764583beb61e7c485cf07b2498ba42d3c386))
+* Do not deduplicate ifelse for Brillig arrays ([#10668](https://github.com/noir-lang/noir/issues/10668)) ([cba5f56](https://github.com/noir-lang/noir/commit/cba5f56a58fcbc627020ad72c0611c3393f95ce4))
+* **doc:** Analyze sub-modules imports before self ([#10390](https://github.com/noir-lang/noir/issues/10390)) ([e2fd76d](https://github.com/noir-lang/noir/commit/e2fd76d4ccccba25975701e51b26b0a2d586889a))
+* **docs:** ACIR array flattening ([#10509](https://github.com/noir-lang/noir/issues/10509)) ([9a55cdc](https://github.com/noir-lang/noir/commit/9a55cdc745299ad716ee5227541182ddc863e31b))
+* Don't remove signed min int division overflow in DIE ([#10506](https://github.com/noir-lang/noir/issues/10506)) ([50d5c0b](https://github.com/noir-lang/noir/commit/50d5c0b4c9ca70f3ca49e13786048d1bb15b155e))
+* Error if `Quoted::as_module` finds private module ([#10511](https://github.com/noir-lang/noir/issues/10511)) ([251d991](https://github.com/noir-lang/noir/commit/251d991e582df6cb22aff5d178a04a65dd1f4a6f))
+* Error if pattern name is bound more than once ([#10533](https://github.com/noir-lang/noir/issues/10533)) ([a7e039c](https://github.com/noir-lang/noir/commit/a7e039c8e30d0924b8e9c5c8d2ba785e55111a5d))
+* Error when slice_insert is OOB during comptime ([#10645](https://github.com/noir-lang/noir/issues/10645)) ([b47e62a](https://github.com/noir-lang/noir/commit/b47e62a186971a47540ff9e961da12332a5f5ec2))
+* Evaluate repeated array expr once ([#10514](https://github.com/noir-lang/noir/issues/10514)) ([789455f](https://github.com/noir-lang/noir/commit/789455f6bf5a35d21a6398ad85026b05b5779862))
+* Force_substitute bindings during monomorphization for associated constants ([#10467](https://github.com/noir-lang/noir/issues/10467)) ([6512fb9](https://github.com/noir-lang/noir/commit/6512fb9cfd259daa05c4a3740f5ff00345d01f1b))
+* **frontend:** No negative overflow when quoting signed integer ([#10331](https://github.com/noir-lang/noir/issues/10331)) ([794b685](https://github.com/noir-lang/noir/commit/794b685f77ec3b4c1c885c4131ee7792e949511d))
+* **frontend:** Preserve int type when quoting tokens  ([#10330](https://github.com/noir-lang/noir/issues/10330)) ([1b1985e](https://github.com/noir-lang/noir/commit/1b1985e6fa77e221a6723006389c1351bc28b2b1))
+* **frontend:** Resolve to correct type on fmtstr interpolation error ([#10450](https://github.com/noir-lang/noir/issues/10450)) ([e422898](https://github.com/noir-lang/noir/commit/e4228986ee37f02c0f55df04ec0e95d161955feb))
+* **fuzzer:** Set `in_dynamic` in `gen_match` ([#10470](https://github.com/noir-lang/noir/issues/10470)) ([5a85979](https://github.com/noir-lang/noir/commit/5a85979f1b8a05345cf488e7f3f8c400636afa50))
+* Handle ambiguous trait methods in assumed traits ([#10468](https://github.com/noir-lang/noir/issues/10468)) ([60bfcf2](https://github.com/noir-lang/noir/commit/60bfcf2ceb3d717b2c1293b47a8a391db39235ac))
+* Mark ECDSA verification as `PureWithPredicate` ([#10423](https://github.com/noir-lang/noir/issues/10423)) ([4812309](https://github.com/noir-lang/noir/commit/481230936c9b29bb1c200a1bffc66ffe35ec6d50))
+* Missing returned inputs in aes128encrypt black box ([#10512](https://github.com/noir-lang/noir/issues/10512)) ([d2c71c4](https://github.com/noir-lang/noir/commit/d2c71c467f2fe0d045d1c1c4ad7d9d0ed961c1af))
+* Only entry-point main is special ([#10545](https://github.com/noir-lang/noir/issues/10545)) ([5e5ec24](https://github.com/noir-lang/noir/commit/5e5ec245e8c4966e7a0cc962c7048fa33543212c))
+* **parser:** Don't crash on incomplete type alias ([#10421](https://github.com/noir-lang/noir/issues/10421)) ([9336ae6](https://github.com/noir-lang/noir/commit/9336ae61814f3f480cf5f30ba4cb5e2c3f80edc2))
+* **print:** Print enums ([#10472](https://github.com/noir-lang/noir/issues/10472)) ([c65d5d9](https://github.com/noir-lang/noir/commit/c65d5d994bec92b6ed69adca87020bd04234e07d))
+* Remove saturation from loop bound increments ([#10479](https://github.com/noir-lang/noir/issues/10479)) ([550b1db](https://github.com/noir-lang/noir/commit/550b1db5622d55311aab9d886b3c8b59055bc020))
+* Revert "feat(ACIR): reuse element_type_sizes blocks with the same str… ([#10428](https://github.com/noir-lang/noir/issues/10428)) ([8411248](https://github.com/noir-lang/noir/commit/8411248eecfeb5af2bfb5ca4bdd3670303e8d509))
+* Several comptime interpreter fixes ([#10641](https://github.com/noir-lang/noir/issues/10641)) ([520dd4f](https://github.com/noir-lang/noir/commit/520dd4fa8afd54c3fbf7b64225a6f06e06f3691f))
+* **ssa:** Cast to `u64` when inserting OOB checks in DIE ([#10463](https://github.com/noir-lang/noir/issues/10463)) ([bb32d34](https://github.com/noir-lang/noir/commit/bb32d34e16bdcf69fe258cf693dd142095979dec))
+* **ssa:** Fix cast/truncate handling with lookback ([#10646](https://github.com/noir-lang/noir/issues/10646)) ([6741e02](https://github.com/noir-lang/noir/commit/6741e02edf075d1e1e1296542ee0c80de4b5e970))
+* **stdlib:** Fix visibility of ecdsa foreign function calls ([#10658](https://github.com/noir-lang/noir/issues/10658)) ([ab71130](https://github.com/noir-lang/noir/commit/ab71130b55537fde2baca8ec7545e55c657bfcbe))
+* Subtraction operator for witness ([#10675](https://github.com/noir-lang/noir/issues/10675)) ([d5f1d15](https://github.com/noir-lang/noir/commit/d5f1d15992c399fc7650b42bd469bbe312b16a58))
+* U1 operations in the comptime interpreter ([#10633](https://github.com/noir-lang/noir/issues/10633)) ([8a39e07](https://github.com/noir-lang/noir/commit/8a39e07fc48dcefd621915c290c7a84bb14b4779))
+* Use unit for fmtstr without variables ([#10456](https://github.com/noir-lang/noir/issues/10456)) ([0896c56](https://github.com/noir-lang/noir/commit/0896c56d00d96f78db1e96e31dbd55fe2da93236))
+
+
+### Miscellaneous Chores
+
+* Do not allow returning functions from unconstrained to constrained ([#10666](https://github.com/noir-lang/noir/issues/10666)) ([6a42a54](https://github.com/noir-lang/noir/commit/6a42a5489037666ce762e2a3f1e83b2e0c54489c))
+* **ssa:** Validate that no ACIR-to-Brillig call contains a reference in SSA ([#10497](https://github.com/noir-lang/noir/issues/10497)) ([1633ddc](https://github.com/noir-lang/noir/commit/1633ddc366fd54a6a4296e0b912400deb269305d))
+
+## [1.0.0-beta.15](https://github.com/noir-lang/noir/compare/v1.0.0-beta.14...v1.0.0-beta.15) (2025-11-05)
+
+
+### Features
+
+* `TypeDefinition::as_type_with_generics` ([#10315](https://github.com/noir-lang/noir/issues/10315)) ([e5a9309](https://github.com/noir-lang/noir/commit/e5a93096204ac9505f16dcd9be5d4949161768d7))
+* **ACIR:** Exact element_type_sizes_array ([#10188](https://github.com/noir-lang/noir/issues/10188)) ([82ec52a](https://github.com/noir-lang/noir/commit/82ec52a8c755d30ce655a2005834186a4acfa0c7))
+* **ACIR:** Reuse element_type_sizes blocks with the same structure ([#10231](https://github.com/noir-lang/noir/issues/10231)) ([7fb2f1a](https://github.com/noir-lang/noir/commit/7fb2f1a26b9c04860e24f018eb528a9a84e0f055))
+* Add `#[must_use]` attribute to promote unused warning to an error ([#10313](https://github.com/noir-lang/noir/issues/10313)) ([303dd21](https://github.com/noir-lang/noir/commit/303dd2130d39aaee03b5d2bdf8af75f36eb39796))
+* Attempt to inline successors in `simplify_cfg` ([#9608](https://github.com/noir-lang/noir/issues/9608)) ([8d78787](https://github.com/noir-lang/noir/commit/8d787871c097c315193fed23204e56fa396003a7))
+* **brillig:** Automatic register deallocation ([#10253](https://github.com/noir-lang/noir/issues/10253)) ([ca04e9c](https://github.com/noir-lang/noir/commit/ca04e9cb1a1df5a9378ff380f624adf999d1c8bf))
+* **doc:** Crate name, version, and dark mode ([#10378](https://github.com/noir-lang/noir/issues/10378)) ([05c8f7a](https://github.com/noir-lang/noir/commit/05c8f7a89a56758975ff4375679dc2a17ac9ac1a))
+* **github:** Add Security Policy ([#10262](https://github.com/noir-lang/noir/issues/10262)) ([42bab87](https://github.com/noir-lang/noir/commit/42bab876cd4e1edec45fd3a09217709e35eaa56c))
+* **LSP:** Show errors on stdlib files ([#10283](https://github.com/noir-lang/noir/issues/10283)) ([a43fedf](https://github.com/noir-lang/noir/commit/a43fedf35278de3f4d7b1bd61c955a4ffbed8e8e))
+* Nargo doc ([#10314](https://github.com/noir-lang/noir/issues/10314)) ([0a91592](https://github.com/noir-lang/noir/commit/0a91592ccb70578f93915271e163f5666d5e465c))
+* **SSA:** Simplify array_get from param ([#10300](https://github.com/noir-lang/noir/issues/10300)) ([8220860](https://github.com/noir-lang/noir/commit/8220860e565e1fa8afad96dd30a1e1a32683a562))
+
+
+### Bug Fixes
+
+* "No size for slice" when using black_box ([#10312](https://github.com/noir-lang/noir/issues/10312)) ([900d3c2](https://github.com/noir-lang/noir/commit/900d3c21ec03d4b73b1c126045dee1fc69c2901e))
+* **ACIR:** Correct brillig parameter slice length for dynamic arrays ([#10198](https://github.com/noir-lang/noir/issues/10198)) ([0c0d8cc](https://github.com/noir-lang/noir/commit/0c0d8cc72785fdbbcad742ee45bc558f5261f474))
+* **ACIR:** Correctly display the zero expression ([#10124](https://github.com/noir-lang/noir/issues/10124)) ([37f0c99](https://github.com/noir-lang/noir/commit/37f0c99df4fa99b3436e0211801a521e63abf170))
+* **ACIR:** Incorrect slice length in AsSlice ([#10168](https://github.com/noir-lang/noir/issues/10168)) ([5e1fe51](https://github.com/noir-lang/noir/commit/5e1fe519ee70ea3c2c9eb1708f4b8347f528c2a8))
+* Address off-by-one error when removing casts before constraining to constant ([#10194](https://github.com/noir-lang/noir/issues/10194)) ([64d5926](https://github.com/noir-lang/noir/commit/64d592629184fab1bd938ad3c3cf4c3a1fbcf3ba))
+* Check value of `ArraySet` during `array_set_optimization` ([#10325](https://github.com/noir-lang/noir/issues/10325)) ([ce4b6bc](https://github.com/noir-lang/noir/commit/ce4b6bc8d9cf98c4081382b9076626be9b4a3204))
+* Do not carry over `#[fold]` to unconstrained functions during monomorphization ([#10155](https://github.com/noir-lang/noir/issues/10155)) ([11c175d](https://github.com/noir-lang/noir/commit/11c175d38783514e833a733a2160225fcb0c2f71))
+* Do not replace return for databus ([#10355](https://github.com/noir-lang/noir/issues/10355)) ([dbe4d81](https://github.com/noir-lang/noir/commit/dbe4d81a7e8d61fe498f6acd941484ebc47b00e5))
+* Do not simplify call-data values ([#10032](https://github.com/noir-lang/noir/issues/10032)) ([9b08130](https://github.com/noir-lang/noir/commit/9b0813041eae25642d2e4629625e53578ea3a9f8))
+* **elaborator:** Create new type variable for each generic kind of `FmtStr` ([#10349](https://github.com/noir-lang/noir/issues/10349)) ([62065e8](https://github.com/noir-lang/noir/commit/62065e882dda5af5950cda1e13569ccdeb767613))
+* **elaborator:** Keep the status of the outer `unsafe` block if the inner is unnecessary ([#10361](https://github.com/noir-lang/noir/issues/10361)) ([65a8fb0](https://github.com/noir-lang/noir/commit/65a8fb09c70c41d2971ad83292e94d213a125ea4))
+* Emit error on oracle functions with function bodies ([#10132](https://github.com/noir-lang/noir/issues/10132)) ([96fb819](https://github.com/noir-lang/noir/commit/96fb8193436323f4469e5e6f6c7090a0be99be8f))
+* **mem2reg:** Update array set value alias set and propagate array get result as alias  ([#10242](https://github.com/noir-lang/noir/issues/10242)) ([077dd5e](https://github.com/noir-lang/noir/commit/077dd5ebf93b737c363f97491376681e88395bd0))
+* **mem2reg:** Updating referenced value invalidate addresses with unknown aliases ([#10175](https://github.com/noir-lang/noir/issues/10175)) ([b16e3c6](https://github.com/noir-lang/noir/commit/b16e3c6da3f000e3ccd6df0abb80f8487a134c41))
+* **print:** Convert `HirType::Function` into `PrintableType::Tuple`  ([#10189](https://github.com/noir-lang/noir/issues/10189)) ([577cbdc](https://github.com/noir-lang/noir/commit/577cbdc068800166f543e350d2f5d0dca75a1292))
+* Remove leading stars from block doc comments ([#10316](https://github.com/noir-lang/noir/issues/10316)) ([53da0af](https://github.com/noir-lang/noir/commit/53da0afe66ed9946c6dc071f7e24b2d937b46092))
+* Slice push_back when length is not known ([#10206](https://github.com/noir-lang/noir/issues/10206)) ([084629e](https://github.com/noir-lang/noir/commit/084629edea663fc6813478488e5bb2cfa9ee73a2))
+* **ssa-interpreter:** Add integer modulus to unfit `Field` if the value comes from a subtraction ([#10241](https://github.com/noir-lang/noir/issues/10241)) ([acc1cbc](https://github.com/noir-lang/noir/commit/acc1cbc2a1f1420d7c22d0753a2a127ba744e545))
+* **ssa-interpreter:** Ignore index overflow when side effects are disabled ([#10183](https://github.com/noir-lang/noir/issues/10183)) ([f8b6e72](https://github.com/noir-lang/noir/commit/f8b6e72a31836f824f11a44d2ba8754af8d990a1))
+* **ssa:** SSA Interpreter handle overflow by promoting to Field ([#10097](https://github.com/noir-lang/noir/issues/10097)) ([d09585f](https://github.com/noir-lang/noir/commit/d09585f1a9b1370c3be58ffb3477eb0fa4349fd7))
+* **ssa:** Use `Type::element_size` instead of `Type::flattened_size` for `optimize_length_one_array_read` ([#10146](https://github.com/noir-lang/noir/issues/10146)) ([dbc6cfe](https://github.com/noir-lang/noir/commit/dbc6cfe7f0ead4e6780167de99e184909a486db8))
+
+## [1.0.0-beta.14](https://github.com/noir-lang/noir/compare/v1.0.0-beta.13...v1.0.0-beta.14) (2025-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* several ACIR serialization changes ([#8134](https://github.com/noir-lang/noir/issues/8134))
+
+### Features
+
+* Add Module::parent and Module::child_modules ([#10005](https://github.com/noir-lang/noir/issues/10005)) ([4f954fa](https://github.com/noir-lang/noir/commit/4f954faf1c233a53e2a21e90be776bdcee64c9fb))
+* **brillig:** Centralize memory layout policy and reorganize memory regions ([#9985](https://github.com/noir-lang/noir/issues/9985)) ([f2acd9b](https://github.com/noir-lang/noir/commit/f2acd9b421f15fe9a1388afdeb4db5240b0be18a))
+* **cli:** Visualize the Control Flow Graph ([#9867](https://github.com/noir-lang/noir/issues/9867)) ([f355e1d](https://github.com/noir-lang/noir/commit/f355e1d0e2e5db8eeb597b2abcd2028d38b43521))
+* No need to use dummy slice values in remove_if_else ([#9928](https://github.com/noir-lang/noir/issues/9928)) ([dd83075](https://github.com/noir-lang/noir/commit/dd83075be5758cf8c6a3a28e7c4a08a32fc9fde5))
+* Optimize out noop casts on constants ([#10024](https://github.com/noir-lang/noir/issues/10024)) ([28daf02](https://github.com/noir-lang/noir/commit/28daf02aaaa426525340f3fd6d31ff6cc5c8e13a))
+* Parse and display SSA databus ([#9991](https://github.com/noir-lang/noir/issues/9991)) ([cb5c0ed](https://github.com/noir-lang/noir/commit/cb5c0ed85ecf8138964399d7b74a309587c999e8))
+* **ssa:** `constant_folding` with loop ([#10019](https://github.com/noir-lang/noir/issues/10019)) ([35909c7](https://github.com/noir-lang/noir/commit/35909c71d639f81687d3c5fd4e3c1487579a0703))
+
+
+### Bug Fixes
+
+* **acir:** Extend slice on dynamic insertion and compilation panic when flattening ([#10051](https://github.com/noir-lang/noir/issues/10051)) ([79ef33b](https://github.com/noir-lang/noir/commit/79ef33bd7b9325ea91ec174e53562cb13874c4a1))
+* Correct max_bit_size when left-shifting ([#9770](https://github.com/noir-lang/noir/issues/9770)) ([773e286](https://github.com/noir-lang/noir/commit/773e2868ed451787429bba24389c685468822b32))
+* Correctly handle unusual radices in `ToRadix` decompositions ([#9941](https://github.com/noir-lang/noir/issues/9941)) ([b9b8210](https://github.com/noir-lang/noir/commit/b9b8210ce3ca93b2ac439906932c57548782af5c))
+* Disable early mem2reg ([#9987](https://github.com/noir-lang/noir/issues/9987)) ([4eb2a5c](https://github.com/noir-lang/noir/commit/4eb2a5c83a4951f0cc7cc6e53fa093f81b8932be))
+* **fuzzer:** Mark DivisionByZero with different types as equivalent ([#10066](https://github.com/noir-lang/noir/issues/10066)) ([2e78193](https://github.com/noir-lang/noir/commit/2e78193a001642b734c77a1285a5e68634288e67))
+* **fuzz:** Handle divisor of zero msg in error comparison ([#9995](https://github.com/noir-lang/noir/issues/9995)) ([c60257c](https://github.com/noir-lang/noir/commit/c60257cb22c685c6d560879bd18de03c018fd3bb))
+* Hoist and then deduplicate ([#10047](https://github.com/noir-lang/noir/issues/10047)) ([58b733a](https://github.com/noir-lang/noir/commit/58b733a9d965de59fdd4b534ebe89e6b5bbf86e4))
+* **mem2reg:** Consider call return aliases ([#10016](https://github.com/noir-lang/noir/issues/10016)) ([0e13cf6](https://github.com/noir-lang/noir/commit/0e13cf6b51da9fbbd9fb43252d60777ac6b9cc83))
+* **parser:** Enforce left brace after match expression ([#10018](https://github.com/noir-lang/noir/issues/10018)) ([f666b6e](https://github.com/noir-lang/noir/commit/f666b6eb4299fce03f85ca556b183ed3481b73ab))
+* Remove generic length from ECDSA message hash in stdlib ([#10043](https://github.com/noir-lang/noir/issues/10043)) ([5bbec69](https://github.com/noir-lang/noir/commit/5bbec696bd059053af69b6c01180e6a8d380ae8c))
+* Signed division by -1 can overflow ([#9976](https://github.com/noir-lang/noir/issues/9976)) ([8ca4af7](https://github.com/noir-lang/noir/commit/8ca4af784ce805900a8d5472830c9c28e92562b8))
+* **ssa:** Avoid going through `i128` when casting signed to `u128` ([#10045](https://github.com/noir-lang/noir/issues/10045)) ([94dadc7](https://github.com/noir-lang/noir/commit/94dadc7effd29309dd2d8a5af345e694a5a5f741))
+* **ssa:** Handle OOB indexing of slice literals in `remove_unreachable_instructions` ([#9999](https://github.com/noir-lang/noir/issues/9999)) ([88bf540](https://github.com/noir-lang/noir/commit/88bf5402b734dfdb1d6315fe181c0a9770144ff9))
+* **ssa:** Handle partially removed `ArrayGet` groups of complex type during OOB checks ([#10027](https://github.com/noir-lang/noir/issues/10027)) ([39f193c](https://github.com/noir-lang/noir/commit/39f193cf14d97b200611dd6f6c9dac42f52b0b63))
+* **ssa:** Keep defaults for values returned in the databus ([#10042](https://github.com/noir-lang/noir/issues/10042)) ([348d92c](https://github.com/noir-lang/noir/commit/348d92c2fcd1a847e9abcc0dc6cbfd6f7caa1ee0))
+* **ssa:** SSA interpreter to return 0 for `Intrinsic::*RefCount` when constrained ([#10033](https://github.com/noir-lang/noir/issues/10033)) ([6a55e2d](https://github.com/noir-lang/noir/commit/6a55e2d2a9c0cf294054c120134c4ef4671aecbb))
+* **ssa:** SSA interpreter to use the 2nd arg in `slice_refcount` ([#10034](https://github.com/noir-lang/noir/issues/10034)) ([821a460](https://github.com/noir-lang/noir/commit/821a460eb4e0bbd0ecc382962f5bdb70bfc9b7b8))
+* **ssa:** Start with checked operations in index calculations ([#9888](https://github.com/noir-lang/noir/issues/9888)) ([852d0fb](https://github.com/noir-lang/noir/commit/852d0fb96c3abe67f34b0ec594ab0307b760509c))
+* **stdlib:** Only compute the garbage `embedded_curve_result` result if we know we will need it ([#10077](https://github.com/noir-lang/noir/issues/10077)) ([e5acaf6](https://github.com/noir-lang/noir/commit/e5acaf603193ddd5136251516c463ae6c50997b4))
+* **tag_attr:** Keep whitespace tokens when parsing ([#9981](https://github.com/noir-lang/noir/issues/9981)) ([1d260df](https://github.com/noir-lang/noir/commit/1d260dfdc3ef35c9f26a755be118fe48d04d7dbf))
+
+
+### Miscellaneous Chores
+
+* Several ACIR serialization changes ([#8134](https://github.com/noir-lang/noir/issues/8134)) ([05a61db](https://github.com/noir-lang/noir/commit/05a61db551b445ac824fb6319cefcd7ece96b6b7))
+
+## [1.0.0-beta.13](https://github.com/noir-lang/noir/compare/v1.0.0-beta.12...v1.0.0-beta.13) (2025-09-19)
+
+
+### Features
+
+* Allow initializing dynamic arrays ([#9899](https://github.com/noir-lang/noir/issues/9899)) ([5e17b9b](https://github.com/noir-lang/noir/commit/5e17b9b328149268c29a4a6f35414c87f755a7c3))
+* Better check_u128_mul_overflow logic when an operand is constant ([#9835](https://github.com/noir-lang/noir/issues/9835)) ([d60ba5c](https://github.com/noir-lang/noir/commit/d60ba5c4241784987841fe71826064d11c0ff1ba))
+* **die:** Prune unused entry block parameters for non-entry points ([#9843](https://github.com/noir-lang/noir/issues/9843)) ([ad3c329](https://github.com/noir-lang/noir/commit/ad3c3297a59a26d2062257d7f2cf9c79a3e06aa2))
+* **fuzz:** Allow index OOB with a small probability ([#9803](https://github.com/noir-lang/noir/issues/9803)) ([1578b7c](https://github.com/noir-lang/noir/commit/1578b7c34c5b0da131cb1e5493e3c4d6f51f5e24))
+* **fuzz:** Generate calls to `slice_remove` and `slice_insert` in the AST fuzzer ([#9786](https://github.com/noir-lang/noir/issues/9786)) ([23c3627](https://github.com/noir-lang/noir/commit/23c362721dea5ec275d534fad0c23ddf76db2955))
+* LSP lightweight mode ([#9869](https://github.com/noir-lang/noir/issues/9869)) ([0adabdf](https://github.com/noir-lang/noir/commit/0adabdfcaa35f314a363c378ef7c7868957f3621))
+* **LSP:** Folding ranges ([#9854](https://github.com/noir-lang/noir/issues/9854)) ([66faaed](https://github.com/noir-lang/noir/commit/66faaed23dba3b9e2f0c10b0929402aced1c81de))
+* **LSP:** Signature help for macro attributes ([#9536](https://github.com/noir-lang/noir/issues/9536)) ([a8512f4](https://github.com/noir-lang/noir/commit/a8512f48cdcdd2fcf53a71cf8768620ce8268094))
+* **ownership:** Do not clone indexed call results containing arrays ([#9791](https://github.com/noir-lang/noir/issues/9791)) ([1b5e1de](https://github.com/noir-lang/noir/commit/1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e))
+* **ownership:** Do not clone nested Index expressions ([#9772](https://github.com/noir-lang/noir/issues/9772)) ([e7252a2](https://github.com/noir-lang/noir/commit/e7252a2c49751cac5a79fcde1b7ef45ea92097dc))
+* Re-enable early mem2reg pass ([#9744](https://github.com/noir-lang/noir/issues/9744)) ([b245272](https://github.com/noir-lang/noir/commit/b2452725d8a6778bd9e9617c7e80d1c502ec397a))
+* Remove useless jump when branching in brillig ([#9778](https://github.com/noir-lang/noir/issues/9778)) ([e13939e](https://github.com/noir-lang/noir/commit/e13939ef56abc7a0c0eccbfc058e76f817abb45e))
+* Reverse loop condition in brillig to avoid NOT instruction ([#9779](https://github.com/noir-lang/noir/issues/9779)) ([113b853](https://github.com/noir-lang/noir/commit/113b853847ffab3e126afaa23b5107dd9792d795))
+* **ssa:** SSA CLI ([#9826](https://github.com/noir-lang/noir/issues/9826)) ([e6260d7](https://github.com/noir-lang/noir/commit/e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1))
+
+
+### Bug Fixes
+
+* **acir_gen:** Fix entry point indices ([#9881](https://github.com/noir-lang/noir/issues/9881)) ([8bc8c10](https://github.com/noir-lang/noir/commit/8bc8c101fad9fa56881eb46648429da984a395c5))
+* **acir_gen:** Handle flattening of numeric types when an `Array` contains a `DynamicArray` ([#9887](https://github.com/noir-lang/noir/issues/9887)) ([5524470](https://github.com/noir-lang/noir/commit/5524470351b946d21d5b21609c2bb25c0f994eaa))
+* Check for signed division overflow ([#9857](https://github.com/noir-lang/noir/issues/9857)) ([72c5842](https://github.com/noir-lang/noir/commit/72c5842a449b93a1cd2959d2fa0bccd4a62e2c5b))
+* Disallow `_` in where clauses, and disallow unused trait impl generics ([#9871](https://github.com/noir-lang/noir/issues/9871)) ([0eead18](https://github.com/noir-lang/noir/commit/0eead18ffe3373b74853cd06bacc12b4d9ff42f8))
+* Do not simplify constraints with induction variable ([#9806](https://github.com/noir-lang/noir/issues/9806)) ([860661b](https://github.com/noir-lang/noir/commit/860661b88a2d4d8ad1388dafe98681824451a13c))
+* **docs:** Moves docs to correct path for sharing domain with landing ([#9687](https://github.com/noir-lang/noir/issues/9687)) ([04ac97f](https://github.com/noir-lang/noir/commit/04ac97f1593a6896b5c86e4bc96c8efcebbde9bc))
+* Error on boolean shift overflow in interpreter ([#9724](https://github.com/noir-lang/noir/issues/9724)) ([387b9b2](https://github.com/noir-lang/noir/commit/387b9b20fed02cd4f06921e4315f0e7d056d92ff))
+* Error on returning slice from main ([#9636](https://github.com/noir-lang/noir/issues/9636)) ([13fbc6f](https://github.com/noir-lang/noir/commit/13fbc6f8f6c01887646120a8797c9dbfe71a0dab))
+* **fmt:** Missing skip whitespace when formatting match ([#9905](https://github.com/noir-lang/noir/issues/9905)) ([e4da6d7](https://github.com/noir-lang/noir/commit/e4da6d725077d4a34244c74b2301c045cb2e7e28))
+* **fuzz:** Always introduce a local binding before match ([#9883](https://github.com/noir-lang/noir/issues/9883)) ([69570b7](https://github.com/noir-lang/noir/commit/69570b72c5f351cdd129551478c6236daa1aad0f))
+* **fuzz:** Avoid OOB when `in_no_dynamic` mode ([#9858](https://github.com/noir-lang/noir/issues/9858)) ([cff071f](https://github.com/noir-lang/noir/commit/cff071f622addc873475b2697dd50894df3b1bbe))
+* **fuzz:** Install `just` in nightly fuzz workflow ([#9756](https://github.com/noir-lang/noir/issues/9756)) ([2ce164e](https://github.com/noir-lang/noir/commit/2ce164ea961d627e6ad821d7722006527a707d32))
+* Left bit shift u128 would overflow Field ([#9723](https://github.com/noir-lang/noir/issues/9723)) ([216737d](https://github.com/noir-lang/noir/commit/216737dd6dd0cb4e0f4c2c4a0c1c872e30dbb0fe))
+* **mem2reg:** Do not attempt to analyze an instruction simplified to a global ([#9882](https://github.com/noir-lang/noir/issues/9882)) ([a2ec2e5](https://github.com/noir-lang/noir/commit/a2ec2e5ac84afbb95f8ddf9ca6695d83eb2f574a))
+* **mem2reg:** Handle instruction simplified to multiple ([#9782](https://github.com/noir-lang/noir/issues/9782)) ([b975d9b](https://github.com/noir-lang/noir/commit/b975d9b4c799a481c4f1279b143f82e1994c862a))
+* **ownership:** Consider ident in nested l-value as used ([#9793](https://github.com/noir-lang/noir/issues/9793)) ([574550b](https://github.com/noir-lang/noir/commit/574550bbc3640b78545985e013706ffcfe637e8e))
+* Proper error when dividing by minus 1 ([#9762](https://github.com/noir-lang/noir/issues/9762)) ([8cfbdb9](https://github.com/noir-lang/noir/commit/8cfbdb9d2cbe21faa883271d3259c726db275ad5))
+* **ssa:** Accurate purities of ArraySet and RC instructions in Brillig ([#9736](https://github.com/noir-lang/noir/issues/9736)) ([a010e93](https://github.com/noir-lang/noir/commit/a010e93594349e9d96a2025c8582a86aea560e6a))
+* **ssa:** Do not hoist unsafe `array_get` in Brillig ([#9805](https://github.com/noir-lang/noir/issues/9805)) ([f25ebd6](https://github.com/noir-lang/noir/commit/f25ebd61019e7aa44ac974a5827c7e9a3496128d))
+* **ssa:** Mark whether an ArrayGet requires a predicate based upon the runtime ([#9712](https://github.com/noir-lang/noir/issues/9712)) ([5e27664](https://github.com/noir-lang/noir/commit/5e276642b138346845d42323992a9445eb2255f9))
+* **ssa:** Replace failing array access with constraint and defaults ([#9776](https://github.com/noir-lang/noir/issues/9776)) ([0284d29](https://github.com/noir-lang/noir/commit/0284d29d3c1798cd9ade7da9be99e2062a330db7))
+* **ssa:** Simplify always-fail range constraint ([#9885](https://github.com/noir-lang/noir/issues/9885)) ([f86ba42](https://github.com/noir-lang/noir/commit/f86ba42b2786734e32965a3aef2b494bd2f387a9))
+* Wrong error message in brillig bit shift overflow ([#9702](https://github.com/noir-lang/noir/issues/9702)) ([e9f2016](https://github.com/noir-lang/noir/commit/e9f2016045837187259dcbd92fad83801d5e592d))
+
 ## [1.0.0-beta.12](https://github.com/noir-lang/noir/compare/v1.0.0-beta.11...v1.0.0-beta.12) (2025-08-29)
 
 
@@ -72,7 +398,7 @@
 * Mark slice variants of ecdsa verification as deprecated ([#9458](https://github.com/noir-lang/noir/issues/9458)) ([5675aff](https://github.com/noir-lang/noir/commit/5675aff45f460f6975492725953b45b8a969a82d))
 * New semantic for bit-shifts  ([#9373](https://github.com/noir-lang/noir/issues/9373)) ([f6fed8b](https://github.com/noir-lang/noir/commit/f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9))
 * **opt:** Don't clone on array_len ([#9440](https://github.com/noir-lang/noir/issues/9440)) ([b7273d7](https://github.com/noir-lang/noir/commit/b7273d7a31f8e0cdc2d086e30ac3fede1f0ed46c))
-* Remove saturating behaviour of signed bitshifts in brillig ([#9532](https://github.com/noir-lang/noir/issues/9532)) ([103f70a](https://github.com/noir-lang/noir/commit/103f70a5dac594374b68f54c82da0423d1415d74))
+* Remove saturating behavior of signed bitshifts in brillig ([#9532](https://github.com/noir-lang/noir/issues/9532)) ([103f70a](https://github.com/noir-lang/noir/commit/103f70a5dac594374b68f54c82da0423d1415d74))
 * Simplify bitshift logic to remove leftover overflow handling ([#9506](https://github.com/noir-lang/noir/issues/9506)) ([9062697](https://github.com/noir-lang/noir/commit/9062697bbcefced22184c43998c1f966543e2b6b))
 * **ssa_fuzzer:** Hash blackbox functions ([#9479](https://github.com/noir-lang/noir/issues/9479)) ([4c65b51](https://github.com/noir-lang/noir/commit/4c65b51266446b79cecd74335e4816951261f496))
 * **ssa_fuzzer:** Mode without instruction simplification + array instructions mutations + limits fix ([#9438](https://github.com/noir-lang/noir/issues/9438)) ([ea9c913](https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481))
@@ -127,7 +453,7 @@
 * **mem2reg:** Register aliases when the `IfElse` result in a reference ([#9305](https://github.com/noir-lang/noir/issues/9305)) ([637e060](https://github.com/noir-lang/noir/commit/637e0601aa5dc0baa29934783e6ff7fdf8e24133))
 * Modulo overflow in comptime ([#9348](https://github.com/noir-lang/noir/issues/9348)) ([922efbd](https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1))
 * **ownership:** Increment reference count for nested array get in LHS assignment ([#9347](https://github.com/noir-lang/noir/issues/9347)) ([20c37b2](https://github.com/noir-lang/noir/commit/20c37b27e9c1f9aba064fd18cb7f254e5d10fa39))
-* Perserve purities after SSA normalization ([#9355](https://github.com/noir-lang/noir/issues/9355)) ([5d6dd7e](https://github.com/noir-lang/noir/commit/5d6dd7e10dce9c47fbb1c3da822d40198bf3f118))
+* Preserve purities after SSA normalization ([#9355](https://github.com/noir-lang/noir/issues/9355)) ([5d6dd7e](https://github.com/noir-lang/noir/commit/5d6dd7e10dce9c47fbb1c3da822d40198bf3f118))
 * Prevent `SignedField::from(i128::MIN)` from crashing ([#9366](https://github.com/noir-lang/noir/issues/9366)) ([9846e1e](https://github.com/noir-lang/noir/commit/9846e1ebd6264ae33f23195c0aa6ccff6947692f))
 * Prevent accidental tuple sharing in comptime code ([#9313](https://github.com/noir-lang/noir/issues/9313)) ([28abb68](https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4))
 * Prevent invalid types in test/fuzz functions ([#9343](https://github.com/noir-lang/noir/issues/9343)) ([21faf96](https://github.com/noir-lang/noir/commit/21faf9648560b0f5943304833c44a2c5687f0d48))
@@ -248,7 +574,7 @@
 * **expand:** Missing struct member visibility, and use "crate" instead of "super" when possible ([#9081](https://github.com/noir-lang/noir/issues/9081)) ([014d793](https://github.com/noir-lang/noir/commit/014d793e625462d385f31379dc77fa3d8c231db3))
 * **expand:** Show references to ModuleDefId recursing on parents ([#8977](https://github.com/noir-lang/noir/issues/8977)) ([2cfc786](https://github.com/noir-lang/noir/commit/2cfc7866b5a5e24829d4176e2aea897f72839674))
 * Fix if/match tracking in last uses pass ([#8935](https://github.com/noir-lang/noir/issues/8935)) ([670063c](https://github.com/noir-lang/noir/commit/670063c66c5327685def09bfc2563fccc9e7b267))
-* **formatter:** Reset indetnation after group changed it ([#8966](https://github.com/noir-lang/noir/issues/8966)) ([39cec14](https://github.com/noir-lang/noir/commit/39cec14be0a4dae7aff54a8b579535b27d58728b))
+* **formatter:** Reset indentation after group changed it ([#8966](https://github.com/noir-lang/noir/issues/8966)) ([39cec14](https://github.com/noir-lang/noir/commit/39cec14be0a4dae7aff54a8b579535b27d58728b))
 * **fuzz:** Assign to an index variable to sequence side effects ([#9056](https://github.com/noir-lang/noir/issues/9056)) ([3672e3e](https://github.com/noir-lang/noir/commit/3672e3e749035d532412d3001030f2033c51c8c1))
 * **fuzz:** Avoid negating `i8::MIN` into `i8::MAX+1` which won't compile ([#8972](https://github.com/noir-lang/noir/issues/8972)) ([f1a3938](https://github.com/noir-lang/noir/commit/f1a3938e429863a211a09a7cf1837dbe1b1320f4))
 * **fuzz:** Avoid overflow in `gen_unary` ([#9024](https://github.com/noir-lang/noir/issues/9024)) ([301d86e](https://github.com/noir-lang/noir/commit/301d86ead94835841e0fc14781a37c28c5afd926))
@@ -298,7 +624,7 @@
 * **ssa:** Remove array from cache in constant folding if it's an argument to a `Call` ([#9040](https://github.com/noir-lang/noir/issues/9040)) ([17bf172](https://github.com/noir-lang/noir/commit/17bf172095ff30f7a4cf311ca947f6eec157e98f))
 * **ssa:** Signed cast simplification ([#8862](https://github.com/noir-lang/noir/issues/8862)) ([bcfb293](https://github.com/noir-lang/noir/commit/bcfb293510273b3019ab36c02db4284a5eac99e2))
 * **ssa:** Swap Brillig index shift and DIE in minimal pipeline ([#8946](https://github.com/noir-lang/noir/issues/8946)) ([b891901](https://github.com/noir-lang/noir/commit/b891901edd36574c6e6817d1f6ca182a93830739))
-* Strange use of predicates in euclidian division ([#8934](https://github.com/noir-lang/noir/issues/8934)) ([b2c38af](https://github.com/noir-lang/noir/commit/b2c38af614e58554625886218ed8325b33a0590c))
+* Strange use of predicates in euclidean division ([#8934](https://github.com/noir-lang/noir/issues/8934)) ([b2c38af](https://github.com/noir-lang/noir/commit/b2c38af614e58554625886218ed8325b33a0590c))
 * Track trait associated types as such ([#9170](https://github.com/noir-lang/noir/issues/9170)) ([692e94c](https://github.com/noir-lang/noir/commit/692e94cbab199cd249d4b9d3016398be34402b07))
 * Use enable_side_effects for u128 multiplication overflow checks ([#9115](https://github.com/noir-lang/noir/issues/9115)) ([3beb8f5](https://github.com/noir-lang/noir/commit/3beb8f5456df2ecc9dbf6a415ba47663fa100dfc))
 * Validate SSA call return values ([#9129](https://github.com/noir-lang/noir/issues/9129)) ([dbee137](https://github.com/noir-lang/noir/commit/dbee13703c70ddb0720499146abd3b4bb8cc624e))
@@ -355,7 +681,7 @@
 * Accept and return visibilities for StructDef ([#8420](https://github.com/noir-lang/noir/issues/8420)) ([cafcdcd](https://github.com/noir-lang/noir/commit/cafcdcd8d6250936bc089679838485bbd138fe35))
 * Add missing cases for finding function values in `find_functions_as_values` ([#8738](https://github.com/noir-lang/noir/issues/8738)) ([81d2ad6](https://github.com/noir-lang/noir/commit/81d2ad6adc93b28df107330d536eacbf74562537))
 * Add offset to ArrayGet ([#8536](https://github.com/noir-lang/noir/issues/8536)) ([da0b3a2](https://github.com/noir-lang/noir/commit/da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4))
-* Always error if integer literal doesn't fit its type on the fron… ([#8885](https://github.com/noir-lang/noir/issues/8885)) ([f34d5c2](https://github.com/noir-lang/noir/commit/f34d5c25fe7ce51d8d1f13cc9fbb764c7dfe23fd))
+* Always error if integer literal doesn't fit its type on the front… ([#8885](https://github.com/noir-lang/noir/issues/8885)) ([f34d5c2](https://github.com/noir-lang/noir/commit/f34d5c25fe7ce51d8d1f13cc9fbb764c7dfe23fd))
 * Always use `u32` for indexing arrays in SSA ([#8633](https://github.com/noir-lang/noir/issues/8633)) ([a16e848](https://github.com/noir-lang/noir/commit/a16e84853e2bc20a3756509cf40b3bcd1faad8f1))
 * Avoid logging all unused params in DIE pass ([#8566](https://github.com/noir-lang/noir/issues/8566)) ([9a8a7ec](https://github.com/noir-lang/noir/commit/9a8a7ec4df8d0a465ae583d8d64ece254e39dca5))
 * Better error message when cannot infer generic numeric type ([#7843](https://github.com/noir-lang/noir/issues/7843)) ([72ce94b](https://github.com/noir-lang/noir/commit/72ce94beeac6d15b67141307bc38f9e2b0020b20))
@@ -381,7 +707,7 @@
 * Ensure that purity analysis pass explores all functions ([#8452](https://github.com/noir-lang/noir/issues/8452)) ([8f660a3](https://github.com/noir-lang/noir/commit/8f660a3a6c8b1e48b9e988d181a65df44e0bc715))
 * Error on unused generic in trait impl ([#8395](https://github.com/noir-lang/noir/issues/8395)) ([d992ad5](https://github.com/noir-lang/noir/commit/d992ad59d4c787aa12b0176e6f9d12202e4d9f71))
 * Error when re-assigning a mutable reference ([#8790](https://github.com/noir-lang/noir/issues/8790)) ([b888c34](https://github.com/noir-lang/noir/commit/b888c34b2b28e4c58b38f584b48a0adc154594e3))
-* **expand:** Use re-exports for non-visibile items ([#8374](https://github.com/noir-lang/noir/issues/8374)) ([275e438](https://github.com/noir-lang/noir/commit/275e438feaa5d610e21d2e683c3f3cd61b72ebff))
+* **expand:** Use re-exports for non-visible items ([#8374](https://github.com/noir-lang/noir/issues/8374)) ([275e438](https://github.com/noir-lang/noir/commit/275e438feaa5d610e21d2e683c3f3cd61b72ebff))
 * Fix comptime casts of negative integer to field ([#8696](https://github.com/noir-lang/noir/issues/8696)) ([4f8e767](https://github.com/noir-lang/noir/commit/4f8e76776575be2ed8ab1939bb2c736332b25d45))
 * **fmt:** Correct indentation when formatting long struct patterns ([#8711](https://github.com/noir-lang/noir/issues/8711)) ([8665abe](https://github.com/noir-lang/noir/commit/8665abe6694c8641fb0e999c9b5d420290f5bbec))
 * **fmt:** Correctly format mixed secondary attributes and doc comments ([#8735](https://github.com/noir-lang/noir/issues/8735)) ([cb4951d](https://github.com/noir-lang/noir/commit/cb4951d3249ab7f4f97dddc21595cfa933b08d72))
@@ -420,7 +746,7 @@
 * **ssa:** Validate field to integer cast ([#8799](https://github.com/noir-lang/noir/issues/8799)) ([229d57b](https://github.com/noir-lang/noir/commit/229d57ba59d1f1f94d2ce0b93d267abb1227ac38))
 * Stop inserting instructions after break and continue ([#8712](https://github.com/noir-lang/noir/issues/8712)) ([86b3638](https://github.com/noir-lang/noir/commit/86b363844b4c4c6258fba3377b801e36eb714d3f))
 * Support recursive call to main function in SSA parser ([#8760](https://github.com/noir-lang/noir/issues/8760)) ([77a53e4](https://github.com/noir-lang/noir/commit/77a53e45c0c253d216e80cbfba3414bc90b60851))
-* Thread errors through remove_if_else instead of panicing when the value merger finds reference values ([#8783](https://github.com/noir-lang/noir/issues/8783)) ([c4a8746](https://github.com/noir-lang/noir/commit/c4a8746921bc5fd6fef8e6bdce6563ae8817b8c4))
+* Thread errors through remove_if_else instead of panicking when the value merger finds reference values ([#8783](https://github.com/noir-lang/noir/issues/8783)) ([c4a8746](https://github.com/noir-lang/noir/commit/c4a8746921bc5fd6fef8e6bdce6563ae8817b8c4))
 * Type unification tests, and try moving constants to the other side ([#8807](https://github.com/noir-lang/noir/issues/8807)) ([5641060](https://github.com/noir-lang/noir/commit/56410604d4be68bab90ee59ea1af4e808cb19072))
 * Unify infix expressions by isolating unbound type variables ([#8796](https://github.com/noir-lang/noir/issues/8796)) ([52b2c32](https://github.com/noir-lang/noir/commit/52b2c32cc22da53c0d98d2833aaa37a4040d6222))
 * Update external lib commit tdd.nr ([#8823](https://github.com/noir-lang/noir/issues/8823)) ([6f1b46f](https://github.com/noir-lang/noir/commit/6f1b46f33e965b1eaec6ad7d430b5d2beb427f70))
@@ -506,11 +832,11 @@
 * Let static_assert accept any type for its message ([#8322](https://github.com/noir-lang/noir/issues/8322)) ([cc3fa6f](https://github.com/noir-lang/noir/commit/cc3fa6fbed97f054d84f9fdbfaee3305afc1f15d))
 * Location tree for debug_info ([#7034](https://github.com/noir-lang/noir/issues/7034)) ([ae008d3](https://github.com/noir-lang/noir/commit/ae008d31e289ddb086b4c69e3fd287c5167fc4dc))
 * **LSP:** Workspace Symbol ([#7953](https://github.com/noir-lang/noir/issues/7953)) ([a634ca0](https://github.com/noir-lang/noir/commit/a634ca0111981fc117293c33f595b57ff88bc700))
-* MessagePack serialisation for circuits ([#7690](https://github.com/noir-lang/noir/issues/7690)) ([69c36dc](https://github.com/noir-lang/noir/commit/69c36dc452ecd17636e4d35797a65430c32a5a10))
+* MessagePack serialization for circuits ([#7690](https://github.com/noir-lang/noir/issues/7690)) ([69c36dc](https://github.com/noir-lang/noir/commit/69c36dc452ecd17636e4d35797a65430c32a5a10))
 * Metamorphic AST fuzzing ([#8299](https://github.com/noir-lang/noir/issues/8299)) ([86e61f0](https://github.com/noir-lang/noir/commit/86e61f0290a99015c7987eec77b3ebadf0bd5aaf))
 * Omit element size array for more array types ([#8257](https://github.com/noir-lang/noir/issues/8257)) ([b101f73](https://github.com/noir-lang/noir/commit/b101f73c1d1a32e70996770201c4c57985f88134))
 * Optimize `checked_to_unchecked` to take into account multiplications ([#8188](https://github.com/noir-lang/noir/issues/8188)) ([b411121](https://github.com/noir-lang/noir/commit/b41112159d86863fc4d582ffd461a018639e2de5))
-* **perf:** Optimise array index checks in loops ([#7893](https://github.com/noir-lang/noir/issues/7893)) ([e13142b](https://github.com/noir-lang/noir/commit/e13142b000d75b81d1e0e9d92236d8a040631ec9))
+* **perf:** Optimize array index checks in loops ([#7893](https://github.com/noir-lang/noir/issues/7893)) ([e13142b](https://github.com/noir-lang/noir/commit/e13142b000d75b81d1e0e9d92236d8a040631ec9))
 * Port callstack resolution from aztec to noirjs ([#7642](https://github.com/noir-lang/noir/issues/7642)) ([7fea227](https://github.com/noir-lang/noir/commit/7fea2276c7ef7d1270dabf0be3bdd08bf6858b33))
 * Produce fewer memory blocks in ACIRgen ([#8250](https://github.com/noir-lang/noir/issues/8250)) ([43bbaa5](https://github.com/noir-lang/noir/commit/43bbaa59700621d0891125ab891fa10a8a63edc8))
 * Remove unnecessary dynamic arrays when pushing onto slices ([#8287](https://github.com/noir-lang/noir/issues/8287)) ([9e69d4c](https://github.com/noir-lang/noir/commit/9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e))
@@ -575,7 +901,7 @@
 * Print slice composite types surrounded by parentheses ([#8412](https://github.com/noir-lang/noir/issues/8412)) ([3a01a27](https://github.com/noir-lang/noir/commit/3a01a276e18ec2f7a157808db285e818c6a739e3))
 * Replace one more path pattern when producing stderr.txt ([#7970](https://github.com/noir-lang/noir/issues/7970)) ([11bd876](https://github.com/noir-lang/noir/commit/11bd876e20090e908e3802908ac62383e348d3fc))
 * Replace values in data_bus too ([#8086](https://github.com/noir-lang/noir/issues/8086)) ([28b000e](https://github.com/noir-lang/noir/commit/28b000e416da57dd7e69eecc0f9b54ced4882e76))
-* Return zero and insert an assertion if RHS bit size is over the limit in euclidian division ([#8294](https://github.com/noir-lang/noir/issues/8294)) ([f314498](https://github.com/noir-lang/noir/commit/f31449818b82b5c478d784bacf1429570a837e5c))
+* Return zero and insert an assertion if RHS bit size is over the limit in euclidean division ([#8294](https://github.com/noir-lang/noir/issues/8294)) ([f314498](https://github.com/noir-lang/noir/commit/f31449818b82b5c478d784bacf1429570a837e5c))
 * Returns 0 for right shift overflow ([#8189](https://github.com/noir-lang/noir/issues/8189)) ([13158f3](https://github.com/noir-lang/noir/commit/13158f3c9001b6e295e178a618db7a59c465352e))
 * SSA pass print filter to include the count ([#8074](https://github.com/noir-lang/noir/issues/8074)) ([73a1385](https://github.com/noir-lang/noir/commit/73a1385496581c49360cfc68f4bf546353a4f966))
 * **ssa_gen:** Do not code gen fetching of empty arrays when initializing the data bus ([#8426](https://github.com/noir-lang/noir/issues/8426)) ([a593e48](https://github.com/noir-lang/noir/commit/a593e48c6a9339f38291029d0aac949be77dd0d3))
@@ -583,7 +909,7 @@
 * **ssa:** Do not remove unused checked binary ops ([#8303](https://github.com/noir-lang/noir/issues/8303)) ([ce0135a](https://github.com/noir-lang/noir/commit/ce0135a771cf7e964b41d3779e6923cea0b73be3))
 * **ssa:** Do not unroll loop with break ([#8090](https://github.com/noir-lang/noir/issues/8090)) ([ea3b681](https://github.com/noir-lang/noir/commit/ea3b681406b8a1bdf0f79302396abc64552b0bda))
 * **ssa:** Do not use inner else condition when collapsing IfElse based upon the then condition ([#8040](https://github.com/noir-lang/noir/issues/8040)) ([75870d3](https://github.com/noir-lang/noir/commit/75870d3e4a65e27935fdd20827a64a20229affc7))
-* **ssa:** Fix possibility to `Field % Field` operaions in Brillig from SSA ([#8105](https://github.com/noir-lang/noir/issues/8105)) ([bee86cb](https://github.com/noir-lang/noir/commit/bee86cbca93df3b67a76c4292492747312dde5a7))
+* **ssa:** Fix possibility to `Field % Field` operations in Brillig from SSA ([#8105](https://github.com/noir-lang/noir/issues/8105)) ([bee86cb](https://github.com/noir-lang/noir/commit/bee86cbca93df3b67a76c4292492747312dde5a7))
 * **ssa:** Loop range with u1 ([#8131](https://github.com/noir-lang/noir/issues/8131)) ([4acfa1c](https://github.com/noir-lang/noir/commit/4acfa1c0291182d9f18d5a71c75ac5c2676f4361))
 * **ssa:** Map terminator instructions after constant folding  ([#8019](https://github.com/noir-lang/noir/issues/8019)) ([4386a98](https://github.com/noir-lang/noir/commit/4386a985530a8b3de178a887b21d5a07da080dd9))
 * **ssa:** Mislabeled instructions with side effects in EnableSideEffectsIf removal pass ([#8355](https://github.com/noir-lang/noir/issues/8355)) ([74279a4](https://github.com/noir-lang/noir/commit/74279a4de32baf7f3a9712268d1ff1626e7dc9b2))
@@ -698,7 +1024,7 @@
 * **experimental:** Fix execution of match expressions with multiple branches ([#7570](https://github.com/noir-lang/noir/issues/7570)) ([d148df6](https://github.com/noir-lang/noir/commit/d148df67879995302978d689cc20d4dc092b34b7))
 * **experimental:** Replace most remaining match panics with errors ([#7536](https://github.com/noir-lang/noir/issues/7536)) ([d118e17](https://github.com/noir-lang/noir/commit/d118e170a33d1307ccc1240374e22d86180216ed))
 * Fix a few cases where safety comment wasn't correctly identified ([#7548](https://github.com/noir-lang/noir/issues/7548)) ([22c7d9d](https://github.com/noir-lang/noir/commit/22c7d9d22709065ce0ad572f1aae67f995abd24c))
-* Fix nondeterminsm on aarch64 vs amd64 ([#7942](https://github.com/noir-lang/noir/issues/7942)) ([8c4d9a2](https://github.com/noir-lang/noir/commit/8c4d9a2bb8f3df3ee2e253eaffe7d72ebb2a8ec2))
+* Fix nondeterminism on aarch64 vs amd64 ([#7942](https://github.com/noir-lang/noir/issues/7942)) ([8c4d9a2](https://github.com/noir-lang/noir/commit/8c4d9a2bb8f3df3ee2e253eaffe7d72ebb2a8ec2))
 * Fix stdout testing when running test programs ([#7741](https://github.com/noir-lang/noir/issues/7741)) ([cbbfc38](https://github.com/noir-lang/noir/commit/cbbfc384d2e70de7246d0161478e9c3962a955e5))
 * Fix type of internal variable created while destructuring tuples and structs during monomorphization ([#7916](https://github.com/noir-lang/noir/issues/7916)) ([8b12368](https://github.com/noir-lang/noir/commit/8b12368414105f4e2f50d2f50f82d0e12b60d329))
 * Fixes signed integer mutations in the fuzzers ([#7815](https://github.com/noir-lang/noir/issues/7815)) ([162ef86](https://github.com/noir-lang/noir/commit/162ef86508404c365abdc8559c0843c896c357a5))
@@ -829,7 +1155,7 @@
 * `loop` statements (only frontend) ([#7092](https://github.com/noir-lang/noir/issues/7092)) ([48e613e](https://github.com/noir-lang/noir/commit/48e613ea97afb829012b3c5b1f8181d4f5ccfb7b))
 * Add `ConstrainNotEqual` instruction ([#7032](https://github.com/noir-lang/noir/issues/7032)) ([51180b9](https://github.com/noir-lang/noir/commit/51180b9c2c74d9746240a9fbc29d4214d7729f6a))
 * Add `noir-inspector` ([#7136](https://github.com/noir-lang/noir/issues/7136)) ([a0704aa](https://github.com/noir-lang/noir/commit/a0704aa53250aed9c5460a60f5aaffa87772732f))
-* Allow associated types to be ellided from trait constraints ([#7026](https://github.com/noir-lang/noir/issues/7026)) ([aa7b91c](https://github.com/noir-lang/noir/commit/aa7b91c4657f1dbdf734dfd8071c0517272092ba))
+* Allow associated types to be elided from trait constraints ([#7026](https://github.com/noir-lang/noir/issues/7026)) ([aa7b91c](https://github.com/noir-lang/noir/commit/aa7b91c4657f1dbdf734dfd8071c0517272092ba))
 * Allow resolved types in constructors ([#7223](https://github.com/noir-lang/noir/issues/7223)) ([6d319af](https://github.com/noir-lang/noir/commit/6d319afe651ebc6d36493604e088489787b1b612))
 * Allow specifying multiple patterns in nargo test ([#7186](https://github.com/noir-lang/noir/issues/7186)) ([bd44e40](https://github.com/noir-lang/noir/commit/bd44e40c42ff33afd7daa0abd0c4267e972bef26))
 * Auto-import traits when suggesting trait methods ([#7037](https://github.com/noir-lang/noir/issues/7037)) ([a9acf5a](https://github.com/noir-lang/noir/commit/a9acf5a2fa8a673074e623e3ebd899bd24598649))
@@ -899,7 +1225,7 @@
 * Allow implicit associated types on integer type kinds ([#7078](https://github.com/noir-lang/noir/issues/7078)) ([f2a6d10](https://github.com/noir-lang/noir/commit/f2a6d1038ecb922367ffb7280c4b0781043ade02))
 * Allow multiple trait impls for the same trait as long as one is in scope ([#6987](https://github.com/noir-lang/noir/issues/6987)) ([7328f0b](https://github.com/noir-lang/noir/commit/7328f0b2a7411e7c38dae0c2bd5fa2cd04c75461))
 * Allows for infinite brillig loops ([#7296](https://github.com/noir-lang/noir/issues/7296)) ([87196e9](https://github.com/noir-lang/noir/commit/87196e9419f9c12bc7739024e2f649dcbd3e7340))
-* Always normalize ssa when priting at least one pass ([#7299](https://github.com/noir-lang/noir/issues/7299)) ([d327462](https://github.com/noir-lang/noir/commit/d3274622aecd32a105a0f494f47646bca61585bc))
+* Always normalize ssa when printing at least one pass ([#7299](https://github.com/noir-lang/noir/issues/7299)) ([d327462](https://github.com/noir-lang/noir/commit/d3274622aecd32a105a0f494f47646bca61585bc))
 * Avoid creating unnecessary memory blocks ([#7114](https://github.com/noir-lang/noir/issues/7114)) ([521f5ce](https://github.com/noir-lang/noir/commit/521f5ce5721181e0b686887bdb47d3be1a8501a8))
 * Avoid stack overflow on many comments in a row ([#7325](https://github.com/noir-lang/noir/issues/7325)) ([ac1da8f](https://github.com/noir-lang/noir/commit/ac1da8f4b57290a67240973a7d6172cfbf5680a8))
 * Avoid type error when calling something with a type alias of a function ([#7239](https://github.com/noir-lang/noir/issues/7239)) ([429ae52](https://github.com/noir-lang/noir/commit/429ae523bbc6ab69daadcfde7dce0dc548ba69f2))
@@ -1021,7 +1347,7 @@
 * Correct signed integer handling in `noirc_abi` ([#6638](https://github.com/noir-lang/noir/issues/6638)) ([ecaf63d](https://github.com/noir-lang/noir/commit/ecaf63da19a3a76e7c2940721d9044b1980a588f))
 * Correct types returned by constant EC operations simplified within SSA ([#6652](https://github.com/noir-lang/noir/issues/6652)) ([eec5970](https://github.com/noir-lang/noir/commit/eec5970658157704dac5c41e6d61b2aa652ce996))
 * Detect cycles in globals ([#6859](https://github.com/noir-lang/noir/issues/6859)) ([0d7642c](https://github.com/noir-lang/noir/commit/0d7642cb2071fbee148978a89a0922bfffe5be6a))
-* Disable failure persistance in nargo test fuzzing ([#6777](https://github.com/noir-lang/noir/issues/6777)) ([68ff7bd](https://github.com/noir-lang/noir/commit/68ff7bd85cb17f57afd481ec55318ec282a93aa6))
+* Disable failure persistence in nargo test fuzzing ([#6777](https://github.com/noir-lang/noir/issues/6777)) ([68ff7bd](https://github.com/noir-lang/noir/commit/68ff7bd85cb17f57afd481ec55318ec282a93aa6))
 * Disallow `#[export]` on associated methods ([#6626](https://github.com/noir-lang/noir/issues/6626)) ([7b56904](https://github.com/noir-lang/noir/commit/7b56904e56d95b88cefcbf3862e822fd3b1c8730))
 * Do not merge expressions that contain output witnesses ([#6757](https://github.com/noir-lang/noir/issues/6757)) ([f9abf72](https://github.com/noir-lang/noir/commit/f9abf724abd674ea4ccb342a770d237c70864ee1))
 * Do not warn on unused functions marked with #[export] ([#6625](https://github.com/noir-lang/noir/issues/6625)) ([30f8378](https://github.com/noir-lang/noir/commit/30f8378525b6f8ee305d356388c32761e12ee61c))
@@ -1115,7 +1441,7 @@
 
 ### Bug Fixes
 
-* Allow range checks to be performed within the comptime intepreter ([#6514](https://github.com/noir-lang/noir/issues/6514)) ([852c87a](https://github.com/noir-lang/noir/commit/852c87ae9ecdd441ee4c2ab3e78e86b2da07d8a4))
+* Allow range checks to be performed within the comptime interpreter ([#6514](https://github.com/noir-lang/noir/issues/6514)) ([852c87a](https://github.com/noir-lang/noir/commit/852c87ae9ecdd441ee4c2ab3e78e86b2da07d8a4))
 * Disallow `#[test]` on associated functions ([#6449](https://github.com/noir-lang/noir/issues/6449)) ([35408ab](https://github.com/noir-lang/noir/commit/35408ab303f1018c1e2c38e6ea55430a2c89dc4c))
 * Do a shallow follow_bindings before unification ([#6558](https://github.com/noir-lang/noir/issues/6558)) ([32a9ed9](https://github.com/noir-lang/noir/commit/32a9ed9ad19cf81275c31ca77e4970bc1598c112))
 * **docs:** Fix broken links in oracles doc ([#6488](https://github.com/noir-lang/noir/issues/6488)) ([aa37cd5](https://github.com/noir-lang/noir/commit/aa37cd5be25412919f466a938260ae1a485ee096))
@@ -1150,7 +1476,7 @@
 ### Bug Fixes
 
 * Check infix expression is valid in program input ([#6450](https://github.com/noir-lang/noir/issues/6450)) ([35dedb5](https://github.com/noir-lang/noir/commit/35dedb54a0853ba0fa85038d832a520f9ba01a98))
-* Discard optimisation that would change execution ordering or that is related to call outputs ([#6461](https://github.com/noir-lang/noir/issues/6461)) ([b8654f7](https://github.com/noir-lang/noir/commit/b8654f700b218cc09c5381af65df11ead9ffcdaf))
+* Discard optimization that would change execution ordering or that is related to call outputs ([#6461](https://github.com/noir-lang/noir/issues/6461)) ([b8654f7](https://github.com/noir-lang/noir/commit/b8654f700b218cc09c5381af65df11ead9ffcdaf))
 * Don't crash on AsTraitPath with empty path ([#6454](https://github.com/noir-lang/noir/issues/6454)) ([fc72dcd](https://github.com/noir-lang/noir/commit/fc72dcdf3e8eeff73f72756e7ab87dddf2920657))
 * Fix Alias and Error kinds ([#6426](https://github.com/noir-lang/noir/issues/6426)) ([3cb259f](https://github.com/noir-lang/noir/commit/3cb259f419cf352f768728b15f849e520fc233cb))
 * Let formatter respect newlines between comments ([#6458](https://github.com/noir-lang/noir/issues/6458)) ([fb1a8ca](https://github.com/noir-lang/noir/commit/fb1a8ca67c58d87991358078e6c532b49824fdb8))
@@ -1272,7 +1598,7 @@
 * Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/9034) ([70dcf4a](https://github.com/noir-lang/noir/commit/70dcf4a25dcad10daeb427f0887d3a0bf10c9916))
 * Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/9099) ([70dcf4a](https://github.com/noir-lang/noir/commit/70dcf4a25dcad10daeb427f0887d3a0bf10c9916))
 * Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/9275) ([70dcf4a](https://github.com/noir-lang/noir/commit/70dcf4a25dcad10daeb427f0887d3a0bf10c9916))
-* **test:** Fuzz poseidon hases against an external library ([#6273](https://github.com/noir-lang/noir/issues/6273)) ([8d8ea89](https://github.com/noir-lang/noir/commit/8d8ea8963c5e4e23bd387aa729e09d3a9553a698))
+* **test:** Fuzz poseidon hashes against an external library ([#6273](https://github.com/noir-lang/noir/issues/6273)) ([8d8ea89](https://github.com/noir-lang/noir/commit/8d8ea8963c5e4e23bd387aa729e09d3a9553a698))
 * **test:** Fuzz test poseidon2 hash equivalence ([#6265](https://github.com/noir-lang/noir/issues/6265)) ([f61ba03](https://github.com/noir-lang/noir/commit/f61ba037c6726e19be4f894d9447fe396df95417))
 * **test:** Fuzz test stdlib hash functions ([#6233](https://github.com/noir-lang/noir/issues/6233)) ([1a2ca46](https://github.com/noir-lang/noir/commit/1a2ca46af0d1c05813dbe28670a2bc39b79e4c9f))
 * **test:** Include the PoseidonHasher in the fuzzing ([#6280](https://github.com/noir-lang/noir/issues/6280)) ([afb8a7c](https://github.com/noir-lang/noir/commit/afb8a7cf7b1751a10dd2cdd87817945fa4c1ed1f))
@@ -1291,7 +1617,7 @@
 * Check for Schnorr null signature ([#6226](https://github.com/noir-lang/noir/issues/6226)) ([2430920](https://github.com/noir-lang/noir/commit/24309200f600ad20a51d9f2c6c53849466fccda4))
 * Display function name and body when inlining recursion limit hit ([#6291](https://github.com/noir-lang/noir/issues/6291)) ([33a1e7d](https://github.com/noir-lang/noir/commit/33a1e7d2246bdea48dd6fe925d427c7be8c4659d))
 * Do not warn on unused self in traits ([#6298](https://github.com/noir-lang/noir/issues/6298)) ([4d524bf](https://github.com/noir-lang/noir/commit/4d524bf34de98449419a025aa53d593bf42e70a7))
-* Don't warn on unuse global if it has an abi annotation ([#6258](https://github.com/noir-lang/noir/issues/6258)) ([e13f617](https://github.com/noir-lang/noir/commit/e13f61741d17ed2e03ff26cb858cb3d243e67c88))
+* Don't warn on unused global if it has an abi annotation ([#6258](https://github.com/noir-lang/noir/issues/6258)) ([e13f617](https://github.com/noir-lang/noir/commit/e13f61741d17ed2e03ff26cb858cb3d243e67c88))
 * Don't warn on unused struct that has an abi annotation ([#6254](https://github.com/noir-lang/noir/issues/6254)) ([8a31632](https://github.com/noir-lang/noir/commit/8a316324a971a10d46392d7c64125d1d6ac9d557))
 * Don't warn twice when referring to private item ([#6216](https://github.com/noir-lang/noir/issues/6216)) ([619c545](https://github.com/noir-lang/noir/commit/619c5451b152d62e01d3c4c1da7e13ff6502f915))
 * Enforce correctness of decompositions performed at compile time ([#6278](https://github.com/noir-lang/noir/issues/6278)) ([53252fd](https://github.com/noir-lang/noir/commit/53252fd521ce7818a1d97824be30466590d879f5))
@@ -1344,7 +1670,7 @@
 * Allow visibility modifiers in struct definitions ([#6054](https://github.com/noir-lang/noir/issues/6054)) ([199be58](https://github.com/noir-lang/noir/commit/199be584a36d20660ada49473050c5191251d6c5))
 * Check unconstrained trait impl method matches ([#6057](https://github.com/noir-lang/noir/issues/6057)) ([aedc983](https://github.com/noir-lang/noir/commit/aedc9832240e55473c504fa2e6e3b3af618bda08))
 * Default to outputting witness with file named after package ([#6031](https://github.com/noir-lang/noir/issues/6031)) ([e74b4ae](https://github.com/noir-lang/noir/commit/e74b4ae3ebcf301eedc5d0059bcebd5dced75d72))
-* Detect unconstructed structs ([#6061](https://github.com/noir-lang/noir/issues/6061)) ([bcb438b](https://github.com/noir-lang/noir/commit/bcb438b0816fbe08344535545612d32b4730af79))
+* Detect unused structs ([#6061](https://github.com/noir-lang/noir/issues/6061)) ([bcb438b](https://github.com/noir-lang/noir/commit/bcb438b0816fbe08344535545612d32b4730af79))
 * Do not double error on import with error ([#6131](https://github.com/noir-lang/noir/issues/6131)) ([9b26650](https://github.com/noir-lang/noir/commit/9b26650f4a45c220484fc187500c7307af9c88d7))
 * Expose `derived_generators` and `pedersen_commitment_with_separator` from the stdlib ([#6154](https://github.com/noir-lang/noir/issues/6154)) ([877b806](https://github.com/noir-lang/noir/commit/877b806ee02cb640472c6bb2b1ed7bc76b861a9b))
 * Faster LSP by caching file managers ([#6047](https://github.com/noir-lang/noir/issues/6047)) ([c48a4f8](https://github.com/noir-lang/noir/commit/c48a4f83063ff55574d5b4a6277950a9edbc6317))
@@ -1410,7 +1736,7 @@
 * Handle parenthesized expressions in array length ([#6132](https://github.com/noir-lang/noir/issues/6132)) ([9f0b397](https://github.com/noir-lang/noir/commit/9f0b3971ee41e78241cbea4e3f81bac4edd5897d))
 * Ignore compression of blocks after msg.len in sha256_var ([#6206](https://github.com/noir-lang/noir/issues/6206)) ([76eec71](https://github.com/noir-lang/noir/commit/76eec710ff73e5e45fdddcd41ae2cd74e879cfa5))
 * Infer globals to be u32 when used in a type ([#6083](https://github.com/noir-lang/noir/issues/6083)) ([78262c9](https://github.com/noir-lang/noir/commit/78262c96d5b116c77e50653f9059da60824db812))
-* Initialise databus using return values ([#6074](https://github.com/noir-lang/noir/issues/6074)) ([e17dfa5](https://github.com/noir-lang/noir/commit/e17dfa55719f0cfb1080dd25eeda7b70ed44b60d))
+* Initialize databus using return values ([#6074](https://github.com/noir-lang/noir/issues/6074)) ([e17dfa5](https://github.com/noir-lang/noir/commit/e17dfa55719f0cfb1080dd25eeda7b70ed44b60d))
 * Let LSP suggest fields and methods in LValue chains ([#6051](https://github.com/noir-lang/noir/issues/6051)) ([5bf6567](https://github.com/noir-lang/noir/commit/5bf6567320629835ef6fa7765ca87e9b38ae4c9a))
 * Let token pretty printer handle `+=` and similar token sequences ([#6135](https://github.com/noir-lang/noir/issues/6135)) ([684b6cc](https://github.com/noir-lang/noir/commit/684b6cc7deb3ed7ecbb2cea4663e8e9a3ae075f0))
 * **mem2reg:** Remove possibility of underflow ([#6107](https://github.com/noir-lang/noir/issues/6107)) ([aea5cc7](https://github.com/noir-lang/noir/commit/aea5cc789ccf4a4d16b1d238d99474f37920b37e))
@@ -1548,7 +1874,7 @@
 * **perf:** Remove known store values that equal the store address in mem2reg ([#5935](https://github.com/noir-lang/noir/issues/5935)) ([b84009c](https://github.com/noir-lang/noir/commit/b84009ca428a5790acf53a6c027146b706170574))
 * **perf:** Remove last store in return block if last load is before that store ([#5910](https://github.com/noir-lang/noir/issues/5910)) ([1737b65](https://github.com/noir-lang/noir/commit/1737b656c861706c38b59bd5ef6cd095687a2898))
 * **perf:** Simplify poseidon2 cache zero-pad ([#5869](https://github.com/noir-lang/noir/issues/5869)) ([31e9be6](https://github.com/noir-lang/noir/commit/31e9be6b83b448eb6834645dc124589dc724a7b2))
-* Poseidon2 gates for Ultra arithmetisation (https://github.com/AztecProtocol/aztec-packages/pull/7494) ([5c4f19f](https://github.com/noir-lang/noir/commit/5c4f19f097dd3704522996330c961bf0a2db8d99))
+* Poseidon2 gates for Ultra arithmetization (https://github.com/AztecProtocol/aztec-packages/pull/7494) ([5c4f19f](https://github.com/noir-lang/noir/commit/5c4f19f097dd3704522996330c961bf0a2db8d99))
 * **profiler:** Add support for brillig functions in opcodes-flamegraph (https://github.com/AztecProtocol/aztec-packages/pull/7698) ([4ea25db](https://github.com/noir-lang/noir/commit/4ea25dbde87488e758139619a3ce4edf93c6ebd6))
 * Remove blocks which consist of only a jump to another block ([#5889](https://github.com/noir-lang/noir/issues/5889)) ([f391af2](https://github.com/noir-lang/noir/commit/f391af2d61f4a38e02cb92c76fa4c2c148af3833))
 * Remove unnecessary copying of vector size during reversal ([#5852](https://github.com/noir-lang/noir/issues/5852)) ([5739904](https://github.com/noir-lang/noir/commit/5739904f8d9e6c00d9e140cd4926b4d149412476))
@@ -1819,9 +2145,9 @@
 * Avoid unnecessarily splitting expressions with multiplication terms with a shared term ([#5291](https://github.com/noir-lang/noir/issues/5291)) ([19884f1](https://github.com/noir-lang/noir/commit/19884f161dfc7d7ce75dd2c404b8ef39cdad2240))
 * Change panic to error in interpreter ([#5446](https://github.com/noir-lang/noir/issues/5446)) ([d44f882](https://github.com/noir-lang/noir/commit/d44f882be094bf492b1742370fd3896b0c371f59))
 * Complete call stacks with no_predicates ([#5418](https://github.com/noir-lang/noir/issues/5418)) ([df73fe2](https://github.com/noir-lang/noir/commit/df73fe2f345422516bfa01462c0c76d3b924b772))
-* Correct range for overlfowing/underflowing integer assignment ([#5416](https://github.com/noir-lang/noir/issues/5416)) ([30c50f5](https://github.com/noir-lang/noir/commit/30c50f52a6d58163e39006b73f4eb5003afc239b))
+* Correct range for overflowing/underflowing integer assignment ([#5416](https://github.com/noir-lang/noir/issues/5416)) ([30c50f5](https://github.com/noir-lang/noir/commit/30c50f52a6d58163e39006b73f4eb5003afc239b))
 * Correctly detect signed/unsigned integer overflows/underflows ([#5375](https://github.com/noir-lang/noir/issues/5375)) ([0603bd3](https://github.com/noir-lang/noir/commit/0603bd39bff1183725e9aeeaba678c421c7b1daf))
-* **docs:** Fix broken docs link to gihtub ([#5398](https://github.com/noir-lang/noir/issues/5398)) ([70ebf60](https://github.com/noir-lang/noir/commit/70ebf607e566a95ff7eb2c7a0eee7c36465ba5b4))
+* **docs:** Fix broken docs link to github ([#5398](https://github.com/noir-lang/noir/issues/5398)) ([70ebf60](https://github.com/noir-lang/noir/commit/70ebf607e566a95ff7eb2c7a0eee7c36465ba5b4))
 * Don't benchmark the "prove" command as it doesn't exist anymore ([#5323](https://github.com/noir-lang/noir/issues/5323)) ([3bb3b03](https://github.com/noir-lang/noir/commit/3bb3b03aedab9c7abfeb3d3141e04b07b7aeeffb))
 * Don't lazily elaborate functions ([#5282](https://github.com/noir-lang/noir/issues/5282)) ([0ea608f](https://github.com/noir-lang/noir/commit/0ea608f10bdeb26df7dfc17b1a0bad5db1967be8))
 * Don't panic when using undefined variables in the interpreter ([#5381](https://github.com/noir-lang/noir/issues/5381)) ([94d209a](https://github.com/noir-lang/noir/commit/94d209acb70064d5f8a5d427bade18d3cd975be0))

@@ -133,13 +133,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     let memory_block = memory
                         .get(block_id)
                         .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
-                    for memory_index in 0..memory_block.block_len {
-                        let memory_value = memory_block
-                            .block_value
-                            .get(&memory_index)
-                            .expect("All memory is initialized on creation");
-                        calldata.push(*memory_value);
-                    }
+                    calldata.extend(&memory_block.block_value);
                 }
             }
         }
@@ -160,7 +154,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.get_memory()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
+    pub fn write_memory_at(&mut self, ptr: u32, value: MemoryValue<F>) {
         self.vm.write_memory_at(ptr, value);
     }
 
@@ -178,7 +172,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     }
 
     pub fn step(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
-        let status = self.vm.process_opcode();
+        let status = self.vm.process_opcode().clone();
         self.handle_vm_status(status)
     }
 
@@ -212,8 +206,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
                         extract_failure_payload_from_memory(
                             self.vm.get_memory(),
-                            revert_data_offset,
-                            revert_data_size,
+                            revert_data_offset
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
+                            revert_data_size
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
                         )
                     }
                 };
@@ -260,7 +258,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
-                self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
+                self.write_brillig_outputs(
+                    witness,
+                    return_data_offset.try_into().expect("Failed conversion from u32 to usize"),
+                    return_data_size.try_into().expect("Failed conversion from u32 to usize"),
+                    outputs,
+                )?;
                 Ok(())
             }
             _ => panic!("Brillig VM has not completed execution"),
@@ -348,4 +351,95 @@ pub struct ForeignCallWaitInfo<F> {
     pub function: String,
     /// Resolved inputs to a foreign call computed in the previous steps of a Brillig VM process
     pub inputs: Vec<ForeignCallParam<F>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pwg::BrilligSolver;
+    use acir::{
+        FieldElement,
+        brillig::{BinaryFieldOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode},
+        circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+        native_types::{Expression, Witness, WitnessMap},
+    };
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn test_solver() {
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(1u128)),
+            (Witness(2), FieldElement::from(1u128)),
+            (Witness(3), FieldElement::from(2u128)),
+        ]));
+        let w1 = Expression::from(Witness(1));
+        let w2 = Expression::from(Witness(2));
+        let w3 = Expression::from(Witness(3));
+        let inputs =
+            vec![BrilligInputs::Single(w1), BrilligInputs::Single(w2), BrilligInputs::Single(w3)];
+
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+        let bytecode = vec![
+            Opcode::Const {
+                destination: MemoryAddress::Direct(21),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1_u128),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(20),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_u128),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress::Direct(0),
+                size_address: MemoryAddress::Direct(21),
+                offset_address: MemoryAddress::Direct(20),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(2),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(0_u128),
+            },
+            Opcode::BinaryFieldOp {
+                destination: MemoryAddress::Direct(3),
+                op: BinaryFieldOp::Equals,
+                lhs: MemoryAddress::Direct(0),
+                rhs: MemoryAddress::Direct(2),
+            },
+            Opcode::JumpIf { condition: MemoryAddress::Direct(3), location: 8 },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(1),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(1_u128),
+            },
+            Opcode::BinaryFieldOp {
+                destination: MemoryAddress::Direct(0),
+                op: BinaryFieldOp::Add,
+                lhs: MemoryAddress::Direct(1),
+                rhs: MemoryAddress::Direct(0),
+            },
+            Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::Direct(20),
+                    size: MemoryAddress::Direct(21),
+                },
+            },
+        ];
+        let mut solver = BrilligSolver::new_call(
+            &initial_witness,
+            &HashMap::new(),
+            &inputs,
+            &bytecode,
+            &backend,
+            0,
+            BrilligFunctionId::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        solver.solve().unwrap();
+        let outputs = vec![BrilligOutputs::Simple(Witness(4))];
+        solver.finalize(&mut initial_witness, &outputs).unwrap();
+
+        assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
+    }
 }

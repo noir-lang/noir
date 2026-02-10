@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
+use noirc_artifacts::program::CompiledProgram;
 
 use crate::{
     Artifact,
@@ -11,7 +12,6 @@ use crate::{
 use nargo::foreign_calls::{
     DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
 };
-use noirc_driver::CompiledProgram;
 
 use super::parse_and_normalize_path;
 
@@ -62,10 +62,6 @@ pub struct ExecuteCommand {
     /// Package name for the RPC oracle resolver
     #[clap(long)]
     pub oracle_package_name: Option<String>,
-
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
-    #[clap(long, default_value_t = false)]
-    pub pedantic_solving: bool,
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
@@ -129,7 +125,7 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
     }
     .build_with_base(transcript_executor);
 
-    let blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
+    let blackbox_solver = Bn254BlackBoxSolver;
 
     execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, &args.prover_file)
 }

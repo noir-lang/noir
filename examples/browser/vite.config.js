@@ -1,9 +1,27 @@
 // docs:start:config
-export default {
+import { defineConfig } from 'vite';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+export default defineConfig({
+  plugins: [
+    nodePolyfills({
+      // Whether to polyfill specific globals.
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+      // Whether to polyfill `node:` protocol imports.
+      protocolImports: true,
+    }),
+  ],
   optimizeDeps: {
-    esbuildOptions: { target: 'esnext' },
-    exclude: ['@noir-lang/noirc_abi', '@noir-lang/acvm_js'],
+    exclude: ['@aztec/bb.js'],
   },
-  // docs:end:config
-  root: '.',
-};
+  resolve: {
+    alias: {
+      pino: 'pino/browser.js',
+    },
+  },
+});
+// docs:end:config

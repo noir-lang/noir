@@ -98,7 +98,7 @@ This command creates two new SSA blocks.
   b1 b2
 ```
 Inserts chosen instruction blocks into b1 and b2.
-Then terminates b0 with jmp_if_else and switch context to b1. Condtion for jmp_if_else is the last defined boolean variable in the block.
+Then terminates b0 with jmp_if_else and switch context to b1. Condition for jmp_if_else is the last defined boolean variable in the block.
 ```
        b0
  then ↙  ↘  else

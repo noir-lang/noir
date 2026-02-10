@@ -9,9 +9,8 @@ use acvm::{
     pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 use noirc_abi::{Abi, AbiErrorType, display_abi_error};
-use noirc_errors::{
-    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
-};
+use noirc_artifacts::debug::DebugInfo;
+use noirc_errors::{CustomDiagnostic, call_stack::CallStackId, reporter::ReportedErrors};
 
 pub use noirc_errors::Location;
 

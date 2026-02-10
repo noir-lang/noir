@@ -4,10 +4,8 @@ use iter_extended::vecmap;
 
 use crate::{
     DataType, Kind, ResolvedGeneric, Type,
-    ast::IntegerBitSize,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
-    shared::Signedness,
 };
 
 /// Represents something that can be generic over type variables
@@ -138,8 +136,7 @@ impl Generic for StrPrimitiveType {
     }
 
     fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
-        let length =
-            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        let length = Kind::u32();
         vec![length]
     }
 
@@ -164,8 +161,7 @@ impl Generic for FmtstrPrimitiveType {
     }
 
     fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
-        let length =
-            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        let length = Kind::u32();
         let element = Kind::Normal;
         vec![length, element]
     }

@@ -5,7 +5,7 @@ expression: stderr
 error: Duplicate definitions of import with name Eq found
    ┌─ std/aes128.nr:1:1
    │
- 1 │ #[foreign(aes128_encrypt)]
+ 1 │ // docs:start:aes128
    │ - Second import found here
    │
    ┌─ src/main.nr:14:7
@@ -21,19 +21,19 @@ error: Type provided when a numeric generic was expected
    │                   ------ the numeric generic is not of type `u32`
    │
 
-error: No matching impl found for `Field: Eq`
+error: No matching impl found for `T: Eq`
   ┌─ src/main.nr:3:12
   │
 3 │     assert(foo(array));
-  │            --- No impl for `Field: Eq`
+  │            --- No impl for `T: Eq`
   │
   = Required by `[Field; 3]: Eq`
 
-error: No matching impl found for `Field: Eq`
+error: No matching impl found for `T: Eq`
   ┌─ src/main.nr:7:12
   │
 7 │     assert(foo(array));
-  │            --- No impl for `Field: Eq`
+  │            --- No impl for `T: Eq`
   │
   = Required by `[Field; 3]: Eq`
 

@@ -5,13 +5,12 @@ use acir::{
     circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
 
+mod common_subexpression;
 mod general;
-mod merge_expressions;
 mod redundant_range;
 mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
-pub(crate) use merge_expressions::MergeExpressionsOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
@@ -26,8 +25,14 @@ pub fn optimize<F: AcirField>(
 ) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
+    // For instance, here before any transformation, the old acir opcode positions have not changed.
+    // So acir_opcode_positions = 0, 1,...,n-1, representing the index of the opcode in Circuit.opcodes vector.
     let acir_opcode_positions = (0..acir.opcodes.len()).collect();
 
+    // `optimize_internal()` may change the circuit, and it returns a new one, as well the new_opcode_positions
+    // In the new circuit, the opcode at index `i` corresponds to the opcode at index `new_opcode_positions[i]` in the original circuit.
+    // For instance let's say it removed the opcode at index 3, and replaced the one at index 5 by two new opcodes
+    // The new_opcode_positions is now: 0,1,2,4,5,5,6,....n-1
     let (mut acir, new_opcode_positions) =
         optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
@@ -41,6 +46,10 @@ pub fn optimize<F: AcirField>(
 /// Applies backend independent optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.
+/// It run the following passes:
+/// - General optimizer
+/// - Unused Memory optimization
+/// - Redundant Ranges optimization
 #[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir, acir_opcode_positions))]
 pub(super) fn optimize_internal<F: AcirField>(
     acir: Circuit<F>,
@@ -73,16 +82,19 @@ pub(super) fn optimize_internal<F: AcirField>(
     let (acir, acir_opcode_positions) =
         memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
 
-    // let (acir, acir_opcode_positions) =
-    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
-
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
-    // let (acir, acir_opcode_positions) =
-    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
+    let max_transformer_passes_or_default = None;
+    let (acir, acir_opcode_positions, _opcodes_hash_stabilized) =
+        common_subexpression::transform_internal(
+            acir,
+            acir_opcode_positions,
+            brillig_side_effects,
+            max_transformer_passes_or_default,
+        );
 
     info!("Number of opcodes after: {}", acir.opcodes.len());
 

@@ -7,6 +7,7 @@ use crate::{
     hir_def::{
         expr::{HirExpression, HirIdent},
         function::{FuncMeta, HirFunction},
+        stmt::{HirLetStatement, HirStatement},
     },
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, Node, ReferenceId, TraitId,
@@ -52,18 +53,6 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
-    /// Push a function with the default modifiers and [`ModuleId`] for testing
-    #[cfg(test)]
-    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
-        let id = self.push_fn(HirFunction::empty());
-        let mut modifiers = FunctionModifiers::new();
-        modifiers.name = name;
-        let module = ModuleId::dummy_id();
-        let location = Location::dummy();
-        self.push_function_definition(id, modifiers, module, location);
-        id
-    }
-
     pub fn push_function(
         &mut self,
         id: FuncId,
@@ -100,8 +89,14 @@ impl NodeInterner {
         self.push_definition(name, false, comptime, DefinitionKind::Function(func), location)
     }
 
-    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
-        self.func_id_to_trait.insert(func, (self_type, trait_id));
+    // Returns Some((overlapping_self_type, overlapping_trait_id)) if overlapping
+    pub fn set_function_trait(
+        &mut self,
+        func: FuncId,
+        self_type: Type,
+        trait_id: TraitId,
+    ) -> Option<(Type, TraitId)> {
+        self.func_id_to_trait.insert(func, (self_type, trait_id))
     }
 
     pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {
@@ -121,15 +116,30 @@ impl NodeInterner {
         self.function_modules[&func]
     }
 
-    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
-    pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
+    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
+    /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
+    /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
+    ///
+    /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
+    pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            match self.try_definition(id).map(|def| &def.kind) {
-                Some(DefinitionKind::Function(func_id)) => Some(*func_id),
-                Some(DefinitionKind::Local(Some(expr_id))) => {
-                    self.lookup_function_from_expr(expr_id)
+            match self.definition(id).kind {
+                DefinitionKind::Function(func_id) => Some(func_id),
+                DefinitionKind::Local(Some(expr_id)) => self.lookup_function_from_expr(&expr_id),
+                DefinitionKind::Global(global_id) => {
+                    let info = self.get_global(global_id);
+                    let expression = match self.statement(&info.let_statement) {
+                        HirStatement::Let(HirLetStatement { expression, .. })
+                        | HirStatement::Expression(expression) => expression,
+                        other => unreachable!(
+                            "Expected global to be a let statement or expression but found: {other:?}"
+                        ),
+                    };
+                    self.lookup_function_from_expr(&expression)
                 }
-                _ => None,
+                DefinitionKind::Local(None)
+                | DefinitionKind::AssociatedConstant(..)
+                | DefinitionKind::NumericGeneric(..) => None,
             }
         } else {
             None
@@ -155,6 +165,11 @@ impl NodeInterner {
 
     pub fn function_meta_mut(&mut self, func_id: &FuncId) -> &mut FuncMeta {
         self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
+    }
+
+    /// Removes the interned meta data corresponding to `func_id`
+    pub fn remove_function_meta(&mut self, func_id: &FuncId) -> FuncMeta {
+        self.func_meta.remove(func_id).expect("ice: all function ids should have metadata")
     }
 
     pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {

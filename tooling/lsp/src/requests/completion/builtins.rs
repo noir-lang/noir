@@ -19,33 +19,31 @@ impl NodeFinder<'_> {
         function_completion_kind: FunctionCompletionKind,
     ) {
         for keyword in Keyword::iter() {
-            if let Some(func) = keyword_builtin_function(&keyword) {
-                if name_matches(func.name, prefix) {
-                    let description = Some(func.description.to_string());
-                    let label;
-                    let insert_text;
-                    match function_completion_kind {
-                        FunctionCompletionKind::Name => {
-                            label = func.name.to_string();
-                            insert_text = func.name.to_string();
-                        }
-                        FunctionCompletionKind::NameAndParameters => {
-                            label = format!("{}(…)", func.name);
-                            insert_text = format!("{}({})", func.name, func.parameters);
-                        }
+            if let Some(func) = keyword_builtin_function(&keyword)
+                && name_matches(func.name, prefix)
+            {
+                let description = Some(func.description.to_string());
+                let label;
+                let insert_text;
+                match function_completion_kind {
+                    FunctionCompletionKind::Name => {
+                        label = func.name.to_string();
+                        insert_text = func.name.to_string();
                     }
-
-                    self.completion_items.push(
-                        completion_item_with_trigger_parameter_hints_command(
-                            snippet_completion_item(
-                                label,
-                                CompletionItemKind::FUNCTION,
-                                insert_text,
-                                description,
-                            ),
-                        ),
-                    );
+                    FunctionCompletionKind::NameAndParameters => {
+                        label = format!("{}(…)", func.name);
+                        insert_text = format!("{}({})", func.name, func.parameters);
+                    }
                 }
+
+                self.completion_items.push(completion_item_with_trigger_parameter_hints_command(
+                    snippet_completion_item(
+                        label,
+                        CompletionItemKind::FUNCTION,
+                        insert_text,
+                        description,
+                    ),
+                ));
             }
         }
     }
@@ -204,10 +202,12 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::CallData
         | Keyword::Comptime
         | Keyword::Constrain
+        | Keyword::Constrained
         | Keyword::Continue
         | Keyword::Contract
         | Keyword::Crate
         | Keyword::Dep
+        | Keyword::Dual
         | Keyword::Else
         | Keyword::Enum
         | Keyword::Fn

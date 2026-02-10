@@ -63,7 +63,7 @@ impl<T> Located<T> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Location {
     pub span: Span,
     pub file: FileId,
@@ -74,8 +74,8 @@ impl Location {
         Self { span, file }
     }
 
-    pub fn dummy() -> Self {
-        Self { span: Span::default(), file: FileId::dummy() }
+    pub const fn dummy() -> Self {
+        Self { span: Span::initial(), file: FileId::dummy() }
     }
 
     pub fn contains(&self, other: &Location) -> bool {
@@ -101,5 +101,11 @@ impl Ord for Location {
 impl PartialOrd for Location {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl std::fmt::Debug for Location {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}:{}", self.file.as_usize(), self.span.start(), self.span.end())
     }
 }

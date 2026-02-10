@@ -88,7 +88,7 @@ impl UseSegmentPositions {
         let kind_string = match use_tree.prefix.kind {
             PathKind::Crate => Some("crate".to_string()),
             PathKind::Super => Some("super".to_string()),
-            PathKind::Dep | PathKind::Plain => None,
+            PathKind::Absolute | PathKind::Plain => None,
             PathKind::Resolved(_) => Some("$crate".to_string()),
         };
         if let Some(kind_string) = kind_string {
@@ -111,7 +111,7 @@ impl UseSegmentPositions {
             let ident = &segment.ident;
             if !prefix.is_empty() {
                 prefix.push_str("::");
-            };
+            }
             prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
@@ -160,6 +160,11 @@ impl UseSegmentPositions {
     ) {
         match &use_tree.kind {
             UseTreeKind::Path(ident, _alias) => {
+                // The identifier might be empty for cases like `use crate::` or `use super::`.
+                if ident.is_empty() {
+                    return;
+                }
+
                 self.insert_use_segment_position(
                     prefix,
                     UseSegmentPosition::BeforeSegment {
@@ -327,10 +332,10 @@ fn new_use_completion_item_additional_text_edits(
     let mut newlines = "\n";
 
     // If the line we are inserting into is not an empty line, insert an extra line to make some room
-    if let Some(line_text) = request.lines.get(line as usize) {
-        if !line_text.trim().is_empty() {
-            newlines = "\n\n";
-        }
+    if let Some(line_text) = request.lines.get(line as usize)
+        && !line_text.trim().is_empty()
+    {
+        newlines = "\n\n";
     }
 
     vec![TextEdit {

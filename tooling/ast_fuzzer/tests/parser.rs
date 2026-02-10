@@ -5,15 +5,13 @@
 //! ```
 use std::time::Duration;
 
-use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        ir::function::function_values_iter,
-        opt::inlining::MAX_INSTRUCTIONS,
+        opt::{CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS},
         primary_passes,
         ssa_gen::{self, Ssa},
     },
@@ -38,14 +36,15 @@ fn arb_ssa_roundtrip() {
             ssa_logging: ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
-            small_function_max_instruction: MAX_INSTRUCTIONS,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
         };
         let pipeline = primary_passes(&options);
@@ -95,8 +94,8 @@ fn arb_ssa_roundtrip() {
                 continue;
             }
             let func2 = &ssa2.functions[&func_id];
-            let values1 = function_values_iter(&func1).collect::<Vec<_>>();
-            let values2 = function_values_iter(func2).collect::<Vec<_>>();
+            let values1 = func1.view().values_iter().collect::<Vec<_>>();
+            let values2 = func2.view().values_iter().collect::<Vec<_>>();
             similar_asserts::assert_eq!(values1, values2);
         }
 

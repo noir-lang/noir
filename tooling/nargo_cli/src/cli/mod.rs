@@ -22,6 +22,7 @@ mod check_cmd;
 pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
+mod doc_cmd;
 mod execute_cmd;
 mod expand_cmd;
 mod export_cmd;
@@ -116,6 +117,7 @@ enum NargoCommand {
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
     Expand(expand_cmd::ExpandCommand),
+    Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -160,6 +162,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
         NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
+        NargoCommand::Doc(args) => with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
@@ -203,7 +206,7 @@ fn compile_with_maybe_dummy_workspace(
         // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
         // is invalid because the fields are private
         let mut package = PackageMetadata::default();
-        package.name = Some(package_name.clone());
+        package.name = package_name.clone();
         package.package_type = Some("bin".into());
         let dependencies = BTreeMap::new();
         let package_config = PackageConfig { package, dependencies };
@@ -213,10 +216,12 @@ fn compile_with_maybe_dummy_workspace(
             CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
         let selection = PackageSelection::Selected(package_name);
 
+        let assume_default_entry = true;
         let workspace = resolve_workspace_from_fixed_toml(
             nargo_toml,
             selection,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
         )?;
         compile_cmd::run(cmd, workspace)
     } else {
@@ -230,6 +235,13 @@ where
     C: WorkspaceCommand,
     R: FnOnce(C, Workspace) -> Result<(), CliError>,
 {
+    if !config.program_dir.exists() {
+        return Err(CliError::ProgramDirDoesNotExist(config.program_dir));
+    }
+    if !config.program_dir.is_dir() {
+        return Err(CliError::ProgramDirIsNotADirectory(config.program_dir));
+    }
+
     // All commands need to run on the workspace level, because that's where the `target` directory is.
     let workspace_dir = nargo_toml::find_root(&config.program_dir, true)?;
     let package_dir = nargo_toml::find_root(&config.program_dir, false)?;
@@ -302,18 +314,6 @@ fn lock_workspace(
 mod tests {
     use super::NargoCli;
     use clap::Parser;
-
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
-    }
 
     #[test]
     fn test_parse_target_dir() {

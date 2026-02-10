@@ -1,8 +1,14 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{
-    function_builder::data_bus::DataBus,
-    opt::pure::{FunctionPurities, Purity},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        RuntimeError,
+        function_builder::data_bus::DataBus,
+        ir::function::Function,
+        ir::instruction::ArrayOffset,
+        opt::pure::{FunctionPurities, Purity},
+    },
 };
 
 use super::{
@@ -17,7 +23,13 @@ use super::{
     value::{Value, ValueId, ValueMapping},
 };
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
@@ -107,6 +119,9 @@ pub(crate) struct DataFlowGraph {
 
     #[serde(skip)]
     pub(crate) function_purities: Arc<FunctionPurities>,
+
+    /// Indicate whether the Brillig array index offset optimizations have been performed.
+    pub(crate) brillig_arrays_offset: bool,
 }
 
 /// The GlobalsGraph contains the actual global data.
@@ -152,6 +167,13 @@ impl From<GlobalsGraph> for DataFlowGraph {
         }
     }
 }
+
+/// Maximum number of elements allowed for return values, or for some arrays.
+/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
+/// 2^24 = 16,777,216 witnesses.
+/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
+/// So this limit should not interfere with real use cases.
+pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -300,7 +322,10 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
+        let simplify_result =
+            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+
+        match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -311,20 +336,28 @@ impl DataFlowGraph {
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
-                let instructions = result.instructions();
-                if instructions.is_none() {
-                    if let Some(id) = existing_id {
-                        if self[id] == instruction {
-                            // Just (re)insert into the block, no need to redefine.
-                            self.blocks[block].insert_instruction(id);
-                            return InsertInstructionResult::Results(
-                                id,
-                                self.instruction_results(id),
-                            );
-                        }
+                let is_simplified = match &result {
+                    SimplifyResult::SimplifiedToInstruction(i) => {
+                        // `Binary` can simplify to itself instead of None.
+                        *i != instruction
                     }
+                    SimplifyResult::SimplifiedToInstructionMultiple(is) => {
+                        // `Constrain` can simplify to a Multiple, with a single item of itself.
+                        is.len() != 1 || is[0] != instruction
+                    }
+                    SimplifyResult::None => false,
+                    _ => unreachable!("matched specific SimplifyResult types"),
+                };
+                if !is_simplified
+                    && let Some(id) = existing_id
+                    && self[id] == instruction
+                {
+                    // Just (re)insert into the block, no need to redefine.
+                    self.blocks[block].insert_instruction(id);
+                    let results = self.instruction_results(id);
+                    return InsertInstructionResult::Results(id, results);
                 }
-                let mut instructions = instructions.unwrap_or(vec![instruction]);
+                let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
                     !instructions.is_empty(),
                     "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
@@ -529,7 +562,7 @@ impl DataFlowGraph {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                    let original_bit_size = self.get_value_max_num_bits(original_value);
                     // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
                     // in which case we want to recover the original smaller bit size;
                     // OTOH if we cast down, then we don't need the higher original size.
@@ -555,12 +588,34 @@ impl DataFlowGraph {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
     }
 
+    /// Returns N results, asserting that there are exactly N items.
+    pub(crate) fn instruction_result<const N: usize>(
+        &self,
+        instruction_id: InstructionId,
+    ) -> [ValueId; N] {
+        let results = self.instruction_results(instruction_id);
+        if results.len() != N {
+            let instruction = &self[instruction_id];
+            panic!("expected {instruction:?} to have {N} results; got {}", results.len());
+        }
+        std::array::from_fn(|i| results[i])
+    }
+
     /// Remove an instruction by replacing it with a `Noop` instruction.
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
-    #[allow(unused)]
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
         self.results.insert(instruction, smallvec::SmallVec::new());
+    }
+
+    /// Remove instructions for which the `keep` functions returns `false`.
+    pub(crate) fn retain_instructions(&mut self, keep: impl Fn(InstructionId) -> bool) {
+        for i in 0..self.instructions.len() {
+            let id = InstructionId::new(i as u32);
+            if !keep(id) {
+                self.remove_instruction(id);
+            }
+        }
     }
 
     /// Add a parameter to the given block
@@ -583,8 +638,8 @@ impl DataFlowGraph {
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
-        self.get_numeric_constant_with_type(value)
-            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+        let (f, t) = self.get_numeric_constant_with_type(value)?;
+        IntegerConstant::from_numeric_constant(f, t)
     }
 
     /// Returns the field element and type represented by this value if it is a numeric constant.
@@ -599,27 +654,40 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
+    /// Returns the item values in with this ValueId if it refers to an array constant, along with the type of the array item.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        if let Some(instruction) = self.get_local_or_global_instruction(value) {
-            match instruction {
-                Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
-                _ => None,
-            }
-        } else {
-            // Arrays are shared, so cloning them is cheap
-            None
+        match self.get_local_or_global_instruction(value)? {
+            Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
+            _ => None,
         }
     }
 
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<u32> {
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<SemanticLength> {
         match self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
             _ => None,
         }
+    }
+    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
+        // For arrays we know the size statically
+        if let Some(length) = self.try_get_array_length(value) {
+            return Some(length);
+        }
+
+        // Check if the value was made by a MakeArray instruction, which can create vectors as well.
+        let (array, typ) = self.get_array_constant(value)?;
+        let elements_size = typ.element_size();
+
+        let length = if elements_size.0 == 0 {
+            SemanticLength(assert_u32(array.len()))
+        } else {
+            SemiFlattenedLength(assert_u32(array.len())) / elements_size
+        };
+
+        Some(length)
     }
 
     /// If this value points to an array of constant bytes, returns a string
@@ -633,7 +701,7 @@ impl DataFlowGraph {
             let u64_value = field_value.try_to_u64()?;
             if u64_value > 255 {
                 return None;
-            };
+            }
             let byte = u64_value as u8;
             bytes.push(byte);
         }
@@ -644,10 +712,10 @@ impl DataFlowGraph {
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
-            (Type::Array(elements, len), Some(index))
-                if index.to_u128() < (u128::from(len) * elements.len() as u128) =>
-            {
-                true
+            (Type::Array(elements, len), Some(index)) => {
+                let elements_length = ElementTypesLength(assert_u32(elements.len()));
+                let semi_flattened_length = len * elements_length;
+                index.to_u128() < u128::from(semi_flattened_length.0)
             }
             _ => false,
         }
@@ -705,7 +773,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a (recursively) constant value
+    /// True if the given [ValueId] refers to a constant value.
+    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[argument] {
             Value::Param { .. } => false,
@@ -765,6 +834,58 @@ impl DataFlowGraph {
 
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
         self.function_purities.get(&function).copied()
+    }
+
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
+    pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
+        if !self.runtime.is_brillig()
+            || !self.brillig_arrays_offset
+            || self.get_numeric_constant(index).is_none()
+        {
+            return ArrayOffset::None;
+        }
+        match self.type_of_value(array) {
+            Type::Array(_, _) => ArrayOffset::Array,
+            Type::Vector(_) => ArrayOffset::Vector,
+            _ => ArrayOffset::None,
+        }
+    }
+
+    /// Check if the results of an instruction are used in the databus to return a value..
+    ///
+    /// This only applies to ACIR, as in Brillig the databus will always be empty.
+    pub(crate) fn is_returned_in_databus(&self, instruction_id: InstructionId) -> bool {
+        let Some(return_data) = self.data_bus.return_data else {
+            return false;
+        };
+        let results = self.instruction_results(instruction_id);
+        results.contains(&return_data)
+    }
+
+    /// Computes the number of flattened values returned by the SSA terminator.
+    ///
+    /// Returns [RuntimeError::ReturnLimitExceeded] if it exceeds [MAX_ELEMENTS].
+    pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
+        if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
+            func.return_instruction()
+        {
+            let num_return_values: usize = return_values
+                .iter()
+                .map(|result_id| self.type_of_value(*result_id).flattened_size().to_usize())
+                .sum();
+
+            if num_return_values > MAX_ELEMENTS {
+                let call_stack = func.dfg.call_stack_data.get_call_stack(*call_stack);
+                return Err(RuntimeError::ReturnLimitExceeded {
+                    num_witnesses: num_return_values,
+                    max_witnesses: MAX_ELEMENTS,
+                    call_stack,
+                });
+            }
+            return Ok(num_return_values);
+        }
+
+        Ok(0)
     }
 }
 

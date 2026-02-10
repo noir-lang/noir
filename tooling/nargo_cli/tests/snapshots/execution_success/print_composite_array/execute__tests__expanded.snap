@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let array: [[(Field, Field); 1]; 2] = [[(1_Field, 2_Field)], [(3_Field, 4_Field)]];
+    println(array);
+}

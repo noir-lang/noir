@@ -11,10 +11,10 @@ fn main(a: u32, b: u32) {
     let arr: [u32; 5] = [a, a, a, a, a];
     assert(array_sum(arr) == b);
     assert(array_sum(black_box(arr)) == b);
-    assert(slice_sum(arr.as_slice()) == b);
-    assert(slice_sum(black_box(arr).as_slice()) == b);
+    assert(vector_sum(arr.as_vector()) == b);
+    assert(vector_sum(black_box(arr).as_vector()) == b);
     // Safety: comment added by `nargo expand`
-    let s: u32 = unsafe { brillig_slice_sum(black_box(arr.as_slice())) };
+    let s: u32 = unsafe { brillig_vector_sum(black_box(arr.as_vector())) };
     assert(s == b);
     let mut d: u32 = b;
     let mut c: u32 = 0_u32;
@@ -44,7 +44,7 @@ fn array_sum<let N: u32>(xs: [u32; N]) -> u32 {
     sum
 }
 
-fn slice_sum(xs: [u32]) -> u32 {
+fn vector_sum(xs: [u32]) -> u32 {
     let mut sum: u32 = 0_u32;
     {
         let ___i0: [u32] = xs;
@@ -58,7 +58,7 @@ fn slice_sum(xs: [u32]) -> u32 {
     sum
 }
 
-unconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {
+unconstrained fn brillig_vector_sum(xs: [u32]) -> u32 {
     let mut sum: u32 = 0_u32;
     {
         let ___i0: [u32] = xs;

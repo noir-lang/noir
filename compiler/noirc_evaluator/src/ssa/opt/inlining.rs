@@ -3,7 +3,12 @@
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
 
-use crate::{errors::RuntimeError, ssa::visit_once_deque::VisitOnceDeque};
+use std::collections::HashSet;
+
+use crate::{
+    errors::RuntimeError,
+    ssa::{opt::inlining::inline_info::compute_bottom_up_order, visit_once_deque::VisitOnceDeque},
+};
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
@@ -79,6 +84,7 @@ impl Ssa {
             let num_functions_before = self.functions.len();
 
             let call_graph = CallGraph::from_ssa_weighted(&self);
+
             let inline_infos = compute_inline_infos(
                 &self,
                 &call_graph,
@@ -86,7 +92,12 @@ impl Ssa {
                 small_function_max_instructions,
                 aggressiveness,
             );
-            self = Self::inline_functions_inner(self, &inline_infos)?;
+
+            // Bottom-up order, starting with the "leaf" functions.
+            let bottom_up = compute_bottom_up_order(&self, &call_graph);
+            let bottom_up = vecmap(bottom_up, |(id, _)| id);
+
+            self = Self::inline_functions_inner(self, &inline_infos, &bottom_up)?;
 
             let num_functions_after = self.functions.len();
             if num_functions_after == num_functions_before {
@@ -97,28 +108,39 @@ impl Ssa {
         Ok(self)
     }
 
-    fn inline_functions_inner(mut self, inline_infos: &InlineInfos) -> Result<Ssa, RuntimeError> {
-        let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
-            let dfg = &self.functions[id].dfg;
-            info.is_inline_target(dfg).then_some(*id)
-        });
+    /// Inline entry points in the order of appearance in `inline_infos`, assuming it goes in bottom-up order.
+    fn inline_functions_inner(
+        mut self,
+        inline_infos: &InlineInfos,
+        bottom_up: &[FunctionId],
+    ) -> Result<Ssa, RuntimeError> {
+        let inline_targets = bottom_up
+            .iter()
+            .filter_map(|id| {
+                let info = inline_infos.get(id)?;
+                let dfg = &self.functions[id].dfg;
+                info.is_inline_target(dfg).then_some(*id)
+            })
+            .collect::<Vec<_>>();
 
         let should_inline_call = |callee: &Function| -> bool {
             // We defer to the inline info computation to determine whether a function should be inlined
             InlineInfo::should_inline(inline_infos, callee.id())
         };
 
-        // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
-        // instead of inlining the "leaf" functions, moving up towards the entry point.
-        let mut new_functions = std::collections::BTreeMap::new();
+        // We are going bottom up, so hopefully we can inline leaf functions into their callers and retain less memory.
+        let mut new_functions = HashSet::new();
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
             let inlined = function.inlined(&self, &should_inline_call)?;
             assert_eq!(inlined.id(), entry_point);
-            new_functions.insert(entry_point, inlined);
+            self.functions.insert(entry_point, inlined);
+            new_functions.insert(entry_point);
         }
 
-        self.functions = new_functions;
+        // Drop functions that weren't inline targets.
+        self.functions.retain(|id, _| new_functions.contains(id));
+
         Ok(self)
     }
 }
@@ -553,6 +575,21 @@ impl<'function> PerFunctionContext<'function> {
             .call_stack_data
             .unwind_call_stack(self.context.call_stack, call_stack_len);
 
+        // If the inlined function has no reachable return (e.g., contains `while true {}`),
+        // new_results will be empty even though old_results expects values. The function
+        // diverges, so any code after this call is unreachable. Create a fresh block with
+        // parameters of the correct types as dummy values.
+        if new_results.is_empty() && !old_results.is_empty() {
+            let unreachable_block = self.context.builder.insert_block();
+            for old_result in old_results {
+                let typ = self.source_function.dfg.type_of_value(*old_result);
+                let param = self.context.builder.add_block_parameter(unreachable_block, typ);
+                self.values.insert(*old_result, param);
+            }
+            self.context.builder.switch_to_block(unreachable_block);
+            return Ok(());
+        }
+
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
         Ok(())
@@ -682,7 +719,7 @@ impl<'function> PerFunctionContext<'function> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         errors::RuntimeError,
@@ -1175,6 +1212,25 @@ mod test {
     }
 
     #[test]
+    fn inline_never_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
     fn acir_global_arrays_keep_same_value_ids() {
         let src = "
         g0 = Field 1
@@ -1283,7 +1339,7 @@ mod test {
     fn brillig_global_constants_keep_same_value_ids() {
         let src = "
         g0 = Field 1
-    
+
         brillig(inline) fn main f0 {
           b0():
             v0 = call f1() -> Field
@@ -1310,7 +1366,7 @@ mod test {
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
-        
+
         brillig(inline) fn main f0 {
           b0():
             return Field 1
@@ -1359,6 +1415,81 @@ mod test {
         if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
             panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
         }
+    }
+
+    #[test]
+    fn inline_diverging_function() {
+        // Regression test: inlining a function with no reachable return (e.g., infinite loop)
+        // should not crash. The inlined function's return block is unreachable because the
+        // jmpif condition is a known constant `true`, so only the loop body branch is visited.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1()
+          b3():
+            return Field 1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // This should not panic
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        // The inlined function diverges, so main should have an infinite loop
+        // and an unreachable block for the dummy return values.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            jmp b1()
+        }
+        ");
+    }
+
+    /// Same as [inline_diverging_function] but the loop header has block parameters.
+    #[test]
+    fn inline_diverging_function_with_block_parameters() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v2 = add v0, v1
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1(v2, v0)
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v4 = add v0, v1
+            jmp b2()
+          b2():
+            jmp b1(v4, v0)
+        }
+        ");
     }
 
     #[test]

@@ -101,6 +101,45 @@ fn as_module_test() {
     ()
 }
 
+mod module1 {
+    pub mod module2 {}
+}
+
+#[test]
+fn parent_test() {
+    ()
+}
+
+mod my_module {
+    pub mod child1 {}
+
+    pub mod child2 {}
+
+    pub mod child3 {
+        pub mod nested_child {}
+    }
+}
+
+#[test]
+fn child_modules_test() {
+    ()
+}
+
+/// A longer test using all submodules in this crate. This shows that modules
+/// declaring separate files are currently listed before modules defined in the
+/// same file. This is not desired so the order for `child_modules` is left unspecified
+/// so that this can be fixed in the future.
+#[test]
+fn child_modules_test2() {
+    ()
+}
+
+/// Ensures calling `Module::name` on the top-level module does not panic
+#[test]
+fn top_level_module_name_is_empty() {
+    ()
+}
+
 mod separate_module {
     comptime fn inner_attribute_separate_module(m: Module) {
         assert(m.name() == quote { separate_module });

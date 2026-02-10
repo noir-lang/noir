@@ -10,8 +10,7 @@
 //!   and its results are all unused the instruction will be marked for removal.
 //!   Traversing in reverse enables removing entire unused chains of computation.
 //! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
-//!   This pass defines an IncrementRc/DecrementRc as unused if the increment/decrement occurs on an array type that is never mutated
-//!   in the current block.   
+//!   As these instructions contain side effects we only remove them after analyzing an entire function to see if their values are unused.
 //! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
 //!   to maintain separation of concerns and SSA consistency.
 //! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
@@ -26,10 +25,12 @@
 //!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
 //!     and only insert a single OOB check for an array get group.
 //!   - [Store][Instruction::Store] instructions can only be removed if the `flattened` flag is set.
+//!   - Instructions that create the value which is returned in the databus (if present) is not removed.
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
 //!   - [Store][Instruction::Store] instructions are never removed.
+//!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! ## Preconditions
 //! - ACIR: By default the pass must be run after [mem2reg][crate::ssa::opt::mem2reg] and [CFG flattening][crate::ssa::opt::flatten_cfg].
@@ -41,7 +42,7 @@
 //! - If DIE was run after mem2reg and flattening, no unreachable
 //!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
-use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use acvm::{AcirField, FieldElement};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -51,7 +52,9 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        integer::IntegerConstant,
         post_order::PostOrder,
+        types::NumericType,
         value::{Value, ValueId},
     },
     opt::{die::array_oob_checks::should_insert_oob_check, pure::Purity},
@@ -273,22 +276,23 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
+        if let Some(return_data) = function.dfg.data_bus.return_data {
+            self.used_values.insert(return_data);
+        }
 
-        // Indexes of instructions that might be out of bounds.
+        // Indices of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
-        let mut possible_index_out_of_bounds_indexes = Vec::new();
+        let mut possible_index_out_of_bounds_indices = Vec::new();
 
         // Going in reverse so we know if a result of an instruction was used.
-        for (instruction_index, instruction_id) in block.instructions().iter().rev().enumerate() {
+        for (instruction_index, instruction_id) in block.instructions().iter().enumerate().rev() {
             let instruction = &function.dfg[*instruction_id];
 
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
 
                 if insert_out_of_bounds_checks && should_insert_oob_check(function, instruction) {
-                    possible_index_out_of_bounds_indexes
-                        .push(instructions_len - instruction_index - 1);
+                    possible_index_out_of_bounds_indices.push(instruction_index);
                     // We need to still mark the array index as used as we refer to it in the inserted bounds check.
                     let (Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
                         instruction
@@ -313,13 +317,17 @@ impl Context {
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
-        if !possible_index_out_of_bounds_indexes.is_empty() {
+        if !possible_index_out_of_bounds_indices.is_empty() {
             let inserted_check = self.replace_array_instructions_with_out_of_bounds_checks(
                 function,
                 block_id,
-                &mut possible_index_out_of_bounds_indexes,
+                &mut possible_index_out_of_bounds_indices,
             );
-            // There's a slight chance we didn't insert any checks, so we could proceed with DIE.
+            // There's a chance we didn't insert any checks, so we could proceed with DIE.
+            // This can happen for example with arrays of a complex type, where one part
+            // of the complex type is used, while the other is not, in which case no constraint
+            // is inserted, because the use itself will cause an OOB error.
+            // By proceeding, the unused access will be removed.
             if inserted_check {
                 return true;
             }
@@ -339,16 +347,9 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
+        can_be_eliminated_if_unused(instruction, function, self.flattened, &self.used_values) && {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
-        } else if let Instruction::Call { func, arguments } = instruction {
-            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
-        } else {
-            // If the instruction has side effects we should never remove it.
-            false
         }
     }
 
@@ -435,13 +436,29 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     flattened: bool,
+    used_values: &HashSet<ValueId>,
 ) -> bool {
     use Instruction::*;
     match instruction {
         Binary(binary) => {
             if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                 if let Some(rhs) = function.dfg.get_numeric_constant(binary.rhs) {
-                    rhs != FieldElement::zero()
+                    // Division by zero must remain
+                    if rhs == FieldElement::zero() {
+                        return false;
+                    }
+
+                    // There's one more case: signed division that does MIN / -1
+                    let typ = function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+                    if let NumericType::Signed { bit_size } = typ
+                        && let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
+                            let minus_one = IntegerConstant::Signed { value: -1, bit_size };
+                            if rhs == minus_one {
+                                return false;
+                            }
+                        }
+
+                    true
                 } else {
                     false
                 }
@@ -466,7 +483,9 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        Store { .. } => should_remove_store(function, flattened),
+        Store { address, .. } => {
+            should_remove_store(function, flattened) && !used_values.contains(address)
+        }
 
         Constrain(..)
         | ConstrainNotEqual(..)
@@ -476,11 +495,8 @@ fn can_be_eliminated_if_unused(
         | RangeCheck { .. } => false,
 
         // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-        Call { func, .. } => match function.dfg[*func] {
-            // Explicitly allows removal of unused ec operations, even if they can fail
-            Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
-            | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
-
+        Call { func, arguments } => match function.dfg[*func] {
+            Value::Intrinsic(Intrinsic::AsWitness) if !used_values.contains(&arguments[0]) => true,
             Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
             // All foreign functions are treated as having side effects.
@@ -517,8 +533,9 @@ fn should_remove_store(func: &Function, flattened: bool) -> bool {
 /// * Passing `flattened = true` will confirm the CFG has already been flattened into a single block for ACIR functions
 #[cfg(debug_assertions)]
 fn die_pre_check(func: &Function, flattened: bool) {
-    if flattened {
-        super::flatten_cfg::flatten_cfg_post_check(func);
+    if flattened && func.runtime().is_acir() {
+        // flatten_cfg must have run
+        super::checks::assert_cfg_is_flattened(func);
     }
 }
 
@@ -527,26 +544,18 @@ fn die_pre_check(func: &Function, flattened: bool) {
 #[cfg(debug_assertions)]
 fn die_post_check(func: &Function, flattened: bool) {
     if should_remove_store(func, flattened) {
-        for block_id in func.reachable_blocks() {
-            for (i, instruction_id) in func.dfg[block_id].instructions().iter().enumerate() {
-                let instruction = &func.dfg[*instruction_id];
-                if matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }) {
-                    panic!(
-                        "not expected to have Load or Store instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
-                        func.name(),
-                        func.id(),
-                        instruction
-                    );
-                }
-            }
-        }
+        // All Load/Store instructions should be removed
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_load_or_store(instruction);
+        });
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
+    use acvm::acir::brillig::lengths::SemanticLength;
     use im::vector;
     use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -557,13 +566,13 @@ mod test {
             function_builder::FunctionBuilder,
             ir::{
                 function::RuntimeType,
-                instruction::ArrayOffset,
                 map::Id,
                 types::{NumericType, Type},
             },
             opt::assert_ssa_does_not_change,
         },
     };
+    use test_case::test_case;
 
     #[test]
     fn dead_instruction_elimination() {
@@ -637,7 +646,6 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_get v0, index u32 0 -> Field
-                dec_rc v0
                 return v2
             }
             ";
@@ -659,7 +667,6 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_set v0, index u32 0, value u32 0
-                dec_rc v0
                 return v2
             }
             ";
@@ -687,7 +694,7 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
         let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), 2);
+        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(2));
         let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
         let v2 = builder.insert_allocate(array_type.clone());
         builder.increment_array_reference_count(v1);
@@ -701,8 +708,7 @@ mod test {
         let v3 = builder.insert_load(v2, array_type);
         let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
         let mutable = false;
-        let offset = ArrayOffset::None;
-        let v5 = builder.insert_array_set(v3, zero, one, mutable, offset);
+        let v5 = builder.insert_array_set(v3, zero, one, mutable);
         builder.terminate_with_return(vec![v5]);
 
         let ssa = builder.finish();
@@ -721,7 +727,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
+    fn does_not_remove_inc_if_they_are_loaded_from_a_reference() {
         let src = "
             brillig(inline) fn borrow_mut f0 {
               b0(v0: &mut [Field; 3]):
@@ -732,7 +738,6 @@ mod test {
                 v3 = load v0 -> [Field; 3]
                 v6 = array_set v3, index u32 0, value Field 5
                 store v6 at v0
-                dec_rc v6
                 return
             }
             ";
@@ -763,7 +768,8 @@ mod test {
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 3]):
-            return Field 1
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
         }
         ";
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
@@ -1097,8 +1103,9 @@ mod test {
           b0(v0: u32):
             v2 = make_array [u32 0, u32 0] : [u32; 2]
             v3 = array_get v2, index v0 -> u32
-            v5 = lt v3, u32 2
-            constrain v5 == u1 1, "Index out of bounds"
+            v4 = cast v3 as u64
+            v6 = lt v4, u64 2
+            constrain v6 == u1 1, "Index out of bounds"
             return
         }
         "#);
@@ -1163,6 +1170,158 @@ mod test {
         ";
         // If `inc_rc v3` were removed, we risk it later being mutated in `v19 = array_set v18, index u32 0, value Field 1`.
         // Thus, when we later go to do `v22 = array_set v21, index u32 0, value v3` once more, we will be writing [1] rather than [2].
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn replaces_oob_followed_by_safe_access_with_constraint() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array b"KO"
+            v4 = make_array [u1 0, v2] : [(u1, [u8; 2]); 1]
+            v6 = array_get v4, index u32 20 -> u1
+            v8 = array_get v4, index u32 1 -> [u8; 2]
+            return v8
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array b"KO"
+            v4 = make_array [u1 0, v2] : [(u1, [u8; 2]); 1]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v7 = array_get v4, index u32 1 -> [u8; 2]
+            return v7
+        }
+        "#);
+    }
+
+    #[test]
+    fn keeps_unused_databus_return_value() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v0
+          b0():
+            v0 = make_array [Field 0] : [Field; 1]
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test_case("ecdsa_secp256k1")]
+    #[test_case("ecdsa_secp256r1")]
+    fn does_not_remove_unused_ecdsa_verification(ecdsa_func: &str) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+            b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call {ecdsa_func}(v0, v1, v2, v3, u1 1) -> u1
+            return
+        }}
+        "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn does_not_remove_unused_curve_operations() {
+        let src = r#"
+        acir(inline) fn main f0 {
+            b0(v0: Field, v1: Field, v2: Field):
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v8 = make_array [v0, Field 0] : [(Field, Field); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field, u1); 1]
+            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -> [(Field, Field, u1); 1]
+            return v12
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn removes_unused_known_small_bit_shifts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 2
+            v2 = shr v0, u32 3
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_bit_shifts_by_unknown_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = shl v0, v1
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn keeps_bit_shifts_by_known_large_amounts() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = shl v0, u32 33
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn keeps_unused_as_witness_databus_return_value() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          return_data: v2
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = load v1 -> Field
+            call as_witness(v2)
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+    }
+
+    #[test]
+    fn does_not_remove_store_if_reference_is_used_across_call() {
+        let src = r#"
+        acir(inline) impure fn main f0 {
+        b0():
+            v0 = allocate -> &mut [u8; 2]
+            v3 = make_array [u8 1, u8 10] : [u8; 2]
+            store v3 at v0
+            v5 = call black_box(v0) -> &mut [u8; 2]
+            v6 = load v0 -> [u8; 2]
+            return v6
+        }
+        "#;
+
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

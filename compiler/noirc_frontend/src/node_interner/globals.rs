@@ -16,13 +16,6 @@ use super::NodeInterner;
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct GlobalId(usize);
 
-impl GlobalId {
-    // Dummy id for error reporting
-    pub fn dummy_id() -> Self {
-        GlobalId(usize::MAX)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct GlobalInfo {
     pub id: GlobalId,
@@ -96,14 +89,11 @@ impl NodeInterner {
         comptime: bool,
         visibility: ItemVisibility,
     ) -> GlobalId {
-        let statement = self.push_stmt(HirStatement::Error);
-        let location = name.location();
+        let statement = self.push_stmt_full(HirStatement::Error, name.location());
 
-        let id = self.push_global(
+        self.push_global(
             name, local_id, crate_id, statement, file, attributes, mutable, comptime, visibility,
-        );
-        self.push_stmt_location(statement, location);
-        id
+        )
     }
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {

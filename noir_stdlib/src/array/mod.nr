@@ -23,14 +23,26 @@ impl<T, let N: u32> [T; N] {
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
-    /// Returns this array as a slice.
+    /// Returns this array as a vector.
     ///
     /// ```noir
     /// let array = [1, 2];
-    /// let slice = array.as_slice();
-    /// assert_eq(slice, &[1, 2]);
+    /// let vector = array.as_vector();
+    /// assert_eq(vector, [1, 2].as_vector());
     /// ```
-    #[builtin(as_slice)]
+    #[builtin(as_vector)]
+    pub fn as_vector(self) -> [T] {}
+
+    /// Returns this array as a vector.
+    /// This method is deprecated in favor of `as_vector`.
+    ///
+    /// ```noir
+    /// let array = [1, 2];
+    /// let vector = array.as_slice();
+    /// assert_eq(vector, [1, 2].as_vector());
+    /// ```
+    #[builtin(as_vector)]
+    #[deprecated("This method has been renamed to `as_vector`")]
     pub fn as_slice(self) -> [T] {}
 
     /// Applies a function to each element of this array, returning a new array containing the mapped elements.
@@ -227,7 +239,7 @@ where
     /// Returns a new sorted array. The original array remains untouched. Notice that this function will
     /// only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
     /// logic it uses internally is optimized specifically for these values. If you need a sort function to
-    /// sort any type, you should use the `sort_via` function.
+    /// sort any type, you should use the [`Self::sort_via`] function.
     ///
     /// Example:
     ///

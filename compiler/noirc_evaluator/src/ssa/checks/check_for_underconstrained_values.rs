@@ -1,7 +1,6 @@
 //! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
-use crate::errors::{InternalBug, SsaReport};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
@@ -10,6 +9,7 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use crate::ssa::visit_once_deque::VisitOnceDeque;
 use im::HashMap;
+use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -20,6 +20,7 @@ impl Ssa {
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
     /// Go through each top-level non-Brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
         self.functions
             .values()
@@ -40,6 +41,7 @@ impl Ssa {
 
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_missing_brillig_constraints(
         &mut self,
         enable_lookback: bool,
@@ -47,7 +49,7 @@ impl Ssa {
         // Skip the check if there are no Brillig functions involved
         if !self.functions.values().any(|func| func.runtime().is_brillig()) {
             return vec![];
-        };
+        }
 
         self.functions
             .values()
@@ -170,16 +172,19 @@ impl BrilligTaintedIds {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length) => {
+                Some(length)
+                    if length.0 <= crate::ssa::ir::dfg::MAX_ELEMENTS.try_into().unwrap() =>
+                {
                     array_elements.insert(*result, vec![]);
-                    for _ in 0..length {
+                    for _ in 0..length.0 {
                         array_elements[result].push(results_status.len());
                         results_status
                             .push(ResultStatus::Unconstrained { descendants: HashSet::new() });
                     }
                 }
-                // Otherwise initialize a descendant set with the current value
-                None => {
+                // For very large arrays or non-arrays, treat the whole result as a single value
+                // to avoid memory/time issues when tracking individual elements
+                Some(_) | None => {
                     results_status.push(ResultStatus::Unconstrained {
                         descendants: HashSet::from([*result]),
                     });
@@ -280,15 +285,13 @@ impl BrilligTaintedIds {
     /// When an ArrayGet instruction occurs, place the resulting ValueId into
     /// the corresponding sets of the call's array element result values
     fn process_array_get(&mut self, array: ValueId, index: usize, element_results: &[ValueId]) {
-        if let Some(element_indices) = self.array_elements.get(&array) {
-            if let Some(result_index) = element_indices.get(index) {
-                if let Some(ResultStatus::Unconstrained { descendants }) =
-                    self.results.get_mut(*result_index)
-                {
-                    descendants.extend(element_results);
-                    self.root_results.extend(element_results);
-                }
-            }
+        if let Some(element_indices) = self.array_elements.get(&array)
+            && let Some(result_index) = element_indices.get(index)
+            && let Some(ResultStatus::Unconstrained { descendants }) =
+                self.results.get_mut(*result_index)
+        {
+            descendants.extend(element_results);
+            self.root_results.extend(element_results);
         }
     }
 }
@@ -326,58 +329,53 @@ impl DependencyContext {
         // to be able to follow their arguments first appearing in the
         // flow graph before the calls themselves
         function.dfg[block].instructions().iter().for_each(|instruction| {
-            if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
-                if let Value::Function(callee) = &function.dfg[*func] {
-                    if all_functions[callee].runtime().is_brillig() {
-                        // Skip already visited locations (happens often in unrolled functions)
-                        let call_stack = function.dfg.get_instruction_call_stack(*instruction);
-                        let location = call_stack.last();
+            if let Instruction::Call { func, arguments } = &function.dfg[*instruction]
+                && let Value::Function(callee) = &function.dfg[*func]
+                && all_functions[callee].runtime().is_brillig()
+            {
+                // Skip already visited locations (happens often in unrolled functions)
+                let call_stack = function.dfg.get_instruction_call_stack(*instruction);
+                let location = call_stack.last();
 
-                        // If there is no call stack (happens for tests), consider unvisited
-                        let visited = location
-                            .map(|loc| self.visited_locations.contains(&(*callee, *loc)))
-                            .unwrap_or_default();
+                // If there is no call stack (happens for tests), consider unvisited
+                let visited = location
+                    .map(|loc| self.visited_locations.contains(&(*callee, *loc)))
+                    .unwrap_or_default();
 
-                        if !visited {
-                            let results = function.dfg.instruction_results(*instruction);
+                if !visited {
+                    let results = function.dfg.instruction_results(*instruction);
 
-                            // Calls with no results (e.g. print) shouldn't be checked
-                            if results.is_empty() {
-                                return;
-                            }
+                    // Calls with no results (e.g. print) shouldn't be checked
+                    if results.is_empty() {
+                        return;
+                    }
 
-                            let current_tainted =
-                                BrilligTaintedIds::new(function, arguments, results);
+                    let current_tainted = BrilligTaintedIds::new(function, arguments, results);
 
-                            // Record arguments/results for each Brillig call for the check.
-                            //
-                            // Do not track Brillig calls acting as simple wrappers over
-                            // another registered Brillig call, update the tainted sets of
-                            // the wrapped call instead
-                            let mut wrapped_call_found = false;
-                            for (_, tainted_call) in self.tainted.iter_mut() {
-                                if current_tainted.is_wrapper(tainted_call) {
-                                    tainted_call.update_results_children(results);
-                                    wrapped_call_found = true;
-                                    break;
-                                }
-                            }
-
-                            if !wrapped_call_found {
-                                // Record the current call, remember the argument values involved
-                                self.tainted.insert(*instruction, current_tainted);
-                                arguments.iter().for_each(|value| {
-                                    self.call_arguments
-                                        .entry(*value)
-                                        .or_default()
-                                        .push(*instruction);
-                                });
-                            }
-
-                            if let Some(location) = location {
-                                self.visited_locations.insert((*callee, *location));
-                            }
+                    // Record arguments/results for each Brillig call for the check.
+                    //
+                    // Do not track Brillig calls acting as simple wrappers over
+                    // another registered Brillig call, update the tainted sets of
+                    // the wrapped call instead
+                    let mut wrapped_call_found = false;
+                    for (_, tainted_call) in self.tainted.iter_mut() {
+                        if current_tainted.is_wrapper(tainted_call) {
+                            tainted_call.update_results_children(results);
+                            wrapped_call_found = true;
+                            break;
                         }
+                    }
+
+                    if !wrapped_call_found {
+                        // Record the current call, remember the argument values involved
+                        self.tainted.insert(*instruction, current_tainted);
+                        arguments.iter().for_each(|value| {
+                            self.call_arguments.entry(*value).or_default().push(*instruction);
+                        });
+                    }
+
+                    if let Some(location) = location {
+                        self.visited_locations.insert((*callee, *location));
                     }
                 }
             }
@@ -386,6 +384,7 @@ impl DependencyContext {
         //Then, go over the instructions
         for instruction in function.dfg[block].instructions().iter() {
             let mut arguments = Vec::new();
+            let mut results = Vec::new();
 
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
@@ -394,15 +393,33 @@ impl DependencyContext {
                 }
             });
 
+            // Collect non-constant instruction results
+            for value_id in function.dfg.instruction_results(*instruction).iter() {
+                if function.dfg.get_numeric_constant(*value_id).is_none() {
+                    results.push(*value_id);
+                }
+            }
+
             // If the lookback feature is enabled, start tracking calls when
-            // their argument value ids first appear, or when their
+            // their value ids first appear in arguments or results, or when their
             // instruction id comes up (in case there were no non-constant arguments)
             if self.enable_lookback {
-                for argument in &arguments {
-                    if let Some(calls) = self.call_arguments.get(argument) {
+                for id in arguments.iter().chain(&results) {
+                    if let Some(calls) = self.call_arguments.get(id) {
                         for call in calls {
                             if self.tainted.contains_key(call) {
                                 self.tracking.insert(*call);
+
+                                // If the instruction is a cast or truncate, also update the
+                                // tainted arguments of the call with its argument
+                                // (fixes #10547)
+                                if matches!(
+                                    &function.dfg[*instruction],
+                                    Instruction::Cast(..) | Instruction::Truncate { .. }
+                                ) && let Some(tainted_ids) = self.tainted.get_mut(call)
+                                {
+                                    tainted_ids.arguments.extend(&arguments);
+                                }
                             }
                         }
                     }
@@ -414,15 +431,6 @@ impl DependencyContext {
 
             // We can skip over instructions while nothing is being tracked
             if !self.tracking.is_empty() {
-                let mut results = Vec::new();
-
-                // Collect non-constant instruction results
-                for value_id in function.dfg.instruction_results(*instruction).iter() {
-                    if function.dfg.get_numeric_constant(*value_id).is_none() {
-                        results.push(*value_id);
-                    }
-                }
-
                 match &function.dfg[*instruction] {
                     // For memory operations, we have to link up the stored value as a parent
                     // of one loaded from the same memory slot
@@ -474,17 +482,17 @@ impl DependencyContext {
                                 Intrinsic::ArrayLen
                                 | Intrinsic::ArrayRefCount
                                 | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsSlice
+                                | Intrinsic::AsVector
                                 | Intrinsic::BlackBox(..)
                                 | Intrinsic::DerivePedersenGenerators
                                 | Intrinsic::Hint(..)
-                                | Intrinsic::SlicePushBack
-                                | Intrinsic::SlicePushFront
-                                | Intrinsic::SlicePopBack
-                                | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceRefCount
-                                | Intrinsic::SliceInsert
-                                | Intrinsic::SliceRemove
+                                | Intrinsic::VectorPushBack
+                                | Intrinsic::VectorPushFront
+                                | Intrinsic::VectorPopBack
+                                | Intrinsic::VectorPopFront
+                                | Intrinsic::VectorRefCount
+                                | Intrinsic::VectorInsert
+                                | Intrinsic::VectorRemove
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -522,7 +530,7 @@ impl DependencyContext {
                     // For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index, offset: _ } => {
+                    Instruction::ArrayGet { array, index } => {
                         self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
@@ -558,7 +566,7 @@ impl DependencyContext {
 
     /// Every Brillig call not properly constrained should remain in the tainted set
     /// at this point. For each, emit a corresponding warning.
-    fn collect_warnings(&mut self, function: &Function) -> Vec<SsaReport> {
+    fn collect_warnings(&self, function: &Function) -> Vec<SsaReport> {
         let warnings: Vec<SsaReport> = self
             .tainted
             .keys()
@@ -636,13 +644,13 @@ impl DependencyContext {
         use acvm::acir::AcirField;
 
         // Only allow numeric constant indices
-        if let Some(value) = function.dfg.get_numeric_constant(index) {
-            if let Some(index) = value.try_to_u32() {
-                // Skip untracked calls
-                for call in &self.tracking {
-                    if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                        tainted_ids.process_array_get(array, index as usize, element_results);
-                    }
+        if let Some(value) = function.dfg.get_numeric_constant(index)
+            && let Some(index) = value.try_to_u32()
+        {
+            // Skip untracked calls
+            for call in &self.tracking {
+                if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                    tainted_ids.process_array_get(array, index as usize, element_results);
                 }
             }
         }
@@ -679,7 +687,7 @@ impl Context {
     ///
     /// Goes through each set of connected ValueIds and see if function arguments or return values are in the set
     fn find_sets_connected_to_function_inputs_or_outputs(
-        &mut self,
+        &self,
         function: &Function,
     ) -> BTreeSet<usize> {
         let returns = function.returns().unwrap_or_default();
@@ -788,17 +796,17 @@ impl Context {
                             Intrinsic::ArrayLen
                             | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::ArrayRefCount
-                            | Intrinsic::AsSlice
+                            | Intrinsic::AsVector
                             | Intrinsic::BlackBox(..)
                             | Intrinsic::Hint(Hint::BlackBox)
                             | Intrinsic::DerivePedersenGenerators
-                            | Intrinsic::SliceInsert
-                            | Intrinsic::SlicePushBack
-                            | Intrinsic::SlicePushFront
-                            | Intrinsic::SlicePopBack
-                            | Intrinsic::SlicePopFront
-                            | Intrinsic::SliceRefCount
-                            | Intrinsic::SliceRemove
+                            | Intrinsic::VectorInsert
+                            | Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorPopFront
+                            | Intrinsic::VectorRefCount
+                            | Intrinsic::VectorRemove
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
@@ -941,7 +949,7 @@ impl Context {
     }
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::Ssa;
     use tracing_test::traced_test;
 
@@ -1444,6 +1452,65 @@ mod test {
 
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test for programs equivalent to the below (#10547):
+    ///
+    /// ```noir
+    /// unconstrained fn identity(input: u64) -> u64 {
+    ///     input
+    /// }
+    ///
+    /// pub fn main(input: u32) {
+    ///     let casted_input = input as u64;
+    ///     let input_copy = unsafe { identity(casted_input) };
+    ///     assert_eq(input_copy as Field, casted_input as Field);
+    /// }
+    /// ```
+    fn multiple_casts_on_brillig_input_does_not_result_in_warning() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+            v1 = cast v0 as u64
+            v3 = call f1(v1) -> u64
+            v4 = cast v3 as Field
+            v5 = cast v0 as Field
+            constrain v4 == v5
+            return
+        }
+        brillig(inline) predicate_pure fn identity f1 {
+            b0(v0: u64):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    fn truncating_brillig_argument_does_not_result_in_warning() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+            b0(v0: Field):
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = call f1(v1) -> Field
+            constrain v2 == v0
+            return
+        }
+        brillig(inline) predicate_pure fn identity32 f1 {
+            b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }

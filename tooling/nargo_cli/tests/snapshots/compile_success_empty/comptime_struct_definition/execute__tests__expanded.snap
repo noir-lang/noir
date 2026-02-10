@@ -20,10 +20,11 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 }
 
 comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields: [(Quoted, Type, Quoted)] = &[
+    let fields: [(Quoted, Type, Quoted)] = [
         (quote { x }, quote { i32 }.as_type(), quote { pub }),
         (quote { y }, quote { Field }.as_type(), quote { pub(crate) }),
-    ];
+    ]
+        .as_vector();
     s.set_fields(fields);
     let fields: [(Quoted, Type, Quoted)] = s.fields([].as_slice());
     assert(fields[0_u32].2 == quote { pub });

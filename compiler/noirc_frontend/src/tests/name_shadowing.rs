@@ -1,6 +1,25 @@
 #![cfg(test)]
+use crate::tests::assert_no_errors;
+
 use super::get_program_errors;
 use std::collections::HashSet;
+
+#[test]
+fn resolve_shadowing() {
+    let src = r#"
+        fn main(x : Field) {
+            let x = foo(x);
+            let x = x;
+            let (x, _) = (x, x);
+            let _ = x;
+        }
+
+        fn foo(x : Field) -> Field {
+            x
+        }
+    "#;
+    assert_no_errors(src);
+}
 
 #[test]
 fn test_name_shadowing() {

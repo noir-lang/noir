@@ -61,7 +61,14 @@
 //! version. The result is that bytecode can safely reference the correct globals without conflicts.
 //!
 //! The test module for this pass can be referenced to see how this function duplication looks in SSA.
-
+//!
+//! ## Post-conditions
+//! - Each Brillig entry point has its own specialized set of functions. No non-entry Brillig
+//!   function is reachable from more than one entry point.
+//! - The single entry point restriction could be loosened if globals are not used at all or
+//!   some Brillig functions do not use globals.
+//!   However, Brillig generation attempts to hoist duplicated constants across functions
+//!   to the global memory space so this restriction needs to be enforced.
 use std::collections::{BTreeMap, BTreeSet};
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -89,9 +96,9 @@ impl Ssa {
         // From the call graph find the Brillig entry points and set up
         // the functions needing specialization before performing the actual call site rewrites.
         let brillig_entry_points =
-            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
+            get_brillig_entry_points_with_reachability(&self.functions, self.main_id, &call_graph);
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
-        let (calls_to_update, mut new_functions_map) =
+        let (calls_to_update, new_functions_map) =
             build_calls_to_update(&mut self, functions_to_clone_map, &brillig_entry_points);
 
         // Now we want to actually rewrite the appropriate call sites
@@ -111,9 +118,8 @@ impl Ssa {
                 entry_point
             } else {
                 new_functions_map
-                    .entry(entry_point)
-                    .or_default()
-                    .get(&function_to_update)
+                    .get(&entry_point)
+                    .and_then(|m| m.get(&function_to_update))
                     .copied()
                     .unwrap_or(function_to_update)
             };
@@ -139,6 +145,9 @@ impl Ssa {
             }
         }
 
+        #[cfg(debug_assertions)]
+        brillig_specialization_post_check(&self);
+
         self
     }
 }
@@ -158,17 +167,19 @@ fn resolve_cloned_function_call_sites(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
 
-            let Some(new_func_id) = new_functions_map.get(func_id) else {
+            let Some(new_func_id) = new_functions_map.get(func_id).copied() else {
                 continue;
             };
-            let new_function_value_id = function.dfg.import_function(*new_func_id);
+
+            let arguments = arguments.to_vec();
+            let new_function_value_id = function.dfg.import_function(new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
         }
@@ -287,12 +298,12 @@ fn collect_callsites_to_rewrite(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
 
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
             let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
@@ -304,12 +315,43 @@ fn collect_callsites_to_rewrite(
                 function_to_update: function.id(),
                 instruction: instruction_id,
                 new_func_to_call: *new_id,
-                call_args: arguments,
+                call_args: arguments.to_vec(),
             };
             new_calls_to_update.insert(new_call);
         }
     }
     new_calls_to_update
+}
+
+/// Returns the set of Brillig entry points
+///
+/// A Brillig entry point is defined as a Brillig function that is directly called
+/// from at least one ACIR function, or is the `main` function itself if it is Brillig.
+pub(crate) fn get_brillig_entry_points(
+    functions: &BTreeMap<FunctionId, Function>,
+    main_id: FunctionId,
+    call_graph: &CallGraph,
+) -> BTreeSet<FunctionId> {
+    let mut entry_points = BTreeSet::new();
+
+    // Only ACIR callers can introduce Brillig entry points
+    let acir_callers = call_graph
+        .callees()
+        .into_iter()
+        .filter(|(caller, _)| functions[caller].runtime().is_acir());
+
+    for (_, callees) in acir_callers {
+        // Filter only the Brillig callees. These are the Brillig entry points.
+        entry_points
+            .extend(callees.keys().filter(|callee| functions[callee].runtime().is_brillig()));
+    }
+
+    // If main has been marked as Brillig, it is itself an entry point.
+    if functions[&main_id].runtime().is_brillig() {
+        entry_points.insert(main_id);
+    }
+
+    entry_points
 }
 
 /// Returns a map of Brillig entry points to all reachable functions from that entry point.
@@ -319,7 +361,7 @@ fn collect_callsites_to_rewrite(
 ///
 /// The value set for each entry point includes all functions reachable
 /// from the entry point (excluding the entry itself if it is non-recursive).
-pub(crate) fn get_brillig_entry_points(
+pub(crate) fn get_brillig_entry_points_with_reachability(
     functions: &BTreeMap<FunctionId, Function>,
     main_id: FunctionId,
     call_graph: &CallGraph,
@@ -328,7 +370,7 @@ pub(crate) fn get_brillig_entry_points(
     get_brillig_entry_points_with_recursive(functions, main_id, call_graph, &recursive_functions)
 }
 
-/// Like [get_brillig_entry_points], but uses a precomputed set of recursive functions
+/// Like [get_brillig_entry_points_with_reachability], but uses a precomputed set of recursive functions
 /// to avoid recomputing SCCs.
 pub(crate) fn get_brillig_entry_points_with_recursive(
     functions: &BTreeMap<FunctionId, Function>,
@@ -338,27 +380,9 @@ pub(crate) fn get_brillig_entry_points_with_recursive(
 ) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
     let mut brillig_entry_points = BTreeMap::default();
 
-    // Only ACIR callers can introduce Brillig entry points
-    let acir_callers = call_graph
-        .callees()
-        .into_iter()
-        .filter(|(caller, _)| functions[caller].runtime().is_acir());
-    for (_, callees) in acir_callers {
-        // Filter only the Brillig callees. These are the Brillig entry points.
-        let entry_points = callees.keys().filter(|callee| functions[callee].runtime().is_brillig());
-        for &entry_point in entry_points {
-            brillig_entry_points.insert(
-                entry_point,
-                brillig_reachable(call_graph, recursive_functions, entry_point),
-            );
-        }
-    }
-
-    // If main has been marked as Brillig, it is itself an entry point.
-    // Run the same analysis from above on main.
-    if functions[&main_id].runtime().is_brillig() {
+    for entry_point in get_brillig_entry_points(functions, main_id, call_graph) {
         brillig_entry_points
-            .insert(main_id, brillig_reachable(call_graph, recursive_functions, main_id));
+            .insert(entry_point, brillig_reachable(call_graph, recursive_functions, entry_point));
     }
 
     brillig_entry_points
@@ -395,6 +419,26 @@ pub(crate) fn build_inner_call_to_entry_points(
     }
 
     inner_call_to_entry_point
+}
+
+/// Check post-execution properties of the Brillig specialization pass:
+/// * No Brillig function should be reachable from more than one entry point
+///   (to prevent global allocation conflicts).
+#[cfg(debug_assertions)]
+fn brillig_specialization_post_check(ssa: &Ssa) {
+    let call_graph = CallGraph::from_ssa(ssa);
+    let brillig_entry_points =
+        get_brillig_entry_points_with_reachability(&ssa.functions, ssa.main_id, &call_graph);
+    let inner_call_to_entry_point = build_inner_call_to_entry_points(&brillig_entry_points);
+
+    for (func_id, entry_points) in inner_call_to_entry_point {
+        if entry_points.len() > 1 {
+            panic!(
+                "Brillig specialization invariant violated: \
+                 function {func_id} is reachable from multiple entry points: {entry_points:?}"
+            );
+        }
+    }
 }
 
 #[cfg(test)]

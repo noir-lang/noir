@@ -1,3 +1,12 @@
+//! This pass removes `inc_rc` and `dec_rc` instructions
+//! as long as there are no `array_set` instructions to an array
+//! of the same type in between.
+//!
+//! Note that this pass is very conservative since the array_set
+//! instruction does not need to be to the same array. This is because
+//! the given array may alias another array (e.g. function parameters or
+//! a `load`ed array from a reference).
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -11,15 +20,11 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This pass removes `inc_rc` and `dec_rc` instructions
+    /// Removes `inc_rc` and `dec_rc` instructions
     /// as long as there are no `array_set` instructions to an array
     /// of the same type in between.
-    ///
-    /// Note that this pass is very conservative since the array_set
-    /// instruction does not need to be to the same array. This is because
-    /// the given array may alias another array (e.g. function parameters or
-    /// a `load`ed array from a reference).
     #[tracing::instrument(level = "trace", skip(self))]
+    #[allow(dead_code)]
     pub(crate) fn remove_paired_rc(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.remove_paired_rc();
@@ -38,10 +43,10 @@ struct Context {
     inc_rcs: HashMap<Type, Vec<RcInstruction>>,
 }
 
-pub(crate) struct RcInstruction {
-    pub(crate) id: InstructionId,
-    pub(crate) array: ValueId,
-    pub(crate) possibly_mutated: bool,
+struct RcInstruction {
+    id: InstructionId,
+    array: ValueId,
+    possibly_mutated: bool,
 }
 
 impl Function {
@@ -52,7 +57,7 @@ impl Function {
     ///
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
-    pub(crate) fn remove_paired_rc(&mut self) {
+    fn remove_paired_rc(&mut self) {
         if !self.runtime().is_brillig() {
             // dec_rc and inc_rc only have an effect in Brillig
             return;
@@ -67,13 +72,13 @@ impl Function {
         let mut context = Context::default();
 
         context.find_rcs_in_entry_block(self);
-        context.scan_for_array_sets(self);
+        context.scan_for_mutations(self);
         let to_remove = context.find_rcs_to_remove(self);
         remove_instructions(to_remove, self);
     }
 }
 
-fn contains_array_parameter(function: &mut Function) -> bool {
+fn contains_array_parameter(function: &Function) -> bool {
     let mut parameters = function.parameters().iter();
     parameters.any(|parameter| function.dfg.type_of_value(*parameter).contains_an_array())
 }
@@ -94,20 +99,51 @@ impl Context {
         }
     }
 
-    /// Find each array_set instruction in the function and mark any arrays used
+    /// Find each array_set or call instruction in the function and mark any arrays used
     /// by the inc_rc instructions as possibly mutated if they're the same type.
-    fn scan_for_array_sets(&mut self, function: &Function) {
+    fn scan_for_mutations(&mut self, function: &Function) {
         for block in function.reachable_blocks() {
             for instruction in function.dfg[block].instructions() {
-                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction] {
-                    let typ = function.dfg.type_of_value(array);
-                    if let Some(inc_rcs) = self.inc_rcs.get_mut(&typ) {
-                        for inc_rc in inc_rcs {
-                            inc_rc.possibly_mutated = true;
+                match &function.dfg[*instruction] {
+                    Instruction::ArraySet { array, .. } => {
+                        let typ = function.dfg.type_of_value(*array);
+                        self.mark_as_mutated(&typ);
+                    }
+                    Instruction::Call { arguments, .. } => {
+                        // A call with an array argument could mutate that array
+                        for arg in arguments {
+                            let typ = function.dfg.type_of_value(*arg);
+                            self.mark_each_contained_array_as_mutated(&typ);
                         }
                     }
+
+                    _ => {}
                 }
             }
+        }
+    }
+
+    fn mark_as_mutated(&mut self, typ: &Type) {
+        if let Some(inc_rcs) = self.inc_rcs.get_mut(typ) {
+            for inc_rc in inc_rcs {
+                inc_rc.possibly_mutated = true;
+            }
+        }
+    }
+
+    /// Recursively unwrap references and mark any contained arrays as mutated.
+    fn mark_each_contained_array_as_mutated(&mut self, typ: &Type) {
+        match typ {
+            Type::Reference(element) => self.mark_each_contained_array_as_mutated(element),
+            Type::Array(element_types, _) | Type::Vector(element_types) => {
+                // Mark the array type we have found as being possibly mutated
+                self.mark_as_mutated(typ);
+                // We now need to also mark nested arrays which are possibly mutated
+                for element in element_types.iter() {
+                    self.mark_each_contained_array_as_mutated(element);
+                }
+            }
+            Type::Numeric(_) | Type::Function => {}
         }
     }
 
@@ -118,13 +154,12 @@ impl Context {
         let mut to_remove = HashSet::default();
 
         for instruction in function.dfg[last_block].instructions() {
-            if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction] {
-                if let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs) {
-                    if !inc_rc.possibly_mutated {
-                        to_remove.insert(inc_rc.id);
-                        to_remove.insert(*instruction);
-                    }
-                }
+            if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction]
+                && let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs)
+                && !inc_rc.possibly_mutated
+            {
+                to_remove.insert(inc_rc.id);
+                to_remove.insert(*instruction);
             }
         }
 
@@ -133,7 +168,7 @@ impl Context {
 }
 
 /// Finds and pops the IncRc for the given array value if possible.
-pub(crate) fn pop_rc_for(
+fn pop_rc_for(
     value: ValueId,
     function: &Function,
     inc_rcs: &mut HashMap<Type, Vec<RcInstruction>>,
@@ -157,7 +192,7 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use crate::{
         assert_ssa_snapshot,
@@ -189,6 +224,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn single_block_fn_return_array() {
         // This is the output for the program with a function:
         // unconstrained fn foo(x: [Field; 2]) -> [[Field; 2]; 1] {
@@ -214,6 +250,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn single_block_mutation() {
         // fn mutator(mut array: [Field; 2]) {
         //     array[0] = 5;
@@ -245,6 +282,7 @@ mod test {
     // Similar to single_block_mutation but for a function which
     // uses a mutable reference parameter.
     #[test]
+    #[ignore]
     fn single_block_mutation_through_reference() {
         // fn mutator2(array: &mut [Field; 2]) {
         //     array[0] = 5;
@@ -276,6 +314,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn lone_inc_rc() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -288,6 +327,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn lone_dec_rc() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -300,6 +340,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn multiple_rc_pairs_mutation_on_different_types() {
         let src = "
         brillig(inline) fn mutator f0 {
@@ -339,6 +380,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn multiple_rc_pairs_mutation_on_matching_types() {
         let src = "
         brillig(inline) fn mutator f0 {
@@ -357,28 +399,12 @@ mod test {
         }
         ";
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
         // We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn mutator f0 {
-          b0(v0: [Field; 5], v1: [Field; 5]):
-            inc_rc v0
-            inc_rc v1
-            v2 = allocate -> &mut [Field; 5]
-            store v0 at v2
-            v3 = load v2 -> [Field; 5]
-            v6 = array_set v3, index u32 0, value Field 5
-            store v6 at v2
-            v8 = array_get v1, index u32 1 -> Field
-            dec_rc v0
-            dec_rc v1
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]
+    #[ignore]
     fn rc_pair_with_same_type_but_different_values() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -393,6 +419,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn do_not_remove_pairs_across_blocks() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -413,6 +440,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn remove_pair_across_blocks() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -442,5 +470,92 @@ mod test {
             return v1
         }
         ");
+    }
+
+    #[test]
+    #[ignore]
+    fn mutation_through_call_with_mutable_reference() {
+        // We expect `inc_rc v0` to remain.
+        // If you accessed v0 directly after the call (not through the reference):
+        // - With inc_rc: v0 is protected, COW happens, v0 retains old value
+        // - Without inc_rc: v0 is mutated in place
+        let src = "                                                                                    
+        brillig(inline) fn main f0 {                                                                   
+            b0(v0: [Field; 2]):                                                                          
+            inc_rc v0                                                                                  
+            v1 = allocate -> &mut [Field; 2]                                                           
+            store v0 at v1                                                                             
+            call f1(v1)                                                                                
+            v3 = load v1 -> [Field; 2]                                                                 
+            v5 = array_get v3, index u32 0 -> Field                                                    
+            constrain v5 == Field 5                                                                    
+            dec_rc v0                                                                                  
+            return                                                                                     
+        }                                                                                           
+        brillig(inline) fn mutator f1 {                                                                
+            b0(v0: &mut [Field; 2]):                                                                     
+            v1 = load v0 -> [Field; 2]                                                                 
+            v2 = array_set v1, index u32 0, value Field 5                                              
+            store v2 at v0                                                                             
+            return                                                                                     
+        }                                                                                              
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    /// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&mut &mut [Field; 2]`)
+    #[test]
+    #[ignore]
+    fn mutation_through_call_with_deeply_nested_reference() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v1 = allocate -> &mut [Field; 2]
+            store v0 at v1
+            v2 = allocate -> &mut &mut [Field; 2]
+            store v1 at v2
+            call f1(v2)
+            v4 = load v1 -> [Field; 2]
+            v6 = array_get v4, index u32 0 -> Field
+            constrain v6 == Field 5
+            dec_rc v0
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: &mut &mut [Field; 2]):
+            v1 = load v0 -> &mut [Field; 2]
+            v2 = load v1 -> [Field; 2]
+            v3 = array_set v2, index u32 0, value Field 5
+            store v3 at v1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
+    }
+
+    #[test]
+    #[ignore]
+    fn mutation_through_call_with_array_passed_by_value() {
+        // We expect `inc_rc v0` to remain
+        // After the call to f1 we expect v0 to be unchanged.
+        // If the inc_rc were removed, f1 would mutate v0 in place.
+        let src = "                                                                                    
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            call f1(v0)
+            v3 = array_get v0, index u32 0 -> Field
+            constrain v3 == Field 5
+            dec_rc v0
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            v3 = array_set v0, index u32 0, value Field 5
+            return
+        }                                                                                            
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 }

@@ -52,6 +52,12 @@ impl Parser<'_> {
         )
     }
 
+    pub(super) fn parse_path_for_named_type(&mut self) -> Option<Path> {
+        let allow_turbofish = false;
+        let allow_trailing_double_colon = false;
+        self.parse_path_impl(allow_turbofish, allow_trailing_double_colon)
+    }
+
     pub(super) fn parse_path_impl(
         &mut self,
         allow_turbofish: bool,
@@ -154,7 +160,7 @@ impl Parser<'_> {
     ) -> Option<Vec<UnresolvedType>> {
         if self.token.token() != &Token::Less {
             return None;
-        };
+        }
 
         let generics = self.parse_generic_type_args();
         for (name, _typ) in &generics.named_args {
@@ -165,15 +171,22 @@ impl Parser<'_> {
     }
 
     /// PathKind
-    ///     | 'crate' '::'
+    ///     = '::'
     ///     | 'dep' '::'
+    ///     | 'crate' '::'
     ///     | 'super' '::'
     ///     | nothing
     pub(super) fn parse_path_kind(&mut self) -> PathKind {
-        let kind = if self.eat_keyword(Keyword::Crate) {
-            PathKind::Crate
+        let start_location = self.current_token_location;
+        let mut deprecated_dep_found = false;
+
+        let kind = if self.at(Token::DoubleColon) {
+            PathKind::Absolute
         } else if self.eat_keyword(Keyword::Dep) {
-            PathKind::Dep
+            deprecated_dep_found = true;
+            PathKind::Absolute
+        } else if self.eat_keyword(Keyword::Crate) {
+            PathKind::Crate
         } else if self.eat_keyword(Keyword::Super) {
             PathKind::Super
         } else if let Token::InternedCrate(crate_id) = self.token.token() {
@@ -186,6 +199,17 @@ impl Parser<'_> {
         if kind != PathKind::Plain {
             self.eat_or_error(Token::DoubleColon);
         }
+
+        if deprecated_dep_found {
+            // In the error message, try to include the actual dependency being imported
+            let dependency_name = if let Token::Ident(name) = self.token.token() {
+                name.to_string()
+            } else {
+                "dependency".to_string()
+            };
+            self.push_error(ParserErrorReason::DeprecatedDep(dependency_name), start_location);
+        }
+
         kind
     }
 
@@ -209,7 +233,7 @@ impl Parser<'_> {
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
         self.eat_or_error(Token::DoubleColon);
-        let impl_item = if let Some(ident) = self.eat_ident() {
+        let impl_item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();
@@ -287,10 +311,10 @@ mod tests {
     }
 
     #[test]
-    fn parses_dep_two_segments() {
-        let src = "dep::foo::bar";
+    fn parses_absolute_two_segments() {
+        let src = "::foo::bar";
         let path = parse_path_no_errors(src);
-        assert_eq!(path.kind, PathKind::Dep);
+        assert_eq!(path.kind, PathKind::Absolute);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert!(path.segments[0].generics.is_none());

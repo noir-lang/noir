@@ -23,7 +23,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -242,7 +242,7 @@ impl FunctionBuilder {
     }
 
     /// Returns the block currently being inserted into
-    pub(crate) fn current_block(&mut self) -> BasicBlockId {
+    pub(crate) fn current_block(&self) -> BasicBlockId {
         self.current_block
     }
 
@@ -353,12 +353,10 @@ impl FunctionBuilder {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayOffset,
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index, offset }, element_type)
-            .first()
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -368,9 +366,8 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
         mutable: bool,
-        offset: ArrayOffset,
     ) -> ValueId {
-        let instruction = Instruction::ArraySet { array, index, value, mutable, offset };
+        let instruction = Instruction::ArraySet { array, index, value, mutable };
         self.insert_instruction(instruction, None).first()
     }
 
@@ -392,10 +389,10 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
     }
 
-    /// Insert a `make_array` instruction to create a new array or slice.
-    /// Returns the new array value. Expects `typ` to be an array or slice type.
+    /// Insert a `make_array` instruction to create a new array or vector.
+    /// Returns the new array value. Expects `typ` to be an array or vector type.
     pub fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
-        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
+        assert!(matches!(typ, Type::Array(..) | Type::Vector(_)));
         self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
     }
 
@@ -510,8 +507,8 @@ impl FunctionBuilder {
         }
         match self.type_of_value(value) {
             Type::Numeric(_) | Type::Function | Type::Reference(_) => None,
-            Type::Array(..) | Type::Slice(..) => {
-                // If there are nested arrays or slices, we wait until ArrayGet
+            Type::Array(..) | Type::Vector(..) => {
+                // If there are nested arrays or vectors, we wait until ArrayGet
                 // is issued to increment the count of that array.
                 if increment {
                     self.insert_inc_rc(value);
@@ -555,10 +552,10 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 fn validate_numeric_type(typ: &NumericType) {
     match &typ {
         NumericType::Signed { bit_size } => match bit_size {
-            8 | 16 | 32 | 64 | 128 => (),
+            8 | 16 | 32 | 64 => (),
             _ => {
                 panic!(
-                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, 64 or 128."
+                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, or 64."
                 );
             }
         },
@@ -578,7 +575,10 @@ fn validate_numeric_type(typ: &NumericType) {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::{
+        FieldElement,
+        acir::{AcirField, brillig::lengths::SemanticLength},
+    };
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},
@@ -601,14 +601,14 @@ mod tests {
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.field_constant(FieldElement::from(7_u128));
         let length = builder.field_constant(FieldElement::from(8_u128));
-        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(8))];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let slice = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
-        assert_eq!(slice[0], one);
-        assert_eq!(slice[1], one);
-        assert_eq!(slice[2], one);
-        assert_eq!(slice[3], zero);
+        let vector = builder.current_function.dfg.get_array_constant(call_results[0]).unwrap().0;
+        assert_eq!(vector[0], one);
+        assert_eq!(vector[1], one);
+        assert_eq!(vector[2], one);
+        assert_eq!(vector[3], zero);
     }
 }

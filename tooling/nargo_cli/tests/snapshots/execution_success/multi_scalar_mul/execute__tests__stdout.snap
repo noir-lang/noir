@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[multi_scalar_mul] Circuit output: std::embedded_curve_ops::EmbeddedCurvePoint { is_infinite: false, x: 0x1c8a6176be7ad60ed7cfa3165b21f7236f8248be3d0481bcccc0e96e32ec00ea, y: 0x1f96197d2991f3c6f2a249d2e5811178ddce4950f21e3d01f2d7d83611e7e784 }
+[multi_scalar_mul] Circuit output: std::embedded_curve_ops::EmbeddedCurvePoint { x: 0x1c8a6176be7ad60ed7cfa3165b21f7236f8248be3d0481bcccc0e96e32ec00ea, y: 0x1f96197d2991f3c6f2a249d2e5811178ddce4950f21e3d01f2d7d83611e7e784, is_infinite: false }

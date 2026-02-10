@@ -20,10 +20,10 @@ impl Parser<'_> {
     ) -> NoirStruct {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                self.unknown_ident_at_previous_token_end(),
+                self.empty_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -70,7 +70,7 @@ impl Parser<'_> {
 
             visibility = self.parse_item_visibility();
 
-            if let Some(ident) = self.eat_ident() {
+            if let Some(ident) = self.eat_non_underscore_ident() {
                 name = ident;
                 break;
             }

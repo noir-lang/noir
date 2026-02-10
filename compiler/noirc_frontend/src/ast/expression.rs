@@ -138,16 +138,13 @@ impl UnresolvedGeneric {
         // See https://github.com/noir-lang/noir/issues/8504
         use crate::ast::UnresolvedTypeData::Named;
 
-        if let Named(path, _generics, _) = &typ.typ {
-            if path.segments.len() == 1 {
-                if let Some(primitive_type) =
-                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-                {
-                    if let Some(typ) = primitive_type.to_integer_or_field() {
-                        return Ok(typ);
-                    }
-                }
-            }
+        if let Named(path, _generics, _) = &typ.typ
+            && path.segments.len() == 1
+            && let Some(primitive_type) =
+                PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+            && let Some(typ) = primitive_type.to_integer_or_field()
+        {
+            return Ok(typ);
         }
 
         // Only fields and integers are supported for numeric kinds
@@ -370,6 +367,27 @@ impl BinaryOpKind {
                 | BinaryOpKind::NotEqual
         )
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinaryOpKind::Add => "+",
+            BinaryOpKind::Subtract => "-",
+            BinaryOpKind::Multiply => "*",
+            BinaryOpKind::Divide => "/",
+            BinaryOpKind::Equal => "==",
+            BinaryOpKind::NotEqual => "!=",
+            BinaryOpKind::Less => "<",
+            BinaryOpKind::LessEqual => "<=",
+            BinaryOpKind::Greater => ">",
+            BinaryOpKind::GreaterEqual => ">=",
+            BinaryOpKind::And => "&",
+            BinaryOpKind::Or => "|",
+            BinaryOpKind::Xor => "^",
+            BinaryOpKind::ShiftRight => ">>",
+            BinaryOpKind::ShiftLeft => "<<",
+            BinaryOpKind::Modulo => "%",
+        }
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -380,10 +398,10 @@ pub enum UnaryOp {
         mutable: bool,
     },
 
-    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// If `implicitly_added` is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
     /// the reference later turns out to be needed (e.g. passing a field by reference to a function
-    /// requiring an &mut parameter).
+    /// requiring an `&mut` parameter).
     Dereference {
         implicitly_added: bool,
     },
@@ -403,7 +421,7 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Bool(bool),
     Integer(SignedField, Option<IntegerTypeSuffix>),
     Str(String),
@@ -447,9 +465,10 @@ pub struct MatchExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Lambda {
-    pub parameters: Vec<(Pattern, UnresolvedType)>,
-    pub return_type: UnresolvedType,
+    pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
+    pub return_type: Option<UnresolvedType>,
     pub body: Expression,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -535,7 +554,7 @@ pub struct IndexExpression {
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct BlockExpression {
     pub statements: Vec<Statement>,
 }
@@ -577,6 +596,8 @@ pub enum ConstrainKind {
 }
 
 impl ConstrainKind {
+    /// The number of arguments expected by the constraint,
+    /// not counting the optional assertion message.
     pub fn required_arguments_count(&self) -> usize {
         match self {
             ConstrainKind::Assert | ConstrainKind::Constrain => 1,
@@ -656,12 +677,12 @@ impl Display for Literal {
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
             }
-            Literal::Slice(ArrayLiteral::Standard(elements)) => {
+            Literal::Vector(ArrayLiteral::Standard(elements)) => {
                 let contents = vecmap(elements, ToString::to_string);
-                write!(f, "&[{}]", contents.join(", "))
+                write!(f, "@[{}]", contents.join(", "))
             }
-            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
-                write!(f, "&[{repeated_element}; {length}]")
+            Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "@[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(signed_field, Some(suffix)) => write!(f, "{signed_field}_{suffix}"),
@@ -763,24 +784,7 @@ impl Display for InfixExpression {
 
 impl Display for BinaryOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOpKind::Add => write!(f, "+"),
-            BinaryOpKind::Subtract => write!(f, "-"),
-            BinaryOpKind::Multiply => write!(f, "*"),
-            BinaryOpKind::Divide => write!(f, "/"),
-            BinaryOpKind::Equal => write!(f, "=="),
-            BinaryOpKind::NotEqual => write!(f, "!="),
-            BinaryOpKind::Less => write!(f, "<"),
-            BinaryOpKind::LessEqual => write!(f, "<="),
-            BinaryOpKind::Greater => write!(f, ">"),
-            BinaryOpKind::GreaterEqual => write!(f, ">="),
-            BinaryOpKind::And => write!(f, "&"),
-            BinaryOpKind::Or => write!(f, "|"),
-            BinaryOpKind::Xor => write!(f, "^"),
-            BinaryOpKind::ShiftLeft => write!(f, "<<"),
-            BinaryOpKind::ShiftRight => write!(f, ">>"),
-            BinaryOpKind::Modulo => write!(f, "%"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -798,7 +802,7 @@ impl Display for MatchExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "match {} {{", self.expression)?;
         for (pattern, branch) in &self.rules {
-            writeln!(f, "    {pattern} -> {branch},")?;
+            writeln!(f, "    {pattern} => {branch},")?;
         }
         write!(f, "}}")
     }
@@ -806,9 +810,17 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
+        let unconstrained = if self.unconstrained { "unconstrained " } else { "" };
+        let parameters = vecmap(&self.parameters, |(name, r#type)| {
+            if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
+        });
 
-        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
+        let parameters = parameters.join(", ");
+        if let Some(return_type) = &self.return_type {
+            write!(f, "{unconstrained}|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+        } else {
+            write!(f, "{unconstrained}|{}| {{ {} }}", parameters, self.body)
+        }
     }
 }
 

@@ -13,6 +13,7 @@ pub mod contract;
 pub mod debug;
 mod debug_vars;
 pub mod program;
+pub mod ssa;
 
 /// Serialize `hash` as `String`, so that it doesn't get truncated in Javascript.
 fn serialize_hash<S>(hash: &u64, s: S) -> Result<S::Ok, S::Error>

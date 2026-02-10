@@ -1,3 +1,9 @@
+//! An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+//! into unchecked operations followed by explicit overflow checks.
+//!
+//! The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+//! operations, while also allowing further optimizations to be done during subsequent
+//! SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
@@ -29,7 +35,7 @@ impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions, decomposing any checked signed arithmetic to have explicit
     /// overflow checks.
-    pub(crate) fn expand_signed_checks(&mut self) {
+    fn expand_signed_checks(&mut self) {
         // TODO: consider whether we can implement this more efficiently in brillig.
 
         self.simple_optimization(|context| {
@@ -61,7 +67,7 @@ impl Function {
             // We remove the current instruction, as we will need to replace it with multiple new instructions.
             context.remove_current_instruction();
 
-            let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
+            let [old_result] = context.dfg.instruction_result(instruction_id);
 
             let mut expansion_context = Context { context };
             let new_result = match operator {
@@ -446,24 +452,11 @@ impl Context<'_, '_, '_> {
 ///
 /// Otherwise panics.
 #[cfg(debug_assertions)]
-fn expand_signed_checks_post_check(func: &Function) {
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                if func.dfg.type_of_value(binary.lhs).is_signed() {
-                    match binary.operator {
-                        BinaryOp::Add { unchecked: false }
-                        | BinaryOp::Sub { unchecked: false }
-                        | BinaryOp::Mul { unchecked: false } => {
-                            panic!("Checked signed binary operation has not been removed")
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        }
-    }
+pub(super) fn expand_signed_checks_post_check(func: &Function) {
+    // All checked signed add/sub/mul should be expanded
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_checked_signed_add_sub_mul(instruction, dfg);
+    });
 }
 
 #[cfg(test)]
@@ -499,8 +492,7 @@ mod tests {
             v12 = eq v11, v8
             v13 = unchecked_mul v12, v10
             constrain v13 == v10, "attempt to add with overflow"
-            v14 = cast v3 as i32
-            return v14
+            return v3
         }
         "#);
     }
@@ -532,8 +524,7 @@ mod tests {
             v13 = eq v12, v8
             v14 = unchecked_mul v13, v11
             constrain v14 == v11, "attempt to subtract with overflow"
-            v15 = cast v3 as i32
-            return v15
+            return v3
         }
         "#);
     }

@@ -230,7 +230,7 @@ impl InputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::FieldElement;
     use proptest::prelude::*;
 

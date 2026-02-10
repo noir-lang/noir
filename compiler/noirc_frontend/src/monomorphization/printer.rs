@@ -238,7 +238,7 @@ impl AstPrinter {
         }
     }
 
-    fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
+    fn next_line(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f)?;
         for _ in 0..self.indent_level {
             write!(f, "    ")?;
@@ -257,10 +257,16 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            Literal::Slice(array) => {
-                write!(f, "&[")?;
+            Literal::Vector(array) => {
+                write!(f, "@[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
+            }
+            Literal::Repeated { element, length, is_vector, .. } => {
+                let prefix = if *is_vector { "@" } else { "" };
+                write!(f, "{prefix}[")?;
+                self.print_expr(element, f)?;
+                write!(f, "; {length}]")
             }
             Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal && *typ != Type::Field {
@@ -381,7 +387,11 @@ impl AstPrinter {
     ) -> Result<(), std::fmt::Error> {
         write!(f, "for {} in ", self.fmt_local(&for_expr.index_name, for_expr.index_variable))?;
         self.print_expr(&for_expr.start_range, f)?;
-        write!(f, " .. ")?;
+        if for_expr.inclusive {
+            write!(f, " ..= ")?;
+        } else {
+            write!(f, " .. ")?;
+        }
         self.print_expr(&for_expr.end_range, f)?;
         write!(f, " {{")?;
 
@@ -494,9 +504,45 @@ impl AstPrinter {
         tuple: &[Expression],
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
+        if self.print_function_tuple(tuple, f)? {
+            return Ok(());
+        }
         write!(f, "(")?;
         self.print_comma_separated(tuple, f)?;
         write!(f, ")")
+    }
+
+    /// Check if we have a tuple of (constrained, unconstrained) functions and if we want to print specials as std calls,
+    /// then assume that we would rather see `println(foo)` than `println((foo, foo))`, so we can render the AST as Noir
+    /// without duplicating into `println(((foo, foo), (foo, foo)))` if we print the AST and re-parse it, for example for comptime tests.
+    ///
+    /// Returns a flag to indicate if the items were handled.
+    fn print_function_tuple(
+        &mut self,
+        tuple: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        if !self.show_specials_as_std || tuple.len() != 2 {
+            return Ok(false);
+        }
+
+        fn maybe_func(expr: &Expression) -> Option<&str> {
+            // The AST fuzzer generates Type::Function; the Monomorphizer would be Type::Tuple([Type::Function, Type::Function])
+            if let Expression::Ident(Ident { typ: Type::Function(_, _, _, _), name, .. }) = expr {
+                Some(name.as_str())
+            } else {
+                None
+            }
+        }
+
+        match (maybe_func(&tuple[0]), maybe_func(&tuple[1])) {
+            (Some(c), Some(u)) if c == u => {
+                // Only print the first element.
+                self.print_expr(&tuple[0], f)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     fn get_called_function(expr: &Expression) -> Option<(bool, &Definition, &String)> {
@@ -534,7 +580,7 @@ impl AstPrinter {
             let is_unsafe = unconstrained && !self.in_unconstrained;
             let special = match definition {
                 Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("vector") => {
                     Some(SpecialCall::Object(name.clone()))
                 }
                 _ => None,
@@ -544,10 +590,10 @@ impl AstPrinter {
             (false, None)
         };
 
-        if let Some(special) = special {
-            if self.print_special_call(special, &call.arguments, f)? {
-                return Ok(());
-            }
+        if let Some(special) = special
+            && self.print_special_call(special, &call.arguments, f)?
+        {
+            return Ok(());
         }
 
         if print_unsafe {

@@ -1,11 +1,9 @@
-use noirc_frontend::monomorphization::ast::{
-    Call, Expression, Function, Ident, LocalId, Program, Type,
-};
-
-use super::{
-    expr, types,
+use noirc_frontend::monomorphization::{
+    ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
     visitor::{visit_expr, visit_expr_mut},
 };
+
+use super::{expr, types};
 
 mod limit;
 mod unreachable;
@@ -42,7 +40,7 @@ pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
                 }
             }
             _ => {}
-        };
+        }
         true
     });
     (next_local_id, next_ident_id)

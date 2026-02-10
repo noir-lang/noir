@@ -8,7 +8,7 @@ use crate::option::Option;
 // Upon exceeding it, assert will fail in order to inform the user
 // about performance degradation, so that he can adjust the capacity.
 global MAX_LOAD_FACTOR_NUMERATOR: u32 = 3;
-global MAX_LOAD_FACTOR_DEN0MINATOR: u32 = 4;
+global MAX_LOAD_FACTOR_DENOMINATOR: u32 = 4;
 
 /// `HashMap<Key, Value, MaxLen, Hasher>` is used to efficiently store and look up key-value pairs.
 ///
@@ -46,35 +46,36 @@ pub struct HashMap<K, V, let N: u32, B> {
 // 2. (empty)
 // 3. (deleted)
 struct Slot<K, V> {
-    _key_value: Option<(K, V)>,
+    _key: K,
+    _value: V,
+    _is_present: bool,
     _is_deleted: bool,
 }
 
 impl<K, V> Default for Slot<K, V> {
     fn default() -> Self {
-        Slot { _key_value: Option::none(), _is_deleted: false }
+        Slot {
+            _key: crate::mem::zeroed(),
+            _value: crate::mem::zeroed(),
+            _is_present: false,
+            _is_deleted: false,
+        }
     }
 }
 
 impl<K, V> Slot<K, V> {
     fn is_valid(self) -> bool {
-        !self._is_deleted & self._key_value.is_some()
+        !self._is_deleted & self._is_present
     }
 
     fn is_available(self) -> bool {
-        self._is_deleted | self._key_value.is_none()
-    }
-
-    fn key_value(self) -> Option<(K, V)> {
-        self._key_value
-    }
-
-    fn key_value_unchecked(self) -> (K, V) {
-        self._key_value.unwrap_unchecked()
+        self._is_deleted | !self._is_present
     }
 
     fn set(&mut self, key: K, value: V) {
-        self._key_value = Option::some((key, value));
+        self._key = key;
+        self._value = value;
+        self._is_present = true;
         self._is_deleted = false;
     }
 
@@ -127,7 +128,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         self._len = 0;
     }
 
-    /// Returns `true` if the hashmap contains the given key. Unlike `get`, this will not also return
+    /// Returns `true` if the hashmap contains the given key. Unlike [`get`][Self::get], this will not also return
     /// the value associated with the key.
     ///
     /// Example:
@@ -195,8 +196,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         for slot in self._table {
             if slot.is_valid() {
                 // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
-                let key_value = slot.key_value().unwrap_unchecked();
-                entries.push(key_value);
+                entries.push((slot._key, slot._value));
             }
         }
 
@@ -233,8 +233,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (key, _) = slot.key_value_unchecked();
-                keys.push(key);
+                keys.push(slot._key);
             }
         }
 
@@ -270,8 +269,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (_, value) = slot.key_value_unchecked();
-                values.push(value);
+                values.push(slot._value);
             }
         }
 
@@ -288,8 +286,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// result returned from the given function.
     ///
     /// Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
-    /// through. If this is not desired, use `iter_values_mut` if only values need to be mutated,
-    /// or `entries` if neither keys nor values need to be mutated.
+    /// through. If this is not desired, use [`iter_values_mut`][Self::iter_values_mut] if only values need to be mutated,
+    /// or [`entries`][Self::entries] if neither keys nor values need to be mutated.
     ///
     /// The iteration order is left unspecified. As a result, if two keys are mutated to become
     /// equal, which of the two values that will be present for the key in the resulting map is also unspecified.
@@ -327,7 +325,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     ///
     /// Note that since keys can be mutated, the HashMap needs to be rebuilt as it is iterated
     /// through. If only iteration is desired and the keys are not intended to be mutated,
-    /// prefer using `entries` instead.
+    /// prefer using [`entries`][Self::entries] instead.
     ///
     /// The iteration order is left unspecified. As a result, if two keys are mutated to become
     /// equal, which of the two values that will be present for the key in the resulting map is also unspecified.
@@ -361,7 +359,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     }
 
     /// Iterates through the HashMap, applying the given function to each value and mutating the
-    /// value to equal the result. This function is more efficient than `iter_mut` and `iter_keys_mut`
+    /// value to equal the result. This function is more efficient than [`iter_mut`][Self::iter_mut] and [`iter_keys_mut`][Self::iter_keys_mut]
     /// because the keys are untouched and the underlying hashmap thus does not need to be reordered.
     ///
     /// Example:
@@ -376,8 +374,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         for i in 0..N {
             let mut slot = self._table[i];
             if slot.is_valid() {
-                let (key, value) = slot.key_value_unchecked();
-                slot.set(key, f(value));
+                slot._value = f(slot._value);
                 self._table[i] = slot;
             }
         }
@@ -397,8 +394,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         for index in 0..N {
             let mut slot = self._table[index];
             if slot.is_valid() {
-                let (key, value) = slot.key_value_unchecked();
-                if !f(key, value) {
+                if !f(slot._key, slot._value) {
                     slot.mark_deleted();
                     self._len -= 1;
                     self._table[index] = slot;
@@ -487,9 +483,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
                 // Not marked as deleted and has key-value.
                 if slot.is_valid() {
-                    let (current_key, value) = slot.key_value_unchecked();
-                    if current_key == key {
-                        result = Option::some(value);
+                    if slot._key == key {
+                        result = Option::some(slot._value);
                         should_break = true;
                     }
                 }
@@ -532,8 +527,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                     insert = true;
                     self._len += 1;
                 } else {
-                    let (current_key, _) = slot.key_value_unchecked();
-                    if current_key == key {
+                    if slot._key == key {
                         insert = true;
                     }
                 }
@@ -581,8 +575,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
                 // Not marked as deleted and has key-value.
                 if slot.is_valid() {
-                    let (current_key, _) = slot.key_value_unchecked();
-                    if current_key == key {
+                    if slot._key == key {
                         slot.mark_deleted();
                         self._table[index] = slot;
                         self._len -= 1;
@@ -609,16 +602,19 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     // This ensures good uniformity of distribution for table sizes
     // equal to prime numbers or powers of two.
     fn quadratic_probe(_self: Self, hash: u32, attempt: u32) -> u32 {
-        (hash + (attempt + attempt * attempt) / 2) % N
+        // use u64 to prevent overflow in attempt * attempt
+        let attempt_u64 = attempt as u64;
+        let offset = (attempt_u64 + attempt_u64 * attempt_u64) / 2;
+        ((hash as u64 + offset) % (N as u64)) as u32
     }
 
     // Amount of elements in the table in relation to available slots exceeds alpha_max.
     // To avoid a comparatively more expensive division operation
     // we conduct cross-multiplication instead.
-    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR
-    // n * MAX_LOAD_FACTOR_DEN0MINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
+    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DENOMINATOR
+    // n * MAX_LOAD_FACTOR_DENOMINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
     fn assert_load_factor(self) {
-        let lhs = self._len * MAX_LOAD_FACTOR_DEN0MINATOR;
+        let lhs = self._len * MAX_LOAD_FACTOR_DENOMINATOR;
         let rhs = self._table.len() * MAX_LOAD_FACTOR_NUMERATOR;
         let exceeded = lhs >= rhs;
         assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
@@ -660,14 +656,13 @@ where
             for slot in self._table {
                 // Not marked as deleted and has key-value.
                 if equal & slot.is_valid() {
-                    let (key, value) = slot.key_value_unchecked();
-                    let other_value = other.get(key);
+                    let other_value = other.get(slot._key);
 
                     if other_value.is_none() {
                         equal = false;
                     } else {
                         let other_value = other_value.unwrap_unchecked();
-                        if value != other_value {
+                        if slot._value != other_value {
                             equal = false;
                         }
                     }
@@ -697,5 +692,25 @@ where
         let _build_hasher = B::default();
         let map: HashMap<K, V, N, B> = HashMap::with_hasher(_build_hasher);
         map
+    }
+}
+
+mod test {
+    use crate::default::Default;
+    use crate::hash::BuildHasherDefault;
+    use crate::hash::poseidon2::Poseidon2Hasher;
+    use super::HashMap;
+
+    #[test]
+    pub fn test_quadratic_probe_function() {
+        let map: HashMap<Field, Field, 1000, BuildHasherDefault<Poseidon2Hasher>> =
+            HashMap::default();
+
+        let hash1: u32 = 123;
+        let attempt1: u32 = 1000000;
+
+        let result: u32 = map.quadratic_probe(hash1, attempt1);
+        // Ensure no overflow occurs when calculating the result
+        assert(result == 123, "Result should be within table bounds");
     }
 }

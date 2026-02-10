@@ -1,5 +1,5 @@
 use acvm::{
-    FieldElement,
+    AcirField, FieldElement,
     acir::circuit::{OpcodeLocation, brillig::BrilligFunctionId, opcodes::AcirFunctionId},
     pwg::RawAssertionPayload,
 };
@@ -45,7 +45,7 @@ impl JsExecutionError {
         acir_function_id: Option<AcirFunctionId>,
         brillig_function_id: Option<BrilligFunctionId>,
     ) -> Self {
-        let mut error = JsExecutionError::constructor(JsString::from(message));
+        let error = JsExecutionError::constructor(JsString::from(message));
         let js_call_stack = match call_stack {
             Some(call_stack) => {
                 let js_array = Array::new();
@@ -57,8 +57,15 @@ impl JsExecutionError {
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some(raw) => <JsValue as JsValueSerdeExt>::from_serde(&raw)
-                .expect("Cannot serialize assertion payload"),
+            Some(raw) => {
+                let stringified_raw_payload: RawAssertionPayload<String> = RawAssertionPayload {
+                    selector: raw.selector,
+                    data: raw.data.into_iter().map(|x| x.to_hex()).collect(),
+                };
+
+                <JsValue as JsValueSerdeExt>::from_serde(&stringified_raw_payload)
+                    .expect("Cannot serialize assertion payload")
+            }
             None => JsValue::UNDEFINED,
         };
 
@@ -82,7 +89,7 @@ impl JsExecutionError {
         error
     }
 
-    fn set_property(&mut self, property: &str, value: JsValue) {
+    fn set_property(&self, property: &str, value: JsValue) {
         assert!(
             Reflect::set(self, &JsValue::from(property), &value).expect("Errors should be objects"),
             "Errors should be writable"

@@ -5,7 +5,7 @@ expression: expanded_code
 fn main(x: bool) {
     println(f"x's value: {x}");
     if x {
-        let empty_slice: [u8] = &[];
-        let _: (u8, [u8]) = empty_slice.pop_front();
+        let empty_vector: [u8] = [].as_vector();
+        let _: (u8, [u8]) = empty_vector.pop_front();
     }
 }

@@ -89,7 +89,7 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     let fuzzing_harness_has_no_arguments =
-        context.def_interner.function_meta(&fuzzing_harness.id).function_signature().0.is_empty();
+        context.def_interner.function_meta(&fuzzing_harness.id).parameters.is_empty();
 
     if fuzzing_harness_has_no_arguments {
         return FuzzingRunStatus::ExecutionFailure {

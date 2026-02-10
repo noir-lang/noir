@@ -5,6 +5,7 @@ use crate::ssa::{
     ir::{call_graph::CallGraph, function::Function},
 };
 
+use super::FORCE_UNROLL_THRESHOLD;
 use super::inlining::{self, InlineInfo};
 
 impl Ssa {
@@ -51,11 +52,12 @@ impl Ssa {
             // Start with an inline pass.
             let mut function = function.inlined(&self, &should_inline_call)?;
             // Help unrolling determine bounds.
-            function.as_slice_optimization();
+            function.as_vector_optimization();
             // Prepare for unrolling
             function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively();
+            // Use default threshold for force-unrolling.
+            let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 
@@ -92,19 +94,20 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0():
-            call f0()
+            call f0(u32 1, Field 2)
             return
         }
         acir(inline) fn foo f0 {
           b0(v0: u32, v1: Field):
-            jmpif v0 then: b1, else: b2
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1, else: b2
           b1():
             v6 = add v0, u32 1
             jmp b3(v6, v1)
           b2():
             v5 = sub v0, u32 1
             jmp b3(v5, v1)
-          b3(v2: u32, v3: Field):
+          b3(v3: u32, v4: Field):
             return
         }
         "#;
@@ -112,15 +115,16 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            call f1()
+            call f1(u32 1)
             return
         }
         acir(inline) fn foo f1 {
-          b0(v0: u32, v1: Field):
-            jmpif v0 then: b1, else: b2
+          b0(v0: u32):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1, else: b2
           b1():
             v4 = add v0, u32 1
             jmp b3()
@@ -130,6 +134,6 @@ mod tests {
           b3():
             return
         }
-        "#);
+        ");
     }
 }

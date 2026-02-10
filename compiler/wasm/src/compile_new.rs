@@ -3,7 +3,6 @@ use crate::compile::{
     file_manager_with_source_map,
 };
 use crate::errors::{CompileError, JsCompileError};
-use acvm::acir::circuit::ExpressionWidth;
 use nargo::parse_all;
 use noirc_driver::{
     CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
@@ -93,17 +92,9 @@ impl CompilerContext {
 
     pub fn compile_program(
         mut self,
-        program_width: usize,
+        _program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
-        let expression_width = if program_width == 0 {
-            ExpressionWidth::Unbounded
-        } else {
-            ExpressionWidth::Bounded { width: 4 }
-        };
-        let compile_options = CompileOptions {
-            expression_width: Some(expression_width),
-            ..CompileOptions::default()
-        };
+        let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_program =
@@ -117,7 +108,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+        let optimized_program = nargo::ops::optimize_program(compiled_program);
         nargo::ops::check_program(&optimized_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
@@ -132,17 +123,9 @@ impl CompilerContext {
 
     pub fn compile_contract(
         mut self,
-        program_width: usize,
+        _program_width: usize,
     ) -> Result<JsCompileContractResult, JsCompileError> {
-        let expression_width = if program_width == 0 {
-            ExpressionWidth::Unbounded
-        } else {
-            ExpressionWidth::Bounded { width: 4 }
-        };
-        let compile_options = CompileOptions {
-            expression_width: Some(expression_width),
-            ..CompileOptions::default()
-        };
+        let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
@@ -156,8 +139,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, expression_width);
+        let optimized_contract = nargo::ops::optimize_contract(compiled_contract);
         let warnings = optimized_contract.warnings.clone();
 
         Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
@@ -275,7 +257,7 @@ fn prepare_compiler_context(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;

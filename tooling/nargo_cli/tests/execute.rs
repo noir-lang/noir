@@ -31,23 +31,13 @@ mod tests {
     // These tests fail with stack too deep errors when debug assertions are active
     const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
 
-    const IGNORED_PEDANTIC_SOLVING_TESTS: [&str; 3] = [
-        // TODO(https://github.com/noir-lang/noir/issues/8098): all of these are failing with:
-        // ```
-        // Failed to solve program:
-        // \'Failed to solve blackbox function: embedded_curve_add, reason: Infinite input: embedded_curve_add(infinity, infinity)\'
-        // ```
-        "execution_success/multi_scalar_mul",
-        "execution_success/regression_5045",
-        "execution_success/regression_7744",
-    ];
-
     fn setup_nargo(
         test_program_dir: &Path,
         test_command: &str,
         force_brillig: ForceBrillig,
         inliner_aggressiveness: Inliner,
     ) -> Command {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg(test_command).arg("--force");
@@ -60,16 +50,9 @@ mod tests {
             nargo.arg("--enable-brillig-debug-assertions");
         }
 
-        // Enable pedantic solving
-        let skip_pedantic_solving = IGNORED_PEDANTIC_SOLVING_TESTS
-            .into_iter()
-            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
-        if !skip_pedantic_solving {
-            nargo.arg("--pedantic-solving");
-        }
-
-        // Enable enums and ownership as unstable features
+        // Enable enums and trait_as_type as unstable features
         nargo.arg("-Zenums");
+        nargo.arg("-Ztrait_as_type");
 
         if force_brillig.0 {
             {
@@ -150,21 +133,7 @@ mod tests {
         let mut has_circuit_output = false;
 
         if check_stdout {
-            let output = nargo.output().unwrap();
-            let stdout = String::from_utf8(output.stdout).unwrap();
-            has_circuit_output = stdout.contains("Circuit output:");
-
-            let stdout = remove_noise_lines(stdout);
-
-            let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-            let snapshot_name = "stdout";
-            insta::with_settings!(
-                {
-                    snapshot_path => format!("./snapshots/execution_success/{test_name}")
-                },
-                {
-                insta::assert_snapshot!(snapshot_name, stdout);
-            });
+            has_circuit_output = check_output(&mut nargo, &test_program_dir);
         }
 
         if has_circuit_output {
@@ -184,6 +153,25 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn check_output(nargo: &mut Command, test_program_dir: &Path) -> bool {
+        let output = nargo.output().unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let has_circuit_output = stdout.contains("Circuit output:");
+
+        let stdout = remove_noise_lines(stdout);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stdout";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/execution_success/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stdout);
+        });
+        has_circuit_output
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -320,8 +308,13 @@ mod tests {
         nargo.assert().success();
     }
 
+    fn interpret_execution_failure(mut nargo: Command) {
+        nargo.assert().failure();
+    }
+
     fn nargo_expand_execute(test_program_dir: PathBuf) {
         // First run `nargo execute` on the original code to get the output
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
@@ -329,23 +322,18 @@ mod tests {
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
-
         nargo.assert().success();
 
         let original_output = nargo.output().unwrap();
         let original_output: String = String::from_utf8(original_output.stdout).unwrap();
 
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -376,15 +364,13 @@ mod tests {
         run_nargo_fmt(temp_dir.clone());
 
         // Now we can run `nargo execute` on the expanded code
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -398,15 +384,13 @@ mod tests {
     }
 
     fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -437,6 +421,7 @@ mod tests {
         run_nargo_fmt(temp_dir.clone());
 
         // Now we can run `nargo compile` on the expanded code
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
         nargo.arg("compile").arg("--force");
@@ -444,13 +429,39 @@ mod tests {
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
-
         nargo.assert().success();
     }
 
+    fn nargo_execute_comptime(test_program_dir: PathBuf, check_stdout: bool) {
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("execute").arg("--force-comptime");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        nargo.assert().success();
+
+        if check_stdout {
+            check_output(&mut nargo, &test_program_dir);
+        }
+    }
+
+    fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir);
+        nargo.arg("execute").arg("--force-comptime");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        execution_failure(nargo);
+    }
+
     fn run_nargo_fmt(target_dir: PathBuf) {
+        #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(target_dir);
         nargo.arg("fmt");
@@ -469,15 +480,15 @@ mod tests {
 
             let path = entry.path();
 
-            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
-                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
-                    return Some(prover_toml);
-                }
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir())
+                && let Some(prover_toml) = find_prover_toml_in_dir(&path)
+            {
+                return Some(prover_toml);
             }
 
             if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
-            };
+            }
 
             return Some(path);
         }

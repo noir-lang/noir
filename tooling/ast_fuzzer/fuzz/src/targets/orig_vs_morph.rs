@@ -4,22 +4,22 @@
 use std::cell::{Cell, RefCell};
 
 use crate::targets::default_config;
-use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
+use noir_ast_fuzzer::rewrite;
 use noir_ast_fuzzer::scope::ScopeStack;
-use noir_ast_fuzzer::visitor::visit_expr_be_mut;
-use noir_ast_fuzzer::{rewrite, visitor};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{
     Call, Definition, Expression, Function, Ident, IdentId, LocalId, Program, Unary,
 };
+use noirc_frontend::monomorphization::visitor::{visit_expr, visit_expr_be_mut};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let rules = rules::all();
-    let max_rewrites = 10;
     let config = default_config(u)?;
+    let rules = rules::collect(&config);
+    let max_rewrites = 10;
     let inputs = CompareMorph::arb(
         u,
         config,
@@ -28,7 +28,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             rewrite_program(u, &mut program, &rules, max_rewrites);
             Ok((program, options))
         },
-        |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
+        |program, options| {
+            compile_into_circuit_or_die(program, &options.onto(default_ssa_options()), None)
+        },
     )?;
 
     let result = inputs.exec()?;
@@ -270,7 +272,7 @@ fn estimate_applicable_rules(
     rules: &[rules::Rule],
 ) -> usize {
     let mut count = 0;
-    visitor::visit_expr(expr, &mut |expr| {
+    visit_expr(expr, &mut |expr| {
         for rule in rules {
             if rule.matches(ctx, expr) {
                 count += 1;
@@ -363,8 +365,8 @@ mod rules {
     }
 
     /// Construct all rules that we can apply on a program.
-    pub fn all() -> Vec<Rule> {
-        vec![
+    pub fn collect(config: &Config) -> Vec<Rule> {
+        let mut rules = vec![
             num_add_zero(),
             num_sub_zero(),
             num_mul_one(),
@@ -372,10 +374,16 @@ mod rules {
             bool_or_self(),
             bool_xor_self(),
             bool_xor_rand(),
-            num_commute(),
             any_inevitable(),
             int_break_up(),
-        ]
+        ];
+        if config.avoid_overflow {
+            // When we can overflowing instruction, then swapping around the LHS and RHS
+            // of a binary operation can swap failures. We could visit the expressions to rule
+            // out a potential failure on both sides at the same time, or just skip this rule.
+            rules.push(num_commute());
+        }
+        rules
     }
 
     /// Transform any numeric value `x` into `x <op> <rhs>`
@@ -616,10 +624,13 @@ mod helpers {
     use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{Config, expr, types, visitor::visit_expr_be_mut};
+    use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
-        monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
+        monomorphization::{
+            ast::{BinaryOp, Definition, Expression, LocalId, Type},
+            visitor::visit_expr_be_mut,
+        },
         shared::Signedness,
     };
     use strum::IntoEnumIterator;
@@ -627,7 +638,8 @@ mod helpers {
     use crate::targets::orig_vs_morph::VariableContext;
 
     /// Check if an expression can have a side effect, in which case duplicating or reordering it could
-    /// change the behavior of the program.
+    /// change the behavior of the program. This doesn't concern about failures, just observable changes
+    /// the state of the program.
     pub(super) fn has_side_effect(expr: &Expression) -> bool {
         expr::exists(expr, |expr| {
             matches!(
@@ -646,15 +658,15 @@ mod helpers {
     ) -> arbitrary::Result<Expression> {
         if max_depth > 0 {
             let idx = u.choose_index(3)?;
-            if idx == 0 {
-                if let Some(expr) = gen_unary(u, typ, max_depth)? {
-                    return Ok(expr);
-                }
+            if idx == 0
+                && let Some(expr) = gen_unary(u, typ, max_depth)?
+            {
+                return Ok(expr);
             }
-            if idx == 1 {
-                if let Some(expr) = gen_binary(u, typ, max_depth)? {
-                    return Ok(expr);
-                }
+            if idx == 1
+                && let Some(expr) = gen_binary(u, typ, max_depth)?
+            {
+                return Ok(expr);
             }
         }
         expr::gen_literal(u, typ, &Config::default())
@@ -806,10 +818,10 @@ mod helpers {
             &mut |_, _| {},
             // Update the IDs in identifiers based on the replacements we remember from above.
             &mut |ident| {
-                if let Definition::Local(id) = &mut ident.definition {
-                    if let Some(replacement) = replacements.borrow().get(id) {
-                        *id = *replacement;
-                    }
+                if let Definition::Local(id) = &mut ident.definition
+                    && let Some(replacement) = replacements.borrow().get(id)
+                {
+                    *id = *replacement;
                 }
             },
         );
@@ -820,7 +832,6 @@ mod helpers {
 mod tests {
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
     /// ```
     #[test]

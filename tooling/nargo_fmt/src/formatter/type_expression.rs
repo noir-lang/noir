@@ -17,11 +17,17 @@ impl Formatter<'_> {
                 self.write_current_token_and_bump();
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, _operator, rhs, _span) => {
-                self.format_type_expression(*lhs);
-                self.write_space();
-                self.write_current_token_and_bump();
-                self.write_space();
-                self.format_type_expression(*rhs);
+                // Special case: `-expr` is parsed as `0 - expr`
+                if self.is_at(Token::Minus) {
+                    self.write_current_token_and_bump();
+                    self.format_type_expression(*rhs);
+                } else {
+                    self.format_type_expression(*lhs);
+                    self.write_space();
+                    self.write_current_token_and_bump();
+                    self.write_space();
+                    self.format_type_expression(*rhs);
+                }
             }
             UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
                 self.format_as_trait_path(*as_trait_path);

@@ -8,7 +8,6 @@
 //! ```
 use std::time::Duration;
 
-use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
@@ -16,7 +15,10 @@ use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_inputs, arb_program, program
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::{
     brillig::BrilligOptions,
-    ssa::{self, opt::inlining::MAX_INSTRUCTIONS},
+    ssa::{
+        self,
+        opt::{CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS},
+    },
 };
 
 fn seed_from_env() -> Option<u64> {
@@ -39,14 +41,15 @@ fn arb_program_can_be_executed() {
             ssa_logging: ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
-            small_function_max_instruction: MAX_INSTRUCTIONS,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
         };
 
@@ -79,7 +82,7 @@ fn arb_program_can_be_executed() {
             );
         }
 
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let initial_witness = abi.encode(&inputs, None).unwrap();
 
         let mut foreign_call_executor =

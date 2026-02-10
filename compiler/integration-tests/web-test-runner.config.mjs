@@ -14,7 +14,7 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
     name: 'environment',
     serve(context) {
       if (context.path === '/compiler/integration-tests/test/environment.js') {
-        return 'export const TEST_LOG_LEVEL = 2;';
+        return `export const TEST_LOG_LEVEL = 2;`;
       }
     },
   });
@@ -22,12 +22,20 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
 
 export default {
   browsers: [
-    playwrightLauncher({ product: 'chromium' }),
+    playwrightLauncher({
+      product: 'chromium',
+    }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
+  concurrency: 1,
+  concurrentBrowsers: 1,
   middleware: [
     async (ctx, next) => {
+      // Set Cross-Origin Isolation headers required for SharedArrayBuffer
+      ctx.set('Cross-Origin-Opener-Policy', 'same-origin');
+      ctx.set('Cross-Origin-Embedder-Policy', 'require-corp');
+
       if (ctx.url.endsWith('.wasm.gz')) {
         ctx.url = ctx.url.replace('/', '/node_modules/@aztec/bb.js/dest/browser/');
       }
@@ -35,6 +43,9 @@ export default {
       // In our tests we are overriding the logger to tslog anyway
       if (ctx.url.includes('pino/browser.js')) {
         ctx.url = '/compiler/integration-tests/test/mocks/pino.js';
+      }
+      if (ctx.url.includes('buffer/index.js')) {
+        ctx.url = '/compiler/integration-tests/test/mocks/buffer.js';
       }
       await next();
     },
@@ -44,6 +55,10 @@ export default {
     `<!DOCTYPE html>
     <html>
       <body>
+        <script>
+          // Force bind fetch
+          globalThis.fetch = globalThis.fetch.bind(globalThis);
+        </script>
         <script type="module" src="/compiler/integration-tests/test/mocks/buffer.js"></script>
         <script type="module" src="${testFramework}"></script>
       </body>

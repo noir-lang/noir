@@ -13,10 +13,10 @@ use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
-use noirc_driver::parse_expression_width;
 use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
+mod deserializers;
 mod errors;
 mod flock;
 mod git;
@@ -158,14 +158,11 @@ impl PackageConfig {
         processed: &mut Vec<String>,
         assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
     ) -> Result<Package, ManifestError> {
-        let name: CrateName = if let Some(name) = &self.package.name {
-            name.parse().map_err(|_| ManifestError::InvalidPackageName {
-                toml: root_dir.join("Nargo.toml"),
-                name: name.into(),
-            })?
-        } else {
-            return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
-        };
+        let name = &self.package.name;
+        let name: CrateName = name.parse().map_err(|_| ManifestError::InvalidPackageName {
+            toml: root_dir.join("Nargo.toml"),
+            name: name.into(),
+        })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
@@ -232,16 +229,6 @@ impl PackageConfig {
             })?;
         }
 
-        let expression_width = self
-            .package
-            .expression_width
-            .as_ref()
-            .map(|expression_width| {
-                parse_expression_width(expression_width)
-                    .map_err(|err| ManifestError::ParseExpressionWidth(err.to_string()))
-            })
-            .map_or(Ok(None), |res| res.map(Some))?;
-
         // Collect any unstable features the package needs to compile.
         // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
         let compiler_required_unstable_features =
@@ -258,26 +245,18 @@ impl PackageConfig {
             package_type,
             name,
             dependencies,
-            expression_width,
         })
     }
 }
 
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
-    Package {
-        #[serde(flatten)]
-        package_config: PackageConfig,
-    },
+    Package { package_config: PackageConfig },
     /// Represents a `Nargo.toml` with workspace fields.
-    Workspace {
-        #[serde(alias = "workspace")]
-        workspace_config: WorkspaceConfig,
-    },
+    Workspace { workspace_config: WorkspaceConfig },
 }
 
 impl TryFrom<String> for Config {
@@ -314,7 +293,7 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
-    pub name: Option<String>,
+    pub name: String,
     pub version: Option<String>,
     #[serde(alias = "type")]
     pub package_type: Option<String>,
@@ -334,12 +313,11 @@ pub struct PackageMetadata {
     pub expression_width: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 pub enum DependencyConfig {
-    Github { git: String, tag: String, directory: Option<String> },
+    Git { git: String, tag: String, directory: Option<String> },
     Path { path: String },
 }
 
@@ -350,7 +328,7 @@ impl DependencyConfig {
         processed: &mut Vec<String>,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
-            Self::Github { git, tag, directory } => {
+            Self::Git { git, tag, directory } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
                 let project_path = if let Some(directory) = directory {
                     let internal_path = dir_path.join(directory).normalize();
@@ -548,7 +526,13 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+    let assume_default_entry = false;
+    resolve_workspace_from_fixed_toml(
+        nargo_toml,
+        package_selection,
+        current_compiler_version,
+        assume_default_entry,
+    )
 }
 
 /// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
@@ -558,8 +542,8 @@ pub fn resolve_workspace_from_fixed_toml(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
     current_compiler_version: Option<String>,
+    assume_default_entry: bool,
 ) -> Result<Workspace, ManifestError> {
-    let assume_default_entry = true;
     let workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
@@ -690,12 +674,12 @@ mod tests {
                     );
 
                     // Go into the last created directory
-                    if let Some(last_item) = last_item {
-                        if indent > current_indent {
-                            assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
-                            current_dir.push(last_item);
-                            current_indent += 1;
-                        }
+                    if let Some(last_item) = last_item
+                        && indent > current_indent
+                    {
+                        assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
+                        current_dir.push(last_item);
+                        current_indent += 1;
                     }
                     // Go back into an ancestor directory
                     while indent < current_indent {

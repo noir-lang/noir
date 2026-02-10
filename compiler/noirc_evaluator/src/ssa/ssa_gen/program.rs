@@ -99,6 +99,7 @@ impl Ssa {
         function == self.main_id || self.functions[&function].runtime().is_entry_point()
     }
 
+    /// Collect all the global value IDs used per function.
     pub(crate) fn used_globals_in_functions(&self) -> HashMap<FunctionId, HashSet<ValueId>> {
         fn add_value_to_globals_if_global(
             function: &Function,
@@ -172,7 +173,7 @@ impl std::fmt::Display for Ssa {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::ir::map::Id;
 
     use crate::ssa::ssa_gen::Ssa;

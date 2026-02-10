@@ -22,10 +22,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -52,10 +52,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -80,10 +80,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
@@ -110,7 +110,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - uses: taiki-e/install-action@just
 
@@ -128,10 +128,10 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -150,7 +150,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nargo
           path: ./dist/*
@@ -166,10 +166,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./.github/actions/download-binary
+        with:
+          name: nargo
 
       - name: Format stdlib
         working-directory: ./noir_stdlib

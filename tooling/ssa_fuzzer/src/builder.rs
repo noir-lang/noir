@@ -1,11 +1,12 @@
 use crate::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
+use acvm::acir::brillig::lengths::SemanticLength;
 use noir_ssa_executor::compiler::compile_from_ssa;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type as SsaType;
@@ -394,13 +395,13 @@ impl FuzzerBuilder {
         TypedValue::new(res, array_elements_type)
     }
 
-    pub fn insert_slice(&mut self, elements: Vec<TypedValue>) -> TypedValue {
+    pub fn insert_vector(&mut self, elements: Vec<TypedValue>) -> TypedValue {
         let element_type = elements[0].type_of_variable.clone();
         assert!(
             elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
-        let array_elements_type = Type::Slice(Arc::new(vec![element_type]));
+        let array_elements_type = Type::Vector(Arc::new(vec![element_type]));
         let res = self.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
             array_elements_type.clone().into(),
@@ -465,7 +466,6 @@ impl FuzzerBuilder {
             let byte = self.builder.insert_array_get(
                 array.value_id,
                 index,
-                ArrayOffset::None,
                 SsaType::Numeric(NumericType::U8.into()),
             );
             let byte_as_field = self.builder.insert_cast(byte, NumericType::Field.into());
@@ -610,10 +610,9 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("aes128_encrypt")
             .expect("aes128_encrypt intrinsic should be available");
-        let return_type = Type::Array(
-            Arc::new(vec![Type::Numeric(NumericType::U8)]),
-            input_size + 16 - (input_size % 16),
-        );
+        // The blackbox does not apply padding, so output size equals input size.
+        // Callers must pad inputs in Noir; input length must be a multiple of 16.
+        let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), input_size);
         let result = self.builder.insert_call(
             intrinsic,
             vec![input.value_id, key.value_id, iv.value_id],
@@ -703,7 +702,6 @@ impl FuzzerBuilder {
         let res = self.builder.insert_array_get(
             array.value_id,
             index.value_id,
-            ArrayOffset::None,
             element_type.clone().into(),
         );
         TypedValue::new(res, element_type)
@@ -731,13 +729,8 @@ impl FuzzerBuilder {
         } else {
             index
         };
-        let res = self.builder.insert_array_set(
-            array.value_id,
-            index.value_id,
-            value.value_id,
-            false,
-            ArrayOffset::None,
-        );
+        let res =
+            self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
         TypedValue::new(res, Type::Array(array_type.clone(), array_length))
     }
 
@@ -778,38 +771,32 @@ impl FuzzerBuilder {
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                1,
+                SemanticLength(1),
             ),
         );
         let scalar_id = self.builder.insert_make_array(
             vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
-            SsaType::Array(Arc::new(vec![field_type.clone().into(), field_type.clone().into()]), 1),
+            SsaType::Array(
+                Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
+                SemanticLength(1),
+            ),
         );
         let return_type = Type::Array(
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
+        let predicate = self.builder.numeric_constant(1_u32, NumericType::Boolean.into());
         let result = self.builder.insert_call(
             intrinsic,
-            vec![basic_point, scalar_id],
+            vec![basic_point, scalar_id, predicate],
             vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
-        let x = self.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let y = self.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
+        let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -830,7 +817,12 @@ impl FuzzerBuilder {
         Point { x: scalar.lo, y: scalar.hi, is_infinite }
     }
 
-    pub fn multi_scalar_mul(&mut self, points: Vec<Point>, scalars: Vec<Scalar>) -> Point {
+    pub fn multi_scalar_mul(
+        &mut self,
+        points: Vec<Point>,
+        scalars: Vec<Scalar>,
+        predicate: bool,
+    ) -> Point {
         assert_eq!(points.len(), scalars.len());
         for point in &points {
             assert!(point.validate());
@@ -838,7 +830,8 @@ impl FuzzerBuilder {
         for scalar in &scalars {
             assert!(scalar.validate());
         }
-
+        let predicate =
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let field_type = Type::Numeric(NumericType::Field);
         let boolean_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
@@ -855,14 +848,14 @@ impl FuzzerBuilder {
                     field_type.clone().into(),
                     boolean_type.clone().into(),
                 ]),
-                points.len() as u32,
+                SemanticLength(points.len() as u32),
             ),
         );
         let scalar_ids_array = self.builder.insert_make_array(
             scalar_ids.into_iter().collect(),
             SsaType::Array(
                 Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
-                scalars.len() as u32,
+                SemanticLength(scalars.len() as u32),
             ),
         );
         let return_type = Type::Array(
@@ -871,7 +864,7 @@ impl FuzzerBuilder {
         );
         let result = self.builder.insert_call(
             intrinsic,
-            vec![point_ids_array, scalar_ids_array],
+            vec![point_ids_array, scalar_ids_array, predicate],
             vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
@@ -879,24 +872,10 @@ impl FuzzerBuilder {
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
         let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
-        let x = self.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let y = self.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let is_infinite = self.builder.insert_array_get(
-            result,
-            is_infinite_idx,
-            ArrayOffset::None,
-            boolean_type.clone().into(),
-        );
+        let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
+        let is_infinite =
+            self.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -904,45 +883,34 @@ impl FuzzerBuilder {
         }
     }
 
-    pub fn point_add(&mut self, p1: Point, p2: Point) -> Point {
+    pub fn point_add(&mut self, p1: Point, p2: Point, predicate: bool) -> Point {
         assert!(p1.validate());
         assert!(p2.validate());
         let field_type = Type::Numeric(NumericType::Field);
         let boolean_type = Type::Numeric(NumericType::Boolean);
+        let predicate =
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let intrinsic = self
             .builder
             .import_intrinsic("embedded_curve_add")
             .expect("embedded_curve_add intrinsic should be available");
-        let points_flattened = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
+        let mut arguments = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
+        arguments.push(predicate);
         let return_type = Type::Array(
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
         let result =
-            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone().into()]);
+            self.builder.insert_call(intrinsic, arguments, vec![return_type.clone().into()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
         let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
-        let x = self.builder.insert_array_get(
-            result,
-            x_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let y = self.builder.insert_array_get(
-            result,
-            y_idx,
-            ArrayOffset::None,
-            field_type.clone().into(),
-        );
-        let is_infinite = self.builder.insert_array_get(
-            result,
-            is_infinite_idx,
-            ArrayOffset::None,
-            boolean_type.clone().into(),
-        );
+        let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
+        let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
+        let is_infinite =
+            self.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -963,28 +931,19 @@ impl FuzzerBuilder {
         )
     }
 
-    fn bytes_to_ssa_slice(&mut self, vec: Vec<u8>) -> TypedValue {
-        let elements: Vec<Id<Value>> = vec
-            .into_iter()
-            .map(|x| self.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
-            .collect();
-        let slice_type = Type::Slice(Arc::new(vec![Type::Numeric(NumericType::U8)]));
-        TypedValue::new(
-            self.builder.insert_make_array(elements.into(), slice_type.clone().into()),
-            slice_type,
-        )
-    }
-
     pub fn ecdsa_secp256r1(
         &mut self,
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
         signature: Vec<u8>,
+        predicate: bool,
     ) -> TypedValue {
+        let predicate =
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash = self.bytes_to_ssa_slice(hash);
+        let hash = self.bytes_to_ssa_array(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
@@ -993,7 +952,13 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256r1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            vec![
+                pub_key_x.value_id,
+                pub_key_y.value_id,
+                signature.value_id,
+                hash.value_id,
+                predicate,
+            ],
             vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
@@ -1007,10 +972,13 @@ impl FuzzerBuilder {
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
         signature: Vec<u8>,
+        predicate: bool,
     ) -> TypedValue {
+        let predicate =
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash = self.bytes_to_ssa_slice(hash);
+        let hash = self.bytes_to_ssa_array(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
@@ -1019,7 +987,13 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256k1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            vec![
+                pub_key_x.value_id,
+                pub_key_y.value_id,
+                signature.value_id,
+                hash.value_id,
+                predicate,
+            ],
             vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);

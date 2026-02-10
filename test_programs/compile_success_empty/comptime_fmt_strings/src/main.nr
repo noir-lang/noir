@@ -1,6 +1,6 @@
 fn main() {
-    // format strings are lowered as normal strings
-    let (s1, s2): (str<39>, str<4>) = comptime {
+    // We need `as_quoted_str!()` to go from a `fmtstr` to a `str`
+    let (s1, s2) = comptime {
         let x: u32 = 4;
         let y: u32 = 5;
 
@@ -8,7 +8,7 @@ fn main() {
         // compiling breaks the test runner.
         let s1 = f"x is {x}, fake interpolation: {{y}}, y is {y}";
         let s2 = std::mem::zeroed::<fmtstr<4, ()>>();
-        (s1, s2)
+        (s1.as_quoted_str!(), s2.as_quoted_str!())
     };
     assert_eq(s1, "x is 4, fake interpolation: {y}, y is 5");
     assert_eq(s2, "\0\0\0\0");

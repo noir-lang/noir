@@ -36,15 +36,11 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         return_visibility: Visibility::Private,
         unconstrained: false,
         inline_type: InlineType::Inline,
-        func_sig: (Vec::new(), None),
+        is_entry_point: false,
     };
-
-    let sigs = vec![func.func_sig.clone()];
 
     let program = Program {
         functions: vec![func],
-        main_function_signature: sigs[0].clone(),
-        function_signatures: sigs,
         return_location: None,
         globals: Default::default(),
         debug_variables: Default::default(),
@@ -76,6 +72,8 @@ fn test_modulo_of_negative_literals_in_range() {
         start_range: Box::new(start_range),
         end_range: Box::new(end_range),
         block: Box::new(Expression::Break),
+        // Use exclusive range for this test case.
+        inclusive: false,
         start_range_location: Location::dummy(),
         end_range_location: Location::dummy(),
     });
@@ -148,7 +146,7 @@ fn test_recursion_limit_rewrite() {
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::InlineAlways,
-            func_sig: (vec![], None),
+            is_entry_point: false,
         };
 
         ctx.function_declarations.insert(

@@ -4,7 +4,6 @@ pub(crate) mod fuzz_lib;
 mod mutations;
 mod utils;
 
-use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::{
     fuzz_target_lib::fuzz_target,
     fuzzer::FuzzerData,
@@ -16,6 +15,7 @@ use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
+use rmp_serde::{decode::from_slice as decode_from_slice, encode::to_vec as encode_to_rmp_vec};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
 
@@ -34,12 +34,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {
                 compile_options.show_ssa_pass =
-                    vec!["After Dead Instruction Elimination - ACIR".to_string()];
+                    vec!["Dead Instruction Elimination (3)".to_string()];
             }
             "FIRST_AND_FINAL" => {
                 compile_options.show_ssa_pass = vec![
                     "After Removing Unreachable Functions (1)".to_string(),
-                    "After Dead Instruction Elimination - ACIR".to_string(),
+                    "Dead Instruction Elimination (3)".to_string(),
                 ];
             }
             _ => (),
@@ -48,16 +48,13 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
     // Disable some instructions with bugs that are not fixed yet
     let instruction_options = InstructionOptions {
-        // https://github.com/noir-lang/noir/issues/9707
-        shr_enabled: false,
-        shl_enabled: false,
         // https://github.com/noir-lang/noir/issues/9437
         array_get_enabled: false,
         array_set_enabled: false,
         // https://github.com/noir-lang/noir/issues/9559
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9619
+        // https://github.com/noir-lang/noir/issues/10037
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         ..InstructionOptions::default()
@@ -72,9 +69,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         fuzzer_command_options,
         ..FuzzerOptions::default()
     };
-    let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
-        .unwrap_or((FuzzerData::default(), 1337))
-        .0;
+    let fuzzer_data = decode_from_slice(data).unwrap_or((FuzzerData::default(), 1337)).0;
     let start = std::time::Instant::now();
     let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
@@ -99,11 +94,10 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], _size: usize, max_size: usize, seed: u32| {
     let mut rng = StdRng::seed_from_u64(u64::from(seed));
-    let mut new_fuzzer_data: FuzzerData = borrow_decode_from_slice(data, bincode::config::legacy())
-        .unwrap_or((FuzzerData::default(), 1337))
-        .0;
+    let mut new_fuzzer_data: FuzzerData =
+        decode_from_slice(data).unwrap_or((FuzzerData::default(), 1337)).0;
     mutate(&mut new_fuzzer_data, &mut rng);
-    let new_bytes = encode_to_vec(&new_fuzzer_data, bincode::config::legacy()).unwrap();
+    let new_bytes = encode_to_rmp_vec(&new_fuzzer_data).unwrap();
     if new_bytes.len() > max_size {
         return 0;
     }
