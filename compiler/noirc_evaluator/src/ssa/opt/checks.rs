@@ -77,17 +77,18 @@ pub(super) fn assert_not_checked_signed_add_sub_mul(
     dfg: &DataFlowGraph,
 ) {
     if let Instruction::Binary(binary) = instruction
-        && dfg.type_of_value(binary.lhs).is_signed() {
-            assert!(
-                !matches!(
-                    binary.operator,
-                    BinaryOp::Add { unchecked: false }
-                        | BinaryOp::Sub { unchecked: false }
-                        | BinaryOp::Mul { unchecked: false }
-                ),
-                "Checked signed binary operation found (add/sub/mul)"
-            );
-        }
+        && dfg.type_of_value(binary.lhs).is_signed()
+    {
+        assert!(
+            !matches!(
+                binary.operator,
+                BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
+            ),
+            "Checked signed binary operation found (add/sub/mul)"
+        );
+    }
 }
 
 /// Panics if the instruction is an IfElse.
