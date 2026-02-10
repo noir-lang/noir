@@ -1659,6 +1659,8 @@ mod tests {
     #[test]
     fn fmtstr_utf8_length() {
         let str = "f\"黒{x}\"";
+        assert_eq!(str.len(), 9);
+        assert_eq!(str.chars().count(), 7);
         let mut lexer = Lexer::new_with_dummy_file(str);
         let token = lexer.next_token().unwrap();
         let Token::FmtStr(_, length) = token.into_token() else {
