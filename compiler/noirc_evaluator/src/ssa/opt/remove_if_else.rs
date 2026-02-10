@@ -394,7 +394,6 @@ impl Context {
                 assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Inc { old, new }
             }
-
             Intrinsic::VectorPopBack | Intrinsic::VectorRemove => {
                 // fn pop_back(self) -> (Self, T)
                 // fn remove(self, index: u32) -> (Self, T)
@@ -407,7 +406,6 @@ impl Context {
                 assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Dec { old, new }
             }
-
             Intrinsic::VectorPopFront => {
                 // fn pop_front(self) -> (T, Self)
                 //
@@ -419,7 +417,6 @@ impl Context {
                 assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Dec { old, new }
             }
-
             Intrinsic::AsVector => {
                 assert_eq!(arguments.len(), 1);
                 assert_eq!(results.len(), 2);
@@ -429,7 +426,6 @@ impl Context {
                 assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::SetTo { old, new }
             }
-
             Intrinsic::Hint(Hint::BlackBox) => {
                 assert_eq!(arguments.len(), results.len());
                 let arguments_types =
@@ -452,8 +448,6 @@ impl Context {
 
                 SizeChange::Many(changes)
             }
-
-            // These cases don't affect vector capacities
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
@@ -469,6 +463,7 @@ impl Context {
             | Intrinsic::ArrayRefCount
             | Intrinsic::VectorRefCount
             | Intrinsic::FieldLessThan => SizeChange::None,
+            Intrinsic::ResizeArray => todo!(),
         }
     }
 }

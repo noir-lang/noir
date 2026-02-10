@@ -493,6 +493,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
                 Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))?])
             }
+            Intrinsic::ResizeArray => todo!(),
         }
     }
 

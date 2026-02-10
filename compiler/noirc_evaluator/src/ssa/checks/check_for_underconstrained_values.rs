@@ -501,6 +501,7 @@ impl DependencyContext {
                                     // Record all the function arguments as parents of the results
                                     self.update_children(&arguments, &results);
                                 }
+                                Intrinsic::ResizeArray => todo!(),
                             },
                             Value::Function(callee) => match all_functions[callee].runtime() {
                                 // Only update tainted sets for non-Brillig calls, as
@@ -811,7 +812,8 @@ impl Context {
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
                             | Intrinsic::ToRadix(..)
-                            | Intrinsic::FieldLessThan => {
+                            | Intrinsic::FieldLessThan 
+                            | Intrinsic::ResizeArray => {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }
                         },

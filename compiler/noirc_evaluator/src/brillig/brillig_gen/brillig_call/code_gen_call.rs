@@ -303,7 +303,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             true,
                         );
                     }
-
                     Intrinsic::ToRadix(endianness) => {
                         let [result] = dfg.instruction_result(instruction_id);
 
@@ -387,6 +386,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             "Expected {intrinsic} to have been removing during SSA optimizations"
                         )
                     }
+                    Intrinsic::ResizeArray => todo!(),
                 }
             }
             Value::Instruction { .. }

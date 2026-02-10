@@ -984,6 +984,7 @@ impl<'f> Context<'f> {
             | Intrinsic::FieldLessThan
             | Intrinsic::ArrayRefCount
             | Intrinsic::VectorRefCount => arguments,
+            Intrinsic::ResizeArray => todo!(),
         }
     }
 

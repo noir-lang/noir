@@ -635,6 +635,29 @@ impl<'f> Validator<'f> {
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
             }
+            Intrinsic::ResizeArray => {
+                // fn resize_array<T>(from: [T], adjust: i32) -> [T] {}
+                // In SSA, vectors are (length, contents), so 3 arguments total
+                assert_arguments_length(arguments, 3, "ResizeArray");
+
+                let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&vector_length_type, "ResizeArray input length");
+
+                let vector_type = self.function.dfg.type_of_value(arguments[1]);
+                let vector_element_types = assert_vector(&vector_type, "ResizeArray input vector");
+
+                let adjust_type = self.function.dfg.type_of_value(arguments[2]);
+                assert_i32(&adjust_type, "ResizeArray adjust");
+
+                let (result_length_type, result_vector_type) =
+                    self.assert_two_results(instruction, "ResizeArray");
+                assert_u32(&result_length_type, "ResizeArray result length");
+                let result_element_types = assert_vector(&result_vector_type, "ResizeArray result vector");
+                assert_eq!(
+                    vector_element_types, result_element_types,
+                    "ResizeArray input element types must match output element types"
+                );
+            }
         }
     }
 
@@ -1110,6 +1133,12 @@ fn assert_u1(typ: &Type, object: &str) {
 fn assert_u8(typ: &Type, object: &str) {
     if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 8 })) {
         panic!("{object} must be u8, not {typ}");
+    }
+}
+
+fn assert_i32(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Signed { bit_size: 32 })) {
+        panic!("{object} must be i32, not {typ}");
     }
 }
 

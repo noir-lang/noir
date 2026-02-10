@@ -120,14 +120,12 @@ impl Context<'_> {
                     AcirValue::Array(result),
                 ])
             }
-
             Intrinsic::VectorPushBack => self.convert_vector_push_back(arguments, dfg, result_ids),
             Intrinsic::VectorPushFront => self.convert_vector_push_front(arguments, dfg),
             Intrinsic::VectorPopBack => self.convert_vector_pop_back(arguments, dfg, result_ids),
             Intrinsic::VectorPopFront => self.convert_vector_pop_front(arguments, dfg, result_ids),
             Intrinsic::VectorInsert => self.convert_vector_insert(arguments, dfg, result_ids),
             Intrinsic::VectorRemove => self.convert_vector_remove(arguments, dfg, result_ids),
-
             Intrinsic::AsWitness => {
                 let arg = arguments[0];
                 let input = self.convert_value(arg, dfg).into_var()?;
@@ -157,6 +155,7 @@ impl Context<'_> {
             | Intrinsic::VectorRefCount => {
                 unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
+            Intrinsic::ResizeArray => todo!(),
         }
     }
 }

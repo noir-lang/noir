@@ -135,6 +135,8 @@ pub enum Intrinsic {
     /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
     /// in constrained context, it will be 0.
     VectorRefCount,
+    /// ResizeArray - TODO
+    ResizeArray,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -165,6 +167,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::FieldLessThan => write!(f, "field_less_than"),
             Intrinsic::ArrayRefCount => write!(f, "array_refcount"),
             Intrinsic::VectorRefCount => write!(f, "vector_refcount"),
+            Intrinsic::ResizeArray => write!(f, "resize_array"),
         }
     }
 }
@@ -192,6 +195,7 @@ impl Intrinsic {
 
             // These imply a check that the vector is non-empty and should fail otherwise.
             Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
+            Intrinsic::ResizeArray => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
@@ -268,6 +272,7 @@ impl Intrinsic {
             "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
             "array_refcount" => Some(Intrinsic::ArrayRefCount),
             "vector_refcount" => Some(Intrinsic::VectorRefCount),
+            "resize_array" => Some(Intrinsic::ResizeArray),
 
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
