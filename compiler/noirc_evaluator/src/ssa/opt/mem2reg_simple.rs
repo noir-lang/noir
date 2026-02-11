@@ -109,9 +109,8 @@ fn add_block_params_and_find_exit_states(
             block,
             &mut inserter.function.dfg,
         );
-        entry_states.insert(block, entry_state.clone());
-
-        let exit_state = abstract_interpret_block(inserter, block, entry_state);
+        let exit_state = abstract_interpret_block(inserter, block, &entry_state);
+        entry_states.insert(block, entry_state);
         exit_states.insert(block, exit_state);
     }
 }
@@ -333,8 +332,8 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
     items.shrink_to_fit();
 }
 
-/// Adds an argument to the `Jmp` terminator of the current block, panicking if the terminator is
-/// not a `Jmp`.
+/// Adds an argument to the terminator of the current block, panicking if the terminator
+/// is not a `Jmp` or `JmpIf`.
 fn add_terminator_argument(
     function: &mut Function,
     arg: ValueId,
@@ -372,7 +371,7 @@ fn add_terminator_argument(
 fn abstract_interpret_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
-    entry_state: StateVec,
+    entry_state: &StateVec,
 ) -> StateVec {
     // Any variables not in the exit_state by function end are assumed to be unchanged from the entry_state
     let mut exit_state = StateVec::new();
