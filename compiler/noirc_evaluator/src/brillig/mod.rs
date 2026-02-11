@@ -255,8 +255,19 @@ mod memory_layout {
                         assert_eq!(bits1, bits2);
 
                         if *dest1 == ReservedRegisters::free_memory_pointer() {
-                            // free_memory_pointer depends on max_stack_size + stack_start
-                            // This is where the heap begins.
+                            // free_memory_pointer depends on max_stack_size + stack_start + spill_region_size
+                            // This is where the heap begins (after the spill region).
+                            let expected1 = options1.layout.max_stack_size()
+                                + stack_start
+                                + options1.layout.spill_region_size();
+                            let expected2 = options2.layout.max_stack_size()
+                                + stack_start
+                                + options2.layout.spill_region_size();
+
+                            assert_eq!(val1.to_u128(), expected1 as u128);
+                            assert_eq!(val2.to_u128(), expected2 as u128);
+                        } else if *dest1 == ReservedRegisters::spill_base() {
+                            // spill_base = stack_start + max_stack_size
                             let expected1 = options1.layout.max_stack_size() + stack_start;
                             let expected2 = options2.layout.max_stack_size() + stack_start;
 

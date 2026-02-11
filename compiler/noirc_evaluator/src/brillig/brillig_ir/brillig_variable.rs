@@ -105,6 +105,21 @@ impl BrilligVariable {
             BrilligVariable::BrilligVector(vector) => vector.pointer,
         }
     }
+
+    /// Return a copy with the register replaced (used after reload into a new register).
+    pub(crate) fn with_register(self, new_reg: MemoryAddress) -> Self {
+        match self {
+            BrilligVariable::SingleAddr(s) => {
+                BrilligVariable::SingleAddr(SingleAddrVariable::new(new_reg, s.bit_size))
+            }
+            BrilligVariable::BrilligArray(a) => {
+                BrilligVariable::BrilligArray(BrilligArray { pointer: new_reg, size: a.size })
+            }
+            BrilligVariable::BrilligVector(_) => {
+                BrilligVariable::BrilligVector(BrilligVector { pointer: new_reg })
+            }
+        }
+    }
 }
 
 impl From<SingleAddrVariable> for BrilligVariable {

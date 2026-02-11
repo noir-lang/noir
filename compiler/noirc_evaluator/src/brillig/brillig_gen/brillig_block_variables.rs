@@ -108,6 +108,7 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
+    #[allow(dead_code)]
     pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
@@ -143,6 +144,17 @@ impl BlockVariables {
     /// Checks if a variable is allocated and live.
     pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
         self.available_variables.contains(value_id)
+    }
+
+    /// Remove from available set without deallocating register.
+    /// Used when a spilled variable dies — its register was already freed during spill.
+    pub(crate) fn mark_unavailable(&mut self, value_id: &ValueId) {
+        self.available_variables.remove(value_id);
+    }
+
+    /// Add a value back to the available set (used after reload).
+    pub(crate) fn add_available(&mut self, value_id: ValueId) {
+        self.available_variables.insert(value_id);
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.

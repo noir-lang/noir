@@ -53,20 +53,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let result = *result;
             let typ = dfg[result].get_type();
             let variable = match typ.as_ref() {
-                Type::Numeric(_) => self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    result,
-                    dfg,
-                ),
+                Type::Numeric(_) => self.define_variable(result, dfg),
 
                 Type::Array(..) => {
-                    let variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        result,
-                        dfg,
-                    );
+                    let variable = self.define_variable(result, dfg);
                     let array = variable.extract_array();
 
                     self.allocate_foreign_call_result_array(typ.as_ref(), array);
@@ -74,12 +64,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     variable
                 }
                 Type::Vector(_) => {
-                    let variable = self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        result,
-                        dfg,
-                    );
+                    let variable = self.define_variable(result, dfg);
 
                     // Set its pointer to the free memory address, and expect the VM to write the data where the vector points to.
                     // We can only support one vector output this way, otherwise the next vector would overwrite it.
@@ -175,15 +160,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ) {
         let argument_variables =
             vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
-        let return_variables = vecmap(result_ids, |result_id| {
-            self.variables.define_variable(
-                self.function_context,
-                self.brillig_context,
-                *result_id,
-                dfg,
-            )
-        });
-        self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
+
+        let bump = self.spill_manager.as_ref().map_or(0, |sm| sm.high_water_mark());
+
+        let return_variables =
+            vecmap(result_ids, |result_id| self.define_variable(*result_id, dfg));
+        self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables, bump);
     }
 
     /// Increase or decrease the vector length by 1.
@@ -221,14 +203,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let argument_variables =
             vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
 
-        let return_variables = vecmap(result_ids, |result_id| {
-            self.variables.define_variable(
-                self.function_context,
-                self.brillig_context,
-                *result_id,
-                dfg,
-            )
-        });
+        let return_variables =
+            vecmap(result_ids, |result_id| self.define_variable(*result_id, dfg));
 
         for (src, dst) in argument_variables.into_iter().zip(return_variables) {
             self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
@@ -254,16 +230,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let results = dfg.instruction_results(instruction_id);
 
         let get_target_len = |this: &mut Self, idx: usize| {
-            this.variables
-                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
-                .extract_single_addr()
+            this.define_variable(results[idx], dfg).extract_single_addr()
         };
 
-        let get_target_vector = |this: &mut Self, idx: usize| {
-            this.variables
-                .define_variable(this.function_context, this.brillig_context, results[idx], dfg)
-                .extract_vector()
-        };
+        let get_target_vector =
+            |this: &mut Self, idx: usize| this.define_variable(results[idx], dfg).extract_vector();
 
         match intrinsic {
             Value::Intrinsic(Intrinsic::VectorPushBack) => {
@@ -307,12 +278,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let target_vector = get_target_vector(self, 1);
 
                 let pop_variables = vecmap(&results[2..element_size + 2], |result| {
-                    self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        *result,
-                        dfg,
-                    )
+                    self.define_variable(*result, dfg)
                 });
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
@@ -329,14 +295,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 let target_len = get_target_len(self, element_size);
                 let target_vector = get_target_vector(self, element_size + 1);
 
-                let pop_variables = vecmap(&results[0..element_size], |result| {
-                    self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        *result,
-                        dfg,
-                    )
-                });
+                let pop_variables =
+                    vecmap(&results[0..element_size], |result| self.define_variable(*result, dfg));
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 
@@ -405,12 +365,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 );
 
                 let removed_items = vecmap(&results[2..element_size + 2], |result| {
-                    self.variables.define_variable(
-                        self.function_context,
-                        self.brillig_context,
-                        *result,
-                        dfg,
-                    )
+                    self.define_variable(*result, dfg)
                 });
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);

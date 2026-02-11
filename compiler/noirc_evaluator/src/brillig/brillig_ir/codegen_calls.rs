@@ -4,7 +4,7 @@ use crate::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::BrilligVariable,
+    brillig_variable::{BrilligVariable, SingleAddrVariable},
     debug_show::DebugToString,
     registers::{RegisterAllocator, Stack},
 };
@@ -20,6 +20,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         func_id: FunctionId,
         arguments: &[BrilligVariable],
         returns: &[BrilligVariable],
+        spill_bump: usize,
     ) {
         // Allocate a register for the stack size. With this allocation, we have our current stack before the call.
         let stack_size_register = self.allocate_single_addr_usize();
@@ -84,10 +85,26 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Add,
         );
 
+        // Bump spill base before the call so callee spills don't collide with ours.
+        if spill_bump > 0 {
+            let scratch = ReservedRegisters::spill_scratch();
+            let base = ReservedRegisters::spill_base();
+            self.const_instruction(SingleAddrVariable::new_usize(scratch), spill_bump.into());
+            self.memory_op_instruction(base, scratch, base, BrilligBinaryOp::Add);
+        }
+
         self.add_external_call_instruction(func_id);
 
         // Restore the previous stack pointer, which was copied into the 0th slot.
         self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
+
+        // Restore spill base after return.
+        if spill_bump > 0 {
+            let scratch = ReservedRegisters::spill_scratch();
+            let base = ReservedRegisters::spill_base();
+            self.const_instruction(SingleAddrVariable::new_usize(scratch), spill_bump.into());
+            self.memory_op_instruction(base, scratch, base, BrilligBinaryOp::Sub);
+        }
 
         // Move the return values back. The return values are expected to overwrite the args.
         let mut current_return_location = stack_size + 1;

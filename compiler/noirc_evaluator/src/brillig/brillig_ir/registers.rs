@@ -59,6 +59,7 @@ pub struct LayoutConfig {
     max_stack_frame_size: usize,
     max_stack_size: usize,
     max_scratch_space: usize,
+    spill_region_size: usize,
 }
 
 impl LayoutConfig {
@@ -68,7 +69,12 @@ impl LayoutConfig {
         max_scratch_space: usize,
     ) -> Self {
         let max_stack_size = num_stack_frames * max_stack_frame_size;
-        Self { max_stack_frame_size, max_stack_size, max_scratch_space }
+        Self {
+            max_stack_frame_size,
+            max_stack_size,
+            max_scratch_space,
+            spill_region_size: MAX_SPILL_REGION_SIZE,
+        }
     }
 
     /// The maximum size of an individual stack frame.
@@ -83,6 +89,11 @@ impl LayoutConfig {
 
     pub(crate) fn max_scratch_space(&self) -> usize {
         self.max_scratch_space
+    }
+
+    /// The size of the spill region for register spilling.
+    pub(crate) fn spill_region_size(&self) -> usize {
+        self.spill_region_size
     }
 
     /// Start of the entry point region:
@@ -104,6 +115,7 @@ impl LayoutConfig {
 pub(crate) const NUM_STACK_FRAMES: usize = 16;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
+pub(crate) const MAX_SPILL_REGION_SIZE: usize = MAX_STACK_FRAME_SIZE;
 
 impl Default for LayoutConfig {
     fn default() -> Self {
@@ -133,6 +145,9 @@ pub(crate) trait RegisterAllocator {
     fn empty_registers_start(&self) -> MemoryAddress;
     /// Return the memory layout used by this allocator.
     fn layout(&self) -> LayoutConfig;
+    /// Number of registers that can be allocated before exceeding bounds.
+    /// Accounts for deallocated registers that can be reused.
+    fn available_registers(&self) -> usize;
 }
 
 /// Every brillig stack frame/call context has its own view of register space.
@@ -211,6 +226,10 @@ impl RegisterAllocator for Stack {
 
     fn layout(&self) -> LayoutConfig {
         self.layout
+    }
+
+    fn available_registers(&self) -> usize {
+        self.storage.available_registers(self.end())
     }
 }
 
@@ -294,6 +313,10 @@ impl RegisterAllocator for ScratchSpace {
 
     fn layout(&self) -> LayoutConfig {
         self.layout
+    }
+
+    fn available_registers(&self) -> usize {
+        self.storage.available_registers(self.end())
     }
 }
 
@@ -390,6 +413,11 @@ impl RegisterAllocator for GlobalSpace {
     fn layout(&self) -> LayoutConfig {
         self.layout
     }
+
+    fn available_registers(&self) -> usize {
+        // Global space is unbounded; report max to avoid spilling.
+        usize::MAX
+    }
 }
 
 /// Register allocator that tracks a contiguous range of register slots using:
@@ -478,6 +506,13 @@ impl DeallocationListAllocator {
         }
 
         Self { deallocated_registers, next_free_register_index, start_register_index: start }
+    }
+
+    /// Number of registers that can be allocated without exceeding `max`.
+    fn available_registers(&self, max: usize) -> usize {
+        let reusable = self.deallocated_registers.len();
+        let remaining = max.saturating_sub(self.next_free_register_index);
+        reusable + remaining
     }
 
     /// Find the first free register after which there are only free registers.

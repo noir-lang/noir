@@ -48,9 +48,9 @@ fn brillig_as_vector() {
     26: sp[6] = const u32 3
     27: sp[5] = u32 add sp[2], sp[6]
     28: sp[6] = u32 add sp[4], @2
-    29: @3 = sp[6]
-    30: @4 = sp[5]
-    31: @5 = sp[3]
+    29: @5 = sp[6]
+    30: @6 = sp[5]
+    31: @7 = sp[3]
     32: call 0
     33: return
     ");
@@ -81,8 +81,8 @@ fn brillig_to_bits() {
      7: sp[5] = u32 add sp[2], @2
      8: sp[6] = const u32 8
      9: to_radix(input: sp[1], radix: sp[3], num_limbs: sp[6], output_pointer: sp[5], output_bits: sp[4])
-    10: @3 = sp[5]
-    11: @4 = sp[6]
+    10: @5 = sp[5]
+    11: @6 = sp[6]
     12: call 0
     13: sp[1] = sp[2]
     14: return
@@ -113,8 +113,8 @@ fn brillig_to_radix() {
      6: sp[5] = u32 add sp[3], @2
      7: sp[6] = const u32 8
      8: to_radix(input: sp[1], radix: sp[2], num_limbs: sp[6], output_pointer: sp[5], output_bits: sp[4])
-     9: @3 = sp[5]
-    10: @4 = sp[6]
+     9: @5 = sp[5]
+    10: @6 = sp[6]
     11: call 0
     12: sp[1] = sp[3]
     13: return
@@ -225,9 +225,9 @@ fn brillig_vector_ref_count() {
     26: sp[6] = const u32 3
     27: sp[5] = u32 add sp[2], sp[6]
     28: sp[6] = u32 add sp[4], @2
-    29: @3 = sp[6]
-    30: @4 = sp[5]
-    31: @5 = sp[3]
+    29: @5 = sp[6]
+    30: @6 = sp[5]
+    31: @7 = sp[3]
     32: call 0
     33: sp[3] = load sp[2]
     34: sp[1] = sp[3]

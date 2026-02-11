@@ -75,10 +75,10 @@ fn brillig_array_set() {
     13: sp[7] = u32 add sp[7], @2
     14: store sp[4] at sp[7]
     15: sp[2] = const u32 99
-    16: @3 = sp[5]
-    17: @4 = const u32 4
+    16: @5 = sp[5]
+    17: @6 = const u32 4
     18: call 0
-    19: sp[3] = @5
+    19: sp[3] = @7
     20: sp[4] = u32 add sp[3], @2
     21: sp[6] = u32 add sp[4], sp[1]
     22: store sp[2] at sp[6]
@@ -128,10 +128,10 @@ fn brillig_array_with_rc_ops() {
     17: store sp[1] at sp[4]
     18: sp[1] = const u32 0
     19: sp[2] = const u32 99
-    20: @3 = sp[4]
-    21: @4 = const u32 4
+    20: @5 = sp[4]
+    21: @6 = const u32 4
     22: call 0
-    23: sp[3] = @5
+    23: sp[3] = @7
     24: sp[5] = u32 add sp[3], sp[1]
     25: store sp[2] at sp[5]
     26: sp[4] = u32 add sp[3], sp[1]

@@ -6,6 +6,7 @@ pub(crate) mod brillig_fn;
 pub(crate) mod brillig_globals;
 mod brillig_instructions;
 pub(crate) mod constant_allocation;
+pub(crate) mod spill_manager;
 #[cfg(test)]
 mod tests;
 mod variable_liveness;
@@ -148,38 +149,39 @@ mod entry_point {
         assert_artifact_snapshot!(entry, @r"
         fn main
          0: @2 = const u32 1
-         1: @1 = const u32 32839
-         2: @0 = const u32 71
-         3: call 16
-         4: sp[3] = const u32 2
-         5: sp[4] = const u32 0
-         6: @68 = calldata copy [sp[4]; sp[3]]
-         7: @68 = cast @68 to u32
-         8: @69 = cast @69 to u32
-         9: sp[1] = @68
-        10: sp[2] = @69
-        11: call 17
-        12: @70 = sp[1]
-        13: sp[2] = const u32 70
-        14: sp[3] = const u32 1
-        15: stop @[sp[2]; sp[3]]
-        16: return
-        17: call 24
-        18: sp[3] = u32 add sp[1], sp[2]
-        19: sp[4] = u32 lt_eq sp[1], sp[3]
-        20: jump if sp[4] to 22
-        21: call 30
-        22: sp[1] = sp[3]
-        23: return
-        24: @4 = const u32 30791
-        25: @3 = u32 lt @0, @4
-        26: jump if @3 to 29
-        27: @1 = indirect const u64 15764276373176857197
-        28: trap @[@1; @2]
-        29: return
-        30: @1 = indirect const u64 14990209321349310352
-        31: trap @[@1; @2]
-        32: return
+         1: @3 = const u32 32841
+         2: @1 = const u32 34889
+         3: @0 = const u32 73
+         4: call 17
+         5: sp[3] = const u32 2
+         6: sp[4] = const u32 0
+         7: @70 = calldata copy [sp[4]; sp[3]]
+         8: @70 = cast @70 to u32
+         9: @71 = cast @71 to u32
+        10: sp[1] = @70
+        11: sp[2] = @71
+        12: call 18
+        13: @72 = sp[1]
+        14: sp[2] = const u32 72
+        15: sp[3] = const u32 1
+        16: stop @[sp[2]; sp[3]]
+        17: return
+        18: call 25
+        19: sp[3] = u32 add sp[1], sp[2]
+        20: sp[4] = u32 lt_eq sp[1], sp[3]
+        21: jump if sp[4] to 23
+        22: call 31
+        23: sp[1] = sp[3]
+        24: return
+        25: @6 = const u32 30793
+        26: @5 = u32 lt @0, @6
+        27: jump if @5 to 30
+        28: @1 = indirect const u64 15764276373176857197
+        29: trap @[@1; @2]
+        30: return
+        31: @1 = indirect const u64 14990209321349310352
+        32: trap @[@1; @2]
+        33: return
         ");
     }
 }

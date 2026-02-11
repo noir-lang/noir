@@ -56,7 +56,7 @@ pub(crate) struct ReservedRegisters;
 impl ReservedRegisters {
     /// The number of reserved registers. These are allocated in the first memory positions.
     /// The stack should start after the reserved registers.
-    const NUM_RESERVED_REGISTERS: usize = 3;
+    const NUM_RESERVED_REGISTERS: usize = 5;
 
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
@@ -79,6 +79,18 @@ impl ReservedRegisters {
     /// This register stores a 1_usize constant.
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
+    }
+
+    /// Holds the base address of the spill region, initialized once in the entry point.
+    /// Persists across function calls since it's a direct address.
+    pub(crate) fn spill_base() -> MemoryAddress {
+        MemoryAddress::direct(3)
+    }
+
+    /// Scratch register for computing spill/reload addresses (base + offset).
+    /// Value is transient — overwritten before each use.
+    pub(crate) fn spill_scratch() -> MemoryAddress {
+        MemoryAddress::direct(4)
     }
 }
 
@@ -756,7 +768,7 @@ pub(crate) mod tests {
 
         let status = vm.get_status();
         // The VM successfully finished executing
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 8, return_data_size: 8 });
     }
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
@@ -893,7 +905,7 @@ pub(crate) mod tests {
         let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
 
         // This call should panic with "Call arguments would exceed stack frame bounds"
-        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+        context.codegen_call(FunctionId::test_new(1), &arguments, &[], 0);
     }
 
     /// Test that jmp block parameter passing handles the parallel-move problem correctly.
