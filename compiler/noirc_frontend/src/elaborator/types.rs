@@ -313,6 +313,10 @@ impl Elaborator<'_> {
     /// For example, in `impl<T: Baz> Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
     /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
+        if self.trait_bounds.is_empty() {
+            return None;
+        }
+
         if path.segments.len() != 2 {
             return None;
         }
@@ -330,23 +334,18 @@ impl Elaborator<'_> {
             if let Type::NamedGeneric(generic) = &constraint.typ
                 && generic.name.as_ref() == type_name
             {
-                let trait_id = constraint.trait_bound.trait_id;
-                let the_trait = self.interner.get_trait(trait_id);
-
-                if let Some(assoc_type) = the_trait.get_associated_type(assoc_name) {
-                    found_types.push((trait_id, assoc_type.clone()));
+                for named_generic in &constraint.trait_bound.trait_generics.named {
+                    if named_generic.name.as_str() == assoc_name {
+                        let trait_id = constraint.trait_bound.trait_id;
+                        found_types.push((trait_id, named_generic.typ.clone()));
+                    }
                 }
             }
         }
 
         match found_types.len() {
             0 => None, // Fall through to normal resolution
-            1 => {
-                let (trait_id, assoc_type) = found_types.remove(0);
-                let the_trait = self.interner.get_trait(trait_id);
-                // Return the associated type with proper naming for display
-                Some(assoc_type.into_named_generic(Some((type_name, the_trait.name.as_str()))))
-            }
+            1 => Some(found_types.remove(0).1),
             _ => {
                 // Multiple traits have this associated type - ambiguous
                 let location = path.location;

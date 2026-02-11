@@ -1454,16 +1454,9 @@ fn associated_type_in_generic_impl() {
     assert_no_errors(src);
 }
 
-// Known bug: T::AssociatedType shorthand in return type doesn't unify.
-// The compiler creates two distinct representations of the same associated
-// type that fail to unify with each other.
-
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_in_return_type() {
-    // Bug: T::Output used as return type produces
-    // "expected type <T as Transform>::Output, found type <T as Transform>::Output"
     let src = r#"
     trait Transform {
         type Output;
@@ -1488,11 +1481,9 @@ fn associated_type_shorthand_in_return_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
-    // Same bug but with a trait that has both associated type and constant
     let src = r#"
     trait Collection {
         type Item;
@@ -1526,9 +1517,8 @@ fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_simple_identity() {
     let src = r#"
     trait HasItem {
@@ -1671,11 +1661,9 @@ fn nested_associated_type_access_fails() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_in_generic_function_local_var() {
-    // Bug: T::Item as a local variable type annotation fails
     let src = r#"
     trait HasItem {
         type Item;
@@ -1733,11 +1721,9 @@ fn associated_type_shorthand_used_as_struct_field_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn generic_impl_with_associated_type_in_method_signature() {
-    // Bug: T::Item in method return type in generic impl fails
     let src = r#"
     trait HasItem {
         type Item;
@@ -1769,11 +1755,9 @@ fn generic_impl_with_associated_type_in_method_signature() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11550): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11550
 #[test]
-#[should_panic] // ICE: "expected some trait_method_id when use_impl is true"
 fn generic_fn_returning_tuple_with_associated_type() {
-    // Bug: T::Out in tuple return type causes ICE in elaborator
     let src = r#"
     trait HasOutput {
         type Out;
