@@ -234,7 +234,8 @@ fn compute_function_should_be_inlined(
     }
     let times = times_called[&func_id] as i64;
     let interface_cost = compute_function_interface_cost(function) as i64;
-    let inline_cost = times.saturating_mul(total_weight);
+    let return_cost = return_terminator_cost(function);
+    let inline_cost = times.saturating_mul(total_weight.saturating_sub(return_cost));
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
     let info = inline_infos.entry(func_id).or_default();
@@ -493,9 +494,40 @@ fn binary_cost(op: BinaryOp, typ: NumericType) -> usize {
     }
 }
 
-/// Compute interface cost of a function based on the number of inputs and outputs.
+/// Compute the Brillig cost of a function's Return terminator.
+///
+/// When a function is inlined, its Return terminator is eliminated entirely —
+/// the return values become direct SSA value references in the caller.
+/// This cost should be subtracted from `inline_cost` since it is not paid when inlined.
+fn return_terminator_cost(func: &Function) -> i64 {
+    for block_id in func.reachable_blocks() {
+        if let TerminatorInstruction::Return { return_values, .. } =
+            func.dfg[block_id].unwrap_terminator()
+        {
+            return (1 + return_values.len()) as i64;
+        }
+    }
+    0
+}
+
+/// Compute the per-call-site overhead of retaining a function, in Brillig opcode units.
+///
+/// A Brillig function call costs `5 + N + M` opcodes at the call site (from `codegen_call`):
+///   1 Const (stack size) + 1 Mov (save sp) + 1 BinaryIntOp (sp += size) + 1 Call + 1 Mov (restore sp)
+///   + N Movs for arguments + M Movs for returns.
+///
+/// Additionally, every retained function executes `CheckMaxStackDepth` at entry.
+/// The happy-path execution cost is 5 opcodes:
+///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 JumpIf + 1 Return.
+///
+/// This overhead vanishes when the function is inlined.
 fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().unwrap_or_default().len()
+    let call_overhead = 5;
+    let check_max_stack_depth_cost = 5;
+    call_overhead
+        + check_max_stack_depth_cost
+        + func.parameters().len()
+        + func.returns().unwrap_or_default().len()
 }
 
 #[cfg(test)]

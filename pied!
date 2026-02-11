@@ -1,0 +1,173 @@
+[1mdiff --git a/compiler/noirc_evaluator/src/ssa/opt/inlining.rs b/compiler/noirc_evaluator/src/ssa/opt/inlining.rs[m
+[1mindex f3e43dd4db..3df44921de 100644[m
+[1m--- a/compiler/noirc_evaluator/src/ssa/opt/inlining.rs[m
+[1m+++ b/compiler/noirc_evaluator/src/ssa/opt/inlining.rs[m
+[36m@@ -1012,7 +1012,9 @@[m [mmod tests {[m
+ [m
+     #[test][m
+     fn conditional_inlining() {[m
+[31m-        // In this example we call a larger brillig function 3 times so the inliner refuses to inline the function.[m
+[32m+[m[32m        // In this example we call a larger brillig function 3 times.[m
+[32m+[m[32m        // With the Brillig-unit cost model, bar's interface cost (11) exceeds its[m
+[32m+[m[32m        // own weight (6), so the net cost is negative and bar gets inlined.[m
+         let src = "[m
+         brillig(inline) fn foo f0 {[m
+           b0():[m
+[36m@@ -1035,26 +1037,92 @@[m [mmod tests {[m
+         ";[m
+         let ssa = Ssa::from_str(src).unwrap();[m
+         let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();[m
+[31m-        // No inlining has happened in f0[m
+[32m+[m[32m        // bar is inlined into foo (3 times), dead branches are simplified[m
+         assert_ssa_snapshot!(ssa, @r"[m
+         brillig(inline) fn foo f0 {[m
+[31m-          b0():[m
+[31m-            v1 = call f1() -> Field[m
+[31m-            v2 = call f1() -> Field[m
+[31m-            v3 = call f1() -> Field[m
+[31m-            return v1[m
+[31m-        }[m
+[31m-        brillig(inline) fn bar f1 {[m
+           b0():[m
+             jmp b1()[m
+           b1():[m
+             jmp b2(Field 1)[m
+           b2(v0: Field):[m
+[32m+[m[32m            jmp b3()[m
+[32m+[m[32m          b3():[m
+[32m+[m[32m            jmp b4(Field 1)[m
+[32m+[m[32m          b4(v1: Field):[m
+[32m+[m[32m            jmp b5()[m
+[32m+[m[32m          b5():[m
+[32m+[m[32m            jmp b6(Field 1)[m
+[32m+[m[32m          b6(v2: Field):[m
+             return v0[m
+         }[m
+         ");[m
+     }[m
+ [m
+[32m+[m[32m    #[test][m
+[32m+[m[32m    fn conditional_inlining_not_inlined() {[m
+[32m+[m[32m        // A heavier function (weight=26) called 3 times with aggressiveness=0.[m
+[32m+[m[32m        // Cost breakdown:[m
+[32m+[m[32m        //   interface_cost = 5 (call) + 5 (stack check) + 2 (params) + 1 (return) = 13[m
+[32m+[m[32m        //   return_cost = 2 (1 return + 1 value)[m
+[32m+[m[32m        //   inline_cost = 3 * (26 - 2) = 72[m
+[32m+[m[32m        //   retain_cost = 3 * 13 + 26 = 65[m
+[32m+[m[32m        //   net_cost = 72 - 65 = 7 >= 0 → NOT INLINED[m
+[32m+[m[32m        let src = "[m
+[32m+[m[32m        brillig(inline) fn foo f0 {[m
+[32m+[m[32m          b0(v0: u32, v1: u1):[m
+[32m+[m[32m            v2 = call f1(v0, v1) -> u32[m
+[32m+[m[32m            v3 = call f1(v0, v1) -> u32[m
+[32m+[m[32m            v4 = call f1(v0, v1) -> u32[m
+[32m+[m[32m            return v2[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        brillig(inline) fn heavy f1 {[m
+[32m+[m[32m          b0(v0: u32, v1: u1):[m
+[32m+[m[32m            jmpif v1 then: b1, else: b2[m
+[32m+[m[32m          b1():[m
+[32m+[m[32m            v10 = add v0, u32 1[m
+[32m+[m[32m            v11 = add v10, u32 2[m
+[32m+[m[32m            v12 = add v11, u32 3[m
+[32m+[m[32m            v13 = add v12, u32 4[m
+[32m+[m[32m            v14 = add v13, u32 5[m
+[32m+[m[32m            v15 = add v14, u32 6[m
+[32m+[m[32m            jmp b3(v15)[m
+[32m+[m[32m          b2():[m
+[32m+[m[32m            jmp b3(u32 0)[m
+[32m+[m[32m          b3(v3: u32):[m
+[32m+[m[32m            return v3[m
+[32m+[m[32m        }[m
+[32m+[m[32m        ";[m
+[32m+[m[32m        let ssa = Ssa::from_str(src).unwrap();[m
+[32m+[m[32m        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();[m
+[32m+[m[32m        // heavy is NOT inlined — its weight is too high relative to call count[m
+[32m+[m[32m        assert_ssa_snapshot!(ssa, @r"[m
+[32m+[m[32m        brillig(inline) fn foo f0 {[m
+[32m+[m[32m          b0(v0: u32, v1: u1):[m
+[32m+[m[32m            v3 = call f1(v0, v1) -> u32[m
+[32m+[m[32m            v4 = call f1(v0, v1) -> u32[m
+[32m+[m[32m            v5 = call f1(v0, v1) -> u32[m
+[32m+[m[32m            return v3[m
+[32m+[m[32m        }[m
+[32m+[m[32m        brillig(inline) fn heavy f1 {[m
+[32m+[m[32m          b0(v0: u32, v1: u1):[m
+[32m+[m[32m            jmpif v1 then: b1, else: b2[m
+[32m+[m[32m          b1():[m
+[32m+[m[32m            v5 = add v0, u32 1[m
+[32m+[m[32m            v7 = add v5, u32 2[m
+[32m+[m[32m            v9 = add v7, u32 3[m
+[32m+[m[32m            v11 = add v9, u32 4[m
+[32m+[m[32m            v13 = add v11, u32 5[m
+[32m+[m[32m            v15 = add v13, u32 6[m
+[32m+[m[32m            jmp b3(v15)[m
+[32m+[m[32m          b2():[m
+[32m+[m[32m            jmp b3(u32 0)[m
+[32m+[m[32m          b3(v2: u32):[m
+[32m+[m[32m            return v2[m
+[32m+[m[32m        }[m
+[32m+[m[32m        ");[m
+[32m+[m[32m    }[m
+[32m+[m
+     #[test][m
+     fn conditional_inlining_const_from_param_and_direct_constant() {[m
+         let src = "[m
+[1mdiff --git a/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs b/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs[m
+[1mindex a4d0c7da4d..41627f74bf 100644[m
+[1m--- a/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs[m
+[1m+++ b/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs[m
+[36m@@ -234,7 +234,8 @@[m [mfn compute_function_should_be_inlined([m
+     }[m
+     let times = times_called[&func_id] as i64;[m
+     let interface_cost = compute_function_interface_cost(function) as i64;[m
+[31m-    let inline_cost = times.saturating_mul(total_weight);[m
+[32m+[m[32m    let return_cost = return_terminator_cost(function);[m
+[32m+[m[32m    let inline_cost = times.saturating_mul(total_weight.saturating_sub(return_cost));[m
+     let retain_cost = times.saturating_mul(interface_cost) + total_weight;[m
+     let net_cost = inline_cost.saturating_sub(retain_cost);[m
+     let info = inline_infos.entry(func_id).or_default();[m
+[36m@@ -493,9 +494,40 @@[m [mfn binary_cost(op: BinaryOp, typ: NumericType) -> usize {[m
+     }[m
+ }[m
+ [m
+[31m-/// Compute interface cost of a function based on the number of inputs and outputs.[m
+[32m+[m[32m/// Compute the Brillig cost of a function's Return terminator.[m
+[32m+[m[32m///[m
+[32m+[m[32m/// When a function is inlined, its Return terminator is eliminated entirely —[m
+[32m+[m[32m/// the return values become direct SSA value references in the caller.[m
+[32m+[m[32m/// This cost should be subtracted from `inline_cost` since it is not paid when inlined.[m
+[32m+[m[32mfn return_terminator_cost(func: &Function) -> i64 {[m
+[32m+[m[32m    for block_id in func.reachable_blocks() {[m
+[32m+[m[32m        if let TerminatorInstruction::Return { return_values, .. } =[m
+[32m+[m[32m            func.dfg[block_id].unwrap_terminator()[m
+[32m+[m[32m        {[m
+[32m+[m[32m            return (1 + return_values.len()) as i64;[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m    0[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m/// Compute the per-call-site overhead of retaining a function, in Brillig opcode units.[m
+[32m+[m[32m///[m
+[32m+[m[32m/// A Brillig function call costs `5 + N + M` opcodes at the call site (from `codegen_call`):[m
+[32m+[m[32m///   1 Const (stack size) + 1 Mov (save sp) + 1 BinaryIntOp (sp += size) + 1 Call + 1 Mov (restore sp)[m
+[32m+[m[32m///   + N Movs for arguments + M Movs for returns.[m
+[32m+[m[32m///[m
+[32m+[m[32m/// Additionally, every retained function executes `CheckMaxStackDepth` at entry.[m
+[32m+[m[32m/// The happy-path execution cost is 5 opcodes:[m
+[32m+[m[32m///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 JumpIf + 1 Return.[m
+[32m+[m[32m///[m
+[32m+[m[32m/// This overhead vanishes when the function is inlined.[m
+ fn compute_function_interface_cost(func: &Function) -> usize {[m
+[31m-    func.parameters().len() + func.returns().unwrap_or_default().len()[m
+[32m+[m[32m    let call_overhead = 5;[m
+[32m+[m[32m    let check_max_stack_depth_cost = 5;[m
+[32m+[m[32m    call_overhead[m
+[32m+[m[32m        + check_max_stack_depth_cost[m
+[32m+[m[32m        + func.parameters().len()[m
+[32m+[m[32m        + func.returns().unwrap_or_default().len()[m
+ }[m
+ [m
+ #[cfg(test)][m
