@@ -2613,326 +2613,325 @@
 <a href=#2613 id=2613 data-nosnippet>2613</a>    <span class="doccomment">/// Check if the callee is an unconstrained function, or a variable referring to one.
 <a href=#2614 id=2614 data-nosnippet>2614</a>    </span><span class="kw">fn </span>is_unconstrained_call(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: ExprId) -&gt; bool {
 <a href=#2615 id=2615 data-nosnippet>2615</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = <span class="self">self</span>.interner.lookup_function_from_expr(<span class="kw-2">&amp;</span>expr) {
-<a href=#2616 id=2616 data-nosnippet>2616</a>            <span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id);
-<a href=#2617 id=2617 data-nosnippet>2617</a>            modifiers.is_unconstrained
-<a href=#2618 id=2618 data-nosnippet>2618</a>        } <span class="kw">else </span>{
-<a href=#2619 id=2619 data-nosnippet>2619</a>            <span class="bool-val">false
-<a href=#2620 id=2620 data-nosnippet>2620</a>        </span>}
-<a href=#2621 id=2621 data-nosnippet>2621</a>    }
-<a href=#2622 id=2622 data-nosnippet>2622</a>
-<a href=#2623 id=2623 data-nosnippet>2623</a>    <span class="doccomment">/// Check if the given method type requires a mutable reference to the object type, and check
-<a href=#2624 id=2624 data-nosnippet>2624</a>    /// if the given object type is already a mutable reference. If not, add one.
-<a href=#2625 id=2625 data-nosnippet>2625</a>    /// This is used to automatically transform a method call: `foo.bar()` into a function
-<a href=#2626 id=2626 data-nosnippet>2626</a>    /// call: `bar(&amp;mut foo)`.
-<a href=#2627 id=2627 data-nosnippet>2627</a>    ///
-<a href=#2628 id=2628 data-nosnippet>2628</a>    /// A notable corner case of this function is where it interacts with auto-deref of `.`.
-<a href=#2629 id=2629 data-nosnippet>2629</a>    /// If a field is being mutated e.g. `foo.bar.mutate_bar()` where `foo: &amp;mut Foo`, the compiler
-<a href=#2630 id=2630 data-nosnippet>2630</a>    /// will insert a dereference before bar `(*foo).bar.mutate_bar()` which would cause us to
-<a href=#2631 id=2631 data-nosnippet>2631</a>    /// mutate a copy of bar rather than a reference to it. We must check for this corner case here
-<a href=#2632 id=2632 data-nosnippet>2632</a>    /// and remove the implicitly added dereference operator if we find one.
-<a href=#2633 id=2633 data-nosnippet>2633</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>try_add_mutable_reference_to_object(
-<a href=#2634 id=2634 data-nosnippet>2634</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2635 id=2635 data-nosnippet>2635</a>        function_type: <span class="kw-2">&amp;</span>Type,
-<a href=#2636 id=2636 data-nosnippet>2636</a>        object_type: <span class="kw-2">&amp;mut </span>Type,
-<a href=#2637 id=2637 data-nosnippet>2637</a>        object: <span class="kw-2">&amp;mut </span>ExprId,
-<a href=#2638 id=2638 data-nosnippet>2638</a>    ) {
-<a href=#2639 id=2639 data-nosnippet>2639</a>        <span class="kw">let </span>expected_object_type = <span class="kw">match </span>function_type {
-<a href=#2640 id=2640 data-nosnippet>2640</a>            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args.first(),
-<a href=#2641 id=2641 data-nosnippet>2641</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">match </span>typ.as_ref() {
-<a href=#2642 id=2642 data-nosnippet>2642</a>                Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args.first(),
-<a href=#2643 id=2643 data-nosnippet>2643</a>                typ =&gt; <span class="macro">unreachable!</span>(<span class="string">"Unexpected type for function: {typ}"</span>),
-<a href=#2644 id=2644 data-nosnippet>2644</a>            },
-<a href=#2645 id=2645 data-nosnippet>2645</a>            typ =&gt; <span class="macro">unreachable!</span>(<span class="string">"Unexpected type for function: {typ}"</span>),
-<a href=#2646 id=2646 data-nosnippet>2646</a>        };
-<a href=#2647 id=2647 data-nosnippet>2647</a>
-<a href=#2648 id=2648 data-nosnippet>2648</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(expected_object_type) = expected_object_type {
-<a href=#2649 id=2649 data-nosnippet>2649</a>            <span class="kw">let </span>actual_type = object_type.follow_bindings();
-<a href=#2650 id=2650 data-nosnippet>2650</a>
-<a href=#2651 id=2651 data-nosnippet>2651</a>            <span class="kw">if let </span>Type::Reference(<span class="kw">_</span>, mutable) = expected_object_type.follow_bindings() {
-<a href=#2652 id=2652 data-nosnippet>2652</a>                <span class="kw">if </span>!<span class="macro">matches!</span>(actual_type, Type::Reference(..)) {
-<a href=#2653 id=2653 data-nosnippet>2653</a>                    <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(<span class="kw-2">*</span>object);
-<a href=#2654 id=2654 data-nosnippet>2654</a>                    <span class="self">self</span>.check_can_mutate(<span class="kw-2">*</span>object, location);
-<a href=#2655 id=2655 data-nosnippet>2655</a>
-<a href=#2656 id=2656 data-nosnippet>2656</a>                    <span class="kw">let </span>new_type = Type::Reference(Box::new(actual_type), mutable);
-<a href=#2657 id=2657 data-nosnippet>2657</a>                    <span class="kw-2">*</span>object_type = new_type.clone();
-<a href=#2658 id=2658 data-nosnippet>2658</a>
-<a href=#2659 id=2659 data-nosnippet>2659</a>                    <span class="comment">// First try to remove a dereference operator that may have been implicitly
-<a href=#2660 id=2660 data-nosnippet>2660</a>                    // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
-<a href=#2661 id=2661 data-nosnippet>2661</a>                    </span><span class="kw">let </span>new_object = <span class="self">self</span>.try_remove_implicit_dereference(<span class="kw-2">*</span>object);
-<a href=#2662 id=2662 data-nosnippet>2662</a>
-<a href=#2663 id=2663 data-nosnippet>2663</a>                    <span class="comment">// If that didn't work, then wrap the whole expression in an `&amp;mut`
-<a href=#2664 id=2664 data-nosnippet>2664</a>                    </span><span class="kw-2">*</span>object = new_object.unwrap_or_else(|| {
-<a href=#2665 id=2665 data-nosnippet>2665</a>                        <span class="self">self</span>.interner.push_expr_full(
-<a href=#2666 id=2666 data-nosnippet>2666</a>                            HirExpression::Prefix(HirPrefixExpression::new(
-<a href=#2667 id=2667 data-nosnippet>2667</a>                                UnaryOp::Reference { mutable },
-<a href=#2668 id=2668 data-nosnippet>2668</a>                                <span class="kw-2">*</span>object,
-<a href=#2669 id=2669 data-nosnippet>2669</a>                            )),
-<a href=#2670 id=2670 data-nosnippet>2670</a>                            location,
-<a href=#2671 id=2671 data-nosnippet>2671</a>                            new_type,
-<a href=#2672 id=2672 data-nosnippet>2672</a>                        )
-<a href=#2673 id=2673 data-nosnippet>2673</a>                    });
-<a href=#2674 id=2674 data-nosnippet>2674</a>                }
-<a href=#2675 id=2675 data-nosnippet>2675</a>            <span class="comment">// Otherwise if the object type is a mutable reference and the method is not, insert as
-<a href=#2676 id=2676 data-nosnippet>2676</a>            // many dereferences as needed.
-<a href=#2677 id=2677 data-nosnippet>2677</a>            </span>} <span class="kw">else if </span><span class="macro">matches!</span>(actual_type, Type::Reference(..)) {
-<a href=#2678 id=2678 data-nosnippet>2678</a>                <span class="kw">let </span>(new_object, new_type) = <span class="self">self</span>.insert_auto_dereferences(<span class="kw-2">*</span>object, actual_type);
-<a href=#2679 id=2679 data-nosnippet>2679</a>                <span class="kw-2">*</span>object_type = new_type;
-<a href=#2680 id=2680 data-nosnippet>2680</a>                <span class="kw-2">*</span>object = new_object;
-<a href=#2681 id=2681 data-nosnippet>2681</a>            }
-<a href=#2682 id=2682 data-nosnippet>2682</a>        }
-<a href=#2683 id=2683 data-nosnippet>2683</a>    }
-<a href=#2684 id=2684 data-nosnippet>2684</a>
-<a href=#2685 id=2685 data-nosnippet>2685</a>    <span class="kw">pub fn </span>type_check_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body_type: Type, meta: <span class="kw-2">&amp;</span>FuncMeta, body_id: ExprId) {
-<a href=#2686 id=2686 data-nosnippet>2686</a>        <span class="kw">let </span>(expr_location, empty_function) = <span class="self">self</span>.function_info(body_id);
-<a href=#2687 id=2687 data-nosnippet>2687</a>        <span class="kw">let </span>declared_return_type = meta.return_type();
-<a href=#2688 id=2688 data-nosnippet>2688</a>        <span class="kw">let </span>last_expr_location = <span class="self">self</span>.last_expr_location(body_id);
-<a href=#2689 id=2689 data-nosnippet>2689</a>
-<a href=#2690 id=2690 data-nosnippet>2690</a>        <span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
-<a href=#2691 id=2691 data-nosnippet>2691</a>            <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
-<a href=#2692 id=2692 data-nosnippet>2692</a>            <span class="kw">if </span><span class="self">self
-<a href=#2693 id=2693 data-nosnippet>2693</a>                </span>.interner
-<a href=#2694 id=2694 data-nosnippet>2694</a>                .lookup_trait_implementation(
-<a href=#2695 id=2695 data-nosnippet>2695</a>                    <span class="kw-2">&amp;</span>body_type,
-<a href=#2696 id=2696 data-nosnippet>2696</a>                    <span class="kw-2">*</span>trait_id,
-<a href=#2697 id=2697 data-nosnippet>2697</a>                    <span class="kw-2">&amp;</span>generics.ordered,
-<a href=#2698 id=2698 data-nosnippet>2698</a>                    <span class="kw-2">&amp;</span>generics.named,
-<a href=#2699 id=2699 data-nosnippet>2699</a>                )
-<a href=#2700 id=2700 data-nosnippet>2700</a>                .is_err()
-<a href=#2701 id=2701 data-nosnippet>2701</a>            {
-<a href=#2702 id=2702 data-nosnippet>2702</a>                <span class="self">self</span>.push_err(TypeCheckError::TypeMismatchWithSource {
-<a href=#2703 id=2703 data-nosnippet>2703</a>                    expected: declared_return_type.clone(),
-<a href=#2704 id=2704 data-nosnippet>2704</a>                    actual: body_type,
-<a href=#2705 id=2705 data-nosnippet>2705</a>                    location: last_expr_location,
-<a href=#2706 id=2706 data-nosnippet>2706</a>                    source: Source::Return(meta.return_type.clone(), expr_location),
-<a href=#2707 id=2707 data-nosnippet>2707</a>                });
-<a href=#2708 id=2708 data-nosnippet>2708</a>            }
-<a href=#2709 id=2709 data-nosnippet>2709</a>        } <span class="kw">else </span>{
-<a href=#2710 id=2710 data-nosnippet>2710</a>            <span class="self">self</span>.unify_with_coercions(
-<a href=#2711 id=2711 data-nosnippet>2711</a>                <span class="kw-2">&amp;</span>body_type,
-<a href=#2712 id=2712 data-nosnippet>2712</a>                declared_return_type,
-<a href=#2713 id=2713 data-nosnippet>2713</a>                body_id,
-<a href=#2714 id=2714 data-nosnippet>2714</a>                last_expr_location,
-<a href=#2715 id=2715 data-nosnippet>2715</a>                || {
-<a href=#2716 id=2716 data-nosnippet>2716</a>                    <span class="kw">let </span><span class="kw-2">mut </span>error = TypeCheckError::TypeMismatchWithSource {
-<a href=#2717 id=2717 data-nosnippet>2717</a>                        expected: declared_return_type.clone(),
-<a href=#2718 id=2718 data-nosnippet>2718</a>                        actual: body_type.clone(),
-<a href=#2719 id=2719 data-nosnippet>2719</a>                        location: last_expr_location,
-<a href=#2720 id=2720 data-nosnippet>2720</a>                        source: Source::Return(meta.return_type.clone(), expr_location),
-<a href=#2721 id=2721 data-nosnippet>2721</a>                    };
-<a href=#2722 id=2722 data-nosnippet>2722</a>
-<a href=#2723 id=2723 data-nosnippet>2723</a>                    <span class="kw">if </span>empty_function {
-<a href=#2724 id=2724 data-nosnippet>2724</a>                        error = error.add_context(
-<a href=#2725 id=2725 data-nosnippet>2725</a>                        <span class="string">"implicitly returns `()` as its body has no tail or `return` expression"</span>,
-<a href=#2726 id=2726 data-nosnippet>2726</a>                    );
-<a href=#2727 id=2727 data-nosnippet>2727</a>                    }
-<a href=#2728 id=2728 data-nosnippet>2728</a>                    CompilationError::TypeError(error)
-<a href=#2729 id=2729 data-nosnippet>2729</a>                },
-<a href=#2730 id=2730 data-nosnippet>2730</a>            );
-<a href=#2731 id=2731 data-nosnippet>2731</a>        }
-<a href=#2732 id=2732 data-nosnippet>2732</a>    }
-<a href=#2733 id=2733 data-nosnippet>2733</a>
-<a href=#2734 id=2734 data-nosnippet>2734</a>    <span class="doccomment">/// Grab a best-effort approximation of the last expression or statement in the function.
-<a href=#2735 id=2735 data-nosnippet>2735</a>    /// Due to the typing rules of blocks, it is expected that the type of this expression/statement
-<a href=#2736 id=2736 data-nosnippet>2736</a>    /// matches the return type of the function.
-<a href=#2737 id=2737 data-nosnippet>2737</a>    </span><span class="kw">fn </span>last_expr_location(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: ExprId) -&gt; Location {
-<a href=#2738 id=2738 data-nosnippet>2738</a>        <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr) {
-<a href=#2739 id=2739 data-nosnippet>2739</a>            HirExpression::Block(block) <span class="kw">if </span>!block.statements.is_empty() =&gt; {
-<a href=#2740 id=2740 data-nosnippet>2740</a>                <span class="kw">let </span>last = block.statements.last().unwrap();
-<a href=#2741 id=2741 data-nosnippet>2741</a>                <span class="kw">match </span><span class="self">self</span>.interner.statement(last) {
-<a href=#2742 id=2742 data-nosnippet>2742</a>                    HirStatement::Expression(expr) | HirStatement::Semi(expr) =&gt; {
-<a href=#2743 id=2743 data-nosnippet>2743</a>                        <span class="self">self</span>.last_expr_location(expr)
-<a href=#2744 id=2744 data-nosnippet>2744</a>                    }
-<a href=#2745 id=2745 data-nosnippet>2745</a>                    <span class="kw">_ </span>=&gt; <span class="self">self</span>.interner.statement_location(<span class="kw-2">*</span>last),
-<a href=#2746 id=2746 data-nosnippet>2746</a>                }
-<a href=#2747 id=2747 data-nosnippet>2747</a>            }
-<a href=#2748 id=2748 data-nosnippet>2748</a>            <span class="kw">_ </span>=&gt; <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr),
-<a href=#2749 id=2749 data-nosnippet>2749</a>        }
-<a href=#2750 id=2750 data-nosnippet>2750</a>    }
-<a href=#2751 id=2751 data-nosnippet>2751</a>
-<a href=#2752 id=2752 data-nosnippet>2752</a>    <span class="kw">fn </span>function_info(<span class="kw-2">&amp;</span><span class="self">self</span>, function_body_id: ExprId) -&gt; (Location, bool) {
-<a href=#2753 id=2753 data-nosnippet>2753</a>        <span class="kw">let </span>(expr_location, empty_function) =
-<a href=#2754 id=2754 data-nosnippet>2754</a>            <span class="kw">if let </span>HirExpression::Block(block) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function_body_id) {
-<a href=#2755 id=2755 data-nosnippet>2755</a>                <span class="kw">let </span>last_stmt = block.statements().last();
-<a href=#2756 id=2756 data-nosnippet>2756</a>                <span class="kw">let </span><span class="kw-2">mut </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>function_body_id);
-<a href=#2757 id=2757 data-nosnippet>2757</a>
-<a href=#2758 id=2758 data-nosnippet>2758</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(last_stmt) = last_stmt
-<a href=#2759 id=2759 data-nosnippet>2759</a>                    &amp;&amp; <span class="kw">let </span>HirStatement::Expression(expr) = <span class="self">self</span>.interner.statement(last_stmt)
-<a href=#2760 id=2760 data-nosnippet>2760</a>                {
-<a href=#2761 id=2761 data-nosnippet>2761</a>                    location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
-<a href=#2762 id=2762 data-nosnippet>2762</a>                }
-<a href=#2763 id=2763 data-nosnippet>2763</a>
-<a href=#2764 id=2764 data-nosnippet>2764</a>                (location, last_stmt.is_none())
-<a href=#2765 id=2765 data-nosnippet>2765</a>            } <span class="kw">else </span>{
-<a href=#2766 id=2766 data-nosnippet>2766</a>                (<span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>function_body_id), <span class="bool-val">false</span>)
-<a href=#2767 id=2767 data-nosnippet>2767</a>            };
-<a href=#2768 id=2768 data-nosnippet>2768</a>        (expr_location, empty_function)
-<a href=#2769 id=2769 data-nosnippet>2769</a>    }
-<a href=#2770 id=2770 data-nosnippet>2770</a>
-<a href=#2771 id=2771 data-nosnippet>2771</a>    <span class="doccomment">/// Insert the ordered generics and associated types from the trait bound.
-<a href=#2772 id=2772 data-nosnippet>2772</a>    /// If the constraint is `assumed`, it also inserts the binding to the `Self`
-<a href=#2773 id=2773 data-nosnippet>2773</a>    /// type to whatever type the constraint is defined on.
-<a href=#2774 id=2774 data-nosnippet>2774</a>    </span><span class="kw">pub fn </span>bind_generics_from_trait_constraint(
-<a href=#2775 id=2775 data-nosnippet>2775</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2776 id=2776 data-nosnippet>2776</a>        constraint: <span class="kw-2">&amp;</span>TraitConstraint,
-<a href=#2777 id=2777 data-nosnippet>2777</a>        assumed: bool,
-<a href=#2778 id=2778 data-nosnippet>2778</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#2779 id=2779 data-nosnippet>2779</a>    ) {
-<a href=#2780 id=2780 data-nosnippet>2780</a>        <span class="self">self</span>.bind_generics_from_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound, bindings);
-<a href=#2781 id=2781 data-nosnippet>2781</a>
-<a href=#2782 id=2782 data-nosnippet>2782</a>        <span class="comment">// If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-<a href=#2783 id=2783 data-nosnippet>2783</a>        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-<a href=#2784 id=2784 data-nosnippet>2784</a>        // to specify a redundant type annotation.
-<a href=#2785 id=2785 data-nosnippet>2785</a>        </span><span class="kw">if </span>assumed {
-<a href=#2786 id=2786 data-nosnippet>2786</a>            <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
-<a href=#2787 id=2787 data-nosnippet>2787</a>            <span class="kw">let </span>self_type = the_trait.self_type_typevar.clone();
-<a href=#2788 id=2788 data-nosnippet>2788</a>            <span class="kw">let </span>kind = the_trait.self_type_typevar.kind();
-<a href=#2789 id=2789 data-nosnippet>2789</a>            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
-<a href=#2790 id=2790 data-nosnippet>2790</a>        }
-<a href=#2791 id=2791 data-nosnippet>2791</a>    }
-<a href=#2792 id=2792 data-nosnippet>2792</a>
-<a href=#2793 id=2793 data-nosnippet>2793</a>    <span class="doccomment">/// Insert the ordered generics and associated types from the trait bound.
-<a href=#2794 id=2794 data-nosnippet>2794</a>    </span><span class="kw">pub fn </span>bind_generics_from_trait_bound(
-<a href=#2795 id=2795 data-nosnippet>2795</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2796 id=2796 data-nosnippet>2796</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
-<a href=#2797 id=2797 data-nosnippet>2797</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#2798 id=2798 data-nosnippet>2798</a>    ) {
-<a href=#2799 id=2799 data-nosnippet>2799</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
-<a href=#2800 id=2800 data-nosnippet>2800</a>
-<a href=#2801 id=2801 data-nosnippet>2801</a>        bind_ordered_generics(<span class="kw-2">&amp;</span>the_trait.generics, <span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered, bindings);
-<a href=#2802 id=2802 data-nosnippet>2802</a>
-<a href=#2803 id=2803 data-nosnippet>2803</a>        <span class="kw">let </span>associated_types = the_trait.associated_types.clone();
-<a href=#2804 id=2804 data-nosnippet>2804</a>        bind_named_generics(associated_types, <span class="kw-2">&amp;</span>trait_bound.trait_generics.named, bindings);
-<a href=#2805 id=2805 data-nosnippet>2805</a>    }
-<a href=#2806 id=2806 data-nosnippet>2806</a>
-<a href=#2807 id=2807 data-nosnippet>2807</a>    <span class="kw">pub fn </span>instantiate_parent_trait_bound(
-<a href=#2808 id=2808 data-nosnippet>2808</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#2809 id=2809 data-nosnippet>2809</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
-<a href=#2810 id=2810 data-nosnippet>2810</a>        parent_trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
-<a href=#2811 id=2811 data-nosnippet>2811</a>    ) -&gt; ResolvedTraitBound {
-<a href=#2812 id=2812 data-nosnippet>2812</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#2813 id=2813 data-nosnippet>2813</a>        <span class="self">self</span>.bind_generics_from_trait_bound(trait_bound, <span class="kw-2">&amp;mut </span>bindings);
-<a href=#2814 id=2814 data-nosnippet>2814</a>        ResolvedTraitBound {
-<a href=#2815 id=2815 data-nosnippet>2815</a>            trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(<span class="kw-2">&amp;</span>bindings)),
-<a href=#2816 id=2816 data-nosnippet>2816</a>            ..<span class="kw-2">*</span>parent_trait_bound
-<a href=#2817 id=2817 data-nosnippet>2817</a>        }
-<a href=#2818 id=2818 data-nosnippet>2818</a>    }
-<a href=#2819 id=2819 data-nosnippet>2819</a>
-<a href=#2820 id=2820 data-nosnippet>2820</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fully_qualified_trait_path(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_: <span class="kw-2">&amp;</span>Trait) -&gt; String {
-<a href=#2821 id=2821 data-nosnippet>2821</a>        <span class="kw">let </span>module_def_id = ModuleDefId::TraitId(trait_.id);
-<a href=#2822 id=2822 data-nosnippet>2822</a>        <span class="kw">let </span>visibility = trait_.visibility;
-<a href=#2823 id=2823 data-nosnippet>2823</a>        <span class="kw">let </span>defining_module = <span class="prelude-val">None</span>;
-<a href=#2824 id=2824 data-nosnippet>2824</a>        <span class="kw">let </span>trait_is_visible = module_def_id_is_visible(
-<a href=#2825 id=2825 data-nosnippet>2825</a>            module_def_id,
-<a href=#2826 id=2826 data-nosnippet>2826</a>            <span class="self">self</span>.module_id(),
-<a href=#2827 id=2827 data-nosnippet>2827</a>            visibility,
-<a href=#2828 id=2828 data-nosnippet>2828</a>            defining_module,
-<a href=#2829 id=2829 data-nosnippet>2829</a>            <span class="self">self</span>.interner,
-<a href=#2830 id=2830 data-nosnippet>2830</a>            <span class="self">self</span>.def_maps,
-<a href=#2831 id=2831 data-nosnippet>2831</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies,
-<a href=#2832 id=2832 data-nosnippet>2832</a>        );
-<a href=#2833 id=2833 data-nosnippet>2833</a>
-<a href=#2834 id=2834 data-nosnippet>2834</a>        <span class="kw">if </span>!trait_is_visible {
-<a href=#2835 id=2835 data-nosnippet>2835</a>            <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies;
-<a href=#2836 id=2836 data-nosnippet>2836</a>
-<a href=#2837 id=2837 data-nosnippet>2837</a>            <span class="kw">for </span>reexport <span class="kw">in </span><span class="self">self</span>.interner.get_trait_reexports(trait_.id) {
-<a href=#2838 id=2838 data-nosnippet>2838</a>                <span class="kw">let </span>reexport_is_visible = module_def_id_is_visible(
-<a href=#2839 id=2839 data-nosnippet>2839</a>                    module_def_id,
-<a href=#2840 id=2840 data-nosnippet>2840</a>                    <span class="self">self</span>.module_id(),
-<a href=#2841 id=2841 data-nosnippet>2841</a>                    reexport.visibility,
-<a href=#2842 id=2842 data-nosnippet>2842</a>                    <span class="prelude-val">Some</span>(reexport.module_id),
-<a href=#2843 id=2843 data-nosnippet>2843</a>                    <span class="self">self</span>.interner,
-<a href=#2844 id=2844 data-nosnippet>2844</a>                    <span class="self">self</span>.def_maps,
-<a href=#2845 id=2845 data-nosnippet>2845</a>                    dependencies,
-<a href=#2846 id=2846 data-nosnippet>2846</a>                );
-<a href=#2847 id=2847 data-nosnippet>2847</a>                <span class="kw">if </span>reexport_is_visible {
-<a href=#2848 id=2848 data-nosnippet>2848</a>                    <span class="kw">let </span>module_path = fully_qualified_module_path(
-<a href=#2849 id=2849 data-nosnippet>2849</a>                        <span class="self">self</span>.def_maps,
-<a href=#2850 id=2850 data-nosnippet>2850</a>                        <span class="self">self</span>.crate_graph,
-<a href=#2851 id=2851 data-nosnippet>2851</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
-<a href=#2852 id=2852 data-nosnippet>2852</a>                        reexport.module_id,
-<a href=#2853 id=2853 data-nosnippet>2853</a>                    );
-<a href=#2854 id=2854 data-nosnippet>2854</a>                    <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}"</span>, reexport.name);
-<a href=#2855 id=2855 data-nosnippet>2855</a>                }
-<a href=#2856 id=2856 data-nosnippet>2856</a>            }
-<a href=#2857 id=2857 data-nosnippet>2857</a>
-<a href=#2858 id=2858 data-nosnippet>2858</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(reexport) = get_ancestor_module_reexport(
-<a href=#2859 id=2859 data-nosnippet>2859</a>                module_def_id,
-<a href=#2860 id=2860 data-nosnippet>2860</a>                visibility,
-<a href=#2861 id=2861 data-nosnippet>2861</a>                <span class="self">self</span>.module_id(),
-<a href=#2862 id=2862 data-nosnippet>2862</a>                <span class="self">self</span>.interner,
-<a href=#2863 id=2863 data-nosnippet>2863</a>                <span class="self">self</span>.def_maps,
-<a href=#2864 id=2864 data-nosnippet>2864</a>                dependencies,
-<a href=#2865 id=2865 data-nosnippet>2865</a>            ) {
-<a href=#2866 id=2866 data-nosnippet>2866</a>                <span class="kw">let </span>module_path = fully_qualified_module_path(
-<a href=#2867 id=2867 data-nosnippet>2867</a>                    <span class="self">self</span>.def_maps,
-<a href=#2868 id=2868 data-nosnippet>2868</a>                    <span class="self">self</span>.crate_graph,
-<a href=#2869 id=2869 data-nosnippet>2869</a>                    <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
-<a href=#2870 id=2870 data-nosnippet>2870</a>                    reexport.module_id,
-<a href=#2871 id=2871 data-nosnippet>2871</a>                );
-<a href=#2872 id=2872 data-nosnippet>2872</a>                <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}::{}"</span>, reexport.name, trait_.name);
-<a href=#2873 id=2873 data-nosnippet>2873</a>            }
-<a href=#2874 id=2874 data-nosnippet>2874</a>        }
-<a href=#2875 id=2875 data-nosnippet>2875</a>
-<a href=#2876 id=2876 data-nosnippet>2876</a>        fully_qualified_module_path(<span class="self">self</span>.def_maps, <span class="self">self</span>.crate_graph, <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id, trait_.id.<span class="number">0</span>)
-<a href=#2877 id=2877 data-nosnippet>2877</a>    }
-<a href=#2878 id=2878 data-nosnippet>2878</a>}
-<a href=#2879 id=2879 data-nosnippet>2879</a>
-<a href=#2880 id=2880 data-nosnippet>2880</a><span class="doccomment">/// Binds the ordered [ResolvedGeneric]s of a trait to the ordered generics in a [ResolvedTraitBound].
-<a href=#2881 id=2881 data-nosnippet>2881</a>///
-<a href=#2882 id=2882 data-nosnippet>2882</a>/// Panics if the number of types do not match the ordered generics in the trait.
-<a href=#2883 id=2883 data-nosnippet>2883</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bind_ordered_generics(
-<a href=#2884 id=2884 data-nosnippet>2884</a>    params: <span class="kw-2">&amp;</span>[ResolvedGeneric],
-<a href=#2885 id=2885 data-nosnippet>2885</a>    args: <span class="kw-2">&amp;</span>[Type],
-<a href=#2886 id=2886 data-nosnippet>2886</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#2887 id=2887 data-nosnippet>2887</a>) {
-<a href=#2888 id=2888 data-nosnippet>2888</a>    <span class="macro">assert_eq!</span>(params.len(), args.len(), <span class="string">"unexpected number of ordered generics"</span>);
-<a href=#2889 id=2889 data-nosnippet>2889</a>
-<a href=#2890 id=2890 data-nosnippet>2890</a>    <span class="kw">for </span>(param, arg) <span class="kw">in </span>params.iter().zip(args) {
-<a href=#2891 id=2891 data-nosnippet>2891</a>        bind_generic(param, arg, bindings);
-<a href=#2892 id=2892 data-nosnippet>2892</a>    }
-<a href=#2893 id=2893 data-nosnippet>2893</a>}
-<a href=#2894 id=2894 data-nosnippet>2894</a>
-<a href=#2895 id=2895 data-nosnippet>2895</a><span class="doccomment">/// Binds the associated [ResolvedGeneric]s of a trait to the named generics in a [ResolvedTraitBound].
-<a href=#2896 id=2896 data-nosnippet>2896</a>///
-<a href=#2897 id=2897 data-nosnippet>2897</a>/// Panics if the number of types exceeds the named generics in the trait.
-<a href=#2898 id=2898 data-nosnippet>2898</a>/// Any named parameter that does not appear in the arguments is bound to [Type::Error].
-<a href=#2899 id=2899 data-nosnippet>2899</a></span><span class="kw">fn </span>bind_named_generics(
-<a href=#2900 id=2900 data-nosnippet>2900</a>    <span class="kw-2">mut </span>params: Vec&lt;ResolvedGeneric&gt;,
-<a href=#2901 id=2901 data-nosnippet>2901</a>    args: <span class="kw-2">&amp;</span>[NamedType],
-<a href=#2902 id=2902 data-nosnippet>2902</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#2903 id=2903 data-nosnippet>2903</a>) {
-<a href=#2904 id=2904 data-nosnippet>2904</a>    <span class="macro">assert!</span>(
-<a href=#2905 id=2905 data-nosnippet>2905</a>        args.len() &lt;= params.len(),
-<a href=#2906 id=2906 data-nosnippet>2906</a>        <span class="string">"bind_named_generics: trait bound has more named generics than associated types"
-<a href=#2907 id=2907 data-nosnippet>2907</a>    </span>);
-<a href=#2908 id=2908 data-nosnippet>2908</a>
-<a href=#2909 id=2909 data-nosnippet>2909</a>    <span class="kw">if </span>params.is_empty() {
-<a href=#2910 id=2910 data-nosnippet>2910</a>        <span class="kw">return</span>;
-<a href=#2911 id=2911 data-nosnippet>2911</a>    }
-<a href=#2912 id=2912 data-nosnippet>2912</a>
-<a href=#2913 id=2913 data-nosnippet>2913</a>    <span class="kw">for </span>arg <span class="kw">in </span>args {
-<a href=#2914 id=2914 data-nosnippet>2914</a>        <span class="kw">let </span>i = params
-<a href=#2915 id=2915 data-nosnippet>2915</a>            .iter()
-<a href=#2916 id=2916 data-nosnippet>2916</a>            .position(|typ| <span class="kw-2">*</span>typ.name == arg.name.as_str())
-<a href=#2917 id=2917 data-nosnippet>2917</a>            .unwrap_or_else(|| <span class="macro">unreachable!</span>(<span class="string">"Expected to find associated type named {}"</span>, arg.name));
-<a href=#2918 id=2918 data-nosnippet>2918</a>
-<a href=#2919 id=2919 data-nosnippet>2919</a>        <span class="kw">let </span>param = params.swap_remove(i);
-<a href=#2920 id=2920 data-nosnippet>2920</a>
-<a href=#2921 id=2921 data-nosnippet>2921</a>        bind_generic(<span class="kw-2">&amp;</span>param, <span class="kw-2">&amp;</span>arg.typ, bindings);
-<a href=#2922 id=2922 data-nosnippet>2922</a>    }
-<a href=#2923 id=2923 data-nosnippet>2923</a>
-<a href=#2924 id=2924 data-nosnippet>2924</a>    <span class="kw">for </span>unbound_param <span class="kw">in </span>params {
-<a href=#2925 id=2925 data-nosnippet>2925</a>        bind_generic(<span class="kw-2">&amp;</span>unbound_param, <span class="kw-2">&amp;</span>Type::Error, bindings);
-<a href=#2926 id=2926 data-nosnippet>2926</a>    }
-<a href=#2927 id=2927 data-nosnippet>2927</a>}
-<a href=#2928 id=2928 data-nosnippet>2928</a>
-<a href=#2929 id=2929 data-nosnippet>2929</a><span class="doccomment">/// Binds the type variable in a [ResolvedGeneric], e.g. a generic parameter of a trait,
-<a href=#2930 id=2930 data-nosnippet>2930</a>/// to a [Type], which itself can be an unbound type variable.
-<a href=#2931 id=2931 data-nosnippet>2931</a>///
-<a href=#2932 id=2932 data-nosnippet>2932</a>/// If the type variable itself appears in the type, then it does nothing.
-<a href=#2933 id=2933 data-nosnippet>2933</a></span><span class="kw">fn </span>bind_generic(param: <span class="kw-2">&amp;</span>ResolvedGeneric, arg: <span class="kw-2">&amp;</span>Type, bindings: <span class="kw-2">&amp;mut </span>TypeBindings) {
-<a href=#2934 id=2934 data-nosnippet>2934</a>    <span class="comment">// Avoid binding t = t
-<a href=#2935 id=2935 data-nosnippet>2935</a>    </span><span class="kw">if </span>!arg.occurs(param.type_var.id()) {
-<a href=#2936 id=2936 data-nosnippet>2936</a>        bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
-<a href=#2937 id=2937 data-nosnippet>2937</a>    }
-<a href=#2938 id=2938 data-nosnippet>2938</a>}</code></pre></div></section></main></body></html>
+<a href=#2616 id=2616 data-nosnippet>2616</a>            <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id).is_unconstrained()
+<a href=#2617 id=2617 data-nosnippet>2617</a>        } <span class="kw">else </span>{
+<a href=#2618 id=2618 data-nosnippet>2618</a>            <span class="bool-val">false
+<a href=#2619 id=2619 data-nosnippet>2619</a>        </span>}
+<a href=#2620 id=2620 data-nosnippet>2620</a>    }
+<a href=#2621 id=2621 data-nosnippet>2621</a>
+<a href=#2622 id=2622 data-nosnippet>2622</a>    <span class="doccomment">/// Check if the given method type requires a mutable reference to the object type, and check
+<a href=#2623 id=2623 data-nosnippet>2623</a>    /// if the given object type is already a mutable reference. If not, add one.
+<a href=#2624 id=2624 data-nosnippet>2624</a>    /// This is used to automatically transform a method call: `foo.bar()` into a function
+<a href=#2625 id=2625 data-nosnippet>2625</a>    /// call: `bar(&amp;mut foo)`.
+<a href=#2626 id=2626 data-nosnippet>2626</a>    ///
+<a href=#2627 id=2627 data-nosnippet>2627</a>    /// A notable corner case of this function is where it interacts with auto-deref of `.`.
+<a href=#2628 id=2628 data-nosnippet>2628</a>    /// If a field is being mutated e.g. `foo.bar.mutate_bar()` where `foo: &amp;mut Foo`, the compiler
+<a href=#2629 id=2629 data-nosnippet>2629</a>    /// will insert a dereference before bar `(*foo).bar.mutate_bar()` which would cause us to
+<a href=#2630 id=2630 data-nosnippet>2630</a>    /// mutate a copy of bar rather than a reference to it. We must check for this corner case here
+<a href=#2631 id=2631 data-nosnippet>2631</a>    /// and remove the implicitly added dereference operator if we find one.
+<a href=#2632 id=2632 data-nosnippet>2632</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>try_add_mutable_reference_to_object(
+<a href=#2633 id=2633 data-nosnippet>2633</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2634 id=2634 data-nosnippet>2634</a>        function_type: <span class="kw-2">&amp;</span>Type,
+<a href=#2635 id=2635 data-nosnippet>2635</a>        object_type: <span class="kw-2">&amp;mut </span>Type,
+<a href=#2636 id=2636 data-nosnippet>2636</a>        object: <span class="kw-2">&amp;mut </span>ExprId,
+<a href=#2637 id=2637 data-nosnippet>2637</a>    ) {
+<a href=#2638 id=2638 data-nosnippet>2638</a>        <span class="kw">let </span>expected_object_type = <span class="kw">match </span>function_type {
+<a href=#2639 id=2639 data-nosnippet>2639</a>            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args.first(),
+<a href=#2640 id=2640 data-nosnippet>2640</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">match </span>typ.as_ref() {
+<a href=#2641 id=2641 data-nosnippet>2641</a>                Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args.first(),
+<a href=#2642 id=2642 data-nosnippet>2642</a>                typ =&gt; <span class="macro">unreachable!</span>(<span class="string">"Unexpected type for function: {typ}"</span>),
+<a href=#2643 id=2643 data-nosnippet>2643</a>            },
+<a href=#2644 id=2644 data-nosnippet>2644</a>            typ =&gt; <span class="macro">unreachable!</span>(<span class="string">"Unexpected type for function: {typ}"</span>),
+<a href=#2645 id=2645 data-nosnippet>2645</a>        };
+<a href=#2646 id=2646 data-nosnippet>2646</a>
+<a href=#2647 id=2647 data-nosnippet>2647</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(expected_object_type) = expected_object_type {
+<a href=#2648 id=2648 data-nosnippet>2648</a>            <span class="kw">let </span>actual_type = object_type.follow_bindings();
+<a href=#2649 id=2649 data-nosnippet>2649</a>
+<a href=#2650 id=2650 data-nosnippet>2650</a>            <span class="kw">if let </span>Type::Reference(<span class="kw">_</span>, mutable) = expected_object_type.follow_bindings() {
+<a href=#2651 id=2651 data-nosnippet>2651</a>                <span class="kw">if </span>!<span class="macro">matches!</span>(actual_type, Type::Reference(..)) {
+<a href=#2652 id=2652 data-nosnippet>2652</a>                    <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(<span class="kw-2">*</span>object);
+<a href=#2653 id=2653 data-nosnippet>2653</a>                    <span class="self">self</span>.check_can_mutate(<span class="kw-2">*</span>object, location);
+<a href=#2654 id=2654 data-nosnippet>2654</a>
+<a href=#2655 id=2655 data-nosnippet>2655</a>                    <span class="kw">let </span>new_type = Type::Reference(Box::new(actual_type), mutable);
+<a href=#2656 id=2656 data-nosnippet>2656</a>                    <span class="kw-2">*</span>object_type = new_type.clone();
+<a href=#2657 id=2657 data-nosnippet>2657</a>
+<a href=#2658 id=2658 data-nosnippet>2658</a>                    <span class="comment">// First try to remove a dereference operator that may have been implicitly
+<a href=#2659 id=2659 data-nosnippet>2659</a>                    // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
+<a href=#2660 id=2660 data-nosnippet>2660</a>                    </span><span class="kw">let </span>new_object = <span class="self">self</span>.try_remove_implicit_dereference(<span class="kw-2">*</span>object);
+<a href=#2661 id=2661 data-nosnippet>2661</a>
+<a href=#2662 id=2662 data-nosnippet>2662</a>                    <span class="comment">// If that didn't work, then wrap the whole expression in an `&amp;mut`
+<a href=#2663 id=2663 data-nosnippet>2663</a>                    </span><span class="kw-2">*</span>object = new_object.unwrap_or_else(|| {
+<a href=#2664 id=2664 data-nosnippet>2664</a>                        <span class="self">self</span>.interner.push_expr_full(
+<a href=#2665 id=2665 data-nosnippet>2665</a>                            HirExpression::Prefix(HirPrefixExpression::new(
+<a href=#2666 id=2666 data-nosnippet>2666</a>                                UnaryOp::Reference { mutable },
+<a href=#2667 id=2667 data-nosnippet>2667</a>                                <span class="kw-2">*</span>object,
+<a href=#2668 id=2668 data-nosnippet>2668</a>                            )),
+<a href=#2669 id=2669 data-nosnippet>2669</a>                            location,
+<a href=#2670 id=2670 data-nosnippet>2670</a>                            new_type,
+<a href=#2671 id=2671 data-nosnippet>2671</a>                        )
+<a href=#2672 id=2672 data-nosnippet>2672</a>                    });
+<a href=#2673 id=2673 data-nosnippet>2673</a>                }
+<a href=#2674 id=2674 data-nosnippet>2674</a>            <span class="comment">// Otherwise if the object type is a mutable reference and the method is not, insert as
+<a href=#2675 id=2675 data-nosnippet>2675</a>            // many dereferences as needed.
+<a href=#2676 id=2676 data-nosnippet>2676</a>            </span>} <span class="kw">else if </span><span class="macro">matches!</span>(actual_type, Type::Reference(..)) {
+<a href=#2677 id=2677 data-nosnippet>2677</a>                <span class="kw">let </span>(new_object, new_type) = <span class="self">self</span>.insert_auto_dereferences(<span class="kw-2">*</span>object, actual_type);
+<a href=#2678 id=2678 data-nosnippet>2678</a>                <span class="kw-2">*</span>object_type = new_type;
+<a href=#2679 id=2679 data-nosnippet>2679</a>                <span class="kw-2">*</span>object = new_object;
+<a href=#2680 id=2680 data-nosnippet>2680</a>            }
+<a href=#2681 id=2681 data-nosnippet>2681</a>        }
+<a href=#2682 id=2682 data-nosnippet>2682</a>    }
+<a href=#2683 id=2683 data-nosnippet>2683</a>
+<a href=#2684 id=2684 data-nosnippet>2684</a>    <span class="kw">pub fn </span>type_check_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, body_type: Type, meta: <span class="kw-2">&amp;</span>FuncMeta, body_id: ExprId) {
+<a href=#2685 id=2685 data-nosnippet>2685</a>        <span class="kw">let </span>(expr_location, empty_function) = <span class="self">self</span>.function_info(body_id);
+<a href=#2686 id=2686 data-nosnippet>2686</a>        <span class="kw">let </span>declared_return_type = meta.return_type();
+<a href=#2687 id=2687 data-nosnippet>2687</a>        <span class="kw">let </span>last_expr_location = <span class="self">self</span>.last_expr_location(body_id);
+<a href=#2688 id=2688 data-nosnippet>2688</a>
+<a href=#2689 id=2689 data-nosnippet>2689</a>        <span class="kw">if let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, generics) = declared_return_type {
+<a href=#2690 id=2690 data-nosnippet>2690</a>            <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
+<a href=#2691 id=2691 data-nosnippet>2691</a>            <span class="kw">if </span><span class="self">self
+<a href=#2692 id=2692 data-nosnippet>2692</a>                </span>.interner
+<a href=#2693 id=2693 data-nosnippet>2693</a>                .lookup_trait_implementation(
+<a href=#2694 id=2694 data-nosnippet>2694</a>                    <span class="kw-2">&amp;</span>body_type,
+<a href=#2695 id=2695 data-nosnippet>2695</a>                    <span class="kw-2">*</span>trait_id,
+<a href=#2696 id=2696 data-nosnippet>2696</a>                    <span class="kw-2">&amp;</span>generics.ordered,
+<a href=#2697 id=2697 data-nosnippet>2697</a>                    <span class="kw-2">&amp;</span>generics.named,
+<a href=#2698 id=2698 data-nosnippet>2698</a>                )
+<a href=#2699 id=2699 data-nosnippet>2699</a>                .is_err()
+<a href=#2700 id=2700 data-nosnippet>2700</a>            {
+<a href=#2701 id=2701 data-nosnippet>2701</a>                <span class="self">self</span>.push_err(TypeCheckError::TypeMismatchWithSource {
+<a href=#2702 id=2702 data-nosnippet>2702</a>                    expected: declared_return_type.clone(),
+<a href=#2703 id=2703 data-nosnippet>2703</a>                    actual: body_type,
+<a href=#2704 id=2704 data-nosnippet>2704</a>                    location: last_expr_location,
+<a href=#2705 id=2705 data-nosnippet>2705</a>                    source: Source::Return(meta.return_type.clone(), expr_location),
+<a href=#2706 id=2706 data-nosnippet>2706</a>                });
+<a href=#2707 id=2707 data-nosnippet>2707</a>            }
+<a href=#2708 id=2708 data-nosnippet>2708</a>        } <span class="kw">else </span>{
+<a href=#2709 id=2709 data-nosnippet>2709</a>            <span class="self">self</span>.unify_with_coercions(
+<a href=#2710 id=2710 data-nosnippet>2710</a>                <span class="kw-2">&amp;</span>body_type,
+<a href=#2711 id=2711 data-nosnippet>2711</a>                declared_return_type,
+<a href=#2712 id=2712 data-nosnippet>2712</a>                body_id,
+<a href=#2713 id=2713 data-nosnippet>2713</a>                last_expr_location,
+<a href=#2714 id=2714 data-nosnippet>2714</a>                || {
+<a href=#2715 id=2715 data-nosnippet>2715</a>                    <span class="kw">let </span><span class="kw-2">mut </span>error = TypeCheckError::TypeMismatchWithSource {
+<a href=#2716 id=2716 data-nosnippet>2716</a>                        expected: declared_return_type.clone(),
+<a href=#2717 id=2717 data-nosnippet>2717</a>                        actual: body_type.clone(),
+<a href=#2718 id=2718 data-nosnippet>2718</a>                        location: last_expr_location,
+<a href=#2719 id=2719 data-nosnippet>2719</a>                        source: Source::Return(meta.return_type.clone(), expr_location),
+<a href=#2720 id=2720 data-nosnippet>2720</a>                    };
+<a href=#2721 id=2721 data-nosnippet>2721</a>
+<a href=#2722 id=2722 data-nosnippet>2722</a>                    <span class="kw">if </span>empty_function {
+<a href=#2723 id=2723 data-nosnippet>2723</a>                        error = error.add_context(
+<a href=#2724 id=2724 data-nosnippet>2724</a>                        <span class="string">"implicitly returns `()` as its body has no tail or `return` expression"</span>,
+<a href=#2725 id=2725 data-nosnippet>2725</a>                    );
+<a href=#2726 id=2726 data-nosnippet>2726</a>                    }
+<a href=#2727 id=2727 data-nosnippet>2727</a>                    CompilationError::TypeError(error)
+<a href=#2728 id=2728 data-nosnippet>2728</a>                },
+<a href=#2729 id=2729 data-nosnippet>2729</a>            );
+<a href=#2730 id=2730 data-nosnippet>2730</a>        }
+<a href=#2731 id=2731 data-nosnippet>2731</a>    }
+<a href=#2732 id=2732 data-nosnippet>2732</a>
+<a href=#2733 id=2733 data-nosnippet>2733</a>    <span class="doccomment">/// Grab a best-effort approximation of the last expression or statement in the function.
+<a href=#2734 id=2734 data-nosnippet>2734</a>    /// Due to the typing rules of blocks, it is expected that the type of this expression/statement
+<a href=#2735 id=2735 data-nosnippet>2735</a>    /// matches the return type of the function.
+<a href=#2736 id=2736 data-nosnippet>2736</a>    </span><span class="kw">fn </span>last_expr_location(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: ExprId) -&gt; Location {
+<a href=#2737 id=2737 data-nosnippet>2737</a>        <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr) {
+<a href=#2738 id=2738 data-nosnippet>2738</a>            HirExpression::Block(block) <span class="kw">if </span>!block.statements.is_empty() =&gt; {
+<a href=#2739 id=2739 data-nosnippet>2739</a>                <span class="kw">let </span>last = block.statements.last().unwrap();
+<a href=#2740 id=2740 data-nosnippet>2740</a>                <span class="kw">match </span><span class="self">self</span>.interner.statement(last) {
+<a href=#2741 id=2741 data-nosnippet>2741</a>                    HirStatement::Expression(expr) | HirStatement::Semi(expr) =&gt; {
+<a href=#2742 id=2742 data-nosnippet>2742</a>                        <span class="self">self</span>.last_expr_location(expr)
+<a href=#2743 id=2743 data-nosnippet>2743</a>                    }
+<a href=#2744 id=2744 data-nosnippet>2744</a>                    <span class="kw">_ </span>=&gt; <span class="self">self</span>.interner.statement_location(<span class="kw-2">*</span>last),
+<a href=#2745 id=2745 data-nosnippet>2745</a>                }
+<a href=#2746 id=2746 data-nosnippet>2746</a>            }
+<a href=#2747 id=2747 data-nosnippet>2747</a>            <span class="kw">_ </span>=&gt; <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr),
+<a href=#2748 id=2748 data-nosnippet>2748</a>        }
+<a href=#2749 id=2749 data-nosnippet>2749</a>    }
+<a href=#2750 id=2750 data-nosnippet>2750</a>
+<a href=#2751 id=2751 data-nosnippet>2751</a>    <span class="kw">fn </span>function_info(<span class="kw-2">&amp;</span><span class="self">self</span>, function_body_id: ExprId) -&gt; (Location, bool) {
+<a href=#2752 id=2752 data-nosnippet>2752</a>        <span class="kw">let </span>(expr_location, empty_function) =
+<a href=#2753 id=2753 data-nosnippet>2753</a>            <span class="kw">if let </span>HirExpression::Block(block) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function_body_id) {
+<a href=#2754 id=2754 data-nosnippet>2754</a>                <span class="kw">let </span>last_stmt = block.statements().last();
+<a href=#2755 id=2755 data-nosnippet>2755</a>                <span class="kw">let </span><span class="kw-2">mut </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>function_body_id);
+<a href=#2756 id=2756 data-nosnippet>2756</a>
+<a href=#2757 id=2757 data-nosnippet>2757</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(last_stmt) = last_stmt
+<a href=#2758 id=2758 data-nosnippet>2758</a>                    &amp;&amp; <span class="kw">let </span>HirStatement::Expression(expr) = <span class="self">self</span>.interner.statement(last_stmt)
+<a href=#2759 id=2759 data-nosnippet>2759</a>                {
+<a href=#2760 id=2760 data-nosnippet>2760</a>                    location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
+<a href=#2761 id=2761 data-nosnippet>2761</a>                }
+<a href=#2762 id=2762 data-nosnippet>2762</a>
+<a href=#2763 id=2763 data-nosnippet>2763</a>                (location, last_stmt.is_none())
+<a href=#2764 id=2764 data-nosnippet>2764</a>            } <span class="kw">else </span>{
+<a href=#2765 id=2765 data-nosnippet>2765</a>                (<span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>function_body_id), <span class="bool-val">false</span>)
+<a href=#2766 id=2766 data-nosnippet>2766</a>            };
+<a href=#2767 id=2767 data-nosnippet>2767</a>        (expr_location, empty_function)
+<a href=#2768 id=2768 data-nosnippet>2768</a>    }
+<a href=#2769 id=2769 data-nosnippet>2769</a>
+<a href=#2770 id=2770 data-nosnippet>2770</a>    <span class="doccomment">/// Insert the ordered generics and associated types from the trait bound.
+<a href=#2771 id=2771 data-nosnippet>2771</a>    /// If the constraint is `assumed`, it also inserts the binding to the `Self`
+<a href=#2772 id=2772 data-nosnippet>2772</a>    /// type to whatever type the constraint is defined on.
+<a href=#2773 id=2773 data-nosnippet>2773</a>    </span><span class="kw">pub fn </span>bind_generics_from_trait_constraint(
+<a href=#2774 id=2774 data-nosnippet>2774</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2775 id=2775 data-nosnippet>2775</a>        constraint: <span class="kw-2">&amp;</span>TraitConstraint,
+<a href=#2776 id=2776 data-nosnippet>2776</a>        assumed: bool,
+<a href=#2777 id=2777 data-nosnippet>2777</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#2778 id=2778 data-nosnippet>2778</a>    ) {
+<a href=#2779 id=2779 data-nosnippet>2779</a>        <span class="self">self</span>.bind_generics_from_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound, bindings);
+<a href=#2780 id=2780 data-nosnippet>2780</a>
+<a href=#2781 id=2781 data-nosnippet>2781</a>        <span class="comment">// If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+<a href=#2782 id=2782 data-nosnippet>2782</a>        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
+<a href=#2783 id=2783 data-nosnippet>2783</a>        // to specify a redundant type annotation.
+<a href=#2784 id=2784 data-nosnippet>2784</a>        </span><span class="kw">if </span>assumed {
+<a href=#2785 id=2785 data-nosnippet>2785</a>            <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
+<a href=#2786 id=2786 data-nosnippet>2786</a>            <span class="kw">let </span>self_type = the_trait.self_type_typevar.clone();
+<a href=#2787 id=2787 data-nosnippet>2787</a>            <span class="kw">let </span>kind = the_trait.self_type_typevar.kind();
+<a href=#2788 id=2788 data-nosnippet>2788</a>            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+<a href=#2789 id=2789 data-nosnippet>2789</a>        }
+<a href=#2790 id=2790 data-nosnippet>2790</a>    }
+<a href=#2791 id=2791 data-nosnippet>2791</a>
+<a href=#2792 id=2792 data-nosnippet>2792</a>    <span class="doccomment">/// Insert the ordered generics and associated types from the trait bound.
+<a href=#2793 id=2793 data-nosnippet>2793</a>    </span><span class="kw">pub fn </span>bind_generics_from_trait_bound(
+<a href=#2794 id=2794 data-nosnippet>2794</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2795 id=2795 data-nosnippet>2795</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
+<a href=#2796 id=2796 data-nosnippet>2796</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#2797 id=2797 data-nosnippet>2797</a>    ) {
+<a href=#2798 id=2798 data-nosnippet>2798</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
+<a href=#2799 id=2799 data-nosnippet>2799</a>
+<a href=#2800 id=2800 data-nosnippet>2800</a>        bind_ordered_generics(<span class="kw-2">&amp;</span>the_trait.generics, <span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered, bindings);
+<a href=#2801 id=2801 data-nosnippet>2801</a>
+<a href=#2802 id=2802 data-nosnippet>2802</a>        <span class="kw">let </span>associated_types = the_trait.associated_types.clone();
+<a href=#2803 id=2803 data-nosnippet>2803</a>        bind_named_generics(associated_types, <span class="kw-2">&amp;</span>trait_bound.trait_generics.named, bindings);
+<a href=#2804 id=2804 data-nosnippet>2804</a>    }
+<a href=#2805 id=2805 data-nosnippet>2805</a>
+<a href=#2806 id=2806 data-nosnippet>2806</a>    <span class="kw">pub fn </span>instantiate_parent_trait_bound(
+<a href=#2807 id=2807 data-nosnippet>2807</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#2808 id=2808 data-nosnippet>2808</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
+<a href=#2809 id=2809 data-nosnippet>2809</a>        parent_trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
+<a href=#2810 id=2810 data-nosnippet>2810</a>    ) -&gt; ResolvedTraitBound {
+<a href=#2811 id=2811 data-nosnippet>2811</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#2812 id=2812 data-nosnippet>2812</a>        <span class="self">self</span>.bind_generics_from_trait_bound(trait_bound, <span class="kw-2">&amp;mut </span>bindings);
+<a href=#2813 id=2813 data-nosnippet>2813</a>        ResolvedTraitBound {
+<a href=#2814 id=2814 data-nosnippet>2814</a>            trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(<span class="kw-2">&amp;</span>bindings)),
+<a href=#2815 id=2815 data-nosnippet>2815</a>            ..<span class="kw-2">*</span>parent_trait_bound
+<a href=#2816 id=2816 data-nosnippet>2816</a>        }
+<a href=#2817 id=2817 data-nosnippet>2817</a>    }
+<a href=#2818 id=2818 data-nosnippet>2818</a>
+<a href=#2819 id=2819 data-nosnippet>2819</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fully_qualified_trait_path(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_: <span class="kw-2">&amp;</span>Trait) -&gt; String {
+<a href=#2820 id=2820 data-nosnippet>2820</a>        <span class="kw">let </span>module_def_id = ModuleDefId::TraitId(trait_.id);
+<a href=#2821 id=2821 data-nosnippet>2821</a>        <span class="kw">let </span>visibility = trait_.visibility;
+<a href=#2822 id=2822 data-nosnippet>2822</a>        <span class="kw">let </span>defining_module = <span class="prelude-val">None</span>;
+<a href=#2823 id=2823 data-nosnippet>2823</a>        <span class="kw">let </span>trait_is_visible = module_def_id_is_visible(
+<a href=#2824 id=2824 data-nosnippet>2824</a>            module_def_id,
+<a href=#2825 id=2825 data-nosnippet>2825</a>            <span class="self">self</span>.module_id(),
+<a href=#2826 id=2826 data-nosnippet>2826</a>            visibility,
+<a href=#2827 id=2827 data-nosnippet>2827</a>            defining_module,
+<a href=#2828 id=2828 data-nosnippet>2828</a>            <span class="self">self</span>.interner,
+<a href=#2829 id=2829 data-nosnippet>2829</a>            <span class="self">self</span>.def_maps,
+<a href=#2830 id=2830 data-nosnippet>2830</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies,
+<a href=#2831 id=2831 data-nosnippet>2831</a>        );
+<a href=#2832 id=2832 data-nosnippet>2832</a>
+<a href=#2833 id=2833 data-nosnippet>2833</a>        <span class="kw">if </span>!trait_is_visible {
+<a href=#2834 id=2834 data-nosnippet>2834</a>            <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies;
+<a href=#2835 id=2835 data-nosnippet>2835</a>
+<a href=#2836 id=2836 data-nosnippet>2836</a>            <span class="kw">for </span>reexport <span class="kw">in </span><span class="self">self</span>.interner.get_trait_reexports(trait_.id) {
+<a href=#2837 id=2837 data-nosnippet>2837</a>                <span class="kw">let </span>reexport_is_visible = module_def_id_is_visible(
+<a href=#2838 id=2838 data-nosnippet>2838</a>                    module_def_id,
+<a href=#2839 id=2839 data-nosnippet>2839</a>                    <span class="self">self</span>.module_id(),
+<a href=#2840 id=2840 data-nosnippet>2840</a>                    reexport.visibility,
+<a href=#2841 id=2841 data-nosnippet>2841</a>                    <span class="prelude-val">Some</span>(reexport.module_id),
+<a href=#2842 id=2842 data-nosnippet>2842</a>                    <span class="self">self</span>.interner,
+<a href=#2843 id=2843 data-nosnippet>2843</a>                    <span class="self">self</span>.def_maps,
+<a href=#2844 id=2844 data-nosnippet>2844</a>                    dependencies,
+<a href=#2845 id=2845 data-nosnippet>2845</a>                );
+<a href=#2846 id=2846 data-nosnippet>2846</a>                <span class="kw">if </span>reexport_is_visible {
+<a href=#2847 id=2847 data-nosnippet>2847</a>                    <span class="kw">let </span>module_path = fully_qualified_module_path(
+<a href=#2848 id=2848 data-nosnippet>2848</a>                        <span class="self">self</span>.def_maps,
+<a href=#2849 id=2849 data-nosnippet>2849</a>                        <span class="self">self</span>.crate_graph,
+<a href=#2850 id=2850 data-nosnippet>2850</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
+<a href=#2851 id=2851 data-nosnippet>2851</a>                        reexport.module_id,
+<a href=#2852 id=2852 data-nosnippet>2852</a>                    );
+<a href=#2853 id=2853 data-nosnippet>2853</a>                    <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}"</span>, reexport.name);
+<a href=#2854 id=2854 data-nosnippet>2854</a>                }
+<a href=#2855 id=2855 data-nosnippet>2855</a>            }
+<a href=#2856 id=2856 data-nosnippet>2856</a>
+<a href=#2857 id=2857 data-nosnippet>2857</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(reexport) = get_ancestor_module_reexport(
+<a href=#2858 id=2858 data-nosnippet>2858</a>                module_def_id,
+<a href=#2859 id=2859 data-nosnippet>2859</a>                visibility,
+<a href=#2860 id=2860 data-nosnippet>2860</a>                <span class="self">self</span>.module_id(),
+<a href=#2861 id=2861 data-nosnippet>2861</a>                <span class="self">self</span>.interner,
+<a href=#2862 id=2862 data-nosnippet>2862</a>                <span class="self">self</span>.def_maps,
+<a href=#2863 id=2863 data-nosnippet>2863</a>                dependencies,
+<a href=#2864 id=2864 data-nosnippet>2864</a>            ) {
+<a href=#2865 id=2865 data-nosnippet>2865</a>                <span class="kw">let </span>module_path = fully_qualified_module_path(
+<a href=#2866 id=2866 data-nosnippet>2866</a>                    <span class="self">self</span>.def_maps,
+<a href=#2867 id=2867 data-nosnippet>2867</a>                    <span class="self">self</span>.crate_graph,
+<a href=#2868 id=2868 data-nosnippet>2868</a>                    <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
+<a href=#2869 id=2869 data-nosnippet>2869</a>                    reexport.module_id,
+<a href=#2870 id=2870 data-nosnippet>2870</a>                );
+<a href=#2871 id=2871 data-nosnippet>2871</a>                <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}::{}"</span>, reexport.name, trait_.name);
+<a href=#2872 id=2872 data-nosnippet>2872</a>            }
+<a href=#2873 id=2873 data-nosnippet>2873</a>        }
+<a href=#2874 id=2874 data-nosnippet>2874</a>
+<a href=#2875 id=2875 data-nosnippet>2875</a>        fully_qualified_module_path(<span class="self">self</span>.def_maps, <span class="self">self</span>.crate_graph, <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id, trait_.id.<span class="number">0</span>)
+<a href=#2876 id=2876 data-nosnippet>2876</a>    }
+<a href=#2877 id=2877 data-nosnippet>2877</a>}
+<a href=#2878 id=2878 data-nosnippet>2878</a>
+<a href=#2879 id=2879 data-nosnippet>2879</a><span class="doccomment">/// Binds the ordered [ResolvedGeneric]s of a trait to the ordered generics in a [ResolvedTraitBound].
+<a href=#2880 id=2880 data-nosnippet>2880</a>///
+<a href=#2881 id=2881 data-nosnippet>2881</a>/// Panics if the number of types do not match the ordered generics in the trait.
+<a href=#2882 id=2882 data-nosnippet>2882</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bind_ordered_generics(
+<a href=#2883 id=2883 data-nosnippet>2883</a>    params: <span class="kw-2">&amp;</span>[ResolvedGeneric],
+<a href=#2884 id=2884 data-nosnippet>2884</a>    args: <span class="kw-2">&amp;</span>[Type],
+<a href=#2885 id=2885 data-nosnippet>2885</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#2886 id=2886 data-nosnippet>2886</a>) {
+<a href=#2887 id=2887 data-nosnippet>2887</a>    <span class="macro">assert_eq!</span>(params.len(), args.len(), <span class="string">"unexpected number of ordered generics"</span>);
+<a href=#2888 id=2888 data-nosnippet>2888</a>
+<a href=#2889 id=2889 data-nosnippet>2889</a>    <span class="kw">for </span>(param, arg) <span class="kw">in </span>params.iter().zip(args) {
+<a href=#2890 id=2890 data-nosnippet>2890</a>        bind_generic(param, arg, bindings);
+<a href=#2891 id=2891 data-nosnippet>2891</a>    }
+<a href=#2892 id=2892 data-nosnippet>2892</a>}
+<a href=#2893 id=2893 data-nosnippet>2893</a>
+<a href=#2894 id=2894 data-nosnippet>2894</a><span class="doccomment">/// Binds the associated [ResolvedGeneric]s of a trait to the named generics in a [ResolvedTraitBound].
+<a href=#2895 id=2895 data-nosnippet>2895</a>///
+<a href=#2896 id=2896 data-nosnippet>2896</a>/// Panics if the number of types exceeds the named generics in the trait.
+<a href=#2897 id=2897 data-nosnippet>2897</a>/// Any named parameter that does not appear in the arguments is bound to [Type::Error].
+<a href=#2898 id=2898 data-nosnippet>2898</a></span><span class="kw">fn </span>bind_named_generics(
+<a href=#2899 id=2899 data-nosnippet>2899</a>    <span class="kw-2">mut </span>params: Vec&lt;ResolvedGeneric&gt;,
+<a href=#2900 id=2900 data-nosnippet>2900</a>    args: <span class="kw-2">&amp;</span>[NamedType],
+<a href=#2901 id=2901 data-nosnippet>2901</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#2902 id=2902 data-nosnippet>2902</a>) {
+<a href=#2903 id=2903 data-nosnippet>2903</a>    <span class="macro">assert!</span>(
+<a href=#2904 id=2904 data-nosnippet>2904</a>        args.len() &lt;= params.len(),
+<a href=#2905 id=2905 data-nosnippet>2905</a>        <span class="string">"bind_named_generics: trait bound has more named generics than associated types"
+<a href=#2906 id=2906 data-nosnippet>2906</a>    </span>);
+<a href=#2907 id=2907 data-nosnippet>2907</a>
+<a href=#2908 id=2908 data-nosnippet>2908</a>    <span class="kw">if </span>params.is_empty() {
+<a href=#2909 id=2909 data-nosnippet>2909</a>        <span class="kw">return</span>;
+<a href=#2910 id=2910 data-nosnippet>2910</a>    }
+<a href=#2911 id=2911 data-nosnippet>2911</a>
+<a href=#2912 id=2912 data-nosnippet>2912</a>    <span class="kw">for </span>arg <span class="kw">in </span>args {
+<a href=#2913 id=2913 data-nosnippet>2913</a>        <span class="kw">let </span>i = params
+<a href=#2914 id=2914 data-nosnippet>2914</a>            .iter()
+<a href=#2915 id=2915 data-nosnippet>2915</a>            .position(|typ| <span class="kw-2">*</span>typ.name == arg.name.as_str())
+<a href=#2916 id=2916 data-nosnippet>2916</a>            .unwrap_or_else(|| <span class="macro">unreachable!</span>(<span class="string">"Expected to find associated type named {}"</span>, arg.name));
+<a href=#2917 id=2917 data-nosnippet>2917</a>
+<a href=#2918 id=2918 data-nosnippet>2918</a>        <span class="kw">let </span>param = params.swap_remove(i);
+<a href=#2919 id=2919 data-nosnippet>2919</a>
+<a href=#2920 id=2920 data-nosnippet>2920</a>        bind_generic(<span class="kw-2">&amp;</span>param, <span class="kw-2">&amp;</span>arg.typ, bindings);
+<a href=#2921 id=2921 data-nosnippet>2921</a>    }
+<a href=#2922 id=2922 data-nosnippet>2922</a>
+<a href=#2923 id=2923 data-nosnippet>2923</a>    <span class="kw">for </span>unbound_param <span class="kw">in </span>params {
+<a href=#2924 id=2924 data-nosnippet>2924</a>        bind_generic(<span class="kw-2">&amp;</span>unbound_param, <span class="kw-2">&amp;</span>Type::Error, bindings);
+<a href=#2925 id=2925 data-nosnippet>2925</a>    }
+<a href=#2926 id=2926 data-nosnippet>2926</a>}
+<a href=#2927 id=2927 data-nosnippet>2927</a>
+<a href=#2928 id=2928 data-nosnippet>2928</a><span class="doccomment">/// Binds the type variable in a [ResolvedGeneric], e.g. a generic parameter of a trait,
+<a href=#2929 id=2929 data-nosnippet>2929</a>/// to a [Type], which itself can be an unbound type variable.
+<a href=#2930 id=2930 data-nosnippet>2930</a>///
+<a href=#2931 id=2931 data-nosnippet>2931</a>/// If the type variable itself appears in the type, then it does nothing.
+<a href=#2932 id=2932 data-nosnippet>2932</a></span><span class="kw">fn </span>bind_generic(param: <span class="kw-2">&amp;</span>ResolvedGeneric, arg: <span class="kw-2">&amp;</span>Type, bindings: <span class="kw-2">&amp;mut </span>TypeBindings) {
+<a href=#2933 id=2933 data-nosnippet>2933</a>    <span class="comment">// Avoid binding t = t
+<a href=#2934 id=2934 data-nosnippet>2934</a>    </span><span class="kw">if </span>!arg.occurs(param.type_var.id()) {
+<a href=#2935 id=2935 data-nosnippet>2935</a>        bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
+<a href=#2936 id=2936 data-nosnippet>2936</a>    }
+<a href=#2937 id=2937 data-nosnippet>2937</a>}</code></pre></div></section></main></body></html>

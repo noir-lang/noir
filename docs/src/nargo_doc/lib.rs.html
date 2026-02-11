@@ -611,7 +611,7 @@
 <a href=#611 id=611 data-nosnippet>611</a>    <span class="kw">fn </span>convert_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func_id: FuncId) -&gt; Function {
 <a href=#612 id=612 data-nosnippet>612</a>        <span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id);
 <a href=#613 id=613 data-nosnippet>613</a>        <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="kw">let </span>unconstrained = modifiers.is_unconstrained;
+<a href=#614 id=614 data-nosnippet>614</a>        <span class="kw">let </span>unconstrained = func_meta.is_unconstrained();
 <a href=#615 id=615 data-nosnippet>615</a>        <span class="kw">let </span>comptime = modifiers.is_comptime;
 <a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span>name = modifiers.name.to_string();
 <a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">let </span>comments = <span class="self">self</span>.doc_comments(ReferenceId::Function(func_id));

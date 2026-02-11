@@ -571,7 +571,7 @@
 <a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id);
 <a href=#572 id=572 data-nosnippet>572</a>        <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
 <a href=#573 id=573 data-nosnippet>573</a>
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">if </span>modifiers.is_unconstrained {
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">if </span>func_meta.is_unconstrained() {
 <a href=#575 id=575 data-nosnippet>575</a>            <span class="self">self</span>.push_str(<span class="string">"unconstrained "</span>);
 <a href=#576 id=576 data-nosnippet>576</a>        }
 <a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">if </span>modifiers.is_comptime {
