@@ -29,10 +29,11 @@ pub(crate) const MAX_INSTRUCTIONS: usize = 10;
 
 /// The maximum Brillig weight for a function to be considered "simple" by the inlining cost model.
 /// This is used in `compute_function_should_be_inlined` where instruction weights are in Brillig
-/// cost units (not raw SSA instruction count). A value of 30 preserves the original intent of
-/// inlining functions with ~10 instructions, accounting for the fact that checked integer ops
-/// cost ~3 Brillig opcodes each.
-pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 30;
+/// cost units (not raw SSA instruction count). A value of 80 covers the worst case of 10 SSA
+/// instructions at maximum per-instruction cost (checked u32 mul = 8 opcodes each).
+/// The `inline_simple_functions` pass handles the common case using raw SSA count;
+/// this threshold acts as a safety net in the cost model.
+pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 80;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
