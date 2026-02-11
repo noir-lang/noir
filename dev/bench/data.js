@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770833243803,
+  "lastUpdate": 1770847435769,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23145,48 +23145,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "fe873b94e791f7c4d7c0d183030efb94fc1777ad",
-          "message": "chore!: bump MSRV to 1.87.0 (#11449)",
-          "timestamp": "2026-02-04T12:52:12Z",
-          "tree_id": "8c139655c8e2c29dfab9c416e10e3a39d2810a67",
-          "url": "https://github.com/noir-lang/noir/commit/fe873b94e791f7c4d7c0d183030efb94fc1777ad"
-        },
-        "date": 1770211164761,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 239867,
-            "range": "± 1149",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217811,
-            "range": "± 2869",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2209332,
-            "range": "± 4440",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "5766d1933e78a8a1b091146a4a0aa13f4fe8a6be",
           "message": "chore: migrate AES implementation from libaes to RustCrypto (#11453)",
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2201746,
             "range": "± 1256",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2db78f8894936db05c53430f364360ac9cc5c61f",
+          "message": "chore: add frontend tests for complex combinations of frontend features (#11544)",
+          "timestamp": "2026-02-11T21:34:53Z",
+          "tree_id": "7542525665c92d0971847c919fc8c8a137fa1a67",
+          "url": "https://github.com/noir-lang/noir/commit/2db78f8894936db05c53430f364360ac9cc5c61f"
+        },
+        "date": 1770847391613,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253112,
+            "range": "± 1195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219293,
+            "range": "± 3875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2735043,
+            "range": "± 2783",
             "unit": "ns/iter"
           }
         ]
