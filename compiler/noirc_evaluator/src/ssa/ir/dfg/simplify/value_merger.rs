@@ -172,9 +172,14 @@ impl<'a> ValueMerger<'a> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
                     self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                        .insert_array_get_with_simplify(
+                            array,
+                            index,
+                            self.block,
+                            typevars,
+                            self.call_stack,
+                        )
                         .first()
                 };
 
@@ -235,14 +240,15 @@ impl<'a> ValueMerger<'a> {
 
                 let mut get_element = |array, typevars, len: SemiFlattenedLength| {
                     assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
-                    let get = Instruction::ArrayGet { array, index };
-                    let results = self.dfg.insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars,
-                        self.call_stack,
-                    );
-                    results.first()
+                    self.dfg
+                        .insert_array_get_with_simplify(
+                            array,
+                            index,
+                            self.block,
+                            typevars,
+                            self.call_stack,
+                        )
+                        .first()
                 };
 
                 // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.

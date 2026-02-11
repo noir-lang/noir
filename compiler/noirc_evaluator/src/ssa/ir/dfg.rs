@@ -322,9 +322,35 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        let simplify_result =
-            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+        let skip_array_set_when_simplifying_array_get = true;
+        let simplify_result = simplify(
+            &instruction,
+            self,
+            block,
+            ctrl_typevars.clone(),
+            call_stack,
+            skip_array_set_when_simplifying_array_get,
+        );
 
+        self.handle_simplify_result(
+            simplify_result,
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            existing_id,
+        )
+    }
+
+    fn handle_simplify_result(
+        &mut self,
+        simplify_result: SimplifyResult,
+        instruction: Instruction,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+        existing_id: Option<InstructionId>,
+    ) -> InsertInstructionResult<'_> {
         match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
@@ -393,6 +419,36 @@ impl DataFlowGraph {
                 )
             }
         }
+    }
+
+    pub(crate) fn insert_array_get_with_simplify(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        block: BasicBlockId,
+        ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStackId,
+    ) -> InsertInstructionResult<'_> {
+        let instruction = Instruction::ArrayGet { array, index };
+
+        let skip_array_set_when_simplifying_array_get = false;
+        let simplify_result = simplify(
+            &instruction,
+            self,
+            block,
+            ctrl_typevars.clone(),
+            call_stack,
+            skip_array_set_when_simplifying_array_get,
+        );
+
+        self.handle_simplify_result(
+            simplify_result,
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            None,
+        )
     }
 
     /// Replace an existing instruction with a new one.

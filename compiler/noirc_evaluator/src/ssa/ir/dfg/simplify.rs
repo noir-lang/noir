@@ -75,6 +75,7 @@ pub(crate) fn simplify(
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
     call_stack: CallStackId,
+    skip_array_set_when_simplifying_array_get: bool,
 ) -> SimplifyResult {
     use SimplifyResult::*;
 
@@ -115,7 +116,12 @@ pub(crate) fn simplify(
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                return try_optimize_array_get_from_previous_set(dfg, *array, index);
+                return try_optimize_array_get_from_previous_instructions(
+                    dfg,
+                    *array,
+                    index,
+                    skip_array_set_when_simplifying_array_get,
+                );
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
@@ -357,7 +363,13 @@ fn optimize_length_one_array_read(
     );
     dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
 
-    let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
+    let recurse = true;
+    let result = try_optimize_array_get_from_previous_instructions(
+        dfg,
+        array,
+        FieldElement::zero(),
+        recurse,
+    );
     if let SimplifyResult::None = result {
         SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } else {
@@ -385,10 +397,11 @@ fn optimize_length_one_array_read(
 /// That is, we have multiple `array_set` instructions setting various constant indexes
 /// of the same array, returning a modified version. We want to go backwards until we
 /// find the last `array_set` for the index we are interested in, and return the value set.
-fn try_optimize_array_get_from_previous_set(
+fn try_optimize_array_get_from_previous_instructions(
     dfg: &mut DataFlowGraph,
     mut array_id: ValueId,
     target_index: FieldElement,
+    skip_array_set: bool,
 ) -> SimplifyResult {
     // The target index must be less than the maximum array length
     let Some(target_index_u32) = target_index.try_to_u32() else {
@@ -401,7 +414,7 @@ fn try_optimize_array_get_from_previous_set(
         if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
             match instruction {
                 Instruction::ArraySet { array, index, value, .. } => {
-                    if let Some(constant) = dfg.get_numeric_constant(*index) {
+                    if !skip_array_set && let Some(constant) = dfg.get_numeric_constant(*index) {
                         if constant == target_index {
                             return SimplifyResult::SimplifiedTo(*value);
                         }
