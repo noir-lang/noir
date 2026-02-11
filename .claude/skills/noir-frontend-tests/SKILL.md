@@ -124,6 +124,7 @@ fn descriptive_name() {
   - Fix: mark items `pub` to suppress "unused" warnings.
   - `pub struct`, `pub fn` for items not called from `main()`.
   - If a struct is pub but never constructed, that's still a warning — add `pub` to fields too, or construct it.
+  - Use the `_` placeholder to suppress unused variable warnings (e.g., an unused `x: u32` param becomes `_x: u32`)
 - **Always include `fn main() {}`**: Programs without `main` will fail differently.
 - **No stdlib by default**: `get_program` doesn't include the stdlib. Use `check_errors_with_stdlib` or `root_and_stdlib: true` if you need stdlib types/traits.
 - **Run command**: `cargo nextest run -p noirc_frontend -E 'test(test_name)'`
