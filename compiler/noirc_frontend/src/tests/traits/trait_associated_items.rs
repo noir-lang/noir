@@ -1103,3 +1103,24 @@ fn fully_qualified_nested_associated_type() {
     ";
     check_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11538
+#[test]
+fn associated_constant_can_reference_generic_from_trait_bound() {
+    let src = r#"
+    pub trait E {
+        let x: u32;
+    }
+
+    pub struct A<F> {
+        pub f: F,
+    }
+
+    impl<X: E> E for A<X> {
+        let x: u32 = X::x;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
