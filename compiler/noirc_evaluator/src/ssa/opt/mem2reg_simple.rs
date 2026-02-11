@@ -1,6 +1,6 @@
 //! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
 use iter_extended::vecmap;
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
 
 use crate::ssa::{
@@ -414,7 +414,7 @@ fn collect_all_eligible_variables(
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg_simple.
-    let mut variables_with_stores_in_decl_block = FxHashSet::default();
+    let mut variables_with_stores_in_decl_block = HashSet::default();
 
     for block_id in blocks.iter().copied() {
         let block = &function.dfg[block_id];

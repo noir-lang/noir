@@ -1004,4 +1004,29 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn constant_jmpif_with_args() {
+        let src = r#"
+            brillig(inline) fn func f0 {
+              b0():
+                jmpif u1 1 then: b1(Field 2), else: b2(Field 3)
+              b1(v1: Field):
+                jmp b3(v1)
+              b2(v2: Field):
+                jmp b3(v2)
+              b3(v3: Field):
+                return v3
+            }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func f0 {
+              b0():
+                return Field 2
+            }
+        ");
+    }
 }
