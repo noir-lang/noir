@@ -2740,11 +2740,11 @@ mod tests {
             jmp b1()
           b1():
             v2 = load v1 -> u1
-            jmpif v2 then: b2, else: b7
+            jmpif v2 then: b2(), else: b7()
           b2():
-            jmpif v2 then: b3, else: b6
+            jmpif v2 then: b3(), else: b6()
           b3():
-            jmpif v2 then: b4, else: b5
+            jmpif v2 then: b4(), else: b5()
           b4():
             v3 = not v2
             jmp b6()
