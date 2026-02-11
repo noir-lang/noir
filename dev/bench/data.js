@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770822556920,
+  "lastUpdate": 1770822559220,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -40079,105 +40079,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "de6e046d46a7cf9c7eed467803c1962078b4fc12",
-          "message": "feat(lsp): suggest function parameters (#11441)",
-          "timestamp": "2026-02-03T18:44:33Z",
-          "tree_id": "278db7056bc63909f5322b6091ca8a09f6304be9",
-          "url": "https://github.com/noir-lang/noir/commit/de6e046d46a7cf9c7eed467803c1962078b4fc12"
-        },
-        "date": 1770146241828,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 774.2,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 703.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 338.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 268.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 273,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 333.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 272.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 533.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 575.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 421.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 641.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 805.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 200.4,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2070.2,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 161.6,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -44977,6 +44878,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 333.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 281.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 534,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 576,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 425.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 641.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 804.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 200.2,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2070.2,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 161.7,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6bb900ea794324b871aa97cfda954ba4c339f922",
+          "message": "chore: add noir-frontend-tests skill for writing frontend unit tests (#11542)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-02-11T14:54:13Z",
+          "tree_id": "b11a6e8e32c3231cb9040395daaa7f1bfecc099b",
+          "url": "https://github.com/noir-lang/noir/commit/6bb900ea794324b871aa97cfda954ba4c339f922"
+        },
+        "date": 1770822510893,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 774.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 701.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 337.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 268.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 272.9,
             "unit": "KB"
           },
           {
