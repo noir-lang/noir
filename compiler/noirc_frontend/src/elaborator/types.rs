@@ -2613,8 +2613,7 @@ impl Elaborator<'_> {
     /// Check if the callee is an unconstrained function, or a variable referring to one.
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
         if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
-            let modifiers = self.interner.function_modifiers(&func_id);
-            modifiers.is_unconstrained
+            self.interner.function_meta(&func_id).is_unconstrained()
         } else {
             false
         }

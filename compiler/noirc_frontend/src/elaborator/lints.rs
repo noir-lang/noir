@@ -50,15 +50,16 @@ pub(super) fn inlining_attributes(
     let attribute = modifiers.attributes.function()?;
     let location = attribute.location;
     let ident = func_meta_name_ident(func, modifiers);
+    let is_unconstrained = func.is_unconstrained();
 
     match &attribute.kind {
-        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
+        FunctionAttributeKind::NoPredicates if is_unconstrained => {
             Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
+        FunctionAttributeKind::Fold if is_unconstrained => {
             Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+        FunctionAttributeKind::InlineNever if !is_unconstrained => {
             Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
         }
         _ => None,
@@ -124,7 +125,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
+    if func.is_unconstrained() {
         return None;
     }
 
