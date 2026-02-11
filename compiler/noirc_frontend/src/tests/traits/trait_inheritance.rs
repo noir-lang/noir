@@ -342,3 +342,129 @@ fn trait_self_bound_with_calling_method_on_self_in_default_method() {
     "#;
     check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }
+
+#[test]
+fn trait_inheritance_with_generic_impl_and_base_call() {
+    let src = r#"
+    trait Base {
+        fn base_method(self) -> Field;
+    }
+
+    trait Extended: Base {
+        fn extended_method(self) -> Field;
+    }
+
+    struct Data<T> {
+        value: T,
+    }
+
+    impl Base for Data<Field> {
+        fn base_method(self) -> Field {
+            self.value
+        }
+    }
+
+    impl Extended for Data<Field> {
+        fn extended_method(self) -> Field {
+            self.base_method() + 1
+        }
+    }
+
+    fn use_extended<T>(t: T) -> Field where T: Extended {
+        t.extended_method()
+    }
+
+    fn main() {
+        let d = Data { value: 10 as Field };
+        assert(use_extended(d) == 11);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Known bug: Self::A from grandparent trait not accessible in impl
+
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn supertrait_associated_type_in_impl() {
+    // Bug: Self::Key from supertrait KeyType not resolved in Lookup impl
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    trait Lookup: KeyType {
+        fn lookup(self, key: Self::Key) -> Field;
+    }
+
+    struct Map {
+        key: Field,
+        value: Field,
+    }
+
+    impl KeyType for Map {
+        type Key = Field;
+    }
+
+    impl Lookup for Map {
+        fn lookup(self, key: Self::Key) -> Field {
+            if self.key == key { self.value } else { 0 }
+        }
+    }
+
+    fn main() {
+        let m = Map { key: 1, value: 42 };
+        assert(m.lookup(1) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn trait_inheritance_chain_with_associated_types() {
+    // Bug: Self::A from grandparent trait Level1 not accessible in Level3 impl.
+    // Self::B from parent trait Level2 also not accessible.
+    let src = r#"
+    trait Level1 {
+        type A;
+    }
+
+    trait Level2: Level1 {
+        type B;
+        fn get_a(self) -> Self::A;
+    }
+
+    trait Level3: Level2 {
+        fn get_b(self) -> Self::B;
+    }
+
+    struct Data {
+        a: Field,
+        b: bool,
+    }
+
+    impl Level1 for Data {
+        type A = Field;
+    }
+
+    impl Level2 for Data {
+        type B = bool;
+        fn get_a(self) -> Self::A { self.a }
+    }
+
+    impl Level3 for Data {
+        fn get_b(self) -> Self::B { self.b }
+    }
+
+    fn process<T>(t: T) -> Field where T: Level3 {
+        t.get_a()
+    }
+
+    fn main() {
+        let d = Data { a: 42, b: true };
+        assert(process(d) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
