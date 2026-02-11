@@ -3445,14 +3445,19 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    // When an array has unknown combined aliases (e.g. mixing a block parameter with local
-    // allocations), `get_aliases_for_value().iter()` yields nothing, so references with
-    // known aliases inside the array are not recorded in `aliased_references`.
-    // This test checks the Store instruction path: storing such an array must still track
-    // its individual element aliases.
-    #[test]
-    fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
-        let src = r#"
+    /// This module contains a set of tests for a class of bugs related to unknown combined aliases.
+    ///
+    /// When an array has unknown combined aliases (e.g. mixing a block parameter with local
+    /// allocations), `get_aliases_for_value().iter()` yields nothing, so references with
+    /// known aliases inside the array are not recorded in `aliased_references`.
+    mod unknown_combined_aliases {
+        use super::*;
+
+        /// This test checks the Store instruction path: storing such an array must still track
+        /// its individual element aliases.
+        #[test]
+        fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
+            let src = r#"
             brillig(inline) impure fn main f0 {
               b0():
                 jmpif u1 0 then: b1, else: b2
@@ -3487,15 +3492,14 @@ mod tests {
             }
         "#;
 
-        assert_ssa_does_not_change(src, Ssa::mem2reg);
-    }
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
 
-    // Same class of bug as above but in the IfElse instruction path: when one of the
-    // IfElse operands is an array with unknown combined aliases, its known element aliases
-    // are not recorded in `aliased_references`.
-    #[test]
-    fn keep_store_when_if_else_operand_has_unknown_aliases_from_block_param() {
-        let src = r#"
+        // When one of the IfElse operands is an array with unknown combined aliases,
+        // its known element aliases are not recorded in `aliased_references`.
+        #[test]
+        fn keep_store_when_if_else_operand_has_unknown_aliases_from_block_param() {
+            let src = r#"
             brillig(inline) fn main f0 {
               b0():
                 v0 = allocate -> &mut u1
@@ -3519,31 +3523,30 @@ mod tests {
                 v13 = load v12 -> u1
                 return v13
             }
-        "#;
+            "#;
 
-        assert_ssa_does_not_change(src, Ssa::mem2reg);
-    }
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
 
-    // Same class of bug as above but in the Call instruction path: when a call argument
-    // is an array with unknown combined aliases, its known element aliases must still be
-    // recorded in `instruction_input_references` so that stores to those elements are
-    // not incorrectly removed.
-    //
-    // This test directly checks the `instruction_input_references` set because the bug
-    // is currently masked at the store-removal stage by `mark_all_unknown` → `clear_aliases`
-    // making the aliases unknown (which conservatively protects stores).
-    #[test]
-    fn call_with_unknown_alias_array_populates_instruction_input_references() {
-        use crate::ssa::ir::basic_block::BasicBlockId;
-        use crate::ssa::ir::instruction::Instruction;
+        // This test checks the Call instruction path: to ensure that when a call argument
+        // is an array with unknown combined aliases, stores to those elements are
+        // not incorrectly removed. 
+        //
+        // This test directly checks the `instruction_input_references` set because the bug
+        // is currently masked at the store-removal stage by `mark_all_unknown` → `clear_aliases`
+        // making the aliases unknown (which conservatively protects stores).
+        #[test]
+        fn call_with_unknown_alias_array_populates_instruction_input_references() {
+            use crate::ssa::ir::basic_block::BasicBlockId;
+            use crate::ssa::ir::instruction::Instruction;
 
-        // v0 is allocated in b0 and passed via an array to b1 as a block parameter,
-        // giving it unknown aliases. v4 is locally allocated in b1 with known aliases.
-        // make_array [v3, v4] combines unknown (v3 from array_get on block param) with
-        // known (v4), producing unknown combined aliases. When this array is passed to
-        // call f1, for_each_value_alias must recurse into the MakeArray elements to find
-        // v4 and add it to instruction_input_references.
-        let src = r#"
+            // v0 is allocated in b0 and passed via an array to b1 as a block parameter,
+            // giving it unknown aliases. v4 is locally allocated in b1 with known aliases.
+            // make_array [v3, v4] combines unknown (v3 from array_get on block param) with
+            // known (v4), producing unknown combined aliases. When this array is passed to
+            // call f1, for_each_value_alias must recurse into the MakeArray elements to find
+            // v4 and add it to instruction_input_references.
+            let src = r#"
             brillig(inline) fn main f0 {
               b0():
                 v0 = allocate -> &mut Field
@@ -3564,31 +3567,32 @@ mod tests {
                 v2 = load v1 -> Field
                 return v2
             }
-        "#;
+            "#;
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main_func = ssa.main_mut();
-        let input_refs = main_func.mem2reg_instruction_input_references();
+            let mut ssa = Ssa::from_str(src).unwrap();
+            let main_func = ssa.main_mut();
+            let input_refs = main_func.mem2reg_instruction_input_references();
 
-        // Find the allocate in b1 (the second block). Its result must be in
-        // instruction_input_references because it is transitively passed to a call.
-        let b1 = BasicBlockId::test_new(1);
-        let v4 = main_func.dfg[b1]
-            .instructions()
-            .iter()
-            .find(|&&inst| matches!(&main_func.dfg[inst], Instruction::Allocate))
-            .map(|&inst| {
-                let [result] = main_func.dfg.instruction_result(inst);
-                result
-            })
-            .expect("Expected an allocate in b1");
+            // Find the allocate in b1 (the second block). Its result must be in
+            // instruction_input_references because it is transitively passed to a call.
+            let b1 = BasicBlockId::test_new(1);
+            let v4 = main_func.dfg[b1]
+                .instructions()
+                .iter()
+                .find(|&&inst| matches!(&main_func.dfg[inst], Instruction::Allocate))
+                .map(|&inst| {
+                    let [result] = main_func.dfg.instruction_result(inst);
+                    result
+                })
+                .expect("Expected an allocate in b1");
 
-        assert!(
-            input_refs.contains(&v4),
-            "Local allocate result {v4} should be in instruction_input_references \
+            assert!(
+                input_refs.contains(&v4),
+                "Local allocate result {v4} should be in instruction_input_references \
              because it is an element of an array passed to a call. \
              Got: {input_refs:?}"
-        );
+            );
+        }
     }
 
     #[test]
