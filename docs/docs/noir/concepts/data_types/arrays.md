@@ -385,6 +385,22 @@ fn main() {
 }
 ```
 
+### subarray
+
+Returns a subarray of length `M` starting at `offset`. Requires `offset + M <= N`.
+
+```rust
+fn subarray<let M: u32>(self, offset: u32) -> [T; M]
+```
+
+```rust
+fn main() {
+    let arr = [10, 20, 30, 40, 50];
+    let sub: [Field; 3] = arr.subarray(1);
+    assert_eq(sub, [20, 30, 40]);
+}
+```
+
 ### as_str_unchecked
 
 Converts a byte array of type `[u8; N]` to a string. Note that this performs no UTF-8 validation -

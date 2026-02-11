@@ -230,6 +230,26 @@ impl<T, let N: u32> [T; N] {
         }
         result
     }
+
+    /// Returns a subarray of length `M` starting at `offset`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// fn main() {
+    ///     let arr = [10, 20, 30, 40, 50];
+    ///     let sub: [Field; 3] = arr.subarray(1);
+    ///     assert_eq(sub, [20, 30, 40]);
+    /// }
+    /// ```
+    pub fn subarray<let M: u32>(self, offset: u32) -> [T; M] {
+        assert(offset + M <= N, "subarray: offset + length exceeds array length");
+        let mut result = [crate::mem::zeroed(); M];
+        for i in 0..M {
+            result[i] = self[offset + i];
+        }
+        result
+    }
 }
 
 impl<T, let N: u32> [T; N]
@@ -498,5 +518,26 @@ mod test {
         let arr2: [Field; 0] = [];
         let concatenated_arr = arr1.concat(arr2);
         assert_eq(concatenated_arr, []);
+    }
+
+    #[test]
+    fn subarray_middle() {
+        let arr = [10, 20, 30, 40, 50];
+        let sub: [Field; 3] = arr.subarray(1);
+        assert_eq(sub, [20, 30, 40]);
+    }
+
+    #[test]
+    fn subarray_full_array() {
+        let arr = [1, 2, 3];
+        let sub: [Field; 3] = arr.subarray(0);
+        assert_eq(sub, [1, 2, 3]);
+    }
+
+    #[test]
+    fn subarray_empty_output() {
+        let arr = [1, 2, 3];
+        let sub: [Field; 0] = arr.subarray(2);
+        assert_eq(sub, []);
     }
 }
