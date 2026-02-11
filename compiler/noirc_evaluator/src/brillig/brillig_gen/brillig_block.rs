@@ -186,8 +186,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_hoisted_constants
     }
 
-    // ── Spill management ──────────────────────────────────────────────────
-
     /// Check if allocating `n` more registers would exceed the stack frame limit.
     fn needs_spill_for(&self, n: usize) -> bool {
         if self.building_globals || self.spill_manager.is_none() {
@@ -290,8 +288,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ) -> SingleAddrVariable {
         self.define_variable(value_id, dfg).extract_single_addr()
     }
-
-    // ── End spill management ─────────────────────────────────────────────
 
     /// Internal method for [BrilligBlock::compile_block] that actually kicks off the Brillig compilation process.
     ///
