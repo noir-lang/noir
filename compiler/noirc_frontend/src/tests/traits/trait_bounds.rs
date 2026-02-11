@@ -649,3 +649,25 @@ fn where_clause_on_self_type_with_generic() {
     "#;
     assert_no_errors(src);
 }
+
+// Regression test for https://github.com/noir-lang/noir/issues/11553
+#[test]
+fn nested_angle_brackets_in_type_position() {
+    let src = r#"
+    pub trait HasKey {
+        type Key;
+    }
+
+    pub struct Store<K> {
+        key: K,
+    }
+
+    pub fn make_store<T>(key: <T as HasKey>::Key) -> Store<<T as HasKey>::Key>
+    where
+        T: HasKey,
+    {
+        Store { key }
+    }
+    "#;
+    assert_no_errors(src);
+}
