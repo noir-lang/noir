@@ -2650,7 +2650,7 @@ fn function_def_is_unconstrained(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2897,8 +2897,9 @@ fn function_def_set_unconstrained(
 
     let unconstrained = get_bool(unconstrained)?;
 
-    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-    modifiers.is_unconstrained = unconstrained;
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.set_unconstrained(unconstrained);
+    });
 
     Ok(Value::Unit)
 }

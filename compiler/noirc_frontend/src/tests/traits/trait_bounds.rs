@@ -604,54 +604,48 @@ fn errors_on_mutually_recursive_impls() {
 
 // Regression test for https://github.com/noir-lang/noir/issues/11514
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn where_clause_on_generic_struct_parameter() {
     let src = r#"
     pub trait E {
-        fn e(self) -> u32;
+        fn e(self);
     }
 
-    struct A<F> {
+    pub struct A<F> {
         f: F,
     }
 
-    struct F<G> {
+    pub struct F<G> {
         g: G,
     }
 
-    fn f<X>(w: A<F<X>>)
+    pub fn f<X>(w: A<F<X>>)
     where
         F<X>: E,
     {
         w.f.e();
     }
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
 
 // Regression test for https://github.com/noir-lang/noir/issues/11514 (simplified)
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn where_clause_on_self_type_with_generic() {
     let src = r#"
     pub trait E {
-        fn e(self) -> u32;
+        fn e(self);
     }
 
-    struct A<F> {
+    pub struct A<F> {
         f: F,
     }
 
-    fn f<X>(a: A<X>)
+    pub fn f<X>(a: A<X>)
     where
         A<X>: E,
     {
         a.e();
     }
-
-    fn main() {}
     "#;
     assert_no_errors(src);
 }
