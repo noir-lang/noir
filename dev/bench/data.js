@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770848050668,
+  "lastUpdate": 1770848596067,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14856,95 +14856,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "fe873b94e791f7c4d7c0d183030efb94fc1777ad",
-          "message": "chore!: bump MSRV to 1.87.0 (#11449)",
-          "timestamp": "2026-02-04T12:52:12Z",
-          "tree_id": "8c139655c8e2c29dfab9c416e10e3a39d2810a67",
-          "url": "https://github.com/noir-lang/noir/commit/fe873b94e791f7c4d7c0d183030efb94fc1777ad"
-        },
-        "date": 1770212632647,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 273.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 311.45,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 262.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 352.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 351.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1760,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 352.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 540.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 481.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 350.53,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 74.17,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.4,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "5766d1933e78a8a1b091146a4a0aa13f4fe8a6be",
           "message": "chore: migrate AES implementation from libaes to RustCrypto (#11453)",
@@ -19220,6 +19131,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/33ebdadc7a27f0f7573b47400ad5c546df91adcf"
         },
         "date": 1770833197377,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 273.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 310.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 262.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 367.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 367.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1310,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1310,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 367.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 547.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 367.03,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 74.21,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.27,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2db78f8894936db05c53430f364360ac9cc5c61f",
+          "message": "chore: add frontend tests for complex combinations of frontend features (#11544)",
+          "timestamp": "2026-02-11T21:34:53Z",
+          "tree_id": "7542525665c92d0971847c919fc8c8a137fa1a67",
+          "url": "https://github.com/noir-lang/noir/commit/2db78f8894936db05c53430f364360ac9cc5c61f"
+        },
+        "date": 1770848552645,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
