@@ -384,6 +384,7 @@ fn trait_inheritance_with_generic_impl_and_base_call() {
 
 // Known bug: Self::A from grandparent trait not accessible in impl
 
+/// TODO(https://github.com/noir-lang/noir/issues/11547): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn supertrait_associated_type_in_impl() {
@@ -420,6 +421,7 @@ fn supertrait_associated_type_in_impl() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11548): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn trait_inheritance_chain_with_associated_types() {

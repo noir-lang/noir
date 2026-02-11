@@ -1458,6 +1458,7 @@ fn associated_type_in_generic_impl() {
 // The compiler creates two distinct representations of the same associated
 // type that fail to unify with each other.
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_in_return_type() {
@@ -1487,6 +1488,7 @@ fn associated_type_shorthand_in_return_type() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
@@ -1524,6 +1526,7 @@ fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_simple_identity() {
@@ -1551,6 +1554,7 @@ fn associated_type_shorthand_simple_identity() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_of_generic_in_param_position() {
@@ -1591,6 +1595,7 @@ fn associated_type_of_generic_in_param_position() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_in_param_position() {
@@ -1623,6 +1628,7 @@ fn associated_type_shorthand_in_param_position() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11549): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn nested_associated_type_access_fails() {
@@ -1665,6 +1671,7 @@ fn nested_associated_type_access_fails() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_in_generic_function_local_var() {
@@ -1700,6 +1707,7 @@ fn associated_type_in_generic_function_local_var() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_shorthand_used_as_struct_field_type() {
@@ -1725,6 +1733,7 @@ fn associated_type_shorthand_used_as_struct_field_type() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn generic_impl_with_associated_type_in_method_signature() {
@@ -1760,6 +1769,7 @@ fn generic_impl_with_associated_type_in_method_signature() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11550): remove should_panic once fixed
 #[test]
 #[should_panic] // ICE: "expected some trait_method_id when use_impl is true"
 fn generic_fn_returning_tuple_with_associated_type() {
@@ -1790,6 +1800,7 @@ fn generic_fn_returning_tuple_with_associated_type() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11551): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn trait_with_associated_type_used_in_other_method_signature() {
@@ -1829,6 +1840,27 @@ fn trait_with_associated_type_used_in_other_method_signature() {
         let result = x.chain();
         assert(result == 1);
     }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11538
+#[test]
+fn associated_constant_can_reference_generic_from_trait_bound() {
+    let src = r#"
+    pub trait E {
+        let x: u32;
+    }
+
+    pub struct A<F> {
+        pub f: F,
+    }
+
+    impl<X: E> E for A<X> {
+        let x: u32 = X::x;
+    }
+
+    fn main() {}
     "#;
     assert_no_errors(src);
 }

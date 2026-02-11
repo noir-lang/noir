@@ -602,6 +602,7 @@ fn errors_on_mutually_recursive_impls() {
     check_errors(src);
 }
 
+// Regression test for https://github.com/noir-lang/noir/issues/11514
 #[test]
 fn where_clause_on_generic_struct_parameter() {
     let src = r#"
@@ -627,6 +628,7 @@ fn where_clause_on_generic_struct_parameter() {
     assert_no_errors(src);
 }
 
+// Regression test for https://github.com/noir-lang/noir/issues/11514 (simplified)
 #[test]
 fn where_clause_on_self_type_with_generic() {
     let src = r#"
@@ -1117,6 +1119,7 @@ fn associated_type_as_generic_trait_param_spaced() {
 // Known bug: Where clause on associated type using shorthand is ignored.
 // The compiler doesn't use C::Elem: Printable for method resolution.
 
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn where_clause_on_associated_type_shorthand_ignored() {
@@ -1164,6 +1167,7 @@ fn where_clause_on_associated_type_shorthand_ignored() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn where_clause_on_associated_type_shorthand_in_function() {
@@ -1206,6 +1210,7 @@ fn where_clause_on_associated_type_shorthand_in_function() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn multiple_associated_types_in_where_clause() {
@@ -1259,6 +1264,7 @@ fn multiple_associated_types_in_where_clause() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn where_clause_on_associated_type_of_generic_in_trait_impl() {
@@ -1310,6 +1316,7 @@ fn where_clause_on_associated_type_of_generic_in_trait_impl() {
     assert_no_errors(src);
 }
 
+/// TODO(https://github.com/noir-lang/noir/issues/11553): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
 fn associated_type_as_generic_trait_param_with_nested_angle_brackets() {

@@ -898,3 +898,33 @@ fn two_traits_same_method_name_disambiguated_by_constraint() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11540
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn trait_method_resolved_with_multiple_impls_different_type_params() {
+    let src = r#"
+    pub struct Foo<let Y: u32, A> {}
+
+    pub trait Bar {
+        comptime fn bar();
+    }
+
+    impl<let X: u32> Bar for Foo<X, u8> {
+        comptime fn bar() {}
+    }
+
+    impl<let X: u32> Bar for Foo<X, u16> {
+        comptime fn bar() {}
+    }
+
+    fn g<let Z: u32>() {
+        Foo::<Z, u8>::bar();
+    }
+
+    fn main() {
+        g::<1>();
+    }
+    "#;
+    assert_no_errors(src);
+}
