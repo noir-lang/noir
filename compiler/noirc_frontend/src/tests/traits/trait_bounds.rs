@@ -491,7 +491,7 @@ fn trait_bound_on_implementing_type() {
             <Self as Foo>::foo()
         }
     }
-    
+
     fn main() {
         GenericStruct::<Field>::bar();
     }
@@ -574,12 +574,16 @@ fn errors_on_mutually_recursive_impls() {
     pub struct Baz {}
 
     impl Foo for Bar where Baz: Foo {
+                                ^^^ Constraint for `Baz: Foo` is not needed, another matching impl is already in scope
+                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Baz {}).foo()
         }
     }
 
     impl Foo for Baz where Bar: Foo {
+                                ^^^ Constraint for `Bar: Foo` is not needed, another matching impl is already in scope
+                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Bar {}).foo()
         }
@@ -596,4 +600,50 @@ fn errors_on_mutually_recursive_impls() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn where_clause_on_generic_struct_parameter() {
+    let src = r#"
+    pub trait E {
+        fn e(self);
+    }
+
+    pub struct A<F> {
+        f: F,
+    }
+
+    pub struct F<G> {
+        g: G,
+    }
+
+    pub fn f<X>(w: A<F<X>>)
+    where
+        F<X>: E,
+    {
+        w.f.e();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn where_clause_on_self_type_with_generic() {
+    let src = r#"
+    pub trait E {
+        fn e(self);
+    }
+
+    pub struct A<F> {
+        f: F,
+    }
+
+    pub fn f<X>(a: A<X>)
+    where
+        A<X>: E,
+    {
+        a.e();
+    }
+    "#;
+    assert_no_errors(src);
 }

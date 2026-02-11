@@ -60,7 +60,7 @@ impl Elaborator<'_> {
                 let mut attributes = typ.struct_def.attributes.iter();
                 if let Some(message) = attributes.find_map(|attr| attr.kind.must_use_message()) {
                     struct_def.must_use = crate::MustUse::MustUse(message);
-                };
+                }
                 struct_def.set_fields(fields);
             });
         }
