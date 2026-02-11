@@ -3530,7 +3530,7 @@ mod tests {
 
         // This test checks the Call instruction path: to ensure that when a call argument
         // is an array with unknown combined aliases, stores to those elements are
-        // not incorrectly removed. 
+        // not incorrectly removed.
         //
         // This test directly checks the `instruction_input_references` set because the bug
         // is currently masked at the store-removal stage by `mark_all_unknown` → `clear_aliases`
