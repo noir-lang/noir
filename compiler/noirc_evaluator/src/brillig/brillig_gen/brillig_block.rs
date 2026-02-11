@@ -346,7 +346,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ) {
         let then_block = &dfg[then_destination];
 
-        // Vector of ()
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
         for (arg, param) in then_arguments.iter().zip(then_block.parameters()) {
             let param_reg =
