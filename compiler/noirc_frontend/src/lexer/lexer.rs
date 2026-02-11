@@ -597,13 +597,13 @@ impl<'a> Lexer<'a> {
                     };
 
                     string.push(char);
-                    length += 1;
+                    length += char.len_utf8() as u32;
 
                     if char == '{' || char == '}' {
                         // This might look a bit strange, but if there's `{{` or `}}` in the format string
                         // then it will be `{` and `}` in the string fragment respectively, but on the codegen
                         // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
-                        // thus the actual length of the codegen'd string will be one more than what we get here.
+                        // thus the length of `{{` and `}}` need to be counted as 2.
                         //
                         // We could just make the fragment include the double curly braces, but then the interpreter
                         // would need to undo the curly braces, so it's simpler to add them during codegen.
@@ -673,8 +673,8 @@ impl<'a> Lexer<'a> {
                         other
                     }
                 };
-                length += 1;
                 string.push(char);
+                length += char.len_utf8() as u32;
             }
 
             length += 1; // for the closing curly brace
@@ -1654,5 +1654,18 @@ mod tests {
         let str = "f\"{";
         let mut lexer = Lexer::new_with_dummy_file(str);
         let _ = lexer.next_token();
+    }
+
+    #[test]
+    fn fmtstr_utf8_length() {
+        let str = "f\"黒{x}\"";
+        assert_eq!(str.len(), 9);
+        assert_eq!(str.chars().count(), 7);
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        let token = lexer.next_token().unwrap();
+        let Token::FmtStr(_, length) = token.into_token() else {
+            panic!("Expected FmtStr token");
+        };
+        assert_eq!(length, 6);
     }
 }
