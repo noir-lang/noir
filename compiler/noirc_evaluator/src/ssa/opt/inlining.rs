@@ -1448,7 +1448,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 1 then: b2, else: b3
+            jmpif u1 1 then: b2(), else: b3()
           b2():
             jmp b1()
           b3():
@@ -1486,7 +1486,7 @@ mod tests {
             jmp b1(Field 0, Field 1)
           b1(v0: Field, v1: Field):
             v2 = add v0, v1
-            jmpif u1 1 then: b2, else: b3
+            jmpif u1 1 then: b2(), else: b3()
           b2():
             jmp b1(v2, v0)
           b3():
