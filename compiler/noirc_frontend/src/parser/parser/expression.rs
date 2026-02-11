@@ -2336,7 +2336,7 @@ mod tests {
     #[test]
     fn errors_on_struct_literal_used_in_if_condition() {
         let src = "if MyStruct { field: true }.field {}";
-        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let _ = parser.parse_expression_or_error();
 
         assert_eq!(parser.errors.len(), 1);
