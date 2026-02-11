@@ -602,6 +602,7 @@ fn errors_on_mutually_recursive_impls() {
     check_errors(src);
 }
 
+// Regression test for https://github.com/noir-lang/noir/issues/11514
 #[test]
 fn where_clause_on_generic_struct_parameter() {
     let src = r#"
@@ -627,6 +628,7 @@ fn where_clause_on_generic_struct_parameter() {
     assert_no_errors(src);
 }
 
+// Regression test for https://github.com/noir-lang/noir/issues/11514 (simplified)
 #[test]
 fn where_clause_on_self_type_with_generic() {
     let src = r#"
