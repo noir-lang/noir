@@ -32,19 +32,17 @@ pub(crate) fn on_signature_help_request(
 ) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
         let file_id = args.location.file;
-        utils::position_to_byte_index(
+        let byte_index = utils::position_to_byte_index(
             args.files,
             file_id,
             &params.text_document_position_params.position,
-        )
-        .and_then(|byte_index| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        )?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
-            finder.find(&parsed_module)
-        })
+        let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
+        finder.find(&parsed_module)
     });
     future::ready(result)
 }

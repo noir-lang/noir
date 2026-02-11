@@ -154,7 +154,7 @@ impl<'f> Context<'f> {
             other => {
                 panic!("unexpected terminator in ACIR: {other:?}")
             }
-        };
+        }
 
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {

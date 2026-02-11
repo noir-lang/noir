@@ -854,7 +854,8 @@ impl NodeInterner {
     }
 
     pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
-        get_type_method_key(typ).and_then(|key| self.methods.get(&key))
+        let key = get_type_method_key(typ)?;
+        self.methods.get(&key)
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -889,12 +890,7 @@ impl NodeInterner {
 
     /// Returns the type of the definition, or [Type::Error] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
-        self.try_definition_type(id).cloned().unwrap_or(Type::Error)
-    }
-
-    /// Returns the type of the definition, or `None` if it was not found.
-    pub fn try_definition_type(&self, id: DefinitionId) -> Option<&Type> {
-        self.definition_to_type.get(&id)
+        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
     }
 
     /// Returns the type of the definition, unless it's a function returning an `impl Trait`,
@@ -1086,10 +1082,8 @@ impl NodeInterner {
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
 
-        self.methods
-            .get(&key)
-            .and_then(|h| h.get(method_name))
-            .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
+        let methods = self.methods.get(&key).and_then(|h| h.get(method_name))?;
+        methods.find_direct_method(typ, check_self_param, self)
     }
 
     /// Looks up methods that apply to the given type but are defined in traits.
@@ -1475,7 +1469,8 @@ impl NodeInterner {
         impl_id: TraitImplId,
         name: &str,
     ) -> Option<&(DefinitionId, Type)> {
-        self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
+        let map = self.trait_impl_associated_constants.get(&impl_id)?;
+        map.get(name)
     }
 
     /// Looks up associated constants for a type by name.

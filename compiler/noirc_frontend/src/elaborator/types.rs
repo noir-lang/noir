@@ -1980,7 +1980,7 @@ impl Elaborator<'_> {
                         expected_typ: return_type.to_string(),
                         expr_location: location,
                     });
-                };
+                }
 
                 let expected_object_type = args.pop().unwrap_or_else(|| {
                     unreachable!("ICE: expected operator method on {object_type} to take arguments, but found no arguments")
@@ -2239,41 +2239,10 @@ impl Elaborator<'_> {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
         }
 
-        if let Type::DataType(datatype, _) = object_type {
-            let datatype = datatype.borrow();
-            let mut has_field_with_function_type = false;
-
-            if let Some(fields) = datatype.fields_raw() {
-                has_field_with_function_type = fields
-                    .iter()
-                    .any(|field| field.name.as_str() == method_name && field.typ.is_function());
-            }
-
-            if has_field_with_function_type {
-                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    location,
-                });
-            } else {
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    location,
-                });
-            }
-            None
-        } else {
-            // It could be that this type is a composite type that is bound to a trait,
-            // for example `x: (T, U) ... where (T, U): SomeTrait`
-            // (so this case is a generalization of the NamedGeneric case)
-            self.lookup_method_in_trait_constraints(
-                object_type,
-                method_name,
-                location,
-                object_location,
-            )
-        }
+        // It could be that this type is a composite type that is bound to a trait,
+        // for example `x: (T, U) ... where (T, U): SomeTrait`
+        // (so this case is a generalization of the NamedGeneric case)
+        self.lookup_method_in_trait_constraints(object_type, method_name, location, object_location)
     }
 
     /// Given a list of functions and the trait they belong to, returns the one function
@@ -2503,13 +2472,33 @@ impl Elaborator<'_> {
             self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
                 location: object_location,
             });
-        } else {
-            self.push_err(TypeCheckError::UnresolvedMethodCall {
-                method_name: method_name.to_string(),
-                object_type: object_type.clone(),
-                location,
-            });
+            return None;
         }
+
+        // Check if it's `foo.bar()` where `bar` is a member of the struct `foo`.
+        // In that case we tell the user that they need to write it like `(foo.bar)()`.
+        if let Type::DataType(datatype, _) = object_type {
+            let datatype = datatype.borrow();
+            let has_field_with_function_type = datatype.fields_raw().is_some_and(|fields| {
+                fields
+                    .iter()
+                    .any(|field| field.name.as_str() == method_name && field.typ.is_function())
+            });
+            if has_field_with_function_type {
+                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    location,
+                });
+                return None;
+            }
+        }
+
+        self.push_err(TypeCheckError::UnresolvedMethodCall {
+            method_name: method_name.to_string(),
+            object_type: object_type.clone(),
+            location,
+        });
 
         None
     }

@@ -74,7 +74,7 @@ impl UsageTracker {
     pub(crate) fn mark_as_used(&mut self, current_mod_id: ModuleId, name: &Ident) {
         if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
             items.remove(name);
-        };
+        }
     }
 
     /// Get all the unused items per module.

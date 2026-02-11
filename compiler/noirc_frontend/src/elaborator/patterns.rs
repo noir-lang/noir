@@ -5,6 +5,8 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
+use crate::elaborator::scope::ItemAsValue;
+use crate::node_interner::DefinitionId;
 use crate::{
     DataType, Kind, Type, TypeAlias,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
@@ -14,13 +16,31 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{expr::HirIdent, stmt::HirPattern},
-    node_interner::{DefinitionId, DefinitionKind, FuncId, TypeAliasId, TypeId},
+    node_interner::{DefinitionKind, FuncId, TypeAliasId, TypeId},
 };
 
 use super::{
     Elaborator, ResolverMeta,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
+
+/// Represents a variable in the source code.
+pub(crate) struct Variable {
+    /// The identifier of the variable.
+    pub(crate) ident: HirIdent,
+    /// The scope index where the variable is declared.
+    pub(crate) scope: usize,
+}
+
+/// The result of [`Elaborator::get_ident_from_path`] and [`Elaborator::get_ident_from_path_or_error`].
+pub(crate) enum IdentFromPath {
+    /// A variable was found.
+    Variable(Variable),
+    /// A definition was found.
+    Definition { id: DefinitionId, item: PathResolutionItem },
+    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
+    TypeAlias(TypeAliasId),
+}
 
 impl Elaborator<'_> {
     /// Elaborate a pattern, which can appear in a `let <pattern> = <expr>`, or a `match` statement.
@@ -473,7 +493,7 @@ impl Elaborator<'_> {
     /// If the variable is not found, an error is returned.
     ///
     /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
-    fn use_variable(&mut self, name: &Ident) -> Result<(HirIdent, usize), ResolverError> {
+    fn use_variable(&mut self, name: &Ident) -> Result<Variable, ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(name.as_str());
@@ -482,7 +502,9 @@ impl Elaborator<'_> {
         if let Some((variable_found, scope)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
-            Ok((HirIdent::non_trait_method(id, location), scope))
+            let ident = HirIdent::non_trait_method(id, location);
+            let variable = Variable { ident, scope };
+            Ok(variable)
         } else {
             Err(ResolverError::VariableNotDeclared {
                 name: name.to_string(),
@@ -724,76 +746,69 @@ impl Elaborator<'_> {
 
     /// Resolve a [TypedPath] into a local or global [HirIdent].
     ///
-    /// If it cannot be found, then it pushes the error and returns an ident with a [DefinitionId::dummy_id].
-    pub(crate) fn get_ident_from_path(
-        &mut self,
-        path: TypedPath,
-    ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
-        let location = Location::new(path.last_ident().span(), path.location.file);
-
-        self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
-            self.push_err(error);
-            let id = DefinitionId::dummy_id();
-            ((HirIdent::non_trait_method(id, location), 0), None)
-        })
+    /// If it cannot be found, then it pushes the error and returns [None].
+    pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<IdentFromPath> {
+        match self.get_ident_from_path_or_error(path) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
     }
 
     /// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,
         path: TypedPath,
-    ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
-        let location = Location::new(path.last_ident().span(), path.location.file);
-        let use_variable_result = path.as_single_segment().map(|segment| {
-            let result = self.use_variable(&segment.ident);
-            if result.is_ok() && segment.generics.is_some() {
-                let item = "local variables".to_string();
-                let location = segment.turbofish_location();
-                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem { item, location });
-            }
-            result
-        });
+    ) -> Result<IdentFromPath, ResolverError> {
+        // If the path is a single segment, try to resolve it as a local variable first
+        let use_variable_error = match path.as_single_segment() {
+            Some(segment) => match self.use_variable(&segment.ident) {
+                Ok(variable) => {
+                    // Succeed even if the variable has turbofish on it, but report an error for that
+                    if segment.generics.is_some() {
+                        let item = "local variables".to_string();
+                        let location = segment.turbofish_location();
+                        let error =
+                            PathResolutionError::TurbofishNotAllowedOnItem { item, location };
+                        self.push_err(error);
+                    }
+                    return Ok(IdentFromPath::Variable(variable));
+                }
+                Err(error) => Some(error),
+            },
+            None => None,
+        };
 
-        let error = match use_variable_result {
-            Some(Ok(found)) => return Ok((found, None)),
-            // Try to look it up as a global, but still issue the first error if we fail
-            Some(Err(error)) => match self.lookup_item_as_value(path) {
-                Ok((id, item)) => {
-                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
+        match self.lookup_item_as_value(path) {
+            Ok(ItemAsValue::Definition { id, item }) => Ok(IdentFromPath::Definition { id, item }),
+            Ok(ItemAsValue::TypeAlias(type_alias_id)) => {
+                Ok(IdentFromPath::TypeAlias(type_alias_id))
+            }
+            Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
+                // If we can't resolve a path, but we have an error from trying to resolve a variable
+                // (in which case the path was a single segment), prefer saying "variable not found"
+                // instead of "Cannot resolve '...' in path".
+                match use_variable_error {
+                    Some(error) => Err(error),
+                    None => Err(ResolverError::PathResolutionError(
+                        PathResolutionError::Unresolved(ident),
+                    )),
                 }
-                Err(ResolverError::PathResolutionError(..)) => {
-                    // A path resolution error is more specific than a "variable not found"
-                    return Err(error);
-                }
-                Err(global_error) => match error {
+            }
+            Err(item_as_value_error) => {
+                match use_variable_error {
                     // If the path was "_" then we want to preserve that error as it's clearer
                     // than the error of an item not being found (it will mention that "_" is
                     // not valid as an expression).
-                    ResolverError::VariableNotDeclared { name, .. } if name != "_" => {
-                        return Err(global_error);
+                    Some(ResolverError::VariableNotDeclared { name, .. }) if name != "_" => {
+                        Err(item_as_value_error)
                     }
-                    _ => {
-                        return Err(error);
-                    }
-                },
-            },
-            None => match self.lookup_item_as_value(path) {
-                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
-                    if dummy_id == DefinitionId::dummy_id() =>
-                {
-                    // Allow path which resolves to a type alias
-                    return Ok((
-                        (HirIdent::non_trait_method(dummy_id, location), 4),
-                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
-                    ));
+                    Some(use_variable_error) => Err(use_variable_error),
+                    None => Err(item_as_value_error),
                 }
-                Ok((id, item)) => {
-                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
-                }
-                Err(error) => error,
-            },
-        };
-
-        Err(error)
+            }
+        }
     }
 }

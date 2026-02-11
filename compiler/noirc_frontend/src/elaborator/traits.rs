@@ -928,7 +928,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
                 && let Some(replacement) = bindings.get(original_id)
             {
                 bindings.insert(type_var.id(), replacement.clone());
-            };
+            }
             true
         });
 
