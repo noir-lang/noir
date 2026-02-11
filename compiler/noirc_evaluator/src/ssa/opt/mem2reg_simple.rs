@@ -253,7 +253,6 @@ fn keep_argument_mask(
             // and unchanged in another (argument can only equal parameter in the case of back-edges)
             .filter(|arg| arg != parameter);
 
-        // The entry block is excluded so we always expec
         let first_arg = args
             .next()
             .expect("Entry block is excluded so there should always be >= 1 predecessor");
