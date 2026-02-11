@@ -771,6 +771,134 @@ fn regression_10766() {
     check_errors(src);
 }
 
+#[test]
+fn comptime_trait_method_with_generic_struct() {
+    let src = r#"
+    trait Metadata {
+        comptime fn name() -> str<9>;
+    }
+
+    struct Typed<T> {
+        value: T,
+    }
+
+    impl Metadata for Typed<Field> {
+        comptime fn name() -> str<9> {
+            "TypedFiel"
+        }
+    }
+
+    fn main() {
+        comptime {
+            let _ = Typed::<Field>::name();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_trait_method_with_numeric_generic() {
+    let src = r#"
+    trait Info {
+        comptime fn size() -> u32;
+    }
+
+    struct FixedArray<let N: u32> {}
+
+    impl<let N: u32> Info for FixedArray<N> {
+        comptime fn size() -> u32 {
+            N
+        }
+    }
+
+    fn main() {
+        comptime {
+            let s = FixedArray::<5>::size();
+            assert(s == 5);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_method_returning_self_with_generic_impl() {
+    let src = r#"
+    trait Doubled {
+        fn doubled(self) -> Self;
+    }
+
+    struct Wrapper<T> {
+        inner: T,
+    }
+
+    impl Doubled for Field {
+        fn doubled(self) -> Self {
+            self * 2
+        }
+    }
+
+    impl<T> Doubled for Wrapper<T> where T: Doubled {
+        fn doubled(self) -> Self {
+            Wrapper { inner: self.inner.doubled() }
+        }
+    }
+
+    fn double_it<T>(t: T) -> T where T: Doubled {
+        t.doubled()
+    }
+
+    fn main() {
+        let w = Wrapper { inner: 21 as Field };
+        let d = double_it(w);
+        assert(d.inner == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn two_traits_same_method_name_disambiguated_by_constraint() {
+    let src = r#"
+    trait TraitA {
+        fn do_thing(self) -> Field;
+    }
+
+    trait TraitB {
+        fn do_thing(self) -> bool;
+    }
+
+    struct Foo {
+        val: Field,
+    }
+
+    impl TraitA for Foo {
+        fn do_thing(self) -> Field { self.val }
+    }
+
+    impl TraitB for Foo {
+        fn do_thing(self) -> bool { self.val != 0 }
+    }
+
+    fn use_a<T>(t: T) -> Field where T: TraitA {
+        t.do_thing()
+    }
+
+    fn use_b<T>(t: T) -> bool where T: TraitB {
+        t.do_thing()
+    }
+
+    fn main() {
+        let f = Foo { val: 42 };
+        assert(use_a(f) == 42);
+        let f2 = Foo { val: 42 };
+        assert(use_b(f2));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 /// Regression test for https://github.com/noir-lang/noir/issues/11540
 #[test]
 #[should_panic(expected = "Expected no errors")]
