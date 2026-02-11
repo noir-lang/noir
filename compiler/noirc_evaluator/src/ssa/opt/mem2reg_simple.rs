@@ -89,7 +89,7 @@ impl Function {
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// This will add a block parameter for every variable in `variable` that
+/// This will add a block parameter for every variable in `variables` that
 /// is alive in each block. This parameter will always be the entry state
 /// of that variable, while the exit state will be empty (variable was not changed)
 /// or filled with the most recent Store value to the variable in the block.
