@@ -334,12 +334,15 @@ impl Elaborator<'_> {
             if let Type::NamedGeneric(generic) = &constraint.typ
                 && generic.name.as_ref() == type_name
             {
-                for named_generic in &constraint.trait_bound.trait_generics.named {
-                    if named_generic.name.as_str() == assoc_name {
-                        let trait_id = constraint.trait_bound.trait_id;
-                        found_types.push((trait_id, named_generic.typ.clone()));
-                    }
-                }
+                let named_trait_generics = &constraint.trait_bound.trait_generics.named;
+                let new_types = named_trait_generics
+                    .iter()
+                    .filter(|named_generic| named_generic.name.as_str() == assoc_name)
+                    .map(|named_generic| {
+                        (constraint.trait_bound.trait_id, named_generic.typ.clone())
+                    });
+
+                found_types.extend(new_types);
             }
         }
 
