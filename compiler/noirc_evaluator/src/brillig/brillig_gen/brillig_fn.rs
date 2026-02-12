@@ -49,6 +49,10 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
     pub(crate) is_entry_point: bool,
+    /// Set to true if any block in this function spilled a value to the heap spill region.
+    pub(crate) did_spill: bool,
+    /// The maximum spill offset used across all blocks (i.e. the number of spill slots needed).
+    pub(crate) max_spill_offset: usize,
 }
 
 impl FunctionContext {
@@ -67,6 +71,8 @@ impl FunctionContext {
             liveness,
             is_entry_point,
             constant_allocation: constants,
+            did_spill: false,
+            max_spill_offset: 0,
         }
     }
 

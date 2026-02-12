@@ -68,9 +68,9 @@ fn multiple_brillig_calls_one_bytecode() {
     13: stop @[sp[3]; sp[4]]
     14: return
     15: call 26
-    16: sp[1] = @1
-    17: @3 = const u32 2048
-    18: @1 = u32 add @1, @3
+    16: @2 = @2
+    17: @2 = @2
+    18: @2 = @2
     19: sp[4] = field eq sp[2], sp[3]
     20: sp[3] = const bool 0
     21: sp[5] = bool eq sp[4], sp[3]
@@ -101,9 +101,9 @@ fn multiple_brillig_calls_one_bytecode() {
     13: stop @[sp[3]; sp[4]]
     14: return
     15: call 26
-    16: sp[1] = @1
-    17: @3 = const u32 2048
-    18: @1 = u32 add @1, @3
+    16: @2 = @2
+    17: @2 = @2
+    18: @2 = @2
     19: sp[4] = field eq sp[2], sp[3]
     20: sp[3] = const bool 0
     21: sp[5] = bool eq sp[4], sp[3]
@@ -285,9 +285,9 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     15: stop @[sp[3]; sp[4]]
     16: return
     17: call 28
-    18: sp[1] = @1
-    19: @3 = const u32 2048
-    20: @1 = u32 add @1, @3
+    18: @2 = @2
+    19: @2 = @2
+    20: @2 = @2
     21: sp[4] = u32 eq sp[2], sp[3]
     22: sp[3] = const bool 0
     23: sp[5] = bool eq sp[4], sp[3]
@@ -435,9 +435,9 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     15: stop @[sp[3]; sp[4]]
     16: return
     17: call 28
-    18: sp[1] = @1
-    19: @3 = const u32 2048
-    20: @1 = u32 add @1, @3
+    18: @2 = @2
+    19: @2 = @2
+    20: @2 = @2
     21: sp[4] = u32 eq sp[2], sp[3]
     22: sp[3] = const bool 0
     23: sp[5] = bool eq sp[4], sp[3]

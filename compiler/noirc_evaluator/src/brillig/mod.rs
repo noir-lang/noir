@@ -14,7 +14,6 @@ use brillig_gen::brillig_block::BrilligBlock;
 use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
 use brillig_ir::BrilligContext;
-use brillig_ir::ReservedRegisters;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 use noirc_errors::call_stack::CallStackHelper;
 
@@ -128,33 +127,11 @@ impl Brillig {
 
         brillig_context.call_check_max_stack_depth_procedure();
 
-        // Allocate a per-frame spill region from the heap and store its base in sp[1].
-        // This replaces the old global spill region: each frame owns its own region,
-        // so no bump/restore is needed around calls.
-        //
-        // We use a scratch space register for the temporary constant to avoid clobbering
-        // function arguments that the caller already placed at sp[Stack::start()].
-        let spill_size = options.layout.spill_region_size();
-        if spill_size > 0 {
-            let (scratch, _) = ReservedRegisters::spill_scratch();
-            // mov sp[1], @1  -- store current FMP as spill base
-            brillig_context.mov_instruction(
-                ReservedRegisters::spill_base_slot(),
-                ReservedRegisters::free_memory_pointer(),
-            );
-            // const scratch, spill_size
-            brillig_context.const_instruction(
-                brillig_ir::brillig_variable::SingleAddrVariable::new_usize(scratch),
-                spill_size.into(),
-            );
-            // add @1, @1, scratch  -- bump FMP
-            brillig_context.memory_op_instruction(
-                ReservedRegisters::free_memory_pointer(),
-                scratch,
-                ReservedRegisters::free_memory_pointer(),
-                brillig_ir::BrilligBinaryOp::Add,
-            );
-        }
+        // Emit 3 placeholder NOPs for the per-frame spill region allocation.
+        // After all blocks are compiled, if the function actually spilled any values,
+        // these are overwritten with real allocation instructions. Otherwise they
+        // remain as harmless self-moves, avoiding unnecessary heap growth.
+        brillig_context.emit_unresolved_spill_prologue();
 
         for block in function_context.reverse_post_order().collect::<Vec<_>>() {
             BrilligBlock::compile_block(
@@ -166,6 +143,11 @@ impl Brillig {
                 globals,
                 hoisted_global_constants,
             );
+        }
+
+        // Resolve: overwrite placeholder NOPs with real allocation if spilling occurred
+        if function_context.did_spill {
+            brillig_context.resolve_spill_prologue(function_context.max_spill_offset);
         }
 
         if options.show_opcode_advisories {

@@ -83,6 +83,12 @@ pub struct BrilligArtifact<F> {
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
 
+    /// Positions of the 3 placeholder no-op opcodes emitted in the function prologue for
+    /// the per-frame spill region allocation. If the function actually spills, these are
+    /// overwritten with real allocation instructions via `resolve_spill_prologue`.
+    /// If no spilling occurs, the no-ops remain harmless.
+    unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
+
     /// This field contains the given procedure id if this artifact originates from as procedure
     pub(crate) procedure: Option<ProcedureId>,
     /// Procedure ID mapped to the range of its opcode locations
@@ -373,6 +379,16 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.call_stack_id = call_stack;
+    }
+
+    /// Record the positions of 3 placeholder no-op opcodes for the spill prologue.
+    pub(crate) fn set_unresolved_spill_prologue(&mut self, positions: [OpcodeLocation; 3]) {
+        self.unresolved_spill_prologue = Some(positions);
+    }
+
+    /// Get the recorded spill prologue positions, consuming them.
+    pub(crate) fn take_unresolved_spill_prologue(&mut self) -> Option<[OpcodeLocation; 3]> {
+        self.unresolved_spill_prologue.take()
     }
 
     #[cfg(test)]

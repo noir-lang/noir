@@ -20,9 +20,9 @@ fn brillig_array_get() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[3] = const u32 10
      5: sp[4] = const u32 20
      6: sp[5] = const u32 30
@@ -63,9 +63,9 @@ fn brillig_array_set() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[3] = const u32 10
      5: sp[4] = const u32 20
      6: sp[5] = const u32 30
@@ -115,9 +115,9 @@ fn brillig_array_with_rc_ops() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[2] = const u32 10
      5: sp[3] = const u32 20
      6: sp[4] = const u32 30

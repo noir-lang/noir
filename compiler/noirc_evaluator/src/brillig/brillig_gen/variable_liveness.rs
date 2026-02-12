@@ -794,9 +794,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
         0: call 0
-        1: sp[1] = @1
-        2: @3 = const u32 2048
-        3: @1 = u32 add @1, @3
+        1: @2 = @2
+        2: @2 = @2
+        3: @2 = @2
         4: sp[3] = const field 10
         5: sp[4] = field add sp[2], sp[3]
         6: sp[2] = sp[4]
@@ -831,9 +831,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[1] = @1
-         2: @3 = const u32 2048
-         3: @1 = u32 add @1, @3
+         1: @2 = @2
+         2: @2 = @2
+         3: @2 = @2
          4: sp[3] = const field 1
          5: sp[4] = field add sp[2], sp[3]
          6: sp[2] = const field 2
@@ -878,9 +878,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[1] = @1
-         2: @3 = const u32 2048
-         3: @1 = u32 add @1, @3
+         1: @2 = @2
+         2: @2 = @2
+         3: @2 = @2
          4: sp[4] = const u32 0
          5: sp[5] = const u32 1
          6: sp[3] = sp[4]
@@ -931,9 +931,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[1] = @1
-         2: @3 = const u32 2048
-         3: @1 = u32 add @1, @3
+         1: @2 = @2
+         2: @2 = @2
+         3: @2 = @2
          4: sp[4] = const field 42
          5: jump if sp[2] to 0
          6: jump to 0
@@ -975,9 +975,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[1] = @1
-         2: @3 = const u32 2048
-         3: @1 = u32 add @1, @3
+         1: @2 = @2
+         2: @2 = @2
+         3: @2 = @2
          4: sp[3] = const field 100
          5: sp[4] = field add sp[2], sp[3]
          6: sp[3] = const field 200
@@ -1017,9 +1017,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[1] = @1
-         2: @3 = const u32 2048
-         3: @1 = u32 add @1, @3
+         1: @2 = @2
+         2: @2 = @2
+         3: @2 = @2
          4: sp[4] = const field 1
          5: sp[5] = field add sp[2], sp[4]
          6: sp[2] = const field 2

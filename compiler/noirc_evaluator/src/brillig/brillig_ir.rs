@@ -195,6 +195,58 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             globals_memory_size: None,
         }
     }
+
+    /// Emit 3 placeholder no-op opcodes (self-moves) in the prologue for the spill region
+    /// allocation. Their positions are recorded so they can be overwritten later if the
+    /// function actually spills any values.
+    pub(crate) fn emit_unresolved_spill_prologue(&mut self) {
+        let no_op_register = ReservedRegisters::usize_one();
+        let positions = [
+            self.obj.index_of_next_opcode(),
+            self.obj.index_of_next_opcode() + 1,
+            self.obj.index_of_next_opcode() + 2,
+        ];
+        // Emit 3 harmless self-moves as placeholders
+        for _ in 0..3 {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: no_op_register,
+                source: no_op_register,
+            });
+        }
+        self.obj.set_unresolved_spill_prologue(positions);
+    }
+
+    /// Overwrite the 3 placeholder no-op opcodes with real spill region allocation instructions.
+    /// Called after all blocks are compiled, only if the function actually spilled values.
+    pub(crate) fn resolve_spill_prologue(&mut self, actual_spill_size: usize) {
+        let positions = self
+            .obj
+            .take_unresolved_spill_prologue()
+            .expect("ICE: resolve_spill_prologue called without emit_unresolved_spill_prologue");
+        let (scratch, _) = ReservedRegisters::spill_scratch();
+
+        // [0]: Mov sp[1], @1  -- save current FMP as spill base
+        self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
+            destination: ReservedRegisters::spill_base_slot(),
+            source: ReservedRegisters::free_memory_pointer(),
+        };
+        // [1]: Const @scratch, actual_spill_size
+        self.obj.byte_code[positions[1]] = BrilligOpcode::Const {
+            destination: scratch,
+            value: F::from(actual_spill_size as u128),
+            bit_size: acvm::acir::brillig::BitSize::Integer(
+                acvm::acir::brillig::IntegerBitSize::U32,
+            ),
+        };
+        // [2]: BinaryIntOp Add @1, @1, @scratch  -- bump FMP by actual amount
+        self.obj.byte_code[positions[2]] = BrilligOpcode::BinaryIntOp {
+            op: acvm::acir::brillig::BinaryIntOp::Add,
+            destination: ReservedRegisters::free_memory_pointer(),
+            bit_size: acvm::acir::brillig::IntegerBitSize::U32,
+            lhs: ReservedRegisters::free_memory_pointer(),
+            rhs: scratch,
+        };
+    }
 }
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

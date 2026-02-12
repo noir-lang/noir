@@ -19,9 +19,9 @@ fn brillig_blake2s() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[3] = @1
      5: sp[4] = const u32 33
      6: @1 = u32 add @1, sp[4]
@@ -49,9 +49,9 @@ fn brillig_blake3() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[3] = @1
      5: sp[4] = const u32 33
      6: @1 = u32 add @1, sp[4]
@@ -80,9 +80,9 @@ fn brillig_keccakf1600() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[3] = @1
      5: sp[4] = const u32 26
      6: @1 = u32 add @1, sp[4]
@@ -111,9 +111,9 @@ fn brillig_ecdsa_secp256k1() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[6] = const bool 1
      5: sp[8] = u32 add sp[5], @2
      6: sp[9] = u32 add sp[2], @2
@@ -141,9 +141,9 @@ fn brillig_ecdsa_secp256r1() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[6] = const bool 1
      5: sp[8] = u32 add sp[5], @2
      6: sp[9] = u32 add sp[2], @2
@@ -171,9 +171,9 @@ fn brillig_multi_scalar_mul() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[4] = const bool 1
      5: sp[5] = @1
      6: sp[6] = const u32 4
@@ -204,9 +204,9 @@ fn brillig_embedded_curve_add() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[8] = const bool 1
      5: sp[9] = @1
      6: sp[10] = const u32 4
@@ -235,9 +235,9 @@ fn brillig_poseidon2_permutation() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[3] = @1
      5: sp[4] = const u32 5
      6: @1 = u32 add @1, sp[4]
@@ -265,9 +265,9 @@ fn brillig_sha256_compression() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[4] = @1
      5: sp[5] = const u32 9
      6: @1 = u32 add @1, sp[5]
@@ -297,9 +297,9 @@ fn brillig_aes128_encrypt() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = @1
-     2: @3 = const u32 2048
-     3: @1 = u32 add @1, @3
+     1: @2 = @2
+     2: @2 = @2
+     3: @2 = @2
      4: sp[5] = @1
      5: sp[6] = const u32 17
      6: @1 = u32 add @1, sp[6]

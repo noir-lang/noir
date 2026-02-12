@@ -166,9 +166,9 @@ mod entry_point {
         15: stop @[sp[3]; sp[4]]
         16: return
         17: call 27
-        18: sp[1] = @1
-        19: @3 = const u32 2048
-        20: @1 = u32 add @1, @3
+        18: @2 = @2
+        19: @2 = @2
+        20: @2 = @2
         21: sp[4] = u32 add sp[2], sp[3]
         22: sp[5] = u32 lt_eq sp[2], sp[4]
         23: jump if sp[5] to 25

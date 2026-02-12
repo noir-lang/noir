@@ -59,7 +59,6 @@ pub struct LayoutConfig {
     max_stack_frame_size: usize,
     max_stack_size: usize,
     max_scratch_space: usize,
-    spill_region_size: usize,
 }
 
 impl LayoutConfig {
@@ -69,12 +68,7 @@ impl LayoutConfig {
         max_scratch_space: usize,
     ) -> Self {
         let max_stack_size = num_stack_frames * max_stack_frame_size;
-        Self {
-            max_stack_frame_size,
-            max_stack_size,
-            max_scratch_space,
-            spill_region_size: MAX_SPILL_REGION_SIZE,
-        }
+        Self { max_stack_frame_size, max_stack_size, max_scratch_space }
     }
 
     /// The maximum size of an individual stack frame.
@@ -89,11 +83,6 @@ impl LayoutConfig {
 
     pub(crate) fn max_scratch_space(&self) -> usize {
         self.max_scratch_space
-    }
-
-    /// The size of the spill region for register spilling.
-    pub(crate) fn spill_region_size(&self) -> usize {
-        self.spill_region_size
     }
 
     /// Start of the entry point region:
@@ -115,7 +104,6 @@ impl LayoutConfig {
 pub(crate) const NUM_STACK_FRAMES: usize = 16;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
 pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
-pub(crate) const MAX_SPILL_REGION_SIZE: usize = MAX_STACK_FRAME_SIZE;
 
 impl Default for LayoutConfig {
     fn default() -> Self {

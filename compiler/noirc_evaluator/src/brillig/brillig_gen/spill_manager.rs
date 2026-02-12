@@ -16,8 +16,6 @@ pub(crate) struct SpillManager {
     lru_order: Vec<ValueId>,
     /// Next offset within the spill region (relative to spill base register).
     next_spill_offset: usize,
-    /// Maximum size of the spill region.
-    spill_region_size: usize,
     /// Free list of spill slots that have been reclaimed.
     free_spill_slots: Vec<usize>,
 }
@@ -31,12 +29,11 @@ pub(crate) struct SpillInfo {
 }
 
 impl SpillManager {
-    pub(crate) fn new(spill_region_size: usize) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             spilled: HashMap::default(),
             lru_order: Vec::new(),
             next_spill_offset: 0,
-            spill_region_size,
             free_spill_slots: Vec::new(),
         }
     }
@@ -99,11 +96,6 @@ impl SpillManager {
         offset: usize,
         variable: BrilligVariable,
     ) {
-        assert!(
-            offset < self.spill_region_size,
-            "Spill region overflow: offset {offset} >= size {}",
-            self.spill_region_size
-        );
         self.spilled.insert(value_id, SpillInfo { offset, variable });
     }
 

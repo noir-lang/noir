@@ -96,7 +96,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         );
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
-        let spill_manager = Some(SpillManager::new(brillig_context.layout().spill_region_size()));
+        let spill_manager = Some(SpillManager::new());
 
         let mut brillig_block = BrilligBlock {
             function_context,
@@ -208,6 +208,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
         let victim_reg = victim_var.extract_register();
         let offset = spill_manager.allocate_spill_offset();
+
+        // Track that this function needs a spill region
+        self.function_context.did_spill = true;
+        self.function_context.max_spill_offset =
+            self.function_context.max_spill_offset.max(offset + 1);
         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
 
         // 4-instruction spill:
