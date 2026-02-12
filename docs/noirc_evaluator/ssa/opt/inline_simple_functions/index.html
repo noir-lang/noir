@@ -3,7 +3,7 @@ That is, the contents of the called function is put directly into the caller’s
 Functions are still restricted to not be inlined if they are recursive or marked with no predicates.</p>
 <p>A simple function is defined as the following:</p>
 <ul>
-<li>Contains no more than a specified <a href="../constant.INLINING_MAX_INSTRUCTIONS.html" title="constant noirc_evaluator::ssa::opt::INLINING_MAX_INSTRUCTIONS">maximum</a> instructions</li>
+<li>Contains no more than a specified <a href="../inlining/inline_info/constant.MAX_INSTRUCTIONS.html" title="constant noirc_evaluator::ssa::opt::inlining::inline_info::MAX_INSTRUCTIONS">maximum</a> instructions</li>
 <li>The function only has a single block (e.g. no control flow or conditional branches)</li>
 <li>It is not marked with the <a href="../../../../noirc_frontend/monomorphization/ast/enum.InlineType.html#variant.NoPredicates" title="variant noirc_frontend::monomorphization::ast::InlineType::NoPredicates">no predicates inline type</a></li>
 </ul>
