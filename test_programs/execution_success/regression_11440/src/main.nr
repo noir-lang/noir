@@ -1,4 +1,3 @@
-
 fn main() {
     // Safety: does nothing
     unsafe {

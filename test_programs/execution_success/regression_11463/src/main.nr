@@ -12,7 +12,9 @@
 fn main() {
     let mut n: u32 = 2;
     // Safety: testing unconstrained execution
-    unsafe { entry(n) }
+    unsafe {
+        entry(n)
+    }
 }
 
 unconstrained fn recursive(mut c: [Field], n: &mut u32, expected: [Field]) {
@@ -28,6 +30,6 @@ unconstrained fn recursive(mut c: [Field], n: &mut u32, expected: [Field]) {
 }
 
 unconstrained fn entry(mut n: u32) {
-    let initial: [Field] = &[1, 2];
+    let initial: [Field] = @[1, 2];
     recursive(initial, &mut n, initial);
 }

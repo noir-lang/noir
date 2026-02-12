@@ -1505,7 +1505,7 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
     };
 
     // Vector operations can modify their input array in Brillig when RC=1,
-    // so we must not skip clones for them even though they're technically "pure".
+    // so we must clone them to ensure that they are "pure".
     if intrinsic.modifies_input_array_in_brillig() {
         return false;
     }
