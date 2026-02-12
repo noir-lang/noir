@@ -32,8 +32,8 @@
 <a href=#32 id=32 data-nosnippet>32</a>    scalars: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;],
 <a href=#33 id=33 data-nosnippet>33</a>    predicate: FunctionInput&lt;F&gt;,
 <a href=#34 id=34 data-nosnippet>34</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(F, F, F), OpcodeResolutionError&lt;F&gt;&gt; {
-<a href=#35 id=35 data-nosnippet>35</a>    <span class="macro">assert!</span>(scalars.len() % <span class="number">2 </span>== <span class="number">0</span>, <span class="string">"Number of scalars must be even"</span>);
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="macro">assert!</span>(points.len() % <span class="number">3 </span>== <span class="number">0</span>, <span class="string">"Number of points must be a multiple of 3"</span>);
+<a href=#35 id=35 data-nosnippet>35</a>    <span class="macro">assert!</span>(scalars.len().is_multiple_of(<span class="number">2</span>), <span class="string">"Number of scalars must be even"</span>);
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="macro">assert!</span>(points.len().is_multiple_of(<span class="number">3</span>), <span class="string">"Number of points must be a multiple of 3"</span>);
 <a href=#37 id=37 data-nosnippet>37</a>    <span class="macro">assert_eq!</span>(
 <a href=#38 id=38 data-nosnippet>38</a>        scalars.len() / <span class="number">2</span>,
 <a href=#39 id=39 data-nosnippet>39</a>        points.len() / <span class="number">3</span>,

@@ -384,8 +384,8 @@
 <a href=#384 id=384 data-nosnippet>384</a>            BinaryOp::Xor =&gt; |x, y| <span class="prelude-val">Some</span>(x ^ y),
 <a href=#385 id=385 data-nosnippet>385</a>            BinaryOp::Eq =&gt; |x, y| <span class="prelude-val">Some</span>(u128::from(x == y)),
 <a href=#386 id=386 data-nosnippet>386</a>            BinaryOp::Lt =&gt; |x, y| <span class="prelude-val">Some</span>(u128::from(x &lt; y)),
-<a href=#387 id=387 data-nosnippet>387</a>            BinaryOp::Shl =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
-<a href=#388 id=388 data-nosnippet>388</a>            BinaryOp::Shr =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
+<a href=#387 id=387 data-nosnippet>387</a>            BinaryOp::Shl =&gt; |x, y| x.checked_shl(y.to_u32()<span class="question-mark">?</span>),
+<a href=#388 id=388 data-nosnippet>388</a>            BinaryOp::Shr =&gt; |x, y| x.checked_shr(y.to_u32()<span class="question-mark">?</span>),
 <a href=#389 id=389 data-nosnippet>389</a>        }
 <a href=#390 id=390 data-nosnippet>390</a>    }
 <a href=#391 id=391 data-nosnippet>391</a>
@@ -401,8 +401,8 @@
 <a href=#401 id=401 data-nosnippet>401</a>            BinaryOp::Xor =&gt; |x, y| <span class="prelude-val">Some</span>(x ^ y),
 <a href=#402 id=402 data-nosnippet>402</a>            BinaryOp::Eq =&gt; |x, y| <span class="prelude-val">Some</span>(i128::from(x == y)),
 <a href=#403 id=403 data-nosnippet>403</a>            BinaryOp::Lt =&gt; |x, y| <span class="prelude-val">Some</span>(i128::from(x &lt; y)),
-<a href=#404 id=404 data-nosnippet>404</a>            BinaryOp::Shl =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
-<a href=#405 id=405 data-nosnippet>405</a>            BinaryOp::Shr =&gt; |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
+<a href=#404 id=404 data-nosnippet>404</a>            BinaryOp::Shl =&gt; |x, y| x.checked_shl(y.to_u32()<span class="question-mark">?</span>),
+<a href=#405 id=405 data-nosnippet>405</a>            BinaryOp::Shr =&gt; |x, y| x.checked_shr(y.to_u32()<span class="question-mark">?</span>),
 <a href=#406 id=406 data-nosnippet>406</a>        }
 <a href=#407 id=407 data-nosnippet>407</a>    }
 <a href=#408 id=408 data-nosnippet>408</a>

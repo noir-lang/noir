@@ -123,7 +123,7 @@
 <a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">type </span>Output = SemanticLength;
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">fn </span>div(<span class="self">self</span>, rhs: ElementTypesLength) -&gt; <span class="self">Self</span>::Output {
-<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">if </span><span class="self">self</span>.<span class="number">0 </span>% rhs.<span class="number">0 </span>!= <span class="number">0 </span>{
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">if </span>!<span class="self">self</span>.<span class="number">0</span>.is_multiple_of(rhs.<span class="number">0</span>) {
 <a href=#127 id=127 data-nosnippet>127</a>            <span class="macro">panic!</span>(
 <a href=#128 id=128 data-nosnippet>128</a>                <span class="string">"Division of SemiFlattenedLength {} by ElementTypesLength {} has remainder"</span>,
 <a href=#129 id=129 data-nosnippet>129</a>                <span class="self">self</span>.<span class="number">0</span>, rhs.<span class="number">0
@@ -211,7 +211,7 @@
 <a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">type </span>Output = SemanticLength;
 <a href=#212 id=212 data-nosnippet>212</a>
 <a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">fn </span>div(<span class="self">self</span>, rhs: ElementsFlattenedLength) -&gt; <span class="self">Self</span>::Output {
-<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">if </span><span class="self">self</span>.<span class="number">0 </span>% rhs.<span class="number">0 </span>!= <span class="number">0 </span>{
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">if </span>!<span class="self">self</span>.<span class="number">0</span>.is_multiple_of(rhs.<span class="number">0</span>) {
 <a href=#215 id=215 data-nosnippet>215</a>            <span class="macro">panic!</span>(
 <a href=#216 id=216 data-nosnippet>216</a>                <span class="string">"Division of FlattenedLength {} by ElementsFlattenedLength {} has remainder"</span>,
 <a href=#217 id=217 data-nosnippet>217</a>                <span class="self">self</span>.<span class="number">0</span>, rhs.<span class="number">0

@@ -39,7 +39,7 @@
 <a href=#39 id=39 data-nosnippet>39</a>                    }
 <a href=#40 id=40 data-nosnippet>40</a>                }<span class="question-mark">?</span>;
 <a href=#41 id=41 data-nosnippet>41</a>
-<a href=#42 id=42 data-nosnippet>42</a>                <span class="macro">assert!</span>(input_size % <span class="number">16 </span>== <span class="number">0</span>, <span class="string">"input length must be a multiple of 16"</span>);
+<a href=#42 id=42 data-nosnippet>42</a>                <span class="macro">assert!</span>(input_size.is_multiple_of(<span class="number">16</span>), <span class="string">"input length must be a multiple of 16"</span>);
 <a href=#43 id=43 data-nosnippet>43</a>                <span class="macro">assert_eq!</span>(output_count, input_size, <span class="string">"output count mismatch"</span>);
 <a href=#44 id=44 data-nosnippet>44</a>
 <a href=#45 id=45 data-nosnippet>45</a>                Vec::new()

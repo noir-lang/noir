@@ -668,7 +668,7 @@
 <a href=#668 id=668 data-nosnippet>668</a>
 <a href=#669 id=669 data-nosnippet>669</a>                <span class="kw">let </span>input_length = assert_u8_array(<span class="kw-2">&amp;</span>input_type, <span class="string">"aes128_encrypt input"</span>);
 <a href=#670 id=670 data-nosnippet>670</a>                <span class="macro">assert!</span>(
-<a href=#671 id=671 data-nosnippet>671</a>                    input_length % <span class="number">16 </span>== <span class="number">0</span>,
+<a href=#671 id=671 data-nosnippet>671</a>                    input_length.is_multiple_of(<span class="number">16</span>),
 <a href=#672 id=672 data-nosnippet>672</a>                    <span class="string">"aes128_encrypt input length must be a multiple of 16"
 <a href=#673 id=673 data-nosnippet>673</a>                </span>);
 <a href=#674 id=674 data-nosnippet>674</a>

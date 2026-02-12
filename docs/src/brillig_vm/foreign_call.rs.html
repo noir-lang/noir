@@ -193,7 +193,7 @@
 <a href=#193 id=193 data-nosnippet>193</a>            <span class="comment">// Check that the sequence of value types fit an integer number of
 <a href=#194 id=194 data-nosnippet>194</a>            // times inside the given size.
 <a href=#195 id=195 data-nosnippet>195</a>            </span><span class="macro">assert!</span>(
-<a href=#196 id=196 data-nosnippet>196</a>                <span class="number">0 </span>== size % assert_u32(value_types.len()),
+<a href=#196 id=196 data-nosnippet>196</a>                size.is_multiple_of(assert_u32(value_types.len())),
 <a href=#197 id=197 data-nosnippet>197</a>                <span class="string">"array/vector does not contain a whole number of elements"
 <a href=#198 id=198 data-nosnippet>198</a>            </span>);
 <a href=#199 id=199 data-nosnippet>199</a>

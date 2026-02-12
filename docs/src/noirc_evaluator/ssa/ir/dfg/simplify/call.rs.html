@@ -778,7 +778,7 @@
 <a href=#778 id=778 data-nosnippet>778</a>            }
 <a href=#779 id=779 data-nosnippet>779</a>            <span class="kw">let </span>len = results.len() <span class="kw">as </span>u32;
 <a href=#780 id=780 data-nosnippet>780</a>            <span class="macro">assert!</span>(
-<a href=#781 id=781 data-nosnippet>781</a>                len % <span class="number">3 </span>== <span class="number">0</span>,
+<a href=#781 id=781 data-nosnippet>781</a>                len.is_multiple_of(<span class="number">3</span>),
 <a href=#782 id=782 data-nosnippet>782</a>                <span class="string">"The number of results from derive_generators must be a multiple of 3"
 <a href=#783 id=783 data-nosnippet>783</a>            </span>);
 <a href=#784 id=784 data-nosnippet>784</a>            <span class="kw">let </span>typ = Type::Array(

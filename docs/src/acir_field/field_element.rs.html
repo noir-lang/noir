@@ -312,7 +312,7 @@
 <a href=#312 id=312 data-nosnippet>312</a>        <span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>result, <span class="string">"{:x}"</span>, trimmed[<span class="number">0</span>]).unwrap();
 <a href=#313 id=313 data-nosnippet>313</a>
 <a href=#314 id=314 data-nosnippet>314</a>        <span class="comment">// Ensure even length by padding if necessary
-<a href=#315 id=315 data-nosnippet>315</a>        </span><span class="kw">if </span>result.len() % <span class="number">2 </span>!= <span class="number">0 </span>{
+<a href=#315 id=315 data-nosnippet>315</a>        </span><span class="kw">if </span>!result.len().is_multiple_of(<span class="number">2</span>) {
 <a href=#316 id=316 data-nosnippet>316</a>            <span class="comment">// Insert '0' after "0x" to make it even
 <a href=#317 id=317 data-nosnippet>317</a>            </span>result.insert(<span class="number">2</span>, <span class="string">'0'</span>);
 <a href=#318 id=318 data-nosnippet>318</a>        }
@@ -329,7 +329,7 @@
 <a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span>value = hex_str.strip_prefix(<span class="string">"0x"</span>).unwrap_or(hex_str);
 <a href=#330 id=330 data-nosnippet>330</a>
 <a href=#331 id=331 data-nosnippet>331</a>        <span class="comment">// Decode directly, handling even length efficiently
-<a href=#332 id=332 data-nosnippet>332</a>        </span><span class="kw">let </span>hex_as_bytes = <span class="kw">if </span>value.len() % <span class="number">2 </span>== <span class="number">0 </span>{
+<a href=#332 id=332 data-nosnippet>332</a>        </span><span class="kw">let </span>hex_as_bytes = <span class="kw">if </span>value.len().is_multiple_of(<span class="number">2</span>) {
 <a href=#333 id=333 data-nosnippet>333</a>            hex::decode(value).ok()<span class="question-mark">?
 <a href=#334 id=334 data-nosnippet>334</a>        </span>} <span class="kw">else </span>{
 <a href=#335 id=335 data-nosnippet>335</a>            <span class="comment">// For odd length, prepend '0' to the string view only for decoding
