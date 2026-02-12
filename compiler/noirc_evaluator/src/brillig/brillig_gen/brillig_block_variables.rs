@@ -107,19 +107,6 @@ impl BlockVariables {
         variable
     }
 
-    /// Defines a variable that fits in a single register and returns the allocated register.
-    #[allow(dead_code)]
-    pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
-        &mut self,
-        function_context: &mut FunctionContext,
-        brillig_context: &BrilligContext<FieldElement, Registers>,
-        value: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> SingleAddrVariable {
-        let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        variable.extract_single_addr()
-    }
-
     /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
@@ -149,7 +136,7 @@ impl BlockVariables {
     /// Remove from available set without deallocating register.
     /// Used when a spilled variable dies — its register was already freed during spill.
     pub(crate) fn mark_unavailable(&mut self, value_id: &ValueId) {
-        self.available_variables.remove(value_id);
+        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
     }
 
     /// Add a value back to the available set (used after reload).

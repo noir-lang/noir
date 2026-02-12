@@ -20,7 +20,7 @@ pub(crate) struct SpillManager {
     free_spill_slots: Vec<usize>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) struct SpillInfo {
     /// Offset relative to the per-frame heap-allocated spill region base.
     pub(crate) offset: usize,

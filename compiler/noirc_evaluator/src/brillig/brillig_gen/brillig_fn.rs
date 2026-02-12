@@ -51,8 +51,8 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
     pub(crate) is_entry_point: bool,
-    /// Whether this function needs spill infrastructure (spill base pointer slot, prologue NOPs).
-    /// Determined by comparing `max_live_count` to `MAX_STACK_FRAME_SIZE`.
+    /// Whether this function needs spill infrastructure (spill base pointer slot, spill region function prologue).
+    /// Determined by comparing [VariableLiveness::max_live_count] to the max stack frame size.
     pub(crate) spill_support: bool,
     /// Set to true if any block in this function spilled a value to the heap spill region.
     pub(crate) did_spill: bool,

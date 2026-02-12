@@ -202,7 +202,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Spill the least-recently-used value to the spill region (4 instructions).
+    /// Spill the least-recently-used value to the spill region
     fn spill_lru_value(&mut self) {
         let spill_manager = self.spill_manager.as_mut().unwrap();
         let victim_id = spill_manager.lru_victim().expect("No values available to spill");
@@ -239,7 +239,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         spill_manager.record_spill(victim_id, offset, victim_var);
     }
 
-    /// Reload a previously spilled value into a freshly allocated register (4 instructions).
+    /// Reload a previously spilled value into a freshly allocated register
     fn reload_spilled_value(&mut self, value_id: ValueId) -> BrilligVariable {
         // Ensure capacity for the reload register (may trigger another spill)
         self.ensure_register_capacity(1);
@@ -285,7 +285,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_var
     }
 
-    /// Wrapper for `self.variables.define_variable` that ensures register capacity
+    /// Wrapper for [BlockVariables::define_variable] that ensures register capacity
     /// and tracks the new value in the LRU.
     pub(crate) fn define_variable(
         &mut self,
@@ -305,8 +305,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         var
     }
 
-    /// Wrapper for `self.variables.define_single_addr_variable` that ensures register capacity
-    /// and tracks the new value in the LRU.
+    /// Defines a variable that fits in a single register and returns the allocated register.
     pub(crate) fn define_single_addr_variable(
         &mut self,
         value_id: ValueId,
@@ -654,7 +653,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         panic!("ICE: Global value not found in cache {value_id}")
                     })
                 } else {
-                    // Check if spilled → reload if needed
+                    // Check if spilled, reload if needed
                     if self.spill_manager.as_ref().is_some_and(|sm| sm.is_spilled(&value_id)) {
                         return self.reload_spilled_value(value_id);
                     }
@@ -669,7 +668,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
                 if self.variables.is_allocated(&value_id) {
-                    // Check if spilled → reload if needed
+                    // Check if spilled, reload if needed
                     if self.spill_manager.as_ref().is_some_and(|sm| sm.is_spilled(&value_id)) {
                         return self.reload_spilled_value(value_id);
                     }
