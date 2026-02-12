@@ -1544,43 +1544,44 @@ fn associated_type_shorthand_simple_identity() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
+/// TODO(https://github.com/noir-lang/noir/issues/11562): remove should_panic once fixed
 #[test]
 #[should_panic(expected = "Expected no errors")]
-fn associated_type_of_generic_in_param_position() {
-    // Bug: M::Key can't be used as parameter type
+fn associated_type_of_self_generic_in_param_position_for_parent() {
+    // Bug: Self::Key cannot be resolved
     let src = r#"
     trait KeyType {
         type Key;
     }
 
     trait Lookup: KeyType {
-        fn lookup(self, key: Self::Key) -> Field;
+        fn lookup(self, key: Self::Key);
     }
 
-    struct Map {
-        key: Field,
-        value: Field,
-    }
-
-    impl KeyType for Map {
+    impl KeyType for u32 {
         type Key = Field;
     }
 
-    impl Lookup for Map {
-        fn lookup(self, key: Self::Key) -> Field {
-            if self.key == key { self.value } else { 0 }
-        }
+    impl Lookup for u32 {
+        fn lookup(self, _key: Self::Key) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11562): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn associated_type_of_non_self_generic_in_param_position_for_parent() {
+    // Bug: Self::Key cannot be resolved
+    let src = r#"
+    trait KeyType {
+        type Key;
     }
 
-    fn find<M>(m: M, key: M::Key) -> Field where M: Lookup {
-        m.lookup(key)
-    }
+    trait Lookup: KeyType {}
 
-    fn main() {
-        let m = Map { key: 1, value: 42 };
-        assert(find(m, 1) == 42);
-    }
+    fn find<M: Lookup>(m: M, key: M::Key) {}
     "#;
     assert_no_errors(src);
 }
