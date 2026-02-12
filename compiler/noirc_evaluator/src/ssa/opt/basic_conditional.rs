@@ -117,12 +117,14 @@ fn is_conditional(
         let cost_right = block_flatten_cost(*else_destination, &function.dfg)?;
         // Compute the actual branching overhead for this conditional:
         // Flattening eliminates: JmpIf + then's Jmp + else's Jmp
-        // Flattening adds: one IfElse per exit block parameter
+        // Flattening adds merge ops per exit param: not + 2*cast (shared) + 2*mul + add (per param)
+        // We estimate ~3 opcodes per exit parameter for the merge cost
         let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
         let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
         let exit_block = next_then.unwrap();
-        let ifelse_cost = function.dfg.block_parameters(exit_block).len();
-        let jump_overhead = (jmpif_cost + then_term_cost + else_term_cost - ifelse_cost) as u32;
+        let merge_cost = function.dfg.block_parameters(exit_block).len() * 3;
+        let jump_overhead =
+            (jmpif_cost + then_term_cost + else_term_cost).saturating_sub(merge_cost) as u32;
         let cost = cost_right.saturating_add(cost_left);
         if cost >= cost / 2 + jump_overhead {
             return None;
@@ -144,8 +146,8 @@ fn is_conditional(
         let cost = block_flatten_cost(*then_destination, &function.dfg)?;
         // Flattening eliminates: JmpIf + then's Jmp; adds IfElse per exit param
         let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
-        let exit_params = function.dfg.block_parameters(*else_destination).len();
-        let jump_overhead = (jmpif_cost + then_term_cost - exit_params) as u32;
+        let merge_cost = function.dfg.block_parameters(*else_destination).len() * 3;
+        let jump_overhead = (jmpif_cost + then_term_cost).saturating_sub(merge_cost) as u32;
         if cost >= cost / 2 + jump_overhead {
             return None;
         }
@@ -167,8 +169,8 @@ fn is_conditional(
         let cost = block_flatten_cost(*else_destination, &function.dfg)?;
         // Flattening eliminates: JmpIf + else's Jmp; adds IfElse per exit param
         let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
-        let exit_params = function.dfg.block_parameters(*then_destination).len();
-        let jump_overhead = (jmpif_cost + else_term_cost - exit_params) as u32;
+        let merge_cost = function.dfg.block_parameters(*then_destination).len() * 3;
+        let jump_overhead = (jmpif_cost + else_term_cost).saturating_sub(merge_cost) as u32;
         if cost >= cost / 2 + jump_overhead {
             return None;
         }
@@ -440,8 +442,9 @@ mod tests {
 
     #[test]
     fn array_jmpif() {
-        // With computed jump_overhead (~5), a 3-element MakeArray costs 6 per branch.
-        // Total cost 12 >= 12/2 + 5 = 11, so the conditional is NOT flattened.
+        // With merge_cost=3 per exit param, jump_overhead = (2+2+2) - 3 = 3.
+        // A 3-element MakeArray costs 6 per branch. Total cost 12 >= 12/2 + 3 = 9,
+        // so the conditional is NOT flattened.
         let src = r#"
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
@@ -520,44 +523,10 @@ mod tests {
                 return v3
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_eq!(ssa.main().reachable_blocks().len(), 10);
-
-        let ssa = ssa.flatten_basic_conditionals();
-        // Only the inner conditional with cheap branches (and=1 + truncate=7, total=8 < 10) gets
-        // flattened. The other (truncate=7 + truncate=7, total=14 >= 12) does not.
-        assert_eq!(ssa.main().reachable_blocks().len(), 7);
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn foo f0 {
-          b0(v0: u32):
-            v4 = eq v0, u32 5
-            v5 = not v4
-            jmpif v4 then: b5, else: b1
-          b1():
-            v17 = lt v0, u32 3
-            jmpif v17 then: b3, else: b2
-          b2():
-            v19 = truncate v0 to 2 bits, max_bit_size: 32
-            jmp b4(v19)
-          b3():
-            v18 = truncate v0 to 1 bits, max_bit_size: 32
-            jmp b4(v18)
-          b4(v1: u32):
-            jmp b6(v1)
-          b5():
-            v7 = lt u32 2, v0
-            v8 = and v0, u32 2
-            v9 = not v7
-            v10 = truncate v0 to 3 bits, max_bit_size: 32
-            v11 = cast v7 as u32
-            v12 = cast v9 as u32
-            v13 = unchecked_mul v11, v8
-            v14 = unchecked_mul v12, v10
-            v15 = unchecked_add v13, v14
-            jmp b6(v15)
-          b6(v2: u32):
-            return v2
-        }
-        ");
+        // Neither inner conditional gets flattened: merge_cost=3 per exit param means
+        // jump_overhead=3 for 1-param conditionals, and both inner branches exceed the threshold.
+        // Inner 1: truncate(7)+truncate(7)=14 >= 14/2+3=10
+        // Inner 2: and(1)+truncate(7)=8 >= 8/2+3=7
+        crate::ssa::opt::assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 }
