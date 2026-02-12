@@ -161,8 +161,7 @@ pub(crate) fn compute_inline_infos(
 /// it by the weight of each callee. We then determine the cost of inlining to be
 /// the times a function has been called multiplied by its total weight.
 ///
-/// To determine the cost of retaining a function we first need the function interface cost,
-/// computed in [compute_function_interface_cost].
+/// To determine the cost of retaining a function we first need the [function interface cost][crate::ssa::ir::function::Function::call_overhead],
 /// The cost of retaining of a function is then (times a function has been called) * (interface cost) + total weight.
 ///
 /// A function's net cost is then (cost of inlining - cost of retaining).
