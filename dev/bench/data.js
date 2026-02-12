@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770928004023,
+  "lastUpdate": 1770928005899,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25238,105 +25238,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "22513b0d15b57ac7672508af5943376caef10340",
-          "message": "chore: add Claude Code hook to auto-format Rust files (#11465)",
-          "timestamp": "2026-02-04T18:27:46Z",
-          "tree_id": "c65ccc670d009c2cab9ac4b7120236e2e6a0395b",
-          "url": "https://github.com/noir-lang/noir/commit/22513b0d15b57ac7672508af5943376caef10340"
-        },
-        "date": 1770231667629,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1014.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2212.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 496.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 227.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 231.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 303.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 385,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 48698.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 48761.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 416.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 5441.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4767.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 178.1,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 551.6,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 473,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "f911f407eac9007935a25302b6bc533332395fa9",
           "message": "fix: preserve stores to references escaping via returned arrays in mem2reg (#11457)",
           "timestamp": "2026-02-04T18:36:06Z",
@@ -30136,6 +30037,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-root",
             "value": 29410.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 418.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5441.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4765.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 177.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 551.6,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 473,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d44d6aedd227596a93f30b5434b6a60eecf1570f",
+          "message": "fix: Avoid hoisting make array instructions (#11432)",
+          "timestamp": "2026-02-12T19:55:44Z",
+          "tree_id": "05c2a53a410e2b7fc85c7062165bdce378a6bad1",
+          "url": "https://github.com/noir-lang/noir/commit/d44d6aedd227596a93f30b5434b6a60eecf1570f"
+        },
+        "date": 1770927959553,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1014.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2211.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 495.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 227.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 231.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 303,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 387.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 29375.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 29437,
             "unit": "KB"
           },
           {
