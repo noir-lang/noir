@@ -4,7 +4,7 @@ use crate::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::{BrilligVariable, SingleAddrVariable},
+    brillig_variable::BrilligVariable,
     debug_show::DebugToString,
     registers::{RegisterAllocator, Stack},
 };
@@ -20,7 +20,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         func_id: FunctionId,
         arguments: &[BrilligVariable],
         returns: &[BrilligVariable],
-        spill_bump: usize,
     ) {
         // Allocate a register for the stack size. With this allocation, we have our current stack before the call.
         let stack_size_register = self.allocate_single_addr_usize();
@@ -64,8 +63,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // This is the previous stack pointer to return to after the call.
         self.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
 
-        // Pass the arguments in the 1st, 2nd, ... slots of the stack.
-        let mut current_argument_location = stack_size + 1;
+        // Pass the arguments starting at the callee's Stack::start() offset.
+        // Offset 0 holds the saved stack pointer; offset 1 is reserved for spill base.
+        let mut current_argument_location = stack_size + Stack::start() as u32;
         for item in arguments {
             // Here we are still using addresses relative to the current stack pointer.
             self.mov_instruction(
@@ -85,29 +85,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Add,
         );
 
-        // Bump spill base before the call so callee spills don't collide with ours.
-        if spill_bump > 0 {
-            let scratch = ReservedRegisters::spill_scratch();
-            let base = ReservedRegisters::spill_base();
-            self.const_instruction(SingleAddrVariable::new_usize(scratch), spill_bump.into());
-            self.memory_op_instruction(base, scratch, base, BrilligBinaryOp::Add);
-        }
-
         self.add_external_call_instruction(func_id);
 
         // Restore the previous stack pointer, which was copied into the 0th slot.
         self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
 
-        // Restore spill base after return.
-        if spill_bump > 0 {
-            let scratch = ReservedRegisters::spill_scratch();
-            let base = ReservedRegisters::spill_base();
-            self.const_instruction(SingleAddrVariable::new_usize(scratch), spill_bump.into());
-            self.memory_op_instruction(base, scratch, base, BrilligBinaryOp::Sub);
-        }
-
         // Move the return values back. The return values are expected to overwrite the args.
-        let mut current_return_location = stack_size + 1;
+        let mut current_return_location = stack_size + Stack::start() as u32;
         for item in returns {
             self.mov_instruction(
                 item.extract_register(),

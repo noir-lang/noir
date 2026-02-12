@@ -161,11 +161,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let argument_variables =
             vecmap(arguments, |argument_id| self.convert_ssa_value(*argument_id, dfg));
 
-        let bump = self.spill_manager.as_ref().map_or(0, |sm| sm.high_water_mark());
-
         let return_variables =
             vecmap(result_ids, |result_id| self.define_variable(*result_id, dfg));
-        self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables, bump);
+        self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
     }
 
     /// Increase or decrease the vector length by 1.

@@ -794,10 +794,13 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
         0: call 0
-        1: sp[2] = const field 10
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[1] = sp[3]
-        4: return
+        1: sp[1] = @1
+        2: @3 = const u32 2048
+        3: @1 = u32 add @1, @3
+        4: sp[3] = const field 10
+        5: sp[4] = field add sp[2], sp[3]
+        6: sp[2] = sp[4]
+        7: return
         ");
     }
 
@@ -827,15 +830,18 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
-        1: sp[2] = const field 1
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[1] = const field 2
-        4: sp[2] = field add sp[3], sp[1]
-        5: sp[1] = const field 3
-        6: sp[3] = field add sp[2], sp[1]
-        7: sp[1] = sp[3]
-        8: return
+         0: call 0
+         1: sp[1] = @1
+         2: @3 = const u32 2048
+         3: @1 = u32 add @1, @3
+         4: sp[3] = const field 1
+         5: sp[4] = field add sp[2], sp[3]
+         6: sp[2] = const field 2
+         7: sp[3] = field add sp[4], sp[2]
+         8: sp[2] = const field 3
+         9: sp[4] = field add sp[3], sp[2]
+        10: sp[2] = sp[4]
+        11: return
         ");
     }
 
@@ -872,21 +878,24 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[3] = const u32 0
-         2: sp[4] = const u32 1
-         3: sp[2] = sp[3]
-         4: jump to 0
-         5: sp[3] = u32 lt sp[2], sp[1]
-         6: jump if sp[3] to 0
+         1: sp[1] = @1
+         2: @3 = const u32 2048
+         3: @1 = u32 add @1, @3
+         4: sp[4] = const u32 0
+         5: sp[5] = const u32 1
+         6: sp[3] = sp[4]
          7: jump to 0
-         8: sp[1] = sp[2]
-         9: return
-        10: sp[3] = u32 add sp[2], sp[4]
-        11: sp[5] = u32 lt_eq sp[2], sp[3]
-        12: jump if sp[5] to 0
-        13: call 0
-        14: sp[2] = sp[3]
-        15: jump to 0
+         8: sp[4] = u32 lt sp[3], sp[2]
+         9: jump if sp[4] to 0
+        10: jump to 0
+        11: sp[2] = sp[3]
+        12: return
+        13: sp[4] = u32 add sp[3], sp[5]
+        14: sp[6] = u32 lt_eq sp[3], sp[4]
+        15: jump if sp[6] to 0
+        16: call 0
+        17: sp[3] = sp[4]
+        18: jump to 0
         ");
     }
 
@@ -922,17 +931,20 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[3] = const field 42
-         2: jump if sp[1] to 0
-         3: jump to 0
-         4: sp[2] = sp[3]
-         5: jump to 0
-         6: sp[1] = const field 27
-         7: sp[4] = field add sp[1], sp[3]
-         8: sp[2] = sp[4]
-         9: jump to 0
-        10: sp[1] = sp[2]
-        11: return
+         1: sp[1] = @1
+         2: @3 = const u32 2048
+         3: @1 = u32 add @1, @3
+         4: sp[4] = const field 42
+         5: jump if sp[2] to 0
+         6: jump to 0
+         7: sp[3] = sp[4]
+         8: jump to 0
+         9: sp[2] = const field 27
+        10: sp[5] = field add sp[2], sp[4]
+        11: sp[3] = sp[5]
+        12: jump to 0
+        13: sp[2] = sp[3]
+        14: return
         ");
     }
 
@@ -962,13 +974,16 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
-        1: sp[2] = const field 100
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[2] = const field 200
-        4: sp[4] = field mul sp[1], sp[2]
-        5: sp[1] = field add sp[3], sp[4]
-        6: return
+         0: call 0
+         1: sp[1] = @1
+         2: @3 = const u32 2048
+         3: @1 = u32 add @1, @3
+         4: sp[3] = const field 100
+         5: sp[4] = field add sp[2], sp[3]
+         6: sp[3] = const field 200
+         7: sp[5] = field mul sp[2], sp[3]
+         8: sp[2] = field add sp[4], sp[5]
+         9: return
         ");
     }
 
@@ -1002,16 +1017,19 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[3] = const field 1
-         2: sp[4] = field add sp[1], sp[3]
-         3: sp[1] = const field 2
-         4: sp[3] = field add sp[4], sp[1]
-         5: sp[1] = const field 3
-         6: sp[4] = field mul sp[3], sp[1]
-         7: sp[2] = sp[4]
-         8: jump to 0
-         9: sp[1] = sp[2]
-        10: return
+         1: sp[1] = @1
+         2: @3 = const u32 2048
+         3: @1 = u32 add @1, @3
+         4: sp[4] = const field 1
+         5: sp[5] = field add sp[2], sp[4]
+         6: sp[2] = const field 2
+         7: sp[4] = field add sp[5], sp[2]
+         8: sp[2] = const field 3
+         9: sp[5] = field mul sp[4], sp[2]
+        10: sp[3] = sp[5]
+        11: jump to 0
+        12: sp[2] = sp[3]
+        13: return
         ");
     }
 }

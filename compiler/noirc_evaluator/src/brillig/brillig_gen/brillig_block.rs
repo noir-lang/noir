@@ -201,21 +201,30 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Spill the least-recently-used value to the spill region (3 instructions).
+    /// Spill the least-recently-used value to the spill region (4 instructions).
     fn spill_lru_value(&mut self) {
         let spill_manager = self.spill_manager.as_mut().unwrap();
         let victim_id = spill_manager.lru_victim().expect("No values available to spill");
         let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
         let victim_reg = victim_var.extract_register();
         let offset = spill_manager.allocate_spill_offset();
-        let scratch = ReservedRegisters::spill_scratch();
-        let base = ReservedRegisters::spill_base();
+        let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
 
-        // 3-instruction spill: load offset → compute address → store value
+        // 4-instruction spill:
+        //   mov  scratch_addr, sp[1]          -- load spill base from stack slot
+        //   const scratch_offset, offset      -- spill offset
+        //   add  scratch_addr, scratch_addr, scratch_offset  -- compute absolute address
+        //   store [scratch_addr], victim_reg  -- store value
+        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
         self.brillig_context
-            .const_instruction(SingleAddrVariable::new_usize(scratch), offset.into());
-        self.brillig_context.memory_op_instruction(base, scratch, scratch, BrilligBinaryOp::Add);
-        self.brillig_context.store_instruction(scratch, victim_reg);
+            .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
+        self.brillig_context.memory_op_instruction(
+            scratch_addr,
+            scratch_offset,
+            scratch_addr,
+            BrilligBinaryOp::Add,
+        );
+        self.brillig_context.store_instruction(scratch_addr, victim_reg);
 
         // Free the victim's register so it can be reused
         self.brillig_context.deallocate_register(victim_reg);
@@ -224,23 +233,34 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         spill_manager.record_spill(victim_id, offset, victim_var);
     }
 
-    /// Reload a previously spilled value into a freshly allocated register (3 instructions).
+    /// Reload a previously spilled value into a freshly allocated register (4 instructions).
     fn reload_spilled_value(&mut self, value_id: ValueId) -> BrilligVariable {
         // Ensure capacity for the reload register (may trigger another spill)
         self.ensure_register_capacity(1);
 
         let spill_manager = self.spill_manager.as_mut().unwrap();
         let spill_info = spill_manager.get_spill(&value_id).unwrap().clone();
-        let scratch = ReservedRegisters::spill_scratch();
-        let base = ReservedRegisters::spill_base();
+        let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
 
         let new_reg = self.brillig_context.allocate_register().detach();
 
-        // 3-instruction reload: load offset → compute address → load value
-        self.brillig_context
-            .const_instruction(SingleAddrVariable::new_usize(scratch), spill_info.offset.into());
-        self.brillig_context.memory_op_instruction(base, scratch, scratch, BrilligBinaryOp::Add);
-        self.brillig_context.load_instruction(new_reg, scratch);
+        // 4-instruction reload:
+        //   mov  scratch_addr, sp[1]          -- load spill base from stack slot
+        //   const scratch_offset, offset      -- spill offset
+        //   add  scratch_addr, scratch_addr, scratch_offset  -- compute absolute address
+        //   load new_reg, [scratch_addr]      -- load value
+        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+        self.brillig_context.const_instruction(
+            SingleAddrVariable::new_usize(scratch_offset),
+            spill_info.offset.into(),
+        );
+        self.brillig_context.memory_op_instruction(
+            scratch_addr,
+            scratch_offset,
+            scratch_addr,
+            BrilligBinaryOp::Add,
+        );
+        self.brillig_context.load_instruction(new_reg, scratch_addr);
 
         // Create updated variable with new register
         let new_var = spill_info.variable.with_register(new_reg);

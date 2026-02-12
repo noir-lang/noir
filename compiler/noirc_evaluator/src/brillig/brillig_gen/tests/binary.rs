@@ -18,13 +18,16 @@ fn brillig_add() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0
-    1: sp[3] = u32 add sp[1], sp[2]
-    2: sp[4] = u32 lt_eq sp[1], sp[3]
-    3: jump if sp[4] to 0
-    4: call 0
-    5: sp[1] = sp[3]
-    6: return
+     0: call 0
+     1: sp[1] = @1
+     2: @3 = const u32 2048
+     3: @1 = u32 add @1, @3
+     4: sp[4] = u32 add sp[2], sp[3]
+     5: sp[5] = u32 lt_eq sp[2], sp[4]
+     6: jump if sp[5] to 0
+     7: call 0
+     8: sp[2] = sp[4]
+     9: return
     ");
 }
 
@@ -43,13 +46,16 @@ fn brillig_sub() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0
-    1: sp[3] = u32 sub sp[1], sp[2]
-    2: sp[4] = u32 lt_eq sp[2], sp[1]
-    3: jump if sp[4] to 0
-    4: call 0
-    5: sp[1] = sp[3]
-    6: return
+     0: call 0
+     1: sp[1] = @1
+     2: @3 = const u32 2048
+     3: @1 = u32 add @1, @3
+     4: sp[4] = u32 sub sp[2], sp[3]
+     5: sp[5] = u32 lt_eq sp[3], sp[2]
+     6: jump if sp[5] to 0
+     7: call 0
+     8: sp[2] = sp[4]
+     9: return
     ");
 }
 
@@ -69,16 +75,19 @@ fn brillig_mul() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[3] = u32 mul sp[1], sp[2]
-     2: sp[5] = const u32 0
-     3: sp[4] = u32 eq sp[5], sp[2]
-     4: jump if sp[4] to 0
-     5: sp[7] = u32 div sp[3], sp[2]
-     6: sp[6] = u32 eq sp[7], sp[1]
-     7: jump if sp[6] to 0
-     8: call 0
-     9: sp[1] = sp[3]
-    10: return
+     1: sp[1] = @1
+     2: @3 = const u32 2048
+     3: @1 = u32 add @1, @3
+     4: sp[4] = u32 mul sp[2], sp[3]
+     5: sp[6] = const u32 0
+     6: sp[5] = u32 eq sp[6], sp[3]
+     7: jump if sp[5] to 0
+     8: sp[8] = u32 div sp[4], sp[3]
+     9: sp[7] = u32 eq sp[8], sp[2]
+    10: jump if sp[7] to 0
+    11: call 0
+    12: sp[2] = sp[4]
+    13: return
     ");
 }
 
@@ -98,9 +107,12 @@ fn brillig_div() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 div sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 div sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -119,11 +131,14 @@ fn brillig_mod() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[4] = u32 div sp[1], sp[2]
-    2: sp[5] = u32 mul sp[4], sp[2]
-    3: sp[3] = u32 sub sp[1], sp[5]
-    4: sp[1] = sp[3]
-    5: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[5] = u32 div sp[2], sp[3]
+    5: sp[6] = u32 mul sp[5], sp[3]
+    6: sp[4] = u32 sub sp[2], sp[6]
+    7: sp[2] = sp[4]
+    8: return
     ");
 }
 
@@ -143,9 +158,12 @@ fn brillig_eq() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 eq sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 eq sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -165,9 +183,12 @@ fn brillig_lt() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 lt sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 lt sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -187,9 +208,12 @@ fn brillig_and() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 and sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 and sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -209,9 +233,12 @@ fn brillig_or() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 or sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 or sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -231,9 +258,12 @@ fn brillig_xor() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 xor sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 xor sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -253,9 +283,12 @@ fn brillig_shl() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 shl sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 shl sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -275,9 +308,12 @@ fn brillig_shr() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = u32 shr sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = u32 shr sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -297,9 +333,12 @@ fn brillig_add_field() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = field add sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = field add sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -319,9 +358,12 @@ fn brillig_sub_field() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = field sub sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = field sub sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -341,9 +383,12 @@ fn brillig_mul_field() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = field mul sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = field mul sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -363,8 +408,11 @@ fn brillig_div_field() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = field field_div sp[1], sp[2]
-    2: sp[1] = sp[3]
-    3: return
+    1: sp[1] = @1
+    2: @3 = const u32 2048
+    3: @1 = u32 add @1, @3
+    4: sp[4] = field field_div sp[2], sp[3]
+    5: sp[2] = sp[4]
+    6: return
     ");
 }

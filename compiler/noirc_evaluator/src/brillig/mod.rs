@@ -14,6 +14,7 @@ use brillig_gen::brillig_block::BrilligBlock;
 use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
 use brillig_ir::BrilligContext;
+use brillig_ir::ReservedRegisters;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 use noirc_errors::call_stack::CallStackHelper;
 
@@ -126,6 +127,34 @@ impl Brillig {
         brillig_context.enter_context(Label::function(func.id()));
 
         brillig_context.call_check_max_stack_depth_procedure();
+
+        // Allocate a per-frame spill region from the heap and store its base in sp[1].
+        // This replaces the old global spill region: each frame owns its own region,
+        // so no bump/restore is needed around calls.
+        //
+        // We use a scratch space register for the temporary constant to avoid clobbering
+        // function arguments that the caller already placed at sp[Stack::start()].
+        let spill_size = options.layout.spill_region_size();
+        if spill_size > 0 {
+            let (scratch, _) = ReservedRegisters::spill_scratch();
+            // mov sp[1], @1  -- store current FMP as spill base
+            brillig_context.mov_instruction(
+                ReservedRegisters::spill_base_slot(),
+                ReservedRegisters::free_memory_pointer(),
+            );
+            // const scratch, spill_size
+            brillig_context.const_instruction(
+                brillig_ir::brillig_variable::SingleAddrVariable::new_usize(scratch),
+                spill_size.into(),
+            );
+            // add @1, @1, scratch  -- bump FMP
+            brillig_context.memory_op_instruction(
+                ReservedRegisters::free_memory_pointer(),
+                scratch,
+                ReservedRegisters::free_memory_pointer(),
+                brillig_ir::BrilligBinaryOp::Add,
+            );
+        }
 
         for block in function_context.reverse_post_order().collect::<Vec<_>>() {
             BrilligBlock::compile_block(
@@ -255,19 +284,8 @@ mod memory_layout {
                         assert_eq!(bits1, bits2);
 
                         if *dest1 == ReservedRegisters::free_memory_pointer() {
-                            // free_memory_pointer depends on max_stack_size + stack_start + spill_region_size
-                            // This is where the heap begins (after the spill region).
-                            let expected1 = options1.layout.max_stack_size()
-                                + stack_start
-                                + options1.layout.spill_region_size();
-                            let expected2 = options2.layout.max_stack_size()
-                                + stack_start
-                                + options2.layout.spill_region_size();
-
-                            assert_eq!(val1.to_u128(), expected1 as u128);
-                            assert_eq!(val2.to_u128(), expected2 as u128);
-                        } else if *dest1 == ReservedRegisters::spill_base() {
-                            // spill_base = stack_start + max_stack_size
+                            // free_memory_pointer = stack_start + max_stack_size
+                            // (heap starts right after the stack, no global spill region)
                             let expected1 = options1.layout.max_stack_size() + stack_start;
                             let expected2 = options2.layout.max_stack_size() + stack_start;
 

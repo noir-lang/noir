@@ -56,7 +56,7 @@ pub(crate) struct ReservedRegisters;
 impl ReservedRegisters {
     /// The number of reserved registers. These are allocated in the first memory positions.
     /// The stack should start after the reserved registers.
-    const NUM_RESERVED_REGISTERS: usize = 5;
+    const NUM_RESERVED_REGISTERS: usize = 3;
 
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
@@ -81,16 +81,19 @@ impl ReservedRegisters {
         MemoryAddress::direct(2)
     }
 
-    /// Holds the base address of the spill region, initialized once in the entry point.
-    /// Persists across function calls since it's a direct address.
-    pub(crate) fn spill_base() -> MemoryAddress {
-        MemoryAddress::direct(3)
+    /// Fixed stack slot `sp[1]` holds the per-frame spill base pointer.
+    /// Each function's prologue allocates a heap region and stores the pointer here.
+    /// Stack-relative addressing means it's automatically preserved across calls.
+    pub(crate) fn spill_base_slot() -> MemoryAddress {
+        MemoryAddress::relative(1)
     }
 
-    /// Scratch register for computing spill/reload addresses (base + offset).
-    /// Value is transient — overwritten before each use.
-    pub(crate) fn spill_scratch() -> MemoryAddress {
-        MemoryAddress::direct(4)
+    /// Two scratch addresses used transiently during spill/reload computations.
+    /// These are the first two slots of scratch space (`@3` and `@4`).
+    /// Safe to use because block codegen never uses scratch space directly.
+    pub(crate) fn spill_scratch() -> (MemoryAddress, MemoryAddress) {
+        let start = ScratchSpace::start();
+        (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
 }
 
@@ -767,8 +770,13 @@ pub(crate) mod tests {
         }
 
         let status = vm.get_status();
-        // The VM successfully finished executing
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 8, return_data_size: 8 });
+        // The VM successfully finished executing.
+        // The return_data values equal the stack pointer which starts at ReservedRegisters::len() + 3 variables.
+        let expected_sp = assert_u32(ReservedRegisters::len() + 3);
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: expected_sp, return_data_size: expected_sp }
+        );
     }
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
@@ -905,7 +913,7 @@ pub(crate) mod tests {
         let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
 
         // This call should panic with "Call arguments would exceed stack frame bounds"
-        context.codegen_call(FunctionId::test_new(1), &arguments, &[], 0);
+        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
     }
 
     /// Test that jmp block parameter passing handles the parallel-move problem correctly.

@@ -172,9 +172,11 @@ impl Stack {
 
     /// Static start address.
     ///
-    /// The addressable space starts at offset 1; at offset 0 is the previous stack pointer.
+    /// The addressable space starts at offset 2:
+    /// - offset 0: previous stack pointer (saved/restored by codegen_call)
+    /// - offset 1: per-frame spill base pointer (set by prologue, used by spill/reload)
     pub(super) fn start() -> usize {
-        1
+        2
     }
 }
 

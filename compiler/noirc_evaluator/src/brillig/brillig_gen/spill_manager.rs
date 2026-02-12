@@ -24,7 +24,7 @@ pub(crate) struct SpillManager {
 
 #[derive(Clone)]
 pub(crate) struct SpillInfo {
-    /// Offset from spill base (ReservedRegisters::spill_base()).
+    /// Offset relative to the per-frame heap-allocated spill region base (stored in sp[1]).
     pub(crate) offset: usize,
     /// Original variable (for type/register info on reload).
     pub(crate) variable: BrilligVariable,
@@ -39,12 +39,6 @@ impl SpillManager {
             spill_region_size,
             free_spill_slots: Vec::new(),
         }
-    }
-
-    /// The high-water mark for spill offsets. Used to compute the bump
-    /// when calling functions so callee spills don't collide with ours.
-    pub(crate) fn high_water_mark(&self) -> usize {
-        self.next_spill_offset
     }
 
     /// Check if a value is currently spilled.

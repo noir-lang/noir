@@ -149,39 +149,41 @@ mod entry_point {
         assert_artifact_snapshot!(entry, @r"
         fn main
          0: @2 = const u32 1
-         1: @3 = const u32 32841
-         2: @1 = const u32 34889
-         3: @0 = const u32 73
-         4: call 17
-         5: sp[3] = const u32 2
-         6: sp[4] = const u32 0
-         7: @70 = calldata copy [sp[4]; sp[3]]
-         8: @70 = cast @70 to u32
-         9: @71 = cast @71 to u32
-        10: sp[1] = @70
-        11: sp[2] = @71
-        12: call 18
-        13: @72 = sp[1]
-        14: sp[2] = const u32 72
-        15: sp[3] = const u32 1
-        16: stop @[sp[2]; sp[3]]
-        17: return
-        18: call 25
-        19: sp[3] = u32 add sp[1], sp[2]
-        20: sp[4] = u32 lt_eq sp[1], sp[3]
-        21: jump if sp[4] to 23
-        22: call 31
-        23: sp[1] = sp[3]
-        24: return
-        25: @6 = const u32 30793
-        26: @5 = u32 lt @0, @6
-        27: jump if @5 to 30
-        28: @1 = indirect const u64 15764276373176857197
-        29: trap @[@1; @2]
-        30: return
-        31: @1 = indirect const u64 14990209321349310352
-        32: trap @[@1; @2]
-        33: return
+         1: @1 = const u32 32839
+         2: @0 = const u32 71
+         3: call 16
+         4: sp[4] = const u32 2
+         5: sp[5] = const u32 0
+         6: @68 = calldata copy [sp[5]; sp[4]]
+         7: @68 = cast @68 to u32
+         8: @69 = cast @69 to u32
+         9: sp[2] = @68
+        10: sp[3] = @69
+        11: call 17
+        12: @70 = sp[2]
+        13: sp[3] = const u32 70
+        14: sp[4] = const u32 1
+        15: stop @[sp[3]; sp[4]]
+        16: return
+        17: call 27
+        18: sp[1] = @1
+        19: @3 = const u32 2048
+        20: @1 = u32 add @1, @3
+        21: sp[4] = u32 add sp[2], sp[3]
+        22: sp[5] = u32 lt_eq sp[2], sp[4]
+        23: jump if sp[5] to 25
+        24: call 33
+        25: sp[2] = sp[4]
+        26: return
+        27: @4 = const u32 30791
+        28: @3 = u32 lt @0, @4
+        29: jump if @3 to 32
+        30: @1 = indirect const u64 15764276373176857197
+        31: trap @[@1; @2]
+        32: return
+        33: @1 = indirect const u64 14990209321349310352
+        34: trap @[@1; @2]
+        35: return
         ");
     }
 }

@@ -245,71 +245,121 @@ mod tests {
         assert_eq!(opcodes, generate_opcodes(expected_moves));
     }
 
+    /// Stack offset base. Tests use S-relative offsets so they adapt to Stack::start().
+    /// Stack::start() isn't const fn, so we use the known value here.
+    const S: usize = 2;
+
     #[test]
     fn test_no_op() {
-        let movements = vec![(1, 1), (2, 2), (1, 3), (2, 4)];
-        assert_generated_opcodes(movements, vec![(1, 3), (2, 4)]);
+        let movements = vec![(S, S), (S + 1, S + 1), (S, S + 2), (S + 1, S + 3)];
+        assert_generated_opcodes(movements, vec![(S, S + 2), (S + 1, S + 3)]);
     }
 
     #[test]
     #[should_panic]
     fn test_mov_registers_to_registers_overwrite() {
-        let movements = vec![(10, 1), (12, 1), (10, 3)];
+        let movements = vec![(S + 9, S), (S + 11, S), (S + 9, S + 2)];
         assert_generated_opcodes(movements, vec![]);
     }
 
     #[test]
     fn test_basic_no_loop() {
-        let movements = vec![(2, 1), (3, 2), (4, 3), (5, 4)];
-        assert_generated_opcodes(movements, vec![(2, 1), (3, 2), (4, 3), (5, 4)]);
+        let movements = vec![(S + 1, S), (S + 2, S + 1), (S + 3, S + 2), (S + 4, S + 3)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 1, S), (S + 2, S + 1), (S + 3, S + 2), (S + 4, S + 3)],
+        );
     }
 
     #[test]
     fn test_basic_loop() {
-        let movements = vec![(4, 1), (1, 2), (2, 3), (3, 4)];
-        assert_generated_opcodes(movements, vec![(1, 5), (4, 1), (3, 4), (2, 3), (5, 2)]);
+        let movements = vec![(S + 3, S), (S, S + 1), (S + 1, S + 2), (S + 2, S + 3)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S, S + 4), (S + 3, S), (S + 2, S + 3), (S + 1, S + 2), (S + 4, S + 1)],
+        );
     }
 
     #[test]
     fn test_no_loop() {
-        let movements = vec![(6, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
-        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (6, 1)]);
+        let movements =
+            vec![(S + 5, S), (S, S + 1), (S + 1, S + 2), (S + 2, S + 3), (S + 3, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 3, S + 4), (S + 2, S + 3), (S + 1, S + 2), (S, S + 1), (S + 5, S)],
+        );
     }
 
     #[test]
     fn test_loop_with_branch() {
-        let movements = vec![(3, 1), (1, 2), (2, 3), (1, 4), (4, 5)];
-        assert_generated_opcodes(movements, vec![(4, 5), (1, 4), (3, 1), (2, 3), (4, 2)]);
+        let movements = vec![(S + 2, S), (S, S + 1), (S + 1, S + 2), (S, S + 3), (S + 3, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 3, S + 4), (S, S + 3), (S + 2, S), (S + 1, S + 2), (S + 3, S + 1)],
+        );
     }
 
     #[test]
     fn test_two_loops() {
-        let movements = vec![(3, 1), (1, 2), (2, 3), (6, 4), (4, 5), (5, 6)];
+        let movements = vec![
+            (S + 2, S),
+            (S, S + 1),
+            (S + 1, S + 2),
+            (S + 5, S + 3),
+            (S + 3, S + 4),
+            (S + 4, S + 5),
+        ];
         assert_generated_opcodes(
             movements,
-            vec![(1, 7), (3, 1), (2, 3), (7, 2), (4, 7), (6, 4), (5, 6), (7, 5)],
+            vec![
+                (S, S + 6),
+                (S + 2, S),
+                (S + 1, S + 2),
+                (S + 6, S + 1),
+                (S + 3, S + 6),
+                (S + 5, S + 3),
+                (S + 4, S + 5),
+                (S + 6, S + 4),
+            ],
         );
     }
 
     #[test]
     fn test_another_loop_with_branch() {
-        let movements = vec![(2, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
-        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (3, 1)]);
+        let movements =
+            vec![(S + 1, S), (S, S + 1), (S + 1, S + 2), (S + 2, S + 3), (S + 3, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 3, S + 4), (S + 2, S + 3), (S + 1, S + 2), (S, S + 1), (S + 2, S)],
+        );
     }
+
     #[test]
     fn test_one_loop() {
-        let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
-        assert_generated_opcodes(movements, vec![(1, 6), (2, 1), (4, 2), (3, 4), (5, 3), (6, 5)]);
+        let movements =
+            vec![(S + 1, S), (S + 3, S + 1), (S + 4, S + 2), (S + 2, S + 3), (S, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![
+                (S, S + 5),
+                (S + 1, S),
+                (S + 3, S + 1),
+                (S + 2, S + 3),
+                (S + 4, S + 2),
+                (S + 5, S + 4),
+            ],
+        );
     }
 
-    /// This creates a chain (N+1)->1->2->...->N where N is large enough to overflow the stack
+    /// This creates a chain (S+N)->S->(S+1)->...->S+(N-1) where N is large enough to overflow the stack
     #[test]
     fn test_deep_chain() {
-        // Each movement is i -> i+1, creating a single long chain
         const CHAIN_DEPTH: usize = 10_000;
 
-        let mut movements: Vec<(usize, usize)> = (0..CHAIN_DEPTH).map(|i| (i, i + 1)).collect();
-        movements[0] = (CHAIN_DEPTH + 1, 1);
+        // destinations[i] = S+i, sources form a chain: S+N, S, S+1, ..., S+N-2
+        let movements: Vec<(usize, usize)> = (0..CHAIN_DEPTH)
+            .map(|i| if i == 0 { (S + CHAIN_DEPTH, S) } else { (S + i - 1, S + i) })
+            .collect();
         let (sources, destinations) = movements_to_source_and_destinations(movements);
 
         let mut context = create_context();
@@ -335,7 +385,8 @@ mod tests {
             // All potential memory slots; we can't address before the stack start.
             let all_indexes = (0..MEM_SIZE).map(|i| i + Stack::start()).collect::<Vec<_>>();
 
-            let destinations: Vec<usize> = (1..num_destinations + 1).collect();
+            let destinations: Vec<usize> =
+                (0..num_destinations).map(|i| i + Stack::start()).collect();
 
             // Pick random sources for each destination (same source can be repeated).
             let mut sources = Vec::with_capacity(num_destinations);
