@@ -689,6 +689,7 @@ fn compile_contract_inner(
         };
         warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
+        let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
 
         let custom_attributes = modifiers
             .attributes
@@ -710,7 +711,7 @@ fn compile_contract_inner(
             abi: function.abi,
             bytecode: function.program,
             debug: function.debug,
-            is_unconstrained: modifiers.is_unconstrained,
+            is_unconstrained,
         });
     }
 
