@@ -1138,14 +1138,9 @@ fn associated_type_as_generic_trait_param_spaced() {
     assert_no_errors(src);
 }
 
-// Known bug: Where clause on associated type using shorthand is ignored.
-// The compiler doesn't use C::Elem: Printable for method resolution.
-
-/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11546
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn where_clause_on_associated_type_shorthand_ignored() {
-    // Bug: C::Elem: Printable where clause is ignored, method not found
     let src = r#"
     trait Collection {
         type Elem;
@@ -1189,11 +1184,9 @@ fn where_clause_on_associated_type_shorthand_ignored() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11546
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn where_clause_on_associated_type_shorthand_in_function() {
-    // Bug: T::Output in a where clause of a helper function
     let src = r#"
     trait Transform {
         type Output;
@@ -1232,11 +1225,9 @@ fn where_clause_on_associated_type_shorthand_in_function() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+/// Regression for https://github.com/noir-lang/noir/issues/11546
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn multiple_associated_types_in_where_clause() {
-    // Bug: Where clause constraining multiple associated types using shorthand
     let src = r#"
     trait Pair {
         type First;
@@ -1286,11 +1277,9 @@ fn multiple_associated_types_in_where_clause() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11546
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn where_clause_on_associated_type_of_generic_in_trait_impl() {
-    // Bug: Where clause on associated type inside a generic trait impl
     let src = r#"
     trait HasOutput {
         type Output;
