@@ -408,12 +408,12 @@ impl LastUseContext {
         self.pop_loop_scope();
 
         for (id, orig_index) in orig_indices {
-            if let Some((index, branches)) = self.last_uses.get_mut(&id) {
-                if *index != orig_index {
-                    *index = orig_index;
-                    // If the value is still accessible outside the loop, don't move it inside the loop after it has been redeclared.
-                    *branches = Branches::None;
-                }
+            if let Some((index, branches)) = self.last_uses.get_mut(&id)
+                && *index != orig_index
+            {
+                *index = orig_index;
+                // If the value is still accessible outside the loop, don't move it inside the loop after it has been redeclared.
+                *branches = Branches::None;
             }
         }
     }
