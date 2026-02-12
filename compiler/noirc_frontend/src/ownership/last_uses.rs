@@ -400,7 +400,7 @@ impl LastUseContext {
 
     fn track_variables_in_loop(&mut self, loop_body: &Expression) {
         // Save the current loop index of the variables we are tracking.
-        // They *might* be redeclared inside the loop, but we need to restore them after.
+        // They *might* be reassigned inside the loop, which would change their index, but we need to restore them after.
         let orig_indices = vecmap(&self.last_uses, |(id, (index, _))| (*id, *index));
 
         self.push_loop_scope();
@@ -490,14 +490,17 @@ impl LastUseContext {
 
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
         // See if we are reassigning a variable, killing the reference to its previous value.
-        let reassign_ident = match &assign.lvalue {
+        // (Since we have a separate `Let` to declare variables, any `Assign` to an `Ident` is a reassignment).
+        // Only considering simple variables here, not member access or indexing; those would require a more
+        // careful analysis and potentially a different algorithm.
+        let variable = match &assign.lvalue {
             ast::LValue::Ident(ast::Ident {
                 definition: ast::Definition::Local(local_id), ..
             }) => Some(*local_id),
             _ => None,
         };
 
-        if let Some(local_id) = &reassign_ident {
+        if let Some(local_id) = &variable {
             // Adjust its loop index to be the current loop, so that `remember_use_of_variable`
             // remembers any last use, rather than clear out its current state.
             let current_index = self.loop_index();
@@ -508,9 +511,9 @@ impl LastUseContext {
 
         self.track_variables_in_expression(&assign.expression);
 
-        if let Some(local_id) = reassign_ident {
-            // Confirm any last moves we have on the variable at this point (which may be in the `assign.expression`).
-            // From here it acts as a newly declared variable with no history.
+        if let Some(local_id) = variable {
+            // Confirm any last uses we have on the variable at this point (which may be in `assign.expression`),
+            // From here on it acts as a newly declared variable with no history.
             if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
                 let branches = std::mem::replace(branches, Branches::None);
                 self.confirmed_moves.entry(local_id).or_default().extend(branches.flatten_uses());
