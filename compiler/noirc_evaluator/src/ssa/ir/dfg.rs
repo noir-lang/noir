@@ -3,7 +3,9 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     brillig::assert_u32,
     ssa::{
+        RuntimeError,
         function_builder::data_bus::DataBus,
+        ir::function::Function,
         ir::instruction::ArrayOffset,
         opt::pure::{FunctionPurities, Purity},
     },
@@ -165,6 +167,13 @@ impl From<GlobalsGraph> for DataFlowGraph {
         }
     }
 }
+
+/// Maximum number of elements allowed for return values, or for some arrays.
+/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
+/// 2^24 = 16,777,216 witnesses.
+/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
+/// So this limit should not interfere with real use cases.
+pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -339,15 +348,14 @@ impl DataFlowGraph {
                     SimplifyResult::None => false,
                     _ => unreachable!("matched specific SimplifyResult types"),
                 };
-                if !is_simplified {
-                    if let Some(id) = existing_id {
-                        if self[id] == instruction {
-                            // Just (re)insert into the block, no need to redefine.
-                            self.blocks[block].insert_instruction(id);
-                            let results = self.instruction_results(id);
-                            return InsertInstructionResult::Results(id, results);
-                        }
-                    }
+                if !is_simplified
+                    && let Some(id) = existing_id
+                    && self[id] == instruction
+                {
+                    // Just (re)insert into the block, no need to redefine.
+                    self.blocks[block].insert_instruction(id);
+                    let results = self.instruction_results(id);
+                    return InsertInstructionResult::Results(id, results);
                 }
                 let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
@@ -630,8 +638,8 @@ impl DataFlowGraph {
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
-        self.get_numeric_constant_with_type(value)
-            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+        let (f, t) = self.get_numeric_constant_with_type(value)?;
+        IntegerConstant::from_numeric_constant(f, t)
     }
 
     /// Returns the field element and type represented by this value if it is a numeric constant.
@@ -693,7 +701,7 @@ impl DataFlowGraph {
             let u64_value = field_value.try_to_u64()?;
             if u64_value > 255 {
                 return None;
-            };
+            }
             let byte = u64_value as u8;
             bytes.push(byte);
         }
@@ -852,6 +860,32 @@ impl DataFlowGraph {
         };
         let results = self.instruction_results(instruction_id);
         results.contains(&return_data)
+    }
+
+    /// Computes the number of flattened values returned by the SSA terminator.
+    ///
+    /// Returns [RuntimeError::ReturnLimitExceeded] if it exceeds [MAX_ELEMENTS].
+    pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
+        if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
+            func.return_instruction()
+        {
+            let num_return_values: usize = return_values
+                .iter()
+                .map(|result_id| self.type_of_value(*result_id).flattened_size().to_usize())
+                .sum();
+
+            if num_return_values > MAX_ELEMENTS {
+                let call_stack = func.dfg.call_stack_data.get_call_stack(*call_stack);
+                return Err(RuntimeError::ReturnLimitExceeded {
+                    num_witnesses: num_return_values,
+                    max_witnesses: MAX_ELEMENTS,
+                    call_stack,
+                });
+            }
+            return Ok(num_return_values);
+        }
+
+        Ok(0)
     }
 }
 

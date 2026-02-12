@@ -958,43 +958,14 @@ impl<'interner> Monomorphizer<'interner> {
             MonomorphizationError::UnknownArrayLength { location, err }
         })?;
 
-        // Represent `[expr; n]` as:
-        //
-        // ```
-        // let repeated_element = expr;
-        // [repeated_element, repeated_element, ..., repeated_element]
-        // ```
-        //
-        // That is, `expr` is only evaluated once, assigned to a local variable,
-        // and the array consists of references to that local variable.
-        //
-        // Note that `expr` is evaluated even if the length is 0 (same as in Rust).
         let element = self.expr(repeated_element)?;
-        let local_id = self.next_local_id();
 
-        let name = "repeated_element".to_string();
-        let let_expr = ast::Expression::Let(ast::Let {
-            id: local_id,
-            mutable: false,
-            name: name.clone(),
-            expression: Box::new(element),
-        });
-
-        let contents = vecmap(0..length, |_| {
-            let definition = Definition::Local(local_id);
-            let id = self.next_ident_id();
-            let typ = typ.clone();
-            let name = name.clone();
-            let ident =
-                ast::Ident { location: Some(location), definition, mutable: false, name, typ, id };
-            ast::Expression::Ident(ident)
-        });
-        let array = if is_vector {
-            ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral { contents, typ }))
-        } else {
-            ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
-        };
-        Ok(ast::Expression::Block(vec![let_expr, array]))
+        Ok(ast::Expression::Literal(ast::Literal::Repeated {
+            element: Box::new(element),
+            length,
+            is_vector,
+            typ,
+        }))
     }
 
     fn index(
@@ -1308,8 +1279,8 @@ impl<'interner> Monomorphizer<'interner> {
         // of both (constrained, unconstrained). This is used only as an optimization to avoid
         // unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
-        // If true, evaluate some builtins to function values. This is disabled when codegening the
-        // function in a function call since we can avoid creating a new function and instead
+        // If true, evaluate some builtins to function values. This is disabled when code-generating
+        // the function in a function call since we can avoid creating a new function and instead
         // inline the body directly which keeps some minimal SSA pass tests working.
         evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -2150,7 +2121,7 @@ impl<'interner> Monomorphizer<'interner> {
             for id in &call.arguments {
                 arguments.push(self.expr(*id)?);
             }
-        };
+        }
 
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
@@ -2174,22 +2145,22 @@ impl<'interner> Monomorphizer<'interner> {
         let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
-            if let Definition::Oracle(name) = &ident.definition {
-                if let Some(ForeignCall::Print) = ForeignCall::lookup(name) {
-                    // Oracle calls are required to be wrapped in an unconstrained function
-                    // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
-                    // The second argument is expected to always be an ident
-                    self.append_printable_type_info(&hir_arguments[1], &mut arguments);
-                }
+            if let Definition::Oracle(name) = &ident.definition
+                && let Some(ForeignCall::Print) = ForeignCall::lookup(name)
+            {
+                // Oracle calls are required to be wrapped in an unconstrained function
+                // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
+                // The second argument is expected to always be an ident
+                self.append_printable_type_info(&hir_arguments[1], &mut arguments);
             }
-            if let Definition::Builtin(name) = &ident.definition {
-                if name.as_str() == "static_assert" {
-                    // static_assert can take any type for the `message` argument.
-                    // Here we append printable type info so we can know how to turn that argument
-                    // into a human-readable string.
-                    let typ = self.interner.id_type(call.arguments[1]);
-                    append_printable_type_info_for_type(typ, &mut arguments);
-                }
+            if let Definition::Builtin(name) = &ident.definition
+                && name.as_str() == "static_assert"
+            {
+                // static_assert can take any type for the `message` argument.
+                // Here we append printable type info so we can know how to turn that argument
+                // into a human-readable string.
+                let typ = self.interner.id_type(call.arguments[1]);
+                append_printable_type_info_for_type(typ, &mut arguments);
             }
         }
 
@@ -2432,6 +2403,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let reference = Box::new(self.lvalue(*lvalue)?);
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }
+            }
+            HirLValue::Error { .. } => {
+                unreachable!("Encountered Error node during monomorphization");
             }
         };
 
@@ -2859,8 +2833,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
     /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
-        self.in_unconstrained_function
-            || self.interner.function_modifiers(&func_id).is_unconstrained
+        self.in_unconstrained_function || self.interner.function_meta(&func_id).is_unconstrained()
     }
 
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
@@ -2898,28 +2871,28 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// Returns `false` for any other kind of expression.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
-            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
-                return self.interner.function_modifiers(&func_id).is_unconstrained;
-            }
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
+            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
+        {
+            return self.interner.function_meta(&func_id).is_unconstrained();
         }
 
         false
     }
 
     fn function_is_oracle(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function) {
-            if let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind {
-                return self
-                    .interner
-                    .function_modifiers(&func_id)
-                    .attributes
-                    .function
-                    .as_ref()
-                    .is_some_and(|(attribute, _)| {
-                        matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
-                    });
-            }
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
+            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
+        {
+            return self
+                .interner
+                .function_modifiers(&func_id)
+                .attributes
+                .function
+                .as_ref()
+                .is_some_and(|(attribute, _)| {
+                    matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
+                });
         }
         false
     }
@@ -3037,6 +3010,9 @@ fn resolve_trait_item_impl(
 
     match trait_impl {
         TraitImplKind::Normal(impl_id) => Ok(impl_id),
+        TraitImplKind::Prepared { .. } => {
+            unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
+        }
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
@@ -3065,10 +3041,18 @@ fn resolve_trait_item_impl(
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     Err(InterpreterError::NoImpl { location })
                 }
+                Ok((TraitImplKind::Prepared { .. }, _)) => {
+                    unreachable!(
+                        "ICE: Prepared trait impl should have been replaced by a Normal one"
+                    )
+                }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
                 }
-                Err(ImplSearchErrorKind::Nested(constraints)) => {
+                Err(
+                    ImplSearchErrorKind::NoImplFound(constraints)
+                    | ImplSearchErrorKind::NoMatching(constraints),
+                ) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
@@ -3083,6 +3067,9 @@ fn resolve_trait_item_impl(
                         location,
                         candidates,
                     })
+                }
+                Err(ImplSearchErrorKind::RecursionLimitReached) => {
+                    Err(InterpreterError::TraitImplResolutionRecursionLimitReached { location })
                 }
             }
         }

@@ -86,20 +86,17 @@ impl ProxyContext {
             // even though its `Ident::typ` will be a `Tuple([Function, Function])`.
 
             // If this is a direct call from ACIR to an Oracle, we want to create a proxy.
-            if !self.in_unconstrained {
-                if let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
+            if !self.in_unconstrained
+                && let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
-                {
-                    if let Expression::Ident(ident) = func.as_mut() {
-                        if matches!(ident.definition, Definition::Oracle(_)) {
-                            self.redirect_to_proxy(ident, true);
-                            for arg in arguments {
-                                self.visit_expr(arg);
-                            }
-                            return false;
-                        }
-                    }
+                && let Expression::Ident(ident) = func.as_mut()
+                && matches!(ident.definition, Definition::Oracle(_))
+            {
+                self.redirect_to_proxy(ident, true);
+                for arg in arguments {
+                    self.visit_expr(arg);
                 }
+                return false;
             }
 
             // If this is a foreign function value, we want to replace it with proxies.

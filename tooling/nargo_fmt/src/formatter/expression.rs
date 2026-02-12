@@ -457,16 +457,16 @@ impl ChunkFormatter<'_, '_> {
                     //       let y = x + 1;
                     //       y * 2
                     //     })
-                    if expr_index == exprs_len - 1 {
-                        if let ExpressionKind::Lambda(lambda) = expr.kind {
-                            let mut lambda_group = formatter.format_lambda(*lambda);
-                            lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
-                                first_line_width: lambda_group.first_line_width,
-                                indentation: None,
-                            };
-                            chunks.group(lambda_group.group);
-                            return;
-                        }
+                    if expr_index == exprs_len - 1
+                        && let ExpressionKind::Lambda(lambda) = expr.kind
+                    {
+                        let mut lambda_group = formatter.format_lambda(*lambda);
+                        lambda_group.group.kind = GroupKind::LambdaAsLastExpressionInList {
+                            first_line_width: lambda_group.first_line_width,
+                            indentation: None,
+                        };
+                        chunks.group(lambda_group.group);
+                        return;
                     }
                     expr_index += 1;
 
@@ -693,7 +693,7 @@ impl ChunkFormatter<'_, '_> {
 
                 increase_indentation = true;
             }
-        };
+        }
 
         group.trailing_comment(self.skip_comments_and_whitespace_chunk());
 
@@ -811,8 +811,14 @@ impl ChunkFormatter<'_, '_> {
 
         group.space_or_line();
         group.text(self.chunk(|formatter| {
-            let tokens_count =
-                if infix.operator.contents == BinaryOpKind::ShiftRight { 2 } else { 1 };
+            let tokens_count = if matches!(
+                infix.operator.contents,
+                BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft
+            ) {
+                2
+            } else {
+                1
+            };
             for _ in 0..tokens_count {
                 formatter.write_current_token();
                 formatter.bump();

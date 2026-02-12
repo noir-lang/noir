@@ -497,6 +497,10 @@ impl Instruction {
                         // effect variable in the SSA and use it to optimize out memory operations that we know
                         // would fail, but they shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
+                        // RecursiveAggregation's predicate is injected implicitly from
+                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // must preserve the EnableSideEffectsIf that sets it.
+                        Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
                     }
                 }

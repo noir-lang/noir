@@ -286,7 +286,7 @@ fn to_folded_sorted_lines(
                 format!("{} {}", frame_list.join(";"), folded_stack_item.total_samples);
 
             result_vector.push(line);
-        };
+        }
 
         let mut new_parent_stacks = parent_stacks.clone();
         new_parent_stacks.push_back(location.clone());

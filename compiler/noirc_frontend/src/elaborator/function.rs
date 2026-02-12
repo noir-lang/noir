@@ -11,7 +11,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, Type, TypeVariable,
+    Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
@@ -49,6 +49,11 @@ impl Elaborator<'_> {
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
+        // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function signatures.
+        let trait_constraints_and_generics = vecmap(trait_impls.iter_mut(), |trait_impl| {
+            self.prepare_trait_impl_for_function_meta_definition(trait_impl)
+        });
+
         // Define metas for regular functions
         for function_set in functions {
             self.define_function_metas_for_functions(function_set, &[]);
@@ -60,8 +65,10 @@ impl Elaborator<'_> {
         }
 
         // Define metas for trait impl functions
-        for trait_impl in trait_impls {
-            self.define_function_metas_for_trait_impl(trait_impl);
+        for (trait_impl, (trait_constraints, generics)) in
+            trait_impls.iter_mut().zip(trait_constraints_and_generics)
+        {
+            self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }
     }
 
@@ -110,14 +117,16 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for all methods within a trait impl.
     /// This handles trait resolution, generics, associated types, and constraint checking.
-    fn define_function_metas_for_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        // Prepare the trait impl
-        let new_generics_trait_constraints =
-            self.prepare_trait_impl_for_function_meta_definition(trait_impl);
-
+    fn define_function_metas_for_trait_impl(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+        new_generics_trait_constraints: Vec<(TraitConstraint, Location)>,
+        generics: Vec<ResolvedGeneric>,
+    ) {
         // Set up trait impl state
         self.current_trait_impl = trait_impl.impl_id;
         self.self_type = trait_impl.methods.self_type.clone();
+        self.generics = generics;
 
         // Now define the function metas with the constraints from where clause desugaring
         self.define_function_metas_for_functions(
@@ -396,16 +405,15 @@ impl Elaborator<'_> {
         output: bool,
         location: Location,
     ) -> Result<(), TypeCheckError> {
-        if is_entry_point {
-            if let Some(invalid_type) = typ.program_validity(output) {
-                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-            }
+        if is_entry_point && let Some(invalid_type) = typ.program_validity(output) {
+            return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
         }
 
-        if has_inline_attribute && !output {
-            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
-                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-            }
+        if has_inline_attribute
+            && !output
+            && let Some(invalid_type) = typ.non_inlined_function_input_validity()
+        {
+            return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
         }
 
         Ok(())

@@ -68,26 +68,28 @@ pub(crate) fn on_completion_request(
 ) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position.clone(), |args| {
         let file_id = args.location.file;
-        utils::position_to_byte_index(args.files, file_id, &params.text_document_position.position)
-            .and_then(|byte_index| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let byte = source.as_bytes().get(byte_index - 1).copied();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let byte_index = utils::position_to_byte_index(
+            args.files,
+            file_id,
+            &params.text_document_position.position,
+        )?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let byte = source.as_bytes().get(byte_index - 1).copied();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = NodeFinder::new(
-                    args.files,
-                    file_id,
-                    source,
-                    byte_index,
-                    byte,
-                    args.crate_id,
-                    args.def_maps,
-                    args.dependencies(),
-                    args.interner,
-                );
-                finder.find(&parsed_module)
-            })
+        let mut finder = NodeFinder::new(
+            args.files,
+            file_id,
+            source,
+            byte_index,
+            byte,
+            args.crate_id,
+            args.def_maps,
+            args.dependencies(),
+            args.interner,
+        );
+        finder.find(&parsed_module)
     });
     future::ready(result)
 }
@@ -520,7 +522,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     requested_items,
                 );
-            };
+            }
         } else {
             // We are right after the last segment
             let prefix = ident.to_string().to_case(Case::Snake);
@@ -997,10 +999,10 @@ impl<'a> NodeFinder<'a> {
 
         // If we can't resolve a path through lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
-        if let Some(reference_id) = self.interner.find_referenced(location) {
-            if let Some(id) = module_def_id_from_reference_id(reference_id) {
-                return Some(id);
-            }
+        if let Some(reference_id) = self.interner.find_referenced(location)
+            && let Some(id) = module_def_id_from_reference_id(reference_id)
+        {
+            return Some(id);
         }
 
         None
@@ -1064,12 +1066,10 @@ impl<'a> NodeFinder<'a> {
             }
 
             let func_meta = self.interner.function_meta(&func_id);
-            let modifiers = self.interner.function_modifiers(&func_id);
 
             let mut generator = TraitImplMethodStubGenerator::new(
                 &name,
                 func_meta,
-                modifiers,
                 trait_,
                 noir_trait_impl,
                 self.interner,
@@ -1460,7 +1460,7 @@ impl Visitor for NodeFinder<'_> {
             body.accept(None, self);
 
             self.func_id = None;
-        };
+        }
 
         self.type_parameters = old_type_parameters;
 
@@ -1474,11 +1474,11 @@ impl Visitor for NodeFinder<'_> {
         // In this case we want to suggest items in foo but if they are functions
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
-        if let ExpressionKind::Variable(path) = &call_expression.func.kind {
-            if self.includes_span(path.location.span) {
-                self.find_in_path_impl(path, RequestedItems::AnyItems, true);
-                return false;
-            }
+        if let ExpressionKind::Variable(path) = &call_expression.func.kind
+            && self.includes_span(path.location.span)
+        {
+            self.find_in_path_impl(path, RequestedItems::AnyItems, true);
+            return false;
         }
 
         // Check if it's this case:
@@ -1626,17 +1626,17 @@ impl Visitor for NodeFinder<'_> {
         // If we have `foo.bar.>|<` we solve the type of `foo`, get the field `bar`,
         // then suggest methods of the resulting type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(object) {
-                if let Some(typ) = get_field_type(&typ, field_name.as_str()) {
-                    let prefix = "";
-                    let self_prefix = false;
-                    self.complete_type_fields_and_methods(
-                        &typ,
-                        prefix,
-                        FunctionCompletionKind::NameAndParameters,
-                        self_prefix,
-                    );
-                }
+            if let Some(typ) = self.get_lvalue_type(object)
+                && let Some(typ) = get_field_type(&typ, field_name.as_str())
+            {
+                let prefix = "";
+                let self_prefix = false;
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                    self_prefix,
+                );
             }
 
             return false;
@@ -1648,17 +1648,17 @@ impl Visitor for NodeFinder<'_> {
         // If we have `foo[index].>|<` we solve the type of `foo`, then get the array/vector element type,
         // then suggest methods of that type.
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(array) {
-                if let Some(typ) = get_array_element_type(typ) {
-                    let prefix = "";
-                    let self_prefix = false;
-                    self.complete_type_fields_and_methods(
-                        &typ,
-                        prefix,
-                        FunctionCompletionKind::NameAndParameters,
-                        self_prefix,
-                    );
-                }
+            if let Some(typ) = self.get_lvalue_type(array)
+                && let Some(typ) = get_array_element_type(typ)
+            {
+                let prefix = "";
+                let self_prefix = false;
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                    self_prefix,
+                );
             }
             return false;
         }

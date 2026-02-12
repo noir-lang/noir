@@ -135,6 +135,10 @@ impl Hash for EmbeddedCurveScalar {
 //
 // The embedded curve being used is decided by the
 // underlying proof system.
+//
+// IMPORTANT: Prefer `multi_scalar_mul()` over repeated `embedded_curve_add()`
+// for adding multiple points. This is significantly more efficient.
+// For adding exactly 2 points, use `embedded_curve_add()` directly.
 // docs:start:multi_scalar_mul
 pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
@@ -159,7 +163,12 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
     multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])
 }
 
-/// This function assumes that the points are on the curve
+/// Elliptic curve addition
+/// IMPORTANT: this function is expected to perform a full addition in order to handle all corner cases:
+/// - points on the curve
+/// - point doubling
+/// - point at infinity
+/// As a result, you may not get optimal performance, depending on the assumptions of your inputs.
 // docs:start:embedded_curve_add
 pub fn embedded_curve_add(
     point1: EmbeddedCurvePoint,

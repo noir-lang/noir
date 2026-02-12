@@ -295,11 +295,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_self(&mut self) -> bool {
-        if let Token::Ident(ident) = self.token.token() {
-            if ident == "self" {
-                self.bump();
-                return true;
-            }
+        if let Token::Ident(ident) = self.token.token()
+            && ident == "self"
+        {
+            self.bump();
+            return true;
         }
 
         false
@@ -536,7 +536,7 @@ impl<'a> Parser<'a> {
     fn set_lexer_skip_whitespaces_flag(&mut self, flag: bool) {
         if let TokenStream::Lexer(lexer) = &mut self.tokens {
             lexer.set_skip_whitespaces_flag(flag);
-        };
+        }
     }
 
     fn next_is(&self, token: Token) -> bool {

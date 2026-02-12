@@ -64,7 +64,7 @@ pub(super) fn verify_signature(
             BlackBoxFunc::EcdsaSecp256k1,
             "Invalid public key provided for ECDSA verification".to_string(),
         ));
-    };
+    }
     let pubkey = pubkey.unwrap();
 
     // Convert the hashed message to a scalar.

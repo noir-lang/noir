@@ -76,34 +76,30 @@ impl Type {
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) = lhs_evaluated {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
-                        {
-                            return Type::Constant(result, kind);
-                        }
-                    }
+                if let Ok(lhs_value) = lhs_evaluated
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                {
+                    return Type::Constant(result, kind);
                 }
 
                 let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
                 // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
-                if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if rhs_value.is_one() {
-                            return lhs;
-                        }
-                    }
+                if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division)
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && rhs_value.is_one()
+                {
+                    return lhs;
                 }
 
                 // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
-                if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if rhs_value.is_zero() {
-                            return lhs;
-                        }
-                    }
+                if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction)
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && rhs_value.is_zero()
+                {
+                    return lhs;
                 }
 
                 if !run_simplifications {
@@ -417,6 +413,7 @@ mod tests {
             type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
             name: std::rc::Rc::new("N".to_owned()),
             implicit: false,
+            original_type_var_id: None,
         });
         let n_minus_one: Type = n.clone() - 1u32.into();
         let checked_cast_n_minus_one =

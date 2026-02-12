@@ -114,6 +114,12 @@ pub struct SsaEvaluatorOptions {
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
 
+    /// Override the threshold for force-unrolling small loops.
+    /// Loops with constant bounds and no breaks whose unrolled
+    /// instruction count is at or below this threshold will always be unrolled.
+    /// Set to 0 to disable force-unrolling.
+    pub force_unroll_threshold: usize,
+
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
 }
@@ -166,7 +172,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
         SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            move |ssa| {
+                ssa.unroll_loops_iteratively(
+                    options.max_bytecode_increase_percent,
+                    options.force_unroll_threshold,
+                )
+            },
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
@@ -206,7 +217,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding using constraints",
         ),
         SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            move |ssa| {
+                ssa.unroll_loops_iteratively(
+                    options.max_bytecode_increase_percent,
+                    options.force_unroll_threshold,
+                )
+            },
             "Unrolling",
         ),
         SsaPass::new_try(
@@ -336,7 +352,7 @@ pub fn optimize_ssa_builder_into_acir(
                 )
             },
         ));
-    };
+    }
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {

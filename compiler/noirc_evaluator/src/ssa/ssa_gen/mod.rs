@@ -281,6 +281,34 @@ impl FunctionContext<'_> {
                     _ => unreachable!("ICE: unexpected vector literal type, got {}", array.typ),
                 })
             }
+            ast::Literal::Repeated { element, length, is_vector, typ } => {
+                let element_value = self.codegen_expression(element)?;
+
+                // For repeated arrays, the element is referenced multiple times.
+                // If the element contains arrays, we need to increment their reference counts
+                // We only add one inc_rc because we do not add the dec_rc, so it will be valid for all the copies.
+                if *length > 1 {
+                    for value in element_value.clone().into_value_list(self) {
+                        let value_type = self.builder.type_of_value(value);
+                        if matches!(value_type, Type::Array(..) | Type::Vector(_)) {
+                            self.builder.insert_inc_rc(value);
+                        }
+                    }
+                }
+
+                let elements: Vec<_> =
+                    std::iter::repeat_n(element_value, *length as usize).collect();
+                let mut converted_typ = Self::convert_type(typ).flatten().into_iter();
+                let typ_0 = converted_typ.next().unwrap();
+                if *is_vector {
+                    let vector_length = self.builder.length_constant(u128::from(*length));
+                    let vector_contents =
+                        self.codegen_array_checked(elements, converted_typ.next().unwrap())?;
+                    Ok(Tree::Branch(vec![vector_length.into(), vector_contents]))
+                } else {
+                    self.codegen_array_checked(elements, typ_0)
+                }
+            }
             ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
@@ -661,26 +689,24 @@ impl FunctionContext<'_> {
         // If this is an inclusive for loop, check if the end index is not the maximum value for its type.
         // In that case we can generate an exclusive for loop up to `end + 1`, which is simpler than
         // the code of an inclusive loop.
-        if inclusive {
-            if let Some(end_constant) =
+        if inclusive
+            && let Some(end_constant) =
                 self.builder.current_function.dfg.get_integer_constant(end_index)
-            {
-                let index_type = index_type.unwrap_numeric();
-                let bit_size = match index_type {
-                    NumericType::Signed { bit_size } => bit_size - 1,
-                    NumericType::Unsigned { bit_size } => bit_size,
-                    NumericType::NativeField => panic!("Cannot iterate over Field"),
-                };
-                let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
+        {
+            let index_type = index_type.unwrap_numeric();
+            let bit_size = match index_type {
+                NumericType::Signed { bit_size } => bit_size - 1,
+                NumericType::Unsigned { bit_size } => bit_size,
+                NumericType::NativeField => panic!("Cannot iterate over Field"),
+            };
+            let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
-                if end_constant.into_numeric_constant().0.to_u128() < max_value {
-                    let end_constant_plus_one = end_constant.inc();
-                    end_index = self.builder.numeric_constant(
-                        end_constant_plus_one.into_numeric_constant().0,
-                        index_type,
-                    );
-                    inclusive = false;
-                }
+            if end_constant.into_numeric_constant().0.to_u128() < max_value {
+                let end_constant_plus_one = end_constant.inc();
+                end_index = self
+                    .builder
+                    .numeric_constant(end_constant_plus_one.into_numeric_constant().0, index_type);
+                inclusive = false;
             }
         }
 

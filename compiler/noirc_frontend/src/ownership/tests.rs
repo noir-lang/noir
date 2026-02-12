@@ -493,3 +493,56 @@ fn dereference_immutable_reference() {
     }
     ");
 }
+
+#[test]
+fn repeated_array_with_nested_array_element() {
+    // For repeated arrays like [a; 3] where `a` is an array,
+    // reference counting is handled in SSA via inc_rc instructions,
+    // so no clones are inserted at the monomorphization level.
+    let src = "
+    unconstrained fn main() {
+        let a = [1, 2];
+        let b = [a; 3];
+        use_var(b);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l0 = [1, 2];
+        let b$l1 = [a$l0; 3];
+        use_var$f1(b$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [[Field; 2]; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn repeated_array_with_non_array_element() {
+    // For repeated arrays like [x; 3] where `x` is NOT an array,
+    // no special handling is needed.
+    let src = "
+    unconstrained fn main() {
+        let x: Field = 42;
+        let b = [x; 3];
+        use_var(b);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 42;
+        let b$l1 = [x$l0; 3];
+        use_var$f1(b$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field; 3]) -> () {
+    }
+    ");
+}

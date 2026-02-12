@@ -210,3 +210,25 @@ fn oracle_returning_recursive_struct() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn oracle_returning_multiple_vectors() {
+    let src = r#"
+    pub struct Foo {
+        xs: [u32],
+    }
+    pub struct Bar {
+        a: Foo,
+        b: Foo,
+    }
+
+    #[oracle(bar)]
+    unconstrained fn bar() -> Bar {}
+                     ^^^ Oracle functions cannot return multiple vectors
+
+    unconstrained fn main() {
+        let _bar = bar();
+    }
+    "#;
+    check_errors(src);
+}
