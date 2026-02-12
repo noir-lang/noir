@@ -157,9 +157,10 @@ pub(crate) fn compute_inline_infos(
 /// - the cost of inlining outweighs the cost of not doing so
 ///
 /// The total weight of a function and its cost are computed in this method.
-/// The total weight is calculated by taking the function's own weight and multiplying
-/// it by the weight of each callee. We then determine the cost of inlining to be
-/// the times a function has been called multiplied by its total weight.
+/// The total weight is calculated by taking the function's own weight and adding
+/// the weight of each callee that will be inlined. We then determine the cost of
+/// inlining to be the times a function has been called multiplied by (total weight
+/// minus return cost), since a function's return terminator is eliminated when inlined.
 ///
 /// To determine the cost of retaining a function we first need the [function interface cost][crate::ssa::ir::function::Function::call_overhead],
 /// The cost of retaining of a function is then (times a function has been called) * (interface cost) + total weight.
