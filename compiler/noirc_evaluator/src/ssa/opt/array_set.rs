@@ -431,6 +431,11 @@ mod tests {
 
     #[test]
     fn array_set_array_value_should_mark_as_last_used() {
+        // If we don't mark the value of `array_set` as last used then v7 ends up being
+        //
+        //     v7 = array_set mut v1, index u32 0, value Field 1
+        //
+        // which is incorrect.
         let src = r#"
         acir(inline) fn main f0 {
           b0():
