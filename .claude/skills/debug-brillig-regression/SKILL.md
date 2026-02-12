@@ -14,27 +14,27 @@ Use this skill when a Noir program shows a Brillig opcode count or execution tra
 - **Base branch**: The branch to compare against (default: `master`)
 - **Inliner aggressiveness** (optional): One of `max` (9223372036854775807), `zero` (0), or `min` (-9223372036854775808). Default: `max` (matches CI default). If the regression only shows at a specific inliner setting, use that setting.
 
-## Step 1: Build nargo on Both Branches
+## Setup
 
-Build nargo for the current branch first, save the binary, then checkout the base branch, build, save, and return.
+Set these variables for use throughout the workflow:
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
-CURRENT_BRANCH=$(git branch --show-current)
+SKILL_DIR="$REPO_ROOT/.claude/skills/debug-brillig-regression/scripts"
+BISECT_SKILL_DIR="$REPO_ROOT/.claude/skills/bisect-ssa-pass/scripts"
 BASE_BRANCH=master  # or whatever the user specifies
-
-# Build nargo for the current branch
-cargo build --release -p nargo_cli 2>&1 | tail -3
-cp target/release/nargo /tmp/nargo_current
-
-# Build nargo for the base branch
-git checkout "$BASE_BRANCH"
-cargo build --release -p nargo_cli 2>&1 | tail -3
-cp target/release/nargo /tmp/nargo_base
-
-# Return to the working branch
-git checkout "$CURRENT_BRANCH"
+INLINER=9223372036854775807  # max; adjust as needed
+WORK_DIR=/tmp/brillig_regression_debug
+PROJECT_DIR=/path/to/noir/project  # set to the actual project path
 ```
+
+## Step 1: Build nargo on Both Branches
+
+```bash
+"$SKILL_DIR/build-both-branches.sh" "$BASE_BRANCH" "$WORK_DIR"
+```
+
+This builds nargo for the current branch and the base branch, saving binaries to `$WORK_DIR/nargo_base` and `$WORK_DIR/nargo_current`.
 
 ## Step 2: Measure the Regression
 
@@ -43,15 +43,15 @@ Run `nargo info` with both binaries against the same Noir project. Run these fro
 ### Bytecode size (static opcode count)
 
 ```bash
-INLINER=9223372036854775807  # max; adjust as needed
+cd "$PROJECT_DIR"
 
 # Base branch
-/tmp/nargo_base info --force-brillig --json --silence-warnings \
+"$WORK_DIR/nargo_base" info --force-brillig --json --silence-warnings \
   --inliner-aggressiveness $INLINER 2>/dev/null \
   | jq '.programs[] | {package: .package_name, brillig_opcodes: .unconstrained_functions_opcodes, functions: [.unconstrained_functions[] | {name, opcodes}]}'
 
 # Current branch
-/tmp/nargo_current info --force-brillig --json --silence-warnings \
+"$WORK_DIR/nargo_current" info --force-brillig --json --silence-warnings \
   --inliner-aggressiveness $INLINER 2>/dev/null \
   | jq '.programs[] | {package: .package_name, brillig_opcodes: .unconstrained_functions_opcodes, functions: [.unconstrained_functions[] | {name, opcodes}]}'
 ```
@@ -60,12 +60,12 @@ INLINER=9223372036854775807  # max; adjust as needed
 
 ```bash
 # Base branch
-/tmp/nargo_base info --profile-execution --json --silence-warnings \
+"$WORK_DIR/nargo_base" info --profile-execution --json --silence-warnings \
   --inliner-aggressiveness $INLINER 2>/dev/null \
   | jq '.programs[] | {package: .package_name, executed_opcodes: .unconstrained_functions_opcodes}'
 
 # Current branch
-/tmp/nargo_current info --profile-execution --json --silence-warnings \
+"$WORK_DIR/nargo_current" info --profile-execution --json --silence-warnings \
   --inliner-aggressiveness $INLINER 2>/dev/null \
   | jq '.programs[] | {package: .package_name, executed_opcodes: .unconstrained_functions_opcodes}'
 ```
@@ -77,37 +77,13 @@ Record the numbers. If the current branch is worse, proceed.
 To replicate the CI report across all `execution_success` test programs:
 
 ```bash
-cd "$REPO_ROOT/test_programs"
-
-# Using the base nargo
-PATH_BAK="$PATH"
-export PATH="/tmp:$PATH"
-ln -sf /tmp/nargo_base /tmp/nargo
-./gates_report_brillig.sh $INLINER
-mv gates_report_brillig.json /tmp/report_base.json
-
-# Using the current nargo
-ln -sf /tmp/nargo_current /tmp/nargo
-./gates_report_brillig.sh $INLINER
-mv gates_report_brillig.json /tmp/report_current.json
-export PATH="$PATH_BAK"
+"$SKILL_DIR/bulk-compare.sh" "$WORK_DIR/nargo_base" "$WORK_DIR/nargo_current" "$INLINER" "$WORK_DIR"
 ```
 
-Then diff the two JSON reports to find which programs regressed:
+Then diff the two reports to find which programs regressed:
+
 ```bash
-python3 -c "
-import json, sys
-base = {p['package_name']: p for p in json.load(open('/tmp/report_base.json'))['programs']}
-curr = {p['package_name']: p for p in json.load(open('/tmp/report_current.json'))['programs']}
-for name in sorted(set(base) & set(curr)):
-    b = base[name]['unconstrained_functions_opcodes']
-    c = curr[name]['unconstrained_functions_opcodes']
-    if c != b:
-        delta = c - b
-        pct = (delta / b * 100) if b else float('inf')
-        marker = '!!!' if delta > 0 else ''
-        print(f'{marker} {name}: {b} -> {c} ({delta:+d}, {pct:+.1f}%) {marker}')
-"
+"$SKILL_DIR/diff-reports.py" "$WORK_DIR/report_base.json" "$WORK_DIR/report_current.json"
 ```
 
 ## Step 3: Capture SSA on Both Branches
@@ -115,17 +91,16 @@ for name in sorted(set(base) & set(curr)):
 For the regressed program, capture the full SSA pipeline using both nargo binaries.
 
 ```bash
-PROJECT_DIR=/path/to/noir/project
-WORK_DIR=/tmp/brillig_regression_debug
 mkdir -p "$WORK_DIR"/{base,current}
 
-# Base branch SSA
 cd "$PROJECT_DIR"
-/tmp/nargo_base compile --force-brillig --show-ssa --silence-warnings \
+
+# Base branch SSA
+"$WORK_DIR/nargo_base" compile --force-brillig --show-ssa --silence-warnings \
   --inliner-aggressiveness $INLINER 2>&1 | tee "$WORK_DIR/base/ssa_output.txt"
 
 # Current branch SSA
-/tmp/nargo_current compile --force-brillig --show-ssa --silence-warnings \
+"$WORK_DIR/nargo_current" compile --force-brillig --show-ssa --silence-warnings \
   --inliner-aggressiveness $INLINER 2>&1 | tee "$WORK_DIR/current/ssa_output.txt"
 ```
 
@@ -134,13 +109,11 @@ cd "$PROJECT_DIR"
 ### Split into per-pass files
 
 ```bash
-SKILL_DIR="$REPO_ROOT/.claude/skills/bisect-ssa-pass/scripts"
+"$BISECT_SKILL_DIR/split-ssa-passes.sh" "$WORK_DIR/base/ssa_output.txt" "$WORK_DIR/base/passes"
+"$BISECT_SKILL_DIR/clean-ssa-files.sh" "$WORK_DIR/base/passes"
 
-"$SKILL_DIR/split-ssa-passes.sh" "$WORK_DIR/base/ssa_output.txt" "$WORK_DIR/base/passes"
-"$SKILL_DIR/clean-ssa-files.sh" "$WORK_DIR/base/passes"
-
-"$SKILL_DIR/split-ssa-passes.sh" "$WORK_DIR/current/ssa_output.txt" "$WORK_DIR/current/passes"
-"$SKILL_DIR/clean-ssa-files.sh" "$WORK_DIR/current/passes"
+"$BISECT_SKILL_DIR/split-ssa-passes.sh" "$WORK_DIR/current/ssa_output.txt" "$WORK_DIR/current/passes"
+"$BISECT_SKILL_DIR/clean-ssa-files.sh" "$WORK_DIR/current/passes"
 ```
 
 ## Step 4: Identify Which Passes Differ
@@ -165,20 +138,8 @@ This reveals:
 
 ### Find the divergence point
 
-Passes shared between both branches should produce identical SSA up to the point where the pipelines diverge. Find where they first differ:
-
 ```bash
-for base_file in "$WORK_DIR/base/passes/"*.ssa; do
-    base_name=$(basename "$base_file" | sed 's/^[0-9]*_//')
-    current_file=$(ls "$WORK_DIR/current/passes/"*"$base_name" 2>/dev/null | head -1)
-    if [[ -n "$current_file" ]]; then
-        if ! diff -q "$base_file" "$current_file" > /dev/null 2>&1; then
-            echo "DIFFERS: $base_name"
-        fi
-    else
-        echo "MISSING from current: $base_name"
-    fi
-done
+"$SKILL_DIR/find-divergence.sh" "$WORK_DIR/base/passes" "$WORK_DIR/current/passes"
 ```
 
 ### Focus on the divergence
@@ -200,20 +161,7 @@ diff "$BASE_LAST" "$CURR_LAST"
 If the program has multiple functions, identify which function(s) regressed:
 
 ```bash
-for branch in base current; do
-    echo "=== $branch ==="
-    LAST=$(ls "$WORK_DIR/$branch/passes/"*.ssa | tail -1)
-    awk '/^brillig.*fn / {name=$0; count=0} /=/ {count++} /^}/ {print name, ":", count, "instructions"}' "$LAST"
-done
-```
-
-Count block parameters (these map directly to Brillig `mov` instructions):
-```bash
-for branch in base current; do
-    echo "=== $branch block params ==="
-    LAST=$(ls "$WORK_DIR/$branch/passes/"*.ssa | tail -1)
-    grep -oP 'b\d+\([^)]+\)' "$LAST" | awk -F',' '{print NF}' | paste -sd+ | bc
-done
+"$SKILL_DIR/measure-functions.sh" "$WORK_DIR/base/passes" "$WORK_DIR/current/passes"
 ```
 
 ## Step 7: Diagnose the Root Cause
