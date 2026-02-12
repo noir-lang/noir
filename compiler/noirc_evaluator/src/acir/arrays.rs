@@ -309,12 +309,8 @@ impl Context<'_> {
                 }))
             }
             AcirValue::Array(array) => {
-                let array = array
-                    .into_iter()
-                    .flat_map(AcirValue::flatten)
-                    .map(|(var, typ)| AcirValue::Var(var, typ))
-                    .collect::<im::Vector<_>>();
-                // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
+                // All arrays in ssa_values are guaranteed flat (all elements are AcirValue::Var).
+                // Brillig/ACIR call outputs are eagerly flattened in handle_ssa_call_outputs.
                 if let Some(constant_index) = dfg.get_numeric_constant(index) {
                     let store_value = store_value.map(|value| self.convert_value(value, dfg));
                     self.handle_constant_index(instruction, dfg, array, constant_index, store_value)
@@ -374,7 +370,6 @@ impl Context<'_> {
             // If the index is not out of range, we can optimistically perform the read at compile time
             // as if the predicate were true. If the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
-            // let value = array[index].clone();
             let results = dfg.instruction_results(instruction);
             let res_typ = dfg.type_of_value(results[0]);
             let value = match res_typ {
@@ -390,13 +385,6 @@ impl Context<'_> {
                 Type::Reference(_) => todo!(),
                 Type::Vector(_) => unreachable!("cannot have nested slices"),
             };
-            // // An `Array` might contain a `DynamicArray`, however if we define the result this way,
-            // // we would bypass the array initialization and the handling of dynamic values that
-            // // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
-            // // handling take over by returning `false`.
-            // if matches!(value, AcirValue::DynamicArray(_)) {
-            //     return Ok(false);
-            // }
             self.define_result(dfg, instruction, value);
             Ok(true)
         }
@@ -413,19 +401,31 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         array_typ: &Type,
     ) -> Option<usize> {
-        let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && (array_has_constant_element_size(array_typ) == Some(1));
-        if is_simple_array {
-            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            match array_typ {
-                Type::Array(item_type, _) | Type::Vector(item_type) => item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
-                _ => None,
+        let results = dfg.instruction_results(instruction);
+        if results.len() != 1 {
+            return None;
+        }
+        let result_type = dfg.type_of_value(results[0]);
+        match array_typ {
+            Type::Array(item_type, _) | Type::Vector(item_type) => {
+                if array_has_constant_element_size(array_typ) == Some(1) {
+                    // Simple flat array: find the first matching type offset
+                    item_type
+                        .iter()
+                        .enumerate()
+                        .find_map(|(index, typ)| (result_type == *typ).then_some(index))
+                } else if matches!(result_type, Type::Numeric(_))
+                    && item_type
+                        .iter()
+                        .all(|t| t.clone().flatten().iter().all(|ft| *ft == result_type))
+                {
+                    // All flat element types match the result type — offset 0 is safe
+                    Some(0)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
+            _ => None,
         }
     }
 
@@ -450,11 +450,7 @@ impl Context<'_> {
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
-        let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        // let is_safe_index = dfg.is_safe_index(index, array_id);
-        // let index_var =
-        // self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
@@ -894,13 +890,7 @@ impl Context<'_> {
         let array_typ = dfg.type_of_value(array);
         let len = self.flattened_size(array, dfg);
 
-        let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
-            // let acir_value = self.convert_value(array, dfg);
-            // Some(self.init_element_type_sizes_array(&array_typ, array, Some(acir_value), dfg, 0)?)
-            None
-        } else {
-            None
-        };
+        let element_type_sizes = None;
 
         let value_types = flat_numeric_types(&array_typ);
 
@@ -1039,43 +1029,25 @@ impl Context<'_> {
         Ok(element_type_sizes_block)
     }
 
-    /// Read an array and reconstruct its structure based on the SSA type.
-    /// For DynamicArrays with nested arrays, this preserves the nested structure
-    /// instead of returning a flat array.
+    /// Read an array value, returning its elements.
+    /// For DynamicArrays, reads each element from memory.
     pub(super) fn read_array_with_type(
         &mut self,
         array: AcirValue,
-        array_typ: &Type,
+        _array_typ: &Type,
     ) -> Result<im::Vector<AcirValue>, RuntimeError> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
             //Array are already structured
             AcirValue::Array(vars) => Ok(vars),
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                // For vectors/arrays, reconstruct the structure based on the element type
-                let element_types = match array_typ {
-                    Type::Vector(types) | Type::Array(types, _) => types.as_ref(),
-                    _ => unreachable!("ICE: reading array into a non array type"),
-                };
-
-                // // Calculate how many elements we have (number of outer array elements)
-                // let element_flat_size: FlattenedLength =
-                //     element_types.iter().map(|t| t.flattened_size()).sum();
-                // assert_ne!(element_flat_size.0, 0, "ICE: array elements are empty");
-                // let num_elements = len / ElementsFlattenedLength::from(element_flat_size);
                 let num_elements = len;
 
                 let mut result = im::Vector::new();
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
-                // Reconstruct each element with its proper structure
                 for i in 0..num_elements.0 {
-                    // for element_typ in element_types.iter() {
-                    //     let element =
-                    //         self.array_get_value(element_typ, block_id, &mut var_index)?;
-                    //     result.push_back(element);
-                    // }
                     let element = self.array_get_value(
-                        (&Type::Numeric(value_types[i as usize % value_types.len()])),
+                        &Type::Numeric(value_types[i as usize % value_types.len()]),
                         block_id,
                         &mut var_index,
                     )?;

@@ -177,7 +177,8 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    /// Recursively create zeroed-out acir values for returned arrays.
+    /// The resulting nested structure is flattened in `handle_ssa_call_outputs`.
     fn zeroed_array_output(
         &mut self,
         element_types: &[AcirType],
@@ -202,8 +203,9 @@ impl<F: AcirField> AcirContext<F> {
         AcirValue::Array(array_values)
     }
 
-    /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    /// Recursively create acir values for returned arrays.
     /// A singular array of witnesses is collected for a top level array, by deflattening the assigned witnesses at each level.
+    /// The resulting nested structure is flattened in `handle_ssa_call_outputs`.
     fn brillig_array_output(
         &mut self,
         element_types: &[AcirType],

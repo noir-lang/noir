@@ -249,11 +249,24 @@ impl Context<'_> {
                     arrays::flattened_value_size(&output)
                 };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
+
+                // Eagerly flatten so all arrays in ssa_values are guaranteed flat.
+                // Brillig/ACIR call outputs may have nested AcirValue::Array elements;
+                // flattening here avoids an O(n) check on every ArrayGet/ArraySet.
+                let flat_output = AcirValue::Array(
+                    output
+                        .flatten()
+                        .into_iter()
+                        .map(|(var, typ)| AcirValue::Var(var, typ))
+                        .collect::<im::Vector<_>>(),
+                );
+                self.ssa_values.insert(*result_id, flat_output);
+            } else {
+                // Do nothing for AcirValue::DynamicArray and AcirValue::Var
+                // A dynamic array returned from a function call should already be initialized
+                // and a single variable does not require any extra initialization.
+                self.ssa_values.insert(*result_id, output);
             }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
-            self.ssa_values.insert(*result_id, output);
         }
         Ok(())
     }
