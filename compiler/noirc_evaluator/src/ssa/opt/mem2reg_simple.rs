@@ -24,7 +24,7 @@ use crate::ssa::{
 /// where variables are modified in inner loops but not outer ones, yet the outer loops would need
 /// to pay for passing around the variables while with the `Load` approach, only the inner loops
 /// paid previously.
-const MAX_VARIABLES_OPTIMIZED: u32 = 10;
+const MAX_VARIABLES_OPTIMIZED: u32 = 50;
 
 impl Ssa {
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
