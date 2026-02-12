@@ -37,6 +37,10 @@ impl Instruction {
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. } => true,
 
+            // Calls are never worth flattening — even pure intrinsics can expand
+            // into many Brillig opcodes, making unconditional execution expensive.
+            Instruction::Call { .. } => false,
+
             Instruction::Binary(binary) => match binary.operator {
                 BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => false,
                 _ => !self.has_side_effects(dfg),
