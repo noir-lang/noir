@@ -671,3 +671,713 @@ fn nested_angle_brackets_in_type_position() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn where_clause_on_constructed_generic_type() {
+    let src = r#"
+    trait Serialize {
+        fn serialize(self) -> [Field; 1];
+    }
+
+    struct Envelope<T> {
+        payload: T,
+    }
+
+    impl Serialize for Envelope<Field> {
+        fn serialize(self) -> [Field; 1] {
+            [self.payload]
+        }
+    }
+
+    fn process<X>(e: Envelope<X>) -> [Field; 1] where Envelope<X>: Serialize {
+        e.serialize()
+    }
+
+    fn main() {
+        let e = Envelope { payload: 42 as Field };
+        let _ = process(e);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn where_clause_nested_constructed_type() {
+    let src = r#"
+    trait Encode {
+        fn encode(self) -> Field;
+    }
+
+    struct Inner<T> {
+        val: T,
+    }
+
+    struct Outer<T> {
+        inner: Inner<T>,
+    }
+
+    impl Encode for Inner<Field> {
+        fn encode(self) -> Field {
+            self.val
+        }
+    }
+
+    fn extract<X>(o: Outer<X>) -> Field where Inner<X>: Encode {
+        o.inner.encode()
+    }
+
+    fn main() {
+        let o = Outer { inner: Inner { val: 99 as Field } };
+        let _ = extract(o);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn where_clause_on_array_of_generic() {
+    let src = r#"
+    trait Summable {
+        fn to_field(self) -> Field;
+    }
+
+    impl Summable for Field {
+        fn to_field(self) -> Field { self }
+    }
+
+    fn sum_array<T, let N: u32>(arr: [T; N]) -> Field where T: Summable {
+        let mut s: Field = 0;
+        for i in 0..N {
+            s += arr[i].to_field();
+        }
+        s
+    }
+
+    fn main() {
+        let arr = [1, 2, 3, 4, 5];
+        assert(sum_array(arr) == 15);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn multiple_where_clauses_mixing_generic_and_numeric() {
+    let src = r#"
+    trait Hashable {
+        fn hash(self) -> Field;
+    }
+
+    trait HasLen {
+        let LEN: u32;
+    }
+
+    impl Hashable for Field {
+        fn hash(self) -> Field { self }
+    }
+
+    struct Container<T, let N: u32> {
+        data: [T; N],
+    }
+
+    impl<T, let N: u32> HasLen for Container<T, N> {
+        let LEN: u32 = N;
+    }
+
+    fn hash_first<T, let N: u32>(c: Container<T, N>) -> Field
+    where
+        T: Hashable,
+        Container<T, N>: HasLen,
+    {
+        c.data[0].hash()
+    }
+
+    fn main() {
+        let c = Container { data: [42 as Field, 0] };
+        assert(hash_first(c) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_function_with_associated_type_equality_constraint() {
+    let src = r#"
+    trait Producer {
+        type Output;
+        fn produce(self) -> Self::Output;
+    }
+
+    impl Producer for u32 {
+        type Output = Field;
+        fn produce(self) -> Self::Output {
+            self as Field
+        }
+    }
+
+    fn produce_field<T>(t: T) -> Field
+    where
+        T: Producer<Output = Field>,
+    {
+        t.produce()
+    }
+
+    fn main() {
+        assert(produce_field(42 as u32) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn where_clause_on_associated_type_fully_qualified() {
+    // Fully-qualified syntax <I as Iter>::Item: Display works
+    let src = r#"
+    trait Iter {
+        type Item;
+        fn next(self) -> Self::Item;
+    }
+
+    trait Display {
+        fn show(self) -> Field;
+    }
+
+    struct Range {
+        val: u32,
+    }
+
+    impl Iter for Range {
+        type Item = u32;
+        fn next(self) -> Self::Item {
+            self.val
+        }
+    }
+
+    impl Display for u32 {
+        fn show(self) -> Field {
+            self as Field
+        }
+    }
+
+    fn show_next<I>(iter: I) -> Field
+    where
+        I: Iter,
+        <I as Iter>::Item: Display,
+    {
+        iter.next().show()
+    }
+
+    fn main() {
+        let r = Range { val: 5 };
+        assert(show_next(r) == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn where_clause_on_struct_with_numeric_generic_field() {
+    let src = r#"
+    trait Process {
+        fn process(self) -> Field;
+    }
+
+    struct Arr<let N: u32> {
+        data: [Field; N],
+    }
+
+    impl<let N: u32> Process for Arr<N> {
+        fn process(self) -> Field {
+            self.data[0]
+        }
+    }
+
+    struct Wrapper<T> {
+        inner: T,
+    }
+
+    fn process_wrapper<T>(w: Wrapper<T>) -> Field where T: Process {
+        w.inner.process()
+    }
+
+    fn main() {
+        let w = Wrapper { inner: Arr { data: [42, 0, 0] } };
+        assert(process_wrapper(w) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn recursive_trait_bound_on_generic() {
+    let src = r#"
+    trait Eq {
+        fn eq(self, other: Self) -> bool;
+    }
+
+    impl Eq for Field {
+        fn eq(self, other: Self) -> bool {
+            self == other
+        }
+    }
+
+    struct Pair<T> {
+        fst: T,
+        snd: T,
+    }
+
+    impl<T> Eq for Pair<T> where T: Eq {
+        fn eq(self, other: Self) -> bool {
+            self.fst.eq(other.fst) & self.snd.eq(other.snd)
+        }
+    }
+
+    fn are_equal<T>(a: T, b: T) -> bool where T: Eq {
+        a.eq(b)
+    }
+
+    fn main() {
+        let p1 = Pair { fst: 1 as Field, snd: 2 as Field };
+        let p2 = Pair { fst: 1 as Field, snd: 2 as Field };
+        assert(are_equal(p1, p2));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deeply_nested_generic_where_clause() {
+    let src = r#"
+    trait Hash {
+        fn hash(self) -> Field;
+    }
+
+    impl Hash for Field {
+        fn hash(self) -> Field {
+            self
+        }
+    }
+
+    struct Box<T> {
+        val: T,
+    }
+
+    impl<T> Hash for Box<T> where T: Hash {
+        fn hash(self) -> Field {
+            self.val.hash()
+        }
+    }
+
+    fn hash_nested<T>(b: Box<Box<T>>) -> Field where T: Hash {
+        b.hash()
+    }
+
+    fn main() {
+        let nested = Box { val: Box { val: 42 as Field } };
+        assert(hash_nested(nested) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_impl_with_multiple_trait_bounds() {
+    let src = r#"
+    trait Hashable {
+        fn hash(self) -> Field;
+    }
+
+    trait Comparable {
+        fn compare(self, other: Self) -> bool;
+    }
+
+    impl Hashable for Field {
+        fn hash(self) -> Field { self }
+    }
+
+    impl Comparable for Field {
+        fn compare(self, other: Self) -> bool { self == other }
+    }
+
+    struct Set<T> {
+        element: T,
+    }
+
+    impl<T> Set<T> where T: Hashable + Comparable {
+        fn contains(self, item: T) -> bool {
+            self.element.compare(item)
+        }
+
+        fn hash_element(self) -> Field {
+            self.element.hash()
+        }
+    }
+
+    fn main() {
+        let s = Set { element: 42 as Field };
+        assert(s.contains(42));
+        assert(s.hash_element() == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn triple_nested_generic_trait_bound() {
+    let src = r#"
+    trait Mappable {
+        fn map_field(self) -> Field;
+    }
+
+    impl Mappable for Field {
+        fn map_field(self) -> Field { self }
+    }
+
+    struct Layer1<T> { val: T }
+    struct Layer2<T> { val: T }
+    struct Layer3<T> { val: T }
+
+    impl<T> Mappable for Layer1<T> where T: Mappable {
+        fn map_field(self) -> Field { self.val.map_field() }
+    }
+
+    impl<T> Mappable for Layer2<T> where T: Mappable {
+        fn map_field(self) -> Field { self.val.map_field() }
+    }
+
+    impl<T> Mappable for Layer3<T> where T: Mappable {
+        fn map_field(self) -> Field { self.val.map_field() }
+    }
+
+    fn deep_map<T>(t: T) -> Field where T: Mappable {
+        t.map_field()
+    }
+
+    fn main() {
+        let nested = Layer1 { val: Layer2 { val: Layer3 { val: 42 as Field } } };
+        assert(deep_map(nested) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_fn_with_generic_trait_constraint() {
+    let src = r#"
+    trait Named {
+        comptime fn type_name() -> str<5>;
+    }
+
+    struct Foo {}
+    struct Bar {}
+
+    impl Named for Foo {
+        comptime fn type_name() -> str<5> {
+            "Foo__"
+        }
+    }
+
+    impl Named for Bar {
+        comptime fn type_name() -> str<5> {
+            "Bar__"
+        }
+    }
+
+    comptime fn get_name<T>() -> str<5> where T: Named {
+        T::type_name()
+    }
+
+    fn main() {
+        comptime {
+            let _ = get_name::<Foo>();
+            let _ = get_name::<Bar>();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_as_generic_trait_param_spaced() {
+    // Associated type used as parameter of a generic trait (space avoids << parse issue)
+    let src = r#"
+    trait HasKey {
+        type Key;
+    }
+
+    trait Store<K> {
+        fn get(self, key: K) -> Field;
+    }
+
+    struct Map {
+        val: Field,
+    }
+
+    impl HasKey for Map {
+        type Key = u32;
+    }
+
+    impl Store<u32> for Map {
+        fn get(self, _key: u32) -> Field {
+            self.val
+        }
+    }
+
+    fn fetch<T>(store: T, key: <T as HasKey>::Key) -> Field
+    where
+        T: HasKey + Store< <T as HasKey>::Key >,
+    {
+        store.get(key)
+    }
+
+    fn main() {
+        let m = Map { val: 42 };
+        assert(fetch(m, 0 as u32) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Known bug: Where clause on associated type using shorthand is ignored.
+// The compiler doesn't use C::Elem: Printable for method resolution.
+
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn where_clause_on_associated_type_shorthand_ignored() {
+    // Bug: C::Elem: Printable where clause is ignored, method not found
+    let src = r#"
+    trait Collection {
+        type Elem;
+        fn first(self) -> Self::Elem;
+    }
+
+    trait Printable {
+        fn to_field(self) -> Field;
+    }
+
+    struct Bag {
+        item: Field,
+    }
+
+    impl Collection for Bag {
+        type Elem = Field;
+        fn first(self) -> Self::Elem {
+            self.item
+        }
+    }
+
+    impl Printable for Field {
+        fn to_field(self) -> Field {
+            self
+        }
+    }
+
+    fn first_as_field<C>(c: C) -> Field
+    where
+        C: Collection,
+        C::Elem: Printable,
+    {
+        c.first().to_field()
+    }
+
+    fn main() {
+        let b = Bag { item: 42 };
+        assert(first_as_field(b) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn where_clause_on_associated_type_shorthand_in_function() {
+    // Bug: T::Output in a where clause of a helper function
+    let src = r#"
+    trait Transform {
+        type Output;
+        fn transform(self) -> Self::Output;
+    }
+
+    trait Validate {
+        fn validate(self) -> bool;
+    }
+
+    impl Transform for Field {
+        type Output = bool;
+        fn transform(self) -> Self::Output {
+            self != 0
+        }
+    }
+
+    impl Validate for bool {
+        fn validate(self) -> bool {
+            self
+        }
+    }
+
+    fn transform_and_validate<T>(t: T) -> bool
+    where
+        T: Transform,
+        T::Output: Validate,
+    {
+        t.transform().validate()
+    }
+
+    fn main() {
+        assert(transform_and_validate(1 as Field));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn multiple_associated_types_in_where_clause() {
+    // Bug: Where clause constraining multiple associated types using shorthand
+    let src = r#"
+    trait Pair {
+        type First;
+        type Second;
+        fn first(self) -> Self::First;
+        fn second(self) -> Self::Second;
+    }
+
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    impl ToField for Field {
+        fn to_field(self) -> Field { self }
+    }
+
+    impl ToField for bool {
+        fn to_field(self) -> Field { if self { 1 } else { 0 } }
+    }
+
+    struct TwoFields {
+        a: Field,
+        b: bool,
+    }
+
+    impl Pair for TwoFields {
+        type First = Field;
+        type Second = bool;
+        fn first(self) -> Self::First { self.a }
+        fn second(self) -> Self::Second { self.b }
+    }
+
+    fn sum_pair<P>(p: P) -> Field
+    where
+        P: Pair,
+        P::First: ToField,
+        P::Second: ToField,
+    {
+        p.first().to_field() + p.second().to_field()
+    }
+
+    fn main() {
+        let t = TwoFields { a: 10, b: true };
+        assert(sum_pair(t) == 11);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11546): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn where_clause_on_associated_type_of_generic_in_trait_impl() {
+    // Bug: Where clause on associated type inside a generic trait impl
+    let src = r#"
+    trait HasOutput {
+        type Output;
+        fn output(self) -> Self::Output;
+    }
+
+    trait Render {
+        fn render(self) -> Field;
+    }
+
+    impl Render for Field {
+        fn render(self) -> Field { self }
+    }
+
+    trait Renderer {
+        fn render_output(self) -> Field;
+    }
+
+    struct Widget<T> {
+        source: T,
+    }
+
+    impl HasOutput for u32 {
+        type Output = Field;
+        fn output(self) -> Self::Output {
+            self as Field
+        }
+    }
+
+    impl<T> Renderer for Widget<T>
+    where
+        T: HasOutput,
+        T::Output: Render,
+    {
+        fn render_output(self) -> Field {
+            self.source.output().render()
+        }
+    }
+
+    fn main() {
+        let w = Widget { source: 42 as u32 };
+        assert(w.render_output() == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11553): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn associated_type_as_generic_trait_param_with_nested_angle_brackets() {
+    // Bug: Parser fails on << in type position: Store<<T as HasKey>::Key>
+    let src = r#"
+    trait HasKey {
+        type Key;
+    }
+
+    trait Store<K> {
+        fn get(self, key: K) -> Field;
+    }
+
+    struct Map {
+        val: Field,
+    }
+
+    impl HasKey for Map {
+        type Key = u32;
+    }
+
+    impl Store<u32> for Map {
+        fn get(self, _key: u32) -> Field {
+            self.val
+        }
+    }
+
+    fn fetch<T>(store: T, key: <T as HasKey>::Key) -> Field
+    where
+        T: HasKey,
+        T: Store<<T as HasKey>::Key>,
+    {
+        store.get(key)
+    }
+
+    fn main() {
+        let m = Map { val: 42 };
+        assert(fetch(m, 0 as u32) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
