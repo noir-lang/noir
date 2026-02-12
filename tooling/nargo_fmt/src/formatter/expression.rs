@@ -811,8 +811,14 @@ impl ChunkFormatter<'_, '_> {
 
         group.space_or_line();
         group.text(self.chunk(|formatter| {
-            let tokens_count =
-                if infix.operator.contents == BinaryOpKind::ShiftRight { 2 } else { 1 };
+            let tokens_count = if matches!(
+                infix.operator.contents,
+                BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft
+            ) {
+                2
+            } else {
+                1
+            };
             for _ in 0..tokens_count {
                 formatter.write_current_token();
                 formatter.bump();

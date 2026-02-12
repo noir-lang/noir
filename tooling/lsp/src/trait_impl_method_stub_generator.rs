@@ -10,13 +10,12 @@ use noirc_frontend::{
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     modules::{get_parent_module, relative_module_id_path},
-    node_interner::{FunctionModifiers, NodeInterner},
+    node_interner::NodeInterner,
 };
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,
     func_meta: &'a FuncMeta,
-    modifiers: &'a FunctionModifiers,
     trait_: &'a Trait,
     noir_trait_impl: &'a NoirTraitImpl,
     interner: &'a NodeInterner,
@@ -32,7 +31,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
     pub(crate) fn new(
         name: &'a str,
         func_meta: &'a FuncMeta,
-        modifiers: &'a FunctionModifiers,
         trait_: &'a Trait,
         noir_trait_impl: &'a NoirTraitImpl,
         interner: &'a NodeInterner,
@@ -43,7 +41,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         Self {
             name,
             func_meta,
-            modifiers,
             trait_,
             noir_trait_impl,
             interner,
@@ -64,7 +61,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         let indent_string = " ".repeat(self.indent);
 
         self.string.push_str(&indent_string);
-        if self.modifiers.is_unconstrained {
+        if self.func_meta.is_unconstrained() {
             self.string.push_str("unconstrained ");
         }
         self.string.push_str("fn ");

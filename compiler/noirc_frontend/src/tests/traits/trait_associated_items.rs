@@ -1618,9 +1618,8 @@ fn associated_type_shorthand_in_param_position() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11549): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11549
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn nested_associated_type_access_fails() {
     // Bug: nested associated type resolution fails
     let src = r#"

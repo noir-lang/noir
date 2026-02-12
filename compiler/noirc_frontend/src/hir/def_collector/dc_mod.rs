@@ -578,7 +578,6 @@ impl ModCollector<'_> {
                             visibility: trait_definition.visibility,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
-                            is_unconstrained: *is_unconstrained,
                             generic_count: generics.len(),
                             is_comptime: *is_comptime,
                             name_location: location,
