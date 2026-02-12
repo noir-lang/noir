@@ -1,7 +1,7 @@
 //! Brillig target cost estimation for SSA IR types.
 //!
-//! Provides cost methods on [`BinaryOp`], [`Instruction`], [`TerminatorInstruction`],
-//! and [`Function`] that estimate Brillig opcode counts. These are useful for any
+//! Provides cost methods on [BinaryOp], [Instruction], [TerminatorInstruction],
+//! and [Function] that estimate Brillig opcode counts. These are useful for any
 //! pass that needs to reason about Brillig code size (inlining, optimization ordering, etc.).
 //!
 //! The estimates are approximations — accurate costs would require full Brillig codegen.
@@ -110,7 +110,7 @@ impl Instruction {
                     }
 
                     // Indirect calls (e.g., calling a function pointer from an instruction result or parameter).
-                    // These can occur in ACIR before defunctionalization.
+                    // These can occur before defunctionalization.
                     Value::Instruction { .. }
                     | Value::Param { .. }
                     | Value::NumericConstant { .. }
@@ -189,7 +189,7 @@ impl Function {
     ///
     /// A Brillig function call costs `5 + N + M` opcodes at the call site (from `codegen_call`):
     ///   1 Const (stack size) + 1 Mov (save sp) + 1 BinaryIntOp (sp += size) + 1 Call + 1 Mov (restore sp)
-    ///   + N Movs for arguments + M Movs for returns.
+    ///   + N Mov's for arguments + M Mov's for returns.
     ///
     /// Additionally, every retained function executes `CheckMaxStackDepth` at entry.
     /// The happy-path execution cost is 5 opcodes:
