@@ -18,8 +18,6 @@ use rustc_hash::FxHashMap as HashMap;
 
 use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
-use crate::brillig::brillig_ir::registers::MAX_STACK_FRAME_SIZE;
-
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
 /// This structure is instantiated once per function and used throughout basic block code generation.
@@ -77,14 +75,18 @@ impl FunctionContext {
     /// conservative in practice.
     const SPILL_MARGIN: usize = 128;
 
-    pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
+    pub(crate) fn new(
+        function: &Function,
+        is_entry_point: bool,
+        max_stack_frame_size: usize,
+    ) -> Self {
         let id = function.id();
 
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
 
-        let spill_support = liveness.max_live_count + Self::SPILL_MARGIN >= MAX_STACK_FRAME_SIZE;
+        let spill_support = liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 
         Self {
             function_id: Some(id),
