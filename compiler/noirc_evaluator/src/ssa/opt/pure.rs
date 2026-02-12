@@ -211,7 +211,7 @@ impl Function {
                         return Purity::Impure
                       }
                     }
-                };
+                }
             }
 
             // If the function returns a reference it is impure

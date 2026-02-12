@@ -179,7 +179,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // With a limit we shouldn't wrap around, but just in case we wanted move this outside,
             // use a safe wrap-around increment.
             self.step_counter = self.step_counter.wrapping_add(1);
-        };
+        }
         Ok(())
     }
 

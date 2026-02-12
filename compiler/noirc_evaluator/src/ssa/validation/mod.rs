@@ -176,7 +176,7 @@ impl<'f> Validator<'f> {
                     )
                 {
                     panic!("Cannot use `{operator}` with field elements");
-                };
+                }
             }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
@@ -704,7 +704,7 @@ impl<'f> Validator<'f> {
 
                 let input_length = assert_u8_array(&input_type, "aes128_encrypt input");
                 assert!(
-                    input_length % 16 == 0,
+                    input_length.is_multiple_of(16),
                     "aes128_encrypt input length must be a multiple of 16"
                 );
 

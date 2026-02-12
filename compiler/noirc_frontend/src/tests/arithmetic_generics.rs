@@ -262,3 +262,28 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn numeric_generic_arithmetic_in_return_type_concat() {
+    let src = r#"
+    fn concat<let N: u32, let M: u32>(a: [Field; N], b: [Field; M]) -> [Field; N + M] {
+        let mut result: [Field; N + M] = [0; N + M];
+        for i in 0..N {
+            result[i] = a[i];
+        }
+        for i in 0..M {
+            result[N + i] = b[i];
+        }
+        result
+    }
+
+    fn main() {
+        let a = [1, 2, 3];
+        let b = [4, 5];
+        let c = concat(a, b);
+        assert(c[0] == 1);
+        assert(c[4] == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}

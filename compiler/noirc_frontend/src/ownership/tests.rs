@@ -546,3 +546,108 @@ fn repeated_array_with_non_array_element() {
     }
     ");
 }
+
+#[test]
+fn overwrite_at_top_level() {
+    let src = "
+    unconstrained fn main() {
+        let mut v = @[1, 2, 3];
+        let w = identity(v);
+        v = identity(v);
+        v = identity((v, v)).0;
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut v$l0 = @[1, 2, 3];
+        let w$l1 = identity$f1(v$l0.clone());
+        v$l0 = identity$f1(v$l0);
+        v$l0 = identity$f2((v$l0.clone(), v$l0)).0;
+        use_var$f3(v$l0);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn identity$f2(x$l3: ([Field], [Field])) -> ([Field], [Field]) {
+        x$l3
+    }
+    unconstrained fn use_var$f3(_x$l4: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn overwrite_in_loop() {
+    let src = "
+    unconstrained fn main() {
+        let mut v = @[1, 2, 3];
+        for _ in 0 .. 5 {
+            v = identity(v);
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut v$l0 = @[1, 2, 3];
+        for _$l1 in 0 .. 5 {
+            v$l0 = identity$f1(v$l0);
+            use_var$f2(v$l0.clone());
+        };
+        use_var$f2(v$l0);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn overwrite_conditional() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        if cond {
+            v = identity(v);
+        } else {
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        if cond$l0 {
+            v$l1 = identity$f1(v$l1)
+        } else {
+            use_var$f2(v$l1.clone());
+        };
+        use_var$f2(v$l1);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}

@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
                 // We'll try parsing an item starting on the next token
                 self.bump();
                 continue;
-            };
+            }
 
             return parsed_items;
         }
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
                     is_contract,
                     modifiers.visibility,
                 )];
-            };
+            }
 
             self.expected_identifier();
             self.bump();
