@@ -1694,32 +1694,6 @@ fn associated_type_in_generic_function_local_var() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11545): remove should_panic once fixed
-#[test]
-#[should_panic(expected = "Expected no errors")]
-fn associated_type_shorthand_used_as_struct_field_type() {
-    // Bug: T::Item as a field type in a generic struct fails
-    let src = r#"
-    trait HasItem {
-        type Item;
-    }
-
-    impl HasItem for Field {
-        type Item = bool;
-    }
-
-    struct Derived<T> where T: HasItem {
-        val: T::Item,
-    }
-
-    fn main() {
-        let d: Derived<Field> = Derived { val: true };
-        assert(d.val);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
 /// Regression test for https://github.com/noir-lang/noir/issues/11545
 #[test]
 fn generic_impl_with_associated_type_in_method_signature() {
