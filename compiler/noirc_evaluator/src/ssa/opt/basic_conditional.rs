@@ -79,10 +79,6 @@ fn is_conditional(
     cfg: &ControlFlowGraph,
     function: &Function,
 ) -> Option<BasicConditional> {
-    // jump overhead is the cost for doing the conditional and jumping around the blocks
-    // We use 10 as a rough estimate, the real cost is less.
-    let jump_overhead = 10;
-
     // A conditional must end with a JmpIf
     let Some(TerminatorInstruction::JmpIf {
         condition: _,
@@ -93,6 +89,9 @@ fn is_conditional(
     else {
         return None;
     };
+
+    // Cost of the JmpIf terminator (2 opcodes: jump_if + jump)
+    let jmpif_cost = function.dfg[block].unwrap_terminator().cost();
 
     let mut then_successors = cfg.successors(*then_destination);
     let mut else_successors = cfg.successors(*else_destination);
@@ -116,9 +115,14 @@ fn is_conditional(
         // We check that the cost of the flattened code is lower than the cost of the branches
         let cost_left = block_flatten_cost(*then_destination, &function.dfg)?;
         let cost_right = block_flatten_cost(*else_destination, &function.dfg)?;
-        // For the flattening to be valuable, we compare the cost of the flattened code with the average cost of the 2 branches,
-        // including an overhead to take into account the jumps between the blocks.
-        // We use the average cost of the 2 branches, assuming that both branches are equally likely to be executed.
+        // Compute the actual branching overhead for this conditional:
+        // Flattening eliminates: JmpIf + then's Jmp + else's Jmp
+        // Flattening adds: one IfElse per exit block parameter
+        let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
+        let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
+        let exit_block = next_then.unwrap();
+        let ifelse_cost = function.dfg.block_parameters(exit_block).len();
+        let jump_overhead = (jmpif_cost + then_term_cost + else_term_cost - ifelse_cost) as u32;
         let cost = cost_right.saturating_add(cost_left);
         if cost >= cost / 2 + jump_overhead {
             return None;
@@ -138,6 +142,10 @@ fn is_conditional(
         //      -> else
         // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
         let cost = block_flatten_cost(*then_destination, &function.dfg)?;
+        // Flattening eliminates: JmpIf + then's Jmp; adds IfElse per exit param
+        let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
+        let exit_params = function.dfg.block_parameters(*else_destination).len();
+        let jump_overhead = (jmpif_cost + then_term_cost - exit_params) as u32;
         if cost >= cost / 2 + jump_overhead {
             return None;
         }
@@ -157,6 +165,10 @@ fn is_conditional(
         //    \    /
         //     then
         let cost = block_flatten_cost(*else_destination, &function.dfg)?;
+        // Flattening eliminates: JmpIf + else's Jmp; adds IfElse per exit param
+        let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
+        let exit_params = function.dfg.block_parameters(*then_destination).len();
+        let jump_overhead = (jmpif_cost + else_term_cost - exit_params) as u32;
         if cost >= cost / 2 + jump_overhead {
             return None;
         }
@@ -428,6 +440,8 @@ mod tests {
 
     #[test]
     fn array_jmpif() {
+        // With computed jump_overhead (~5), a 3-element MakeArray costs 6 per branch.
+        // Total cost 12 >= 12/2 + 5 = 11, so the conditional is NOT flattened.
         let src = r#"
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
@@ -443,22 +457,7 @@ mod tests {
                   return v1
             }
             "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
-        let ssa = ssa.flatten_basic_conditionals();
-        // With target_cost, a 3-element MakeArray costs min(3*2, 20) = 6 < jump_overhead(10),
-        // so the conditional gets flattened.
-        assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn foo f0 {
-          b0(v0: u32):
-            v2 = eq v0, u32 5
-            v6 = make_array b"bar"
-            v7 = not v2
-            v10 = make_array b"foo"
-            v11 = if v2 then v6 else (if v7) v10
-            return v11
-        }
-        "#);
+        crate::ssa::opt::assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 
     #[test]
@@ -525,37 +524,39 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 10);
 
         let ssa = ssa.flatten_basic_conditionals();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+        // Only the inner conditional with cheap branches (and=1 + truncate=7, total=8 < 10) gets
+        // flattened. The other (truncate=7 + truncate=7, total=14 >= 12) does not.
+        assert_eq!(ssa.main().reachable_blocks().len(), 7);
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
           b0(v0: u32):
-            v3 = eq v0, u32 5
-            v4 = not v3
-            jmpif v3 then: b2, else: b1
+            v4 = eq v0, u32 5
+            v5 = not v4
+            jmpif v4 then: b5, else: b1
           b1():
-            v16 = lt v0, u32 3
-            v17 = truncate v0 to 1 bits, max_bit_size: 32
-            v18 = not v16
-            v19 = truncate v0 to 2 bits, max_bit_size: 32
-            v20 = cast v16 as u32
-            v21 = cast v18 as u32
-            v22 = unchecked_mul v20, v17
-            v23 = unchecked_mul v21, v19
-            v24 = unchecked_add v22, v23
-            jmp b3(v24)
+            v17 = lt v0, u32 3
+            jmpif v17 then: b3, else: b2
           b2():
-            v6 = lt u32 2, v0
-            v7 = and v0, u32 2
-            v8 = not v6
-            v9 = truncate v0 to 3 bits, max_bit_size: 32
-            v10 = cast v6 as u32
-            v11 = cast v8 as u32
-            v12 = unchecked_mul v10, v7
-            v13 = unchecked_mul v11, v9
-            v14 = unchecked_add v12, v13
-            jmp b3(v14)
-          b3(v1: u32):
-            return v1
+            v19 = truncate v0 to 2 bits, max_bit_size: 32
+            jmp b4(v19)
+          b3():
+            v18 = truncate v0 to 1 bits, max_bit_size: 32
+            jmp b4(v18)
+          b4(v1: u32):
+            jmp b6(v1)
+          b5():
+            v7 = lt u32 2, v0
+            v8 = and v0, u32 2
+            v9 = not v7
+            v10 = truncate v0 to 3 bits, max_bit_size: 32
+            v11 = cast v7 as u32
+            v12 = cast v9 as u32
+            v13 = unchecked_mul v11, v8
+            v14 = unchecked_mul v12, v10
+            v15 = unchecked_add v13, v14
+            jmp b6(v15)
+          b6(v2: u32):
+            return v2
         }
         ");
     }
