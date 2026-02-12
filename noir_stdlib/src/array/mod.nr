@@ -240,6 +240,9 @@ impl<T, let N: u32> [T; N] {
     ///     let arr = [10, 20, 30, 40, 50];
     ///     let sub: [Field; 3] = arr.subarray(1);
     ///     assert_eq(sub, [20, 30, 40]);
+    ///
+    ///     let fourty = arr.subarray::<1>(3);
+    ///     assert_eq(fourty, [40]);
     /// }
     /// ```
     pub fn subarray<let M: u32>(self, offset: u32) -> [T; M] {
