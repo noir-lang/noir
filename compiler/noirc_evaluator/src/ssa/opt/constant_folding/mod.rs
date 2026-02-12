@@ -2665,7 +2665,7 @@ mod tests {
         }
         ");
     }
-    
+
     /// Regression test: constant folding's instruction hoisting can orphan values when
     /// a hoisted instruction self-deduplicates during a revisit.
     ///

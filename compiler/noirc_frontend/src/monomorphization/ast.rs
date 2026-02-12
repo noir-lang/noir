@@ -620,6 +620,7 @@ impl Type {
             Type::Vector(_) => {
                 unimplemented!("ICE: cannot fetch flattened slice size");
             }
+            Type::Reference(inner, _) => inner.flattened_size(),
             _ => 1,
         }
     }
