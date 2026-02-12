@@ -833,6 +833,10 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
+        // Global values have their instructions in the global DFG, not the function's DFG.
+        if self.inserter.function.dfg.is_global(value) {
+            return None;
+        }
         // Check if value is an ArraySet instruction
         let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
             return None;
@@ -869,6 +873,9 @@ impl<'f> Context<'f> {
 
     /// Check if a value was the result of loading from a specific address.
     fn was_loaded_from_address(&self, value: ValueId, address: ValueId) -> bool {
+        if self.inserter.function.dfg.is_global(value) {
+            return false;
+        }
         let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
             return false;
         };
@@ -900,6 +907,11 @@ impl<'f> Context<'f> {
         else_condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
+        // Global values have their instructions in the global DFG, not the function's DFG.
+        // They are always MakeArray, never ArraySet, so skip them.
+        if self.inserter.function.dfg.is_global(then_value) {
+            return None;
+        }
         // Check if then_value is an ArraySet instruction
         let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[then_value] else {
             return None;
@@ -2266,5 +2278,44 @@ mod tests {
             return v13
         }
         ");
+    }
+
+    // Regression test: global array values passed as branch arguments should not
+    // cause an index-out-of-bounds panic. The global's InstructionId lives in the
+    // global DFG, not the function's DFG, so try_optimize_array_set_merge must
+    // guard against accessing it via the local DFG.
+    //
+    // We need enough globals so the branch-arg globals have InstructionIds higher
+    // than the number of local instructions the flatten pass creates before
+    // reaching the merge point (~3: enable_side_effects, not, enable_side_effects).
+    #[test]
+    fn flatten_with_global_array_branch_args() {
+        let src = "
+            g0 = make_array [u8 0] : [u8; 1]
+            g1 = make_array [u8 0] : [u8; 1]
+            g2 = make_array [u8 0] : [u8; 1]
+            g3 = make_array [u8 0, u8 0, u8 0] : [u8; 3]
+            g4 = make_array [u8 0] : [u8; 1]
+            g5 = make_array [u8 0] : [u8; 1]
+            g6 = make_array [u8 0] : [u8; 1]
+            g7 = make_array [u8 1, u8 1, u8 1] : [u8; 3]
+
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1, else: b2
+              b1():
+                jmp b3(g3)
+              b2():
+                jmp b3(g7)
+              b3(v1: [u8; 3]):
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // This should not panic (previously crashed with index out of bounds
+        // when try_optimize_array_set_merge accessed a global InstructionId
+        // in the function's local DFG).
+        let ssa = ssa.flatten_cfg();
+        assert_eq!(ssa.main().reachable_blocks().len(), 1);
     }
 }

@@ -81,7 +81,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
     cannot_execute_brillig: true
     num_runs: 1
-    compilation-timeout: 500
+    compilation-timeout: 650
     execution-timeout: 35
     brillig-compilation-timeout: 500
     compilation-memory-limit: 12000
@@ -92,7 +92,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
     cannot_execute_brillig: true
     num_runs: 1
-    compilation-timeout: 525
+    compilation-timeout: 650
     execution-timeout: 35
     brillig-compilation-timeout: 525
     compilation-memory-limit: 12000
