@@ -23,7 +23,7 @@
 use crate::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
-    hir_def::stmt::HirStatement,
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{DependencyId, GlobalId, GlobalValue},
     token::SecondaryAttributeKind,
 };
@@ -132,22 +132,25 @@ impl Elaborator<'_> {
         let definition_id = global.definition_id;
         let location = global.location;
 
-        let mut interpreter = self.setup_interpreter();
+        let expr = self.interner.expression(&let_statement.expression);
+        if !matches!(expr, HirExpression::Error) {
+            let mut interpreter = self.setup_interpreter();
 
-        // Evaluate the global's initializer expression at compile time using the interpreter.
-        if let Err(error) = interpreter.evaluate_let(let_statement) {
-            self.push_err(error);
-        } else {
-            // The interpreter has now computed the constant value. Look it up and store it
-            // in the interner for use during compilation.
-            let value = interpreter
-                .lookup_id(definition_id, location)
-                .expect("The global should be defined since evaluate_let did not error");
+            // Evaluate the global's initializer expression at compile time using the interpreter.
+            if let Err(error) = interpreter.evaluate_let(let_statement) {
+                self.push_err(error);
+            } else {
+                // The interpreter has now computed the constant value. Look it up and store it
+                // in the interner for use during compilation.
+                let value = interpreter
+                    .lookup_id(definition_id, location)
+                    .expect("The global should be defined since evaluate_let did not error");
 
-            self.debug_comptime(location, |interner| value.display(interner).to_string());
+                self.debug_comptime(location, |interner| value.display(interner).to_string());
 
-            // Store the resolved value so it can be used later
-            self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+                // Store the resolved value so it can be used later
+                self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+            }
         }
     }
 

@@ -450,14 +450,13 @@ fn can_be_eliminated_if_unused(
 
                     // There's one more case: signed division that does MIN / -1
                     let typ = function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-                    if let NumericType::Signed { bit_size } = typ {
-                        if let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
+                    if let NumericType::Signed { bit_size } = typ
+                        && let Some(rhs) = IntegerConstant::from_numeric_constant(rhs, typ) {
                             let minus_one = IntegerConstant::Signed { value: -1, bit_size };
                             if rhs == minus_one {
                                 return false;
                             }
                         }
-                    }
 
                     true
                 } else {
@@ -484,7 +483,9 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        Store { .. } => should_remove_store(function, flattened),
+        Store { address, .. } => {
+            should_remove_store(function, flattened) && !used_values.contains(address)
+        }
 
         Constrain(..)
         | ConstrainNotEqual(..)
@@ -532,8 +533,9 @@ fn should_remove_store(func: &Function, flattened: bool) -> bool {
 /// * Passing `flattened = true` will confirm the CFG has already been flattened into a single block for ACIR functions
 #[cfg(debug_assertions)]
 fn die_pre_check(func: &Function, flattened: bool) {
-    if flattened {
-        super::flatten_cfg::flatten_cfg_post_check(func);
+    if flattened && func.runtime().is_acir() {
+        // flatten_cfg must have run
+        super::checks::assert_cfg_is_flattened(func);
     }
 }
 
@@ -542,19 +544,10 @@ fn die_pre_check(func: &Function, flattened: bool) {
 #[cfg(debug_assertions)]
 fn die_post_check(func: &Function, flattened: bool) {
     if should_remove_store(func, flattened) {
-        for block_id in func.reachable_blocks() {
-            for (i, instruction_id) in func.dfg[block_id].instructions().iter().enumerate() {
-                let instruction = &func.dfg[*instruction_id];
-                if matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }) {
-                    panic!(
-                        "not expected to have Load or Store instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
-                        func.name(),
-                        func.id(),
-                        instruction
-                    );
-                }
-            }
-        }
+        // All Load/Store instructions should be removed
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_load_or_store(instruction);
+        });
     }
 }
 
@@ -1313,5 +1306,22 @@ mod tests {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+    }
+
+    #[test]
+    fn does_not_remove_store_if_reference_is_used_across_call() {
+        let src = r#"
+        acir(inline) impure fn main f0 {
+        b0():
+            v0 = allocate -> &mut [u8; 2]
+            v3 = make_array [u8 1, u8 10] : [u8; 2]
+            store v3 at v0
+            v5 = call black_box(v0) -> &mut [u8; 2]
+            v6 = load v0 -> [u8; 2]
+            return v6
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

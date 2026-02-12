@@ -61,7 +61,7 @@ impl Display for Printer<'_> {
                     writeln!(f, "{id}")?;
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
-            };
+            }
         }
 
         if globals_dfg.values_iter().next().is_some() {
@@ -289,32 +289,31 @@ fn write_location_information(
     use std::io::Write;
     let call_stack = dfg.get_instruction_call_stack(instruction);
 
-    if let Some(location) = call_stack.last() {
-        if let Ok(name) = fm.as_file_map().get_name(location.file) {
-            let files = fm.as_file_map();
-            let start_index = location.span.start() as usize;
+    if let Some(location) = call_stack.last()
+        && let Ok(name) = fm.as_file_map().get_name(location.file)
+    {
+        let files = fm.as_file_map();
+        let start_index = location.span.start() as usize;
 
-            // Add some padding before the comment
-            let arbitrary_padding_size = 50;
-            if buffer.len() < arbitrary_padding_size {
-                buffer.resize(arbitrary_padding_size, b' ');
-            }
-
-            write!(buffer, "\t// {name}")?;
-
-            let Ok(line_index) = files.line_index(location.file, start_index) else {
-                return Ok(());
-            };
-
-            // Offset index by 1 to get the line number
-            write!(buffer, ":{}", line_index + 1)?;
-
-            let Ok(column_number) = files.column_number(location.file, line_index, start_index)
-            else {
-                return Ok(());
-            };
-            write!(buffer, ":{column_number}")?;
+        // Add some padding before the comment
+        let arbitrary_padding_size = 50;
+        if buffer.len() < arbitrary_padding_size {
+            buffer.resize(arbitrary_padding_size, b' ');
         }
+
+        write!(buffer, "\t// {name}")?;
+
+        let Ok(line_index) = files.line_index(location.file, start_index) else {
+            return Ok(());
+        };
+
+        // Offset index by 1 to get the line number
+        write!(buffer, ":{}", line_index + 1)?;
+
+        let Ok(column_number) = files.column_number(location.file, line_index, start_index) else {
+            return Ok(());
+        };
+        write!(buffer, ":{column_number}")?;
     }
     Ok(())
 }
@@ -424,13 +423,12 @@ fn display_instruction_inner(
             };
             if element_types.len() == 1
                 && element_types[0] == Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                && let Some(string) = try_byte_array_to_string(elements, dfg)
             {
-                if let Some(string) = try_byte_array_to_string(elements, dfg) {
-                    if is_vector {
-                        return write!(f, "make_array &b{string:?}");
-                    } else {
-                        return write!(f, "make_array b{string:?}");
-                    }
+                if is_vector {
+                    return write!(f, "make_array &b{string:?}");
+                } else {
+                    return write!(f, "make_array b{string:?}");
                 }
             }
 

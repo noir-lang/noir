@@ -20,7 +20,7 @@ pub(super) fn decompose_constrain(
     let mut instructions = Vec::new();
 
     // Sometimes when decomposing a constraint we may generate further constraints to decompose.
-    // A recursive version can hit stack overflow, so here we use a stack for an interative approach.
+    // A recursive version can hit stack overflow, so here we use a stack for an iterative approach.
     // Each entry in the stack represents `constrain lhs == rhs`.
     let mut constrains = VecDeque::new();
     constrains.push_back((lhs, rhs));

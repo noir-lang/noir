@@ -1,4 +1,4 @@
-use dep::std::convert::From;
+use std::convert::From;
 
 struct MyU128 {
     lo: Field,

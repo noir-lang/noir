@@ -7,11 +7,16 @@ trait Foo {
 }
 
 trait Bar: Foo {
-    fn bar(self) -> Field {
+    fn bar(self) -> Field
+    where
+        Self: Foo,
+    {
         self.foo() + 1_Field
     }
 
-    fn baz(self) -> Field;
+    fn baz(self) -> Field
+    where
+        Self: Foo;
 }
 
 struct Struct {

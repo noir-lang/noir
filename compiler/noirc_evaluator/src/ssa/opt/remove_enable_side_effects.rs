@@ -94,12 +94,11 @@ impl Function {
                 return;
             }
 
-            if should_insert_side_effects_before_instruction(instruction, context.dfg) {
-                if let Some(enable_side_effects_instruction_id) =
+            if should_insert_side_effects_before_instruction(instruction, context.dfg)
+                && let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
-                {
-                    context.insert_instruction_by_id(enable_side_effects_instruction_id);
-                }
+            {
+                context.insert_instruction_by_id(enable_side_effects_instruction_id);
             }
         });
     }
@@ -125,14 +124,16 @@ fn should_insert_side_effects_before_instruction(
     instruction.requires_acir_gen_predicate(dfg)
 }
 
-/// Check that the CFG has been flattened.
+/// Pre-check condition for remove_enable_side_effects.
+///
+/// Panics if:
+///   - The CFG has not been flattened for ACIR functions.
 #[cfg(debug_assertions)]
 fn remove_enable_side_effects_pre_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
+    if function.runtime().is_acir() {
+        // flatten_cfg must have run
+        super::checks::assert_cfg_is_flattened(function);
     }
-    let block = function.entry_block();
-    assert_eq!(function.dfg[block].successors().count(), 0);
 }
 
 #[cfg(test)]
@@ -533,5 +534,26 @@ mod tests {
         }
         "
         );
+    }
+
+    #[test]
+    fn keep_enable_side_effects_for_recursive_aggregation() {
+        // RecursiveAggregation uses the `current_side_effects_enabled_var` as its predicate
+        // during ACIR generation. If `remove_enable_side_effects` drops the `EnableSideEffectsIf`
+        // before a recursive_aggregation call, ACIR gen injects a stale predicate, which can
+        // silently disable recursive verification constraints.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [Field; 1], v2: [Field; 1], v3: [Field; 1], v4: Field):
+            v5 = not v0
+            enable_side_effects v0
+            constrain Field 1 != Field 0
+            enable_side_effects v5
+            call recursive_aggregation(v1, v2, v3, v4, u32 0)
+            enable_side_effects u1 1
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
     }
 }

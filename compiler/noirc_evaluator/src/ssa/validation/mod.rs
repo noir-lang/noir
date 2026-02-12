@@ -176,7 +176,7 @@ impl<'f> Validator<'f> {
                     )
                 {
                     panic!("Cannot use `{operator}` with field elements");
-                };
+                }
             }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
@@ -931,20 +931,19 @@ impl<'f> Validator<'f> {
 
     /// Validates that ACIR functions are not called from unconstrained code.
     fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
-        if self.function.runtime().is_brillig() {
-            if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
-                if let Value::Function(func_id) = &self.function.dfg[*func] {
-                    let called_function = &self.ssa.functions[func_id];
-                    if called_function.runtime().is_acir() {
-                        panic!(
-                            "Call to ACIR function '{} {}' from unconstrained '{} {}'",
-                            called_function.name(),
-                            called_function.id(),
-                            self.function.name(),
-                            self.function.id(),
-                        );
-                    }
-                }
+        if self.function.runtime().is_brillig()
+            && let Instruction::Call { func, .. } = &self.function.dfg[instruction]
+            && let Value::Function(func_id) = &self.function.dfg[*func]
+        {
+            let called_function = &self.ssa.functions[func_id];
+            if called_function.runtime().is_acir() {
+                panic!(
+                    "Call to ACIR function '{} {}' from unconstrained '{} {}'",
+                    called_function.name(),
+                    called_function.id(),
+                    self.function.name(),
+                    self.function.id(),
+                );
             }
         }
     }
@@ -1045,9 +1044,9 @@ impl<'f> Validator<'f> {
                     block_parameters.len(),
                     "Number of arguments in jmp must match number of block parameters"
                 );
-                for (argument, paramete) in arguments.iter().zip(block_parameters) {
+                for (argument, parameter) in arguments.iter().zip(block_parameters) {
                     let argument_type = self.function.dfg.type_of_value(*argument);
-                    let parameter_type = self.function.dfg.type_of_value(*paramete);
+                    let parameter_type = self.function.dfg.type_of_value(*parameter);
                     assert_eq!(
                         argument_type, parameter_type,
                         "Argument type in jmp must match block parameter type"
