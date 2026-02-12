@@ -89,6 +89,7 @@ uninlined_format_args = "warn"
 needless_pass_by_ref_mut = "warn"
 non_std_lazy_statics = "warn"
 return_and_then = "warn"
+unnecessary_unwrap = "warn"
 unnecessary_debug_formatting = "warn"
 
 [workspace.dependencies]
