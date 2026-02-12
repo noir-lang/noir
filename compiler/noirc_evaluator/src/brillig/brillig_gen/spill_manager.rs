@@ -24,7 +24,7 @@ pub(crate) struct SpillManager {
 
 #[derive(Clone)]
 pub(crate) struct SpillInfo {
-    /// Offset relative to the per-frame heap-allocated spill region base (stored in sp[1]).
+    /// Offset relative to the per-frame heap-allocated spill region base (stored in [crate::brillig::ReservedRegisters::spill_base_slot]).
     pub(crate) offset: usize,
     /// Original variable (for type/register info on reload).
     pub(crate) variable: BrilligVariable,
