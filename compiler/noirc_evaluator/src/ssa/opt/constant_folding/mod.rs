@@ -1031,6 +1031,43 @@ mod tests {
     }
 
     #[test]
+    fn deduplicates_pure_calls_under_same_predicate() {
+        // When two identical calls to a pure function occur under the same
+        // predicate, they CAN be deduplicated.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: Field):
+                enable_side_effects v0
+                v2 = call f1(v1) -> Field
+                v3 = call f1(v1) -> Field
+                enable_side_effects u1 1
+                return v2, v3
+            }
+            acir(inline) pure fn my_pure_fn f1 {
+              b0(v0: Field):
+                v1 = add v0, Field 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v3 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            return v3, v3
+        }
+        acir(inline) pure fn my_pure_fn f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
     fn constant_array_deduplication() {
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
