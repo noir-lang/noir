@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770848598668,
+  "lastUpdate": 1770894478528,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23145,48 +23145,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "5766d1933e78a8a1b091146a4a0aa13f4fe8a6be",
-          "message": "chore: migrate AES implementation from libaes to RustCrypto (#11453)",
-          "timestamp": "2026-02-04T13:59:35Z",
-          "tree_id": "8b5f8876cb5ea529c5dd7317ead6ab8c6de80ecd",
-          "url": "https://github.com/noir-lang/noir/commit/5766d1933e78a8a1b091146a4a0aa13f4fe8a6be"
-        },
-        "date": 1770214957322,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256363,
-            "range": "± 503",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224989,
-            "range": "± 2132",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744783,
-            "range": "± 21586",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "35bc8434211c6666dcce64ff4a7e07b0cb7d92f2",
           "message": "fix: increment depth counter in follow_bindings to prevent stack overflow (#11461)",
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2735043,
             "range": "± 2783",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00b5696ed02ae46d4e6d59e45c1561972290f96f",
+          "message": "fix(frontend): lex `<<` as two `Less` tokens to support nested generics (#11555)",
+          "timestamp": "2026-02-12T10:45:49Z",
+          "tree_id": "a03084f8e7523b7f997c615b9eb4bb4a5655af63",
+          "url": "https://github.com/noir-lang/noir/commit/00b5696ed02ae46d4e6d59e45c1561972290f96f"
+        },
+        "date": 1770894431690,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 238402,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 209372,
+            "range": "± 2690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2202271,
+            "range": "± 4987",
             "unit": "ns/iter"
           }
         ]
