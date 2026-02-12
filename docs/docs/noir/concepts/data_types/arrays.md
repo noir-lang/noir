@@ -395,6 +395,8 @@ Returns a subarray of length `M` starting at `offset`. Requires `offset + M <= N
 fn subarray<let M: u32>(self, offset: u32) -> [T; M]
 ```
 
+example:
+
 ```rust
 fn main() {
     let arr = [10, 20, 30, 40, 50];
