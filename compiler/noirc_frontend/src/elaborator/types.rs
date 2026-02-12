@@ -328,23 +328,23 @@ impl Elaborator<'_> {
         self.find_generic(type_name)?;
 
         // Search trait bounds for this generic to find the associated type
-        let mut found_types = Vec::new();
-
-        for constraint in &self.trait_bounds {
-            if let Type::NamedGeneric(generic) = &constraint.typ
-                && generic.name.as_ref() == type_name
-            {
-                let named_trait_generics = &constraint.trait_bound.trait_generics.named;
-                let new_types = named_trait_generics
-                    .iter()
-                    .filter(|named_generic| named_generic.name.as_str() == assoc_name)
-                    .map(|named_generic| {
-                        (constraint.trait_bound.trait_id, named_generic.typ.clone())
-                    });
-
-                found_types.extend(new_types);
-            }
-        }
+        let mut found_types = self
+            .trait_bounds
+            .iter()
+            .filter_map(|constraint| {
+                if let Type::NamedGeneric(generic) = &constraint.typ
+                    && generic.name.as_ref() == type_name
+                {
+                    for named_generic in &constraint.trait_bound.trait_generics.named {
+                        if named_generic.name.as_str() == assoc_name {
+                            let trait_id = constraint.trait_bound.trait_id;
+                            return Some((trait_id, named_generic.typ.clone()));
+                        }
+                    }
+                }
+                None
+            })
+            .collect::<Vec<_>>();
 
         match found_types.len() {
             0 => None, // Fall through to normal resolution
